@@ -1,4 +1,14 @@
+// auth.reducer.ts
 import type { AuthState, User } from '../types/auth.types';
+
+// Initial state
+const initialState: AuthState = {
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  loading: false,
+  error: null,
+};
 
 // Auth action types
 export type AuthAction =
@@ -9,11 +19,14 @@ export type AuthAction =
   | { type: 'CLEAR_ERROR' };
 
 // Auth reducer
-export const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+export const authReducer = (
+  state: AuthState = initialState, // <-- default state here
+  action: AuthAction
+): AuthState => {
   switch (action.type) {
     case 'LOGIN_START':
       return { ...state, loading: true, error: null };
-    
+
     case 'LOGIN_SUCCESS':
       return {
         ...state,
@@ -23,22 +36,18 @@ export const authReducer = (state: AuthState, action: AuthAction): AuthState => 
         loading: false,
         error: null,
       };
-    
+
     case 'LOGIN_FAILURE':
       return { ...state, loading: false, error: action.payload };
-    
+
     case 'LOGOUT':
       return {
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        error: null,
+        ...initialState, // reset to initial
       };
-    
+
     case 'CLEAR_ERROR':
       return { ...state, error: null };
-    
+
     default:
       return state;
   }
