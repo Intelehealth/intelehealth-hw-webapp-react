@@ -57,4 +57,4 @@ const handle_user = (user: user) => {
 - **Keep it simple - avoid over-engineering**
 - **Write clear, readable code**
 - **Follow established patterns**
-- **Add helpful comments for complex logic**
+- **Add helpful comments for complex logic\***
