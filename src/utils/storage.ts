@@ -11,7 +11,19 @@ export const storage = {
 
   clearAuthToken: (): void => {
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('refresh_token');
+  },
+
+  // User management
+  getUser: (): string | null => {
+    return localStorage.getItem('user');
+  },
+
+  setUser: (user: string): void => {
+    localStorage.setItem('user', user);
+  },
+
+  clearUser: (): void => {
+    localStorage.removeItem('user');
   },
 
   // Generic storage helpers

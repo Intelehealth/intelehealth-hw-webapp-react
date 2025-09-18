@@ -1,48 +1,13 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
-import { storage } from '../utils/storage';
 
-// Basic HTTP Service
-class HttpService {
-  private axiosInstance: AxiosInstance;
+// Base reusable HTTP wrapper
+export class HttpService {
+  protected axiosInstance: AxiosInstance;
 
-  constructor() {
-    this.axiosInstance = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
-      timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    this.setupInterceptors();
+  constructor(config: AxiosRequestConfig) {
+    this.axiosInstance = axios.create(config);
   }
 
-  private setupInterceptors(): void {
-    // Request Interceptor - Add auth token
-    this.axiosInstance.interceptors.request.use(
-      config => {
-        const token = storage.getAuthToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      error => Promise.reject(error)
-    );
-
-    // Response Interceptor - Handle auth errors
-    this.axiosInstance.interceptors.response.use(
-      response => response,
-      error => {
-        if (error.response?.status === 401) {
-          storage.clearAuthToken();
-        }
-        return Promise.reject(error);
-      }
-    );
-  }
-
-  // Core HTTP Methods
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.get<T>(url, config);
     return response.data;
@@ -71,6 +36,3 @@ class HttpService {
     return response.data;
   }
 }
-
-export const httpService = new HttpService();
-export default httpService;

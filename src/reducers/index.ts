@@ -1,3 +1,10 @@
-// Export all common reducers
-export { authReducer, type AuthAction } from './auth.reducer';
-export { patientReducer, type PatientAction } from './patient.reducer';
+import { combineReducers } from 'redux';
+import { authReducer } from './auth.reducer';
+import { patientReducer } from './patient.reducer';
+
+export const rootReducer = combineReducers({
+  auth: authReducer,
+  patient: patientReducer,
+});
+
+export type RootState = ReturnType<typeof rootReducer>;

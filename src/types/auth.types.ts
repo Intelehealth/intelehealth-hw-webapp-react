@@ -1,9 +1,11 @@
 // Common auth types
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
+  username: string;
+  uuid: string;
+  person: {
+    uuid: string;
+    display: string;
+  };
 }
 
 export interface LoginCredentials {
@@ -13,7 +15,12 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   token: string;
+}
+
+export interface OpenMRSLoginResponse {
+  authenticated: boolean;
   user: User;
+  sessionId: string;
 }
 
 export interface AuthState {
