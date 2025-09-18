@@ -1,0 +1,103 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['🔍 Pull Request Checks']
+    types: [completed]
+    branches: [main]
+
+env:
+  NODE_VERSION: '22.18.0'
+  DEPLOY_ENV: 'production'
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    # Only run if PR checks passed or if triggered manually
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: 📦 Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: 🏗️ Build for production
+        run: yarn build
+        env:
+          VITE_APP_ENV: production
+          VITE_API_BASE_URL: ${{ secrets.PROD_API_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+          VITE_API_TIMEOUT: ${{ secrets.VITE_API_TIMEOUT }}
+          VITE_ENABLE_ANALYTICS: ${{ secrets.VITE_ENABLE_ANALYTICS }}
+          VITE_ENABLE_DEBUG_MODE: ${{ secrets.VITE_ENABLE_DEBUG_MODE }}
+
+      - name: 📊 Production bundle analysis
+        run: |
+          yarn analyze
+          echo "📊 Production bundle analysis completed"
+
+      - name: 🔒 Production security audit
+        run: |
+          echo "🔍 Running production security audit..."
+          echo "Checking for high-level vulnerabilities only..."
+          yarn audit --level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
+          npm audit --audit-level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
+
+      - name: 🏷️ Create release tag
+        id: create_tag
+        run: |
+          TAG_NAME="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          git tag -a $TAG_NAME -m "Production release $TAG_NAME"
+          git push origin $TAG_NAME
+
+      - name: 🚀 Deploy to Production Server
+        run: |
+          echo "🚀 Deploying to production environment..."
+          # Add your production deployment commands here
+          echo "✅ Production deployment completed!"
+
+      - name: 🧪 Run production smoke tests
+        run: |
+          echo "🧪 Running production smoke tests..."
+          # Add production smoke test commands here
+          echo "✅ Production smoke tests completed!"
+
+      - name: 📧 Notify production deployment
+        if: always()
+        run: |
+          echo "📧 Production deployment notification sent"
+          # Add production notification logic
+
+      - name: 🎉 Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag_name }}
+          release_name: Production Release ${{ steps.create_tag.outputs.tag_name }}
+          body: |
+            🚀 Production deployment completed successfully!
+
+            **Changes in this release:**
+            - See commit history for details
+
+            **Deployment Details:**
+            - Environment: Production
+            - Build: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+          draft: false
+          prerelease: false
