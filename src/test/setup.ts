@@ -16,7 +16,7 @@ afterEach(() => {
 beforeAll(() => {
   // Suppress console.error for React warnings during tests
   const originalError = console.error;
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render is no longer supported')
@@ -28,7 +28,7 @@ beforeAll(() => {
 
   // Suppress console.warn for React warnings during tests
   const originalWarn = console.warn;
-  console.warn = (...args: any[]) => {
+  console.warn = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning:') || args[0].includes('React'))
