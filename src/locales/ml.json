@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "ദയവായി നിങ്ങളുടെ ലോഗിൻ വിവരങ്ങൾ നൽകുക",
+    "Username": "ഉപയോക്തൃനാമം",
+    "Forgot_Username": "ഉപയോക്തൃനാമം മറന്നോ?",
+    "Password": "പാസ്‌വേഡ്",
+    "Forgot_Password": "പാസ്‌വേഡ് മറന്നോ?",
+    "Sign_In_As": "സൈൻ ഇൻ ചെയ്യുക",
+    "Agree_To": "അംഗീകരിക്കുന്നു",
+    "Login": "ലോഗിൻ"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "നിബന്ധനകളും വ്യവസ്ഥകളും",
+    "Privacy_Policy": "സ്വകാര്യതാ നയം"
+  },
+  "User_Role": {
+    "Health_Worker": "ആരോഗ്യ പ്രവർത്തകൻ"
+  }
+}

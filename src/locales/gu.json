@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "કૃપા કરીને તમારા લૉગિન વિગતો દાખલ કરો",
+    "Username": "વપરાશકર્તા નામ",
+    "Forgot_Username": "વપરાશકર્તા નામ ભૂલ્યા છો?",
+    "Password": "પાસવર્ડ",
+    "Forgot_Password": "પાસવર્ડ ભૂલ્યા છો?",
+    "Sign_In_As": "સાઇન ઇન કરો",
+    "Agree_To": "હું સંમત છું",
+    "Login": "લૉગિન"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "નિયમો અને શરતો",
+    "Privacy_Policy": "ગોપનીયતા નીતિ"
+  },
+  "User_Role": {
+    "Health_Worker": "આરોગ્ય કાર્યકર"
+  }
+}

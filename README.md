@@ -636,6 +636,120 @@ grep -r "VITE_" .env*
 grep -r "password\|secret\|key" src/ --exclude="*.test.*"
 ```
 
+# Loader Component
+
+## 🌀 Overview
+
+A unified **global** and **section-level** loading indicator for the application, built with React and Redux.
+
+### How It Works
+
+- Maintains a **no-loading** for async api call.
+- Supports **concurrent requests** without flicker.
+- Renders **full-screen**, **section overlay**, or **inline** spinners based on props.
+
+---
+
+### **Redux Slice (`src/reducers/loader.reducer.ts`):**
+
+- **State Shape**
+  - `globalCount` – active global requests
+  - `sections: Record<string, number>` – active requests per section
+- **Actions**
+  - `startLoading(id?: string)` – increment global or section counter
+  - `stopLoading(id?: string)` – decrement global or section counter
+  - `resetLoader()` – reset to initial state
+
+---
+
+### **Interceptor Integration (`src/services/mindmap.service.ts`, `src/services/openmrs.service.ts`)**
+
+- **Request Interceptor**
+  - Attaches auth token or JSESSIONID (service-specific).
+  - Dispatches **`startLoading()`** unless **`config.headers.loader === false`**.
+  - Uses **`config.headers['loader-id']`** to start a section loader if provided.
+- **Response/Error Interceptor**
+  - Dispatches **`stopLoading()`** with the same logic.
+  - Handles auth errors (401) if required.
+
+### **Loader Component (`src/components/Loader/Loader.tsx`):**
+
+- Props:
+  - `id?: string` – section identifier to watch
+  - `mode?: 'inline'` – renders a small inline spinner if set(inside button/text)
+- Behavior:
+  - **Global Loader**: shows a full-screen spinner when no id.
+  - **Section Loader**: shows an overlay when with id.
+  - **Inline Loader**: small spinner inside buttons/inline elements when `mode="inline"` and `sections[id]`.
+  - **No Loader**: not display the loader when `{loader:false}`.
+
+---
+
+### **Usage Examples:**
+
+- **Global Loading**
+  ```tsx
+  <Loader />; //inside component
+  MindmapPortalApi.get('/some/api');
+  ```
+- **Section Loading**
+
+  ```tsx
+  <Loader id="patients" />; // inside component
+  MindmapPortalApi.get('/some/api', { headers: { loaderId: 'patient' } });
+  ```
+
+- **No loading**
+  ```tsx
+  <Loader id="save-btn" mode="inline" />;
+  MindmapPortalApi.get('/some/api', { headers: { loader: false } });
+  ```
+
+# Language & Internationalization (i18n)
+
+## 🌐 Overview
+
+A multilingual setup using **react-i18next** with JSON-based translations.  
+Supports dynamic language switching at runtime for the entire React application.
+
+---
+
+### **Configuration (`src/i18n.ts`):**
+
+- Uses **i18next** with `initReactI18next` to provide translations.
+- Loads language resources from JSON files:
+  - `src/locales/en.json`
+  - `src/locales/hi.json`
+  - `src/locales/ru.json`
+- Default language: **English (`en`).**
+- `fallbackLng` set to **`en`** to ensure a safe fallback.
+
+  **Key options:**
+
+```ts
+i18n.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+    hi: { translation: hi },
+    ru: { translation: ru },
+  },
+  lng: 'en',
+  fallbackLng: 'en',
+  interpolation: { escapeValue: false },
+});
+```
+
+**Usage in Other Components** – Use the `useTranslation` hook when you prefer hook-based access:
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+const MyComponent = () => {
+  const { t } = useTranslation();
+  return <span>{t('Auth.Login')}</span>;
+};
+```
+
 ## 📚 Additional Resources
 
 - [React 19 Documentation](https://react.dev/)

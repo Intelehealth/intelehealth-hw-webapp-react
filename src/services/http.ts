@@ -36,3 +36,6 @@ export class HttpService {
     return response.data;
   }
 }
+
+export const httpService = new HttpService({});
+export default httpService;

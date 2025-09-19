@@ -1,3 +1,5 @@
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { store } from '../store/store';
 import { cookie } from '../utils/cookie'; // <-- make sure you store/retrieve JSESSIONID here
 import { HttpService } from './http';
 
@@ -17,6 +19,12 @@ class OpenMRSService extends HttpService {
         // Explicitly set the cookie header
         config.headers.Cookie = `JSESSIONID=${jsessionId}`;
       }
+      // dispatch loader
+      const showLoader = config.headers?.loader !== false; // default loader=true
+      if (showLoader) {
+        const id = (config.headers['loader-id'] as string) || undefined;
+        store.dispatch(startLoading(id)); // global if no id
+      }
       return config;
     });
 
@@ -24,6 +32,12 @@ class OpenMRSService extends HttpService {
     this.axiosInstance.interceptors.response.use(
       response => {
         // If OpenMRS sends back a new JSESSIONID in Set-Cookie
+        const showLoader = response.config.headers?.loader !== false;
+        if (showLoader) {
+          const id =
+            (response.config.headers['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
         const setCookieHeader = response.headers['set-cookie'];
         if (setCookieHeader) {
           const match = setCookieHeader.find((cookie: string) =>
@@ -38,6 +52,12 @@ class OpenMRSService extends HttpService {
       },
       error => {
         alert('Error in OpenMRSService response: ' + error.message);
+        const showLoader = error.config?.headers?.loader !== false;
+        if (showLoader) {
+          const id =
+            (error.config?.headers?.['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
         // 401 check can be added here if needed
         if (error.response?.status === 401) {
           // Handle unauthorized access

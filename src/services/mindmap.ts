@@ -1,5 +1,7 @@
 import { storage } from '../utils/storage';
 import { HttpService } from './http';
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { store } from '../store/store';
 
 const IGNORED_ROUTES: string[] = ['/auth/login'];
 
@@ -22,12 +24,32 @@ class MindmapService extends HttpService {
           config.headers.Authorization = `Bearer ${token}`;
         }
       }
+      //  dispatch loader: startLoading()
+      const showLoader = config.headers?.loader !== false;
+      if (showLoader) {
+        const id = (config.headers['loader-id'] as string) || undefined;
+        store.dispatch(startLoading(id));
+      }
       return config;
     });
 
     this.axiosInstance.interceptors.response.use(
-      response => response,
+      response => {
+        //dispatch loader: stopLoading()
+        const showLoader = response.headers?.loader !== false;
+        if (showLoader) {
+          const id = (response.headers['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
+        return response;
+      },
       error => {
+        //dispatch loader: stoploading()
+        const showLoader = error.headers?.loader !== false;
+        if (showLoader) {
+          const id = (error.headers['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
         if (error.response?.status === 401) {
           storage.clearAuthToken();
         }

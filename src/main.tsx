@@ -5,6 +5,7 @@ import App from './App.tsx';
 import SentryWrapper from './config/sentry-wrapper.tsx';
 import './index.css';
 import { store } from './store/store.ts';
+import './i18n';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
