@@ -8,3 +8,6 @@ export const rootReducer = combineReducers({
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
+
+// Export individual reducers
+export { authReducer, patientReducer };

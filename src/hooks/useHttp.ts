@@ -1,5 +1,11 @@
 import { useCallback, useState } from 'react';
-import { httpService } from '../services/http';
+import { HttpService } from '../services/http';
+
+// Create a default HTTP service instance
+const httpService = new HttpService({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  timeout: 10000,
+});
 
 // Basic HTTP hook with loading and error states
 export function useHttp<T = unknown>() {

@@ -116,7 +116,12 @@ export const ApiExamples: React.FC = () => {
 
   const handleCreateUser = async () => {
     try {
-      const userData = { name: patientName, email: patientEmail };
+      const userData = {
+        username: patientName,
+        name: patientName,
+        email: patientEmail,
+        role: 'user',
+      };
       const response = await apiService.createUser(userData);
       setResults(`User created: ${JSON.stringify(response, null, 2)}`);
     } catch (error) {

@@ -1,7 +1,11 @@
 // Common auth types
 export interface User {
+  id: string;
   username: string;
   uuid: string;
+  name: string;
+  email: string;
+  role: string;
   person: {
     uuid: string;
     display: string;

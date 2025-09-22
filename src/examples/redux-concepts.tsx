@@ -1,6 +1,6 @@
 import React, { useReducer, useState } from 'react';
-import type { User, Patient } from '../types';
 import { authReducer, patientReducer } from '../reducers';
+import type { Patient, User } from '../types';
 
 // Redux Concepts Component
 export const ReduxConcepts: React.FC = () => {
@@ -11,6 +11,7 @@ export const ReduxConcepts: React.FC = () => {
   // Redux-like state management
   const [authState, authDispatch] = useReducer(authReducer, {
     user: null,
+    token: null,
     isAuthenticated: false,
     loading: false,
     error: null,
@@ -32,11 +33,20 @@ export const ReduxConcepts: React.FC = () => {
     setTimeout(() => {
       const mockUser: User = {
         id: '1',
+        username: email.split('@')[0],
+        uuid: 'mock-uuid-1',
         name: email.split('@')[0],
         email: email,
         role: 'user',
+        person: {
+          uuid: 'mock-person-uuid-1',
+          display: email.split('@')[0],
+        },
       };
-      authDispatch({ type: 'LOGIN_SUCCESS', payload: { user: mockUser, token: 'mock-token' } });
+      authDispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user: mockUser, token: 'mock-token' },
+      });
     }, 1000);
   };
 

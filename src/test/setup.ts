@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll, expect } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest';
+
+// Mock scrollIntoView
+Element.prototype.scrollIntoView = vi.fn();
 
 // Extend expect with custom matchers
 expect.extend({
@@ -16,7 +19,7 @@ afterEach(() => {
 beforeAll(() => {
   // Suppress console.error for React warnings during tests
   const originalError = console.error;
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render is no longer supported')
@@ -28,7 +31,7 @@ beforeAll(() => {
 
   // Suppress console.warn for React warnings during tests
   const originalWarn = console.warn;
-  console.warn = (...args: any[]) => {
+  console.warn = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning:') || args[0].includes('React'))
@@ -41,6 +44,8 @@ beforeAll(() => {
 
 afterAll(() => {
   // Restore console methods
+  // eslint-disable-next-line no-self-assign
   console.error = console.error;
+  // eslint-disable-next-line no-self-assign
   console.warn = console.warn;
 });

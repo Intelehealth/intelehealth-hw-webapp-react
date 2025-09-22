@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import type { RootState } from '../../../reducers';
+import type { RootState } from '../../../reducers/index';
 import { useLogin } from './login.hooks';
 
 const LoginComponent: React.FC = () => {
