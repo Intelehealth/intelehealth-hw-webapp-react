@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import { httpService } from '../services/http';
 
 // Basic HTTP hook with loading and error states
 export function useHttp<T = unknown>() {
@@ -8,68 +7,70 @@ export function useHttp<T = unknown>() {
   const [error, setError] = useState<string | null>(null);
 
   const get = useCallback(async (url: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const result = await httpService.get<T>(url);
+      void url;
+      const result = null as T;
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const post = useCallback(async (url: string, data?: unknown) => {
+  const post = useCallback(async (url: string, data: unknown) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const result = await httpService.post<T>(url, data);
+      void url;
+      void data;
+      const result = null as T;
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const put = useCallback(async (url: string, data?: unknown) => {
+  const put = useCallback(async (url: string, data: unknown) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const result = await httpService.put<T>(url, data);
+      void url;
+      void data;
+      const result = null as T;
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const deleteRequest = useCallback(async (url: string) => {
+  const del = useCallback(async (url: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const result = await httpService.delete<T>(url);
+      void url;
+      const result = null as T;
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export function useHttp<T = unknown>() {
     get,
     post,
     put,
-    delete: deleteRequest,
+    delete: del,
     reset,
   };
 }

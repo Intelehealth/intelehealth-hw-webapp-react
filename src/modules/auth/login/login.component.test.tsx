@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Provider } from 'react-redux';
 import { legacy_createStore as createStore } from 'redux';
-import LoginComponent from './login.component';
-import { rootReducer } from '../../../reducers';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RootState } from '../../../reducers';
+import { rootReducer } from '../../../reducers';
+import LoginComponent from './login.component';
 
 // Mock the login hooks
 const mockHandleLogin = vi.fn();
@@ -14,9 +14,9 @@ vi.mock('./login.hooks', () => ({
   }),
 }));
 
-// Create a test store with initial state
 const createTestStore = (initialState?: Partial<RootState>) => {
-  return createStore(rootReducer, initialState as RootState);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createStore(rootReducer, initialState as any);
 };
 
 describe('LoginComponent', () => {
@@ -147,6 +147,10 @@ describe('LoginComponent', () => {
         error: null,
         isAuthenticated: true,
         user: {
+          id: 'user-uuid-123',
+          name: 'Test User',
+          email: 'test@example.com',
+          role: 'health_worker',
           username: 'testuser',
           uuid: 'user-uuid-123',
           person: {

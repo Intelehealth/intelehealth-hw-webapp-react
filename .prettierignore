@@ -1,0 +1,17 @@
+# ESLint reports
+eslint-report-*.json
+
+# Coverage reports
+coverage/
+
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Examples directory (not formatted)
+src/examples/
+
+# Test cases (not formatted)
+src/test/
