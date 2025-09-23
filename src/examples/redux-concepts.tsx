@@ -14,7 +14,7 @@ export const ReduxConcepts: React.FC = () => {
     isAuthenticated: false,
     loading: false,
     error: null,
-     token: null
+    token: null,
   });
 
   const [patientsState, patientsDispatch] = useReducer(patientReducer, {
@@ -40,10 +40,13 @@ export const ReduxConcepts: React.FC = () => {
         uuid: '',
         person: {
           uuid: '',
-          display: ''
-        }
+          display: '',
+        },
       };
-      authDispatch({ type: 'LOGIN_SUCCESS', payload: { user: mockUser, token: 'mock-token' } });
+      authDispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user: mockUser, token: 'mock-token' },
+      });
     }, 1000);
   };
 
