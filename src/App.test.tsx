@@ -1,59 +1,53 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import { render } from './test/utils';
 
 describe('App', () => {
   it('renders without crashing', () => {
     render(<App />);
-    expect(
-      screen.getByRole('heading', { name: /vite \+ react/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /login/i })).toBeInTheDocument();
   });
 
-  it('displays the correct title', () => {
+  it('displays the login form', () => {
     render(<App />);
-    const heading = screen.getByRole('heading', { name: /vite \+ react/i });
+    const heading = screen.getByRole('heading', { name: /login/i });
     expect(heading).toBeInTheDocument();
-    expect(heading.textContent).toBe('Vite + React');
+    expect(heading.textContent).toBe('Login');
   });
 
-  it('renders the count button', () => {
+  it('renders the login form elements', () => {
     render(<App />);
-    expect(
-      screen.getByRole('button', { name: /count is 0/i })
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
   });
 
-  it('increments count when button is clicked', () => {
+  it('updates email input value', () => {
     render(<App />);
-    const button = screen.getByRole('button', { name: /count is 0/i });
-
-    // Initial state
-    expect(button).toHaveTextContent('count is 0');
-
-    // Click the button
-    fireEvent.click(button);
-
-    // Count should increment
-    expect(button).toHaveTextContent('count is 1');
-
-    // Click again
-    fireEvent.click(button);
-
-    // Count should increment again
-    expect(button).toHaveTextContent('count is 2');
+    const emailInput = screen.getByPlaceholderText(/email/i);
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    expect(emailInput).toHaveValue('test@example.com');
   });
 
-  it('renders the edit instruction', () => {
+  it('updates password input value', () => {
     render(<App />);
-    expect(screen.getByText(/edit/i)).toBeInTheDocument();
-    expect(screen.getByText(/src\/App\.tsx/i)).toBeInTheDocument();
+    const passwordInput = screen.getByPlaceholderText(/password/i);
+    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    expect(passwordInput).toHaveValue('password123');
   });
 
-  it('renders the read the docs text', () => {
+  it('submits the login form', () => {
     render(<App />);
-    expect(
-      screen.getByText(/click on the vite and react logos to learn more/i)
-    ).toBeInTheDocument();
+    const emailInput = screen.getByPlaceholderText(/email/i);
+    const passwordInput = screen.getByPlaceholderText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /login/i });
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.click(submitButton);
+
+    // Form should be submitted (no error thrown)
+    expect(emailInput).toBeInTheDocument();
   });
 });

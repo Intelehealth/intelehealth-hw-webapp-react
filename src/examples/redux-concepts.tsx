@@ -1,6 +1,7 @@
 import React, { useReducer, useState } from 'react';
-import type { User, Patient } from '../types';
-import { authReducer, patientReducer } from '../reducers';
+import { authReducer } from '../reducers/auth.reducer';
+import { patientReducer } from '../reducers/patient.reducer';
+import type { Patient, User } from '../types';
 
 // Redux Concepts Component
 export const ReduxConcepts: React.FC = () => {
