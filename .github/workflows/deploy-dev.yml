@@ -91,6 +91,9 @@ jobs:
             mkdir -p '${{ secrets.BACKUP_PATH }}'
             mkdir -p '${{ secrets.DEPLOY_PATH }}'
             mkdir -p '${{ secrets.DEPLOY_PATH }}/temp'
+            # Set temp directory permissions for server user to write
+            sudo chmod 755 '${{ secrets.DEPLOY_PATH }}/temp'
+            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ secrets.DEPLOY_PATH }}/temp'
             echo 'Directories created successfully!'
           "
 
