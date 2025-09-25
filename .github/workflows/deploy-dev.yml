@@ -71,10 +71,27 @@ jobs:
         run: |
           echo "🚀 Deploying to development server..."
 
+          # Validate required secrets
+          if [ -z "${{ secrets.DEPLOY_PATH }}" ]; then
+            echo "❌ Error: DEPLOY_PATH secret is not set"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.BACKUP_PATH }}" ]; then
+            echo "❌ Error: BACKUP_PATH secret is not set"
+            exit 1
+          fi
+
+          echo "📁 Deploy path: ${{ secrets.DEPLOY_PATH }}"
+          echo "📁 Backup path: ${{ secrets.BACKUP_PATH }}"
+
           # Create deployment directory on server
           ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            mkdir -p ${{ secrets.BACKUP_PATH }}
-            mkdir -p ${{ secrets.DEPLOY_PATH }}
+            echo 'Creating directories...'
+            mkdir -p '${{ secrets.BACKUP_PATH }}'
+            mkdir -p '${{ secrets.DEPLOY_PATH }}'
+            mkdir -p '${{ secrets.DEPLOY_PATH }}/temp'
+            echo 'Directories created successfully!'
           "
 
           # Backup current deployment (if exists)
@@ -88,17 +105,26 @@ jobs:
             fi
           "
 
-          # Upload build files to server
+          # Upload build files to temp directory first
           echo "📤 Uploading build files to server..."
           rsync -avz --delete -e "ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no" \
             dist/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/temp/
 
-          # Set proper permissions on server
+          # Move files from temp to final location and set permissions
           ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            echo '🔄 Moving files to final location...'
+            # Remove existing files (except temp directory)
+            find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type f -delete 2>/dev/null || true
+            find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type d ! -name temp ! -path '${{ secrets.DEPLOY_PATH }}' -exec rm -rf {} + 2>/dev/null || true
+            
+            # Move files from temp to final location
+            mv '${{ secrets.DEPLOY_PATH }}/temp'/* '${{ secrets.DEPLOY_PATH }}/' 2>/dev/null || true
+            rmdir '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
+            
             echo '🔧 Setting proper permissions...'
-            chmod -R 755 ${{ secrets.DEPLOY_PATH }}/
-            chown -R www-data:www-data ${{ secrets.DEPLOY_PATH }}/
+            chmod -R 755 '${{ secrets.DEPLOY_PATH }}/'
+            chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}/'
             echo '✅ Permissions set successfully!'
           "
 
@@ -157,7 +183,7 @@ jobs:
           echo "✅ Cleanup completed!"
 
       - name: 📧 Notify deployment to Slack
-        if: always()
+        if: always() && (secrets.SEND_NOTIFICATIONS == 'true' || secrets.SEND_NOTIFICATIONS == '1')
         run: |
           echo "📧 Sending deployment notification to Slack..."
 
@@ -235,3 +261,8 @@ jobs:
             "${{ secrets.SLACK_WEBHOOK_URL }}"
 
           echo "✅ Slack notification sent successfully!"
+
+      - name: 🔕 Notifications Disabled
+        if: always() && (secrets.SEND_NOTIFICATIONS != 'true' && secrets.SEND_NOTIFICATIONS != '1')
+        run: |
+          echo "🔕 Slack notifications are disabled (SEND_NOTIFICATIONS = ${{ secrets.SEND_NOTIFICATIONS }})"
