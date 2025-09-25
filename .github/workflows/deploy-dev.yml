@@ -88,12 +88,20 @@ jobs:
           # Create deployment directory on server
           ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
             echo 'Creating directories...'
-            mkdir -p '${{ secrets.BACKUP_PATH }}'
-            mkdir -p '${{ secrets.DEPLOY_PATH }}'
-            mkdir -p '${{ secrets.DEPLOY_PATH }}/temp'
-            # Set temp directory permissions for server user to write
-            sudo chmod 755 '${{ secrets.DEPLOY_PATH }}/temp'
-            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ secrets.DEPLOY_PATH }}/temp'
+            # Create backup directory
+            sudo mkdir -p '${{ secrets.BACKUP_PATH }}'
+            sudo chmod 755 '${{ secrets.BACKUP_PATH }}'
+            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ secrets.BACKUP_PATH }}'
+            
+            # Create main deployment directory
+            sudo mkdir -p '${{ secrets.DEPLOY_PATH }}'
+            sudo chmod 755 '${{ secrets.DEPLOY_PATH }}'
+            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ secrets.DEPLOY_PATH }}'
+            
+            # Create temp directory with full permissions for server user
+            sudo mkdir -p '${{ secrets.DEPLOY_PATH }}/temp'
+            sudo chmod -R 777 '${{ secrets.DEPLOY_PATH }}/temp'
+            sudo chown -R ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ secrets.DEPLOY_PATH }}/temp'
             echo 'Directories created successfully!'
           "
 
@@ -117,17 +125,26 @@ jobs:
           # Move files from temp to final location and set permissions
           ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
             echo '🔄 Moving files to final location...'
-            # Remove existing files (except temp directory)
+            
+            # Clean up existing files (except temp directory)
             find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type f -delete 2>/dev/null || true
             find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type d ! -name temp ! -path '${{ secrets.DEPLOY_PATH }}' -exec rm -rf {} + 2>/dev/null || true
             
             # Move files from temp to final location
-            mv '${{ secrets.DEPLOY_PATH }}/temp'/* '${{ secrets.DEPLOY_PATH }}/' 2>/dev/null || true
-            rmdir '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
+            if [ -d '${{ secrets.DEPLOY_PATH }}/temp' ] && [ \"\$(ls -A '${{ secrets.DEPLOY_PATH }}/temp')\" ]; then
+              mv '${{ secrets.DEPLOY_PATH }}/temp'/* '${{ secrets.DEPLOY_PATH }}/' 2>/dev/null || true
+              # Clean up temp directory
+              rm -rf '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
+              echo 'Files moved successfully!'
+            else
+              echo 'No files to move from temp directory'
+            fi
             
             echo '🔧 Setting proper permissions...'
-            sudo chmod -R 755 '${{ secrets.DEPLOY_PATH }}/'
-            sudo chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}/'
+            # Ensure all files and directories have correct permissions
+            sudo find '${{ secrets.DEPLOY_PATH }}' -type d -exec chmod 755 {} \;
+            sudo find '${{ secrets.DEPLOY_PATH }}' -type f -exec chmod 644 {} \;
+            sudo chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}'
             echo '✅ Permissions set successfully!'
           "
 
