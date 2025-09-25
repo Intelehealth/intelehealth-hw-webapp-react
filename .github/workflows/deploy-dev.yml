@@ -183,86 +183,86 @@ jobs:
           echo "✅ Cleanup completed!"
 
       - name: 📧 Notify deployment to Slack
-        if: always() && (secrets.SEND_NOTIFICATIONS == 'true' || secrets.SEND_NOTIFICATIONS == '1')
+        if: always()
         run: |
-          echo "📧 Sending deployment notification to Slack..."
+          # Check if notifications are enabled
+          if [ "${{ secrets.SEND_NOTIFICATIONS }}" = "true" ] || [ "${{ secrets.SEND_NOTIFICATIONS }}" = "1" ]; then
+            echo "📧 Sending deployment notification to Slack..."
 
-          # Determine deployment status
-          if [ "${{ job.status }}" = "success" ]; then
-            STATUS_EMOJI="✅"
-            STATUS_COLOR="good"
-            STATUS_TEXT="SUCCESS"
+            # Determine deployment status
+            if [ "${{ job.status }}" = "success" ]; then
+              STATUS_EMOJI="✅"
+              STATUS_COLOR="good"
+              STATUS_TEXT="SUCCESS"
+            else
+              STATUS_EMOJI="❌"
+              STATUS_COLOR="danger"
+              STATUS_TEXT="FAILED"
+            fi
+
+            # Prepare Slack message
+            SLACK_MESSAGE=$(cat <<EOF
+            {
+              "channel": "${{ secrets.SLACK_CHANNEL }}",
+              "username": "GitHub Actions",
+              "icon_emoji": ":rocket:",
+              "attachments": [
+                {
+                  "color": "$STATUS_COLOR",
+                  "title": "$STATUS_EMOJI Development Deployment $STATUS_TEXT",
+                  "title_link": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                      "short": true
+                    },
+                    {
+                      "title": "Author",
+                      "value": "${{ github.actor }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Environment",
+                      "value": "Development",
+                      "short": true
+                    },
+                    {
+                      "title": "Deployment Time",
+                      "value": "$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')",
+                      "short": true
+                    },
+                    {
+                      "title": "Server",
+                      "value": "${{ secrets.SERVER_HOST }}",
+                      "short": true
+                    }
+                  ],
+                  "footer": "GitHub Actions",
+                  "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+                  "ts": $(date +%s)
+                }
+              ]
+            }
+            EOF
+            )
+
+            # Send notification to Slack
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$SLACK_MESSAGE" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"
+
+            echo "✅ Slack notification sent successfully!"
           else
-            STATUS_EMOJI="❌"
-            STATUS_COLOR="danger"
-            STATUS_TEXT="FAILED"
+            echo "🔕 Slack notifications are disabled (SEND_NOTIFICATIONS = ${{ secrets.SEND_NOTIFICATIONS }})"
           fi
-
-          # Prepare Slack message
-          SLACK_MESSAGE=$(cat <<EOF
-          {
-            "channel": "${{ secrets.SLACK_CHANNEL }}",
-            "username": "GitHub Actions",
-            "icon_emoji": ":rocket:",
-            "attachments": [
-              {
-                "color": "$STATUS_COLOR",
-                "title": "$STATUS_EMOJI Development Deployment $STATUS_TEXT",
-                "title_link": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                "fields": [
-                  {
-                    "title": "Repository",
-                    "value": "${{ github.repository }}",
-                    "short": true
-                  },
-                  {
-                    "title": "Branch",
-                    "value": "${{ github.ref_name }}",
-                    "short": true
-                  },
-                  {
-                    "title": "Commit",
-                    "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
-                    "short": true
-                  },
-                  {
-                    "title": "Author",
-                    "value": "${{ github.actor }}",
-                    "short": true
-                  },
-                  {
-                    "title": "Environment",
-                    "value": "Development",
-                    "short": true
-                  },
-                  {
-                    "title": "Deployment Time",
-                    "value": "$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')",
-                    "short": true
-                  },
-                  {
-                    "title": "Server",
-                    "value": "${{ secrets.SERVER_HOST }}",
-                    "short": true
-                  }
-                ],
-                "footer": "GitHub Actions",
-                "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-                "ts": $(date +%s)
-              }
-            ]
-          }
-          EOF
-          )
-
-          # Send notification to Slack
-          curl -X POST -H 'Content-type: application/json' \
-            --data "$SLACK_MESSAGE" \
-            "${{ secrets.SLACK_WEBHOOK_URL }}"
-
-          echo "✅ Slack notification sent successfully!"
-
-      - name: 🔕 Notifications Disabled
-        if: always() && (secrets.SEND_NOTIFICATIONS != 'true' && secrets.SEND_NOTIFICATIONS != '1')
-        run: |
-          echo "🔕 Slack notifications are disabled (SEND_NOTIFICATIONS = ${{ secrets.SEND_NOTIFICATIONS }})"
