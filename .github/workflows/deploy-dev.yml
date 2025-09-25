@@ -124,7 +124,7 @@ jobs:
             
             echo '🔧 Setting proper permissions...'
             chmod -R 755 '${{ secrets.DEPLOY_PATH }}/'
-            chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}/'
+            sudo chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}/'
             echo '✅ Permissions set successfully!'
           "
 
@@ -202,59 +202,59 @@ jobs:
 
             # Prepare Slack message
             SLACK_MESSAGE=$(cat <<EOF
-            {
-              "channel": "${{ secrets.SLACK_CHANNEL }}",
-              "username": "GitHub Actions",
-              "icon_emoji": ":rocket:",
-              "attachments": [
-                {
-                  "color": "$STATUS_COLOR",
-                  "title": "$STATUS_EMOJI Development Deployment $STATUS_TEXT",
-                  "title_link": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                  "fields": [
-                    {
-                      "title": "Repository",
-                      "value": "${{ github.repository }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Branch",
-                      "value": "${{ github.ref_name }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Commit",
-                      "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
-                      "short": true
-                    },
-                    {
-                      "title": "Author",
-                      "value": "${{ github.actor }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Environment",
-                      "value": "Development",
-                      "short": true
-                    },
-                    {
-                      "title": "Deployment Time",
-                      "value": "$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')",
-                      "short": true
-                    },
-                    {
-                      "title": "Server",
-                      "value": "${{ secrets.SERVER_HOST }}",
-                      "short": true
-                    }
-                  ],
-                  "footer": "GitHub Actions",
-                  "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-                  "ts": $(date +%s)
-                }
-              ]
-            }
-            EOF
+{
+  "channel": "${{ secrets.SLACK_CHANNEL }}",
+  "username": "GitHub Actions",
+  "icon_emoji": ":rocket:",
+  "attachments": [
+    {
+      "color": "$STATUS_COLOR",
+      "title": "$STATUS_EMOJI Development Deployment $STATUS_TEXT",
+      "title_link": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      "fields": [
+        {
+          "title": "Repository",
+          "value": "${{ github.repository }}",
+          "short": true
+        },
+        {
+          "title": "Branch",
+          "value": "${{ github.ref_name }}",
+          "short": true
+        },
+        {
+          "title": "Commit",
+          "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+          "short": true
+        },
+        {
+          "title": "Author",
+          "value": "${{ github.actor }}",
+          "short": true
+        },
+        {
+          "title": "Environment",
+          "value": "Development",
+          "short": true
+        },
+        {
+          "title": "Deployment Time",
+          "value": "$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')",
+          "short": true
+        },
+        {
+          "title": "Server",
+          "value": "${{ secrets.SERVER_HOST }}",
+          "short": true
+        }
+      ],
+      "footer": "GitHub Actions",
+      "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+      "ts": $(date +%s)
+    }
+  ]
+}
+EOF
             )
 
             # Send notification to Slack
