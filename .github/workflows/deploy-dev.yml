@@ -123,7 +123,7 @@ jobs:
             rmdir '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
             
             echo '🔧 Setting proper permissions...'
-            chmod -R 755 '${{ secrets.DEPLOY_PATH }}/'
+            sudo chmod -R 755 '${{ secrets.DEPLOY_PATH }}/'
             sudo chown -R www-data:www-data '${{ secrets.DEPLOY_PATH }}/'
             echo '✅ Permissions set successfully!'
           "
