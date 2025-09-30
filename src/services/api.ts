@@ -7,14 +7,14 @@ import { OpenMRSApi } from './openmrs';
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
-    OPENMRSLOGIN: 'openmrs/ws/rest/v1/session',
+    OPENMRSLOGIN: '/session',
   },
 } as const;
 
 // Basic API functions
 export const apiService = {
   // Auth
-  login: (credentials: { email: string; password: string }) =>
+  login: (credentials: { username: string; password: string }) =>
     MindmapPortalApi.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, credentials),
 
   openMRSLogin: (credentials: AxiosRequestConfig) =>

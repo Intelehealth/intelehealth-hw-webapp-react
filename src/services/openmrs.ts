@@ -37,7 +37,6 @@ class OpenMRSService extends HttpService {
         return response;
       },
       error => {
-        alert('Error in OpenMRSService response: ' + error.message);
         // 401 check can be added here if needed
         if (error.response?.status === 401) {
           // Handle unauthorized access

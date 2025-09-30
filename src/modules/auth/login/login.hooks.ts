@@ -2,6 +2,7 @@
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../../../services/api';
+import { showToast } from '../../../services/toast';
 import type { AppDispatch } from '../../../store/store';
 import { cookie } from '../../../utils/cookie';
 import { storage } from '../../../utils/storage';
@@ -14,12 +15,12 @@ export const useLogin = (): UseLoginReturn => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (username: string, password: string) => {
     dispatch({ type: 'LOGIN_START' });
 
     try {
       // Encode OpenMRS basic auth
-      const cred = `${email}:${password}`;
+      const cred = `${username}:${password}`;
       const base64cred = btoa(cred);
       const axiosConfig = {
         headers: {
@@ -27,28 +28,35 @@ export const useLogin = (): UseLoginReturn => {
         },
       };
       // First call OpenMRS login
-      const { user, sessionId } = await apiService.openMRSLogin(axiosConfig);
+      const { user, sessionId, authenticated } =
+        await apiService.openMRSLogin(axiosConfig);
 
       // Set JSESSIONID cookie
-      if (!sessionId) throw new Error('No sessionId from OpenMRS');
+      if (!authenticated) throw new Error('Login to OpenMRS failed');
       cookie.setCookie('JSESSIONID', sessionId);
 
       // Then call our backend login
-      const { token } = await apiService.login({ email, password });
+      const { token } = await apiService.login({ username, password });
       storage.setAuthToken(token);
 
       dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
 
+      //show toast message
+      showToast('Login Successful', `Welcome back`, 'success');
+
       //redirect to dashboard or some other page
       navigate('/dashboard');
     } catch (error: unknown) {
-      let message = 'Login failed';
+      let message = 'Login Failed';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as {
           response?: { data?: { message?: string } };
         };
         message = axiosError.response?.data?.message || message;
       }
+
+      //show toast message
+      showToast('Login Failed', message, 'error');
 
       dispatch({ type: 'LOGIN_FAILURE', payload: message });
     }

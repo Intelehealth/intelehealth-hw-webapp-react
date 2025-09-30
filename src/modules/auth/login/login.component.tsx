@@ -1,46 +1,193 @@
+import { yupResolver } from '@hookform/resolvers/yup';
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../../reducers';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import type { InferType } from 'yup';
+import iconEyeClosed from '../../../assets/icons/icon-eye-closed.svg';
+import iconEye from '../../../assets/icons/icon-eye.svg';
+import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
+import iconQuestionMark from '../../../assets/icons/icon-rounded-question-mark.svg';
+import { Button, Checkbox, Dropdown, Input } from '../../../components/common';
+import Card from '../../../components/common/card.component';
 import { useLogin } from './login.hooks';
+import { loginSchema } from './login.validation';
+
+type LoginFormValues = InferType<typeof loginSchema>;
 
 const LoginComponent: React.FC = () => {
-  const { loading, error, isAuthenticated } = useSelector(
-    (state: RootState) => state.auth
-  );
-
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
   const { handleLogin } = useLogin();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+    mode: 'onTouched',
+    defaultValues: {
+      username: '',
+      password: '',
+      role: 'nurse',
+      terms: true,
+    },
+  });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await handleLogin(email, password);
+  const onSubmit = async (data: LoginFormValues) => {
+    await handleLogin(data.username, data.password);
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={onSubmit}>
-        <input
-          type="text"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="Email"
-        />
-        <input
-          type="text"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="Password"
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+    <Card className="w-full lg:w-auto lg:min-w-[431px]">
+      {/* FORM START */}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Title */}
+        <div className="flex items-center mb-3">
+          <h2 className="text-lg font-semibold text-[--color-dark]">
+            Please enter your login details
+          </h2>
+          <span className="ml-2 lg:inline-block">
+            <img src={iconQuestionMark} alt="info" />
+          </span>
+        </div>
+
+        {/* Username */}
+        <div className="mb-4">
+          <div className="flex justify-between mb-2">
+            <label className="text-base text-(--color-muted)">Username</label>
+            <a
+              className="hidden lg:inline text-base underline cursor-pointer text-(--color-muted)"
+              onClick={() => navigate('/forgot-username')}
+            >
+              Forgot Username?
+            </a>
+          </div>
+          {/* Input component can be used here */}
+          <Input {...register('username')} placeholder="Enter your username" />
+          {errors.username && (
+            <p className="text-red-500 text-xs mt-1">
+              {errors.username.message}
+            </p>
+          )}
+        </div>
+
+        {/* Password */}
+        <div className="mb-4">
+          <div className="flex justify-between">
+            <label className="small-label text-base text-(--color-muted)">
+              Password
+            </label>
+            <a
+              className="hidden lg:block small-label underline text-base text-(--color-muted)"
+              href="#"
+            >
+              Forgot Password?
+            </a>
+          </div>
+
+          <div className="relative mt-2">
+            <Input
+              {...register('password')}
+              className="input-base pr-10"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(s => !s)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[--color-muted] icon-inline cursor-pointer"
+            >
+              {showPassword ? (
+                <img src={iconEyeClosed} alt="Hide password" />
+              ) : (
+                <img src={iconEye} alt="Show password" />
+              )}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-red-500 text-xs mt-1">
+              {errors.password.message}
+            </p>
+          )}
+
+          <div className="flex justify-end lg:hidden mt-2">
+            <a
+              className="small-label underline text-base text-(--color-muted)"
+              href="#"
+            >
+              Forgot Password?
+            </a>
+          </div>
+        </div>
+
+        {/* Role select - visible desktop only */}
+        <div className="hidden lg:block mb-4">
+          <Dropdown
+            label="Select Role"
+            placeholder="Select your role"
+            options={[
+              { label: 'Doctor', value: 'doctor' },
+              { label: 'Health Worker', value: 'nurse' },
+              { label: 'Admin', value: 'admin' },
+            ]}
+            labelClassName="text-(--color-muted)"
+            error={errors.role?.message}
+            value={watch('role') ?? ''}
+            onChange={(value: string | string[]) => {
+              const selectedValue = Array.isArray(value) ? value[0] : value;
+              setValue('role', selectedValue as 'nurse' | 'doctor' | 'admin');
+            }}
+          />
+        </div>
+
+        {/* Terms (desktop only) */}
+        <div className="hidden lg:flex items-center gap-2 mb-4">
+          <Checkbox
+            label={
+              <div className="text-sm text-[--color-dark]">
+                Agree to&nbsp;
+                <a
+                  className="text-[--color-primary] underline"
+                  href="https://intelehealth.org/terms-of-use"
+                  target="_blank"
+                >
+                  Terms & Conditions
+                </a>{' '}
+                and&nbsp;
+                <a
+                  className="text-[--color-primary] underline"
+                  href="https://intelehealth.org/privacy-policy"
+                  target="_blank"
+                >
+                  Privacy Policy
+                </a>
+              </div>
+            }
+            {...register('terms')}
+          ></Checkbox>
+        </div>
+        {errors.terms && (
+          <p className="text-red-500 text-xs mt-1">{errors.terms.message}</p>
+        )}
+
+        {/* Login button */}
+        <div className="mt-[50px] lg:mt-2">
+          <Button
+            variant="primary"
+            className="w-full"
+            type="submit"
+            rightIcon={<img src={iconRightArrow} />}
+          >
+            <span className="mx-auto w-full text-base">Login</span>
+          </Button>
+        </div>
       </form>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {isAuthenticated && <p style={{ color: 'green' }}>✅ Logged in</p>}
-    </div>
+      {/* FORM END */}
+    </Card>
   );
 };
 

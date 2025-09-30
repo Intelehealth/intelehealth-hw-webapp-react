@@ -1,0 +1,130 @@
+/* Button Wrapper Classes 
+  These styles combine Tailwind utilities directly, using the theme 
+  variables defined in your index.css (e.g., --color-primary).
+*/
+
+/* Base Styles: Applied to all buttons */
+.btn-base-styles {
+  /* Layout and Font */
+  font-size: 13px; /* text-sm */
+  font-weight: 500; /* font-medium */
+  display: flex; /* flex */
+  align-items: center; /* items-center */
+  justify-content: center; /* justify-center */
+  cursor: pointer; /* cursor-pointer */
+
+  /* Colors and Transition */
+  color: #ffffff; /* text-white */
+  background-color: var(--color-primary); /* bg-[--color-primary] */
+  border: 1px solid #2b1a92; /* border-[--color-primary] */
+  border-radius: 8px; /* rounded-lg (8px) - approximation for 7px */
+}
+
+.btn-base-styles:disabled {
+  background-color: var(--color-bg); /* bg-gray-200 */
+  color: var(--color-muted); /* text-[--color-muted] */
+  cursor: not-allowed; /* cursor-not-allowed */
+  pointer-events: none; /* pointer-events-none */
+  border-color: var(--color-muted); /* border-[--color-muted] */
+}
+
+.btn-primary-variant {
+  color: #ffffff; /* text-white */
+  background-color: var(--color-primary); /* bg-[--color-primary] */
+  border: 1px solid #2b1a92; /* border-[--color-primary] */
+}
+
+.btn-primary-variant:hover {
+  color: var(--color-primary); /* text-white */
+  background-color: var(--color-primary-light); /* bg-[--color-primary] */
+  border: 1px solid var(--color-primary-light); /* border-[--color-primary] */
+}
+
+.btn-primary-light-variant {
+  color: var(--color-primary); /* text-[--color-primary] */
+  background-color: var(--color-primary-light); /* bg-[--color-primary-light] */
+  border: 1px solid var(--color-primary-light); /* border-[--color-secondary] */
+}
+
+.btn-primary-light-variant:hover {
+  color: var(--color-primary-light); /* text-[--color-primary] */
+  background-color: var(--color-primary); /* bg-[--color-primary-light] */
+  border: 1px solid var(--color-primary); /* border-[--color-secondary] */
+}
+
+.btn-secondary-variant {
+  color: var(--color-primary); /* text-[--color-primary] */
+  background-color: #ffffff; /* bg-[--color-primary] */
+  border: 1px solid var(--color-primary-light); /* border-[--color-primary-light] */
+}
+
+.btn-secondary-variant:hover {
+  background-color: var(--color-primary-light); /* bg-[--color-primary] */
+  border: 1px solid var(--color-primary); /* border-[--color-primary-light] */
+}
+
+/* ------------------- */
+/* 2. Size Classes     */
+/* ------------------- */
+
+/* Full/Large Button (Approx. 48px horizontal, 14px vertical) */
+.btn-full-size {
+  padding-left: 3rem; /* px-12 (48px) */
+  padding-right: 3rem; /* px-12 (48px) */
+  padding-top: 0.875rem; /* py-3.5 (14px) */
+  padding-bottom: 0.875rem; /* py-3.5 (14px) */
+  font-size: 1rem; /* text-base */
+  border-radius: 0.5rem; /* rounded-lg (8px) - approximation for 7px */
+}
+
+/* Default/Medium Button (Approx. 20px horizontal, 10px vertical) */
+.btn-default-size {
+  padding-left: 1.25rem; /* px-5 (20px) */
+  padding-right: 1.25rem; /* px-5 (20px) */
+  padding-top: 0.625rem; /* py-2.5 (10px) */
+  padding-bottom: 0.625rem; /* py-2.5 (10px) */
+  font-size: 1rem; /* text-base */
+  border-radius: 0.5rem; /* rounded-lg (8px) - approximation for 7px */
+}
+
+/* Small Button (Approx. 20px horizontal, 10px vertical, smaller text) */
+.btn-small-size {
+  padding-left: 1.25rem; /* px-5 (20px) */
+  padding-right: 1.25rem; /* px-5 (20px) */
+  padding-top: 0.625rem; /* py-2.5 (10px) */
+  padding-bottom: 0.625rem; /* py-2.5 (10px) */
+  font-size: 0.875rem; /* text-sm (14px) */
+  border-radius: 0.375rem; /* rounded-md (6px) - approximation for 5px */
+}
+
+/* ------------------- */
+/* 3. State Classes    */
+/* ------------------- */
+
+/* Hover State */
+.btn-hover-state:hover {
+  background-color: var(
+    --color-primary-dark
+  ); /* hover:bg-[--color-primary-dark] */
+}
+
+/* Disabled State */
+.btn-disabled-state {
+  background-color: #e5e7eb; /* bg-gray-200 */
+  color: var(--color-muted); /* text-[--color-muted] */
+  cursor: not-allowed; /* cursor-not-allowed */
+  pointer-events: none; /* pointer-events-none */
+}
+
+/* Link Style */
+.text-link-styles {
+  font-weight: 500; /* font-medium */
+  color: var(--color-primary); /* text-[--color-primary] */
+  transition-property:
+    background-color, border-color, color; /* transition-colors */
+  transition-duration: 200ms; /* duration-200 */
+}
+
+.text-link-styles:hover {
+  color: var(--color-primary-dark); /* hover:text-[--color-primary-dark] */
+}
