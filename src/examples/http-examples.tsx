@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useHttp } from '../hooks/useHttp';
 import type { LoginResponse, Patient } from '../types';
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { Loader } from '../components/Loader/Loader';
+import { L } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js';
+import { useDispatch } from 'react-redux';
 
 // HTTP Service Examples Component
 export const HttpExamples: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
+const dispatch = useDispatch();
   // HTTP hooks for different operations
   const {
     post,
@@ -39,22 +43,45 @@ export const HttpExamples: React.FC = () => {
 
   // Fetch patients example
   const handleFetchPatients = async () => {
+    try{
+      dispatch(startLoading('fetch-patient'));
     await getPatients('/patients');
+
+    }
+    catch(err){
+      console.error('Error fetching patients:', err);
+    }
+    finally{
+      // Any cleanup if needed
+            dispatch(stopLoading('fetch-patient'));
+
+    }
   };
 
   // Create patient example
   const handleCreatePatient = async () => {
+    try{
+      dispatch(startLoading('create-patient'));
     const newPatient = { name: 'New Patient', email: 'patient@example.com' };
     const response = await createPatient('/patients', newPatient);
     if (response) {
       // Patient created successfully
     }
+    }
+    catch(err){
+      console.error('Error creating patient:', err);
+    }
+    finally{
+      dispatch(stopLoading('create-patient'));
+      // Any cleanup if needed
+    }
+    
   };
 
   return (
     <div className="http-examples">
       <h2>HTTP Service Examples</h2>
-
+<Loader />
       {/* Login Form */}
       <div className="login-section">
         <h3>Login Example</h3>
@@ -80,12 +107,14 @@ export const HttpExamples: React.FC = () => {
       <div className="patients-section">
         <h3>Patients Management</h3>
         <div className="button-group">
-          <button onClick={handleFetchPatients} disabled={patientsLoading}>
-            {patientsLoading ? 'Fetching...' : 'Fetch Patients'}
+          <button onClick={handleFetchPatients} >
+            Fetch Patients
           </button>
-          <button onClick={handleCreatePatient} disabled={createLoading}>
-            {createLoading ? 'Creating...' : 'Create Patient'}
+          <Loader  id="patients-button" />
+          <button onClick={handleCreatePatient} >
+             'Create Patient'
           </button>
+          <Loader mode="inline" id="patients-button" />
         </div>
 
         {patientsError && <p className="error">Error: {patientsError}</p>}

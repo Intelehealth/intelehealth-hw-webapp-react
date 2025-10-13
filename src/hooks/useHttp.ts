@@ -1,15 +1,25 @@
 import { useCallback, useState } from 'react';
 import { httpService } from '../services/http';
+import { useDispatch, useSelector } from 'react-redux';
+import type { RootState } from '../reducers';
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
 
 // Basic HTTP hook with loading and error states
 export function useHttp<T = unknown>() {
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loaderId: string | undefined = undefined; // optional section loader ID
+  const dispatch = useDispatch();
 
+  const loading = useSelector((state: RootState) =>
+    loaderId
+      ? (state.loader.sections[loaderId] ?? 0) > 0
+      : state.loader.globalLoading
+  );
   const get = useCallback(async (url: string) => {
+    dispatch(startLoading());
+
     try {
-      setLoading(true);
       setError(null);
       const result = await httpService.get<T>(url);
       setData(result);
@@ -20,13 +30,13 @@ export function useHttp<T = unknown>() {
       setError(errorMessage);
       return null;
     } finally {
-      setLoading(false);
+      dispatch(stopLoading());
     }
   }, []);
 
   const post = useCallback(async (url: string, data?: unknown) => {
     try {
-      setLoading(true);
+      dispatch(startLoading(loaderId));
       setError(null);
       const result = await httpService.post<T>(url, data);
       setData(result);
@@ -37,13 +47,13 @@ export function useHttp<T = unknown>() {
       setError(errorMessage);
       return null;
     } finally {
-      setLoading(false);
+      dispatch(stopLoading(loaderId));
     }
   }, []);
 
   const put = useCallback(async (url: string, data?: unknown) => {
     try {
-      setLoading(true);
+      dispatch(startLoading(loaderId));
       setError(null);
       const result = await httpService.put<T>(url, data);
       setData(result);
@@ -54,13 +64,13 @@ export function useHttp<T = unknown>() {
       setError(errorMessage);
       return null;
     } finally {
-      setLoading(false);
+      dispatch(stopLoading(loaderId));
     }
   }, []);
 
   const deleteRequest = useCallback(async (url: string) => {
     try {
-      setLoading(true);
+      dispatch(startLoading(loaderId));
       setError(null);
       const result = await httpService.delete<T>(url);
       setData(result);
@@ -71,14 +81,14 @@ export function useHttp<T = unknown>() {
       setError(errorMessage);
       return null;
     } finally {
-      setLoading(false);
+      dispatch(stopLoading(loaderId));
     }
   }, []);
 
   const reset = useCallback(() => {
     setData(null);
     setError(null);
-    setLoading(false);
+    dispatch(stopLoading(loaderId));
   }, []);
 
   return {
