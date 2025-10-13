@@ -1,11 +1,7 @@
 import type { RenderOptions } from '@testing-library/react';
 import { render } from '@testing-library/react';
-import React, { type ReactElement } from 'react';
-
-// Add any providers here if needed
-const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
-  return <>{children}</>;
-};
+import { type ReactElement } from 'react';
+import { AllTheProviders } from './providers';
 
 const customRender = (
   ui: ReactElement,
@@ -67,5 +63,4 @@ export const mockErrorResponse = {
   timestamp: new Date(),
 };
 
-export * from '@testing-library/react';
 export { customRender as render };

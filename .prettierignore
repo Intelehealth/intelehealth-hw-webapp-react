@@ -1,9 +1,11 @@
-# ESLint report files
+# ESLint reports
 eslint-report-*.json
 
-# Build outputs
+# Coverage reports
+coverage/
+
+# Build output
 dist/
-build/
 
 # Dependencies
 node_modules/

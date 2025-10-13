@@ -12,11 +12,15 @@ afterEach(() => {
   cleanup();
 });
 
+// Store original console methods
+let originalError: typeof console.error;
+let originalWarn: typeof console.warn;
+
 // Mock console methods to reduce noise in tests
 beforeAll(() => {
   // Suppress console.error for React warnings during tests
-  const originalError = console.error;
-  console.error = (...args: any[]) => {
+  originalError = console.error;
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render is no longer supported')
@@ -27,8 +31,8 @@ beforeAll(() => {
   };
 
   // Suppress console.warn for React warnings during tests
-  const originalWarn = console.warn;
-  console.warn = (...args: any[]) => {
+  originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning:') || args[0].includes('React'))
@@ -41,6 +45,6 @@ beforeAll(() => {
 
 afterAll(() => {
   // Restore console methods
-  console.error = console.error;
-  console.warn = console.warn;
+  if (originalError) console.error = originalError;
+  if (originalWarn) console.warn = originalWarn;
 });

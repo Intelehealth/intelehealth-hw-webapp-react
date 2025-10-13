@@ -25,16 +25,17 @@ export function useHttp<T = unknown>() {
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       dispatch(stopLoading());
     }
   }, []);
 
-  const post = useCallback(async (url: string, data?: unknown) => {
+  const post = useCallback(async (url: string, data: unknown) => {
+    setLoading(true);
+    setError(null);
     try {
       dispatch(startLoading(loaderId));
       setError(null);
@@ -42,16 +43,17 @@ export function useHttp<T = unknown>() {
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       dispatch(stopLoading(loaderId));
     }
   }, []);
 
-  const put = useCallback(async (url: string, data?: unknown) => {
+  const put = useCallback(async (url: string, data: unknown) => {
+    setLoading(true);
+    setError(null);
     try {
       dispatch(startLoading(loaderId));
       setError(null);
@@ -59,16 +61,17 @@ export function useHttp<T = unknown>() {
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       dispatch(stopLoading(loaderId));
     }
   }, []);
 
-  const deleteRequest = useCallback(async (url: string) => {
+  const del = useCallback(async (url: string) => {
+    setLoading(true);
+    setError(null);
     try {
       dispatch(startLoading(loaderId));
       setError(null);
@@ -76,10 +79,9 @@ export function useHttp<T = unknown>() {
       setData(result);
       return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Request failed';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      return null;
+      throw err;
     } finally {
       dispatch(stopLoading(loaderId));
     }
@@ -98,7 +100,7 @@ export function useHttp<T = unknown>() {
     get,
     post,
     put,
-    delete: deleteRequest,
+    delete: del,
     reset,
   };
 }
