@@ -4,7 +4,7 @@ import type {
   RequestOtpResponseModel,
   VerifyOtpModel,
   VerifyOtpResponseModel,
-} from './verify-otp.types';
+} from '../../../types/auth/verify-otp.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = Object.freeze({
