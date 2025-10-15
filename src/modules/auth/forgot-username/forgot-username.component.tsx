@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
 import iconRoundedLock from '../../../assets/icons/icon-rounded-lock.svg';
 import iconRoundedMobileSetting from '../../../assets/icons/icon-rounded-mobile-setting.svg';
 import { Button } from '../../../components/common';
@@ -11,11 +12,11 @@ const ForgotUsernameComponent: React.FC = () => {
 
   const handleClick = () => {
     //redirect to login page
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (
-    <Card className="w-full lg:w-auto lg:min-w-[431px]">
+    <Card className="w-full lg:w-[431px]">
       {/* Title */}
       <AuthCardTitle
         title="Forgot User Id ?"
@@ -35,23 +36,7 @@ const ForgotUsernameComponent: React.FC = () => {
           variant="primary"
           className="w-full"
           type="submit"
-          rightIcon={
-            <svg
-              width="12"
-              height="11"
-              viewBox="0 0 12 11"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M6.83333 1.125L11 5.5M11 5.5L6.83333 9.875M11 5.5L1 5.5"
-                stroke="white"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          }
+          rightIcon={<img src={iconRightArrow} />}
           onClick={handleClick}
         >
           <span className="mx-auto w-full text-base">Back to Login</span>

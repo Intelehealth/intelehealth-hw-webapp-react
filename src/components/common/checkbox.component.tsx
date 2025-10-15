@@ -71,9 +71,10 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
               aria-invalid={error ? 'true' : 'false'}
               aria-describedby={cn(
                 error ? errorId : undefined,
-                helperText ? helperId : undefined,
-                description ? `${inputId}-description` : undefined
+                !error && helperText ? helperId : undefined,
+                !error && description ? `${inputId}-description` : undefined
               )}
+              aria-required={isRequired}
               {...props}
             />
           </div>

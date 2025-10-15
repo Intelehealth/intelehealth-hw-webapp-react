@@ -1,7 +1,7 @@
 /* index.css */
 @import 'tailwindcss';
 
-@theme {
+:root {
   /* Colors */
   --color-primary: #2f1e91;
   --color-primary-dark: #2659bf;
@@ -13,6 +13,7 @@
   --color-dark: #1b163a;
   --color-muted: #7f7b92;
   --color-bg: #faf9ff;
+  --color-maint-bg: #dfe4ef;
 
   /* State */
   --color-success: #06c270;
@@ -45,4 +46,9 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
 }

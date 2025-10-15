@@ -1,7 +1,8 @@
 import React, { useReducer, useState } from 'react';
+import type { User } from '../modules/auth/auth.types';
 import { authReducer } from '../reducers/auth.reducer';
 import { patientReducer } from '../reducers/patient.reducer';
-import type { Patient, User } from '../types';
+import type { Patient } from '../types/patient.types';
 
 // Redux Concepts Component
 export const ReduxConcepts: React.FC = () => {
@@ -61,7 +62,7 @@ export const ReduxConcepts: React.FC = () => {
 
   // Patients actions
   const handleFetchPatients = () => {
-    patientsDispatch({ type: 'FETCH_START' });
+    patientsDispatch({ type: 'SET_LOADING', payload: true });
 
     // Simulate API call
     setTimeout(() => {
@@ -69,7 +70,8 @@ export const ReduxConcepts: React.FC = () => {
         { id: '1', name: 'John Doe', email: 'john@example.com' },
         { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
       ];
-      patientsDispatch({ type: 'FETCH_SUCCESS', payload: mockPatients });
+      patientsDispatch({ type: 'SET_PATIENTS', payload: mockPatients });
+      patientsDispatch({ type: 'SET_LOADING', payload: false });
     }, 1000);
   };
 
@@ -88,7 +90,7 @@ export const ReduxConcepts: React.FC = () => {
   const handleUpdatePatient = (id: string) => {
     patientsDispatch({
       type: 'UPDATE_PATIENT',
-      payload: { id, data: { name: `Updated ${patientName}` } },
+      payload: { id, updates: { name: `Updated ${patientName}` } },
     });
   };
 
@@ -97,7 +99,7 @@ export const ReduxConcepts: React.FC = () => {
   };
 
   const handleClearPatientsError = () => {
-    patientsDispatch({ type: 'CLEAR_ERROR' });
+    patientsDispatch({ type: 'SET_ERROR', payload: null });
   };
 
   return (

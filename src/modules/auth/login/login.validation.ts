@@ -4,14 +4,14 @@ export const loginSchema = yup.object({
   username: yup.string().required('Username is required'),
   password: yup
     .string()
-    .min(6, 'Password must be at least 6 characters')
-    .required('Password is required'),
-  role: yup.string().oneOf(['nurse', 'doctor', 'admin']).notRequired(), // ✅ allows key to be missing
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+  role: yup.string().oneOf(['nurse', 'doctor', 'admin']), // ✅ allows key to be missing
   terms: yup
     .boolean()
+    .required('Terms must be accepted')
     .oneOf(
       [true],
       'Please read and agree the Terms & Conditions and Privacy Policy.'
-    )
-    .notRequired(), // ✅ allows key to be missing
+    ),
 });

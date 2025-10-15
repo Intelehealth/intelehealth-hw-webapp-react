@@ -68,8 +68,10 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
     const errorId = `${dropdownId}-error`;
     const helperId = `${dropdownId}-helper`;
 
-    const filteredOptions = options.filter(option =>
-      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredOptions = options.filter(
+      option =>
+        option.label &&
+        option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Use internal value if no external value is provided
@@ -134,7 +136,14 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
       onChange?.(newValue);
     };
 
+    const handleRemoveTag = (e: React.MouseEvent, optionValue: string) => {
+      e.stopPropagation();
+      handleSelect(optionValue);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (disabled) return;
+
       if (!isOpen) {
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
           e.preventDefault();
@@ -152,9 +161,13 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setFocusedIndex(prev =>
-            prev > 0 ? prev - 1 : filteredOptions.length - 1
-          );
+          setFocusedIndex(prev => {
+            if (prev > 0) {
+              return prev - 1;
+            } else {
+              return filteredOptions.length - 1;
+            }
+          });
           break;
         case 'Enter':
           e.preventDefault();
@@ -219,10 +232,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
               >
                 {option.label}
                 <span
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleSelect(option.value);
-                  }}
+                  onClick={e => handleRemoveTag(e, option.value)}
                   className="ml-1 text-primary-600 hover:text-primary-800 cursor-pointer"
                 >
                   ×
@@ -233,7 +243,12 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
         );
       }
 
-      return selectedOptions[0]?.label || '';
+      const firstOption = selectedOptions[0];
+      if (firstOption && firstOption.label) {
+        return firstOption.label;
+      } else {
+        return '';
+      }
     };
 
     return (
@@ -261,11 +276,11 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
               baseClasses,
               'text-left flex items-center justify-between',
               'hover:border-gray-400',
+              disabled && 'opacity-50 cursor-not-allowed',
               isOpen && ''
             )}
             onClick={handleToggle}
             onKeyDown={handleKeyDown}
-            disabled={disabled}
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-label={ariaLabel}

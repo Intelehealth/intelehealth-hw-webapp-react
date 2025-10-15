@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "தயவுசெய்து உள்நுழைவு விவரங்களை உள்ளிடவும்",
+    "Username": "பயனர் பெயர்",
+    "Forgot_Username": "பயனர் பெயர் மறந்துவிட்டீர்களா?",
+    "Password": "கடவுச்சொல்",
+    "Forgot_Password": "கடவுச்சொல் மறந்துவிட்டீர்களா?",
+    "Sign_In_As": "உள்நுழைய",
+    "Agree_To": "ஏற்கிறேன்",
+    "Login": "உள்நுழை"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "விதிமுறைகள் மற்றும் நிபந்தனைகள்",
+    "Privacy_Policy": "தனியுரிமைக் கொள்கை"
+  },
+  "User_Role": {
+    "Health_Worker": "சுகாதார பணியாளர்"
+  }
+}

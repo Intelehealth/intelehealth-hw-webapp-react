@@ -1,5 +1,5 @@
 // auth.reducer.ts
-import type { AuthState, User } from '../types/auth.types';
+import type { AuthState, User } from '../modules/auth/auth.types';
 
 // Initial state
 const initialState: AuthState = {

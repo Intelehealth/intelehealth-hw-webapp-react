@@ -1,8 +1,12 @@
 const ROUTES = {
   ROOT: '/',
   AUTH: {
-    LOGIN: '/login',
-    FORGOT_USERNAME: '/forgot-username',
+    BASE: '/auth',
+    LOGIN: 'login',
+    FORGOT_USERNAME: 'forgot-username',
+    FORGOT_PASSWORD: 'forgot-password',
+    VERIFY_OTP: 'verify-otp',
+    RESET_PASSWORD: 'reset-password',
   },
   DASHBOARD: '/dashboard',
   COMMON_UI: '/common-ui',

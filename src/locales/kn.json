@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಲಾಗಿನ್ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ",
+    "Username": "ಬಳಕೆದಾರ ಹೆಸರು",
+    "Forgot_Username": "ಬಳಕೆದಾರ ಹೆಸರನ್ನು ಮರೆತಿರಾ?",
+    "Password": "ಪಾಸ್ವರ್ಡ್",
+    "Forgot_Password": "ಪಾಸ್ವರ್ಡ್ ಮರೆತಿರಾ?",
+    "Sign_In_As": "ಲಾಗಿನ್ ಆಗಿ",
+    "Agree_To": "ಒಪ್ಪುತ್ತೇನೆ",
+    "Login": "ಲಾಗಿನ್"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "ನಿಯಮಗಳು ಮತ್ತು ಷರತ್ತುಗಳು",
+    "Privacy_Policy": "ಗೌಪ್ಯತಾ ನೀತಿ"
+  },
+  "User_Role": {
+    "Health_Worker": "ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತೆ"
+  }
+}

@@ -1,7 +1,9 @@
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { store } from '../store/store';
 import { storage } from '../utils/storage';
 import { HttpService } from './http';
 
-const IGNORED_ROUTES: string[] = ['/auth/login'];
+const IGNORED_ROUTES = ['/auth/login'];
 
 class MindmapService extends HttpService {
   constructor(baseURL: string) {
@@ -22,14 +24,37 @@ class MindmapService extends HttpService {
           config.headers.Authorization = `Bearer ${token}`;
         }
       }
+
+      //  dispatch loader: startLoading()
+      const showLoader = config.headers?.loader !== false;
+      if (showLoader) {
+        const id = (config.headers['loader-id'] as string) || undefined;
+        store.dispatch(startLoading(id));
+      }
       return config;
     });
 
     this.axiosInstance.interceptors.response.use(
-      response => response,
+      response => {
+        //dispatch loader: stopLoading()
+        const showLoader = response.headers?.loader !== false;
+        if (showLoader) {
+          const id = (response.headers['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
+        return response;
+      },
       error => {
+        //dispatch loader: stoploading()
+        const showLoader = error.headers?.loader !== false;
+        if (showLoader) {
+          const id = (error.headers['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
+        // Auto logout on 401
         if (error.response?.status === 401) {
           storage.clearAuthToken();
+          window.location.href = '/auth/login';
         }
         return Promise.reject(error);
       }
@@ -38,12 +63,9 @@ class MindmapService extends HttpService {
 }
 
 // Create multiple instances but with the same auth mechanism
-export const MindmapPortalApi = new MindmapService(
-  import.meta.env.VITE_API_BASE_URL
+export const MindmapAuthGatewayApi = new MindmapService(
+  import.meta.env.VITE_AUTH_GATEWAY_API_URL
 );
-// export const mindmapProjectsApi = new MindmapService(
-//   import.meta.env.VITE_MINDMAP_PROJECTS_URL
-// );
-// export const mindmapNotesApi = new MindmapService(
-//   import.meta.env.VITE_MINDMAP_NOTES_URL
-// );
+export const MindmapPortalApi = new MindmapService(
+  import.meta.env.VITE_PORTAL_API_URL
+);

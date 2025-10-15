@@ -1,50 +1,34 @@
-import type {
-  Patient,
-  PatientState,
-  UpdatePatientData,
-} from '../types/patient.types';
+import type { Patient, PatientState } from '../types/patient.types';
+
+// Patient actions
+export type PatientAction =
+  | { type: 'ADD_PATIENT'; payload: Patient }
+  | {
+      type: 'UPDATE_PATIENT';
+      payload: { id: string; updates: Partial<Patient> };
+    }
+  | { type: 'DELETE_PATIENT'; payload: string }
+  | { type: 'SET_CURRENT_PATIENT'; payload: Patient | null }
+  | { type: 'SET_PATIENTS'; payload: Patient[] }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_TOTAL_COUNT'; payload: number };
 
 // Initial state
 const initialState: PatientState = {
   patients: [],
   currentPatient: null,
-  totalCount: 0,
   loading: false,
   error: null,
+  totalCount: 0,
 };
-
-// Patient action types
-export type PatientAction =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_SUCCESS'; payload: Patient[] }
-  | { type: 'FETCH_FAILURE'; payload: string }
-  | { type: 'ADD_PATIENT'; payload: Patient }
-  | { type: 'UPDATE_PATIENT'; payload: { id: string; data: UpdatePatientData } }
-  | { type: 'DELETE_PATIENT'; payload: string }
-  | { type: 'SET_CURRENT_PATIENT'; payload: Patient | null }
-  | { type: 'CLEAR_ERROR' };
 
 // Patient reducer
 export const patientReducer = (
-  state: PatientState = initialState, // ✅ Default to initial state
+  state: PatientState = initialState,
   action: PatientAction
 ): PatientState => {
   switch (action.type) {
-    case 'FETCH_START':
-      return { ...state, loading: true, error: null };
-
-    case 'FETCH_SUCCESS':
-      return {
-        ...state,
-        patients: action.payload,
-        loading: false,
-        error: null,
-        totalCount: action.payload.length,
-      };
-
-    case 'FETCH_FAILURE':
-      return { ...state, loading: false, error: action.payload };
-
     case 'ADD_PATIENT':
       return {
         ...state,
@@ -55,29 +39,63 @@ export const patientReducer = (
     case 'UPDATE_PATIENT':
       return {
         ...state,
-        patients: state.patients.map((patient: Patient) =>
+        patients: state.patients.map(patient =>
           patient.id === action.payload.id
-            ? { ...patient, ...action.payload.data }
+            ? { ...patient, ...action.payload.updates }
             : patient
         ),
+        currentPatient:
+          state.currentPatient?.id === action.payload.id
+            ? { ...state.currentPatient, ...action.payload.updates }
+            : state.currentPatient,
       };
 
     case 'DELETE_PATIENT':
       return {
         ...state,
         patients: state.patients.filter(
-          (patient: Patient) => patient.id !== action.payload
+          patient => patient.id !== action.payload
         ),
-        totalCount: state.totalCount - 1,
+        currentPatient:
+          state.currentPatient?.id === action.payload
+            ? null
+            : state.currentPatient,
+        totalCount: Math.max(0, state.totalCount - 1),
       };
 
     case 'SET_CURRENT_PATIENT':
-      return { ...state, currentPatient: action.payload };
+      return {
+        ...state,
+        currentPatient: action.payload,
+      };
 
-    case 'CLEAR_ERROR':
-      return { ...state, error: null };
+    case 'SET_PATIENTS':
+      return {
+        ...state,
+        patients: action.payload,
+      };
+
+    case 'SET_LOADING':
+      return {
+        ...state,
+        loading: action.payload,
+      };
+
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+      };
+
+    case 'SET_TOTAL_COUNT':
+      return {
+        ...state,
+        totalCount: action.payload,
+      };
 
     default:
       return state;
   }
 };
+
+export default patientReducer;

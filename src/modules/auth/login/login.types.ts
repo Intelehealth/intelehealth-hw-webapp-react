@@ -1,7 +1,7 @@
 import type { User } from '../auth.types';
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
 }
 

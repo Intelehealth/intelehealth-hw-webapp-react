@@ -1,23 +1,23 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { InferType } from 'yup';
-import iconEyeClosed from '../../../assets/icons/icon-eye-closed.svg';
-import iconEye from '../../../assets/icons/icon-eye.svg';
 import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
 import iconQuestionMark from '../../../assets/icons/icon-rounded-question-mark.svg';
 import { Button, Checkbox, Dropdown, Input } from '../../../components/common';
 import Card from '../../../components/common/card.component';
+import Tooltip from '../../../components/common/tooltip.component';
 import { useLogin } from './login.hooks';
 import { loginSchema } from './login.validation';
 
 type LoginFormValues = InferType<typeof loginSchema>;
 
 const LoginComponent: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
-  const { handleLogin } = useLogin();
+  const { handleLogin, loading } = useLogin();
 
   const {
     register,
@@ -37,11 +37,11 @@ const LoginComponent: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    await handleLogin(data.username, data.password);
+    await handleLogin({ username: data.username, password: data.password });
   };
 
   return (
-    <Card className="w-full lg:w-auto lg:min-w-[431px]">
+    <Card className="w-full lg:w-[431px]">
       {/* FORM START */}
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* Title */}
@@ -49,8 +49,10 @@ const LoginComponent: React.FC = () => {
           <h2 className="text-lg font-semibold text-[--color-dark]">
             Please enter your login details
           </h2>
-          <span className="ml-2 lg:inline-block">
-            <img src={iconQuestionMark} alt="info" />
+          <span className="ml-2 lg:flex align-middle">
+            <Tooltip text="Enter the credentials given by intelehealth team">
+              <img src={iconQuestionMark} alt="info" />
+            </Tooltip>
           </span>
         </div>
 
@@ -59,8 +61,8 @@ const LoginComponent: React.FC = () => {
           <div className="flex justify-between mb-2">
             <label className="text-base text-(--color-muted)">Username</label>
             <a
-              className="hidden lg:inline text-base underline cursor-pointer text-(--color-muted)"
-              onClick={() => navigate('/forgot-username')}
+              className="inline text-base underline cursor-pointer text-(--color-muted)"
+              onClick={() => navigate('/auth/forgot-username')}
             >
               Forgot Username?
             </a>
@@ -81,8 +83,8 @@ const LoginComponent: React.FC = () => {
               Password
             </label>
             <a
-              className="hidden lg:block small-label underline text-base text-(--color-muted)"
-              href="#"
+              className="inline text-base underline cursor-pointer text-(--color-muted)"
+              onClick={() => navigate('/auth/forgot-password')}
             >
               Forgot Password?
             </a>
@@ -92,40 +94,19 @@ const LoginComponent: React.FC = () => {
             <Input
               {...register('password')}
               className="input-base pr-10"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               placeholder="Enter your password"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(s => !s)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[--color-muted] icon-inline cursor-pointer"
-            >
-              {showPassword ? (
-                <img src={iconEyeClosed} alt="Hide password" />
-              ) : (
-                <img src={iconEye} alt="Show password" />
-              )}
-            </button>
           </div>
           {errors.password && (
             <p className="text-red-500 text-xs mt-1">
               {errors.password.message}
             </p>
           )}
-
-          <div className="flex justify-end lg:hidden mt-2">
-            <a
-              className="small-label underline text-base text-(--color-muted)"
-              href="#"
-            >
-              Forgot Password?
-            </a>
-          </div>
         </div>
 
         {/* Role select - visible desktop only */}
-        <div className="hidden lg:block mb-4">
+        <div className="mb-4">
           <Dropdown
             label="Select Role"
             placeholder="Select your role"
@@ -145,7 +126,7 @@ const LoginComponent: React.FC = () => {
         </div>
 
         {/* Terms (desktop only) */}
-        <div className="hidden lg:flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4">
           <Checkbox
             label={
               <div className="text-sm text-[--color-dark]">
@@ -163,7 +144,7 @@ const LoginComponent: React.FC = () => {
                   href="https://intelehealth.org/privacy-policy"
                   target="_blank"
                 >
-                  Privacy Policy
+                  {t('Privacy_Policy')}
                 </a>
               </div>
             }
@@ -181,6 +162,8 @@ const LoginComponent: React.FC = () => {
             className="w-full"
             type="submit"
             rightIcon={<img src={iconRightArrow} />}
+            isLoading={loading}
+            name="login-button"
           >
             <span className="mx-auto w-full text-base">Login</span>
           </Button>

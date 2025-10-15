@@ -10,12 +10,14 @@ interface ImageSliderProps {
   slides: Slide[];
   autoPlay?: boolean;
   interval?: number;
+  hideImages?: boolean;
 }
 
 const ImageSlider = ({
   slides,
   autoPlay = true,
   interval = 3000,
+  hideImages = false,
 }: ImageSliderProps) => {
   const [current, setCurrent] = useState(0);
 
@@ -31,7 +33,7 @@ const ImageSlider = ({
   }, [current, autoPlay, interval, slides.length]);
 
   return (
-    <div className="relative w-full max-w-xl mx-auto overflow-hidden rounded-lg">
+    <div className="relative w-full mr-4 lg:max-w-xl lg:mx-auto  overflow-hidden rounded-lg">
       {/* Slide container */}
       <div
         className="flex transition-transform duration-700"
@@ -40,16 +42,20 @@ const ImageSlider = ({
         {slides.map((slide, index) => (
           <div
             key={index}
-            className="min-w-full flex flex-col items-center justify-center"
+            className="min-w-full flex px-6 lg:px-0 lg:flex-col items-center justify-center"
           >
-            <img
-              src={slide.image}
-              alt={slide.title}
-              className="w-full h-64 sm:h-96 object-contain rounded-lg"
-            />
-            <div className="mt-5 text-center">
+            {!hideImages && (
+              <img
+                src={slide.image}
+                alt={slide.title}
+                className="w-[50%] lg:w-full h-40 lg:h-96 object-contain rounded-lg"
+              />
+            )}
+            <div
+              className={`mt-5 lg:text-center ${hideImages ? 'text-center' : 'text-left'}`}
+            >
               <h3 className="text-xl font-bold text-white">{slide.title}</h3>
-              <p className="text-white text-base mt-2">{slide.description}</p>
+              <p className="text-white text-base mt-4">{slide.description}</p>
             </div>
           </div>
         ))}

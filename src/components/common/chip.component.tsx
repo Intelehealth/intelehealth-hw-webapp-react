@@ -166,6 +166,7 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
 
     const handleRemove = (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (disabled) return;
       onRemove?.();
     };
 
@@ -199,7 +200,6 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
         type="button"
         className={baseClasses}
         onClick={handleClick}
-        disabled={disabled}
         aria-pressed={selected}
         {...props}
       >
@@ -224,7 +224,6 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
               disabled && 'opacity-50 cursor-not-allowed'
             )}
             onClick={handleRemove}
-            disabled={disabled}
             aria-label="Remove"
           >
             <svg

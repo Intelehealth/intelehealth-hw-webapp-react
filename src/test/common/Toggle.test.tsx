@@ -123,4 +123,187 @@ describe('Toggle', () => {
     render(<Toggle ref={ref} label="With ref" />);
     expect(ref).toHaveBeenCalled();
   });
+
+  // Additional test cases for 100% coverage
+
+  it('applies correct size classes for toggle and thumb', () => {
+    const { rerender } = render(<Toggle label="Small" size="sm" />);
+    const toggle = screen.getByRole('checkbox');
+    // const label = screen.getByText('Small');
+    
+    // Check that the toggle container has the correct size classes
+    const toggleContainer = toggle.closest('label');
+    expect(toggleContainer).toHaveClass('w-8', 'h-4');
+
+    rerender(<Toggle label="Medium" size="md" />);
+    const mdToggleContainer = screen.getByRole('checkbox').closest('label');
+    expect(mdToggleContainer).toHaveClass('w-11', 'h-6');
+
+    rerender(<Toggle label="Large" size="lg" />);
+    const lgToggleContainer = screen.getByRole('checkbox').closest('label');
+    expect(lgToggleContainer).toHaveClass('w-14', 'h-7');
+  });
+
+  it('applies correct variant classes for checked and unchecked states', () => {
+    const { rerender } = render(<Toggle label="Primary" variant="primary" checked />);
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).toBeChecked();
+
+    rerender(<Toggle label="Secondary" variant="secondary" checked />);
+    expect(toggle).toBeChecked();
+
+    rerender(<Toggle label="Primary Unchecked" variant="primary" checked={false} />);
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('applies correct label size classes', () => {
+    const { rerender } = render(<Toggle size="sm" label="Small Label" />);
+    expect(screen.getByText('Small Label')).toHaveClass('text-sm');
+
+    rerender(<Toggle size="md" label="Medium Label" />);
+    expect(screen.getByText('Medium Label')).toHaveClass('text-base');
+
+    rerender(<Toggle size="lg" label="Large Label" />);
+    expect(screen.getByText('Large Label')).toHaveClass('text-lg');
+  });
+
+  it('applies correct description size classes', () => {
+    const { rerender } = render(
+      <Toggle size="sm" label="Small" description="Small description" />
+    );
+    expect(screen.getByText('Small description')).toHaveClass('text-sm');
+
+    rerender(<Toggle size="md" label="Medium" description="Medium description" />);
+    expect(screen.getByText('Medium description')).toHaveClass('text-sm');
+
+    rerender(<Toggle size="lg" label="Large" description="Large description" />);
+    expect(screen.getByText('Large description')).toHaveClass('text-base');
+  });
+
+  it('sets correct aria-describedby attribute', () => {
+    const { rerender } = render(
+      <Toggle 
+        label="Test" 
+        error="Error message" 
+        helperText="Helper text" 
+        description="Description text" 
+      />
+    );
+    const toggle = screen.getByRole('checkbox');
+    const expectedId = toggle.id;
+    
+    // When error is present, it should include error, helper, and description
+    expect(toggle).toHaveAttribute('aria-describedby', 
+      `${expectedId}-error ${expectedId}-helper ${expectedId}-description`);
+
+    rerender(<Toggle label="Test" helperText="Helper text" description="Description text" />);
+    expect(toggle).toHaveAttribute('aria-describedby', 
+      `${expectedId}-helper ${expectedId}-description`);
+
+    rerender(<Toggle label="Test" description="Description text" />);
+    expect(toggle).toHaveAttribute('aria-describedby', `${expectedId}-description`);
+
+    rerender(<Toggle label="Test" />);
+    expect(toggle).toHaveAttribute('aria-describedby', '');
+  });
+
+  it('applies error styling to label when error is present', () => {
+    render(<Toggle label="Test Label" error="Error message" />);
+    const label = screen.getByText('Test Label');
+    expect(label).toHaveClass('text-error-700');
+  });
+
+  it('applies disabled styling to label when disabled', () => {
+    render(<Toggle label="Test Label" disabled />);
+    const label = screen.getByText('Test Label');
+    expect(label).toHaveClass('text-gray-400', 'cursor-not-allowed');
+  });
+
+  it('applies disabled styling to label when both error and disabled are present', () => {
+    render(<Toggle label="Test Label" error="Error message" disabled />);
+    const label = screen.getByText('Test Label');
+    // When both error and disabled are present, disabled styling takes precedence
+    expect(label).toHaveClass('text-gray-400', 'cursor-not-allowed');
+    expect(label).not.toHaveClass('text-error-700');
+  });
+
+  it('applies disabled styling to toggle container when disabled', () => {
+    render(<Toggle label="Disabled Toggle" disabled />);
+    const toggle = screen.getByRole('checkbox');
+    const toggleContainer = toggle.closest('label');
+    expect(toggleContainer).toHaveClass('cursor-not-allowed');
+  });
+
+  it('applies error styling to toggle when error is present', () => {
+    render(<Toggle label="Error Toggle" error="Error message" />);
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('renders without label', () => {
+    render(<Toggle />);
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).toBeInTheDocument();
+    expect(screen.queryByText('*')).not.toBeInTheDocument();
+  });
+
+  it('renders without description', () => {
+    render(<Toggle label="Test Label" />);
+    expect(screen.getByText('Test Label')).toBeInTheDocument();
+    expect(screen.queryByText('Description')).not.toBeInTheDocument();
+  });
+
+  it('handles custom id', () => {
+    render(<Toggle id="custom-id" label="Custom ID" />);
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).toHaveAttribute('id', 'custom-id');
+  });
+
+  it('applies focus ring styles correctly', () => {
+    render(<Toggle label="Focus Test" />);
+    const toggle = screen.getByRole('checkbox');
+    const toggleContainer = toggle.closest('label');
+    const innerDiv = toggleContainer?.querySelector('div');
+    // The focus ring classes are applied to the inner div
+    expect(innerDiv).toHaveClass('peer-focus:ring-primary-500');
+  });
+
+  it('applies error focus ring when error is present', () => {
+    render(<Toggle label="Error Focus Test" error="Error message" />);
+    const toggle = screen.getByRole('checkbox');
+    const toggleContainer = toggle.closest('label');
+    const innerDiv = toggleContainer?.querySelector('div');
+    expect(innerDiv).toHaveClass('peer-focus:ring-error-500');
+  });
+
+  it('applies opacity when disabled', () => {
+    render(<Toggle label="Disabled Opacity Test" disabled />);
+    const toggle = screen.getByRole('checkbox');
+    const toggleContainer = toggle.closest('label');
+    const innerDiv = toggleContainer?.querySelector('div');
+    expect(innerDiv).toHaveClass('opacity-50');
+  });
+
+  it('handles keyboard navigation', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(<Toggle onChange={handleChange} label="Keyboard test" />);
+    const toggle = screen.getByRole('checkbox');
+
+    toggle.focus();
+    await user.keyboard(' ');
+    expect(handleChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('can be clicked via label', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(<Toggle onChange={handleChange} label="Clickable label" />);
+    const label = screen.getByText('Clickable label');
+
+    await user.click(label);
+    expect(handleChange).toHaveBeenCalledTimes(1);
+  });
 });

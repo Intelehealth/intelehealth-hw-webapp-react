@@ -1,4 +1,6 @@
-import React, { forwardRef, type InputHTMLAttributes } from 'react';
+import React, { forwardRef, useState, type InputHTMLAttributes } from 'react';
+import iconEyeClosed from '../../assets/icons/icon-eye-closed.svg';
+import iconEye from '../../assets/icons/icon-eye.svg';
 import { cn } from '../../utils/cn';
 
 export interface InputProps
@@ -26,10 +28,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       isRequired = false,
       className,
       disabled,
+      type = 'text', // Default to 'text' if type is not specified
       ...props
     },
     ref
   ) => {
+    const [showPassword, setShowPassword] = useState(false);
+
     const inputId = React.useId();
     const errorId = `${inputId}-error`;
     const helperId = `${inputId}-helper`;
@@ -57,6 +62,26 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       rightIcon && 'pr-10',
       className
     );
+
+    // Handle keydown for number-only input
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (type === 'tel') {
+        const charCode = e.key;
+
+        // Allow backspace, delete, arrows, and numbers 0-9
+        if (
+          !(
+            (charCode >= '0' && charCode <= '9') || // Numbers 0-9
+            charCode === 'Backspace' || // Backspace
+            charCode === 'Delete' || // Delete
+            charCode === 'ArrowLeft' || // Left arrow
+            charCode === 'ArrowRight' // Right arrow
+          )
+        ) {
+          e.preventDefault(); // Prevent non-numeric input
+        }
+      }
+    };
 
     return (
       <div className="w-full">
@@ -95,6 +120,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            type={
+              type === 'password' ? (showPassword ? 'text' : 'password') : type
+            } // Ensure the correct type is set
             className={baseClasses}
             disabled={disabled}
             aria-invalid={error ? 'true' : 'false'}
@@ -102,6 +130,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               error ? errorId : undefined,
               helperText ? helperId : undefined
             )}
+            onKeyDown={handleKeyDown} // Handle keydown for number-only validation
             {...props}
           />
 
@@ -120,6 +149,21 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                 {rightIcon}
               </div>
             </div>
+          )}
+
+          {type === 'password' && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(s => !s)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[--color-muted] icon-inline cursor-pointer"
+            >
+              {showPassword ? (
+                <img src={iconEyeClosed} alt="Hide password" />
+              ) : (
+                <img src={iconEye} alt="Show password" />
+              )}
+            </button>
           )}
         </div>
 
