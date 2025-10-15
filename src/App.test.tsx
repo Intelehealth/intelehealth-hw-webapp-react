@@ -1,53 +1,26 @@
-import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { render } from './test/utils';
 
-describe('App', () => {
-  it('renders without crashing', () => {
+// Mock AppRoutes so tests don't depend on routing internals
+vi.mock('./routes/app.routes', () => ({
+  __esModule: true,
+  default: () => <div>Mocked Routes</div>,
+}));
+
+describe('App component', () => {
+  it('renders AppRoutes component', () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: /login/i })).toBeInTheDocument();
+    expect(screen.getByText('Mocked Routes')).toBeInTheDocument();
   });
 
-  it('displays the login form', () => {
+  it('renders ToastContainer with correct props', async () => {
     render(<App />);
-    const heading = screen.getByRole('heading', { name: /login/i });
-    expect(heading).toBeInTheDocument();
-    expect(heading.textContent).toBe('Login');
-  });
-
-  it('renders the login form elements', () => {
-    render(<App />);
-    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
-  });
-
-  it('updates email input value', () => {
-    render(<App />);
-    const emailInput = screen.getByPlaceholderText(/email/i);
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    expect(emailInput).toHaveValue('test@example.com');
-  });
-
-  it('updates password input value', () => {
-    render(<App />);
-    const passwordInput = screen.getByPlaceholderText(/password/i);
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    expect(passwordInput).toHaveValue('password123');
-  });
-
-  it('submits the login form', () => {
-    render(<App />);
-    const emailInput = screen.getByPlaceholderText(/email/i);
-    const passwordInput = screen.getByPlaceholderText(/password/i);
-    const submitButton = screen.getByRole('button', { name: /login/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
-
-    // Form should be submitted (no error thrown)
-    expect(emailInput).toBeInTheDocument();
+    // ToastContainer does not render visible UI elements by default,
+    // but we can check for its presence by role or class.
+    // react-toastify uses role="alert" for toasts but ToastContainer itself
+    // may not be accessible via screen queries. So we check container existence.
+    const toastContainers = document.getElementsByClassName('Toastify');
+    expect(toastContainers.length).toBeGreaterThan(0);
   });
 });

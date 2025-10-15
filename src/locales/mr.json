@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "कृपया आपले लॉगिन तपशील भरा",
+    "Username": "वापरकर्ता नाव",
+    "Forgot_Username": "वापरकर्ता नाव विसरलात?",
+    "Password": "पासवर्ड",
+    "Forgot_Password": "पासवर्ड विसरलात?",
+    "Sign_In_As": "साइन इन करा",
+    "Agree_To": "मी सहमत आहे",
+    "Login": "लॉगिन"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "नियम व अटी",
+    "Privacy_Policy": "गोपनीयता धोरण"
+  },
+  "User_Role": {
+    "Health_Worker": "आरोग्य कर्मचारी"
+  }
+}

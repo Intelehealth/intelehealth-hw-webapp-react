@@ -1,0 +1,185 @@
+/* Form Component Wrapper Classes 
+  These styles define the appearance of standard input fields, 
+  checkboxes, and radio buttons based on your theme variables.
+*/
+
+/* ------------------- */
+/* 1. Base Input/Textarea Styles */
+/* ------------------- */
+
+.form-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 16px;
+}
+
+.form-error-message {
+  font-size: 13px;
+  color: var(--color-error);
+  margin-top: 4px;
+}
+
+.form-helper-text {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-top: 4px;
+}
+
+.form-input-base {
+  /* Layout and Sizing */
+  min-height: 37px; /* min-h-[37px] */
+
+  /* Appearance */
+  color: var(--color-dark); /* text-[--color-dark] */
+  background-color: var(--color-bg); /* bg-[--color-bg] */
+  border: 1px groove rgba(178, 175, 190, 0.2);
+  border-radius: 7px; /* rounded-[7px] */
+  outline: none; /* remove default outline */
+
+  /* Transitions for Smooth Focus */
+  transition-property: border-color, box-shadow; /* transition-colors, shadow */
+  transition-duration: 200ms; /* duration-200 */
+}
+
+.form-input-base:disabled {
+  background-color: #f5f5f5; /* bg-gray-100 */
+  cursor: not-allowed; /* cursor-not-allowed */
+  opacity: 0.6; /* reduced opacity */
+}
+
+.form-label {
+  /* Appearance */
+  font-size: 14px; /* text-sm */
+  color: var(--color-muted); /* text-[--color-muted] */
+  font-weight: 500; /* font-medium */
+  line-height: 150%; /* leading-[150%] */
+  letter-spacing: 0%; /* normal */
+}
+
+/* Placeholder Text Color */
+.form-input-base::placeholder {
+  color: var(--color-muted); /* placeholder-muted */
+}
+
+/* Focus State */
+.form-input-base:focus {
+  background-color: #ffffff; /* bg-white */
+  color: #1b163a; /* text-[--color-dark] */
+  border-color: var(--color-primary-light); /* border-[--color-primary-light] */
+}
+
+/* ------------------- */
+/* 2. Checkbox/Radio Button Styles */
+/* ------------------- */
+
+/* Base Checkbox/Radio (Use for <input type="checkbox"> and <input type="radio">) */
+.form-toggle-base {
+  /* Appearance Reset (to allow custom styling) */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  /* Layout and Sizing */
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+
+  /* Default Appearance */
+  background-color: #ffffff; /* bg-white */
+  border-width: 1px; /* border-1 */
+  border-color: var(--color-muted); /* light gray border */
+
+  /* Transitions */
+  transition-property: all;
+  transition-duration: 200ms;
+}
+
+.form-toggle-base:disabled {
+  background-color: var(--color-accent); /* bg-gray-200 */
+  border-color: var(--color-muted); /* border-[--color-muted] */
+  cursor: not-allowed; /* cursor-not-allowed */
+  pointer-events: none; /* pointer-events-none */
+  opacity: 0.6; /* reduced opacity */
+}
+
+/* Checkbox specific styling */
+.form-checkbox {
+  border-radius: 0.25rem; /* rounded-md or rounded (approx 4-6px) */
+}
+
+.form-radio:disabled {
+  border-color: var(--color-muted); /* border-[--color-muted] */
+  cursor: not-allowed; /* cursor-not-allowed */
+  pointer-events: none; /* pointer-events-none */
+  opacity: 0.5; /* reduced opacity */
+}
+
+.form-radio {
+  border-radius: 50%; /* fully rounded for radio */
+}
+
+/* Checked State for Checkbox*/
+.form-checkbox-primary:checked {
+  background-color: var(--color-accent); /* bg-[--color-primary] */
+
+  /* Apply a white checkmark (using a custom SVG or background image for the check) */
+  /* For simplicity without custom SVG, we use a simple Tailwind trick: */
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.form-checkbox-secondary:checked {
+  background-color: var(--color-primary-dark); /* bg-[--color-primary] */
+
+  /* Apply a white checkmark (using a custom SVG or background image for the check) */
+  /* For simplicity without custom SVG, we use a simple Tailwind trick: */
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.form-radio:checked::before {
+  content: '';
+  display: block;
+  width: 60%; /* inner dot size */
+  height: 60%; /* inner dot size */
+  border-radius: 50%;
+  position: relative;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Checked state for Radio (dot appearance) */
+.form-radio-primary:checked {
+  border-color: var(--color-accent); /* border-[--color-accent] */
+}
+
+.form-radio-primary:checked::before {
+  background-color: var(--color-accent); /* white dot */
+}
+
+.form-radio-secondary:checked {
+  border-color: var(--color-primary-dark); /* border-[--color-primary-dark] */
+}
+
+.form-radio-secondary:checked::before {
+  background-color: var(--color-primary-dark); /* white dot */
+}
+
+/* Responsive Css for different sizes */
+@media (max-width: 768px) {
+  .form-input-base {
+    font-size: 16px; /* text-base */
+  }
+  .form-input-base::placeholder {
+    font-size: 16px; /* text-base */
+  }
+  .form-label {
+    font-size: 16px; /* text-lg */
+  }
+}

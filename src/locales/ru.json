@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "Пожалуйста, введите свои данные для входа",
+    "Username": "Имя пользователя",
+    "Forgot_Username": "Забыли имя пользователя?",
+    "Password": "Пароль",
+    "Forgot_Password": "Забыли пароль?",
+    "Sign_In_As": "Войти как",
+    "Agree_To": "Согласен с",
+    "Login": "Войти"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "Условия использования",
+    "Privacy_Policy": "Политика конфиденциальности"
+  },
+  "User_Role": {
+    "Health_Worker": "Медицинский работник"
+  }
+}

@@ -1,0 +1,47 @@
+import iconLocation from '../../assets/icons/icon-location.svg';
+import iconNotification from '../../assets/icons/icon-notification.svg';
+import iconSearch from '../../assets/icons/icon-search.svg';
+import iconSync from '../../assets/icons/icon-sync.svg';
+import userDefault from '../../assets/images/user-default.png';
+import { Input } from '../common';
+
+const Navbar = () => {
+  return (
+    <header className="bg-white shadow-md flex flex-col justify-between gap-4 items-center p-4 rounded-lg">
+      {/* Desktop */}
+      <div className="flex justify-between items-center w-full gap-4">
+        <div className="items-center space-x-2 w-4/12 hidden md:flex">
+          <Input
+            placeholder="Patient Search"
+            size="lg"
+            className="w-full"
+            leftIcon={<img src={iconSearch} alt="search" className="w-6 h-6" />}
+          />
+        </div>
+        <div className="flex flex-col w-8/12 md:w-6/12 pl-12 md:pl-4">
+          <div className="flex gap-2">
+            <img src={iconLocation} alt="Location" className="w-6 h-6" />
+            <span className="text-(--color-muted)">Ranchi</span>
+          </div>
+          <span className="text-(--color-muted)">
+            Last sync: 12:30 pm, 12 May 2022
+          </span>
+        </div>
+        <div className="flex items-center space-x-2 ml-auto gap-4">
+          <img src={iconSync} alt="Sync" className="w-6 h-6" />
+          <img src={iconNotification} alt="Notification" className="w-6 h-6" />
+          <img src={userDefault} alt="Bell" className="w-10 h-10" />
+        </div>
+      </div>
+
+      <div className="w-full md:hidden">
+        <Input
+          placeholder="Patient Search"
+          leftIcon={<img src={iconSearch} alt="search" className="w-6 h-6" />}
+        />
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;

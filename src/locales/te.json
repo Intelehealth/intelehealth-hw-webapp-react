@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "దయచేసి మీ లాగిన్ వివరాలు నమోదు చేయండి",
+    "Username": "వినియోగదారుని పేరు",
+    "Forgot_Username": "వినియోగదారుని పేరు మర్చిపోయారా?",
+    "Password": "పాస్‌వర్డ్",
+    "Forgot_Password": "పాస్‌వర్డ్ మర్చిపోయారా?",
+    "Sign_In_As": "సైన్ ఇన్ అవ్వండి",
+    "Agree_To": "అంగీకరిస్తున్నాను",
+    "Login": "లాగిన్"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "నిబంధనలు మరియు షరతులు",
+    "Privacy_Policy": "గోప్యతా విధానం"
+  },
+  "User_Role": {
+    "Health_Worker": "ఆరోగ్య కార్యకర్త"
+  }
+}

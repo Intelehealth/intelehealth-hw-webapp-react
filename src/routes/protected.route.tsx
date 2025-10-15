@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { Loader } from '../components/loader';
 import { storage } from '../utils/storage';
 
 interface Props {
@@ -7,7 +8,7 @@ interface Props {
 }
 
 const ProtectedRoute: React.FC<Props> = ({
-  redirectPath = '/login',
+  redirectPath = '/auth/login',
   ignoredRoutes = [],
 }) => {
   const token = storage.getAuthToken();
@@ -24,7 +25,12 @@ const ProtectedRoute: React.FC<Props> = ({
   }
 
   // Otherwise, allow access
-  return <Outlet />;
+  return (
+    <>
+      <Loader />
+      <Outlet />
+    </>
+  );
 };
 
 export default ProtectedRoute;

@@ -1,0 +1,19 @@
+{
+  "Auth": {
+    "Please_Enter_Your_Login_Details": "Please enter your login details",
+    "Username": "Username",
+    "Forgot_Username": "Forgot Username ?",
+    "Password": "Password",
+    "Forgot_Password": "Forgot Password ?",
+    "Sign_In_As": "Sign in as",
+    "Agree_To": "Agree to",
+    "Login": "Login"
+  },
+  "Legal": {
+    "Terms_And_Conditions": "Terms & Conditions",
+    "Privacy_Policy": "Privacy Policy"
+  },
+  "User_Role": {
+    "Health_Worker": "Health Worker"
+  }
+}

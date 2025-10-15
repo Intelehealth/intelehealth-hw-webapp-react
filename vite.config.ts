@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'vite';
@@ -6,6 +7,7 @@ import { defineConfig } from 'vite';
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    tailwindcss(),
     // Bundle analyzer for production builds
     mode === 'analyze' &&
       visualizer({

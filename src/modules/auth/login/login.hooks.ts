@@ -1,25 +1,26 @@
 // src/modules/auth/login/login.hooks.ts
-import { useDispatch } from 'react-redux';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiService from '../../../services/api';
-import type { AppDispatch } from '../../../store/store';
+import { showToast } from '../../../services/toast';
 import { cookie } from '../../../utils/cookie';
 import { storage } from '../../../utils/storage';
+import loginService from './login.service';
+import type { LoginCredentials } from './login.types';
 
 interface UseLoginReturn {
-  handleLogin: (email: string, password: string) => Promise<void>;
+  handleLogin: (credentials: LoginCredentials) => Promise<void>;
+  loading: boolean;
 }
 
 export const useLogin = (): UseLoginReturn => {
-  const dispatch = useDispatch<AppDispatch>();
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (email: string, password: string) => {
-    dispatch({ type: 'LOGIN_START' });
-
+  const handleLogin = async (credentials: LoginCredentials) => {
     try {
+      setLoading(true);
       // Encode OpenMRS basic auth
-      const cred = `${email}:${password}`;
+      const cred = `${credentials.username}:${credentials.password}`;
       const base64cred = btoa(cred);
       const axiosConfig = {
         headers: {
@@ -27,32 +28,43 @@ export const useLogin = (): UseLoginReturn => {
         },
       };
       // First call OpenMRS login
-      const { user, sessionId } = await apiService.openMRSLogin(axiosConfig);
+      const { user, sessionId, authenticated } =
+        await loginService.openMRSLogin(axiosConfig);
 
       // Set JSESSIONID cookie
-      if (!sessionId) throw new Error('No sessionId from OpenMRS');
+      if (!authenticated) throw new Error('Login to OpenMRS failed');
       cookie.setCookie('JSESSIONID', sessionId);
 
       // Then call our backend login
-      const { token } = await apiService.login({ email, password });
+      const { token } = await loginService.login(credentials);
       storage.setAuthToken(token);
+      storage.setUser(JSON.stringify(user));
 
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
+      //show toast message
+      showToast('Login Successful', `Welcome back`, 'success');
 
       //redirect to dashboard or some other page
       navigate('/dashboard');
     } catch (error: unknown) {
-      let message = 'Login failed';
+      setLoading(false);
+      let message = 'Login Failed';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as {
           response?: { data?: { message?: string } };
         };
-        message = axiosError.response?.data?.message || message;
+        if (
+          axiosError.response &&
+          axiosError.response.data &&
+          axiosError.response.data.message
+        ) {
+          message = axiosError.response.data.message;
+        }
       }
 
-      dispatch({ type: 'LOGIN_FAILURE', payload: message });
+      //show toast message
+      showToast('Login Failed', message, 'error');
     }
   };
 
-  return { handleLogin };
+  return { handleLogin, loading };
 };

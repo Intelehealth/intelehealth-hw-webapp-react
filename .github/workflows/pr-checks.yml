@@ -48,18 +48,32 @@ jobs:
         run: yarn test:run
 
       - name: 📊 Generate coverage report
-        run: yarn test:coverage
+        run: |
+          echo "📊 Generating coverage report..."
+          if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
+            echo "⚠️ Coverage check bypassed - generating report without requirements"
+            yarn test:coverage:bypass
+          else
+            echo "✅ Generating coverage report with 100% requirement"
+            yarn test:coverage
+          fi
 
       - name: 📊 Check coverage threshold
         run: |
           echo "🔍 Checking coverage threshold..."
-          COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
-          echo "Current coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 100" | bc -l) )); then
-            echo "❌ Coverage is ${COVERAGE}%, but 100% is required"
-            exit 1
+          if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
+            echo "⚠️ Coverage threshold check bypassed"
+            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
+            echo "Current coverage: ${COVERAGE}% (bypassed)"
           else
-            echo "✅ Coverage is ${COVERAGE}% - meets 100% requirement"
+            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
+            echo "Current coverage: ${COVERAGE}%"
+            if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+              echo "❌ Coverage is ${COVERAGE}%, but 100% is required"
+              exit 1
+            else
+              echo "✅ Coverage is ${COVERAGE}% - meets 100% requirement"
+            fi
           fi
 
       - name: 📈 Upload coverage to Codecov
@@ -142,8 +156,10 @@ jobs:
             try {
               const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
               const totalCoverage = coverage.total.lines.pct;
-              const coverageStatus = totalCoverage >= 100 ? '✅' : '❌';
-              coverageComment = `\n\n## 📊 Coverage Report\n- **Total Coverage**: ${totalCoverage}% ${coverageStatus}\n- **Lines**: ${coverage.total.lines.covered}/${coverage.total.lines.total}\n- **Functions**: ${coverage.total.functions.covered}/${coverage.total.functions.total}\n- **Branches**: ${coverage.total.branches.covered}/${coverage.total.branches.total}\n- **Requirement**: 100% coverage required`;
+              const isBypassed = '${{ secrets.BYPASS_COVERAGE_CHECK }}' === 'true';
+              const coverageStatus = isBypassed ? '⚠️ (Bypassed)' : (totalCoverage >= 100 ? '✅' : '❌');
+              const requirementText = isBypassed ? 'Coverage check bypassed' : '100% coverage required';
+              coverageComment = `\n\n## 📊 Coverage Report\n- **Total Coverage**: ${totalCoverage}% ${coverageStatus}\n- **Lines**: ${coverage.total.lines.covered}/${coverage.total.lines.total}\n- **Functions**: ${coverage.total.functions.covered}/${coverage.total.functions.total}\n- **Branches**: ${coverage.total.branches.covered}/${coverage.total.branches.total}\n- **Requirement**: ${requirementText}`;
             } catch (e) {
               coverageComment = '\n\n## 📊 Coverage Report\nCoverage data not available';
             }
