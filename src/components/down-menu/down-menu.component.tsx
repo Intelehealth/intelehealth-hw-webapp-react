@@ -1,27 +1,49 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import iconAchievements from '../../assets/icons/icon-achievement.svg';
+import iconHome from '../../assets/icons/icon-home.svg';
+import iconInfo from '../../assets/icons/icon-info.svg';
+import iconPatientPlus from '../../assets/icons/icon-user-plus.svg';
+
+const menuItems = [
+  { label: 'Dashboard', icon: iconHome, path: '/dashboard' },
+  { label: 'Achievements', icon: iconAchievements, path: '/achievements' },
+  { label: 'Help & Support', icon: iconInfo, path: '/help' },
+  { label: 'Add Patient', icon: iconPatientPlus, path: '/add-patient' },
+];
 
 const DownMenu = () => {
+  const location = useLocation();
+
   return (
-    <div className=" flex justify-around p-3">
-      <Link to="/" className="flex flex-col items-center space-y-1">
-        <i className="fas fa-home"></i>
-        <span>Home</span>
-      </Link>
-      <Link to="/appointments" className="flex flex-col items-center space-y-1">
-        <i className="fas fa-calendar-alt"></i>
-        <span>Appointments</span>
-      </Link>
-      <Link
-        to="/prescriptions"
-        className="flex flex-col items-center space-y-1"
-      >
-        <i className="fas fa-file-medical"></i>
-        <span>Prescriptions</span>
-      </Link>
-      <Link to="/patients" className="flex flex-col items-center space-y-1">
-        <i className="fas fa-users"></i>
-        <span>Patients</span>
-      </Link>
+    <div className=" flex justify-around p-3 shodow rounded-t-lg bg-white">
+      {menuItems.map(item => {
+        const isActive = location.pathname === item.path;
+        return (
+          <Link
+            to={item.path}
+            className={`flex flex-col items-center space-y-1 p-2 rounded-lg min-h-[50px] ${
+              isActive ? '' : ''
+            }`}
+            key={item.label}
+          >
+            <img
+              src={item.icon}
+              alt={item.label}
+              className="w-6 h-6 text-black"
+              style={{
+                filter: isActive
+                  ? 'invert(12%) sepia(81%) saturate(4258%) hue-rotate(249deg) brightness(78%) contrast(99%)'
+                  : 'filter: invert(73%) sepia(15%) saturate(204%) hue-rotate(210deg) brightness(93%) contrast(92%)',
+              }}
+            />
+            <span
+              className={`text-(--color-muted) ${isActive ? 'text-(--color-primary)' : ''}`}
+            >
+              {item.label}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 };

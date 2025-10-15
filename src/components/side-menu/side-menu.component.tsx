@@ -1,13 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
+import iconAbout from '../../assets/icons/icon-about.svg';
+import iconAchievements from '../../assets/icons/icon-achievement.svg';
+import iconHome from '../../assets/icons/icon-home.svg';
+import iconInfo from '../../assets/icons/icon-info.svg';
+import iconPowerOff from '../../assets/icons/icon-power-off.svg';
+import iconSettings from '../../assets/icons/icon-settings.svg';
+import iconVideos from '../../assets/icons/icon-videos.svg';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
-import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail--ogo-white.png';
+import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.png';
 
 const menuItems = [
-  { label: 'Dashboard', icon: 'fa-solid fa-home' },
-  { label: 'Appointments', icon: 'fa-solid fa-calendar-check' },
-  { label: 'Prescriptions', icon: 'fa-solid fa-file-medical' },
-  { label: 'Patients', icon: 'fa-solid fa-users' },
-  { label: 'Settings', icon: 'fa-solid fa-gear' },
+  { label: 'Dashboard', icon: iconHome },
+  { label: 'Achievements', icon: iconAchievements },
+  { label: 'Help & Support', icon: iconInfo },
+  { label: 'Educational Videos', icon: iconVideos },
+  { label: 'Settings', icon: iconSettings },
+  { label: 'About us', icon: iconAbout },
 ];
 
 interface SideMenuProps {
@@ -41,9 +49,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
       {!isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
-          className="md:hidden fixed top-4 left-4 z-50 bg-white rounded-full shadow w-10 h-10 flex items-center justify-center"
+          className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center"
         >
-          <i className="fa-solid fa-bars text-gray-700 text-xl"></i>
+          <i className="fa-solid fa-bars text-gray-700 text-[30px] pt-2"></i>
         </button>
       )}
 
@@ -95,16 +103,29 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
               <a
                 key={item.label}
                 href="#"
-                className={`flex items-center gap-3 p-2 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                  isCollapsed ? 'justify-center' : ''
+                className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                  isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
                 }`}
               >
-                <i className={`${item.icon} text-white text-lg`}></i>
+                <img src={item.icon} alt={item.label} className="w-6 h-6" />
                 {!isCollapsed && (
                   <span className="text-white">{item.label}</span>
                 )}
               </a>
             ))}
+          </nav>
+
+          {/* DownMenu Items */}
+          <nav className="p-3 space-y-2 mt-auto">
+            <a
+              href="#"
+              className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
+              }`}
+            >
+              <img src={iconPowerOff} className="w-6 h-6" />
+              {!isCollapsed && <span className="text-white">Logout</span>}
+            </a>
           </nav>
         </div>
       </aside>

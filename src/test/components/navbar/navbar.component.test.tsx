@@ -9,16 +9,17 @@ describe('Navbar', () => {
     }).not.toThrow();
   });
 
-  it('should render the navbar header', () => {
-    render(<Navbar />);
+  it('should render the navbar header with correct classes', () => {
+    const { container } = render(<Navbar />);
     
-    expect(screen.getByRole('banner')).toBeInTheDocument();
+    const header = container.querySelector('header');
+    expect(header).toHaveClass('bg-white', 'shadow-md', 'flex', 'flex-col', 'justify-between', 'gap-4', 'items-center', 'p-4', 'rounded-lg');
   });
 
-  it('should display the Intelehealth brand name', () => {
+  it('should display the location information', () => {
     render(<Navbar />);
     
-    expect(screen.getByText('Intelehealth')).toBeInTheDocument();
+    expect(screen.getByText('Ranchi')).toBeInTheDocument();
   });
 
   it('should display the last sync time', () => {
@@ -27,66 +28,138 @@ describe('Navbar', () => {
     expect(screen.getByText('Last sync: 12:30 pm, 12 May 2022')).toBeInTheDocument();
   });
 
-  it('should render notification and user icons', () => {
+  it('should render all required icons', () => {
     render(<Navbar />);
     
-    // Check for bell icon
-    const bellIcon = screen.getByRole('banner').querySelector('.fa-bell');
-    expect(bellIcon).toBeInTheDocument();
+    // Check for location icon
+    const locationIcon = screen.getByAltText('Location');
+    expect(locationIcon).toBeInTheDocument();
+    expect(locationIcon).toHaveClass('w-6', 'h-6');
     
-    // Check for user icon
-    const userIcon = screen.getByRole('banner').querySelector('.fa-user-circle');
-    expect(userIcon).toBeInTheDocument();
+    // Check for sync icon
+    const syncIcon = screen.getByAltText('Sync');
+    expect(syncIcon).toBeInTheDocument();
+    expect(syncIcon).toHaveClass('w-6', 'h-6');
+    
+    // Check for notification icon
+    const notificationIcon = screen.getByAltText('Notification');
+    expect(notificationIcon).toBeInTheDocument();
+    expect(notificationIcon).toHaveClass('w-6', 'h-6');
+    
+    // Check for user avatar
+    const userAvatar = screen.getByAltText('Bell');
+    expect(userAvatar).toBeInTheDocument();
+    expect(userAvatar).toHaveClass('w-10', 'h-10');
   });
 
-  it('should have correct CSS classes for styling', () => {
+  it('should render patient search input on desktop', () => {
+    render(<Navbar />);
+    
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    expect(searchInputs).toHaveLength(2); // Desktop and mobile versions
+    expect(searchInputs[0]).toBeInTheDocument();
+  });
+
+  it('should render patient search input on mobile', () => {
+    render(<Navbar />);
+    
+    // The mobile search input should also be present
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    expect(searchInputs).toHaveLength(2); // Desktop and mobile versions
+  });
+
+  it('should have correct structure for desktop layout', () => {
     const { container } = render(<Navbar />);
     
-    const header = container.querySelector('header');
-    expect(header).toHaveClass('bg-white', 'shadow-md', 'flex', 'justify-between', 'items-center', 'p-4', 'rounded-lg');
+    const desktopSection = container.querySelector('.hidden.md\\:flex');
+    expect(desktopSection).toBeInTheDocument();
+    expect(desktopSection).toHaveClass('items-center', 'space-x-2', 'w-4/12', 'hidden', 'md:flex');
   });
 
-  it('should have proper structure with brand and actions sections', () => {
-    render(<Navbar />);
+  it('should have correct structure for mobile layout', () => {
+    const { container } = render(<Navbar />);
     
-    const header = screen.getByRole('banner');
-    const brandSection = header.querySelector('div:first-child');
-    const actionsSection = header.querySelector('div:last-child');
-    
-    expect(brandSection).toBeInTheDocument();
-    expect(actionsSection).toBeInTheDocument();
+    const mobileSection = container.querySelector('.w-full.md\\:hidden');
+    expect(mobileSection).toBeInTheDocument();
+    expect(mobileSection).toHaveClass('w-full', 'md:hidden');
   });
 
-  it('should display brand name with correct styling', () => {
+  it('should display location with correct styling', () => {
     render(<Navbar />);
     
-    const brandName = screen.getByText('Intelehealth');
-    expect(brandName).toHaveClass('text-xl', 'text-purple-700');
+    const locationText = screen.getByText('Ranchi');
+    expect(locationText).toHaveClass('text-(--color-muted)');
   });
 
   it('should display sync time with correct styling', () => {
     render(<Navbar />);
     
     const syncTime = screen.getByText('Last sync: 12:30 pm, 12 May 2022');
-    expect(syncTime).toHaveClass('text-purple-700');
+    expect(syncTime).toHaveClass('text-(--color-muted)');
   });
 
-  it('should have icons with correct styling', () => {
+  it('should have proper layout structure with flex justify-between', () => {
+    const { container } = render(<Navbar />);
+    
+    const mainSection = container.querySelector('.flex.justify-between.items-center.w-full.gap-4');
+    expect(mainSection).toBeInTheDocument();
+  });
+
+  it('should render location section with correct classes', () => {
+    const { container } = render(<Navbar />);
+    
+    const locationSection = container.querySelector('.flex.flex-col.w-8\\/12.md\\:w-6\\/12.pl-12.md\\:pl-4');
+    expect(locationSection).toBeInTheDocument();
+  });
+
+  it('should render actions section with correct classes', () => {
+    const { container } = render(<Navbar />);
+    
+    const actionsSection = container.querySelector('.flex.items-center.space-x-2.ml-auto.gap-4');
+    expect(actionsSection).toBeInTheDocument();
+  });
+
+  it('should have proper accessibility attributes for images', () => {
     render(<Navbar />);
     
-    const bellIcon = screen.getByRole('banner').querySelector('.fa-bell');
-    const userIcon = screen.getByRole('banner').querySelector('.fa-user-circle');
+    const locationIcon = screen.getByAltText('Location');
+    const syncIcon = screen.getByAltText('Sync');
+    const notificationIcon = screen.getByAltText('Notification');
+    const userAvatar = screen.getByAltText('Bell');
     
-    expect(bellIcon).toHaveClass('fa-regular', 'fa-bell', 'text-purple-700');
-    expect(userIcon).toHaveClass('fa-regular', 'fa-user-circle', 'text-purple-700');
+    expect(locationIcon).toHaveAttribute('alt', 'Location');
+    expect(syncIcon).toHaveAttribute('alt', 'Sync');
+    expect(notificationIcon).toHaveAttribute('alt', 'Notification');
+    expect(userAvatar).toHaveAttribute('alt', 'Bell');
   });
 
-  it('should maintain proper layout structure', () => {
+  it('should render search icon in input', () => {
+    render(<Navbar />);
+    
+    const searchIcons = screen.getAllByAltText('search');
+    expect(searchIcons).toHaveLength(2); // Desktop and mobile versions
+    expect(searchIcons[0]).toBeInTheDocument();
+    expect(searchIcons[0]).toHaveClass('w-6', 'h-6');
+    expect(searchIcons[1]).toBeInTheDocument();
+    expect(searchIcons[1]).toHaveClass('w-6', 'h-6');
+  });
+
+  it('should maintain proper responsive layout structure', () => {
     const { container } = render(<Navbar />);
     
     const header = container.querySelector('header');
     const children = header?.children;
     
-    expect(children).toHaveLength(2); // Brand section and actions section
+    expect(children).toHaveLength(2); // Desktop section and mobile section
+  });
+
+  it('should have correct gap spacing between elements', () => {
+    const { container } = render(<Navbar />);
+    
+    const mainSection = container.querySelector('.flex.justify-between.items-center.w-full.gap-4');
+    expect(mainSection).toHaveClass('gap-4');
+    
+    const actionsSection = container.querySelector('.flex.items-center.space-x-2.ml-auto.gap-4');
+    expect(actionsSection).toHaveClass('gap-4');
   });
 });

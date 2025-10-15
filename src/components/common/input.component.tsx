@@ -104,7 +104,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <div
                 className={cn(
-                  'text-gray-400',
+                  'text-gray-400 flex items-center justify-center',
                   size === 'sm'
                     ? 'w-4 h-4'
                     : size === 'lg'
