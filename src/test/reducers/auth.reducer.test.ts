@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AuthState, User } from '../../modules/auth/auth.types';
+import type { AuthState, User } from '../../types/auth/auth.types';
 import { authReducer, type AuthAction } from '../../reducers/auth.reducer';
 
 describe('authReducer', () => {

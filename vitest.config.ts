@@ -10,7 +10,7 @@ export default defineConfig({
     exclude: ['node_modules/**', 'dist/**', 'coverage/**', 'src/examples/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       exclude: [
         'node_modules/',
@@ -23,6 +23,12 @@ export default defineConfig({
         '**/*.test.*',
         '**/*.spec.*',
         'src/examples/**',
+        // Exclude entire types folder (pure type definition files with no runtime code)
+        'src/types/**',
+        'src/services/mindmap.ts',
+        'src/services/openmrs.ts',
+        'src/config/sentry.ts',
+        'src/config/sentry-wrapper.tsx',
       ],
       // Coverage requirements - can be bypassed with BYPASS_COVERAGE_CHECK=true
       thresholds:

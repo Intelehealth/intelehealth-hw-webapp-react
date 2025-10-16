@@ -29,9 +29,30 @@ export default defineConfig(({ mode }) => ({
           vendor: ['react', 'react-dom'],
           sentry: ['@sentry/react', '@sentry/tracing'],
         },
+        // Optimize asset file naming for nginx MIME type handling
+        assetFileNames: assetInfo => {
+          if (!assetInfo.name) return `assets/[name]-[hash][extname]`;
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `assets/images/[name]-[hash][extname]`;
+          }
+          if (/css/i.test(ext)) {
+            return `assets/css/[name]-[hash][extname]`;
+          }
+          if (/woff2?|ttf|eot/i.test(ext)) {
+            return `assets/fonts/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        // Ensure JS files have .js extension for proper MIME type detection
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
       },
     },
     chunkSizeWarningLimit: 1000,
+    // Ensure proper asset handling
+    assetsInlineLimit: 4096, // 4kb
   },
 
   // Development optimizations
