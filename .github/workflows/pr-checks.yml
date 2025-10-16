@@ -70,10 +70,11 @@ jobs:
           echo "🔍 Checking coverage threshold..."
           if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
             echo "⚠️ Coverage threshold check bypassed"
-            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
+            COVERAGE=$(grep -o '"pct":[0-9.]*' coverage/coverage-summary.json | head -1 | cut -d':' -f2)
             echo "Current coverage: ${COVERAGE}% (bypassed)"
           else
-            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
+            # Extract only the global/total coverage percentage (first occurrence is the total)
+            COVERAGE=$(grep -o '"pct":[0-9.]*' coverage/coverage-summary.json | head -1 | cut -d':' -f2)
             echo "Current coverage: ${COVERAGE}%"
             if (( $(echo "$COVERAGE < 100" | bc -l) )); then
               echo "❌ Coverage is ${COVERAGE}%, but 100% is required"
