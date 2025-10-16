@@ -155,6 +155,7 @@ describe('useVerifyOtp hook', () => {
     
     vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
       success: true,
+      message: 'OTP sent successfully',
       data: { userUuid: 'test-uuid' },
     });
 
@@ -207,6 +208,7 @@ describe('useVerifyOtp hook', () => {
 
     vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
       success: true,
+      message: 'OTP sent successfully',
       data: { userUuid: 'test-uuid' },
     });
 
