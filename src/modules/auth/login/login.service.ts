@@ -2,7 +2,10 @@ import type { AxiosRequestConfig } from 'axios';
 import { MindmapAuthGatewayApi } from '../../../services/mindmap';
 import { OpenMRSApi } from '../../../services/openmrs';
 import type { OpenMRSLoginResponse } from '../../../types/auth/auth.types';
-import type { LoginCredentials, LoginResponse } from '../../../types/auth/login.types';
+import type {
+  LoginCredentials,
+  LoginResponse,
+} from '../../../types/auth/login.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = {
