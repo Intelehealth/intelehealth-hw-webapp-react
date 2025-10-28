@@ -160,9 +160,9 @@ jobs:
               echo '🔍 Debug: Contents in temp before moving:'
               find '${{ secrets.DEPLOY_PATH }}/temp' -type f | head -20
               
-              # Use rsync for better directory handling
-              echo '🔄 Running rsync command...'
-              rsync -av '${{ secrets.DEPLOY_PATH }}/temp/' '${{ secrets.DEPLOY_PATH }}/' --exclude='temp'
+              # Use rsync for better directory handling with sudo for permissions
+              echo '🔄 Running rsync command with sudo...'
+              sudo rsync -av '${{ secrets.DEPLOY_PATH }}/temp/' '${{ secrets.DEPLOY_PATH }}/' --exclude='temp'
               
               # Verify rsync worked immediately
               echo '🔍 Debug: Immediate verification after rsync:'
