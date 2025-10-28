@@ -161,7 +161,12 @@ jobs:
               find '${{ secrets.DEPLOY_PATH }}/temp' -type f | head -20
               
               # Use rsync for better directory handling
-              rsync -av '${{ secrets.DEPLOY_PATH }}/temp/' '${{ secrets.DEPLOY_PATH }}/' --exclude='temp' 2>/dev/null || true
+              echo '🔄 Running rsync command...'
+              rsync -av '${{ secrets.DEPLOY_PATH }}/temp/' '${{ secrets.DEPLOY_PATH }}/' --exclude='temp'
+              
+              # Verify rsync worked immediately
+              echo '🔍 Debug: Immediate verification after rsync:'
+              ls -la '${{ secrets.DEPLOY_PATH }}/assets/js/' 2>/dev/null || echo 'assets/js not found after rsync'
               
               # Clean up temp directory
               rm -rf '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
@@ -169,9 +174,13 @@ jobs:
               
               # Debug: Verify what was moved
               echo '🔍 Debug: Contents in final location:'
-              find '${{ secrets.DEPLOY_PATH }}' -maxdepth 2 -type f | head -20
+              find '${{ secrets.DEPLOY_PATH }}' -type f | head -20
               echo '📊 Total files deployed:'
               find '${{ secrets.DEPLOY_PATH }}' -type f | wc -l
+              echo '🔍 Debug: Specific assets/js directory:'
+              ls -la '${{ secrets.DEPLOY_PATH }}/assets/js/' 2>/dev/null || echo 'assets/js directory not found'
+              echo '🔍 Debug: All directories in deploy path:'
+              find '${{ secrets.DEPLOY_PATH }}' -type d | head -10
             else
               echo 'No files to move from temp directory'
             fi
