@@ -3,10 +3,10 @@ import * as Sentry from '@sentry/react';
 // Initialize Sentry with performance optimizations
 export const initSentry = () => {
   // Only initialize in production and when DSN is available
-  if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+  if (import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
-      environment: import.meta.env.MODE,
+      environment: import.meta.env.VITE_APP_ENV,
 
       // Performance monitoring with reduced sampling for better performance
       tracesSampleRate: 0.1, // Reduced from 1.0 for better performance
