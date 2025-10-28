@@ -16,7 +16,11 @@ const ProtectedRoute: React.FC<Props> = ({
 
   // If route is ignored (like login, public pages) -> skip auth check
   if (ignoredRoutes.some(route => currentPath.startsWith(route))) {
-    return <Outlet />;
+    return (
+      <div data-testid="protected-route">
+        <Outlet />
+      </div>
+    );
   }
 
   // If no token, redirect to login
@@ -26,10 +30,10 @@ const ProtectedRoute: React.FC<Props> = ({
 
   // Otherwise, allow access
   return (
-    <>
+    <div data-testid="protected-route">
       <Loader />
       <Outlet />
-    </>
+    </div>
   );
 };
 

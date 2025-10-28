@@ -3,6 +3,7 @@ import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
 import { Dropdown } from '../../components/common';
 import { Loader } from '../../components/loader';
+import { env } from '../../config/env';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';
 
@@ -50,7 +51,12 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
         <p className="text-xs text-white/70 w-full text-center z-10">
           Copyright © 2025 Intelehealth, a 501 (c) (3) & Section 8 non-profit
           organisation
+          <small className="text-xs text-white/70 w-full text-center z-10">
+            <br />
+            (Version: {env.APP_VERSION})
+          </small>
         </p>
+        <p className="text-xs text-white/70 w-full text-center z-10"></p>
       </aside>
 
       <div className="hiddne lg:flex w-[8%] bg-(--color-primary) clip-left clip-left-reverse transform origin-right border-[1px] border-solid border-(--color-primary) scale-[1.00001]"></div>

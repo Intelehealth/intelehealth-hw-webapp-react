@@ -40,13 +40,14 @@ const AppRoutes = () => (
       </Route>
 
       {/* Protected routes */}
-      <Route>
+      <Route element={<ProtectedRoute />}>
         <Route element={<MainContainer />}>
           <Route path={ROUTES.ROOT} element={<DashboardPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
         </Route>
       </Route>
 
+      {/* Common UI routes */}
       <Route path={ROUTES.COMMON_UI} element={<CommonUiComponent />} />
 
       {/* 404 fallback */}

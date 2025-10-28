@@ -38,11 +38,13 @@ jobs:
         run: yarn build
         env:
           VITE_APP_ENV: qa
-          VITE_API_BASE_URL: ${{ secrets.QA_API_URL }}
-          VITE_SENTRY_DSN: ${{ secrets.QA_SENTRY_DSN }}
+          VITE_DEBUG_MODE: true
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ secrets.VITE_APP_NAME }}
+          VITE_AUTH_GATEWAY_API_URL: ${{ secrets.VITE_AUTH_GATEWAY_API_URL }}
+          VITE_OPENMRS_API_URL: ${{ secrets.VITE_OPENMRS_API_URL }}
+          VITE_PORTAL_API_URL: ${{ secrets.VITE_PORTAL_API_URL }}
           VITE_API_TIMEOUT: ${{ secrets.VITE_API_TIMEOUT }}
-          VITE_ENABLE_ANALYTICS: ${{ secrets.VITE_ENABLE_ANALYTICS }}
-          VITE_ENABLE_DEBUG_MODE: ${{ secrets.VITE_ENABLE_DEBUG_MODE }}
 
       - name: 📊 Analyze bundle
         run: yarn analyze

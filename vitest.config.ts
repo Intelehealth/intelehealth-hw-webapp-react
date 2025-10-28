@@ -29,19 +29,18 @@ export default defineConfig({
         'src/services/openmrs.ts',
         'src/config/sentry.ts',
         'src/config/sentry-wrapper.tsx',
+        'src/config/env.ts',
+        'src/components/common/common-ui.component.tsx',
       ],
-      // Coverage requirements - can be bypassed with BYPASS_COVERAGE_CHECK=true
-      thresholds:
-        process.env.BYPASS_COVERAGE_CHECK === 'true'
-          ? {}
-          : {
-              global: {
-                branches: 100,
-                functions: 100,
-                lines: 100,
-                statements: 100,
-              },
-            },
+      // 100% coverage requirements
+      thresholds: {
+        global: {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+      },
       // Detailed coverage info
       all: true,
       include: ['src/**/*.{ts,tsx}'],

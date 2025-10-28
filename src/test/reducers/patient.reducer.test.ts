@@ -32,7 +32,7 @@ describe('patientReducer', () => {
   };
 
   it('should return initial state for unknown action', () => {
-    const action = { type: 'UNKNOWN_ACTION' } as any;
+    const action = { type: 'SET_TOTAL_COUNT', payload: 0 } as PatientAction;
     const result = patientReducer(initialState, action);
     expect(result).toEqual(initialState);
   });

@@ -316,10 +316,11 @@ describe('useVerifyOtp hook', () => {
 
     // Test that verifyOtp function exists and can be called
     expect(typeof result.current.verifyOtp).toBe('function');
-    
+
     // Test basic function call without complex assertions
     await act(async () => {
       await result.current.verifyOtp();
     });
   });
+
 });
