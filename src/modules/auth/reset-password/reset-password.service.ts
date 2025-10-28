@@ -1,5 +1,5 @@
 import { MindmapPortalApi } from '../../../services/mindmap';
-import type { ResetPasswordModel } from '../auth.types';
+import type { ResetPasswordModel } from '../../../types/auth/auth.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = {

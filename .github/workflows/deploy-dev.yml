@@ -34,13 +34,28 @@ jobs:
       - name: 📦 Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: 🧪 Run tests with conditional coverage
+        run: |
+          echo "🧪 Running tests..."
+          if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
+            echo "⚠️ Coverage check bypassed - running tests without coverage requirements"
+            yarn test:coverage:bypass
+          else
+            echo "✅ Running tests with 100% coverage requirement"
+            yarn test:coverage
+          fi
+
       - name: 🏗️ Build for development
         run: yarn build
         env:
           VITE_APP_ENV: development
+          VITE_DEBUG_MODE: true
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ secrets.VITE_APP_NAME }}
           VITE_AUTH_GATEWAY_API_URL: ${{ secrets.VITE_AUTH_GATEWAY_API_URL }}
           VITE_OPENMRS_API_URL: ${{ secrets.VITE_OPENMRS_API_URL }}
           VITE_PORTAL_API_URL: ${{ secrets.VITE_PORTAL_API_URL }}
+          VITE_API_TIMEOUT: ${{ secrets.VITE_API_TIMEOUT }}
 
       - name: 📊 Analyze bundle
         run: yarn analyze

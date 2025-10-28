@@ -37,10 +37,14 @@ jobs:
       - name: 🏗️ Build for production
         run: yarn build
         env:
-          VITE_APP_ENV: development
+          VITE_APP_ENV: production
+          VITE_DEBUG_MODE: false
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ secrets.VITE_APP_NAME }}
           VITE_AUTH_GATEWAY_API_URL: ${{ secrets.VITE_AUTH_GATEWAY_API_URL }}
           VITE_OPENMRS_API_URL: ${{ secrets.VITE_OPENMRS_API_URL }}
           VITE_PORTAL_API_URL: ${{ secrets.VITE_PORTAL_API_URL }}
+          VITE_API_TIMEOUT: ${{ secrets.VITE_API_TIMEOUT }}
 
       - name: 📊 Production bundle analysis
         run: |

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconAbout from '../../assets/icons/icon-about.svg';
 import iconAchievements from '../../assets/icons/icon-achievement.svg';
 import iconHome from '../../assets/icons/icon-home.svg';
@@ -8,6 +9,7 @@ import iconSettings from '../../assets/icons/icon-settings.svg';
 import iconVideos from '../../assets/icons/icon-videos.svg';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.png';
+import { storage } from '../../utils/storage';
 
 const menuItems = [
   { label: 'Dashboard', icon: iconHome },
@@ -23,6 +25,7 @@ interface SideMenuProps {
 }
 
 const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
+  const navigate = useNavigate();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -122,6 +125,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
               className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
                 isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
               }`}
+              onClick={() => {
+                storage.clearAuthToken();
+                navigate('/auth/login');
+              }}
             >
               <img src={iconPowerOff} className="w-6 h-6" />
               {!isCollapsed && <span className="text-white">Logout</span>}

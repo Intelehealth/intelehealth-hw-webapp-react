@@ -1,7 +1,7 @@
 import React, { useReducer, useState } from 'react';
-import type { User } from '../modules/auth/auth.types';
 import { authReducer } from '../reducers/auth.reducer';
 import { patientReducer } from '../reducers/patient.reducer';
+import type { User } from '../types/auth/auth.types';
 import type { Patient } from '../types/patient.types';
 
 // Redux Concepts Component

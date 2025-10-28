@@ -1,7 +1,7 @@
 // src/modules/auth/reset-password/reset-password.hooks.ts
 import { useState } from 'react';
 import { showToast } from '../../../services/toast';
-import type { ResetPasswordModel } from '../auth.types';
+import type { ResetPasswordModel } from '../../../types/auth/auth.types';
 import resetPasswordService from './reset-password.service';
 
 interface useResetPasswordReturn {

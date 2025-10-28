@@ -20,6 +20,15 @@ Object.defineProperty(window, 'location', {
   writable: true,
 });
 
+// Mock storage
+vi.mock('../../utils/storage', () => ({
+  storage: {
+    getAuthToken: vi.fn(() => 'mock-token'),
+    setAuthToken: vi.fn(),
+    clearAuthToken: vi.fn(),
+  },
+}));
+
 // Mock all the page components
 vi.mock('../../pages/auth/login/login.page', () => ({
   default: () => <div data-testid="login-page">Login Page</div>,
@@ -53,17 +62,26 @@ vi.mock('../../components/common/common-ui.component', () => ({
   default: () => <div data-testid="example-usage">Example Usage</div>,
 }));
 
-// Mock the route components
-vi.mock('../../routes/main-container.routes', () => ({
+// Mock the Loader component
+vi.mock('../../components/loader', () => ({
+  Loader: () => <div data-testid="loader">Loading...</div>,
+}));
+
+// Mock the SideMenu component
+vi.mock('../../components/side-menu/side-menu.component', () => ({
   default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="main-container">{children}</div>
+    <div data-testid="side-menu">{children}</div>
   ),
 }));
 
-vi.mock('../../routes/protected.route', () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="protected-route">{children}</div>
-  ),
+// Mock the Navbar component
+vi.mock('../../components/navbar/navbar.component', () => ({
+  default: () => <div data-testid="navbar">Navbar</div>,
+}));
+
+// Mock the DownMenu component
+vi.mock('../../components/down-menu/down-menu.component', () => ({
+  default: () => <div data-testid="down-menu">DownMenu</div>,
 }));
 
 describe('AppRoutes', () => {

@@ -5,7 +5,7 @@ import { showToast } from '../../../services/toast';
 import { cookie } from '../../../utils/cookie';
 import { storage } from '../../../utils/storage';
 import loginService from './login.service';
-import type { LoginCredentials } from './login.types';
+import type { LoginCredentials } from '../../../types/auth/login.types';
 
 interface UseLoginReturn {
   handleLogin: (credentials: LoginCredentials) => Promise<void>;

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(tee:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(cat:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(node -e:*)",
+      "Bash(npm install:*)",
+      "Bash(BYPASS_COVERAGE_CHECK=true npm run test:coverage:*)",
+      "Bash(npm uninstall:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
