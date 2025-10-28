@@ -45,6 +45,27 @@ jobs:
             yarn test:coverage
           fi
 
+      - name: 🔍 Debug Environment Variables
+        run: |
+          echo "🔍 Checking environment variables before build..."
+          echo "VITE_APP_ENV: $VITE_APP_ENV"
+          echo "VITE_DEBUG_MODE: $VITE_DEBUG_MODE"
+          echo "VITE_APP_VERSION: $VITE_APP_VERSION"
+          echo "VITE_APP_NAME: $VITE_APP_NAME"
+          echo "VITE_AUTH_GATEWAY_API_URL: $VITE_AUTH_GATEWAY_API_URL"
+          echo "VITE_OPENMRS_API_URL: $VITE_OPENMRS_API_URL"
+          echo "VITE_PORTAL_API_URL: $VITE_PORTAL_API_URL"
+          echo "VITE_API_TIMEOUT: $VITE_API_TIMEOUT"
+        env:
+          VITE_APP_ENV: development
+          VITE_DEBUG_MODE: true
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ secrets.VITE_APP_NAME }}
+          VITE_AUTH_GATEWAY_API_URL: ${{ secrets.VITE_AUTH_GATEWAY_API_URL }}
+          VITE_OPENMRS_API_URL: ${{ secrets.VITE_OPENMRS_API_URL }}
+          VITE_PORTAL_API_URL: ${{ secrets.VITE_PORTAL_API_URL }}
+          VITE_API_TIMEOUT: ${{ secrets.VITE_API_TIMEOUT }}
+
       - name: 🏗️ Build for development
         run: yarn build
         env:
@@ -59,6 +80,16 @@ jobs:
 
       - name: 📊 Analyze bundle
         run: yarn analyze
+
+      - name: 🔍 Verify Built Files
+        run: |
+          echo "🔍 Checking if environment variables are embedded in built files..."
+          echo "Checking for VITE_AUTH_GATEWAY_API_URL in JS files:"
+          grep -r "VITE_AUTH_GATEWAY_API_URL\|dev\.intelehealth\.org" dist/assets/js/ || echo "Not found in JS files"
+          echo "Checking dist directory structure:"
+          ls -la dist/
+          echo "Checking assets directory:"
+          ls -la dist/assets/ || echo "No assets directory"
 
       - name: 🔐 Setup SSH Key
         run: |
