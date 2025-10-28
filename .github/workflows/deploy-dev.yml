@@ -148,16 +148,21 @@ jobs:
           ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
             echo '🔄 Moving files to final location...'
             
-            # Clean up existing files and directories (except temp directory)
-            find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type f -delete 2>/dev/null || true
-            find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type d ! -name temp ! -path '${{ secrets.DEPLOY_PATH }}' -exec rm -rf {} + 2>/dev/null || true
-            
             # Move files from temp to final location (including hidden files and directories)
             if [ -d '${{ secrets.DEPLOY_PATH }}/temp' ] && [ \"\$(ls -A '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null)\" ]; then
               echo 'Moving files and directories from temp to final location...'
-              # Use cp with preserve attributes, then remove temp
-              cp -r '${{ secrets.DEPLOY_PATH }}/temp'/* '${{ secrets.DEPLOY_PATH }}/' 2>/dev/null || true
-              cp -r '${{ secrets.DEPLOY_PATH }}/temp'/.[^.]* '${{ secrets.DEPLOY_PATH }}/' 2>/dev/null || true
+              
+              # Clean up existing files and directories (except temp directory) BEFORE copying
+              find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type f -delete 2>/dev/null || true
+              find '${{ secrets.DEPLOY_PATH }}' -maxdepth 1 -type d ! -name temp ! -path '${{ secrets.DEPLOY_PATH }}' -exec rm -rf {} + 2>/dev/null || true
+              
+              # Debug: Show what's in temp before moving
+              echo '🔍 Debug: Contents in temp before moving:'
+              find '${{ secrets.DEPLOY_PATH }}/temp' -type f | head -20
+              
+              # Use rsync for better directory handling
+              rsync -av '${{ secrets.DEPLOY_PATH }}/temp/' '${{ secrets.DEPLOY_PATH }}/' --exclude='temp' 2>/dev/null || true
+              
               # Clean up temp directory
               rm -rf '${{ secrets.DEPLOY_PATH }}/temp' 2>/dev/null || true
               echo 'Files moved successfully!'
