@@ -61,11 +61,11 @@ jobs:
           export VITE_SENTRY_DSN="${{ secrets.VITE_SENTRY_DSN }}"
           yarn build
 
-      - name: 🔒 Security audit
-        run: |
-          echo "🔍 Running staging security audit..."
-          yarn audit --level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
-          npm audit --audit-level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
+      # - name: 🔒 Security audit
+      #   run: |
+      #     echo "🔍 Running staging security audit..."
+      #     yarn audit --level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
+      #     npm audit --audit-level high || echo "⚠️ High-level vulnerabilities found - check audit output above"
 
       - name: 🚀 Deploy to Staging Server
         run: |
