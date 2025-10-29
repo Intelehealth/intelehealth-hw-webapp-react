@@ -32,7 +32,7 @@ describe('patientReducer', () => {
   };
 
   it('should return initial state for unknown action', () => {
-    const action = { type: 'SET_TOTAL_COUNT', payload: 0 } as PatientAction;
+    const action = { type: 'UNKNOWN_ACTION' } as unknown as PatientAction;
     const result = patientReducer(initialState, action);
     expect(result).toEqual(initialState);
   });
@@ -91,6 +91,26 @@ describe('patientReducer', () => {
     
     expect(result.patients[0].name).toBe('John Updated');
     expect(result.currentPatient).toEqual(mockPatient2); // unchanged
+  });
+
+  it('should handle UPDATE_PATIENT action when current patient is null', () => {
+    const stateWithPatient: PatientState = {
+      ...initialState,
+      patients: [mockPatient],
+      currentPatient: null,
+    };
+
+    const action: PatientAction = {
+      type: 'UPDATE_PATIENT',
+      payload: {
+        id: '1',
+        updates: { name: 'John Updated' },
+      },
+    };
+    const result = patientReducer(stateWithPatient, action);
+    
+    expect(result.patients[0].name).toBe('John Updated');
+    expect(result.currentPatient).toBeNull(); // should remain null
   });
 
   it('should handle DELETE_PATIENT action', () => {
