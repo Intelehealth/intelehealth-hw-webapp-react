@@ -44,7 +44,10 @@ jobs:
             echo "✅ Running tests with 100% coverage requirement"
             yarn test:coverage
           fi
-
+          
+      - name: 📊 Analyze bundle
+        run: yarn analyze
+        
       - name: 🏗️ Build for development
         run: |
           echo "Building with Vite..."
@@ -57,9 +60,6 @@ jobs:
           export VITE_PORTAL_API_URL="${{ secrets.VITE_PORTAL_API_URL }}"
           export VITE_API_TIMEOUT="${{ secrets.VITE_API_TIMEOUT }}"
           yarn build
-
-      - name: 📊 Analyze bundle
-        run: yarn analyze
 
       - name: 🔐 Setup SSH Key
         run: |
