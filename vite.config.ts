@@ -67,6 +67,25 @@ export default defineConfig(({ mode }) => ({
     devSourcemap: false,
   },
 
+  // Explicitly inject environment variables at build time
+  // This ensures import.meta.env.VITE_* are replaced with values from process.env
+  define: {
+    'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV),
+    'import.meta.env.VITE_DEBUG_MODE': JSON.stringify(process.env.VITE_DEBUG_MODE),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION),
+    'import.meta.env.VITE_APP_NAME': JSON.stringify(process.env.VITE_APP_NAME),
+    'import.meta.env.VITE_AUTH_GATEWAY_API_URL': JSON.stringify(
+      process.env.VITE_AUTH_GATEWAY_API_URL
+    ),
+    'import.meta.env.VITE_OPENMRS_API_URL': JSON.stringify(
+      process.env.VITE_OPENMRS_API_URL
+    ),
+    'import.meta.env.VITE_PORTAL_API_URL': JSON.stringify(
+      process.env.VITE_PORTAL_API_URL
+    ),
+    'import.meta.env.VITE_API_TIMEOUT': JSON.stringify(process.env.VITE_API_TIMEOUT),
+  },
+
   // Optimize dependencies
   optimizeDeps: {
     include: ['react', 'react-dom'],
