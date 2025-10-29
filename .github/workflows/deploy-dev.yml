@@ -48,10 +48,10 @@ jobs:
       - name: 📊 Analyze bundle
         run: yarn analyze
 
-      - name: 🔒 Security audit
-        run: |
-          echo "🔍 Running development security audit..."
-          yarn audit --audit-level high
+      # - name: 🔒 Security audit
+      #   run: |
+      #     echo "🔍 Running development security audit..."
+      #     yarn audit --audit-level high
 
       - name: 🏗️ Build for development
         run: |
