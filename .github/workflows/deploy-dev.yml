@@ -59,22 +59,7 @@ jobs:
           yarn build
 
       - name: 📊 Analyze bundle
-        run: |
-          echo "Analyzing bundle without overwriting dist..."
-          # Ensure the same environment variables are available during analyze build
-          export VITE_APP_ENV=development
-          export VITE_DEBUG_MODE=true
-          export VITE_APP_VERSION="${{ secrets.VITE_APP_VERSION }}"
-          export VITE_APP_NAME="${{ secrets.VITE_APP_NAME }}"
-          export VITE_AUTH_GATEWAY_API_URL="${{ secrets.VITE_AUTH_GATEWAY_API_URL }}"
-          export VITE_OPENMRS_API_URL="${{ secrets.VITE_OPENMRS_API_URL }}"
-          export VITE_PORTAL_API_URL="${{ secrets.VITE_PORTAL_API_URL }}"
-          export VITE_API_TIMEOUT="${{ secrets.VITE_API_TIMEOUT }}"
-          # Build in a temporary directory to avoid overwriting main dist
-          npx vite build --mode analyze --outDir temp-analyze
-          # Keep stats in dist/ while discarding temp-analyze assets
-          echo "Analysis build completed; cleaning up temp-analyze"
-          rm -rf temp-analyze
+        run: yarn analyze
 
       - name: 🔐 Setup SSH Key
         run: |
