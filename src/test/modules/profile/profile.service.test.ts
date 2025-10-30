@@ -161,12 +161,17 @@ describe('profileService', () => {
     });
 
     it('should handle errors when checking profile status', async () => {
+      // Suppress console.error for this test to avoid stderr noise
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
       const { MindmapAuthGatewayApi } = await import('../../../services/mindmap');
       vi.mocked(MindmapAuthGatewayApi.get).mockRejectedValue(new Error('Profile check failed'));
 
       const result = await profileService.getProfileStatus();
 
       expect(result).toEqual({ complete: false });
+      
+      consoleSpy.mockRestore();
     });
   });
 });
