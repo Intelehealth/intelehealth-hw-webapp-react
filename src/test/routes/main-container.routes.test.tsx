@@ -54,7 +54,7 @@ describe('MainContainer', () => {
     );
 
     const mainDiv = container.firstChild as HTMLElement;
-    expect(mainDiv).toHaveClass('flex', 'h-screen', 'w-full', 'bg-(--color-maint-bg)');
+    expect(mainDiv).toHaveClass('flex', 'flex-col', 'h-full', 'bg-(--color-maint-bg)');
   });
 
   it('should render SideMenu with children', () => {
@@ -80,7 +80,7 @@ describe('MainContainer', () => {
     );
 
     const mainDiv = container.firstChild as HTMLElement;
-    expect(mainDiv).toHaveClass('flex', 'h-screen', 'w-full');
+    expect(mainDiv).toHaveClass('flex', 'flex-col', 'h-full');
   });
 
   it('should render Navbar in the correct position', () => {
