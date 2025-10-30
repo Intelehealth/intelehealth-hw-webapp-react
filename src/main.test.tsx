@@ -32,9 +32,9 @@ const MockedSentry: React.FC = () => (
   <div data-testid="sentry-wrapper">Mocked Sentry</div>
 );
 
-const MockedSentryErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div data-testid="sentry-error-boundary">{children}</div>
-);
+const MockedSentryErrorBoundary: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <div data-testid="sentry-error-boundary">{children}</div>;
 
 vi.mock('./config/sentry-wrapper', () => ({
   default: MockedSentry,
