@@ -28,7 +28,7 @@ const CountryCodeDropdown = ({ onChange }: CountryCodeDropdownProps) => {
       {/* Selected */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 flex items-center justify-between bg-white shadow-sm"
+        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 flex items-center justify-between bg-blue-50 shadow-sm"
       >
         <div className="flex items-center space-x-2 gap-2">
           <img

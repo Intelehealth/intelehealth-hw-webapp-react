@@ -20,5 +20,10 @@ export type { DropdownOption, DropdownProps } from './dropdown.component';
 export { default as Chip } from './chip.component';
 export type { ChipProps } from './chip.component';
 
+export { default as PhotoUploadModal } from './photo-upload-modal.component';
+
+export { default as Calendar } from './calendar.component';
+export type { CalendarProps } from './calendar.component';
+
 // Re-export utility function
 export { cn } from '../../utils/cn';

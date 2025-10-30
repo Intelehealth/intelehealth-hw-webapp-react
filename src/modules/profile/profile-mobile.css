@@ -1,0 +1,227 @@
+/* Mobile Profile Form Styles */
+@media (max-width: 1023px) {
+  /* Mobile Profile Form Container */
+  .mobile-profile-form {
+    background: white;
+    min-height: 100vh;
+    padding: 0;
+    font-family: var(--font-sans);
+  }
+
+  /* Mobile Header Styles */
+  .mobile-profile-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* Mobile Form Fields */
+  .mobile-profile-form .form-label {
+    color: var(--color-muted);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 150%;
+    letter-spacing: 0%;
+    margin-bottom: 8px;
+  }
+
+  .mobile-profile-form .form-input-base {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 16px;
+    color: #111827;
+    width: 100%;
+  }
+
+  .mobile-profile-form .form-input-base:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .mobile-profile-form .form-input-base:disabled {
+    background: #f9fafb;
+    color: #6b7280;
+  }
+
+  /* Mobile Radio Button Styles */
+  .mobile-profile-form .radio-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mobile-profile-form .radio-input {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .mobile-profile-form .radio-input:checked {
+    border-color: #10b981;
+    background: #10b981;
+  }
+
+  .mobile-profile-form .radio-input:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .mobile-profile-form .radio-label {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* Mobile Profile Photo */
+  .mobile-profile-photo {
+    width: 96px;
+    height: 96px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+  }
+
+  .mobile-profile-photo i {
+    color: #8f8ca0;
+    font-size: 24px;
+  }
+
+  /* Mobile Change Photo Link */
+  .mobile-change-photo {
+    color: #8f8ca0;
+    text-decoration: underline;
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  /* Mobile Gender Icons */
+  .mobile-gender-icon {
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  /* Mobile Required Field Asterisk */
+  .mobile-required-asterisk {
+    color: #ef4444;
+    font-weight: bold;
+  }
+
+  /* Mobile Form Spacing */
+  .mobile-form-field {
+    margin-bottom: 16px;
+  }
+
+  /* Mobile Button Styles */
+  .mobile-save-button {
+    width: 100%;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 24px;
+  }
+
+  .mobile-save-button:hover {
+    background: #2563eb;
+  }
+
+  .mobile-save-button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  /* Mobile Dropdown Styles */
+  .mobile-dropdown {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 16px;
+    color: #111827;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .mobile-dropdown:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Mobile Error Messages */
+  .mobile-error-message {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  /* Mobile Status Bar Simulation */
+  .mobile-status-bar {
+    height: 24px;
+    background: #000;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .mobile-status-bar .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-status-bar .time {
+    font-weight: 600;
+  }
+}
+
+/* Responsive Css for different sizes */
+@media (max-width: 768px) {
+  .mobile-profile-form .form-input-base {
+    font-size: 16px; /* text-base */
+  }
+  .mobile-profile-form .form-input-base::placeholder {
+    font-size: 16px; /* text-base */
+  }
+  .mobile-profile-form .form-label {
+    font-size: 16px; /* text-base - matches common component */
+  }
+}
+
+/* Ensure desktop styles remain unchanged */
+@media (min-width: 1024px) {
+  .mobile-profile-form {
+    /* Reset mobile styles for desktop */
+    background: inherit;
+    min-height: auto;
+    padding: inherit;
+  }
+}

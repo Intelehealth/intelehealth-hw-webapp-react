@@ -6,6 +6,7 @@ interface CardProps {
   description?: string;
   children?: ReactNode;
   className?: string;
+  contentClassName?: string;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -14,6 +15,7 @@ const Card: React.FC<CardProps> = ({
   description,
   children,
   className = '',
+  contentClassName = 'p-4 md:p-8',
 }) => {
   return (
     <div
@@ -25,7 +27,7 @@ const Card: React.FC<CardProps> = ({
       )}
 
       {/* Content */}
-      <div className="p-4 md:p-8">
+      <div className={contentClassName}>
         {title && <h3 className="text-lg font-bold text-gray-800">{title}</h3>}
         {description && (
           <p className="text-gray-600 text-sm mt-2">{description}</p>
