@@ -86,17 +86,20 @@ jobs:
           fi
 
       - name: 📈 Upload coverage to Codecov
-        if: ${{ env.BYPASS_COVERAGE_CHECK != 'true' }}
-        uses: codecov/codecov-action@v4
-        env:
-          BYPASS_COVERAGE_CHECK: ${{ secrets.BYPASS_COVERAGE_CHECK }}
-        with:
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
+        run: |
+          if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
+            echo "⚠️ Coverage upload bypassed due to BYPASS_COVERAGE_CHECK=true"
+            echo "Skipping Codecov upload..."
+          else
+            echo "✅ Uploading coverage to Codecov..."
+            # Use codecov CLI or action equivalent
+            if command -v codecov &> /dev/null; then
+              codecov -f ./coverage/lcov.info -F unittests -n codecov-umbrella -t ${{ secrets.CODECOV_TOKEN }} || echo "Codecov upload failed, continuing..."
+            else
+              echo "Codecov CLI not available, using curl upload..."
+              curl -s https://codecov.io/bash | bash -s -- -f ./coverage/lcov.info -F unittests -n codecov-umbrella -t ${{ secrets.CODECOV_TOKEN }} || echo "Codecov upload failed, continuing..."
+            fi
+          fi
 
       - name: 🏗️ Build verification
         run: yarn build
