@@ -10,10 +10,10 @@ const MainContainer = () => {
       data-testid="main-container"
     >
       <SideMenu>
-        <div className="flex h-full flex-col">
+        <div className="flex h-full w-full flex-col">
           <div className="flex-1 md:p-3">
             <Navbar />
-            <div className="p-4">
+            <div className="h-screen">
               <Outlet />
             </div>
           </div>

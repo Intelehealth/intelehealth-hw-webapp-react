@@ -5,6 +5,9 @@ import ProtectedRoute from './protected.route';
 
 // Pages
 import CommonUiComponent from '../components/common/common-ui.component';
+import { ProfileGuardProvider } from '../context/ProfileGuardContext';
+import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
+import AddPatientPage from '../pages/add-patient/add-patient.page';
 import ForgotPasswordPage from '../pages/auth/forgot-password/forgot-password.page';
 import ForgotUsernamePage from '../pages/auth/forgot-username/forgot-username.page';
 import LoginPage from '../pages/auth/login/login.page';
@@ -12,6 +15,7 @@ import ResetPasswordPage from '../pages/auth/reset-password/reset-password.page'
 import VerifyOtpPage from '../pages/auth/verify-otp/verify-otp.page';
 import DashboardPage from '../pages/dashboard/dashboard.page';
 import NotFoundPage from '../pages/not-found/not-found.page';
+import ProfilePage from '../pages/profile/profile.page';
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -44,10 +48,19 @@ const AppRoutes = () => (
         <Route element={<MainContainer />}>
           <Route path={ROUTES.ROOT} element={<DashboardPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+          <Route
+            path={ROUTES.ADD_PATIENT}
+            element={
+              <ProfileGuardProvider>
+                <ProfileRouteGuard>
+                  <AddPatientPage />
+                </ProfileRouteGuard>
+              </ProfileGuardProvider>
+            }
+          />
         </Route>
       </Route>
-
-      {/* Common UI routes */}
       <Route path={ROUTES.COMMON_UI} element={<CommonUiComponent />} />
 
       {/* 404 fallback */}

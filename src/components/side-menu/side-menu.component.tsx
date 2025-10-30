@@ -12,12 +12,18 @@ import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.p
 import { storage } from '../../utils/storage';
 
 const menuItems = [
-  { label: 'Dashboard', icon: iconHome },
-  { label: 'Achievements', icon: iconAchievements },
-  { label: 'Help & Support', icon: iconInfo },
-  { label: 'Educational Videos', icon: iconVideos },
-  { label: 'Settings', icon: iconSettings },
-  { label: 'About us', icon: iconAbout },
+  { label: 'Dashboard', icon: iconHome, path: ROUTES.DASHBOARD },
+  {
+    label: 'Profile',
+    icon: iconSettings,
+    path: ROUTES.PROFILE,
+    isProfile: true,
+  },
+  { label: 'Achievements', icon: iconAchievements, path: '#' },
+  { label: 'Help & Support', icon: iconInfo, path: '#' },
+  { label: 'Educational Videos', icon: iconVideos, path: '#' },
+  { label: 'Settings', icon: iconSettings, path: '#' },
+  { label: 'About us', icon: iconAbout, path: '#' },
 ];
 
 interface SideMenuProps {
@@ -47,7 +53,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
   }, [isMobileOpen]);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen w-full bg-gray-100">
       {/* Mobile Toggle Button */}
       {!isMobileOpen && (
         <button
@@ -66,11 +72,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed md:static top-0 left-0 h-full bg-(--color-main-bg) shadow-lg transform transition-all duration-300 z-50 p-2
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${isCollapsed ? 'md:w-25' : 'md:w-64'}`}
+        className={`fixed top-0 left-0 h-screen bg-(--color-primary) shadow-lg z-50 p-2 transition-all duration-300
+  ${isCollapsed ? 'w-24' : 'w-64'}
+  ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
-        <div className="flex flex-col rounded-lg h-full bg-(--color-primary) p-2">
+        <div className="flex flex-col rounded-lg h-screen bg-(--color-primary) p-2">
           {/* Arrow Toggle Button (Desktop + Mobile) */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -100,45 +106,98 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
             )}
           </div>
 
+          {/* Add Patients Button */}
+          <div className="px-1 mb-4">
+            <Link
+              to="/add-patient"
+              className={`w-full flex items-center ${
+                isCollapsed
+                  ? 'justify-center p-2'
+                  : 'bg-white rounded-lg px-4 py-2 justify-between shadow-md hover:shadow-lg transition-shadow'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`rounded-full flex items-center justify-center ${
+                    isCollapsed ? 'w-10 h-10' : 'w-8 h-8'
+                  }`}
+                  style={{ backgroundColor: '#2e1e91' }}
+                >
+                  <i
+                    className={`fa-solid fa-user-plus text-white ${
+                      isCollapsed ? 'text-base' : 'text-sm'
+                    }`}
+                  ></i>
+                </div>
+                {!isCollapsed && (
+                  <span
+                    className="font-medium text-sm"
+                    style={{ color: '#2e1e91' }}
+                  >
+                    Add Patients
+                  </span>
+                )}
+              </div>
+              {!isCollapsed && (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#e1dcff' }}
+                >
+                  <i
+                    className="fa-solid fa-chevron-right text-xs"
+                    style={{ color: '#2e1e91' }}
+                  ></i>
+                </div>
+              )}
+            </Link>
+          </div>
           {/* Menu Items */}
-          <nav className="p-3 space-y-2">
+          <nav className="flex-1 space-y-2">
             {menuItems.map(item => (
-              <a
+              <Link
                 key={item.label}
+                to={item.path}
+                className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                  isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
+                }`}
+              >
+                {item.isProfile ? (
+                  <i className="fa-solid fa-user text-white text-lg"></i>
+                ) : (
+                  <img src={item.icon} alt={item.label} className="w-6 h-6" />
+                )}
+                {!isCollapsed && (
+                  <span className="text-white">{item.label}</span>
+                )}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Logout Section with Top Border */}
+          <div className="border-t border-gray-300/20 mt-auto">
+            <nav className="p-3">
+              <a
                 href="#"
                 className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
                   isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
                 }`}
               >
-                <img src={item.icon} alt={item.label} className="w-6 h-6" />
-                {!isCollapsed && (
-                  <span className="text-white">{item.label}</span>
-                )}
+                <img src={iconPowerOff} className="w-6 h-6" />
+                {!isCollapsed && <span className="text-white">Log-out</span>}
               </a>
-            ))}
-          </nav>
-
-          {/* DownMenu Items */}
-          <nav className="p-3 space-y-2 mt-auto">
-            <a
-              href="#"
-              className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
-              }`}
-              onClick={() => {
-                storage.clearAuthToken();
-                navigate('/auth/login');
-              }}
-            >
-              <img src={iconPowerOff} className="w-6 h-6" />
-              {!isCollapsed && <span className="text-white">Logout</span>}
-            </a>
-          </nav>
+            </nav>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 transition-all duration-300`}>{children}</main>
+      <main
+        className={`flex-1 min-h-screen transition-all duration-300 ${
+          isCollapsed ? 'ml-24' : 'ml-64'
+        }`}
+      >
+        {children}
+      </main>
     </div>
   );
 };
