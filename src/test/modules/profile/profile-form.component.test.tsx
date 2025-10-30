@@ -27,7 +27,7 @@ vi.mock('../../../modules/profile/profile.hooks', () => ({
 // Mock the common components
 vi.mock('../../../components/common', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  PhotoUploadModal: ({ isOpen, onClose }: any) => 
+  PhotoUploadModal: ({ isOpen }: any) => 
     isOpen ? <div data-testid="photo-modal">Photo Modal</div> : null,
   Card: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Toggle: ({ checked, onChange, ...props }: any) => (
