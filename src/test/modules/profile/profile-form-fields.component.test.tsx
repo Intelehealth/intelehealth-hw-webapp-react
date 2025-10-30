@@ -46,7 +46,7 @@ vi.mock('../../../components/common', () => ({
 vi.mock('../../../modules/auth/common/contry-code-dropdown.component', () => ({
   default: ({ onChange }: any) => (
     <div data-testid="country-dropdown">
-      <select onChange={(e) => onChange({ code: 'in', dial_code: '+91', name: 'India' })}>
+      <select onChange={() => onChange({ code: 'in', dial_code: '+91', name: 'India' })}>
         <option value="in">India</option>
       </select>
     </div>
