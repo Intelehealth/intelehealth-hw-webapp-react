@@ -86,8 +86,10 @@ jobs:
           fi
 
       - name: 📈 Upload coverage to Codecov
-        if: ${{ secrets.BYPASS_COVERAGE_CHECK != 'true' }}
+        if: ${{ env.BYPASS_COVERAGE_CHECK != 'true' }}
         uses: codecov/codecov-action@v4
+        env:
+          BYPASS_COVERAGE_CHECK: ${{ secrets.BYPASS_COVERAGE_CHECK }}
         with:
           file: ./coverage/lcov.info
           flags: unittests
