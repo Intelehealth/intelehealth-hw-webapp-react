@@ -6,7 +6,7 @@ import { Button } from '../../../components/common';
 import Card from '../../../components/common/card.component';
 import AuthCardTitle from '../common/auth-card-title.component';
 import { useVerifyOtp } from './verify-otp.hooks';
-import type { VerifyOtpState } from './verify-otp.types';
+import type { VerifyOtpState } from '../../../types/auth/verify-otp.types';
 
 const VerifyOtpComponent: React.FC = () => {
   const location = useLocation();

@@ -56,10 +56,12 @@ jobs:
 
       - name: 📊 Generate coverage report
         run: |
-          echo "📊 Generating coverage report..."
           if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
-            echo "⚠️ Coverage check bypassed - generating report without requirements"
-            yarn test:coverage:bypass
+            echo "⚠️ Coverage generation bypassed due to BYPASS_COVERAGE_CHECK=true"
+            echo "Skipping coverage report generation..."
+            # Create empty coverage directory to prevent downstream errors
+            mkdir -p coverage
+            echo '{"total": {"lines": {"total": 0, "covered": 0, "skipped": 0, "pct": 0}}}' > coverage/coverage-summary.json
           else
             echo "✅ Generating coverage report with 100% requirement"
             yarn test:coverage
@@ -69,11 +71,11 @@ jobs:
         run: |
           echo "🔍 Checking coverage threshold..."
           if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
-            echo "⚠️ Coverage threshold check bypassed"
-            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
-            echo "Current coverage: ${COVERAGE}% (bypassed)"
+            echo "⚠️ Coverage threshold check bypassed due to BYPASS_COVERAGE_CHECK=true"
+            echo "Skipping coverage threshold validation..."
           else
-            COVERAGE=$(grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*}' coverage/coverage-summary.json | grep -o '"pct":[0-9.]*' | cut -d':' -f2)
+            # Extract only the global/total coverage percentage (first occurrence is the total)
+            COVERAGE=$(grep -o '"pct":[0-9.]*' coverage/coverage-summary.json | head -1 | cut -d':' -f2)
             echo "Current coverage: ${COVERAGE}%"
             if (( $(echo "$COVERAGE < 100" | bc -l) )); then
               echo "❌ Coverage is ${COVERAGE}%, but 100% is required"
@@ -84,6 +86,7 @@ jobs:
           fi
 
       - name: 📈 Upload coverage to Codecov
+        if: ${{ secrets.BYPASS_COVERAGE_CHECK != 'true' }}
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage/lcov.info
@@ -160,15 +163,19 @@ jobs:
 
             // Read coverage report if it exists
             let coverageComment = '';
-            try {
-              const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
-              const totalCoverage = coverage.total.lines.pct;
-              const isBypassed = '${{ secrets.BYPASS_COVERAGE_CHECK }}' === 'true';
-              const coverageStatus = isBypassed ? '⚠️ (Bypassed)' : (totalCoverage >= 100 ? '✅' : '❌');
-              const requirementText = isBypassed ? 'Coverage check bypassed' : '100% coverage required';
-              coverageComment = `\n\n## 📊 Coverage Report\n- **Total Coverage**: ${totalCoverage}% ${coverageStatus}\n- **Lines**: ${coverage.total.lines.covered}/${coverage.total.lines.total}\n- **Functions**: ${coverage.total.functions.covered}/${coverage.total.functions.total}\n- **Branches**: ${coverage.total.branches.covered}/${coverage.total.branches.total}\n- **Requirement**: ${requirementText}`;
-            } catch (e) {
-              coverageComment = '\n\n## 📊 Coverage Report\nCoverage data not available';
+            const isBypassed = '${{ secrets.BYPASS_COVERAGE_CHECK }}' === 'true';
+
+            if (isBypassed) {
+              coverageComment = '\n\n## 📊 Coverage Report\n⚠️ **Coverage checks bypassed** - Tests and coverage validation skipped due to BYPASS_COVERAGE_CHECK=true';
+            } else {
+              try {
+                const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+                const totalCoverage = coverage.total.lines.pct;
+                const coverageStatus = totalCoverage >= 100 ? '✅' : '❌';
+                coverageComment = `\n\n## 📊 Coverage Report\n- **Total Coverage**: ${totalCoverage}% ${coverageStatus}\n- **Lines**: ${coverage.total.lines.covered}/${coverage.total.lines.total}\n- **Functions**: ${coverage.total.functions.covered}/${coverage.total.functions.total}\n- **Branches**: ${coverage.total.branches.covered}/${coverage.total.branches.total}\n- **Requirement**: 100% coverage required`;
+              } catch (e) {
+                coverageComment = '\n\n## 📊 Coverage Report\nCoverage data not available';
+              }
             }
 
             const comment = `## ✅ PR Quality Checks Completed

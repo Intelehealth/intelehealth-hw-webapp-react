@@ -5,7 +5,10 @@ import SideMenu from '../components/side-menu/side-menu.component';
 
 const MainContainer = () => {
   return (
-    <div className="flex h-screen w-full bg-(--color-maint-bg)">
+    <div
+      className="flex flex-col h-full bg-(--color-maint-bg)"
+      data-testid="main-container"
+    >
       <SideMenu>
         <div className="flex h-full w-full flex-col">
           <div className="flex-1 md:p-3">

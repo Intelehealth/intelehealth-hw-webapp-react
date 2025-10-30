@@ -596,45 +596,119 @@ git push origin staging
 
 ## 🚀 Deployment & CI/CD
 
-### Deployment Checklist
+### Deployment Overview
 
-Before deploying to production, ensure:
+The project uses a standardized deployment pipeline across all environments (development, QA, staging, and production). All deployment workflows follow a consistent structure for reliability and maintainability.
 
-- [ ] Environment variables configured
-- [ ] Build optimization enabled
-- [ ] Performance monitoring active
-- [ ] Bundle size within limits
-- [ ] All tests passing (100% coverage)
-- [ ] Pre-commit checks passing
+### Deployment Environments
 
-### Build Commands
+| Environment | Branch | Trigger | Purpose |
+|-------------|--------|---------|---------|
+| **Development** | `develop` | Push to develop | Development testing and integration |
+| **QA** | `qa` | Push to qa | Quality assurance testing |
+| **Staging** | `staging` | Push to staging | Pre-production validation |
+| **Production** | `main` | Push to main, manual trigger, or successful PR checks | Live production deployment |
+
+### Standardized Deployment Pipeline
+
+Each deployment follows these consistent steps:
+
+1. **🔄 Checkout code** - Get the latest code from the repository
+2. **⚙️ Setup Node.js** - Install Node.js 22.18.0 (consistent across all environments)
+3. **📦 Install dependencies** - Install project dependencies with yarn
+4. **🧪 Run tests** - Execute test suite with conditional coverage requirements
+5. **📊 Analyze bundle** - Analyze bundle size and performance
+6. **🔒 Security audit** - Run security audit for vulnerabilities
+7. **🏗️ Build** - Build the application for the target environment
+8. **🚀 Deploy** - Deploy to the target server
+9. **📧 Notify** - Send deployment notifications
+
+### Environment-Specific Configurations
+
+While the pipeline structure is consistent, each environment has specific configurations:
+
+#### Development
+- **Environment**: `VITE_APP_ENV=development`
+- **Debug Mode**: Enabled (`VITE_DEBUG_MODE=true`)
+- **Coverage**: Conditional (can be bypassed with `BYPASS_COVERAGE_CHECK`)
+- **Security Audit**: High-level vulnerabilities only
+
+#### QA
+- **Environment**: `VITE_APP_ENV=qa`
+- **Coverage**: Required (100%)
+- **Security Audit**: High-level vulnerabilities
+- **Additional**: E2E tests and QA team notifications
+
+#### Staging
+- **Environment**: `VITE_APP_ENV=staging`
+- **Coverage**: Required (100%)
+- **Security Audit**: Comprehensive audit
+- **Additional**: Smoke tests and stakeholder notifications
+
+#### Production
+- **Environment**: `VITE_APP_ENV=production`
+- **Coverage**: Required (100%)
+- **Security Audit**: High-level vulnerabilities
+- **Additional**: Release tagging, GitHub releases, and comprehensive notifications
+
+### Deployment Validation
+
+Use the validation script to ensure all deployment configurations are consistent:
 
 ```bash
-# Production build
-yarn build
+# Run deployment validation
+./scripts/validate-deployments.sh
+
+# Make script executable (if needed)
+chmod +x scripts/validate-deployments.sh
+```
+
+The validation script checks:
+- ✅ YAML syntax and structure
+- ✅ Required fields and environment variables
+- ✅ Step consistency across environments
+- ✅ Node.js version consistency
+- ✅ Absence of commented-out code
+
+### Manual Deployment Commands
+
+```bash
+# Build for specific environment
+VITE_APP_ENV=development yarn build  # Development
+VITE_APP_ENV=qa yarn build           # QA
+VITE_APP_ENV=staging yarn build      # Staging
+VITE_APP_ENV=production yarn build   # Production
 
 # Bundle analysis (generates dist/stats.html)
 yarn analyze
+
+# Security audit
+yarn audit --audit-level high
 
 # Verify bundle size
 ls -la dist/assets/
 ```
 
-### Security Audit
+### Deployment Checklist
 
-```bash
-# Dependency security audit
-yarn audit
+Before deploying to any environment, ensure:
 
-# Check for known vulnerabilities
-npm audit
+- [ ] All required environment variables are configured
+- [ ] Tests are passing (coverage requirements met)
+- [ ] Security audit passes
+- [ ] Bundle size is within acceptable limits
+- [ ] Pre-commit checks are passing
+- [ ] Target branch is up to date
 
-# Review environment variables
-grep -r "VITE_" .env*
+### Troubleshooting Deployments
 
-# Verify no hardcoded secrets
-grep -r "password\|secret\|key" src/ --exclude="*.test.*"
-```
+If deployment fails:
+
+1. **Check the validation script**: `./scripts/validate-deployments.sh`
+2. **Verify environment secrets**: Ensure all required secrets are configured
+3. **Review workflow logs**: Check GitHub Actions logs for specific errors
+4. **Test locally**: Run the build and test commands locally
+5. **Check server connectivity**: Ensure SSH keys and server access are working
 
 ## 📚 Additional Resources
 

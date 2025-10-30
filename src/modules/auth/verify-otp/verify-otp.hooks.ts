@@ -3,7 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../../services/toast';
 import requestOtpService from './verify-otp.service';
-import type { RequestOtpModel, VerifyOtpModel } from './verify-otp.types';
+import type {
+  RequestOtpModel,
+  VerifyOtpModel,
+} from '../../../types/auth/verify-otp.types';
 
 interface UseVerifyOtpReturn {
   otp: string[];

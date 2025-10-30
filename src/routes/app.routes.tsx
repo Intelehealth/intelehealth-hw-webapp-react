@@ -44,7 +44,7 @@ const AppRoutes = () => (
       </Route>
 
       {/* Protected routes */}
-      <Route>
+      <Route element={<ProtectedRoute />}>
         <Route element={<MainContainer />}>
           <Route path={ROUTES.ROOT} element={<DashboardPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />

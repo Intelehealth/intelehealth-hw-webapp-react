@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ResetPasswordModel } from '../../../../modules/auth/auth.types';
+import type { ResetPasswordModel } from '../../../../types/auth/auth.types';
 import { API_ENDPOINTS, resetPasswordService } from '../../../../modules/auth/reset-password/reset-password.service';
 import { MindmapPortalApi } from '../../../../services/mindmap';
 

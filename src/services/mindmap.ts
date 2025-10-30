@@ -1,3 +1,4 @@
+import { env } from '../config/env';
 import { startLoading, stopLoading } from '../reducers/loader.reducer';
 import { store } from '../store/store';
 import { storage } from '../utils/storage';
@@ -64,8 +65,8 @@ class MindmapService extends HttpService {
 
 // Create multiple instances but with the same auth mechanism
 export const MindmapAuthGatewayApi = new MindmapService(
-  import.meta.env.VITE_AUTH_GATEWAY_API_URL
+  env.AUTH_GATEWAY_API_URL
 );
-export const MindmapPortalApi = new MindmapService(
-  import.meta.env.VITE_PORTAL_API_URL
-);
+export const MindmapPortalApi = new MindmapService(env.PORTAL_API_URL!);
+
+console.log('env--->>', env);
