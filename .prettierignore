@@ -15,9 +15,3 @@ src/examples/
 
 # Test cases (not formatted)
 src/test/
-
-.tmp
-
-.cache
-
-*.json
