@@ -49,5 +49,16 @@ export default defineConfig({
     testTimeout: 10000,
     // Hook timeout
     hookTimeout: 10000,
+
+    maxConcurrency: 2,
+    isolate: true,
+    // Memory and performance settings
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: false,
+        isolate: true,
+      },
+    },
   },
 });
