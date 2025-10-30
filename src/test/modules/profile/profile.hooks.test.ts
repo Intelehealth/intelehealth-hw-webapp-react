@@ -43,24 +43,30 @@ describe('useProfile', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('should provide updateProfile function', () => {
+  it('should provide updateProfile function', async () => {
     const { result } = renderHook(() => useProfile());
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
     const { updateProfile } = result.current;
-    
     expect(typeof updateProfile).toBe('function');
   });
 
-  it('should provide uploadPhoto function', () => {
+  it('should provide uploadPhoto function', async () => {
     const { result } = renderHook(() => useProfile());
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
     const { uploadPhoto } = result.current;
-    
     expect(typeof uploadPhoto).toBe('function');
   });
 
-  it('should provide takePhoto function', () => {
+  it('should provide takePhoto function', async () => {
     const { result } = renderHook(() => useProfile());
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
     const { takePhoto } = result.current;
-    
     expect(typeof takePhoto).toBe('function');
   });
 
