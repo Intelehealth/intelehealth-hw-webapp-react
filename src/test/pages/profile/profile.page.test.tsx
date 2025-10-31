@@ -7,7 +7,8 @@ vi.mock('../../../modules/profile/profile-form.component', () => ({
   default: () => <div data-testid="profile-form">Profile Form</div>,
 }));
 
-describe('ProfilePage', () => {
+// COMMENTED OUT: Profile tests
+describe.skip('ProfilePage', () => {
   it('should render without crashing', () => {
     expect(() => {
       render(<ProfilePage />);

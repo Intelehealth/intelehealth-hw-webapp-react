@@ -5,7 +5,8 @@
 // minimal placeholder that documents the removal.
 import { describe, expect, it } from 'vitest';
 
-describe('Profile mobile fields removed', () => {
+// COMMENTED OUT: Profile tests
+describe.skip('Profile mobile fields removed', () => {
   it('is covered by profile-form-fields tests', () => {
     expect(true).toBe(true);
   });
