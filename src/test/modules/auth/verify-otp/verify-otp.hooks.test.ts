@@ -395,7 +395,7 @@ describe('useVerifyOtp hook', () => {
     // Verify OTP is filled
     expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
 
-    // Now call verifyOtp - this should trigger the success path (lines 105-108)
+    // Now call verifyOtp -this should trigger the success path (lines 105-108)
     await act(async () => {
       await result.current.verifyOtp();
     });
