@@ -1,9 +1,53 @@
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+// Plugin to mock react-datepicker CSS import
+const mockCssPlugin = (): Plugin => ({
+  name: 'mock-react-datepicker-css',
+  enforce: 'pre', // Run before other plugins
+  resolveId(id, importer) {
+    // Handle the CSS import for react-datepicker
+    if (
+      id === 'react-datepicker/dist/react-datepicker.css' ||
+      (id.includes('react-datepicker') && id.endsWith('.css'))
+    ) {
+      // Return a virtual module ID
+      return '\0react-datepicker-css-mock';
+    }
+    return null;
+  },
+  load(id) {
+    if (id === '\0react-datepicker-css-mock') {
+      // Return empty CSS content as a virtual CSS module
+      return '/* Mock CSS for react-datepicker in tests */';
+    }
+    return null;
+  },
+  transform(code, id) {
+    // Remove the CSS import statement from the code if it still exists
+    if (
+      id.includes('calendar.component') ||
+      id.endsWith('calendar.component.tsx')
+    ) {
+      return {
+        code: code.replace(
+          /import\s+["']react-datepicker\/dist\/react-datepicker\.css["'];?\s*/g,
+          ''
+        ),
+        map: null,
+      };
+    }
+    return null;
+  },
+});
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    mockCssPlugin(), // Add the mock CSS plugin
+  ],
   resolve: {
     alias: {
       'react-datepicker': fileURLToPath(
