@@ -69,7 +69,7 @@ describe('utils', () => {
       const OriginalDate = global.Date;
       global.Date = class extends OriginalDate {
         constructor(...args: any[]) {
-          super(...args);
+          super(...(args as Parameters<DateConstructor>));
           // Throw error for specific test case
           if (args.length > 0 && String(args[0]) === 'throw-error') {
             throw new Error('Forced date error');
@@ -153,7 +153,7 @@ describe('utils', () => {
       const OriginalDate = global.Date;
       global.Date = class extends OriginalDate {
         constructor(...args: any[]) {
-          super(...args);
+          super(...(args as Parameters<DateConstructor>));
           // Throw error for specific test case
           if (args.length > 0 && String(args[0]) === 'throw-error-date') {
             throw new Error('Forced date constructor error');
