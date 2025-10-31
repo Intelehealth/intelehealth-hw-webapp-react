@@ -48,8 +48,12 @@ export const profileService = {
           // Handle nested fields like address.street
           const [parent, child] = field.split('.');
           const parentValue = profile[parent as keyof Profile];
-          if (parentValue && typeof parentValue === 'object') {
-            const value = (parentValue as any)[child];
+          if (
+            parentValue &&
+            typeof parentValue === 'object' &&
+            parentValue !== null
+          ) {
+            const value = (parentValue as Record<string, unknown>)[child];
             return value !== null && value !== undefined && value !== '';
           }
           return false;
@@ -60,14 +64,12 @@ export const profileService = {
       });
 
       return { complete: isComplete };
-    } catch (error) {
-      console.error('Error checking profile status:', error);
+    } catch {
       return { complete: false };
     }
   },
 
   updateProfile: (data: ProfileUpdateRequest) => {
-    console.log('Profile Service - updateProfile called with data:', data);
     return MindmapAuthGatewayApi.put<Profile>(API_ENDPOINTS.PROFILE, data);
   },
 

@@ -64,7 +64,7 @@ export const useProfileFormCompletion = (formData: ProfileFormData) => {
         const [parent, child] = field.split('.');
         const parentValue = formData[parent as keyof ProfileFormData];
         if (parentValue && typeof parentValue === 'object') {
-          const value = (parentValue as any)[child];
+          const value = (parentValue as Record<string, unknown>)[child];
           return value !== null && value !== undefined && value !== '';
         }
         return false;
@@ -80,7 +80,7 @@ export const useProfileFormCompletion = (formData: ProfileFormData) => {
         const [parent, child] = field.split('.');
         const parentValue = formData[parent as keyof ProfileFormData];
         if (parentValue && typeof parentValue === 'object') {
-          const value = (parentValue as any)[child];
+          const value = (parentValue as Record<string, unknown>)[child];
           return value === null || value === undefined || value === '';
         }
         return true;

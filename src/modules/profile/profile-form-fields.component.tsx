@@ -17,7 +17,11 @@ interface ProfileFormFieldsProps {
   setValue: UseFormSetValue<ProfileFormValues>;
   trigger: (name?: keyof ProfileFormValues) => Promise<boolean>;
   onPhotoModalOpen: () => void;
-  onCountryChange: (country: any) => void;
+  onCountryChange: (country: {
+    name: string;
+    code: string;
+    dial_code: string;
+  }) => void;
 }
 
 const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({

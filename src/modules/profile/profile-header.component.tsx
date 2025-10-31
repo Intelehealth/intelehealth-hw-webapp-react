@@ -37,7 +37,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </div>
 
       <div className="hidden lg:flex items-center gap-4">
-        <div style={{ ['--color-accent' as any]: '#34cc8b' }}>
+        <div
+          style={
+            { ['--color-accent' as string]: '#34cc8b' } as React.CSSProperties
+          }
+        >
           <Toggle
             label="Notifications"
             checked={notificationsEnabled}

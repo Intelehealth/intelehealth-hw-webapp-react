@@ -174,7 +174,7 @@ export const useProfile = (): UseProfileReturn => {
       setLoading(true);
       // TODO: Implement camera functionality
       showToast('Info', 'Camera functionality not implemented yet', 'info');
-    } catch (error: unknown) {
+    } catch {
       showToast('Error', 'Failed to take photo', 'error');
     } finally {
       setLoading(false);
