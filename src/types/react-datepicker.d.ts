@@ -15,6 +15,13 @@ declare module 'react-datepicker' {
     maxDate?: Date;
     minDate?: Date;
     disabled?: boolean;
+    className?: string;
+    wrapperClassName?: string;
+    popperClassName?: string;
+    autoComplete?: string;
+    inline?: boolean;
+    withPortal?: boolean;
+    popperPlacement?: string;
   }
 
   const DatePicker: React.FC<ReactDatePickerProps>;
