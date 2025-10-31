@@ -4,7 +4,7 @@ import ProfileFormFields from '../../../modules/profile/profile-form-fields.comp
 
 // Mock the common components
 vi.mock('../../../components/common', () => ({
-  Input: ({ label, placeholder, error, ...props }: any) => (
+  Input: ({ label, placeholder, error, isRequired, size, ...props }: any) => (
     <div>
       <label>{label}</label>
       <input placeholder={placeholder} {...props} />
@@ -29,7 +29,7 @@ vi.mock('../../../components/common', () => ({
       <label>{label}</label>
     </div>
   ),
-  Calendar: ({ label, onChange, value, ...props }: any) => (
+  Calendar: ({ label, onChange, value, dateFormat, maxDate, minDate, ...props }: any) => (
     <div>
       <label>{label}</label>
       <input

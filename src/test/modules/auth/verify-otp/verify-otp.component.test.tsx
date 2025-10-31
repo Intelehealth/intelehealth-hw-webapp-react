@@ -23,6 +23,12 @@ vi.mock('../../../../components/common', () => ({
       {children}
     </button>
   )),
+  Input: vi.fn(({ register, rightIcon, leftIcon, size, variant, isRequired, error, ...props }) => (
+    <div>
+      <input {...register} {...props} />
+      {error && <span className="error">{error}</span>}
+    </div>
+  )),
 }));
 
 vi.mock('../../../../components/common/card.component', () => ({

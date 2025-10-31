@@ -50,7 +50,7 @@ describe('Radio', () => {
   });
 
   it('handles checked state', () => {
-    render(<Radio checked label="Checked" />);
+    render(<Radio checked readOnly label="Checked" />);
     expect(screen.getByRole('radio')).toBeChecked();
   });
 

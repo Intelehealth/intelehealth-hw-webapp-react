@@ -14,7 +14,7 @@ vi.mock('../../../../../components/common', () => ({
       {children}
     </button>
   )),
-  Input: vi.fn(({ register, error, ...props }) => (
+  Input: vi.fn(({ register, error, rightIcon, leftIcon, size, variant, isRequired, ...props }) => (
     <div>
       <input {...register} {...props} />
       {error && <span className="error">{error}</span>}

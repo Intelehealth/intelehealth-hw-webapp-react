@@ -23,7 +23,7 @@ vi.mock('../../../../components/common', () => ({
       {children}
     </button>
   )),
-  Input: vi.fn(({ register, ...props }) => (
+  Input: vi.fn(({ register, rightIcon, leftIcon, size, variant, isRequired, error, ...props }) => (
     <input {...register} {...props} />
   )),
 }));
