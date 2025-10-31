@@ -300,15 +300,78 @@ describe('useVerifyOtp hook', () => {
   });
 
   it('should handle verifyOtp success path coverage', async () => {
+    // Use real timers for this test
+    vi.useRealTimers();
+    
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    const showToast = await import('../../../../services/toast');
+    
+    // Mock requestOtp to succeed first to set userUuid
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      data: { userUuid: 'test-uuid-123' },
+    } as any);
+
+    // Mock verifyOtp to return success: true
+    vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValue({
+      success: true,
+      message: 'OTP verified successfully',
+    } as any);
+
     const { result } = renderHook(() => useVerifyOtp(mockStateData));
 
-    // Test that verifyOtp function exists and can be called
-    expect(typeof result.current.verifyOtp).toBe('function');
-    
-    // Test basic function call without complex assertions
+    // First, set up userUuid by calling requestOtp
+    await act(async () => {
+      await result.current.requestOtp();
+    });
+
+    expect(result.current.userUuid).toBe('test-uuid-123');
+
+    // Fill in the OTP - call each separately to ensure state updates properly
+    act(() => {
+      result.current.handleChange(0, '1');
+    });
+    act(() => {
+      result.current.handleChange(1, '2');
+    });
+    act(() => {
+      result.current.handleChange(2, '3');
+    });
+    act(() => {
+      result.current.handleChange(3, '4');
+    });
+    act(() => {
+      result.current.handleChange(4, '5');
+    });
+    act(() => {
+      result.current.handleChange(5, '6');
+    });
+
+    // Verify OTP is filled
+    expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
+
+    // Now call verifyOtp - this should trigger the success path (lines 105-108)
     await act(async () => {
       await result.current.verifyOtp();
     });
+
+    // Verify success toast is shown
+    expect(showToast.showToast).toHaveBeenCalledWith(
+      'Verify OTP',
+      'OTP verified successfully',
+      'success'
+    );
+
+    // Verify navigation is called with correct state (lines 106-111)
+    expect(mockNavigate).toHaveBeenCalledWith('/auth/reset-password', {
+      state: {
+        username: mockStateData?.value,
+        userUuid: 'test-uuid-123',
+      },
+    });
+    
+    // Restore fake timers
+    vi.useFakeTimers();
   });
 
   it('should handle verifyOtp error path coverage', async () => {
@@ -322,5 +385,152 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
   });
+
+  it('should handle verifyOtp when result.success is false', async () => {
+    // Use real timers for this test to avoid timeout issues
+    vi.useRealTimers();
+    
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    const showToast = await import('../../../../services/toast');
+    
+    // Set up requestOtp mock to succeed first
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      data: { userUuid: 'test-uuid-123' },
+    } as any);
+
+    // Mock verifyOtp to return success: false
+    vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValue({
+      success: false,
+      message: 'OTP verification failed',
+    } as any);
+
+    const { result } = renderHook(() => useVerifyOtp(mockStateData));
+
+    // First, set up userUuid by calling requestOtp
+    await act(async () => {
+      await result.current.requestOtp();
+    });
+
+    // Verify userUuid is set
+    expect(result.current.userUuid).toBe('test-uuid-123');
+
+    // Clear the showToast calls from requestOtp
+    vi.mocked(showToast.showToast).mockClear();
+
+    // Fill in the OTP - call each separately to ensure state updates properly
+    act(() => {
+      result.current.handleChange(0, '1');
+    });
+    act(() => {
+      result.current.handleChange(1, '2');
+    });
+    act(() => {
+      result.current.handleChange(2, '3');
+    });
+    act(() => {
+      result.current.handleChange(3, '4');
+    });
+    act(() => {
+      result.current.handleChange(4, '5');
+    });
+    act(() => {
+      result.current.handleChange(5, '6');
+    });
+
+    // Verify OTP is filled
+    expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
+
+    // Now call verifyOtp
+    await act(async () => {
+      await result.current.verifyOtp();
+    });
+
+    // Should show error toast
+    expect(showToast.showToast).toHaveBeenCalledWith(
+      'Verify OTP Failed',
+      expect.any(String),
+      'error'
+    );
+    
+    // Restore fake timers for other tests
+    vi.useFakeTimers();
+  }, 15000);
+
+  it('should handle verifyOtp error with axios error response', async () => {
+    // Use real timers for this test to avoid timeout issues
+    vi.useRealTimers();
+    
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    const showToast = await import('../../../../services/toast');
+    
+    const axiosError = {
+      response: {
+        data: {
+          message: 'Custom error message',
+        },
+      },
+    };
+
+    // Set up requestOtp mock to succeed first
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      data: { userUuid: 'test-uuid-123' },
+    } as any);
+
+    // Mock verifyOtp to throw the error
+    vi.mocked(requestOtpService.default.verifyOtp).mockRejectedValue(axiosError);
+
+    const { result } = renderHook(() => useVerifyOtp(mockStateData));
+
+    // First, set up userUuid by calling requestOtp
+    await act(async () => {
+      await result.current.requestOtp();
+    });
+
+    // Verify userUuid is set
+    expect(result.current.userUuid).toBe('test-uuid-123');
+
+    // Clear the showToast calls from requestOtp
+    vi.mocked(showToast.showToast).mockClear();
+
+    // Fill in the OTP - call each separately to ensure state updates properly
+    act(() => {
+      result.current.handleChange(0, '1');
+    });
+    act(() => {
+      result.current.handleChange(1, '2');
+    });
+    act(() => {
+      result.current.handleChange(2, '3');
+    });
+    act(() => {
+      result.current.handleChange(3, '4');
+    });
+    act(() => {
+      result.current.handleChange(4, '5');
+    });
+    act(() => {
+      result.current.handleChange(5, '6');
+    });
+
+    // Verify OTP is filled
+    expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
+
+    // Now call verifyOtp
+    await act(async () => {
+      await result.current.verifyOtp();
+    });
+
+    // Should show error with custom message
+    expect(showToast.showToast).toHaveBeenCalledWith(
+      'Verify OTP Failed',
+      'Custom error message',
+      'error'
+    );
+    
+    // Restore fake timers for other tests
+    vi.useFakeTimers();
+  }, 15000);
 
 });

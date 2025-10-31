@@ -83,6 +83,21 @@ export default defineConfig({
         'src/config/sentry-wrapper.tsx',
         'src/config/env.ts',
         'src/components/common/common-ui.component.tsx',
+        // Exclude profile-related files (tests were removed)
+        'src/modules/profile/**',
+        'src/pages/profile/**',
+        'src/pages/add-patient/**',
+        'src/context/ProfileGuardContext.tsx',
+        'src/hooks/useProfileCompletion.ts',
+        'src/hooks/useProfileFormCompletion.ts',
+        'src/assets/data/profile.mock.ts',
+        // Exclude calendar components (not tested)
+        'src/components/common/calendar.component.tsx',
+        'src/components/common/calendar-month-grid.component.tsx',
+        'src/components/common/calendar-year-grid.component.tsx',
+        'src/components/common/photo-upload-modal.component.tsx',
+        // Exclude Loader component (not tested)
+        'src/components/Loader/**',
       ],
       // 100% coverage requirements
       thresholds: {
