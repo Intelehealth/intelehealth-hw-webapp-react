@@ -81,13 +81,13 @@ const Calendar: React.FC<CalendarProps> = ({
             (showYearGrid || showMonthGrid) && 'react-datepicker--grid-mode'
           )}
           openToDate={currentDate}
-          renderDayContents={dayOfMonth => {
+          renderDayContents={(dayOfMonth: number) => {
             if (showYearGrid || showMonthGrid) {
               return null; // Hide calendar days when year or month grid is shown
             }
             return dayOfMonth;
           }}
-          renderCustomHeader={({ date }) => {
+          renderCustomHeader={({ date }: { date: Date }) => {
             const formatDateHeader = (date: Date) => {
               const dayNames = [
                 'SUN',

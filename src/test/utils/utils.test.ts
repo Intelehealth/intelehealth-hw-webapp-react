@@ -68,7 +68,7 @@ describe('utils', () => {
       // Mock Date constructor to throw an error
       const OriginalDate = global.Date;
       global.Date = class extends OriginalDate {
-        constructor(...args: unknown[]) {
+        constructor(...args: any[]) {
           super(...args);
           // Throw error for specific test case
           if (args.length > 0 && String(args[0]) === 'throw-error') {
@@ -143,8 +143,6 @@ describe('utils', () => {
     it('should return false when date string does not match formatted date', () => {
       // Date that can be parsed but doesn't match the exact format
       // This tests the dateString === formatDate(date) check
-      const date = new Date('2024-03-15T10:30:00');
-      const formatted = formatDate(date);
       // If we pass a string that's different from the formatted version
       expect(isValidDate('2024-03-15T10:30:00')).toBe(false);
     });
@@ -154,7 +152,7 @@ describe('utils', () => {
       // This will trigger the catch block in isValidDate
       const OriginalDate = global.Date;
       global.Date = class extends OriginalDate {
-        constructor(...args: unknown[]) {
+        constructor(...args: any[]) {
           super(...args);
           // Throw error for specific test case
           if (args.length > 0 && String(args[0]) === 'throw-error-date') {
