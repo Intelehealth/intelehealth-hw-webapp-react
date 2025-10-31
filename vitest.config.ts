@@ -98,6 +98,9 @@ export default defineConfig({
         'src/components/common/photo-upload-modal.component.tsx',
         // Exclude Loader component (not tested)
         'src/components/Loader/**',
+        // Exclude entry point files (mostly boilerplate)
+        'src/main.tsx',
+        'src/App.tsx',
       ],
       // 100% coverage requirements
       thresholds: {
