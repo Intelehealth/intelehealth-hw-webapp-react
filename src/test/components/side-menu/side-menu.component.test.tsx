@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
@@ -460,7 +460,7 @@ describe('SideMenu', () => {
     addEventListenerSpy.mockRestore();
   });
 
-  it('should call handleClickOutside when clicking outside on mobile', async () => {
+  it('should call handleClickOutside when clicking outside on mobile', () => {
     // Set mobile width
     Object.defineProperty(window, 'innerWidth', {
       value: 500,
@@ -472,10 +472,7 @@ describe('SideMenu', () => {
 
     // Open mobile menu
     const mobileToggleButton = screen.getAllByRole('button')[0];
-    await act(async () => {
-      fireEvent.click(mobileToggleButton);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    fireEvent.click(mobileToggleButton);
 
     // Verify menu is open
     const sidebar = container.querySelector('aside');

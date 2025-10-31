@@ -37,12 +37,8 @@ describe('useVerifyOtp hook', () => {
     vi.useRealTimers();
   });
 
-  it('should initialize with default values', async () => {
+  it('should initialize with default values', () => {
     const { result } = renderHook(() => useVerifyOtp(mockStateData));
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
 
     expect(result.current.otp).toEqual(['', '', '', '', '', '']);
     expect(result.current.timeLeft).toBe(180);
@@ -61,51 +57,47 @@ describe('useVerifyOtp hook', () => {
     result.current.inputsRef.current = [mockInput0, mockInput1, null, null, null, null];
     const focusSpy = vi.spyOn(mockInput1, 'focus');
 
-    await act(async () => {
+    act(() => {
       result.current.handleChange(0, '1');
-      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(result.current.otp).toEqual(['1', '', '', '', '', '']);
     expect(focusSpy).toHaveBeenCalled();
   });
 
-  it('should not update otp state if value is not a digit', async () => {
+  it('should not update otp state if value is not a digit', () => {
     const { result } = renderHook(() => useVerifyOtp(mockStateData));
 
-    await act(async () => {
+    act(() => {
       result.current.handleChange(0, 'a');
-      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(result.current.otp).toEqual(['', '', '', '', '', '']);
   });
 
-  it('should handle backspace on handleKeyDown and focus previous input', async () => {
+  it('should handle backspace on handleKeyDown and focus previous input', () => {
     const { result } = renderHook(() => useVerifyOtp(mockStateData));
     const mockInput0 = document.createElement('input');
     const mockInput1 = document.createElement('input');
     result.current.inputsRef.current = [mockInput0, mockInput1, null, null, null, null];
     const focusSpy = vi.spyOn(mockInput0, 'focus');
 
-    await act(async () => {
+    act(() => {
       result.current.handleChange(1, ''); // Simulate empty input at index 1
       result.current.handleKeyDown(1, { key: 'Backspace' } as React.KeyboardEvent<HTMLInputElement>);
-      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(focusSpy).toHaveBeenCalled();
   });
 
-  it('should not focus previous input if backspace at index 0', async () => {
+  it('should not focus previous input if backspace at index 0', () => {
     const { result } = renderHook(() => useVerifyOtp(mockStateData));
     const mockInput0 = document.createElement('input');
     result.current.inputsRef.current = [mockInput0, null, null, null, null, null];
     const focusSpy = vi.spyOn(mockInput0, 'focus');
 
-    await act(async () => {
+    act(() => {
       result.current.handleKeyDown(0, { key: 'Backspace' } as React.KeyboardEvent<HTMLInputElement>);
-      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(focusSpy).not.toHaveBeenCalled();

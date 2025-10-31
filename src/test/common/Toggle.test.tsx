@@ -61,12 +61,12 @@ describe('Toggle', () => {
 
   it('applies correct variant styles', () => {
     const { rerender } = render(
-      <Toggle label="Primary Toggle" variant="primary" checked readOnly />
+      <Toggle label="Primary Toggle" variant="primary" checked />
     );
     // Can't test Tailwind class values directly without snapshots/CSS modules
     expect(screen.getByRole('checkbox')).toBeChecked();
 
-    rerender(<Toggle label="Secondary Toggle" variant="secondary" checked readOnly />);
+    rerender(<Toggle label="Secondary Toggle" variant="secondary" checked />);
     expect(screen.getByRole('checkbox')).toBeChecked();
   });
 
@@ -145,14 +145,14 @@ describe('Toggle', () => {
   });
 
   it('applies correct variant classes for checked and unchecked states', () => {
-    const { rerender } = render(<Toggle label="Primary" variant="primary" checked readOnly />);
+    const { rerender } = render(<Toggle label="Primary" variant="primary" checked />);
     const toggle = screen.getByRole('checkbox');
     expect(toggle).toBeChecked();
 
-    rerender(<Toggle label="Secondary" variant="secondary" checked readOnly />);
+    rerender(<Toggle label="Secondary" variant="secondary" checked />);
     expect(toggle).toBeChecked();
 
-    rerender(<Toggle label="Primary Unchecked" variant="primary" checked={false} readOnly />);
+    rerender(<Toggle label="Primary Unchecked" variant="primary" checked={false} />);
     expect(toggle).not.toBeChecked();
   });
 
