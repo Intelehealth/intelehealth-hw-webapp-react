@@ -1,18 +1,6 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import React from 'react';
 import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest';
-
-// Mock react-datepicker globally to prevent import errors
-vi.mock('react-datepicker', () => ({
-  default: ({ selected, onChange, ...props }: any) =>
-    React.createElement('input', {
-      type: 'date',
-      value: selected ? new Date(selected).toISOString().split('T')[0] : '',
-      onChange: (e: any) => onChange?.(new Date(e.target.value), e),
-      ...props,
-    }),
-}));
 
 // Mock react-datepicker CSS import
 vi.mock('react-datepicker/dist/react-datepicker.css', () => ({}));
