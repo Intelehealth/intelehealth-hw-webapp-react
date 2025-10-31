@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useProfileGuard } from '../../../context/ProfileGuardContext';
 import ProfileRouteGuard from '../../../modules/profile/profile-route-guard.component';
 
 // Mock the profile guard context
-const mockUseProfileGuard = vi.fn();
 vi.mock('../../../context/ProfileGuardContext', () => ({
-  useProfileGuard: mockUseProfileGuard,
+  useProfileGuard: vi.fn(),
 }));
 
 // Mock the profile status modal
@@ -24,6 +24,8 @@ const TestComponent = () => <div data-testid="test-content">Test Content</div>;
 
 // COMMENTED OUT: Profile tests
 describe.skip('ProfileRouteGuard', () => {
+  const mockUseProfileGuard = vi.mocked(useProfileGuard);
+  
   beforeEach(() => {
     vi.clearAllMocks();
   });
