@@ -91,8 +91,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const updateProfile = async (data: ProfileUpdateRequest) => {
+    // Set loading immediately before async operation
+    setLoading(true);
     try {
-      setLoading(true);
       const updatedProfile = await profileService.updateProfile(data);
       setProfile(updatedProfile);
       showToast('Success', 'Profile updated successfully', 'success');
@@ -117,8 +118,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const changePassword = async (data: PasswordChangeRequest) => {
+    // Ensure loading starts before await
+    setLoading(true);
     try {
-      setLoading(true);
       await profileService.changePassword(data);
       showToast('Success', 'Password changed successfully', 'success');
     } catch (error: unknown) {
@@ -142,8 +144,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
+    // Start loading first
+    setLoading(true);
     try {
-      setLoading(true);
       const formData = new FormData();
       formData.append('photo', file);
       const updatedProfile = await profileService.uploadPhoto(formData);
@@ -170,8 +173,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const takePhoto = async () => {
+    // Mark loading true before showing toast
+    setLoading(true);
     try {
-      setLoading(true);
       // TODO: Implement camera functionality
       showToast('Info', 'Camera functionality not implemented yet', 'info');
     } catch {

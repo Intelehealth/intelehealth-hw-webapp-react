@@ -12,6 +12,19 @@ const ProfileStatusModal: React.FC<ProfileStatusModalProps> = ({
   onGoToProfile,
   profileState,
 }) => {
+  // Move useEffect BEFORE early return so it always runs when isOpen changes
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      // Always restore on unmount (even if unmounted while open)
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const isNotStarted = profileState === 'not-started';
@@ -60,15 +73,6 @@ const ProfileStatusModal: React.FC<ProfileStatusModalProps> = ({
   };
 
   const content = modalContent[profileState];
-
-  React.useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-48">

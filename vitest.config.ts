@@ -84,7 +84,6 @@ export default defineConfig({
         'src/config/env.ts',
         'src/components/common/common-ui.component.tsx',
         // Exclude profile-related files (tests were removed)
-        'src/modules/profile/**',
         'src/pages/profile/**',
         'src/pages/add-patient/**',
         'src/context/ProfileGuardContext.tsx',
