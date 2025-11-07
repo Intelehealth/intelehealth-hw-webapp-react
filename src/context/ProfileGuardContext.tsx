@@ -66,7 +66,13 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setLoading(true);
       // Avoid real network calls during tests (prevents jsdom XHR AggregateError)
-      if (import.meta && import.meta.env && import.meta.env.MODE === 'test') {
+      // Allow bypassing test mode check via VITE_SKIP_TEST_MODE env var
+      if (
+        import.meta &&
+        import.meta.env &&
+        import.meta.env.MODE === 'test' &&
+        !import.meta.env.VITE_SKIP_TEST_MODE
+      ) {
         setIsProfileComplete(false);
         setProfileState('not-started');
         return;

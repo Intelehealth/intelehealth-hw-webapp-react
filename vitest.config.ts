@@ -84,11 +84,6 @@ export default defineConfig({
         'src/config/env.ts',
         'src/components/common/common-ui.component.tsx',
         // Exclude profile-related files (tests were removed)
-        'src/pages/profile/**',
-        'src/pages/add-patient/**',
-        'src/context/ProfileGuardContext.tsx',
-        'src/hooks/useProfileCompletion.ts',
-        'src/hooks/useProfileFormCompletion.ts',
         'src/assets/data/profile.mock.ts',
         // Exclude calendar components (not tested)
         'src/components/common/calendar.component.tsx',

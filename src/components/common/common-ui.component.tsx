@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Button,
+  Calendar,
   Checkbox,
   Chip,
   Dropdown,
@@ -25,6 +26,9 @@ const CommonUiComponent: React.FC = () => {
     theme: 'light',
     terms: false,
     preferences: [] as string[],
+    dateOfBirth: '',
+    startDate: '',
+    endDate: '',
   });
 
   // State for chip management
@@ -543,6 +547,52 @@ const CommonUiComponent: React.FC = () => {
                 onChange={() => handleToggleChange('largeToggle')}
               />
             </div>
+          </div>
+        </section>
+
+        {/* Calendar Components Section */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800 border-b pb-2">
+            Calendar Components
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Calendar */}
+            <Calendar
+              label="Date of Birth"
+              value={formData.dateOfBirth}
+              onChange={value => handleInputChange('dateOfBirth', value)}
+              placeholder="Select date of birth"
+              isRequired
+            />
+
+            {/* Calendar with Date Format */}
+            <Calendar
+              label="Start Date"
+              value={formData.startDate}
+              onChange={value => handleInputChange('startDate', value)}
+              placeholder="Select start date"
+              dateFormat="dd-MMM-yy"
+            />
+
+            {/* Calendar with Max Date */}
+            <Calendar
+              label="End Date"
+              value={formData.endDate}
+              onChange={value => handleInputChange('endDate', value)}
+              placeholder="Select end date"
+              maxDate={new Date()}
+            />
+
+            {/* Calendar with Error */}
+            <Calendar
+              label="Required Date"
+              value=""
+              onChange={() => {}}
+              placeholder="Select a date"
+              error="This field is required"
+              isRequired
+            />
           </div>
         </section>
 

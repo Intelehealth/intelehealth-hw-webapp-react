@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-interface ProfileFormData {
+export interface ProfileFormData {
   id?: string;
   firstName?: string;
   middleName?: string;
