@@ -294,16 +294,6 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
             <div className="flex-1 min-w-0">{displayValue()}</div>
 
             <div className="flex items-center gap-2 ml-2">
-              {clearable && selectedValues.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="text-gray-400 hover:text-gray-600"
-                  aria-label="Clear selection"
-                >
-                  ×
-                </button>
-              )}
               <svg
                 className={cn(
                   'transition-transform duration-200 text-(--color-muted)',
@@ -327,6 +317,17 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
               </svg>
             </div>
           </button>
+
+          {clearable && selectedValues.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear selection"
+            >
+              ×
+            </button>
+          )}
 
           {isOpen && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">

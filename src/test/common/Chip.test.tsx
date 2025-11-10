@@ -669,4 +669,48 @@ describe('Chip', () => {
     expect(buttons[0]).toHaveTextContent('Removable Chip');
     expect(buttons[1]).toHaveAttribute('aria-label', 'Remove');
   });
+
+  it('handles Enter key on remove button to trigger remove', () => {
+    const handleRemove = vi.fn();
+    render(
+      <Chip removable onRemove={handleRemove}>
+        Removable Chip
+      </Chip>
+    );
+
+    const removeButton = screen.getByLabelText('Remove');
+    fireEvent.keyDown(removeButton, { key: 'Enter' });
+
+    // Verify handleRemove was called (lines 229-232)
+    expect(handleRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles Space key on remove button to trigger remove', () => {
+    const handleRemove = vi.fn();
+    render(
+      <Chip removable onRemove={handleRemove}>
+        Removable Chip
+      </Chip>
+    );
+
+    const removeButton = screen.getByLabelText('Remove');
+    fireEvent.keyDown(removeButton, { key: ' ' });
+
+    // Verify handleRemove was called (lines 229-232)
+    expect(handleRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not trigger remove on other keys', () => {
+    const handleRemove = vi.fn();
+    render(
+      <Chip removable onRemove={handleRemove}>
+        Removable Chip
+      </Chip>
+    );
+
+    const removeButton = screen.getByLabelText('Remove');
+    fireEvent.keyDown(removeButton, { key: 'Escape' });
+
+    expect(handleRemove).not.toHaveBeenCalled();
+  });
 });

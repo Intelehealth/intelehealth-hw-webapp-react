@@ -602,12 +602,12 @@ The project uses a standardized deployment pipeline across all environments (dev
 
 ### Deployment Environments
 
-| Environment | Branch | Trigger | Purpose |
-|-------------|--------|---------|---------|
-| **Development** | `develop` | Push to develop | Development testing and integration |
-| **QA** | `qa` | Push to qa | Quality assurance testing |
-| **Staging** | `staging` | Push to staging | Pre-production validation |
-| **Production** | `main` | Push to main, manual trigger, or successful PR checks | Live production deployment |
+| Environment     | Branch    | Trigger                                               | Purpose                             |
+| --------------- | --------- | ----------------------------------------------------- | ----------------------------------- |
+| **Development** | `develop` | Push to develop                                       | Development testing and integration |
+| **QA**          | `qa`      | Push to qa                                            | Quality assurance testing           |
+| **Staging**     | `staging` | Push to staging                                       | Pre-production validation           |
+| **Production**  | `main`    | Push to main, manual trigger, or successful PR checks | Live production deployment          |
 
 ### Standardized Deployment Pipeline
 
@@ -628,24 +628,28 @@ Each deployment follows these consistent steps:
 While the pipeline structure is consistent, each environment has specific configurations:
 
 #### Development
+
 - **Environment**: `VITE_APP_ENV=development`
 - **Debug Mode**: Enabled (`VITE_DEBUG_MODE=true`)
 - **Coverage**: Conditional (can be bypassed with `BYPASS_COVERAGE_CHECK`)
 - **Security Audit**: High-level vulnerabilities only
 
 #### QA
+
 - **Environment**: `VITE_APP_ENV=qa`
 - **Coverage**: Required (100%)
 - **Security Audit**: High-level vulnerabilities
 - **Additional**: E2E tests and QA team notifications
 
 #### Staging
+
 - **Environment**: `VITE_APP_ENV=staging`
 - **Coverage**: Required (100%)
 - **Security Audit**: Comprehensive audit
 - **Additional**: Smoke tests and stakeholder notifications
 
 #### Production
+
 - **Environment**: `VITE_APP_ENV=production`
 - **Coverage**: Required (100%)
 - **Security Audit**: High-level vulnerabilities
@@ -664,6 +668,7 @@ chmod +x scripts/validate-deployments.sh
 ```
 
 The validation script checks:
+
 - ✅ YAML syntax and structure
 - ✅ Required fields and environment variables
 - ✅ Step consistency across environments

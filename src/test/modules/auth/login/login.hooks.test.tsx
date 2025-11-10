@@ -54,7 +54,6 @@ vi.mock('react-router-dom', async importActual => {
 
 // Polyfill btoa for Node if missing
 if (typeof globalThis.btoa === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).btoa = (str: string) =>
     Buffer.from(str, 'binary').toString('base64');
 }

@@ -10,11 +10,6 @@ Object.defineProperty(window, 'innerWidth', {
   writable: true,
 });
 
-// Helper function to render with router
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(<MemoryRouter>{component}</MemoryRouter>);
-};
-
 describe('SideMenu', () => {
   const renderWithRouter = (component: React.ReactElement) => {
     return render(<BrowserRouter>{component}</BrowserRouter>);

@@ -54,17 +54,9 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
 
   // Form submission handler with validation
   const onSubmitForm = async (data: ProfileFormValues) => {
-    console.log('Form submitted - Profile data:', data);
-    console.log('Form submitted - Password data:', passwordData);
-    console.log(
-      'Form submitted - Notifications enabled:',
-      notificationsEnabled
-    );
-
     try {
       // Call the updateProfile function from hooks (which calls profile.service)
       await updateProfile(data);
-      console.log('Profile saved successfully via profile.service');
     } catch (error) {
       console.error('Failed to save profile:', error);
     }
@@ -87,7 +79,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   }, [profile, reset]);
 
   const generatePassword = () => {
-    console.log('Generate password clicked');
     const newPassword = 'GeneratedPassword123!';
     setPasswordData(prev => ({
       ...prev,
@@ -97,13 +88,11 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   };
 
   const handleTakePhoto = () => {
-    console.log('Take photo clicked');
     takePhoto();
     setIsPhotoModalOpen(false);
   };
 
   const handleUploadPhoto = (file: File) => {
-    console.log('Upload photo:', file);
     uploadPhoto(file);
     setIsPhotoModalOpen(false);
   };

@@ -2,6 +2,9 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest';
 
+// Mock react-datepicker CSS import
+vi.mock('react-datepicker/dist/react-datepicker.css', () => ({}));
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),

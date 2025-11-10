@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => ({
       '@sentry/react',
       '@sentry/tracing',
       'hoist-non-react-statics',
+      'react-datepicker',
     ],
   },
 }));
