@@ -45,9 +45,6 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 
-# ESLint reports
-eslint-report-*.json
-
 # Temporary folders
 tmp/
 temp/
