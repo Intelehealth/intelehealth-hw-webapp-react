@@ -574,14 +574,26 @@ describe('SideMenu', () => {
     
     renderWithRouter(<SideMenu />);
     
-    // Find logout link by icon (since text might not be visible when collapsed)
-    // The logout link is the last link in the sidebar
-    const allLinks = screen.getAllByRole('link');
-    const logoutLink = allLinks[allLinks.length - 1]; // Last link is logout
+    // Find logout link - it's in the logout section at the bottom
+    // Look for link that contains power-off icon or "Log-out" text
+    const logoutText = screen.queryByText('Log-out');
+    let logoutLink: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutLink = logoutText.closest('a');
+    } else {
+      // If text is not visible (collapsed), find by looking for the last link in the sidebar
+      // or by finding a link that has an onClick handler (logout is the only one with onClick)
+      const allLinks = screen.getAllByRole('link');
+      // The logout link should be the one with onClick handler
+      // Since we can't easily check onClick, we'll use the last link which should be logout
+      logoutLink = allLinks[allLinks.length - 1];
+    }
+    
     expect(logoutLink).toBeInTheDocument();
     
     // Click logout button
-    fireEvent.click(logoutLink);
+    fireEvent.click(logoutLink!);
     
     // Verify storage.clearAuthToken was called (line 129)
     expect(vi.mocked(storage.clearAuthToken)).toHaveBeenCalled();

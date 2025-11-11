@@ -404,6 +404,14 @@ describe('ResetPasswordComponent', () => {
         loading: false,
       });
 
+      // Set up errors to show validation error
+      mockErrors = {
+        newPassword: {
+          type: 'min',
+          message: 'Password must be at least 6 characters',
+        },
+      };
+
       const { rerender } = render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
@@ -423,9 +431,18 @@ describe('ResetPasswordComponent', () => {
         fireEvent.submit(form);
       }
       
+      // Rerender to show errors
+      rerender(
+        <ResetPasswordComponent
+          changeTitle={mockChangeTitle}
+          changeDescription={mockChangeDescription}
+        />
+      );
+      
       // Wait for validation error to appear (lines 131-133)
       await waitFor(() => {
-        const errorMessage = screen.queryByText(/password must be at least 6 characters/i) || 
+        const errorMessage = screen.queryByText('Password must be at least 6 characters') || 
+                            screen.queryByText(/password must be at least 6 characters/i) || 
                             screen.queryByText(/password is required/i);
         expect(errorMessage).toBeInTheDocument();
       }, { timeout: 3000 });
@@ -438,6 +455,14 @@ describe('ResetPasswordComponent', () => {
         isResetSuccessful: false,
         loading: false,
       });
+
+      // Set up errors to show validation error for password mismatch
+      mockErrors = {
+        confirmPassword: {
+          type: 'oneOf',
+          message: 'Passwords must match',
+        },
+      };
 
       const { rerender } = render(
         <ResetPasswordComponent
@@ -462,6 +487,14 @@ describe('ResetPasswordComponent', () => {
       if (form) {
         fireEvent.submit(form);
       }
+      
+      // Rerender to show errors
+      rerender(
+        <ResetPasswordComponent
+          changeTitle={mockChangeTitle}
+          changeDescription={mockChangeDescription}
+        />
+      );
       
       // Wait for validation error to appear (lines 154-156)
       // The error message should be "Passwords must match" from the validation schema
