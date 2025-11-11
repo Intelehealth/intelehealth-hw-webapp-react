@@ -1,0 +1,241 @@
+import React, { useEffect, useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '../../styles/calendar.css';
+import { cn } from '../../utils/cn';
+import CalendarMonthGrid from './calendar-month-grid.component';
+import CalendarYearGrid from './calendar-year-grid.component';
+
+export interface CalendarProps {
+  value?: string;
+  onChange?: (date: string) => void;
+  label?: string;
+  error?: string;
+  isRequired?: boolean;
+  className?: string;
+  placeholder?: string;
+  dateFormat?: string;
+  maxDate?: Date;
+  minDate?: Date;
+  disabled?: boolean;
+}
+
+const Calendar: React.FC<CalendarProps> = ({
+  value = '',
+  onChange,
+  label = 'Select Date',
+  error,
+  isRequired = false,
+  className = '',
+  placeholder = 'Select date',
+  dateFormat = 'dd-MMM-yy',
+  maxDate,
+  minDate,
+  disabled = false,
+}) => {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(
+    value ? new Date(value) : null
+  );
+  const [currentDate, setCurrentDate] = useState<Date>(
+    value ? new Date(value) : new Date()
+  );
+  const [showYearGrid, setShowYearGrid] = useState(false);
+  const [showMonthGrid, setShowMonthGrid] = useState(false);
+
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    setCurrentDate(date || new Date());
+    if (date) {
+      onChange?.(date.toISOString().split('T')[0]);
+    } else {
+      onChange?.('');
+    }
+  };
+
+  // Sync currentDate when value prop changes
+  useEffect(() => {
+    if (value) {
+      const newDate = new Date(value);
+      setSelectedDate(newDate);
+      setCurrentDate(newDate);
+    } else {
+      setSelectedDate(null);
+      setCurrentDate(new Date());
+    }
+  }, [value]);
+
+  return (
+    <div className={cn('w-full', className)}>
+      <label className="form-label block mb-2 text-[--color-dark] font-medium">
+        {label} {isRequired && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <DatePicker
+          selected={selectedDate}
+          onChange={handleDateChange}
+          placeholderText={placeholder}
+          dateFormat={dateFormat}
+          showYearDropdown={false}
+          showMonthDropdown={false}
+          calendarClassName={cn(
+            (showYearGrid || showMonthGrid) && 'react-datepicker--grid-mode'
+          )}
+          openToDate={currentDate}
+          renderDayContents={(dayOfMonth: number) => {
+            if (showYearGrid || showMonthGrid) {
+              return null; // Hide calendar days when year or month grid is shown
+            }
+            return dayOfMonth;
+          }}
+          renderCustomHeader={({ date }: { date: Date }) => {
+            const formatDateHeader = (date: Date) => {
+              const dayNames = [
+                'SUN',
+                'MON',
+                'TUE',
+                'WED',
+                'THU',
+                'FRI',
+                'SAT',
+              ];
+              const monthNames = [
+                'JAN',
+                'FEB',
+                'MAR',
+                'APR',
+                'MAY',
+                'JUN',
+                'JUL',
+                'AUG',
+                'SEP',
+                'OCT',
+                'NOV',
+                'DEC',
+              ];
+              // Use selected date if available, otherwise use current date
+              const displayDate = selectedDate || date;
+              return `${dayNames[displayDate.getDay()]} ${monthNames[displayDate.getMonth()]} ${displayDate.getDate()} ${displayDate.getFullYear()}`;
+            };
+
+            // If month grid is shown, render month grid
+            if (showMonthGrid) {
+              return (
+                <CalendarMonthGrid
+                  date={date}
+                  onMonthSelect={monthIndex => {
+                    const newDate = new Date(currentDate);
+                    newDate.setMonth(monthIndex);
+                    setCurrentDate(newDate);
+                    setSelectedDate(newDate);
+                    onChange?.(newDate.toISOString().split('T')[0]);
+                    setShowMonthGrid(false);
+                  }}
+                  onYearChange={year => {
+                    const newDate = new Date(currentDate);
+                    newDate.setFullYear(year);
+                    setCurrentDate(newDate);
+                  }}
+                />
+              );
+            }
+
+            // If year grid is shown, render only the year grid
+            if (showYearGrid) {
+              const navigateDecade = (direction: 'prev' | 'next') => {
+                const currentYear = currentDate.getFullYear();
+                const decadeStart = Math.floor(currentYear / 10) * 10;
+                const newDecade =
+                  decadeStart + (direction === 'next' ? 10 : -10);
+                const newDate = new Date(currentDate);
+                newDate.setFullYear(newDecade);
+                setCurrentDate(newDate);
+              };
+
+              return (
+                <CalendarYearGrid
+                  date={date}
+                  onYearSelect={year => {
+                    const newDate = new Date(currentDate);
+                    newDate.setFullYear(year);
+                    setCurrentDate(newDate);
+                    setShowYearGrid(false);
+                    setShowMonthGrid(true);
+                  }}
+                  onNavigateDecade={navigateDecade}
+                />
+              );
+            }
+
+            // Default calendar view
+            return (
+              <div className="p-2">
+                {/* Navigation */}
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setCurrentDate(newDate);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                  >
+                    <i className="fa-solid fa-chevron-left text-gray-600"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowYearGrid(!showYearGrid)}
+                    className="text-sm font-medium text-gray-700 hover:text-blue-600 flex items-center gap-1"
+                  >
+                    {formatDateHeader(currentDate)}
+                    <i className="fa-solid fa-chevron-down text-xs"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setCurrentDate(newDate);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                  >
+                    <i className="fa-solid fa-chevron-right text-gray-600"></i>
+                  </button>
+                </div>
+              </div>
+            );
+          }}
+          maxDate={maxDate}
+          minDate={minDate}
+          disabled={disabled}
+          className={cn(
+            'form-input-base w-full cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm',
+            error && 'border-red-500',
+            disabled && 'bg-gray-100 cursor-not-allowed'
+          )}
+          wrapperClassName="w-full"
+          popperClassName="react-datepicker-popper"
+          autoComplete="off"
+          inline={false}
+          withPortal={false}
+          popperPlacement="bottom-start"
+        />
+        <button
+          type="button"
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 pointer-events-none"
+        >
+          <i className="fa-solid fa-calendar text-sm"></i>
+        </button>
+      </div>
+      {error && (
+        <div className="form-error-message text-red-500 text-sm mt-1">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Calendar;

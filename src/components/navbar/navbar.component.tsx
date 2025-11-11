@@ -1,8 +1,10 @@
+import { Link } from 'react-router-dom';
 import iconLocation from '../../assets/icons/icon-location.svg';
 import iconNotification from '../../assets/icons/icon-notification.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import userDefault from '../../assets/images/user-default.png';
+import ROUTES from '../../routes/paths';
 import { Input } from '../common';
 
 const Navbar = () => {
@@ -30,7 +32,16 @@ const Navbar = () => {
         <div className="flex items-center space-x-2 ml-auto gap-4">
           <img src={iconSync} alt="Sync" className="w-6 h-6" />
           <img src={iconNotification} alt="Notification" className="w-6 h-6" />
-          <img src={userDefault} alt="Bell" className="w-10 h-10" />
+          <Link
+            to={ROUTES.PROFILE}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <img
+              src={userDefault}
+              alt="Profile"
+              className="w-10 h-10 rounded-full"
+            />
+          </Link>
         </div>
       </div>
 

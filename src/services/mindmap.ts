@@ -68,5 +68,3 @@ export const MindmapAuthGatewayApi = new MindmapService(
   env.AUTH_GATEWAY_API_URL
 );
 export const MindmapPortalApi = new MindmapService(env.PORTAL_API_URL!);
-
-console.log('env--->>', env);
