@@ -215,8 +215,9 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
           </span>
         )}
         {removable && (
-          <button
-            type="button"
+          <span
+            role="button"
+            tabIndex={0}
             className={cn(
               'flex-shrink-0 rounded-full p-0.5 transition-colors duration-200',
               'hover:bg-black hover:bg-opacity-10 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-gray-400',
@@ -224,6 +225,13 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
               disabled && 'opacity-50 cursor-not-allowed'
             )}
             onClick={handleRemove}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                // synthesize a mouse event shape for handler signature
+                handleRemove(e as unknown as React.MouseEvent);
+              }
+            }}
             aria-label="Remove"
           >
             <svg
@@ -239,7 +247,7 @@ const Chip = forwardRef<HTMLButtonElement, ChipProps>(
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
+          </span>
         )}
       </button>
     );

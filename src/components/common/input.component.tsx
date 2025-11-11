@@ -8,7 +8,7 @@ export interface InputProps
   label?: string;
   error?: string;
   helperText?: string;
-  size?: 'sm' | 'md' | 'lg' | 'default';
+  size?: 'sm' | 'md' | 'lg' | 'default' | 'wide';
   variant?: 'default' | 'filled' | 'outlined';
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -44,6 +44,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       md: 'px-4 py-3 text-base',
       lg: 'px-5 py-4 text-lg',
       default: 'w-full py-[10px] px-3 text-[13px]',
+      wide: 'w-full py-[10px] px-3 text-[13px] min-w-[200px]',
     };
 
     const variantClasses = {

@@ -9,7 +9,10 @@ const ROUTES = {
     RESET_PASSWORD: 'reset-password',
   },
   DASHBOARD: '/dashboard',
+  PROFILE: '/profile',
+  ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',
+  TEST_PROFILE_GUARD: '/test-profile-guard',
   NOT_FOUND: '*', // catch-all
 };
 
