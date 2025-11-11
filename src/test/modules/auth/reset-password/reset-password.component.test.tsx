@@ -401,6 +401,9 @@ describe('ResetPasswordComponent', () => {
       
       // Enter different passwords to trigger mismatch error
       fireEvent.change(newPasswordInput, { target: { value: 'newPassword123' } });
+      fireEvent.blur(newPasswordInput);
+      
+      // Enter different confirm password
       fireEvent.change(confirmPasswordInput, { target: { value: 'differentPassword' } });
       fireEvent.blur(confirmPasswordInput);
       
@@ -410,8 +413,11 @@ describe('ResetPasswordComponent', () => {
       }
       
       // Wait for validation error to appear (lines 154-156)
+      // The error message should be "Passwords must match" from the validation schema
       await waitFor(() => {
-        const errorMessage = screen.queryByText(/passwords must match/i) || 
+        const errorMessage = screen.queryByText('Passwords must match') || 
+                            screen.queryByText(/passwords must match/i) ||
+                            screen.queryByText('Please confirm your password') ||
                             screen.queryByText(/please confirm your password/i);
         expect(errorMessage).toBeInTheDocument();
       }, { timeout: 3000 });

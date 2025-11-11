@@ -532,11 +532,14 @@ describe('SideMenu', () => {
     
     renderWithRouter(<SideMenu />);
     
-    const logoutLink = screen.getByText('Logout').closest('a');
+    // Find logout link by icon (since text might not be visible when collapsed)
+    // The logout link is the last link in the sidebar
+    const allLinks = screen.getAllByRole('link');
+    const logoutLink = allLinks[allLinks.length - 1]; // Last link is logout
     expect(logoutLink).toBeInTheDocument();
     
     // Click logout button
-    fireEvent.click(logoutLink!);
+    fireEvent.click(logoutLink);
     
     // Verify storage.clearAuthToken was called (line 129)
     expect(vi.mocked(storage.clearAuthToken)).toHaveBeenCalled();
