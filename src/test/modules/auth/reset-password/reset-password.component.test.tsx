@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ResetPasswordComponent from '../../../../modules/auth/reset-password/reset-password.component';
 import { useResetPassword } from '../../../../modules/auth/reset-password/reset-password.hooks';
@@ -10,7 +10,7 @@ const mockUseLocation = vi.fn();
 // Mock the hooks and dependencies
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(() => mockNavigate),
-  useLocation: vi.fn(() => mockUseLocation),
+  useLocation: () => mockUseLocation(),
 }));
 
 vi.mock('../../../../modules/auth/reset-password/reset-password.hooks', () => ({
@@ -23,9 +23,11 @@ vi.mock('../../../../components/common', () => ({
       {children}
     </button>
   )),
-  Input: vi.fn(({ register, ...props }) => (
-    <input {...register} {...props} />
-  )),
+  Input: vi.fn(({ register, ...props }) => {
+    // register is already the spread result from {...register('fieldName')}
+    const registerProps = register || {};
+    return <input {...registerProps} {...props} />;
+  }),
 }));
 
 vi.mock('../../../../components/common/card.component', () => ({
@@ -78,7 +80,7 @@ describe('ResetPasswordComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
-    // Reset mock implementations
+    // Reset mock implementations - default state with userUuid
     mockUseLocation.mockReturnValue({
       state: { userUuid: 'test-uuid-123' },
     });
@@ -150,9 +152,34 @@ describe('ResetPasswordComponent', () => {
     });
 
     it('should handle form submission', async () => {
-      // This test is skipped due to complex mocking requirements
-      // The form submission functionality is tested through integration tests
-      expect(true).toBe(true);
+      mockHandleResetPassword.mockResolvedValue(undefined);
+      
+      render(
+        <ResetPasswordComponent
+          changeTitle={mockChangeTitle}
+          changeDescription={mockChangeDescription}
+        />
+      );
+      
+      const newPasswordInput = screen.getByPlaceholderText('Enter your new password');
+      const confirmPasswordInput = screen.getByPlaceholderText('Enter your password');
+      const form = newPasswordInput.closest('form');
+      
+      // Fill in the form with valid data
+      fireEvent.change(newPasswordInput, { target: { value: 'newPassword123' } });
+      fireEvent.change(confirmPasswordInput, { target: { value: 'newPassword123' } });
+      
+      // Submit the form directly (lines 62-65)
+      if (form) {
+        fireEvent.submit(form);
+      }
+      
+      // Wait for async operation
+      await waitFor(() => {
+        expect(mockHandleResetPassword).toHaveBeenCalledWith('test-uuid-123', {
+          newPassword: 'newPassword123',
+        });
+      }, { timeout: 3000 });
     });
 
     it('should show loading state during submission', () => {
@@ -318,7 +345,7 @@ describe('ResetPasswordComponent', () => {
   });
 
   describe('Error Display', () => {
-    it('should display new password error message', () => {
+    it('should display new password error message when validation fails', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
@@ -333,11 +360,27 @@ describe('ResetPasswordComponent', () => {
         />
       );
       
-      // Test that error display logic is covered (lines 131-133)
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      const newPasswordInput = screen.getByPlaceholderText('Enter your new password');
+      const form = newPasswordInput.closest('form');
+      
+      // Trigger validation by entering invalid value (too short) and submitting
+      fireEvent.change(newPasswordInput, { target: { value: '123' } });
+      fireEvent.blur(newPasswordInput);
+      
+      // Submit the form to trigger validation
+      if (form) {
+        fireEvent.submit(form);
+      }
+      
+      // Wait for validation error to appear (lines 131-133)
+      await waitFor(() => {
+        const errorMessage = screen.queryByText(/password must be at least 6 characters/i) || 
+                            screen.queryByText(/password is required/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
 
-    it('should display confirm password error message', () => {
+    it('should display confirm password error message when passwords do not match', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
@@ -352,8 +395,26 @@ describe('ResetPasswordComponent', () => {
         />
       );
       
-      // Test that error display logic is covered (lines 154-156)
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      const newPasswordInput = screen.getByPlaceholderText('Enter your new password');
+      const confirmPasswordInput = screen.getByPlaceholderText('Enter your password');
+      const form = newPasswordInput.closest('form');
+      
+      // Enter different passwords to trigger mismatch error
+      fireEvent.change(newPasswordInput, { target: { value: 'newPassword123' } });
+      fireEvent.change(confirmPasswordInput, { target: { value: 'differentPassword' } });
+      fireEvent.blur(confirmPasswordInput);
+      
+      // Submit the form to trigger validation
+      if (form) {
+        fireEvent.submit(form);
+      }
+      
+      // Wait for validation error to appear (lines 154-156)
+      await waitFor(() => {
+        const errorMessage = screen.queryByText(/passwords must match/i) || 
+                            screen.queryByText(/please confirm your password/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 

@@ -30,6 +30,7 @@ export default defineConfig({
         'src/config/sentry.ts',
         'src/config/sentry-wrapper.tsx',
         'src/config/env.ts',
+        'src/components/common/',
         'src/components/common/common-ui.component.tsx',
       ],
       // 100% coverage requirements

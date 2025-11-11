@@ -3,6 +3,23 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
 
+// Mock storage
+vi.mock('../../../utils/storage', () => ({
+  storage: {
+    clearAuthToken: vi.fn(),
+  },
+}));
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 // Mock window.innerWidth
 const mockInnerWidth = vi.fn();
 Object.defineProperty(window, 'innerWidth', {
@@ -19,6 +36,7 @@ describe('SideMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInnerWidth.mockReturnValue(1024); // Desktop width
+    mockNavigate.mockClear();
   });
 
   it('should render without crashing', () => {
@@ -507,5 +525,23 @@ describe('SideMenu', () => {
       });
       document.dispatchEvent(mouseDownEvent);
     }
+  });
+
+  it('should handle logout click and clear auth token (lines 129-131)', async () => {
+    const { storage } = await import('../../../utils/storage');
+    
+    renderWithRouter(<SideMenu />);
+    
+    const logoutLink = screen.getByText('Logout').closest('a');
+    expect(logoutLink).toBeInTheDocument();
+    
+    // Click logout button
+    fireEvent.click(logoutLink!);
+    
+    // Verify storage.clearAuthToken was called (line 129)
+    expect(vi.mocked(storage.clearAuthToken)).toHaveBeenCalled();
+    
+    // Verify navigate was called with '/auth/login' (line 130)
+    expect(mockNavigate).toHaveBeenCalledWith('/auth/login');
   });
 });
