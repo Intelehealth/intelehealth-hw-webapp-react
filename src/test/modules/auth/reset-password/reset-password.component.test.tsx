@@ -71,11 +71,18 @@ const mockHandleSubmit = vi.fn((fn) => (e: any) => {
 const mockSetValue = vi.fn();
 let mockErrors: any = {};
 
+// Create a getter function for errors so it's reactive
+const getMockErrors = () => mockErrors;
+
 vi.mock('react-hook-form', () => ({
   useForm: vi.fn(() => ({
     register: mockRegister,
     handleSubmit: mockHandleSubmit,
-    formState: { errors: mockErrors },
+    formState: { 
+      get errors() {
+        return getMockErrors();
+      }
+    },
     setValue: mockSetValue,
   })),
 }));
@@ -412,27 +419,7 @@ describe('ResetPasswordComponent', () => {
         },
       };
 
-      const { rerender } = render(
-        <ResetPasswordComponent
-          changeTitle={mockChangeTitle}
-          changeDescription={mockChangeDescription}
-        />
-      );
-      
-      const newPasswordInput = screen.getByPlaceholderText('Enter your new password');
-      const form = newPasswordInput.closest('form');
-      
-      // Trigger validation by entering invalid value (too short) and submitting
-      fireEvent.change(newPasswordInput, { target: { value: '123' } });
-      fireEvent.blur(newPasswordInput);
-      
-      // Submit the form to trigger validation
-      if (form) {
-        fireEvent.submit(form);
-      }
-      
-      // Rerender to show errors
-      rerender(
+      render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
           changeDescription={mockChangeDescription}
@@ -440,6 +427,7 @@ describe('ResetPasswordComponent', () => {
       );
       
       // Wait for validation error to appear (lines 131-133)
+      // The error should be visible immediately since mockErrors is set
       await waitFor(() => {
         const errorMessage = screen.queryByText('Password must be at least 6 characters') || 
                             screen.queryByText(/password must be at least 6 characters/i) || 
@@ -464,32 +452,7 @@ describe('ResetPasswordComponent', () => {
         },
       };
 
-      const { rerender } = render(
-        <ResetPasswordComponent
-          changeTitle={mockChangeTitle}
-          changeDescription={mockChangeDescription}
-        />
-      );
-      
-      const newPasswordInput = screen.getByPlaceholderText('Enter your new password');
-      const confirmPasswordInput = screen.getByPlaceholderText('Enter your password');
-      const form = newPasswordInput.closest('form');
-      
-      // Enter different passwords to trigger mismatch error
-      fireEvent.change(newPasswordInput, { target: { value: 'newPassword123' } });
-      fireEvent.blur(newPasswordInput);
-      
-      // Enter different confirm password
-      fireEvent.change(confirmPasswordInput, { target: { value: 'differentPassword' } });
-      fireEvent.blur(confirmPasswordInput);
-      
-      // Submit the form to trigger validation
-      if (form) {
-        fireEvent.submit(form);
-      }
-      
-      // Rerender to show errors
-      rerender(
+      render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
           changeDescription={mockChangeDescription}
@@ -498,6 +461,7 @@ describe('ResetPasswordComponent', () => {
       
       // Wait for validation error to appear (lines 154-156)
       // The error message should be "Passwords must match" from the validation schema
+      // The error should be visible immediately since mockErrors is set
       await waitFor(() => {
         const errorMessage = screen.queryByText('Passwords must match') || 
                             screen.queryByText(/passwords must match/i) ||

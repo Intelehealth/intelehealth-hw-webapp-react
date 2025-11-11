@@ -223,44 +223,39 @@ describe('SideMenu', () => {
   it('should render logout button', () => {
     renderWithRouter(<SideMenu />);
     
-    // Check for logout functionality - the component may not have a visible "Logout" text
-    const logoutElements = screen.queryAllByText('Logout');
-    if (logoutElements.length > 0) {
-      expect(logoutElements[0]).toBeInTheDocument();
-    const logoutButton = screen.getByText('Logout').closest('a');
-    expect(logoutButton).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
+    // Check for logout functionality - look for "Log-out" text or find by last link
+    const logoutText = screen.queryByText('Log-out');
+    let logoutButton: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutButton = logoutText.closest('a');
+      expect(logoutButton).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
     } else {
-      // Look for power-off icon or similar logout indicators
-      const powerIcon = screen.queryByRole('button', { name: /logout|sign out/i });
-      const powerOffIcon = document.querySelector('.fa-power-off');
-      if (!powerIcon && !powerOffIcon) {
-        // Skip test if no logout functionality is present
-        expect(true).toBe(true); // Pass the test
-        return;
-      }
-      expect(powerIcon || powerOffIcon).toBeTruthy();
+      // If text is not visible (collapsed), find by looking for the last link
+      const allLinks = screen.getAllByRole('link');
+      logoutButton = allLinks[allLinks.length - 1];
+      expect(logoutButton).toBeInTheDocument();
     }
   });
 
   it('should render logout icon', () => {
     renderWithRouter(<SideMenu />);
     
-    // Check for logout icon - may not have visible "Logout" text
-    const logoutElements = screen.queryAllByText('Logout');
-    if (logoutElements.length > 0) {
-    const logoutIcon = screen.getByText('Logout').closest('a')?.querySelector('img');
+    // Check for logout icon - look for "Log-out" text or find by last link
+    const logoutText = screen.queryByText('Log-out');
+    let logoutLink: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutLink = logoutText.closest('a');
+    } else {
+      // If text is not visible (collapsed), find by looking for the last link
+      const allLinks = screen.getAllByRole('link');
+      logoutLink = allLinks[allLinks.length - 1];
+    }
+    
+    const logoutIcon = logoutLink?.querySelector('img');
     expect(logoutIcon).toBeInTheDocument();
     expect(logoutIcon).toHaveClass('w-6', 'h-6');
-    } else {
-      // Look for power-off icon or similar
-      const powerIcon = document.querySelector('.fa-power-off');
-      if (!powerIcon) {
-        // Skip test if no logout functionality is present
-        expect(true).toBe(true); // Pass the test
-        return;
-      }
-      expect(powerIcon).toBeTruthy();
-    }
   });
 
   it('should show thumbnail logo when collapsed', () => {
