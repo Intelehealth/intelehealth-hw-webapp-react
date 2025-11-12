@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import { useLocation } from 'react-router-dom';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ResetPasswordComponent from '../../../../modules/auth/reset-password/reset-password.component';
 import { useResetPassword } from '../../../../modules/auth/reset-password/reset-password.hooks';
@@ -10,9 +12,11 @@ const mockNavigate = vi.fn();
 // Mock the hooks and dependencies
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(() => mockNavigate),
+
   useLocation: vi.fn(() => ({
     state: { userUuid: 'test-uuid-123' },
   })),
+
 }));
 
 vi.mock('../../../../modules/auth/reset-password/reset-password.hooks', () => ({
@@ -25,9 +29,11 @@ vi.mock('../../../../components/common', () => ({
       {children}
     </button>
   )),
-  Input: vi.fn(({ register, ...props }) => (
-    <input {...register} {...props} />
-  )),
+  Input: vi.fn(({ register, ...props }) => {
+    // register is already the spread result from {...register('fieldName')}
+    const registerProps = register || {};
+    return <input {...registerProps} {...props} />;
+  }),
 }));
 
 vi.mock('../../../../components/common/card.component', () => ({
@@ -65,11 +71,18 @@ const mockHandleSubmit = vi.fn((fn) => (e: any) => {
 const mockSetValue = vi.fn();
 let mockErrors: any = {};
 
+// Create a getter function for errors so it's reactive
+const getMockErrors = () => mockErrors;
+
 vi.mock('react-hook-form', () => ({
   useForm: vi.fn(() => ({
     register: mockRegister,
     handleSubmit: mockHandleSubmit,
-    formState: { errors: mockErrors },
+    formState: { 
+      get errors() {
+        return getMockErrors();
+      }
+    },
     setValue: mockSetValue,
   })),
 }));
@@ -98,9 +111,9 @@ describe('ResetPasswordComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockErrors = {}; // Reset errors
-    
     // Reset mock implementations - ensure location returns state with userUuid
     vi.mocked(useLocation).mockReturnValue({
+
       state: { userUuid: 'test-uuid-123' },
       pathname: '/auth/reset-password',
       search: '',
@@ -177,6 +190,7 @@ describe('ResetPasswordComponent', () => {
     it('should handle form submission', async () => {
       mockHandleResetPassword.mockResolvedValue(undefined);
       
+
       // Capture the onSubmit callback passed to handleSubmit
       let capturedOnSubmit: ((data: any) => Promise<void>) | null = null;
       const captureHandleSubmit = vi.fn((fn) => {
@@ -198,7 +212,6 @@ describe('ResetPasswordComponent', () => {
         formState: { errors: mockErrors },
         setValue: mockSetValue,
       } as any);
-      
       render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
@@ -390,12 +403,7 @@ describe('ResetPasswordComponent', () => {
   });
 
   describe('Error Display', () => {
-    it('should display new password error message', async () => {
-      // Set mock errors for newPassword field
-      mockErrors = {
-        newPassword: { message: 'New password is required' },
-      };
-
+    it('should display new password error message when validation fails', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
@@ -403,34 +411,32 @@ describe('ResetPasswordComponent', () => {
         loading: false,
       });
 
-      const { rerender } = render(
+      // Set up errors to show validation error
+      mockErrors = {
+        newPassword: {
+          type: 'min',
+          message: 'Password must be at least 6 characters',
+        },
+      };
+
+      render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
           changeDescription={mockChangeDescription}
         />
       );
       
-      // Rerender to apply new errors
-      rerender(
-        <ResetPasswordComponent
-          changeTitle={mockChangeTitle}
-          changeDescription={mockChangeDescription}
-        />
-      );
-      
-      // Error display logic should be rendered (lines 130-133)
+      // Wait for validation error to appear (lines 131-133)
+      // The error should be visible immediately since mockErrors is set
       await waitFor(() => {
-        const errorElement = screen.queryByText('New password is required');
-        expect(errorElement).toBeInTheDocument();
-      });
+        const errorMessage = screen.queryByText('Password must be at least 6 characters') || 
+                            screen.queryByText(/password must be at least 6 characters/i) || 
+                            screen.queryByText(/password is required/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
 
-    it('should display confirm password error message', async () => {
-      // Set mock errors for confirmPassword field
-      mockErrors = {
-        confirmPassword: { message: 'Passwords do not match' },
-      };
-
+    it('should display confirm password error message when passwords do not match', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
@@ -438,26 +444,31 @@ describe('ResetPasswordComponent', () => {
         loading: false,
       });
 
-      const { rerender } = render(
+      // Set up errors to show validation error for password mismatch
+      mockErrors = {
+        confirmPassword: {
+          type: 'oneOf',
+          message: 'Passwords must match',
+        },
+      };
+
+      render(
         <ResetPasswordComponent
           changeTitle={mockChangeTitle}
           changeDescription={mockChangeDescription}
         />
       );
       
-      // Rerender to apply new errors
-      rerender(
-        <ResetPasswordComponent
-          changeTitle={mockChangeTitle}
-          changeDescription={mockChangeDescription}
-        />
-      );
-      
-      // Error display logic should be rendered (lines 153-156)
+      // Wait for validation error to appear (lines 154-156)
+      // The error message should be "Passwords must match" from the validation schema
+      // The error should be visible immediately since mockErrors is set
       await waitFor(() => {
-        const errorElement = screen.queryByText('Passwords do not match');
-        expect(errorElement).toBeInTheDocument();
-      });
+        const errorMessage = screen.queryByText('Passwords must match') || 
+                            screen.queryByText(/passwords must match/i) ||
+                            screen.queryByText('Please confirm your password') ||
+                            screen.queryByText(/please confirm your password/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 

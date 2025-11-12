@@ -3,6 +3,23 @@ import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
 
+// Mock storage
+vi.mock('../../../utils/storage', () => ({
+  storage: {
+    clearAuthToken: vi.fn(),
+  },
+}));
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 // Mock window.innerWidth
 const mockInnerWidth = vi.fn();
 Object.defineProperty(window, 'innerWidth', {
@@ -18,6 +35,7 @@ describe('SideMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInnerWidth.mockReturnValue(1024); // Desktop width
+    mockNavigate.mockClear();
   });
 
   it('should render without crashing', () => {
@@ -205,44 +223,39 @@ describe('SideMenu', () => {
   it('should render logout button', () => {
     renderWithRouter(<SideMenu />);
     
-    // Check for logout functionality - the component may not have a visible "Logout" text
-    const logoutElements = screen.queryAllByText('Logout');
-    if (logoutElements.length > 0) {
-      expect(logoutElements[0]).toBeInTheDocument();
-    const logoutButton = screen.getByText('Logout').closest('a');
-    expect(logoutButton).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
+    // Check for logout functionality - look for "Log-out" text or find by last link
+    const logoutText = screen.queryByText('Log-out');
+    let logoutButton: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutButton = logoutText.closest('a');
+      expect(logoutButton).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
     } else {
-      // Look for power-off icon or similar logout indicators
-      const powerIcon = screen.queryByRole('button', { name: /logout|sign out/i });
-      const powerOffIcon = document.querySelector('.fa-power-off');
-      if (!powerIcon && !powerOffIcon) {
-        // Skip test if no logout functionality is present
-        expect(true).toBe(true); // Pass the test
-        return;
-      }
-      expect(powerIcon || powerOffIcon).toBeTruthy();
+      // If text is not visible (collapsed), find by looking for the last link
+      const allLinks = screen.getAllByRole('link');
+      logoutButton = allLinks[allLinks.length - 1];
+      expect(logoutButton).toBeInTheDocument();
     }
   });
 
   it('should render logout icon', () => {
     renderWithRouter(<SideMenu />);
     
-    // Check for logout icon - may not have visible "Logout" text
-    const logoutElements = screen.queryAllByText('Logout');
-    if (logoutElements.length > 0) {
-    const logoutIcon = screen.getByText('Logout').closest('a')?.querySelector('img');
+    // Check for logout icon - look for "Log-out" text or find by last link
+    const logoutText = screen.queryByText('Log-out');
+    let logoutLink: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutLink = logoutText.closest('a');
+    } else {
+      // If text is not visible (collapsed), find by looking for the last link
+      const allLinks = screen.getAllByRole('link');
+      logoutLink = allLinks[allLinks.length - 1];
+    }
+    
+    const logoutIcon = logoutLink?.querySelector('img');
     expect(logoutIcon).toBeInTheDocument();
     expect(logoutIcon).toHaveClass('w-6', 'h-6');
-    } else {
-      // Look for power-off icon or similar
-      const powerIcon = document.querySelector('.fa-power-off');
-      if (!powerIcon) {
-        // Skip test if no logout functionality is present
-        expect(true).toBe(true); // Pass the test
-        return;
-      }
-      expect(powerIcon).toBeTruthy();
-    }
   });
 
   it('should show thumbnail logo when collapsed', () => {
@@ -549,5 +562,38 @@ describe('SideMenu', () => {
       });
       document.dispatchEvent(mouseDownEvent);
     }
+  });
+
+  it('should handle logout click and clear auth token (lines 129-131)', async () => {
+    const { storage } = await import('../../../utils/storage');
+    
+    renderWithRouter(<SideMenu />);
+    
+    // Find logout link - it's in the logout section at the bottom
+    // Look for link that contains power-off icon or "Log-out" text
+    const logoutText = screen.queryByText('Log-out');
+    let logoutLink: HTMLElement | null = null;
+    
+    if (logoutText) {
+      logoutLink = logoutText.closest('a');
+    } else {
+      // If text is not visible (collapsed), find by looking for the last link in the sidebar
+      // or by finding a link that has an onClick handler (logout is the only one with onClick)
+      const allLinks = screen.getAllByRole('link');
+      // The logout link should be the one with onClick handler
+      // Since we can't easily check onClick, we'll use the last link which should be logout
+      logoutLink = allLinks[allLinks.length - 1];
+    }
+    
+    expect(logoutLink).toBeInTheDocument();
+    
+    // Click logout button
+    fireEvent.click(logoutLink!);
+    
+    // Verify storage.clearAuthToken was called (line 129)
+    expect(vi.mocked(storage.clearAuthToken)).toHaveBeenCalled();
+    
+    // Verify navigate was called with '/auth/login' (line 130)
+    expect(mockNavigate).toHaveBeenCalledWith('/auth/login');
   });
 });
