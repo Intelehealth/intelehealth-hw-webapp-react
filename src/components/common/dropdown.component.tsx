@@ -87,7 +87,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
 
     const sizeClasses = {
       sm: 'px-3 py-2 text-sm',
-      md: 'px-4 py-3 text-base',
+      md: 'px-4 py-[10px] text-base',
       lg: 'px-5 py-4 text-lg',
     };
 
@@ -402,7 +402,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
         </div>
 
         {error && (
-          <p id={errorId} className="mt-2 text-sm text-error-600" role="alert">
+          <p id={errorId} className="mt-2 form-error-message" role="alert">
             {error}
           </p>
         )}

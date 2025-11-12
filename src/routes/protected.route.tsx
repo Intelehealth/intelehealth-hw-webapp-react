@@ -23,7 +23,7 @@ const ProtectedRoute: React.FC<Props> = ({
     );
   }
 
-  // If no token, redirect to login
+  //If no token, redirect to login
   if (!token) {
     return <Navigate to={redirectPath} replace />;
   }

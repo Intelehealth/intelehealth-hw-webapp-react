@@ -10,13 +10,10 @@ class OpenMRSService extends HttpService {
       withCredentials: true, // ensures browser cookies are sent
     });
 
-    // Request interceptor - attach JSESSIONID manually if available
+    // Request interceptor - cookies are handled automatically by withCredentials
     this.axiosInstance.interceptors.request.use(config => {
-      const jsessionId = cookie.getJSessionId(); // e.g. implement cookie.getJSessionId()
-      if (jsessionId) {
-        // Explicitly set the cookie header
-        config.headers.Cookie = `JSESSIONID=${jsessionId}`;
-      }
+      // withCredentials: true will automatically send cookies
+      // No need to manually set Cookie header (browsers block this)
       return config;
     });
 

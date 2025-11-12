@@ -168,7 +168,7 @@ export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(
     };
 
     return (
-      <div ref={ref} className={cn('w-full', className)}>
+      <div ref={ref} className="w-full flex flex-col">
         <div
           role="radiogroup"
           aria-label={ariaLabel}
@@ -178,7 +178,7 @@ export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(
             error ? errorId : undefined,
             helperText ? helperId : undefined
           )}
-          className="space-y-3"
+          className={cn(className)}
         >
           {React.Children.map(children, child => {
             if (React.isValidElement<RadioProps>(child)) {
@@ -195,7 +195,7 @@ export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(
         </div>
 
         {error && (
-          <p id={errorId} className="mt-2 text-sm text-error-600" role="alert">
+          <p id={errorId} className="form-error-message" role="alert">
             {error}
           </p>
         )}

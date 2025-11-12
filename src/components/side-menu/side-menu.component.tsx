@@ -5,7 +5,9 @@ import iconAchievements from '../../assets/icons/icon-achievement.svg';
 import iconHome from '../../assets/icons/icon-home.svg';
 import iconInfo from '../../assets/icons/icon-info.svg';
 import iconPowerOff from '../../assets/icons/icon-power-off.svg';
+import iconRightArrowBlueRounded from '../../assets/icons/icon-right-arrow-blue-rounded.svg';
 import iconSettings from '../../assets/icons/icon-settings.svg';
+import iconUserPlusBlueRounded from '../../assets/icons/icon-user-plus-blue-rounded.svg';
 import iconVideos from '../../assets/icons/icon-videos.svg';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.png';
@@ -106,54 +108,36 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
               />
             )}
           </div>
-
-          {/* Add Patients Button */}
-          <div className="px-1 mb-4">
-            <Link
-              to="/add-patient"
-              className={`w-full flex items-center ${
-                isCollapsed
-                  ? 'justify-center p-2'
-                  : 'bg-white rounded-lg px-4 py-2 justify-between shadow-md hover:shadow-lg transition-shadow'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`rounded-full flex items-center justify-center ${
-                    isCollapsed ? 'w-10 h-10' : 'w-8 h-8'
-                  }`}
-                  style={{ backgroundColor: '#2e1e91' }}
-                >
-                  <i
-                    className={`fa-solid fa-user-plus text-white ${
-                      isCollapsed ? 'text-base' : 'text-sm'
-                    }`}
-                  ></i>
-                </div>
-                {!isCollapsed && (
-                  <span
-                    className="font-medium text-sm"
-                    style={{ color: '#2e1e91' }}
-                  >
-                    Add Patients
-                  </span>
-                )}
-              </div>
-              {!isCollapsed && (
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: '#e1dcff' }}
-                >
-                  <i
-                    className="fa-solid fa-chevron-right text-xs"
-                    style={{ color: '#2e1e91' }}
-                  ></i>
-                </div>
-              )}
-            </Link>
-          </div>
           {/* Menu Items */}
-          <nav className="flex-1 space-y-2">
+          <nav className="p-3 space-y-2">
+            <a
+              key={'Add Patient'}
+              href="#"
+              className={`flex items-center gap-3 bg-white rounded-lg transition  ${
+                isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
+              }`}
+              onClick={() => {
+                navigate('/patients/add');
+              }}
+            >
+              <img
+                src={iconUserPlusBlueRounded}
+                alt={'Add Patient'}
+                className="w-6 h-6"
+              />
+              {!isCollapsed && (
+                <>
+                  <span className="text-(--color-primary)">
+                    {'Add Patient'}
+                  </span>
+                  <img
+                    src={iconRightArrowBlueRounded}
+                    alt={'Add Patient'}
+                    className="w-6 h-6 ml-auto"
+                  />
+                </>
+              )}
+            </a>
             {menuItems.map(item => (
               <Link
                 key={item.label}
