@@ -14,10 +14,7 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
   if (mode === 'inline') {
     if (!id || !sections[id]) return null; // only show if that section is active
     return (
-      <span
-        className="inline-spinner"
-        data-test-id={`loader-inline-${id}`}
-      >
+      <span className="inline-spinner" data-test-id={`loader-inline-${id}`}>
         <span className="spinner" />
       </span>
     );
@@ -27,10 +24,7 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
   if (id) {
     if (!sections[id]) return null;
     return (
-      <div
-        className="section-loader"
-        data-test-id={`loader-${id}`}
-      >
+      <div className="section-loader" data-test-id={`loader-${id}`}>
         <div className="spinner section-spinner" />
       </div>
     );
@@ -46,4 +40,3 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
     </div>
   );
 };
-
