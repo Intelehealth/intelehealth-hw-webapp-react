@@ -102,8 +102,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
           ></i>
         </button>
 
-        <div ref={innerDivRef} className="flex flex-col rounded-lg bg-(--color-primary) p-2 md:p-3 my-2 md:my-3 ml-2 md:ml-3 relative shadow-lg overflow-hidden">
-
+        <div
+          ref={innerDivRef}
+          className="flex flex-col rounded-lg bg-(--color-primary) p-2 md:p-3 my-2 md:my-3 ml-2 md:ml-3 relative shadow-lg overflow-hidden"
+        >
           {/* Close Button for Mobile */}
           {isMobileOpen && (
             <button
@@ -145,13 +147,17 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
               <div className="flex items-center gap-2 md:gap-3">
                 <div
                   className={`rounded-full flex items-center justify-center ${
-                    isCollapsed ? 'w-8 h-8 md:w-10 md:h-10' : 'w-7 h-7 md:w-8 md:h-8'
+                    isCollapsed
+                      ? 'w-8 h-8 md:w-10 md:h-10'
+                      : 'w-7 h-7 md:w-8 md:h-8'
                   }`}
                   style={{ backgroundColor: '#2e1e91' }}
                 >
                   <i
                     className={`fa-solid fa-user-plus text-white ${
-                      isCollapsed ? 'text-sm md:text-base' : 'text-xs md:text-sm'
+                      isCollapsed
+                        ? 'text-sm md:text-base'
+                        : 'text-xs md:text-sm'
                     }`}
                   ></i>
                 </div>
@@ -186,12 +192,20 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
                   to={item.path}
                   onClick={() => setIsMobileOpen(false)}
                   className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                    isCollapsed ? 'justify-center py-3 px-0 md:py-4' : 'p-3 md:p-4'
+                    isCollapsed
+                      ? 'justify-center py-3 px-0 md:py-4'
+                      : 'p-3 md:p-4'
                   }`}
                 >
-                  <img src={item.icon} alt={item.label} className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
+                  <img
+                    src={item.icon}
+                    alt={item.label}
+                    className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
+                  />
                   {!isCollapsed && (
-                    <span className="text-white text-base md:text-lg whitespace-nowrap">{item.label}</span>
+                    <span className="text-white text-base md:text-lg whitespace-nowrap">
+                      {item.label}
+                    </span>
                   )}
                 </Link>
               ))}
@@ -209,11 +223,20 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
                   navigate('/auth/login');
                 }}
                 className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                  isCollapsed ? 'justify-center py-3 px-0 md:py-4' : 'p-3 md:p-4'
+                  isCollapsed
+                    ? 'justify-center py-3 px-0 md:py-4'
+                    : 'p-3 md:p-4'
                 }`}
               >
-                <img src={iconPowerOff} className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
-                {!isCollapsed && <span className="text-white text-base md:text-lg">Log-out</span>}
+                <img
+                  src={iconPowerOff}
+                  className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
+                />
+                {!isCollapsed && (
+                  <span className="text-white text-base md:text-lg">
+                    Log-out
+                  </span>
+                )}
               </a>
             </nav>
           </div>

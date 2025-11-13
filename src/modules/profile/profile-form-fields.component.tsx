@@ -140,7 +140,9 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               </div>
             </div>
             {errors.gender && (
-              <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>
+              <p className="text-red-500 text-xs mt-1">
+                {errors.gender.message}
+              </p>
             )}
           </div>
         </div>
