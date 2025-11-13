@@ -2,7 +2,7 @@ import React from 'react';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
 import { Dropdown } from '../../components/common';
-import { Loader } from '../../components/loader';
+import { Loader } from '../../components/common';
 import { env } from '../../config/env';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';

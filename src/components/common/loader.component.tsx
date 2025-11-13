@@ -1,8 +1,8 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
+import type { RootState } from '../../store/store';
 
-type LoaderProps = {
+export type LoaderProps = {
   id?: string; // optional section ID
   mode?: 'inline'; // if 'inline', show a small spinner for buttons, etc.
 };
@@ -17,7 +17,6 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
       <span
         className="inline-spinner"
         data-test-id={`loader-inline-${id}`}
-        data-testid={`loader-inline-${id}`}
       >
         <span className="spinner" />
       </span>
@@ -31,7 +30,6 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
       <div
         className="section-loader"
         data-test-id={`loader-${id}`}
-        data-testid={`loader-${id}`}
       >
         <div className="spinner section-spinner" />
       </div>
@@ -48,3 +46,4 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
     </div>
   );
 };
+

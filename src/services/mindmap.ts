@@ -38,18 +38,22 @@ class MindmapService extends HttpService {
     this.axiosInstance.interceptors.response.use(
       response => {
         //dispatch loader: stopLoading()
-        const showLoader = response.headers?.loader !== false;
+        // Loader configuration comes from the original request config, not response headers
+        const requestHeaders = response.config?.headers;
+        const showLoader = requestHeaders?.loader !== false;
         if (showLoader) {
-          const id = (response.headers['loader-id'] as string) || undefined;
+          const id = (requestHeaders?.['loader-id'] as string) || undefined;
           store.dispatch(stopLoading(id));
         }
         return response;
       },
       error => {
-        //dispatch loader: stoploading()
-        const showLoader = error.headers?.loader !== false;
+        //dispatch loader: stopLoading()
+        // In Axios errors, the original request config is in error.config, not error.headers
+        const requestHeaders = error.config?.headers;
+        const showLoader = requestHeaders?.loader !== false;
         if (showLoader) {
-          const id = (error.headers['loader-id'] as string) || undefined;
+          const id = (requestHeaders?.['loader-id'] as string) || undefined;
           store.dispatch(stopLoading(id));
         }
         // Auto logout on 401

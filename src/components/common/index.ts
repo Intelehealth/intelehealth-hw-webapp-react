@@ -25,5 +25,8 @@ export { default as PhotoUploadModal } from './photo-upload-modal.component';
 export { default as Calendar } from './calendar.component';
 export type { CalendarProps } from './calendar.component';
 
+export { Loader } from './loader.component';
+export type { LoaderProps } from './loader.component';
+
 // Re-export utility function
 export { cn } from '../../utils/cn';
