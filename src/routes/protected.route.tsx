@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { Loader } from '../components/loader';
+import { Loader } from '../components/common';
 import { storage } from '../utils/storage';
 
 interface Props {
