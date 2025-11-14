@@ -18,6 +18,7 @@ export interface CalendarProps {
   maxDate?: Date;
   minDate?: Date;
   disabled?: boolean;
+  size?: 'sm' | 'md' | 'lg' | 'default' | 'wide';
 }
 
 const Calendar: React.FC<CalendarProps> = ({
@@ -32,6 +33,7 @@ const Calendar: React.FC<CalendarProps> = ({
   maxDate,
   minDate,
   disabled = false,
+  size = 'default',
 }) => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(
     value ? new Date(value) : null
@@ -52,6 +54,22 @@ const Calendar: React.FC<CalendarProps> = ({
     }
   };
 
+  const sizeClasses = {
+    sm: 'px-3 py-2 text-sm',
+    md: 'px-4 py-3 text-base',
+    lg: 'px-5 py-4 text-lg',
+    default: 'w-full py-[10px] px-3 text-[13px]',
+    wide: 'w-full py-[10px] px-3 text-[13px] min-w-[200px]',
+  };
+
+  const baseClasses = cn(
+    'form-input-base',
+    sizeClasses[size],
+    error && 'border-error-500 focus:border-error-500 focus:ring-error-500',
+    disabled && 'bg-gray-100 cursor-not-allowed',
+    className
+  );
+
   // Sync currentDate when value prop changes
   useEffect(() => {
     if (value) {
@@ -66,9 +84,18 @@ const Calendar: React.FC<CalendarProps> = ({
 
   return (
     <div className={cn('w-full', className)}>
-      <label className="form-label block mb-2 text-[--color-dark] font-medium">
-        {label} {isRequired && <span className="text-red-500">*</span>}
-      </label>
+      {label && (
+        <label
+          className={cn(
+            'block text-base text-(--color-muted) mb-2',
+            error && 'text-error-700',
+            disabled && 'text-gray-400'
+          )}
+        >
+          {label}
+          {isRequired && <span className="text-error-500 ml-1">*</span>}
+        </label>
+      )}
       <div className="relative">
         <DatePicker
           selected={selectedDate}
@@ -210,11 +237,7 @@ const Calendar: React.FC<CalendarProps> = ({
           maxDate={maxDate}
           minDate={minDate}
           disabled={disabled}
-          className={cn(
-            'form-input-base w-full cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm',
-            error && 'border-red-500',
-            disabled && 'bg-gray-100 cursor-not-allowed'
-          )}
+          className={cn(baseClasses)}
           wrapperClassName="w-full"
           popperClassName="react-datepicker-popper"
           autoComplete="off"

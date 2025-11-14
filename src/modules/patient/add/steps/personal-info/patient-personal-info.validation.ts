@@ -18,6 +18,10 @@ export const patientPersonalInfoSchema = yup
     emergencyContactNumber: yup
       .string()
       .required('Emergency contact number is required'),
+    emergencyContactNumberCountryCode: yup
+      .string()
+      .required('Emergency contact number country code is required'),
+    profilePhoto: yup.string().nullable().notRequired(),
   })
   .test(
     'dateOfBirth-or-age',

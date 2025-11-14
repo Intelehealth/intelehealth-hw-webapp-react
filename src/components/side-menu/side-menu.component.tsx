@@ -117,7 +117,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
                 isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
               }`}
               onClick={() => {
-                navigate('/patients/add');
+                navigate('/patient/add');
               }}
             >
               <img

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CountryCode, PhoneNumberObject } from '../../types/common.types';
 import { getCountryCode } from '../../utils/common';
 import CountryCodeDropdown from './contry-code-dropdown.component';
@@ -21,28 +21,35 @@ const InputPhoneNumber = ({
     dial_code: '',
   });
   const [phoneNumber, setPhoneNumber] = useState('');
+  const isUpdatingFromProps = useRef(false);
 
-  const handleChange = useCallback(() => {
-    if (country) {
+  // Initialize from value prop only once on mount or when value structure changes significantly
+  useEffect(() => {
+    if (value && value.countryCode) {
+      isUpdatingFromProps.current = true;
+      setPhoneNumber(value.number || '');
+      const getCountry = getCountryCode(value.countryCode);
+      if (getCountry) {
+        setCountry(getCountry);
+      }
+      // Reset flag after state updates have been processed
+      setTimeout(() => {
+        isUpdatingFromProps.current = false;
+      }, 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.countryCode]); // Only depend on countryCode to avoid infinite loops
+
+  // Call onChange when user makes changes (not when syncing from props)
+  useEffect(() => {
+    if (country.dial_code && !isUpdatingFromProps.current) {
       onChange({
         number: phoneNumber,
         countryCode: country.dial_code,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country, phoneNumber]);
-
-  useEffect(() => {
-    handleChange();
-  }, [handleChange]);
-
-  useEffect(() => {
-    if (value) {
-      setPhoneNumber(value.number);
-      const getCountry = getCountryCode(value.countryCode);
-      if (getCountry) setCountry(getCountry);
-    }
-  }, [value]);
+  }, [country.dial_code, phoneNumber]);
 
   return (
     <div className="flex gap-2 justify-between w-full mb-2">

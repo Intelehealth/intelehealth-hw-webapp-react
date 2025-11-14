@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../../services/toast';
-import requestOtpService from './verify-otp.service';
 import type {
   RequestOtpModel,
   VerifyOtpModel,
 } from '../../../types/auth/verify-otp.types';
+import requestOtpService from './verify-otp.service';
 
 interface UseVerifyOtpReturn {
   otp: string[];
@@ -85,6 +85,11 @@ export const useVerifyOtp = (stateData?: {
 
   // ✅ Verify OTP
   const verifyOtp = async () => {
+    if (!stateData?.value || !stateData?.type || !stateData?.otpFor) {
+      navigate('/auth/login');
+      return;
+    }
+
     if (!userUuid || otp.includes('')) return;
 
     const enteredOtp = otp.join('');
@@ -93,8 +98,9 @@ export const useVerifyOtp = (stateData?: {
       setLoading(true);
       const payload: VerifyOtpModel = {
         otp: enteredOtp,
-        username: stateData?.value || '',
+        [stateData.type]: stateData?.value || '',
         verifyFor: stateData?.otpFor || '',
+        countryCode: stateData.countryCode || undefined,
       };
       const result = await requestOtpService.verifyOtp(payload);
 

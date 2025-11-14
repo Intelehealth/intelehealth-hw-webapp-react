@@ -3,37 +3,37 @@ import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
 import { countries } from '../../../../../assets/data/countries';
 import { Button, Dropdown, Input } from '../../../../../components/common';
-import { patientAddressInfoSchema } from './patient-address-info.validation';
+import { patientOtherInfoSchema } from './patient-other-info.validation';
 
-type PatientAddressInfoFormValues = InferType<typeof patientAddressInfoSchema>;
+type PatientOtherInfoFormValues = InferType<typeof patientOtherInfoSchema>;
 
-interface PatientAddressInfoProps {
-  defaultValues: PatientAddressInfoFormValues;
-  onNext: (data: { addressInfo: PatientAddressInfoFormValues }) => void;
+interface PatientOtherInfoProps {
+  defaultValues: PatientOtherInfoFormValues;
+  onNext: (data: { otherInfo: PatientOtherInfoFormValues }) => void;
   onPrev: () => void;
 }
 
-export default function PatientAddressInfo({
+export default function PatientOtherInfo({
   defaultValues,
   onNext,
   onPrev,
-}: PatientAddressInfoProps) {
+}: PatientOtherInfoProps) {
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
-  } = useForm<PatientAddressInfoFormValues>({
+  } = useForm<PatientOtherInfoFormValues>({
     resolver: yupResolver(
-      patientAddressInfoSchema
-    ) as Resolver<PatientAddressInfoFormValues>,
+      patientOtherInfoSchema
+    ) as Resolver<PatientOtherInfoFormValues>,
     mode: 'onTouched',
     defaultValues,
   });
 
-  const handleNext = (data: PatientAddressInfoFormValues) => {
-    onNext({ addressInfo: data });
+  const handleNext = (data: PatientOtherInfoFormValues) => {
+    onNext({ otherInfo: data });
   };
 
   return (
@@ -43,45 +43,42 @@ export default function PatientAddressInfo({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <Input
-                {...register('postalCode')}
-                placeholder="Enter Postal Code Name"
-                label="Postal Code"
-                error={errors.postalCode?.message}
-                isRequired={true}
+                {...register('sonDaughterWifeOf')}
+                placeholder="Enter Son/Daughter/Wife Of"
+                label="Enter Son/Daughter/Wife Of"
+                error={errors.sonDaughterWifeOf?.message}
               />
             </div>
             <div>
               <Dropdown
-                label="Country"
-                placeholder="Select Country"
+                label="Occupation"
+                placeholder="Select Occupation"
                 options={countries.map(val => {
                   return { label: val.name, value: val.name };
                 })}
                 labelClassName="text-(--color-muted)"
-                error={errors.country?.message}
-                value={watch('country') ?? ''}
+                error={errors.occupation?.message}
+                value={watch('occupation') ?? ''}
                 onChange={(value: string | string[]) => {
                   const selectedValue = Array.isArray(value) ? value[0] : value;
-                  setValue('country', selectedValue);
+                  setValue('occupation', selectedValue);
                 }}
-                isRequired={true}
               />
             </div>
             <div>
               <Dropdown
-                label="State"
-                placeholder="Select State"
+                label="Caste"
+                placeholder="Select Caste"
                 options={countries.map(val => {
                   return { label: val.name, value: val.name };
                 })}
                 labelClassName="text-(--color-muted)"
-                error={errors.state?.message}
-                value={watch('state') ?? ''}
+                error={errors.caste?.message}
+                value={watch('caste') ?? ''}
                 onChange={(value: string | string[]) => {
                   const selectedValue = Array.isArray(value) ? value[0] : value;
-                  setValue('state', selectedValue);
+                  setValue('caste', selectedValue);
                 }}
-                isRequired={true}
               />
             </div>
           </div>
@@ -89,59 +86,35 @@ export default function PatientAddressInfo({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <Dropdown
-                label="District"
-                placeholder="Select District"
+                label="Education"
+                placeholder="Select Education"
                 options={countries.map(val => {
                   return { label: val.name, value: val.name };
                 })}
                 labelClassName="text-(--color-muted)"
-                error={errors.district?.message}
-                value={watch('district') ?? ''}
+                error={errors.education?.message}
+                value={watch('education') ?? ''}
                 onChange={(value: string | string[]) => {
                   const selectedValue = Array.isArray(value) ? value[0] : value;
-                  setValue('district', selectedValue);
+                  setValue('education', selectedValue);
                 }}
                 isRequired={true}
               />
             </div>
             <div>
               <Dropdown
-                label="Village/Town/City"
-                placeholder="Select Village/Town/City"
+                label="Economic Status"
+                placeholder="Select Economic Status"
                 options={countries.map(val => {
                   return { label: val.name, value: val.name };
                 })}
                 labelClassName="text-(--color-muted)"
-                error={errors.city?.message}
-                value={watch('city') ?? ''}
+                error={errors.economicStatus?.message}
+                value={watch('economicStatus') ?? ''}
                 onChange={(value: string | string[]) => {
                   const selectedValue = Array.isArray(value) ? value[0] : value;
-                  setValue('city', selectedValue);
+                  setValue('economicStatus', selectedValue);
                 }}
-                isRequired={true}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-1 ">
-            <div>
-              <Input
-                {...register('correspondingAddress1')}
-                placeholder="Enter Corresponding Address 1"
-                label="Corresponding Address"
-                error={errors.correspondingAddress1?.message}
-                isRequired={true}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-1 ">
-            <div>
-              <Input
-                {...register('correspondingAddress2')}
-                placeholder="Enter Corresponding Address 2"
-                label="Corresponding Address 2"
-                error={errors.correspondingAddress2?.message}
-                isRequired={true}
               />
             </div>
           </div>

@@ -62,7 +62,7 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
       <div className="hiddne lg:flex w-[8%] bg-(--color-primary) clip-left clip-left-reverse transform origin-right border-[1px] border-solid border-(--color-primary) scale-[1.00001]"></div>
 
       {/* RIGHT: login form (desktop + mobile) */}
-      <main className="flex-1 flex flex-col items-end md:items-center lg:items-center justify-between lg:justify-start bg-(--color-primary) lg:bg-(--color-bg)">
+      <main className="flex-1 flex flex-col items-end md:items-center lg:items-center justify-between lg:justify-start bg-(--color-primary) lg:bg-(--color-bg) ">
         <div
           className="hidden md:flex justify-end pt-10 px-8 w-full"
           style={{ visibility: showLanguages ? 'visible' : 'hidden' }}

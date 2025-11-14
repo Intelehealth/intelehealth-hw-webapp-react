@@ -5,8 +5,6 @@ import ProtectedRoute from './protected.route';
 
 // Pages
 import CommonUiComponent from '../components/common/common-ui.component';
-import { ProfileGuardProvider } from '../context/ProfileGuardContext';
-import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 import ForgotPasswordPage from '../pages/auth/forgot-password/forgot-password.page';
 import ForgotUsernamePage from '../pages/auth/forgot-username/forgot-username.page';
 import LoginPage from '../pages/auth/login/login.page';
@@ -53,11 +51,11 @@ const AppRoutes = () => (
             <Route
               path={ROUTES.PATIENT.ADD_PATIENT}
               element={
-                <ProfileGuardProvider>
-                  <ProfileRouteGuard>
-                    <AddPatientPage />
-                  </ProfileRouteGuard>
-                </ProfileGuardProvider>
+                // <ProfileGuardProvider>
+                //   <ProfileRouteGuard>
+                <AddPatientPage />
+                //   </ProfileRouteGuard>
+                // </ProfileGuardProvider>
               }
             ></Route>
           </Route>
