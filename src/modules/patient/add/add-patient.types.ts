@@ -1,6 +1,7 @@
 export interface AddPatientData {
   identifiers: [
     {
+      identifier: string;
       identifierType: string;
       location: string;
       preferred: boolean;
@@ -29,7 +30,7 @@ export interface AddPatientData {
         stateProvince: string;
       },
     ];
-    attributes: {
+    attributes?: {
       value: string;
       attributeType: string;
     }[];

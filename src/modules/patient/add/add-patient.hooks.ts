@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   locations,
   patientAttributes,
@@ -10,19 +9,16 @@ import type { AddPatientData, PatientFormData } from './add-patient.types';
 
 interface UseAddPatientReturn {
   handleAddPatient: (patientData: PatientFormData) => Promise<void>;
-  loading: boolean;
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
-  const [loading, setLoading] = useState(false);
-
   const handleAddPatient = async (patientData: PatientFormData) => {
     try {
-      setLoading(true);
       // Encode OpenMRS basic auth
       const formattedPatientData = mapPatientFormData(patientData);
+      formattedPatientData.identifiers[0].identifier =
+        await generateIdentifier();
       await patientService.createPatient(formattedPatientData);
-      setLoading(false);
       //show toast message
       showToast(
         'Patient Added Successfully',
@@ -30,7 +26,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
         'success'
       );
     } catch (error: unknown) {
-      setLoading(false);
       //show toast message
       showToast(
         'Add Patient Failed',
@@ -38,6 +33,12 @@ export const useAddPatient = (): UseAddPatientReturn => {
         'error'
       );
     }
+  };
+
+  const generateIdentifier = async (): Promise<string> => {
+    // Logic to generate a unique patient identifier
+    const response = await patientService.genratePatientIdentifier();
+    return response.identifiers[0];
   };
 
   const mapPatientFormData = (data: PatientFormData): AddPatientData => {
@@ -114,6 +115,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
     return {
       identifiers: [
         {
+          identifier: '',
           identifierType: patientIdentifierType.default,
           location: locations.default,
           preferred: true,
@@ -147,5 +149,5 @@ export const useAddPatient = (): UseAddPatientReturn => {
     };
   };
 
-  return { handleAddPatient, loading };
+  return { handleAddPatient };
 };

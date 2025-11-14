@@ -1,8 +1,8 @@
 import { Button } from '../../../../../components/common';
+import type { PatientFormData } from '../../add-patient.types';
 
 interface PatientPreviewComponentProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
+  data: PatientFormData;
 }
 
 const Card = ({
@@ -86,7 +86,7 @@ export default function PatientPreviewComponent({
       {/* Buttons */}
       <div className="flex flex-col md:flex-row justify-center gap-3 pb-6">
         <Button variant="primary" className="w-auto px-8" type="button">
-          Accept
+          Start Visit
         </Button>
       </div>
     </div>

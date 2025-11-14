@@ -17,7 +17,7 @@ import PrivacyPolicy from './steps/privacy-policy/patient-privacy-policy.compone
 import Terms from './steps/terms/terms.component';
 
 export default function AddPatientComponent() {
-  const { handleAddPatient, loading } = useAddPatient();
+  const { handleAddPatient } = useAddPatient();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<PatientFormData>({
     personalInfo: {
@@ -33,6 +33,7 @@ export default function AddPatientComponent() {
       emergencyContactName: '',
       emergencyContactNumber: '',
       emergencyContactNumberCountryCode: '+91',
+      profilePhoto: null,
     },
     addressInfo: {
       postalCode: '',
@@ -104,7 +105,7 @@ export default function AddPatientComponent() {
     const mergedData = { ...formData, ...data };
     console.log('Final Submitted Data:', mergedData);
     await handleAddPatient(mergedData);
-    setStep(s => s + 1);
+    //setStep(s => s + 1);
   };
 
   useEffect(() => {
@@ -160,7 +161,13 @@ export default function AddPatientComponent() {
       {step === 1 && <Terms onNext={nextStep} onPrev={prevStep} />}
       {step === 2 && (
         <PersonalInfo
-          defaultValues={formData.personalInfo}
+          defaultValues={{
+            ...formData.personalInfo,
+            profilePhoto:
+              typeof formData.personalInfo.profilePhoto === 'string'
+                ? formData.personalInfo.profilePhoto
+                : null,
+          }}
           onNext={nextStep}
           onPrev={prevStep}
         />
