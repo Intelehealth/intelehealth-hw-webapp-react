@@ -103,9 +103,10 @@ export default function AddPatientComponent() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (data: any) => {
     const mergedData = { ...formData, ...data };
-    console.log('Final Submitted Data:', mergedData);
-    await handleAddPatient(mergedData);
-    //setStep(s => s + 1);
+    const result = await handleAddPatient(mergedData);
+    if (result) {
+      setStep(s => s + 1);
+    }
   };
 
   useEffect(() => {

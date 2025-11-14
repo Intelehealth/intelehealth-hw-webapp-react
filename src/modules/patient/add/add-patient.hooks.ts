@@ -8,7 +8,7 @@ import { patientService } from './add-patient.service';
 import type { AddPatientData, PatientFormData } from './add-patient.types';
 
 interface UseAddPatientReturn {
-  handleAddPatient: (patientData: PatientFormData) => Promise<void>;
+  handleAddPatient: (patientData: PatientFormData) => Promise<boolean>;
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
@@ -25,6 +25,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
         `Patient has been added successfully`,
         'success'
       );
+      return true;
     } catch (error: unknown) {
       //show toast message
       showToast(
@@ -32,6 +33,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
         error instanceof Error ? error.message : 'An unknown error occurred',
         'error'
       );
+      return false;
     }
   };
 

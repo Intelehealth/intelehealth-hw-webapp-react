@@ -151,7 +151,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
             size="md"
             isLoading={isSubmitting || loading}
             loadingText="Saving..."
-            className="px-6 lg:px-6 mobile-save-button lg:!px-6"
+            className="px-6 lg:px-6 mobile-save-button"
           >
             Save
           </Button>
