@@ -15,7 +15,7 @@ import ResetPasswordPage from '../pages/auth/reset-password/reset-password.page'
 import VerifyOtpPage from '../pages/auth/verify-otp/verify-otp.page';
 import DashboardPage from '../pages/dashboard/dashboard.page';
 import NotFoundPage from '../pages/not-found/not-found.page';
-import ProfilePage from '../pages/profile/profile.page';
+import HwPage from '../pages/profile/hw.page';
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -48,7 +48,7 @@ const AppRoutes = () => (
         <Route element={<MainContainer />}>
           <Route path={ROUTES.ROOT} element={<DashboardPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+          <Route path={ROUTES.PROFILE} element={<HwPage />} />
           <Route
             path={ROUTES.ADD_PATIENT}
             element={

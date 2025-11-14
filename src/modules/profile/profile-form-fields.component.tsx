@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type {
   FieldErrors,
   UseFormRegister,
@@ -6,6 +6,7 @@ import type {
   UseFormWatch,
 } from 'react-hook-form';
 import { Calendar, Dropdown, Input, Radio } from '../../components/common';
+import { cookie } from '../../utils/cookie';
 import { calculateAge } from '../../utils/utils';
 import CountryCodeDropdown from '../auth/common/contry-code-dropdown.component';
 import type { ProfileFormValues } from './profile.validation';
@@ -22,6 +23,7 @@ interface ProfileFormFieldsProps {
     code: string;
     dial_code: string;
   }) => void;
+  profileUrl?: string;
 }
 
 const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
@@ -32,7 +34,21 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
   trigger,
   onPhotoModalOpen,
   onCountryChange,
+  profileUrl,
 }) => {
+  // State to handle image loading errors
+  const [imgError, setImgError] = useState(false);
+  const sessionId = cookie.getJSessionId();
+  // Generate profile image URL only when profileUrl changes
+  const profileImageUrl = React.useMemo(() => {
+    if (!profileUrl) return '';
+    return `${profileUrl}`;
+  }, [profileUrl]);
+  // Rleset imgError when profileUrl changes (new image uploaded)
+  useEffect(() => {
+    setImgError(false);
+  }, [profileImageUrl]);
+
   const locationOptions = [
     { value: 'sf-clinic', label: 'San Francisco Clinic' },
     { value: 'la-clinic', label: 'Los Angeles Clinic' },
@@ -48,123 +64,38 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
   }, [watchedDateOfBirth]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Mobile: Single column layout */}
-      <div className="lg:hidden space-y-4">
-        {/* Profile Photo Section - Mobile */}
-        <div className="flex flex-col items-center gap-3">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+      {/* Column 1: Profile Image, First Name, Gender, Email */}
+      <div className="space-y-4 lg:space-y-2">
+        {/* Profile Photo Section */}
+        <div className="flex flex-col items-center lg:items-start gap-3 lg:gap-2">
           <div className="relative">
-            <div className="mobile-profile-photo">
-              <i className="fa-solid fa-camera"></i>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="mobile-change-photo"
-            onClick={onPhotoModalOpen}
-          >
-            Change photo
-          </button>
-        </div>
-
-        {/* Mobile Form Fields */}
-        <div className="space-y-4">
-          <Input
-            label="User name"
-            {...register('username')}
-            placeholder="Username"
-            variant="default"
-            size="wide"
-          />
-
-          <Dropdown
-            label="Setup location"
-            value={watch('setupLocation') || ''}
-            onChange={(value: string | string[]) => {
-              const locationValue = Array.isArray(value) ? value[0] : value;
-              setValue('setupLocation', locationValue);
-            }}
-            options={locationOptions}
-            placeholder="Select"
-            isRequired={true}
-            error={errors.setupLocation?.message}
-          />
-
-          <Input
-            label="First Name"
-            {...register('firstName')}
-            placeholder="Enter first name"
-            isRequired={true}
-            error={errors.firstName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          <Input
-            label="Middle Name"
-            {...register('middleName')}
-            placeholder="Enter middle name"
-            isRequired={true}
-            error={errors.middleName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          <Input
-            label="Last Name"
-            {...register('lastName')}
-            placeholder="Enter last name"
-            isRequired={true}
-            error={errors.lastName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          {/* Gender Selection - Mobile */}
-          <div className="mobile-form-field">
-            <label className="form-label block mb-3">
-              Gender <span className="mobile-required-asterisk">*</span>
-            </label>
-            <div className="flex gap-6">
-              <div className="radio-container">
-                <Radio {...register('gender')} value="male" label="Male" />
-                <i className="fa-solid fa-mars mobile-gender-icon"></i>
-              </div>
-              <div className="radio-container">
-                <Radio {...register('gender')} value="female" label="Female" />
-                <i className="fa-solid fa-venus mobile-gender-icon"></i>
-              </div>
-              <div className="radio-container">
-                <Radio {...register('gender')} value="other" label="Other" />
-                <i className="fa-solid fa-transgender mobile-gender-icon"></i>
-              </div>
-            </div>
-            {errors.gender && (
-              <p className="mobile-error-message">{errors.gender.message}</p>
+            {!imgError && profileImageUrl && (
+              <img
+                key={profileImageUrl}
+                src={profileImageUrl}
+                alt="Profile"
+                className="w-24 h-24 lg:w-16 lg:h-16 rounded-full object-cover border-2 border-gray-200"
+                onError={() => setImgError(true)}
+              />
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop: Column 1: Profile Image, First Name, Gender, Email */}
-      <div className="hidden lg:block space-y-2">
-        <div className="flex flex-col items-start gap-2">
-          <div className="relative">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-              <i className="fa-solid fa-user text-gray-400 text-lg"></i>
-            </div>
+            {(imgError || !profileImageUrl) && (
+              <div className="w-24 h-24 lg:w-16 lg:h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                <i className="fa-solid fa-user text-gray-400 text-lg lg:text-base"></i>
+              </div>
+            )}
             <button
               type="button"
-              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+              className="absolute -bottom-1 -right-1 w-6 h-6 lg:w-5 lg:h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer"
               style={{ backgroundColor: 'var(--color-primary)' }}
+              onClick={onPhotoModalOpen}
             >
-              <i className="fa-solid fa-camera text-white text-xs"></i>
+              <i className="fa-solid fa-camera text-white text-sm lg:text-xs"></i>
             </button>
           </div>
           <button
             type="button"
-            className="text-card-head underline cursor-pointer"
-            style={{ color: '#8f8ca0' }}
+            className="text-sm lg:text-base text-gray-500 underline cursor-pointer hover:text-gray-700"
             onClick={onPhotoModalOpen}
           >
             Change photo
@@ -181,19 +112,18 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           size="wide"
         />
 
+        {/* Gender Selection */}
         <div>
-          <label className="form-label block mb-2">
-            Gender <span className="text-[--color-error]">*</span>
+          <label className="block mb-2 lg:mb-2 text-base lg:text-sm font-medium text-gray-700">
+            Gender <span className="text-red-500">*</span>
           </label>
-          <div className="flex gap-4">
+          <div className="flex gap-4 lg:gap-4">
             <Radio {...register('gender')} value="male" label="Male" />
             <Radio {...register('gender')} value="female" label="Female" />
             <Radio {...register('gender')} value="other" label="Other" />
           </div>
           {errors.gender && (
-            <p className="text-sm text-[--color-error] mt-1">
-              {errors.gender.message}
-            </p>
+            <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
           )}
         </div>
 
@@ -210,7 +140,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
       </div>
 
       {/* Column 2: Username, Middle Name, Date of Birth, Age */}
-      <div className="space-y-2">
+      <div className="space-y-4 lg:space-y-2">
         <Input
           label="User name"
           {...register('username')}
@@ -249,14 +179,14 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             />
           </div>
           <div className="w-24">
-            <label className="form-label block mb-2">
-              Age <span className="text-[--color-error]">*</span>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Age <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={calculatedAge || ''}
               readOnly
-              className="form-input-base w-full text-center bg-gray-50"
+              className="w-full text-center bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm"
               placeholder="Age"
             />
           </div>
@@ -264,7 +194,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
       </div>
 
       {/* Column 3: Setup Location, Last Name, Phone Number */}
-      <div className="space-y-2">
+      <div className="space-y-4 lg:space-y-2">
         <Dropdown
           label="Setup location"
           value={watch('setupLocation') || ''}
@@ -289,8 +219,8 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         />
 
         <div>
-          <label className="form-label block mb-2">
-            Phone Number <span className="text-[--color-error]">*</span>
+          <label className="block mb-2 text-sm font-medium text-gray-700">
+            Phone Number <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-2">
             <div className="w-1/3">

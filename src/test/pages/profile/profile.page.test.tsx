@@ -1,32 +1,32 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ProfilePage from '../../../pages/profile/profile.page';
+import HwPage from '../../../pages/profile/hw.page';
 
 // Mock the ProfileForm component
 vi.mock('../../../modules/profile/profile-form.component', () => ({
   default: vi.fn(() => <div data-testid="profile-form">Profile Form Component</div>),
 }));
 
-describe('ProfilePage', () => {
+describe('HwPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('Component Structure', () => {
     it('should render without crashing', () => {
-      render(<ProfilePage />);
+      render(<HwPage />);
       expect(screen.getByTestId('profile-form')).toBeInTheDocument();
     });
 
     it('should render ProfileForm component', () => {
-      render(<ProfilePage />);
+      render(<HwPage />);
       
       expect(screen.getByTestId('profile-form')).toBeInTheDocument();
       expect(screen.getByText('Profile Form Component')).toBeInTheDocument();
     });
 
     it('should have correct CSS classes for layout', () => {
-      const { container } = render(<ProfilePage />);
+      const { container } = render(<HwPage />);
       
       const rootDiv = container.firstChild as HTMLElement;
       expect(rootDiv).toHaveClass('h-screen', 'w-full', 'bg-white');
@@ -38,14 +38,14 @@ describe('ProfilePage', () => {
 
   describe('Component Integration', () => {
     it('should render ProfileForm correctly', () => {
-      render(<ProfilePage />);
+      render(<HwPage />);
       
       // Verify ProfileForm is rendered
       expect(screen.getByTestId('profile-form')).toBeInTheDocument();
     });
 
     it('should render ProfileForm inside the correct container structure', () => {
-      const { container } = render(<ProfilePage />);
+      const { container } = render(<HwPage />);
       
       const rootDiv = container.firstChild as HTMLElement;
       expect(rootDiv).toBeInTheDocument();
@@ -59,27 +59,27 @@ describe('ProfilePage', () => {
   });
 
   describe('Component Exports', () => {
-    it('should export ProfilePage as default', () => {
-      expect(ProfilePage).toBeDefined();
-      expect(typeof ProfilePage).toBe('function');
+    it('should export HwPage as default', () => {
+      expect(HwPage).toBeDefined();
+      expect(typeof HwPage).toBe('function');
     });
   });
 
   describe('Component Rendering', () => {
     it('should render as a functional component', () => {
-      const { container } = render(<ProfilePage />);
+      const { container } = render(<HwPage />);
       expect(container.firstChild).toBeInTheDocument();
     });
 
     it('should not have any props or state', () => {
-      render(<ProfilePage />);
+      render(<HwPage />);
       
       // The component should render without any props
       expect(screen.getByTestId('profile-form')).toBeInTheDocument();
     });
 
     it('should render with correct DOM structure', () => {
-      const { container } = render(<ProfilePage />);
+      const { container } = render(<HwPage />);
       
       // Check root div structure
       const rootDiv = container.firstChild as HTMLElement;

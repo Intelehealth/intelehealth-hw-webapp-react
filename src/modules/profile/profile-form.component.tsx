@@ -41,6 +41,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   } = useForm<ProfileFormValues>({
     resolver: yupResolver(profileSchema),
     defaultValues: {
+      username: profile?.username || '',
       firstName: profile?.firstName || '',
       middleName: profile?.middleName || '',
       lastName: profile?.lastName || '',
@@ -66,6 +67,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   React.useEffect(() => {
     if (profile) {
       reset({
+        username: profile.username || '',
         firstName: profile.firstName || '',
         middleName: profile.middleName || '',
         lastName: profile.lastName || '',
@@ -136,6 +138,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           trigger={trigger}
           onPhotoModalOpen={() => setIsPhotoModalOpen(true)}
           onCountryChange={() => {}}
+          profileUrl={profile?.avatar}
         />
 
         <PasswordSection
@@ -151,7 +154,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
             size="md"
             isLoading={isSubmitting || loading}
             loadingText="Saving..."
-            className="px-6 lg:px-6 mobile-save-button lg:!px-6"
+            className="px-6 mobile-save-button lg:px-6"
           >
             Save
           </Button>
