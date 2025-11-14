@@ -1,28 +1,72 @@
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { type MessagePayload } from 'firebase/messaging';
+import { memo, useCallback, useState } from 'react';
 import './App.css';
-import './i18n';
-import AppRoutes from './routes/app.routes';
+import reactLogo from './assets/logo/logo-bg.svg';
+import NotificationManager from './components/notifications/notification-manager.component';
+
+// Memoized button component for better performance
+const CounterButton = memo(
+  ({ count, onIncrement }: { count: number; onIncrement: () => void }) => (
+    <button onClick={onIncrement} className="counter-button">
+      count is {count}
+    </button>
+  )
+);
+
+CounterButton.displayName = 'CounterButton';
 
 function App() {
-  return (
-    <>
-      <AppRoutes />
+  const [count, setCount] = useState(0);
 
-      <ToastContainer
-        position="bottom-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        //progressClassName="custom-progress-bar"
+  // Memoized callback to prevent unnecessary re-renders
+  const handleIncrement = useCallback(() => {
+    setCount(prevCount => prevCount + 1);
+  }, []);
+
+  // Handle notification received
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleNotificationReceived = useCallback((_: MessagePayload) => {}, []);
+
+  // Handle permission granted
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handlePermissionGranted = useCallback((_: string) => {}, []);
+
+  // Handle permission denied
+  const handlePermissionDenied = useCallback(() => {
+    // eslint-disable-next-line no-console -- error logging
+    console.error('Notification permission denied');
+  }, []);
+
+  return (
+    <div className="app">
+      <NotificationManager
+        autoRequest={true}
+        requestDelay={2000}
+        onNotificationReceived={handleNotificationReceived}
+        onPermissionGranted={handlePermissionGranted}
+        onPermissionDenied={handlePermissionDenied}
       />
-    </>
+      <header className="app-header">
+        <div className="logo-container">
+          <a href="https://react.dev" target="_blank" rel="noopener noreferrer">
+            <img src={reactLogo} className="logo react" alt="React logo" />
+          </a>
+        </div>
+        <h1>Vite + React</h1>
+      </header>
+
+      <main className="app-main">
+        <div className="card">
+          <CounterButton count={count} onIncrement={handleIncrement} />
+          <p>
+            Edit <code>src/App.tsx</code> and save to test HMR
+          </p>
+        </div>
+        <p className="read-the-docs">
+          Click on the Vite and React logos to learn more
+        </p>
+      </main>
+    </div>
   );
 }
 
