@@ -70,3 +70,8 @@ export interface PatientFormData {
     economicStatus: string;
   };
 }
+
+export interface PersonImage {
+  person: string;
+  image: string;
+}

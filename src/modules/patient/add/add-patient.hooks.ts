@@ -18,7 +18,15 @@ export const useAddPatient = (): UseAddPatientReturn => {
       const formattedPatientData = mapPatientFormData(patientData);
       formattedPatientData.identifiers[0].identifier =
         await generateIdentifier();
-      await patientService.createPatient(formattedPatientData);
+      const patient = await patientService.createPatient(formattedPatientData);
+
+      if (patient && patientData.personalInfo.profilePhoto) {
+        await patientService.updatePersonImage({
+          person: patient.data.uuid,
+          image: patientData.personalInfo.profilePhoto as string,
+        });
+      }
+
       //show toast message
       showToast(
         'Patient Added Successfully',

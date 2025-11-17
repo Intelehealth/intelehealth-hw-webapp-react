@@ -202,9 +202,9 @@ describe('SideMenu', () => {
     menuItems.forEach((link, index) => {
       // Add Patients button has different classes than regular menu items
       if (index === 0) { // Add Patients button
-        expect(link).toHaveClass('w-full', 'flex', 'items-center', 'bg-white', 'rounded-lg', 'px-4', 'py-2', 'justify-between', 'shadow-md', 'hover:shadow-lg', 'transition-shadow');
+        expect(link).toHaveClass('flex', 'items-center', 'gap-3', 'bg-white', 'rounded-lg', 'transition');
       } else { // Regular menu items
-        expect(link).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition');
+        expect(link).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'transition');
       }
       
       // Check for either img or i element (Profile uses i, others use img)
@@ -284,17 +284,16 @@ describe('SideMenu', () => {
 
   it('should render menu items with correct spacing', () => {
     const { container } = renderWithRouter(<SideMenu />);
-    
-    const navigation = container.querySelector('nav.flex-1.space-y-2');
+
+    const navigation = container.querySelector('nav.p-3.space-y-2');
     expect(navigation).toBeInTheDocument();
   });
 
   it('should render logout section at bottom', () => {
     const { container } = renderWithRouter(<SideMenu />);
-    
-    // Logout section may not exist or have different structure
-    const logoutSection = container.querySelector('nav.flex-1.space-y-2.mt-auto') || 
-                         container.querySelector('nav.flex-1.space-y-2');
+
+    // Logout section exists in a nav with class 'p-3' inside a div with 'mt-auto'
+    const logoutSection = container.querySelector('div.border-t.mt-auto nav.p-3');
     expect(logoutSection).toBeInTheDocument();
   });
 

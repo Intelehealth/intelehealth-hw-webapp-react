@@ -348,7 +348,7 @@ describe('RadioGroup', () => {
       </RadioGroup>
     );
 
-    expect(screen.getByRole('radiogroup').parentElement).toHaveClass(
+    expect(screen.getByRole('radiogroup')).toHaveClass(
       'custom-class'
     );
   });
