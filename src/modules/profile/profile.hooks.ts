@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { showToast } from '../../services/toast';
 import type {
   PasswordChangeRequest,
@@ -25,6 +25,8 @@ export const useProfile = (): UseProfileReturn => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [age, setAge] = useState<number | null>(null);
+  const hasLoadedRef = useRef(false);
+  const errorShownRef = useRef(false);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: string): number => {
@@ -65,12 +67,16 @@ export const useProfile = (): UseProfileReturn => {
 
   // Load profile data on mount
   useEffect(() => {
+    // Prevent duplicate calls in React StrictMode
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
+      errorShownRef.current = false; // Reset error flag on new attempt
       const userData = storage.getUser();
       if (userData) {
         const user = JSON.parse(userData);
@@ -84,15 +90,20 @@ export const useProfile = (): UseProfileReturn => {
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
-      showToast('Error', 'Failed to load profile data', 'error');
+      // Only show error toast once
+      if (!errorShownRef.current) {
+        errorShownRef.current = true;
+        showToast('Error', 'Failed to load profile data', 'error');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const updateProfile = async (data: ProfileUpdateRequest) => {
+    // Set loading immediately before async operation
+    setLoading(true);
     try {
-      setLoading(true);
       const updatedProfile = await profileService.updateProfile(data);
       setProfile(updatedProfile);
       showToast('Success', 'Profile updated successfully', 'success');
@@ -117,8 +128,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const changePassword = async (data: PasswordChangeRequest) => {
+    // Ensure loading starts before await
+    setLoading(true);
     try {
-      setLoading(true);
       await profileService.changePassword(data);
       showToast('Success', 'Password changed successfully', 'success');
     } catch (error: unknown) {
@@ -142,8 +154,9 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
+    // Start loading first
+    setLoading(true);
     try {
-      setLoading(true);
       const formData = new FormData();
       formData.append('photo', file);
       const updatedProfile = await profileService.uploadPhoto(formData);
@@ -170,11 +183,12 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const takePhoto = async () => {
+    // Mark loading true before showing toast
+    setLoading(true);
     try {
-      setLoading(true);
       // TODO: Implement camera functionality
       showToast('Info', 'Camera functionality not implemented yet', 'info');
-    } catch (error: unknown) {
+    } catch {
       showToast('Error', 'Failed to take photo', 'error');
     } finally {
       setLoading(false);

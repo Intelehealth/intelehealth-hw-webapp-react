@@ -32,7 +32,7 @@ export const useProfileCompletion = () => {
         const [parent, child] = field.split('.');
         const parentValue = profile[parent as keyof typeof profile];
         if (parentValue && typeof parentValue === 'object') {
-          const value = (parentValue as any)[child];
+          const value = (parentValue as Record<string, unknown>)[child];
           return value !== null && value !== undefined && value !== '';
         }
         return false;
@@ -71,7 +71,7 @@ export const useProfileCompletion = () => {
         const [parent, child] = field.split('.');
         const parentValue = profile[parent as keyof typeof profile];
         if (parentValue && typeof parentValue === 'object') {
-          const value = (parentValue as any)[child];
+          const value = (parentValue as Record<string, unknown>)[child];
           return value === null || value === undefined || value === '';
         }
         return true;

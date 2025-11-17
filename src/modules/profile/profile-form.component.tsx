@@ -7,7 +7,6 @@ import type { PasswordChangeRequest } from '../../types/profile.types';
 import PasswordSection from './password-section.component';
 import ProfileFormFields from './profile-form-fields.component';
 import ProfileHeader from './profile-header.component';
-import './profile-mobile.css';
 import { useProfile } from './profile.hooks';
 import { profileSchema, type ProfileFormValues } from './profile.validation';
 
@@ -54,17 +53,9 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
 
   // Form submission handler with validation
   const onSubmitForm = async (data: ProfileFormValues) => {
-    console.log('Form submitted - Profile data:', data);
-    console.log('Form submitted - Password data:', passwordData);
-    console.log(
-      'Form submitted - Notifications enabled:',
-      notificationsEnabled
-    );
-
     try {
       // Call the updateProfile function from hooks (which calls profile.service)
       await updateProfile(data);
-      console.log('Profile saved successfully via profile.service');
     } catch (error) {
       console.error('Failed to save profile:', error);
     }
@@ -87,7 +78,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   }, [profile, reset]);
 
   const generatePassword = () => {
-    console.log('Generate password clicked');
     const newPassword = 'GeneratedPassword123!';
     setPasswordData(prev => ({
       ...prev,
@@ -97,13 +87,11 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   };
 
   const handleTakePhoto = () => {
-    console.log('Take photo clicked');
     takePhoto();
     setIsPhotoModalOpen(false);
   };
 
   const handleUploadPhoto = (file: File) => {
-    console.log('Upload photo:', file);
     uploadPhoto(file);
     setIsPhotoModalOpen(false);
   };
@@ -127,7 +115,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
 
   return (
     <Card
-      className={`w-full mobile-profile-form ${className}`}
+      className={`w-full bg-white lg:bg-inherit min-h-screen lg:min-h-0 p-0 lg:p-inherit ${className}`}
       contentClassName="p-4 md:p-4 lg:p-6"
     >
       <ProfileHeader
@@ -162,7 +150,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
             size="md"
             isLoading={isSubmitting || loading}
             loadingText="Saving..."
-            className="px-6 lg:px-6 mobile-save-button lg:!px-6"
+            className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-4 lg:py-2 text-base lg:text-sm font-semibold cursor-pointer mt-6 lg:mt-0 disabled:bg-gray-400 disabled:cursor-not-allowed lg:!px-6"
           >
             Save
           </Button>

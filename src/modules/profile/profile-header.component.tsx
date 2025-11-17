@@ -11,7 +11,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onNotificationsChange,
 }) => {
   return (
-    <div className="flex items-center justify-between mb-6 mobile-profile-header">
+    <div className="flex items-center justify-between mb-6 bg-white lg:bg-inherit border-b lg:border-0 border-gray-200 p-4 lg:p-0 sticky lg:static top-0 z-10 lg:z-auto">
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between w-full">
         <div className="flex items-center gap-3">
@@ -37,7 +37,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </div>
 
       <div className="hidden lg:flex items-center gap-4">
-        <div style={{ ['--color-accent' as any]: '#34cc8b' }}>
+        <div
+          style={
+            { ['--color-accent' as string]: '#34cc8b' } as React.CSSProperties
+          }
+        >
           <Toggle
             label="Notifications"
             checked={notificationsEnabled}

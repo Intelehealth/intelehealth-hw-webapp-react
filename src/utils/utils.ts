@@ -65,7 +65,7 @@ export const isValidDate = (dateString: string): boolean => {
   try {
     const date = new Date(dateString);
     return !isNaN(date.getTime()) && dateString === formatDate(date);
-  } catch (error) {
+  } catch {
     return false;
   }
 };

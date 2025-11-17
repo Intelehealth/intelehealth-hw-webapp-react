@@ -1,16 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+import { useLocation } from 'react-router-dom';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ResetPasswordComponent from '../../../../modules/auth/reset-password/reset-password.component';
 import { useResetPassword } from '../../../../modules/auth/reset-password/reset-password.hooks';
 
 // Mock functions
 const mockNavigate = vi.fn();
-const mockUseLocation = vi.fn();
 
 // Mock the hooks and dependencies
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(() => mockNavigate),
-  useLocation: vi.fn(() => mockUseLocation),
+
+  useLocation: vi.fn(() => ({
+    state: { userUuid: 'test-uuid-123' },
+  })),
+
 }));
 
 vi.mock('../../../../modules/auth/reset-password/reset-password.hooks', () => ({
@@ -23,9 +29,11 @@ vi.mock('../../../../components/common', () => ({
       {children}
     </button>
   )),
-  Input: vi.fn(({ register, ...props }) => (
-    <input {...register} {...props} />
-  )),
+  Input: vi.fn(({ register, ...props }) => {
+    // register is already the spread result from {...register('fieldName')}
+    const registerProps = register || {};
+    return <input {...registerProps} {...props} />;
+  }),
 }));
 
 vi.mock('../../../../components/common/card.component', () => ({
@@ -54,6 +62,31 @@ vi.mock('../../../../modules/auth/common/auth-card-title.component', () => ({
   )),
 }));
 
+// Mock react-hook-form
+const mockRegister = vi.fn(() => ({ name: 'field' }));
+const mockHandleSubmit = vi.fn((fn) => (e: any) => {
+  e.preventDefault();
+  fn({});
+});
+const mockSetValue = vi.fn();
+let mockErrors: any = {};
+
+// Create a getter function for errors so it's reactive
+const getMockErrors = () => mockErrors;
+
+vi.mock('react-hook-form', () => ({
+  useForm: vi.fn(() => ({
+    register: mockRegister,
+    handleSubmit: mockHandleSubmit,
+    formState: { 
+      get errors() {
+        return getMockErrors();
+      }
+    },
+    setValue: mockSetValue,
+  })),
+}));
+
 // Mock assets
 vi.mock('../../../../assets/icons/icon-right-arrow.svg', () => ({
   default: 'mocked-right-arrow.svg',
@@ -77,11 +110,16 @@ describe('ResetPasswordComponent', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Reset mock implementations
-    mockUseLocation.mockReturnValue({
+    mockErrors = {}; // Reset errors
+    // Reset mock implementations - ensure location returns state with userUuid
+    vi.mocked(useLocation).mockReturnValue({
+
       state: { userUuid: 'test-uuid-123' },
-    });
+      pathname: '/auth/reset-password',
+      search: '',
+      hash: '',
+      key: 'default',
+    } as any);
 
     mockUseResetPassword.mockReturnValue({
       handleResetPassword: mockHandleResetPassword,
@@ -150,9 +188,48 @@ describe('ResetPasswordComponent', () => {
     });
 
     it('should handle form submission', async () => {
-      // This test is skipped due to complex mocking requirements
-      // The form submission functionality is tested through integration tests
-      expect(true).toBe(true);
+      mockHandleResetPassword.mockResolvedValue(undefined);
+      
+
+      // Capture the onSubmit callback passed to handleSubmit
+      let capturedOnSubmit: ((data: any) => Promise<void>) | null = null;
+      const captureHandleSubmit = vi.fn((fn) => {
+        capturedOnSubmit = fn;
+        return (e: any) => {
+          e.preventDefault();
+          if (capturedOnSubmit) {
+            // Call with form data to trigger onSubmit (lines 62-65)
+            capturedOnSubmit({ newPassword: 'NewPassword123!', confirmPassword: 'NewPassword123!' });
+          }
+        };
+      });
+      
+      // Override useForm mock for this test
+      const useFormModule = await import('react-hook-form');
+      vi.mocked(useFormModule.useForm).mockReturnValueOnce({
+        register: mockRegister,
+        handleSubmit: captureHandleSubmit,
+        formState: { errors: mockErrors },
+        setValue: mockSetValue,
+      } as any);
+      render(
+        <ResetPasswordComponent
+          changeTitle={mockChangeTitle}
+          changeDescription={mockChangeDescription}
+        />
+      );
+      
+      // Submit the form
+      const submitButton = screen.getByRole('button', { name: 'Continue' });
+      fireEvent.click(submitButton);
+      
+      // Wait for form submission to complete
+      await waitFor(() => {
+        // Verify onSubmit function (lines 62-65) was executed by checking handleResetPassword was called
+        expect(mockHandleResetPassword).toHaveBeenCalledWith('test-uuid-123', {
+          newPassword: 'NewPassword123!',
+        });
+      });
     });
 
     it('should show loading state during submission', () => {
@@ -195,9 +272,13 @@ describe('ResetPasswordComponent', () => {
 
   describe('Navigation', () => {
     it('should redirect to login when no userUuid', () => {
-      mockUseLocation.mockReturnValue({
+      vi.mocked(useLocation).mockReturnValue({
         state: null,
-      });
+        pathname: '/auth/reset-password',
+        search: '',
+        hash: '',
+        key: 'default',
+      } as any);
 
       render(
         <ResetPasswordComponent
@@ -210,9 +291,13 @@ describe('ResetPasswordComponent', () => {
     });
 
     it('should redirect to login when userUuid is missing', () => {
-      mockUseLocation.mockReturnValue({
+      vi.mocked(useLocation).mockReturnValue({
         state: {},
-      });
+        pathname: '/auth/reset-password',
+        search: '',
+        hash: '',
+        key: 'default',
+      } as any);
 
       render(
         <ResetPasswordComponent
@@ -318,13 +403,21 @@ describe('ResetPasswordComponent', () => {
   });
 
   describe('Error Display', () => {
-    it('should display new password error message', () => {
+    it('should display new password error message when validation fails', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
         isResetSuccessful: false,
         loading: false,
       });
+
+      // Set up errors to show validation error
+      mockErrors = {
+        newPassword: {
+          type: 'min',
+          message: 'Password must be at least 6 characters',
+        },
+      };
 
       render(
         <ResetPasswordComponent
@@ -333,17 +426,31 @@ describe('ResetPasswordComponent', () => {
         />
       );
       
-      // Test that error display logic is covered (lines 131-133)
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      // Wait for validation error to appear (lines 131-133)
+      // The error should be visible immediately since mockErrors is set
+      await waitFor(() => {
+        const errorMessage = screen.queryByText('Password must be at least 6 characters') || 
+                            screen.queryByText(/password must be at least 6 characters/i) || 
+                            screen.queryByText(/password is required/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
 
-    it('should display confirm password error message', () => {
+    it('should display confirm password error message when passwords do not match', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,
         isResetSuccessful: false,
         loading: false,
       });
+
+      // Set up errors to show validation error for password mismatch
+      mockErrors = {
+        confirmPassword: {
+          type: 'oneOf',
+          message: 'Passwords must match',
+        },
+      };
 
       render(
         <ResetPasswordComponent
@@ -352,8 +459,16 @@ describe('ResetPasswordComponent', () => {
         />
       );
       
-      // Test that error display logic is covered (lines 154-156)
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      // Wait for validation error to appear (lines 154-156)
+      // The error message should be "Passwords must match" from the validation schema
+      // The error should be visible immediately since mockErrors is set
+      await waitFor(() => {
+        const errorMessage = screen.queryByText('Passwords must match') || 
+                            screen.queryByText(/passwords must match/i) ||
+                            screen.queryByText('Please confirm your password') ||
+                            screen.queryByText(/please confirm your password/i);
+        expect(errorMessage).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 
@@ -361,6 +476,69 @@ describe('ResetPasswordComponent', () => {
     it('should export ResetPasswordComponent as default', () => {
       expect(ResetPasswordComponent).toBeDefined();
       expect(typeof ResetPasswordComponent).toBe('function');
+    });
+  });
+
+  describe('Form Submission Coverage', () => {
+    it('should call handleResetPassword with correct parameters when form is submitted', async () => {
+      // Ensure handleResetPassword is a resolved promise to properly test async onSubmit
+      mockHandleResetPassword.mockResolvedValue(undefined);
+      
+      // Create a mock that properly handles async onSubmit
+      let capturedOnSubmit: ((data: any) => Promise<void>) | null = null;
+      
+      const asyncHandleSubmit = vi.fn((fn) => {
+        capturedOnSubmit = fn;
+        // Return the submit handler that will be attached to the form
+        return async (e: any) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (capturedOnSubmit) {
+            // Explicitly call onSubmit with await to cover lines 62-65
+            await capturedOnSubmit({ 
+              newPassword: 'TestPassword123!', 
+              confirmPassword: 'TestPassword123!' 
+            });
+          }
+        };
+      });
+
+      // Override useForm mock
+      const useFormModule = await import('react-hook-form');
+      vi.mocked(useFormModule.useForm).mockReturnValueOnce({
+        register: mockRegister,
+        handleSubmit: asyncHandleSubmit,
+        formState: { errors: {} },
+        setValue: mockSetValue,
+      } as any);
+
+      render(
+        <ResetPasswordComponent
+          changeTitle={mockChangeTitle}
+          changeDescription={mockChangeDescription}
+        />
+      );
+
+      // Wait for handleSubmit to be called and capture onSubmit
+      await waitFor(() => {
+        expect(asyncHandleSubmit).toHaveBeenCalled();
+        expect(capturedOnSubmit).not.toBeNull();
+      });
+
+      // Directly call the captured onSubmit function to test lines 62-65
+      expect(capturedOnSubmit).not.toBeNull();
+      await capturedOnSubmit!({ 
+        newPassword: 'TestPassword123!', 
+        confirmPassword: 'TestPassword123!' 
+      });
+
+      // Wait for async onSubmit to complete
+      await waitFor(() => {
+        // Verify onSubmit was called and handleResetPassword was invoked with correct params (lines 62-65)
+        expect(mockHandleResetPassword).toHaveBeenCalledWith('test-uuid-123', {
+          newPassword: 'TestPassword123!',
+        });
+      });
     });
   });
 });

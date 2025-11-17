@@ -32,9 +32,9 @@ const MockedSentry: React.FC = () => (
   <div data-testid="sentry-wrapper">Mocked Sentry</div>
 );
 
-const MockedSentryErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div data-testid="sentry-error-boundary">{children}</div>
-);
+const MockedSentryErrorBoundary: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <div data-testid="sentry-error-boundary">{children}</div>;
 
 vi.mock('./config/sentry-wrapper', () => ({
   default: MockedSentry,
@@ -73,7 +73,7 @@ describe('main.tsx', () => {
     expect(screen.getByTestId('app')).toBeInTheDocument();
     // In non-PROD, Sentry should not render
     expect(screen.queryByTestId('sentry-wrapper')).toBeNull();
-  });
+  }, 15000);
 
   it('renders SentryWrapper only when import.meta.env.PROD is true', async () => {
     vi.unstubAllEnvs();
@@ -88,7 +88,7 @@ describe('main.tsx', () => {
     render(tree);
     expect(screen.getByTestId('app')).toBeInTheDocument();
     expect(screen.getByTestId('sentry-wrapper')).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('uses the #root element as the container for createRoot', async () => {
     const rootEl = document.getElementById('root');

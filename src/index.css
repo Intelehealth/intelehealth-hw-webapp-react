@@ -1,4 +1,5 @@
 /* index.css */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 @import 'tailwindcss';
 
 :root {
@@ -51,4 +52,48 @@ body {
 
 #root {
   height: 100%;
+  font-family: var(--font-sans);
+}
+
+/* Ensure all text elements inherit the font family from body */
+input,
+textarea,
+select,
+button,
+span,
+div,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+a,
+label,
+li,
+td,
+th {
+  font-family: inherit;
+}
+
+/* Hide scrollbar but allow scrolling for whole page */
+html {
+  overflow-y: scroll;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+body {
+  overflow-y: scroll;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
