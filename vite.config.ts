@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: mode === 'development' ? '/' : '/hwwebapp/',
   plugins: [
     react(),
     tailwindcss(),
