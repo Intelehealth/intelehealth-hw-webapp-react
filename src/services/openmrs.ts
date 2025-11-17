@@ -10,7 +10,7 @@ class OpenMRSService extends HttpService {
       withCredentials: true, // ensures browser cookies are sent
     });
 
-    // Request interceptor - attach JSESSIONID manually if available
+    // Request interceptor - cookies are handled automatically by withCredentials
     this.axiosInstance.interceptors.request.use(config => {
       config.withCredentials = true; // ensure cookies are sent
       return config;

@@ -5,7 +5,9 @@ import iconAchievements from '../../assets/icons/icon-achievement.svg';
 import iconHome from '../../assets/icons/icon-home.svg';
 import iconInfo from '../../assets/icons/icon-info.svg';
 import iconPowerOff from '../../assets/icons/icon-power-off.svg';
+import iconRightArrowBlueRounded from '../../assets/icons/icon-right-arrow-blue-rounded.svg';
 import iconSettings from '../../assets/icons/icon-settings.svg';
+import iconUserPlusBlueRounded from '../../assets/icons/icon-user-plus-blue-rounded.svg';
 import iconVideos from '../../assets/icons/icon-videos.svg';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.png';
@@ -143,6 +145,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
                   ? 'justify-center p-2'
                   : 'bg-white rounded-lg px-3 py-2 md:px-4 md:py-2 justify-between shadow-md hover:shadow-lg transition-shadow'
               }`}
+              onClick={() => {
+                navigate('/patient/add');
+              }}
             >
               <div className="flex items-center gap-2 md:gap-3">
                 <div

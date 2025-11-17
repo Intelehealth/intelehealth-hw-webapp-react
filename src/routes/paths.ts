@@ -14,6 +14,10 @@ const ROUTES = {
   COMMON_UI: '/common-ui',
   TEST_PROFILE_GUARD: '/test-profile-guard',
   NOT_FOUND: '*', // catch-all
+  PATIENT: {
+    BASE: '/patient',
+    ADD_PATIENT: 'add',
+  },
 };
 
 export default ROUTES;

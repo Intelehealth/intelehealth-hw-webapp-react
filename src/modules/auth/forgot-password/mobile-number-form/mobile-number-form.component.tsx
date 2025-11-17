@@ -6,7 +6,7 @@ import * as yup from 'yup';
 import iconRightArrow from '../../../../assets/icons/icon-right-arrow.svg';
 import iconRoundedLock from '../../../../assets/icons/icon-rounded-lock.svg';
 import { Button, Input } from '../../../../components/common';
-import CountryCodeDropdown from '../../common/contry-code-dropdown.component';
+import CountryCodeDropdown from '../../../../components/common/contry-code-dropdown.component';
 
 const validationSchema = yup.object({
   mobile: yup

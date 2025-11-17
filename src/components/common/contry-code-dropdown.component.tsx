@@ -1,22 +1,27 @@
 // CountryCodeDropdown.tsx
 import { useEffect, useState } from 'react';
-import { countries } from '../../../assets/data/countries';
+import { countries } from '../../assets/data/countries';
+import type { CountryCode } from '../../types/common.types';
 
 interface CountryCodeDropdownProps {
-  onChange: (country: {
-    name: string;
-    code: string;
-    dial_code: string;
-  }) => void;
+  onChange: (country: CountryCode) => void;
+  value?: CountryCode;
 }
 
-const CountryCodeDropdown = ({ onChange }: CountryCodeDropdownProps) => {
-  const [selected, setSelected] = useState(countries[0]);
+const CountryCodeDropdown = ({
+  onChange,
+  value = countries[0],
+}: CountryCodeDropdownProps) => {
+  const [selected, setSelected] = useState(value);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     onChange(selected);
   }, [selected, onChange]);
+
+  useEffect(() => {
+    if (!value.dial_code) setSelected(countries[0]);
+  }, [value]);
 
   // Function to get flag image URL based on country code
 
@@ -28,13 +33,13 @@ const CountryCodeDropdown = ({ onChange }: CountryCodeDropdownProps) => {
       {/* Selected */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 flex items-center justify-between bg-blue-50 shadow-sm"
+        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 flex items-center justify-between bg-white shadow-sm"
       >
         <div className="flex items-center space-x-2 gap-2">
           <img
             src={getFlagUrl(selected.code)}
             alt={selected.name}
-            className="w-5 h-4 rounded-sm object-cover"
+            className="w-5 h-4 rounded-sm object-cover md:hidden lg:block"
           />
           <span className="text-sm">{selected.dial_code}</span>
         </div>
@@ -62,7 +67,7 @@ const CountryCodeDropdown = ({ onChange }: CountryCodeDropdownProps) => {
               <img
                 src={getFlagUrl(country.code)}
                 alt={country.name}
-                className="w-5 h-4 rounded-sm object-cover"
+                className="w-5 h-4 rounded-sm object-cover md:hidden lg:block"
               />
               <span className="text-sm">{country.code.toUpperCase()}</span>
               <span className="ml-auto text-sm text-gray-500">

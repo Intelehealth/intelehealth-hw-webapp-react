@@ -6,8 +6,8 @@ import type {
   UseFormWatch,
 } from 'react-hook-form';
 import { Calendar, Dropdown, Input, Radio } from '../../components/common';
+import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
-import CountryCodeDropdown from '../auth/common/contry-code-dropdown.component';
 import type { ProfileFormValues } from './profile.validation';
 
 interface ProfileFormFieldsProps {

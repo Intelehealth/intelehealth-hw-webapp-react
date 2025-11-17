@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ToastContent from './toast';
+import ToastContent from '../../components/toast';
 
 describe('ToastContent', () => {
   it('renders title and description when provided', () => {
