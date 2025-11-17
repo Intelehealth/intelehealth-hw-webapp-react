@@ -1,6 +1,5 @@
 import { type MessagePayload } from 'firebase/messaging';
 import React, { useEffect, useState } from 'react';
-import { useNotification } from '../../context/NotificationContext';
 import useFCM from '../../hooks/useFCM';
 import NotificationEnabledModal from './notification-enabled-modal.component';
 import NotificationPermissionModal from './notification-permission-modal.component';
@@ -41,7 +40,6 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({
   const [showEnabledModal, setShowEnabledModal] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasCheckedPermission, setHasCheckedPermission] = useState(false);
-  const { showNotification } = useNotification();
 
   const {
     isInitialized,
@@ -53,7 +51,6 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({
     error,
   } = useFCM(payload => {
     // Show custom notification instead of browser default
-    showNotification(payload);
     onNotificationReceived?.(payload);
   });
 

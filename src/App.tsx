@@ -1,4 +1,3 @@
-import { type MessagePayload } from 'firebase/messaging';
 import { memo, useCallback, useState } from 'react';
 import './App.css';
 import reactLogo from './assets/logo/logo-bg.svg';
@@ -23,29 +22,9 @@ function App() {
     setCount(prevCount => prevCount + 1);
   }, []);
 
-  // Handle notification received
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleNotificationReceived = useCallback((_: MessagePayload) => {}, []);
-
-  // Handle permission granted
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handlePermissionGranted = useCallback((_: string) => {}, []);
-
-  // Handle permission denied
-  const handlePermissionDenied = useCallback(() => {
-    // eslint-disable-next-line no-console -- error logging
-    console.error('Notification permission denied');
-  }, []);
-
   return (
     <div className="app">
-      <NotificationManager
-        autoRequest={true}
-        requestDelay={2000}
-        onNotificationReceived={handleNotificationReceived}
-        onPermissionGranted={handlePermissionGranted}
-        onPermissionDenied={handlePermissionDenied}
-      />
+      <NotificationManager autoRequest={true} requestDelay={2000} />
       <header className="app-header">
         <div className="logo-container">
           <a href="https://react.dev" target="_blank" rel="noopener noreferrer">
