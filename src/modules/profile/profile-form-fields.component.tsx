@@ -86,7 +86,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             }}
             options={locationOptions}
             placeholder="Select"
-            isRequired={true}
+            isRequired={false}
             error={errors.setupLocation?.message}
           />
 
@@ -258,7 +258,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               type="text"
               value={calculatedAge || ''}
               readOnly
-              className="form-input-base w-full text-center bg-gray-50"
+              className="form-input-base w-full text-center bg-gray-50 text-sm"
               placeholder="Age"
             />
           </div>
@@ -276,7 +276,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           }}
           options={locationOptions}
           placeholder="Select"
-          isRequired={true}
+          isRequired={false}
           error={errors.setupLocation?.message}
         />
 

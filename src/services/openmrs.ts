@@ -12,11 +12,7 @@ class OpenMRSService extends HttpService {
 
     // Request interceptor - attach JSESSIONID manually if available
     this.axiosInstance.interceptors.request.use(config => {
-      const jsessionId = cookie.getJSessionId(); // e.g. implement cookie.getJSessionId()
-      if (jsessionId) {
-        // Explicitly set the cookie header
-        config.headers.Cookie = `JSESSIONID=${jsessionId}`;
-      }
+      config.withCredentials = true; // ensure cookies are sent
       return config;
     });
 

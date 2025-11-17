@@ -1,87 +1,118 @@
-import { MindmapAuthGatewayApi } from '../../services/mindmap';
-import type {
-  PasswordChangeRequest,
-  Profile,
-  ProfileUpdateRequest,
-} from '../../types/profile.types';
+import {
+  MindmapAuthGatewayApi,
+  MindmapPortalApi,
+} from '../../services/mindmap';
+import { OpenMRSApi } from '../../services/openmrs';
 
-// API endpoints
+// API endpoints from Angular hw-profile component
 export const API_ENDPOINTS = {
-  PROFILE: '/profile',
-  CHANGE_PASSWORD: '/profile/change-password',
-  UPLOAD_PHOTO: '/profile/upload-photo',
+  GET_PROVIDER: '/auth/provider',
+  VALIDATE_ATTRIBUTE: '/auth/validateProviderAttribute',
+  PROVIDER_ATTRIBUTE_TYPE: '/providerattributetype',
+  PERSON: '/person',
+  PERSON_IMAGE: '/personimage',
+  PROVIDER: '/provider',
+  USER: '/user',
 } as const;
 
-// Profile API functions
+// Profile API functions - using only APIs from Angular hw-profile component
 export const profileService = {
-  getProfile: (userId: string) =>
-    MindmapAuthGatewayApi.get<Profile>(`${API_ENDPOINTS.PROFILE}/${userId}`),
+  // GET /auth/provider/{userId} - Get provider details (from auth.service.ts)
+  getProvider: (userId: string) =>
+    MindmapAuthGatewayApi.get(`${API_ENDPOINTS.GET_PROVIDER}/${userId}`),
 
-  getProfileStatus: async () => {
-    try {
-      // Get current user profile and check completion
-      const response = await MindmapAuthGatewayApi.get<Profile>(
-        API_ENDPOINTS.PROFILE
-      );
-      const profile = response;
+  // GET /provider/{uuid}?v=full - Get full provider details with attributes
+  getProviderByUuid: (providerUuid: string) =>
+    OpenMRSApi.get(`${API_ENDPOINTS.PROVIDER}/${providerUuid}?v=full`),
 
-      const requiredFields = [
-        'firstName',
-        'lastName',
-        'email',
-        'phone',
-        'dateOfBirth',
-        'gender',
-        'setupLocation',
-        'address.street',
-        'address.city',
-        'address.state',
-        'address.country',
-        'address.zipCode',
-        'role',
-        'department',
-        'employeeId',
-      ];
+  // GET /person/{uuid}?v=full - Get full person details
+  getPersonByUuid: (personUuid: string) =>
+    OpenMRSApi.get(`${API_ENDPOINTS.PERSON}/${personUuid}?v=full`),
 
-      const isComplete = requiredFields.every(field => {
-        if (field.includes('.')) {
-          // Handle nested fields like address.street
-          const [parent, child] = field.split('.');
-          const parentValue = profile[parent as keyof Profile];
-          if (
-            parentValue &&
-            typeof parentValue === 'object' &&
-            parentValue !== null
-          ) {
-            const value = (parentValue as Record<string, unknown>)[child];
-            return value !== null && value !== undefined && value !== '';
-          }
-          return false;
-        } else {
-          const value = profile[field as keyof Profile];
-          return value !== null && value !== undefined && value !== '';
+  // GET /user/{uuid}?v=full - Get full user details with roles and privileges
+  getUserByUuid: (userUuid: string) =>
+    OpenMRSApi.get(`${API_ENDPOINTS.USER}/${userUuid}?v=full`),
+
+  // GET /providerattributetype - Get provider attribute types
+  getProviderAttributeTypes: () =>
+    OpenMRSApi.get(API_ENDPOINTS.PROVIDER_ATTRIBUTE_TYPE),
+
+  // POST /person/{uuid} - Update person (gender, age, birthdate)
+  updatePerson: (
+    personUuid: string,
+    data: { gender: string; age: number; birthdate: string }
+  ) => OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}`, data),
+
+  // POST /person/{uuid}/name - Create person name
+  createPersonName: (
+    personUuid: string,
+    data: { givenName: string; middleName: string; familyName: string }
+  ) =>
+    OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}/name`, {
+      ...data,
+      preferred: true,
+      prefix: null,
+    }),
+
+  // POST /person/{uuid}/name/{nameUuid} - Update person name
+  updatePersonName: (
+    personUuid: string,
+    nameUuid: string,
+    data: { givenName: string; middleName: string; familyName: string }
+  ) =>
+    OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}/name/${nameUuid}`, {
+      ...data,
+      preferred: true,
+      prefix: null,
+    }),
+
+  // POST /provider/{uuid}/attribute or /provider/{uuid}/attribute/{attrUuid} - Add/Update provider attribute
+  addOrUpdateProviderAttribute: (
+    providerUuid: string,
+    attrUuid: string | null,
+    attributeTypeUuid: string,
+    value: string
+  ) => {
+    if (!value) return Promise.resolve(null);
+    if (attrUuid) {
+      // Update existing attribute
+      return OpenMRSApi.post(
+        `/provider/${providerUuid}/attribute/${attrUuid}`,
+        {
+          value,
         }
+      );
+    } else {
+      // Add new attribute
+      return OpenMRSApi.post(`/provider/${providerUuid}/attribute`, {
+        attributeType: attributeTypeUuid,
+        value,
       });
-
-      return { complete: isComplete };
-    } catch {
-      return { complete: false };
     }
   },
 
-  updateProfile: (data: ProfileUpdateRequest) => {
-    return MindmapAuthGatewayApi.put<Profile>(API_ENDPOINTS.PROFILE, data);
-  },
-
-  changePassword: (data: PasswordChangeRequest) =>
-    MindmapAuthGatewayApi.post<void>(API_ENDPOINTS.CHANGE_PASSWORD, data),
-
-  uploadPhoto: (formData: FormData) =>
-    MindmapAuthGatewayApi.post<Profile>(API_ENDPOINTS.UPLOAD_PHOTO, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  // GET /personimage/{personUuid} - Get profile image (OpenMRS personimage endpoint)
+  getProfileImage: (personUuid: string) =>
+    OpenMRSApi.get(`${API_ENDPOINTS.PERSON_IMAGE}/${personUuid}`, {
+      responseType: 'blob', // Image is returned as binary data
     }),
+
+  // POST /personimage - Update profile image (from profile.service.ts)
+  updateProfileImage: (data: { person: string; base64EncodedImage: string }) =>
+    OpenMRSApi.post(API_ENDPOINTS.PERSON_IMAGE, data, {
+      withCredentials: true,
+    }),
+
+  // POST /auth/validateProviderAttribute - Validate provider attribute (from auth.service.ts)
+  validateProviderAttribute: (data: {
+    attributeType: string;
+    attributeValue: string;
+    providerUuid: string;
+  }) => MindmapPortalApi.post(API_ENDPOINTS.VALIDATE_ATTRIBUTE, data),
+
+  // Execute multiple requests in parallel
+  requestDataFromMultipleSources: <T>(requests: Promise<T>[]) =>
+    Promise.all(requests),
 };
 
 export default profileService;
