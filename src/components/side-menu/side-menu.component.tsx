@@ -15,13 +15,7 @@ import ROUTES from '../../routes/paths';
 import { storage } from '../../utils/storage';
 
 const menuItems = [
-  { label: 'Dashboard', icon: iconHome, path: ROUTES.DASHBOARD },
-  {
-    label: 'Profile',
-    icon: iconSettings,
-    path: ROUTES.PROFILE,
-    isProfile: true,
-  },
+  { label: 'Home', icon: iconHome, path: ROUTES.DASHBOARD },
   { label: 'Achievements', icon: iconAchievements, path: '#' },
   { label: 'Help & Support', icon: iconInfo, path: '#' },
   { label: 'Educational Videos', icon: iconVideos, path: '#' },
@@ -38,6 +32,25 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const innerDivRef = useRef<HTMLDivElement>(null);
+
+  // Set responsive height for sidebar inner div
+  useEffect(() => {
+    const updateHeight = () => {
+      if (innerDivRef.current) {
+        if (window.innerWidth >= 768) {
+          innerDivRef.current.style.height = 'calc(100vh - 1.5rem)';
+          innerDivRef.current.style.maxHeight = 'calc(100vh - 1.5rem)';
+        } else {
+          innerDivRef.current.style.height = 'calc(100vh - 1rem)';
+          innerDivRef.current.style.maxHeight = 'calc(100vh - 1rem)';
+        }
+      }
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   // Close on outside click (only for mobile)
   useEffect(() => {
@@ -75,104 +88,160 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-screen bg-(--color-primary) shadow-lg z-50 p-2 transition-all duration-300
-  ${isCollapsed ? 'w-24' : 'w-64'}
+        className={`fixed top-0 left-0 h-screen bg-transparent z-50 transition-all duration-300 ease-in-out overflow-visible
+  ${isCollapsed ? 'w-20 md:w-24' : 'w-64'}
   ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
-        <div className="flex flex-col rounded-lg h-screen bg-(--color-primary) p-2">
-          {/* Arrow Toggle Button (Desktop + Mobile) */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="absolute top-13 right-0 bg-white border border-(--color-primary) shadow rounded-full w-6 h-6 flex items-center justify-center z-50 hover:bg-gray-100 transition"
-          >
-            <i
-              className={`fa-solid text-(--color-primary) text-sm ${
-                isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'
-              }`}
-            ></i>
-          </button>
+        {/* Arrow Toggle Button - positioned near Add Patient button, overlapping edge - on aside to avoid clipping */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden md:flex absolute top-20 md:top-28 right-0 translate-x-1/2 bg-white   shadow-md rounded-full w-7 h-7 items-center justify-center z-50 hover:bg-gray-100 transition-all duration-300"
+        >
+          <i
+            className={`fa-solid text-(--color-primary) text-sm ${
+              isCollapsed ? 'fa-chevron-left' : 'fa-chevron-right'
+            }`}
+          ></i>
+        </button>
+
+        <div
+          ref={innerDivRef}
+          className="flex flex-col rounded-lg bg-(--color-primary) p-2 md:p-3 my-2 md:my-3 ml-2 md:ml-3 relative shadow-lg overflow-hidden"
+        >
+          {/* Close Button for Mobile */}
+          {isMobileOpen && (
+            <button
+              onClick={() => setIsMobileOpen(false)}
+              className="md:hidden absolute top-4 right-4 text-white z-50 w-8 h-8 flex items-center justify-center"
+            >
+              <i className="fa-solid fa-times text-xl"></i>
+            </button>
+          )}
 
           {/* Header */}
-          <div className="flex items-center p-4">
+          <div className="flex items-center p-3 md:p-4 flex-shrink-0 pt-4 md:pt-6">
             {isCollapsed ? (
               <img
                 src={thumbnailLogo}
                 alt="hero"
-                className="h-[74px] object-contain"
+                className="h-12 md:h-[74px] object-contain mx-auto"
               />
             ) : (
               <img
                 src={mainLogo}
                 alt="hero"
-                className="h-[74px] object-contain"
+                className="h-12 md:h-[74px] object-contain"
               />
             )}
           </div>
-          {/* Menu Items */}
-          <nav className="p-3 space-y-2">
-            <a
-              key={'Add Patient'}
-              href="#"
-              className={`flex items-center gap-3 bg-white rounded-lg transition  ${
-                isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
+
+          {/* Add Patients Button */}
+          <div className="px-1 mt-2 md:mt-3 mb-3 md:mb-4 flex-shrink-0">
+            <Link
+              to="/add-patient"
+              onClick={() => setIsMobileOpen(false)}
+              className={`w-full flex items-center ${
+                isCollapsed
+                  ? 'justify-center p-2'
+                  : 'bg-white rounded-lg px-3 py-2 md:px-4 md:py-2 justify-between shadow-md hover:shadow-lg transition-shadow'
               }`}
               onClick={() => {
                 navigate('/patient/add');
               }}
             >
-              <img
-                src={iconUserPlusBlueRounded}
-                alt={'Add Patient'}
-                className="w-6 h-6"
-              />
-              {!isCollapsed && (
-                <>
-                  <span className="text-(--color-primary)">
-                    {'Add Patient'}
-                  </span>
-                  <img
-                    src={iconRightArrowBlueRounded}
-                    alt={'Add Patient'}
-                    className="w-6 h-6 ml-auto"
-                  />
-                </>
-              )}
-            </a>
-            {menuItems.map(item => (
-              <Link
-                key={item.label}
-                to={item.path}
-                className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                  isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
-                }`}
-              >
-                {item.isProfile ? (
-                  <i className="fa-solid fa-user text-white text-lg"></i>
-                ) : (
-                  <img src={item.icon} alt={item.label} className="w-6 h-6" />
-                )}
+              <div className="flex items-center gap-2 md:gap-3">
+                <div
+                  className={`rounded-full flex items-center justify-center ${
+                    isCollapsed
+                      ? 'w-8 h-8 md:w-10 md:h-10'
+                      : 'w-7 h-7 md:w-8 md:h-8'
+                  }`}
+                  style={{ backgroundColor: '#2e1e91' }}
+                >
+                  <i
+                    className={`fa-solid fa-user-plus text-white ${
+                      isCollapsed
+                        ? 'text-sm md:text-base'
+                        : 'text-xs md:text-sm'
+                    }`}
+                  ></i>
+                </div>
                 {!isCollapsed && (
-                  <span className="text-white">{item.label}</span>
+                  <span
+                    className="font-medium text-xs md:text-sm"
+                    style={{ color: '#2e1e91' }}
+                  >
+                    Add Patients
+                  </span>
                 )}
-              </Link>
-            ))}
+              </div>
+              {!isCollapsed && (
+                <div
+                  className="w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#e1dcff' }}
+                >
+                  <i
+                    className="fa-solid fa-chevron-right text-xs"
+                    style={{ color: '#2e1e91' }}
+                  ></i>
+                </div>
+              )}
+            </Link>
+          </div>
+          {/* Menu Items */}
+          <nav className="flex-1 space-y-1 md:space-y-2 overflow-hidden flex flex-col min-h-0">
+            <div className="flex-1 overflow-hidden">
+              {menuItems.map(item => (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  onClick={() => setIsMobileOpen(false)}
+                  className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                    isCollapsed
+                      ? 'justify-center py-3 px-0 md:py-4'
+                      : 'p-3 md:p-4'
+                  }`}
+                >
+                  <img
+                    src={item.icon}
+                    alt={item.label}
+                    className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
+                  />
+                  {!isCollapsed && (
+                    <span className="text-white text-base md:text-lg whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
           </nav>
 
           {/* Logout Section with Top Border */}
           <div className="border-t border-gray-300/20 mt-auto">
-            <nav className="p-3">
+            <nav>
               <a
                 href="#"
-                className={`flex items-center gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                  isCollapsed ? 'justify-center py-4 px-0' : 'p-4'
-                }`}
                 onClick={() => {
+                  setIsMobileOpen(false);
                   storage.clearAuthToken();
                   navigate('/auth/login');
                 }}
+                className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                  isCollapsed
+                    ? 'justify-center py-3 px-0 md:py-4'
+                    : 'p-3 md:p-4'
+                }`}
               >
-                <img src={iconPowerOff} className="w-6 h-6" />
-                {!isCollapsed && <span className="text-white">Log-out</span>}
+                <img
+                  src={iconPowerOff}
+                  className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
+                />
+                {!isCollapsed && (
+                  <span className="text-white text-base md:text-lg">
+                    Log-out
+                  </span>
+                )}
               </a>
             </nav>
           </div>
@@ -181,8 +250,8 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
 
       {/* Main Content */}
       <main
-        className={`flex-1 min-h-screen transition-all duration-300 ${
-          isCollapsed ? 'ml-24' : 'ml-64'
+        className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'md:ml-24 ml-0' : 'md:ml-64 ml-0'
         }`}
       >
         {children}

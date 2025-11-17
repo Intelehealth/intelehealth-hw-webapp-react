@@ -54,13 +54,13 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         {/* Profile Photo Section - Mobile */}
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <div className="mobile-profile-photo">
-              <i className="fa-solid fa-camera"></i>
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i className="fa-solid fa-camera text-gray-500 text-2xl"></i>
             </div>
           </div>
           <button
             type="button"
-            className="mobile-change-photo"
+            className="text-gray-500 underline text-sm text-center cursor-pointer"
             onClick={onPhotoModalOpen}
           >
             Change photo
@@ -86,7 +86,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             }}
             options={locationOptions}
             placeholder="Select"
-            isRequired={true}
+            isRequired={false}
             error={errors.setupLocation?.message}
           />
 
@@ -121,26 +121,28 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           />
 
           {/* Gender Selection - Mobile */}
-          <div className="mobile-form-field">
-            <label className="form-label block mb-3">
-              Gender <span className="mobile-required-asterisk">*</span>
+          <div className="mb-4">
+            <label className="form-label block mb-3 text-base lg:text-sm">
+              Gender <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="flex gap-6">
-              <div className="radio-container">
+              <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="male" label="Male" />
-                <i className="fa-solid fa-mars mobile-gender-icon"></i>
+                <i className="fa-solid fa-mars text-gray-600 text-sm"></i>
               </div>
-              <div className="radio-container">
+              <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="female" label="Female" />
-                <i className="fa-solid fa-venus mobile-gender-icon"></i>
+                <i className="fa-solid fa-venus text-gray-600 text-sm"></i>
               </div>
-              <div className="radio-container">
+              <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="other" label="Other" />
-                <i className="fa-solid fa-transgender mobile-gender-icon"></i>
+                <i className="fa-solid fa-transgender text-gray-600 text-sm"></i>
               </div>
             </div>
             {errors.gender && (
-              <p className="mobile-error-message">{errors.gender.message}</p>
+              <p className="text-red-500 text-xs mt-1">
+                {errors.gender.message}
+              </p>
             )}
           </div>
         </div>
@@ -256,7 +258,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               type="text"
               value={calculatedAge || ''}
               readOnly
-              className="form-input-base w-full text-center bg-gray-50"
+              className="form-input-base w-full text-center bg-gray-50 text-sm"
               placeholder="Age"
             />
           </div>
@@ -274,7 +276,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           }}
           options={locationOptions}
           placeholder="Select"
-          isRequired={true}
+          isRequired={false}
           error={errors.setupLocation?.message}
         />
 
