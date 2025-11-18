@@ -1,9 +1,7 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
-
-const mode = process.env.NODE_ENV;
 
 // Pages
 import CommonUiComponent from '../components/common/common-ui.component';
@@ -20,7 +18,7 @@ import NotFoundPage from '../pages/not-found/not-found.page';
 import ProfilePage from '../pages/profile/profile.page';
 
 const AppRoutes = () => (
-  <BrowserRouter basename={mode === 'development' ? '/' : '/hwwebapp'}>
+  <HashRouter>
     <Routes>
       {/* Auth routes (ignored) */}
       <Route
@@ -68,7 +66,7 @@ const AppRoutes = () => (
       {/* 404 fallback */}
       <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
     </Routes>
-  </BrowserRouter>
+  </HashRouter>
 );
 
 export default AppRoutes;
