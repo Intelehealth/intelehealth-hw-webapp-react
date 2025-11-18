@@ -1,49 +1,55 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { showToast } from '../../services/toast';
+import type { Profile } from '../../types/profile.types';
 import type {
-  PasswordChangeRequest,
-  Profile,
-  ProfileUpdateRequest,
-} from '../../types/profile.types';
+  HealthWorkerProfile,
+  ProviderDetailResponse,
+  UserDetailResponse,
+} from '../../types/provider.types';
 import { storage } from '../../utils/storage';
-// @ts-ignore
+import {
+  calculateAge,
+  createHealthWorkerProfile,
+  createProfile,
+  getErrorMessage,
+  mapPersonAttributes,
+  mapProviderAttributes,
+  processImageFile,
+  updateProfileAttributes,
+  type PersonDetailsType,
+} from './profile.helpers';
 import profileService from './profile.service';
 
 interface UseProfileReturn {
   profile: Profile | null;
+  hwProfile: HealthWorkerProfile | null;
   loading: boolean;
   age: number | null;
-  updateProfile: (data: ProfileUpdateRequest) => Promise<void>;
-  changePassword: (data: PasswordChangeRequest) => Promise<void>;
   uploadPhoto: (file: File) => Promise<void>;
   takePhoto: () => Promise<void>;
   calculateAge: (dateOfBirth: string) => number;
   updateAgeForDate: (dateOfBirth: string) => void;
+  refreshProfile: () => Promise<void>;
+  updateProfile: (data: {
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    gender?: 'male' | 'female' | 'other';
+    setupLocation?: string;
+  }) => Promise<void>;
 }
 
 export const useProfile = (): UseProfileReturn => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [hwProfile, setHwProfile] = useState<HealthWorkerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [age, setAge] = useState<number | null>(null);
-  const hasLoadedRef = useRef(false);
-  const errorShownRef = useRef(false);
-
-  // Calculate age from date of birth
-  const calculateAge = (dateOfBirth: string): number => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      calculatedAge--;
-    }
-
-    return calculatedAge;
-  };
+  // Store providerDetails for use in updateProfile
+  const [providerDetails, setProviderDetails] =
+    useState<ProviderDetailResponse | null>(null);
 
   // Update age when profile changes
   useEffect(() => {
@@ -65,118 +71,248 @@ export const useProfile = (): UseProfileReturn => {
     }
   };
 
-  // Load profile data on mount
   useEffect(() => {
-    // Prevent duplicate calls in React StrictMode
-    if (hasLoadedRef.current) return;
-    hasLoadedRef.current = true;
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      errorShownRef.current = false; // Reset error flag on new attempt
+
+      // Get user data from storage
       const userData = storage.getUser();
-      if (userData) {
+      if (!userData) {
+        throw new Error('User data not found. Please log in again.');
+      }
+
+      let userUuid: string;
+      let personUuid: string | undefined;
+
+      try {
         const user = JSON.parse(userData);
-        const profileData = await profileService.getProfile(user.uuid);
-        // Set default gender as male if not provided
-        const profileWithDefaults = {
-          ...profileData,
-          gender: profileData.gender || 'male',
-        };
-        setProfile(profileWithDefaults);
+        if (!user.uuid) {
+          throw new Error(
+            'User UUID not found in user data. Please log in again.'
+          );
+        }
+        userUuid = user.uuid;
+        personUuid = user.person?.uuid;
+      } catch (parseError) {
+        if (
+          parseError instanceof Error &&
+          parseError.message.includes('User')
+        ) {
+          throw parseError;
+        }
+        throw new Error('Failed to parse user data. Please log in again.');
       }
+
+      // Fetch complete user details with roles and privileges
+      let userDetails: UserDetailResponse;
+      try {
+        userDetails = (await profileService.getUserByUuid(
+          userUuid
+        )) as UserDetailResponse;
+      } catch (error) {
+        console.error('Failed to fetch user details:', error);
+        throw new Error('Failed to load user information');
+      }
+
+      // Fetch provider details using the user UUID (optional - may not exist)
+      let providerDetails: ProviderDetailResponse | null = null;
+      try {
+        const providerData = (await profileService.getProvider(userUuid)) as {
+          results?: Array<{ uuid: string }>;
+        };
+        if (providerData?.results?.[0]) {
+          const providerUuid = providerData.results[0].uuid;
+          // Fetch full provider details with attributes
+          providerDetails = (await profileService.getProviderByUuid(
+            providerUuid
+          )) as ProviderDetailResponse;
+          // Store providerDetails for use in updateProfile
+          setProviderDetails(providerDetails);
+        }
+      } catch (error) {
+        console.warn(
+          'Failed to fetch provider details (may not be a provider):',
+          error
+        );
+        // Continue without provider details
+        setProviderDetails(null);
+      }
+
+      // Use person UUID from user details or from stored user data
+      const finalPersonUuid = userDetails.person?.uuid || personUuid;
+      if (!finalPersonUuid) {
+        throw new Error('Person UUID not found. Please log in again.');
+      }
+
+      // Fetch person details
+      let personDetails: PersonDetailsType;
+      try {
+        personDetails = (await profileService.getPersonByUuid(
+          finalPersonUuid
+        )) as PersonDetailsType;
+      } catch (error) {
+        console.error('Failed to fetch person details:', error);
+        throw new Error('Failed to load person information');
+      }
+
+      const attributes = mapProviderAttributes(providerDetails);
+      const personAttributes = mapPersonAttributes(personDetails);
+      const roles = userDetails.roles.map(r => r.name);
+
+      setHwProfile(
+        createHealthWorkerProfile(
+          userDetails,
+          personDetails,
+          providerDetails,
+          attributes,
+          personAttributes
+        )
+      );
+      setProfile(
+        createProfile(
+          userDetails,
+          personDetails,
+          providerDetails,
+          attributes,
+          personAttributes,
+          roles
+        )
+      );
     } catch (error) {
-      console.error('Failed to load profile:', error);
-      // Only show error toast once
-      if (!errorShownRef.current) {
-        errorShownRef.current = true;
-        showToast('Error', 'Failed to load profile data', 'error');
-      }
+      const message = getErrorMessage(error) || 'Failed to load profile data';
+      showToast('Error', message, 'error');
+      console.error('Profile loading error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateProfile = async (data: ProfileUpdateRequest) => {
-    // Set loading immediately before async operation
-    setLoading(true);
-    try {
-      const updatedProfile = await profileService.updateProfile(data);
-      setProfile(updatedProfile);
-      showToast('Success', 'Profile updated successfully', 'success');
-    } catch (error: unknown) {
-      let message = 'Failed to update profile';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as {
-          response?: { data?: { message?: string } };
-        };
-        if (
-          axiosError.response &&
-          axiosError.response.data &&
-          axiosError.response.data.message
-        ) {
-          message = axiosError.response.data.message;
-        }
-      }
-      showToast('Error', message, 'error');
-    } finally {
-      setLoading(false);
+  const updateProfile = async (data: {
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    gender?: 'male' | 'female' | 'other';
+    setupLocation?: string;
+  }) => {
+    if (!profile || !hwProfile || !hwProfile.providerUuid) {
+      throw new Error('Profile not loaded or provider not found');
     }
-  };
 
-  const changePassword = async (data: PasswordChangeRequest) => {
-    // Ensure loading starts before await
     setLoading(true);
     try {
-      await profileService.changePassword(data);
-      showToast('Success', 'Password changed successfully', 'success');
-    } catch (error: unknown) {
-      let message = 'Failed to change password';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as {
-          response?: { data?: { message?: string } };
+      const genderMap: Record<string, string> = {
+        male: 'M',
+        female: 'F',
+        other: 'U',
+      };
+      const openMRSGender = data.gender ? genderMap[data.gender] : undefined;
+      const age = data.dateOfBirth
+        ? calculateAge(data.dateOfBirth)
+        : profile.age;
+
+      if (openMRSGender && age && data.dateOfBirth) {
+        await profileService.updatePerson(hwProfile.personUuid, {
+          gender: openMRSGender,
+          age,
+          birthdate: data.dateOfBirth,
+        });
+      }
+
+      const personDetails = (await profileService.getPersonByUuid(
+        hwProfile.personUuid
+      )) as { preferredName?: { uuid: string } };
+
+      if (data.firstName || data.middleName || data.lastName) {
+        const nameData = {
+          givenName: data.firstName || profile.firstName,
+          middleName: data.middleName || profile.middleName || '',
+          familyName: data.lastName || profile.lastName,
         };
-        if (
-          axiosError.response &&
-          axiosError.response.data &&
-          axiosError.response.data.message
-        ) {
-          message = axiosError.response.data.message;
+        if (personDetails.preferredName?.uuid) {
+          await profileService.updatePersonName(
+            hwProfile.personUuid,
+            personDetails.preferredName.uuid,
+            nameData
+          );
+        } else {
+          await profileService.createPersonName(hwProfile.personUuid, nameData);
         }
       }
+
+      await updateProfileAttributes(
+        data,
+        providerDetails,
+        hwProfile.providerUuid
+      );
+
+      // Reload profile to get updated data - matches Angular line 441
+      await loadProfile();
+
+      showToast('Success', 'Profile has been updated successfully', 'success');
+    } catch (error) {
+      const message = getErrorMessage(error) || 'Failed to update profile';
       showToast('Error', message, 'error');
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const uploadPhoto = async (file: File) => {
-    // Start loading first
+    if (
+      !file.name.toLowerCase().endsWith('.jpg') &&
+      !file.name.toLowerCase().endsWith('.jpeg')
+    ) {
+      showToast('Warning', 'Upload JPG/JPEG format image only.', 'warning');
+      return;
+    }
+
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('photo', file);
-      const updatedProfile = await profileService.uploadPhoto(formData);
-      setProfile(updatedProfile);
-      showToast('Success', 'Photo uploaded successfully', 'success');
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target?.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
+      if (profile) setProfile({ ...profile, avatar: dataUrl });
+      if (hwProfile) setHwProfile({ ...hwProfile, avatar: dataUrl });
+
+      const cleanedBase64 = await processImageFile(file);
+      const personUuid =
+        providerDetails?.person?.uuid ||
+        hwProfile?.personUuid ||
+        profile?.id ||
+        '';
+      if (!personUuid) throw new Error('Person UUID not found');
+
+      await profileService.updateProfileImage({
+        person: personUuid,
+        base64EncodedImage: cleanedBase64,
+      });
+
+      const baseUrl =
+        import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
+      const imageUrl = `${baseUrl}/personimage/${personUuid}?t=${Date.now()}`;
+      if (profile) setProfile({ ...profile, avatar: imageUrl });
+      if (hwProfile) setHwProfile({ ...hwProfile, avatar: imageUrl });
+
+      await loadProfile();
+      showToast('Success', 'Profile picture uploaded successfully!', 'success');
     } catch (error: unknown) {
-      let message = 'Failed to upload photo';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as {
-          response?: { data?: { message?: string } };
-        };
-        if (
-          axiosError.response &&
-          axiosError.response.data &&
-          axiosError.response.data.message
-        ) {
-          message = axiosError.response.data.message;
-        }
-      }
-      showToast('Error', message, 'error');
+      showToast(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to upload photo',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -197,13 +333,14 @@ export const useProfile = (): UseProfileReturn => {
 
   return {
     profile,
+    hwProfile,
     loading,
     age,
-    updateProfile,
-    changePassword,
     uploadPhoto,
     takePhoto,
     calculateAge,
     updateAgeForDate,
+    refreshProfile: loadProfile,
+    updateProfile,
   };
 };

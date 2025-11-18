@@ -1,0 +1,753 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import PatientAddressInfo from '../../../../../../modules/patient/add/steps/address-info/patient-address-info.component';
+
+// Mock the common components
+vi.mock('../../../../../../components/common', () => ({
+  Button: ({ children, onClick, type, variant, className }: any) => (
+    <button type={type} onClick={onClick} className={className} data-variant={variant}>
+      {children}
+    </button>
+  ),
+  Input: ({ label, placeholder, error, isRequired, ...props }: any) => (
+    <div>
+      {label && (
+        <label>
+          {label} {isRequired && <span>*</span>}
+        </label>
+      )}
+      <input placeholder={placeholder} {...props} />
+      {error && <span className="error">{error}</span>}
+    </div>
+  ),
+  Dropdown: ({ label, options, onChange, value, error, isRequired, placeholder }: any) => (
+    <div>
+      {label && (
+        <label>
+          {label} {isRequired && <span>*</span>}
+        </label>
+      )}
+      <select
+        value={Array.isArray(value) ? value[0] : value}
+        onChange={(e) => onChange?.(e.target.value)}
+        data-testid={`dropdown-${label}`}
+      >
+        <option value="">{placeholder}</option>
+        {options?.map((option: any) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error && <span className="error">{error}</span>}
+    </div>
+  ),
+}));
+
+// Mock the countries data
+vi.mock('../../../../../../assets/data/countries', () => ({
+  countries: [
+    { name: 'India', code: 'IN' },
+    { name: 'United States', code: 'US' },
+    { name: 'United Kingdom', code: 'UK' },
+  ],
+}));
+
+describe('PatientAddressInfo', () => {
+  const mockOnNext = vi.fn();
+  const mockOnPrev = vi.fn();
+  const defaultValues = {
+    postalCode: '',
+    country: '',
+    state: '',
+    district: '',
+    city: '',
+    correspondingAddress1: '',
+    correspondingAddress2: '',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Component Rendering', () => {
+    it('should render without crashing', () => {
+      expect(() => {
+        render(
+          <PatientAddressInfo
+            defaultValues={defaultValues}
+            onNext={mockOnNext}
+            onPrev={mockOnPrev}
+          />
+        );
+      }).not.toThrow();
+    });
+
+    it('should render with default values', () => {
+      const valuesWithData = {
+        postalCode: '123456',
+        country: 'India',
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+        correspondingAddress1: '123 Main Street',
+        correspondingAddress2: 'Apt 4B',
+      };
+
+      render(
+        <PatientAddressInfo
+          defaultValues={valuesWithData}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      expect(postalCodeInput).toHaveValue('123456');
+    });
+
+    it('should render form element', () => {
+      const { container } = render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const form = container.querySelector('form');
+      expect(form).toBeInTheDocument();
+    });
+  });
+
+  describe('Form Fields Rendering', () => {
+    it('should render postalCode field with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Postal Code')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Postal Code Name')).toBeInTheDocument();
+      const postalCodeLabel = screen.getByText('Postal Code');
+      expect(postalCodeLabel.parentElement).toContainHTML('*');
+    });
+
+    it('should render country dropdown with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Country')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-Country')).toBeInTheDocument();
+      const countryLabel = screen.getByText('Country');
+      expect(countryLabel.parentElement).toContainHTML('*');
+    });
+
+    it('should render state dropdown with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('State')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-State')).toBeInTheDocument();
+      const stateLabel = screen.getByText('State');
+      expect(stateLabel.parentElement).toContainHTML('*');
+    });
+
+    it('should render district dropdown with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('District')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-District')).toBeInTheDocument();
+      const districtLabel = screen.getByText('District');
+      expect(districtLabel.parentElement).toContainHTML('*');
+    });
+
+    it('should render city dropdown with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Village/Town/City')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-Village/Town/City')).toBeInTheDocument();
+      const cityLabel = screen.getByText('Village/Town/City');
+      expect(cityLabel.parentElement).toContainHTML('*');
+    });
+
+    it('should render correspondingAddress1 field with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Corresponding Address')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Corresponding Address 1')).toBeInTheDocument();
+      const address1Label = screen.getByText('Corresponding Address');
+      expect(address1Label.parentElement).toContainHTML('*');
+    });
+
+    it('should render correspondingAddress2 field with required indicator', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Corresponding Address 2')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Corresponding Address 2')).toBeInTheDocument();
+      const address2Label = screen.getByText('Corresponding Address 2');
+      expect(address2Label.parentElement).toContainHTML('*');
+    });
+  });
+
+  describe('Dropdown Options', () => {
+    it('should render country options from countries data', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const indiaElements = screen.getAllByText('India');
+      expect(indiaElements.length).toBeGreaterThan(0);
+      const usElements = screen.getAllByText('United States');
+      expect(usElements.length).toBeGreaterThan(0);
+      const ukElements = screen.getAllByText('United Kingdom');
+      expect(ukElements.length).toBeGreaterThan(0);
+    });
+
+    it('should render state options from countries data', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const stateDropdown = screen.getByTestId('dropdown-State');
+      expect(stateDropdown).toBeInTheDocument();
+      // Options are rendered from countries array
+      const options = stateDropdown.querySelectorAll('option');
+      expect(options.length).toBeGreaterThan(1); // Placeholder + countries
+    });
+
+    it('should render district options from countries data', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const districtDropdown = screen.getByTestId('dropdown-District');
+      expect(districtDropdown).toBeInTheDocument();
+      const options = districtDropdown.querySelectorAll('option');
+      expect(options.length).toBeGreaterThan(1);
+    });
+
+    it('should render city options from countries data', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const cityDropdown = screen.getByTestId('dropdown-Village/Town/City');
+      expect(cityDropdown).toBeInTheDocument();
+      const options = cityDropdown.querySelectorAll('option');
+      expect(options.length).toBeGreaterThan(1);
+    });
+  });
+
+  describe('Form Validation', () => {
+    it('should display error for empty postalCode on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Postal Code is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty country on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Country is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty state on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('State is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty district on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('District is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty city on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Village/Town/City is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty correspondingAddress1 on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Corresponding Address 1 is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display error for empty correspondingAddress2 on submit', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Corresponding Address 2 is required')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Form Submission', () => {
+    it('should call onNext with addressInfo data on valid form submission', async () => {
+      const user = userEvent.setup();
+      const validValues = {
+        postalCode: '123456',
+        country: 'India',
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+        correspondingAddress1: '123 Main Street',
+        correspondingAddress2: 'Apt 4B',
+      };
+
+      render(
+        <PatientAddressInfo
+          defaultValues={validValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalledWith({
+          addressInfo: expect.objectContaining({
+            postalCode: '123456',
+            country: 'India',
+            state: 'Karnataka',
+          }),
+        });
+      });
+    });
+
+    it('should not call onNext on invalid form submission', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Back Button', () => {
+    it('should render Back button', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const backButton = screen.getByText('Back');
+      expect(backButton).toBeInTheDocument();
+      expect(backButton.closest('button')).toHaveAttribute('type', 'button');
+    });
+
+    it('should call onPrev when Back button is clicked', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const backButton = screen.getByText('Back');
+      await user.click(backButton);
+
+      expect(mockOnPrev).toHaveBeenCalledTimes(1);
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Next Button', () => {
+    it('should render Next button', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      expect(nextButton).toBeInTheDocument();
+      expect(nextButton.closest('button')).toHaveAttribute('type', 'submit');
+    });
+  });
+
+  describe('Field Interactions', () => {
+    it('should handle postalCode input change', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await user.type(postalCodeInput, '123456');
+
+      expect(postalCodeInput).toHaveValue('123456');
+    });
+
+    it('should handle country selection', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const countryDropdown = screen.getByTestId('dropdown-Country');
+      await user.selectOptions(countryDropdown, 'India');
+
+      expect(countryDropdown).toHaveValue('India');
+    });
+
+    it('should handle state selection', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const stateDropdown = screen.getByTestId('dropdown-State');
+      await user.selectOptions(stateDropdown, 'India');
+
+      expect(stateDropdown).toHaveValue('India');
+    });
+
+    it('should handle district selection', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const districtDropdown = screen.getByTestId('dropdown-District');
+      await user.selectOptions(districtDropdown, 'India');
+
+      expect(districtDropdown).toHaveValue('India');
+    });
+
+    it('should handle city selection', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const cityDropdown = screen.getByTestId('dropdown-Village/Town/City');
+      await user.selectOptions(cityDropdown, 'India');
+
+      expect(cityDropdown).toHaveValue('India');
+    });
+
+    it('should handle correspondingAddress1 input change', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const address1Input = screen.getByPlaceholderText('Enter Corresponding Address 1');
+      await user.type(address1Input, '123 Main Street');
+
+      expect(address1Input).toHaveValue('123 Main Street');
+    });
+
+    it('should handle correspondingAddress2 input change', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const address2Input = screen.getByPlaceholderText('Enter Corresponding Address 2');
+      await user.type(address2Input, 'Apt 4B');
+
+      expect(address2Input).toHaveValue('Apt 4B');
+    });
+  });
+
+  describe('Layout and Styling', () => {
+    it('should have correct form layout classes', () => {
+      const { container } = render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const form = container.querySelector('form');
+      expect(form).toHaveClass('space-y-6', 'h-full');
+    });
+
+    it('should have correct button layout classes', () => {
+      const { container } = render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const buttonContainer = container.querySelector('.flex.gap-3');
+      expect(buttonContainer).toBeInTheDocument();
+    });
+
+    it('should render Back button with secondary variant', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const backButton = screen.getByText('Back').closest('button');
+      expect(backButton).toHaveAttribute('data-variant', 'secondary');
+    });
+
+    it('should render Next button with primary variant', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next').closest('button');
+      expect(nextButton).toHaveAttribute('data-variant', 'primary');
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have all required field indicators', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const requiredIndicators = screen.getAllByText('*');
+      expect(requiredIndicators.length).toBeGreaterThan(0);
+    });
+
+    it('should have accessible buttons', () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      expect(buttons).toHaveLength(2); // Back and Next
+      buttons.forEach(button => {
+        expect(button).toHaveAccessibleName();
+      });
+    });
+  });
+
+  describe('Component Props', () => {
+    it('should accept and use onNext prop', () => {
+      const customOnNext = vi.fn();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={customOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Next')).toBeInTheDocument();
+    });
+
+    it('should accept and use onPrev prop', () => {
+      const customOnPrev = vi.fn();
+      render(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={customOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Back')).toBeInTheDocument();
+    });
+  });
+});

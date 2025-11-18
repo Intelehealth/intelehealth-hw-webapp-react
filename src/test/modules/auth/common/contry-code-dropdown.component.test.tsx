@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import CountryCodeDropdown from '../../../../modules/auth/common/contry-code-dropdown.component';
+import CountryCodeDropdown from '../../../../components/common/contry-code-dropdown.component';
 
 // Mock the countries data
 vi.mock('../../../../assets/data/countries', () => ({

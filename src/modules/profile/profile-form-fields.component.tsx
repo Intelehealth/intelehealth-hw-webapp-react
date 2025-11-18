@@ -6,8 +6,8 @@ import type {
   UseFormWatch,
 } from 'react-hook-form';
 import { Calendar, Dropdown, Input, Radio } from '../../components/common';
+import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
-import CountryCodeDropdown from '../auth/common/contry-code-dropdown.component';
 import type { ProfileFormValues } from './profile.validation';
 
 interface ProfileFormFieldsProps {
@@ -86,7 +86,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             }}
             options={locationOptions}
             placeholder="Select"
-            isRequired={true}
+            isRequired={false}
             error={errors.setupLocation?.message}
           />
 
@@ -258,7 +258,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               type="text"
               value={calculatedAge || ''}
               readOnly
-              className="form-input-base w-full text-center bg-gray-50"
+              className="form-input-base w-full text-center bg-gray-50 text-sm"
               placeholder="Age"
             />
           </div>
@@ -276,7 +276,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           }}
           options={locationOptions}
           placeholder="Select"
-          isRequired={true}
+          isRequired={false}
           error={errors.setupLocation?.message}
         />
 

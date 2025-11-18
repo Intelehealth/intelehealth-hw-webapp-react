@@ -4,20 +4,34 @@ import { useProfile } from '../../../modules/profile/profile.hooks';
 
 // Hoisted mocks to avoid Vitest hoisting issues
 const h = vi.hoisted(() => ({
-  mockGetProfile: vi.fn(),
-  mockUpdateProfile: vi.fn(),
-  mockChangePassword: vi.fn(),
-  mockUploadPhoto: vi.fn(),
+  mockGetUserByUuid: vi.fn(),
+  mockGetProvider: vi.fn(),
+  mockGetProviderByUuid: vi.fn(),
+  mockGetPersonByUuid: vi.fn(),
+  mockUpdatePerson: vi.fn(),
+  mockUpdatePersonName: vi.fn(),
+  mockCreatePersonName: vi.fn(),
+  mockUpdateProfileImage: vi.fn(),
+  mockGetProviderAttributeTypes: vi.fn(),
+  mockAddOrUpdateProviderAttribute: vi.fn(),
+  mockRequestDataFromMultipleSources: vi.fn(),
   mockShowToast: vi.fn(),
   mockGetUser: vi.fn(),
 }));
 
 vi.mock('../../../modules/profile/profile.service', () => ({
   default: {
-    getProfile: h.mockGetProfile,
-    updateProfile: h.mockUpdateProfile,
-    changePassword: h.mockChangePassword,
-    uploadPhoto: h.mockUploadPhoto,
+    getUserByUuid: h.mockGetUserByUuid,
+    getProvider: h.mockGetProvider,
+    getProviderByUuid: h.mockGetProviderByUuid,
+    getPersonByUuid: h.mockGetPersonByUuid,
+    updatePerson: h.mockUpdatePerson,
+    updatePersonName: h.mockUpdatePersonName,
+    createPersonName: h.mockCreatePersonName,
+    updateProfileImage: h.mockUpdateProfileImage,
+    getProviderAttributeTypes: h.mockGetProviderAttributeTypes,
+    addOrUpdateProviderAttribute: h.mockAddOrUpdateProviderAttribute,
+    requestDataFromMultipleSources: h.mockRequestDataFromMultipleSources,
   },
 }));
 
@@ -32,25 +46,77 @@ vi.mock('../../../utils/storage', () => ({
 }));
 
 describe('useProfile', () => {
-  const mockProfile = {
-    firstName: 'John',
-    middleName: 'M',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '1234567890',
-    dateOfBirth: '1990-01-01',
-    gender: 'male' as const,
-    setupLocation: 'sf-clinic',
+  const mockUser = {
+    uuid: 'user-uuid-123',
+    person: {
+      uuid: 'person-uuid-123',
+    },
   };
 
-  const mockUser = {
-    uuid: 'test-uuid',
+  const mockUserDetails = {
+    uuid: 'user-uuid-123',
+    person: {
+      uuid: 'person-uuid-123',
+    },
+    roles: [
+      { name: 'Provider', uuid: 'role-uuid-1' },
+      { name: 'Health Worker', uuid: 'role-uuid-2' },
+    ],
+    privileges: [
+      { name: 'View Patients', uuid: 'priv-uuid-1' },
+      { name: 'Edit Patients', uuid: 'priv-uuid-2' },
+    ],
+    username: 'johndoe',
+    systemId: 'system-123',
+    display: 'John Doe (johndoe)',
+  };
+
+  const mockProviderData = {
+    results: [
+      {
+        uuid: 'provider-uuid-123',
+      },
+    ],
+  };
+
+  const mockProviderDetails = {
+    uuid: 'provider-uuid-123',
+    person: {
+      uuid: 'person-uuid-123',
+    },
+    attributes: [
+      { attributeType: { uuid: 'phone-attr-uuid' }, value: '1234567890' },
+      {
+        attributeType: { uuid: 'email-attr-uuid' },
+        value: 'john.doe@example.com',
+      },
+    ],
+  };
+
+  const mockPersonDetails = {
+    uuid: 'person-uuid-123',
+    display: 'John M Doe',
+    gender: 'M',
+    birthdate: '1990-01-01',
+    preferredName: {
+      uuid: 'name-uuid-123',
+      givenName: 'John',
+      middleName: 'M',
+      familyName: 'Doe',
+    },
+    attributes: [],
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     h.mockGetUser.mockReturnValue(JSON.stringify(mockUser));
-    h.mockGetProfile.mockResolvedValue(mockProfile);
+    h.mockGetUserByUuid.mockResolvedValue(mockUserDetails);
+    h.mockGetProvider.mockResolvedValue(mockProviderData);
+    h.mockGetProviderByUuid.mockResolvedValue(mockProviderDetails);
+    h.mockGetPersonByUuid.mockResolvedValue(mockPersonDetails);
+    h.mockGetProviderAttributeTypes.mockResolvedValue({ results: [] });
+    h.mockAddOrUpdateProviderAttribute.mockResolvedValue({});
+    h.mockRequestDataFromMultipleSources.mockResolvedValue([]);
   });
 
   it('should initialize with default values', async () => {
@@ -77,21 +143,29 @@ describe('useProfile', () => {
     });
 
     expect(h.mockGetUser).toHaveBeenCalled();
-    expect(h.mockGetProfile).toHaveBeenCalledWith('test-uuid');
-    expect(result.current.profile).toEqual({
-      ...mockProfile,
-      gender: 'male', // Default gender
-    });
+    expect(h.mockGetUserByUuid).toHaveBeenCalledWith('user-uuid-123');
+    expect(h.mockGetProvider).toHaveBeenCalledWith('user-uuid-123');
+    expect(h.mockGetProviderByUuid).toHaveBeenCalledWith('provider-uuid-123');
+    expect(h.mockGetPersonByUuid).toHaveBeenCalledWith('person-uuid-123');
+    expect(result.current.profile).not.toBeNull();
+    expect(result.current.profile?.firstName).toBe('John');
+    expect(result.current.profile?.lastName).toBe('Doe');
   });
 
   it('should handle loadProfile error', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    h.mockGetProfile.mockRejectedValue(new Error('Network error'));
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    h.mockGetUserByUuid.mockRejectedValue(new Error('Network error'));
 
     renderHook(() => useProfile());
 
     await waitFor(() => {
-      expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to load profile data', 'error');
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
     });
 
     consoleErrorSpy.mockRestore();
@@ -106,14 +180,14 @@ describe('useProfile', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(h.mockGetProfile).not.toHaveBeenCalled();
+    expect(h.mockGetUserByUuid).not.toHaveBeenCalled();
     expect(result.current.profile).toBeNull();
   });
 
   it('should set default gender as male if not provided', async () => {
-    const profileWithoutGender = { ...mockProfile };
-    delete (profileWithoutGender as any).gender;
-    h.mockGetProfile.mockResolvedValue(profileWithoutGender);
+    const personWithoutGender = { ...mockPersonDetails };
+    delete (personWithoutGender as any).gender;
+    h.mockGetPersonByUuid.mockResolvedValue(personWithoutGender);
 
     const { result } = renderHook(() => useProfile());
 
@@ -129,7 +203,7 @@ describe('useProfile', () => {
     const today = new Date();
     const birthYear = today.getFullYear() - 30;
     const birthDate = `${birthYear}-01-01`;
-    
+
     const age = result.current.calculateAge(birthDate);
     expect(age).toBe(30);
   });
@@ -142,7 +216,7 @@ describe('useProfile', () => {
     // Use a future month so birthday hasn't occurred
     const futureMonth = String(today.getMonth() + 2).padStart(2, '0');
     const birthDate = `${birthYear}-${futureMonth}-15`;
-    
+
     const age = result.current.calculateAge(birthDate);
     expect(age).toBe(29); // One year less because birthday hasn't occurred
   });
@@ -156,17 +230,17 @@ describe('useProfile', () => {
     // Use a future day in the current month
     const futureDay = String(today.getDate() + 5).padStart(2, '0');
     const birthDate = `${birthYear}-${currentMonth}-${futureDay}`;
-    
+
     const age = result.current.calculateAge(birthDate);
     expect(age).toBe(29); // One year less because birthday hasn't occurred
   });
 
   it('should update age when profile dateOfBirth changes', async () => {
-    const profileWithDate = {
-      ...mockProfile,
-      dateOfBirth: '1995-06-15',
+    const personWithDate = {
+      ...mockPersonDetails,
+      birthdate: '1995-06-15',
     };
-    h.mockGetProfile.mockResolvedValue(profileWithDate);
+    h.mockGetPersonByUuid.mockResolvedValue(personWithDate);
 
     const { result } = renderHook(() => useProfile());
 
@@ -179,14 +253,16 @@ describe('useProfile', () => {
     // Age should be calculated automatically
     await waitFor(() => {
       expect(result.current.age).toBeGreaterThan(0);
-      expect(result.current.age).toBe(result.current.calculateAge('1995-06-15'));
+      expect(result.current.age).toBe(
+        result.current.calculateAge('1995-06-15')
+      );
     });
   });
 
   it('should set age to null when profile has no dateOfBirth', async () => {
-    const profileWithoutDate = { ...mockProfile };
-    delete (profileWithoutDate as any).dateOfBirth;
-    h.mockGetProfile.mockResolvedValue(profileWithoutDate);
+    const personWithoutDate = { ...mockPersonDetails };
+    delete (personWithoutDate as any).birthdate;
+    h.mockGetPersonByUuid.mockResolvedValue(personWithoutDate);
 
     const { result } = renderHook(() => useProfile());
 
@@ -243,6 +319,7 @@ describe('useProfile', () => {
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
     });
 
     const updateData = {
@@ -250,16 +327,22 @@ describe('useProfile', () => {
       lastName: 'Smith',
     };
 
-    const updatedProfile = { ...mockProfile, ...updateData };
-    h.mockUpdateProfile.mockResolvedValue(updatedProfile);
+    h.mockUpdatePersonName.mockResolvedValue({});
+    h.mockGetPersonByUuid.mockResolvedValueOnce({
+      ...mockPersonDetails,
+      preferredName: { uuid: 'name-uuid-123' },
+    });
 
     await act(async () => {
       await result.current.updateProfile(updateData);
     });
 
-    expect(h.mockUpdateProfile).toHaveBeenCalledWith(updateData);
-    expect(result.current.profile).toEqual(updatedProfile);
-    expect(h.mockShowToast).toHaveBeenCalledWith('Success', 'Profile updated successfully', 'success');
+    expect(h.mockUpdatePersonName).toHaveBeenCalled();
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Success',
+      'Profile has been updated successfully',
+      'success'
+    );
     expect(result.current.loading).toBe(false);
   });
 
@@ -268,178 +351,27 @@ describe('useProfile', () => {
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
     });
 
     const error = new Error('Update failed');
-    h.mockUpdateProfile.mockRejectedValue(error);
+    h.mockGetPersonByUuid.mockRejectedValueOnce(error);
 
     await act(async () => {
-      await result.current.updateProfile({ firstName: 'Jane' });
+      try {
+        await result.current.updateProfile({ firstName: 'Jane' });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        // Expected to throw
+      }
     });
 
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to update profile', 'error');
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Failed to update profile',
+      'error'
+    );
     expect(result.current.loading).toBe(false);
-  });
-
-  it('should handle updateProfile error with axios error message', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const axiosError = {
-      response: {
-        data: {
-          message: 'Validation failed',
-        },
-      },
-    };
-    h.mockUpdateProfile.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      await result.current.updateProfile({ firstName: 'Jane' });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Validation failed', 'error');
-  });
-
-  it('should handle updateProfile error with axios error but no message', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const axiosError = {
-      response: {
-        data: {},
-      },
-    };
-    h.mockUpdateProfile.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      await result.current.updateProfile({ firstName: 'Jane' });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to update profile', 'error');
-  });
-
-  it('should handle updateProfile error with axios error but no response.data', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const axiosError = {
-      response: {},
-    };
-    h.mockUpdateProfile.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      await result.current.updateProfile({ firstName: 'Jane' });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to update profile', 'error');
-  });
-
-  it('should change password successfully', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const passwordData = {
-      currentPassword: 'oldpass',
-      newPassword: 'newpass',
-      confirmPassword: 'newpass',
-    };
-
-    h.mockChangePassword.mockResolvedValue(undefined);
-
-    await act(async () => {
-      return await result.current.changePassword(passwordData);
-    });
-
-    expect(h.mockChangePassword).toHaveBeenCalledWith(passwordData);
-    expect(h.mockShowToast).toHaveBeenCalledWith('Success', 'Password changed successfully', 'success');
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('should handle changePassword error', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const error = new Error('Password change failed');
-    h.mockChangePassword.mockRejectedValue(error);
-
-    await act(async () => {
-      return await result.current.changePassword({
-        currentPassword: 'oldpass',
-        newPassword: 'newpass',
-        confirmPassword: ''
-      });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to change password', 'error');
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('should handle changePassword error with axios error message', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const axiosError = {
-      response: {
-        data: {
-          message: 'Current password is incorrect',
-        },
-      },
-    };
-    h.mockChangePassword.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      return await result.current.changePassword({
-        currentPassword: 'wrongpass',
-        newPassword: 'newpass',
-        confirmPassword: ''
-      });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Current password is incorrect', 'error');
-  });
-
-  it('should handle changePassword error with axios error but no message', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const axiosError = {
-      response: {
-        data: {},
-      },
-    };
-    h.mockChangePassword.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      return await result.current.changePassword({
-        currentPassword: 'oldpass',
-        newPassword: 'newpass',
-        confirmPassword: ''
-      });
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to change password', 'error');
   });
 
   it('should upload photo successfully', async () => {
@@ -450,16 +382,18 @@ describe('useProfile', () => {
     });
 
     const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    const updatedProfile = { ...mockProfile, photoUrl: 'http://example.com/photo.jpg' };
-    h.mockUploadPhoto.mockResolvedValue(updatedProfile);
+    h.mockUpdateProfileImage.mockResolvedValue({});
 
     await act(async () => {
       await result.current.uploadPhoto(file);
     });
 
-    expect(h.mockUploadPhoto).toHaveBeenCalled();
-    expect(result.current.profile).toEqual(updatedProfile);
-    expect(h.mockShowToast).toHaveBeenCalledWith('Success', 'Photo uploaded successfully', 'success');
+    expect(h.mockUpdateProfileImage).toHaveBeenCalled();
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Success',
+      'Profile picture uploaded successfully!',
+      'success'
+    );
     expect(result.current.loading).toBe(false);
   });
 
@@ -472,60 +406,39 @@ describe('useProfile', () => {
 
     const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
     const error = new Error('Upload failed');
-    h.mockUploadPhoto.mockRejectedValue(error);
+    h.mockUpdateProfileImage.mockRejectedValue(error);
 
     await act(async () => {
       await result.current.uploadPhoto(file);
     });
 
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to upload photo', 'error');
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Upload failed',
+      'error'
+    );
     expect(result.current.loading).toBe(false);
   });
 
-  it('should handle uploadPhoto error with axios error message', async () => {
+  it('should reject non-JPG/JPEG files', async () => {
     const { result } = renderHook(() => useProfile());
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    const axiosError = {
-      response: {
-        data: {
-          message: 'File size too large',
-        },
-      },
-    };
-    h.mockUploadPhoto.mockRejectedValue(axiosError);
+    const file = new File(['photo'], 'photo.png', { type: 'image/png' });
 
     await act(async () => {
       await result.current.uploadPhoto(file);
     });
 
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'File size too large', 'error');
-  });
-
-  it('should handle uploadPhoto error with axios error but no message', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    const axiosError = {
-      response: {
-        data: {},
-      },
-    };
-    h.mockUploadPhoto.mockRejectedValue(axiosError);
-
-    await act(async () => {
-      await result.current.uploadPhoto(file);
-    });
-
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to upload photo', 'error');
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Warning',
+      'Upload JPG/JPEG format image only.',
+      'warning'
+    );
+    expect(h.mockUpdateProfileImage).not.toHaveBeenCalled();
   });
 
   it('should call takePhoto and show info toast', async () => {
@@ -539,26 +452,11 @@ describe('useProfile', () => {
       await result.current.takePhoto();
     });
 
-    expect(h.mockShowToast).toHaveBeenCalledWith('Info', 'Camera functionality not implemented yet', 'info');
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('should handle takePhoto and set loading state correctly', async () => {
-    const { result } = renderHook(() => useProfile());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    // TakePhoto shows info toast and sets loading
-    // Since setLoading is now outside try block, it should be set immediately
-    await act(async () => {
-      result.current.takePhoto();
-    });
-    
-    // After act completes, loading should have been set to true and then back to false
-    // We can verify the toast was called, which means the function executed
-    expect(h.mockShowToast).toHaveBeenCalledWith('Info', 'Camera functionality not implemented yet', 'info');
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Info',
+      'Camera functionality not implemented yet',
+      'info'
+    );
     expect(result.current.loading).toBe(false);
   });
 
@@ -569,7 +467,7 @@ describe('useProfile', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Make showToast throw an error to trigger the catch block (line 182)
+    // Make showToast throw an error to trigger the catch block
     h.mockShowToast.mockImplementationOnce(() => {
       throw new Error('Toast error');
     });
@@ -579,44 +477,501 @@ describe('useProfile', () => {
     });
 
     // Verify the catch block executed and showed the error toast
-    expect(h.mockShowToast).toHaveBeenCalledWith('Error', 'Failed to take photo', 'error');
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Failed to take photo',
+      'error'
+    );
     expect(result.current.loading).toBe(false);
   });
 
-  it('should set loading state correctly during operations', async () => {
+  it('should call refreshProfile', async () => {
     const { result } = renderHook(() => useProfile());
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Test loading state during updateProfile
-    // Create a manually controlled promise so we can test loading state mid-operation
-    let resolveUpdate: ((value: any) => void) | undefined;
-    const delayedPromise = new Promise<any>((resolve) => {
-      resolveUpdate = resolve;
-    });
-    h.mockUpdateProfile.mockReturnValue(delayedPromise);
-    
-    // Start the update operation - call it inside act to properly trigger React updates
-    let updatePromise: Promise<void>;
+    // Clear the initial calls
+    vi.clearAllMocks();
+
     await act(async () => {
-      updatePromise = result.current.updateProfile({ firstName: 'Jane' });
+      await result.current.refreshProfile();
     });
 
-    // Wait for React to process setLoading(true) - setLoading is called synchronously before try block
+    expect(h.mockGetUserByUuid).toHaveBeenCalled();
+  });
+
+  // Test for missing UUID in user data (lines 94-98)
+  it('should throw error when user UUID is missing', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const userWithoutUuid = {
+      person: { uuid: 'person-123' },
+    };
+    h.mockGetUser.mockReturnValue(JSON.stringify(userWithoutUuid));
+
+    renderHook(() => useProfile());
+
     await waitFor(() => {
-      expect(result.current.loading).toBe(true);
-    }, { timeout: 500 });
-
-    // Now resolve the promise and wait for completion
-    await act(async () => {
-      resolveUpdate!(mockProfile);
-      await updatePromise!;
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
-    // Loading should be false after completion
-    expect(result.current.loading).toBe(false);
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test for JSON parse error (lines 102-109)
+  it('should handle JSON parse error', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    h.mockGetUser.mockReturnValue('invalid json {');
+
+    renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test for provider fetch failure (lines 138-144)
+  it('should handle provider fetch failure', async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    h.mockGetProvider.mockRejectedValue(new Error('Provider not found'));
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Failed to fetch provider details (may not be a provider):',
+      expect.any(Error)
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  // Test for missing person UUID (lines 148-150)
+  it('should throw error when person UUID is missing', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const userDetailsWithoutPerson = {
+      ...mockUserDetails,
+      person: undefined,
+    };
+    h.mockGetUserByUuid.mockResolvedValue(userDetailsWithoutPerson);
+    h.mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user-123', person: undefined })
+    );
+
+    renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test for person details fetch failure (lines 159-161)
+  it('should handle person details fetch failure', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    h.mockGetPersonByUuid.mockRejectedValue(new Error('Person not found'));
+
+    renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test updateProfile without loaded profile (lines 205-207)
+  it('should throw error when updating profile without loaded profile', async () => {
+    h.mockGetUser.mockReturnValue(null);
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      try {
+        await result.current.updateProfile({ firstName: 'Jane' });
+      } catch (error) {
+        expect((error as Error).message).toBe('Profile not loaded or provider not found');
+      }
+    });
+  });
+
+  // Test updateProfile with gender and birthdate (lines 221-227)
+  it('should update person with gender, age, and birthdate', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const updateData = {
+      gender: 'female' as const,
+      dateOfBirth: '1995-06-15',
+    };
+
+    h.mockUpdatePerson.mockResolvedValue({});
+    h.mockGetPersonByUuid.mockResolvedValueOnce({
+      ...mockPersonDetails,
+      preferredName: { uuid: 'name-uuid-123' },
+    });
+
+    await act(async () => {
+      await result.current.updateProfile(updateData);
+    });
+
+    expect(h.mockUpdatePerson).toHaveBeenCalledWith('person-uuid-123', {
+      gender: 'F',
+      age: expect.any(Number),
+      birthdate: '1995-06-15',
+    });
+  });
+
+  // Test createPersonName when preferredName doesn't exist (lines 246-247)
+  it('should create person name when preferredName does not exist', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const updateData = {
+      firstName: 'Jane',
+      lastName: 'Smith',
+      middleName: 'Marie',
+    };
+
+    h.mockCreatePersonName.mockResolvedValue({});
+    h.mockGetPersonByUuid.mockResolvedValueOnce({
+      ...mockPersonDetails,
+      preferredName: undefined,
+    });
+
+    await act(async () => {
+      await result.current.updateProfile(updateData);
+    });
+
+    expect(h.mockCreatePersonName).toHaveBeenCalledWith('person-uuid-123', {
+      givenName: 'Jane',
+      middleName: 'Marie',
+      familyName: 'Smith',
+    });
+  });
+
+  // Test uploadPhoto FileReader error (lines 283, 293-295)
+  it('should handle FileReader error in uploadPhoto', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+
+    // Mock FileReader to trigger error
+    const originalFileReader = global.FileReader;
+    global.FileReader = class MockFileReader {
+      readAsDataURL() {
+        // Trigger error immediately
+        if (this.onerror) {
+          (this.onerror as any)();
+        }
+      }
+      onerror: any = null;
+      onload: any = null;
+    } as any;
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Failed to read file',
+      'error'
+    );
+
+    global.FileReader = originalFileReader;
+  });
+
+  // Test uploadPhoto with missing person UUID (line 296)
+  it('should handle missing person UUID in uploadPhoto', async () => {
+    h.mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user-123', person: undefined })
+    );
+    h.mockGetUserByUuid.mockResolvedValue({
+      ...mockUserDetails,
+      person: undefined,
+    });
+    h.mockGetProvider.mockResolvedValue({ results: [] });
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Person UUID not found',
+      'error'
+    );
+  });
+
+  // Test updateProfile with email, phone, setupLocation (line 250-254)
+  it('should update provider attributes', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const updateData = {
+      email: 'newemail@example.com',
+      phone: '+919876543210',
+      setupLocation: 'New Location',
+    };
+
+    h.mockGetProviderAttributeTypes.mockResolvedValue({
+      results: [
+        { uuid: 'email-attr-type-uuid', display: 'emailId' },
+        { uuid: 'phone-attr-type-uuid', display: 'phoneNumber' },
+        { uuid: 'location-attr-type-uuid', display: 'setupLocation' },
+      ],
+    });
+    h.mockGetPersonByUuid.mockResolvedValueOnce({
+      ...mockPersonDetails,
+      preferredName: { uuid: 'name-uuid-123' },
+    });
+
+    await act(async () => {
+      await result.current.updateProfile(updateData);
+    });
+
+    expect(h.mockGetProviderAttributeTypes).toHaveBeenCalled();
+    expect(h.mockAddOrUpdateProviderAttribute).toHaveBeenCalled();
+  });
+
+  // Test uploadPhoto with jpeg file extension (case-insensitive)
+  it('should accept JPEG files with uppercase extension', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.JPEG', { type: 'image/jpeg' });
+    h.mockUpdateProfileImage.mockResolvedValue({});
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockUpdateProfileImage).toHaveBeenCalled();
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Success',
+      'Profile picture uploaded successfully!',
+      'success'
+    );
+  });
+
+  // Test getUserByUuid failure (line 118-120)
+  it('should handle getUserByUuid failure', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    h.mockGetUserByUuid.mockRejectedValue(new Error('User fetch failed'));
+
+    renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(h.mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load profile data',
+        'error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test without middleName in updateProfile
+  it('should handle update without middleName', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const updateData = {
+      firstName: 'Jane',
+      lastName: 'Smith',
+      // middleName intentionally omitted
+    };
+
+    h.mockUpdatePersonName.mockResolvedValue({});
+    h.mockGetPersonByUuid.mockResolvedValueOnce({
+      ...mockPersonDetails,
+      preferredName: { uuid: 'name-uuid-123' },
+    });
+
+    await act(async () => {
+      await result.current.updateProfile(updateData);
+    });
+
+    expect(h.mockUpdatePersonName).toHaveBeenCalledWith(
+      'person-uuid-123',
+      'name-uuid-123',
+      {
+        givenName: 'Jane',
+        middleName: 'M', // Should use existing middleName from profile
+        familyName: 'Smith',
+      }
+    );
+  });
+
+  // Test uploadPhoto with providedDetails person UUID (line 292-294)
+  it('should use providerDetails person UUID in uploadPhoto', async () => {
+    const mockProviderWithPerson = {
+      ...mockProviderDetails,
+      person: { uuid: 'provider-person-uuid-456' },
+    };
+    h.mockGetProviderByUuid.mockResolvedValue(mockProviderWithPerson);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    h.mockUpdateProfileImage.mockResolvedValue({});
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockUpdateProfileImage).toHaveBeenCalledWith({
+      person: 'provider-person-uuid-456',
+      base64EncodedImage: expect.any(String),
+    });
+  });
+
+  // Test uploadPhoto with .jpg extension (lowercase)
+  it('should accept .jpg files with lowercase extension', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    h.mockUpdateProfileImage.mockResolvedValue({});
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockUpdateProfileImage).toHaveBeenCalled();
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Success',
+      'Profile picture uploaded successfully!',
+      'success'
+    );
+  });
+
+  // Test uploadPhoto when hwProfile has personUuid (line 294)
+  it('should fallback to profile.id when providerDetails person UUID not available', async () => {
+    h.mockGetProvider.mockResolvedValue({ results: [] }); // No provider
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    h.mockUpdateProfileImage.mockResolvedValue({});
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockUpdateProfileImage).toHaveBeenCalledWith({
+      person: 'person-uuid-123',
+      base64EncodedImage: expect.any(String),
+    });
+  });
+
+  // Test uploadPhoto with generic Error (not instance of Error) - line 314
+  it('should handle non-Error upload failure', async () => {
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    h.mockUpdateProfileImage.mockRejectedValue('String error');
+
+    await act(async () => {
+      await result.current.uploadPhoto(file);
+    });
+
+    expect(h.mockShowToast).toHaveBeenCalledWith(
+      'Error',
+      'Failed to upload photo',
+      'error'
+    );
   });
 });
-

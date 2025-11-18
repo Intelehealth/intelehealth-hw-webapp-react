@@ -11,7 +11,9 @@ class MindmapService extends HttpService {
     super({
       baseURL,
       timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000'),
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     this.axiosInstance.interceptors.request.use(config => {

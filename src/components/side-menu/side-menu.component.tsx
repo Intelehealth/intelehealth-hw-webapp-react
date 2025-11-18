@@ -136,7 +136,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
           {/* Add Patients Button */}
           <div className="px-1 mt-2 md:mt-3 mb-3 md:mb-4 flex-shrink-0">
             <Link
-              to="/add-patient"
+              to="/patient/add"
               onClick={() => setIsMobileOpen(false)}
               className={`w-full flex items-center ${
                 isCollapsed

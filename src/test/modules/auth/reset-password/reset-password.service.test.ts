@@ -19,7 +19,7 @@ describe('resetPasswordService', () => {
 
   describe('API_ENDPOINTS', () => {
     it('should have correct endpoint for reset password', () => {
-      expect(API_ENDPOINTS.RESET_PASSWORD).toBe('/auth/reset-password');
+      expect(API_ENDPOINTS.RESET_PASSWORD).toBe('/auth/resetPassword');
     });
   });
 
@@ -43,8 +43,7 @@ describe('resetPasswordService', () => {
         newPassword: payload.password,
       });
 
-      expect(mockPost).toHaveBeenCalledWith('/auth/reset-password', {
-        userUuid,
+      expect(mockPost).toHaveBeenCalledWith('/auth/resetPassword/test-uuid-123', {
         newPassword: 'newPassword123',
       });
 
@@ -80,8 +79,7 @@ describe('resetPasswordService', () => {
 
       const result = await resetPasswordService.resetPassword(userUuid, payload as unknown as ResetPasswordModel);
 
-      expect(mockPost).toHaveBeenCalledWith('/auth/reset-password', {
-        userUuid,
+      expect(mockPost).toHaveBeenCalledWith('/auth/resetPassword/test-uuid-789', {
       });
 
       expect(result).toEqual(mockResponse);
@@ -192,8 +190,7 @@ describe('resetPasswordService', () => {
 
         const result = await resetPasswordService.resetPassword(userUuid, resetPayload);
 
-        expect(mockPost).toHaveBeenCalledWith('/auth/reset-password', {
-          userUuid,
+        expect(mockPost).toHaveBeenCalledWith(`/auth/resetPassword/${userUuid}`, {
           newPassword: 'testPassword',
         });
 
