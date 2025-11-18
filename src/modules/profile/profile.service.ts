@@ -99,9 +99,7 @@ export const profileService = {
 
   // POST /personimage - Update profile image (from profile.service.ts)
   updateProfileImage: (data: { person: string; base64EncodedImage: string }) =>
-    OpenMRSApi.post(API_ENDPOINTS.PERSON_IMAGE, data, {
-      withCredentials: true,
-    }),
+    OpenMRSApi.post(API_ENDPOINTS.PERSON_IMAGE, data),
 
   // POST /auth/validateProviderAttribute - Validate provider attribute (from auth.service.ts)
   validateProviderAttribute: (data: {

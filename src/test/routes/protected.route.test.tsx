@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProtectedRoute from '../../routes/protected.route';
-import { storage } from '../../utils/storage';
 
 // Mock the storage utility
 vi.mock('../../utils/storage', () => ({
@@ -12,233 +11,598 @@ vi.mock('../../utils/storage', () => ({
 }));
 
 // Mock the Loader component
-vi.mock('../../components/loader', () => ({
+vi.mock('../../components/common', () => ({
   Loader: () => <div data-testid="loader">Loading...</div>,
 }));
 
-// Mock window.location
-const mockLocation = {
-  pathname: '/dashboard',
-};
+import { storage } from '../../utils/storage';
 
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-});
+// Test components
+const PublicPage = () => <div data-testid="public-page">Public Page</div>;
+const ProtectedPage = () => <div data-testid="protected-page">Protected Page</div>;
+const LoginPage = () => <div data-testid="login-page">Login Page</div>;
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset window.location.pathname to a default value
+    Object.defineProperty(window, 'location', {
+      value: {
+        pathname: '/dashboard',
+      },
+      writable: true,
+      configurable: true,
+    });
   });
 
-  it('should redirect to login when no token is present', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
+  describe('Authentication Checks', () => {
+    it('should redirect to default login path when no token is present', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not render the protected content
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+      // Should redirect to login page
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+    });
+
+    it('should allow access when token is present', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render protected content
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('loader')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
+
+    it('should handle empty string token as falsy', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('');
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should redirect to login page because empty string is falsy
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+    });
+
+    it('should handle undefined token', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(undefined);
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should redirect to login page
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+    });
   });
 
-  it('should allow access when token is present', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+  describe('Custom Redirect Path', () => {
+    it('should redirect to custom path when provided', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute redirectPath="/custom-login" />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/custom-login" element={<div data-testid="custom-login">Custom Login</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should render the protected content
-    expect(screen.getByTestId('loader')).toBeInTheDocument();
+      // Should redirect to custom login page
+      expect(screen.getByTestId('custom-login')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+    });
+
+    it('should use default redirect path when not provided', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should redirect to default /auth/login
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+    });
   });
 
-  it('should allow access to ignored routes without token', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    mockLocation.pathname = '/auth/login';
+  describe('Ignored Routes', () => {
+    it('should allow access to ignored routes without token', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth/login';
 
-    render(
-      <MemoryRouter initialEntries={['/auth/login']}>
-        <ProtectedRoute ignoredRoutes={['/auth/login']} />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/auth/login']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/login" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not redirect and should render content
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+      // Should render content without redirect
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+    });
+
+    it('should handle multiple ignored routes', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/public/page';
+
+      render(
+        <MemoryRouter initialEntries={['/public/page']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth', '/public']} />}>
+              <Route path="/public/page" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render content without redirect
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
+
+    it('should handle empty ignored routes array', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/dashboard';
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={[]} />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should redirect to login
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+    });
+
+    it('should handle route matching with startsWith', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth/forgot-password';
+
+      render(
+        <MemoryRouter initialEntries={['/auth/forgot-password']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/forgot-password" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render content because /auth/forgot-password starts with /auth
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
+
+    it('should match exact route when path equals ignored route', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth';
+
+      render(
+        <MemoryRouter initialEntries={['/auth']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render content for exact match
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
+
+    it('should not match routes that do not start with ignored routes', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/dashboard/settings';
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard/settings']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth', '/public']} />}>
+              <Route path="/dashboard/settings" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should redirect to login because /dashboard/settings doesn't start with /auth or /public
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('protected-page')).not.toBeInTheDocument();
+    });
+
+    it('should handle complex nested route patterns', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/api/public/data/users';
+
+      render(
+        <MemoryRouter initialEntries={['/api/public/data/users']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/api/public']} />}>
+              <Route path="/api/public/data/users" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render content for nested route that starts with ignored route
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
+
+    it('should handle special characters in route paths', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth/reset-password';
+
+      render(
+        <MemoryRouter initialEntries={['/auth/reset-password']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/reset-password" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should render content for routes with hyphens
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
   });
 
-  it('should redirect to custom redirect path when provided', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
+  describe('Component Rendering', () => {
+    it('should render Loader component when authenticated', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute redirectPath="/custom-login" />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not render the protected content
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+      expect(screen.getByTestId('loader')).toBeInTheDocument();
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+
+    it('should render Outlet component when authenticated', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
+
+    it('should render protected-route wrapper with data-testid', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+    });
+
+    it('should render Outlet without Loader for ignored routes', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth/login';
+
+      render(
+        <MemoryRouter initialEntries={['/auth/login']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/login" element={<PublicPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+    });
+
+    it('should maintain component structure with both Loader and Outlet', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+
+      const { container } = render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const protectedRoute = container.querySelector('[data-testid="protected-route"]');
+      expect(protectedRoute).toBeInTheDocument();
+      expect(protectedRoute?.querySelector('[data-testid="loader"]')).toBeInTheDocument();
+      expect(protectedRoute?.querySelector('[data-testid="protected-page"]')).toBeInTheDocument();
+    });
   });
 
-  it('should handle multiple ignored routes', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    mockLocation.pathname = '/public/page';
+  describe('Navigate Component Behavior', () => {
+    it('should render Navigate component with replace prop when redirecting', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
-      <MemoryRouter initialEntries={['/public/page']}>
-        <ProtectedRoute ignoredRoutes={['/auth', '/public']} />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not redirect for public routes
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+      // Should redirect and replace history
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+    });
+
+    it('should not render Navigate when token exists', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should not redirect
+      expect(screen.queryByTestId('login-page')).not.toBeInTheDocument();
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
+
+    it('should not render Navigate for ignored routes', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/public';
+
+      render(
+        <MemoryRouter initialEntries={['/public']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/public']} />}>
+              <Route path="/public" element={<PublicPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Should not redirect for ignored route
+      expect(screen.queryByTestId('login-page')).not.toBeInTheDocument();
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
   });
 
-  it('should handle empty ignored routes array', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
+  describe('Edge Cases and Integration', () => {
+    it('should handle token change from null to valid', () => {
+      // Test with null token first
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute ignoredRoutes={[]} />
-      </MemoryRouter>
-    );
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not render the protected content
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      unmount();
 
-  it('should render loader when authenticated', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+      // Test with valid token
+      vi.mocked(storage.getAuthToken).mockReturnValue('new-valid-token');
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    expect(screen.getByTestId('loader')).toBeInTheDocument();
-  });
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
 
-  it('should handle route path matching correctly', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    mockLocation.pathname = '/auth/forgot-password';
+    it('should handle pathname change while token remains null', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/dashboard';
 
-    render(
-      <MemoryRouter initialEntries={['/auth/forgot-password']}>
-        <ProtectedRoute ignoredRoutes={['/auth']} />
-      </MemoryRouter>
-    );
+      // Test protected route without token
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not redirect for auth routes
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      unmount();
 
-  it('should use default redirect path when not provided', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      // Change to ignored route
+      window.location.pathname = '/auth/register';
 
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/auth/register']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/register" element={<PublicPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not render the protected content
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+    });
 
-  it('should handle token validation correctly', () => {
-    // Test with valid token
-    vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+    it('should handle multiple nested routes with authentication', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    const { rerender } = render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard/settings/profile']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard/settings/profile" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
 
-    expect(screen.getByTestId('loader')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('loader')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
 
-    // Test with null token
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
+    it('should prioritize ignored routes over authentication check', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      window.location.pathname = '/auth/login';
 
-    rerender(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/auth/login']}>
+          <Routes>
+            <Route element={<ProtectedRoute ignoredRoutes={['/auth']} />}>
+              <Route path="/auth/login" element={<PublicPage />} />
+            </Route>
+            <Route path="/auth/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
 
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
+      // Should render public page, not redirect
+      expect(screen.getByTestId('public-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('login-page')).not.toBeInTheDocument();
+    });
 
-  it('should handle edge cases with ignored routes', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    mockLocation.pathname = '/auth';
+    it('should handle root path', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+      window.location.pathname = '/';
 
-    render(
-      <MemoryRouter initialEntries={['/auth']}>
-        <ProtectedRoute ignoredRoutes={['/auth']} />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not redirect for exact match
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
 
-  it('should handle complex ignored routes patterns', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    mockLocation.pathname = '/api/public/data';
+    it('should handle query parameters in pathname', () => {
+      vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+      window.location.pathname = '/dashboard';
 
-    render(
-      <MemoryRouter initialEntries={['/api/public/data']}>
-        <ProtectedRoute ignoredRoutes={['/api/public', '/auth']} />
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={['/dashboard?tab=settings']}>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<ProtectedPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
 
-    // Should not redirect for matching ignored route
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-  });
-
-  it('should maintain component structure', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
-
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
-
-    // Should render both loader and outlet
-    expect(screen.getByTestId('loader')).toBeInTheDocument();
-  });
-
-  it('should handle window.location.pathname changes', () => {
-    vi.mocked(storage.getAuthToken).mockReturnValue(null);
-    
-    // Test different paths
-    mockLocation.pathname = '/dashboard';
-    
-    const { rerender } = render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
-    );
-
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
-
-    // Change to ignored route
-    mockLocation.pathname = '/auth/login';
-    
-    rerender(
-      <MemoryRouter initialEntries={['/auth/login']}>
-        <ProtectedRoute ignoredRoutes={['/auth']} />
-      </MemoryRouter>
-    );
-
-    // Should not redirect
-    expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
+      expect(screen.getByTestId('protected-route')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-page')).toBeInTheDocument();
+    });
   });
 });

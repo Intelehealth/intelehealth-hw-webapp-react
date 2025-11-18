@@ -5,6 +5,7 @@ import ProfileForm from '../../../modules/profile/profile-form.component';
 
 // Mock the useProfile hook
 const mockProfile = {
+  username: 'johndoe',
   firstName: 'John',
   middleName: 'M',
   lastName: 'Doe',
@@ -36,6 +37,7 @@ const mockRegister = vi.fn((name) => ({
 const mockHandleSubmit = vi.fn((callback) => (e: React.FormEvent) => {
   e.preventDefault();
   return callback({
+    username: 'johndoe',
     firstName: 'John',
     middleName: 'M',
     lastName: 'Doe',
@@ -290,6 +292,7 @@ describe('ProfileForm', () => {
     const submitCallback = vi.fn((callback: any) => (e: React.FormEvent) => {
       e.preventDefault();
       callback({
+        username: 'johndoe',
         firstName: 'John',
         middleName: 'M',
         lastName: 'Doe',
@@ -321,6 +324,7 @@ describe('ProfileForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateProfile).toHaveBeenCalledWith({
+        username: 'johndoe',
         firstName: 'John',
         middleName: 'M',
         lastName: 'Doe',
@@ -351,6 +355,7 @@ describe('ProfileForm', () => {
     const submitCallback = vi.fn((callback: any) => (e: React.FormEvent) => {
       e.preventDefault();
       callback({
+        username: 'johndoe',
         firstName: 'John',
         middleName: 'M',
         lastName: 'Doe',
@@ -409,6 +414,7 @@ describe('ProfileForm', () => {
     // Wait for the effect to run
     await waitFor(() => {
       expect(mockReset).toHaveBeenCalledWith({
+        username: 'johndoe',
         firstName: 'Jane',
         middleName: 'M',
         lastName: 'Doe',
@@ -428,6 +434,7 @@ describe('ProfileForm', () => {
 
     // Change profile with falsy values to test the || '' branches
     const profileWithFalsyValues = {
+      username: null as any,
       firstName: '',
       middleName: null as any,
       lastName: undefined as any,
@@ -453,6 +460,7 @@ describe('ProfileForm', () => {
     // Wait for the effect to run
     await waitFor(() => {
       expect(mockReset).toHaveBeenCalledWith({
+        username: '',
         firstName: '',
         middleName: '',
         lastName: '',
@@ -604,6 +612,7 @@ describe('ProfileForm', () => {
     expect(mockUseForm).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultValues: {
+          username: 'johndoe',
           firstName: 'John',
           middleName: 'M',
           lastName: 'Doe',
@@ -633,6 +642,7 @@ describe('ProfileForm', () => {
     expect(mockUseForm).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultValues: {
+          username: '',
           firstName: '',
           middleName: '',
           lastName: '',

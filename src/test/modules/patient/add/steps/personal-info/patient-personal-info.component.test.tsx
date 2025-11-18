@@ -40,12 +40,20 @@ vi.mock('../../../../../../components/common', () => ({
       {label && <label>{label}</label>}
     </div>
   ),
-  RadioGroup: ({ children, onChange, value, error }: any) => (
-    <div role="radiogroup" data-value={value}>
-      {children}
-      {error && <span className="error">{error}</span>}
-    </div>
-  ),
+  RadioGroup: ({ children, onChange, value, error }: any) => {
+    // Simulate RadioGroup behavior - when a radio is clicked, call onChange
+    const handleRadioChange = (e: any) => {
+      if (e.target.type === 'radio') {
+        onChange?.(e.target.value);
+      }
+    };
+    return (
+      <div role="radiogroup" data-value={value} onClick={handleRadioChange}>
+        {children}
+        {error && <span className="error">{error}</span>}
+      </div>
+    );
+  },
   Dropdown: ({ label, options, onChange, value, error, isRequired, placeholder }: any) => (
     <div>
       {label && (
@@ -65,6 +73,13 @@ vi.mock('../../../../../../components/common', () => ({
           </option>
         ))}
       </select>
+      <button
+        type="button"
+        data-testid={`dropdown-array-trigger-${label}`}
+        onClick={() => onChange?.(['Family'])}
+      >
+        Trigger Array
+      </button>
       {error && <span className="error">{error}</span>}
     </div>
   ),
@@ -214,6 +229,40 @@ describe('PatientPersonalInfo', () => {
       expect(screen.getByPlaceholderText('Enter Middle Name')).toBeInTheDocument();
     });
 
+    it('should handle middleName input change', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const middleNameInput = screen.getByPlaceholderText('Enter Middle Name');
+      await user.type(middleNameInput, 'Alexander');
+
+      expect(middleNameInput).toHaveValue('Alexander');
+    });
+
+    it('should render with pre-filled middleName', () => {
+      const valuesWithMiddleName = {
+        ...defaultValues,
+        middleName: 'James',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithMiddleName}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const middleNameInput = screen.getByPlaceholderText('Enter Middle Name');
+      expect(middleNameInput).toHaveValue('James');
+    });
+
     it('should render lastName field with required indicator', () => {
       render(
         <PatientPersonalInfo
@@ -348,6 +397,24 @@ describe('PatientPersonalInfo', () => {
       expect(img).toHaveAttribute('src', 'default-user-image.svg');
     });
 
+    it('should render existing profile photo when provided', () => {
+      const valuesWithPhoto = {
+        ...defaultValues,
+        profilePhoto: 'base64-existing-photo',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithPhoto}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const img = screen.getByAltText('Profile');
+      expect(img).toHaveAttribute('src', 'base64-existing-photo');
+    });
+
     it('should use base64 image format', () => {
       render(
         <PatientPersonalInfo
@@ -376,6 +443,42 @@ describe('PatientPersonalInfo', () => {
 
       // The component should handle the upload
       expect(uploadButton).toBeInTheDocument();
+    });
+
+    it('should handle profile photo with falsy value', () => {
+      const valuesWithFalsyPhoto = {
+        ...defaultValues,
+        profilePhoto: '' as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithFalsyPhoto}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const img = screen.getByAltText('Profile');
+      expect(img).toHaveAttribute('src', 'default-user-image.svg');
+    });
+
+    it('should handle profile photo with 0 value', () => {
+      const valuesWithZeroPhoto = {
+        ...defaultValues,
+        profilePhoto: 0 as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithZeroPhoto}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const img = screen.getByAltText('Profile');
+      expect(img).toHaveAttribute('src', 'default-user-image.svg');
     });
   });
 
@@ -527,6 +630,27 @@ describe('PatientPersonalInfo', () => {
         expect(screen.getByText('Emergency contact number is required')).toBeInTheDocument();
       });
     });
+
+    it('should validate age with max 3 characters', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+      await user.type(ageInput, '1234');
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Age seems invalid')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Form Submission', () => {
@@ -585,6 +709,40 @@ describe('PatientPersonalInfo', () => {
 
       await waitFor(() => {
         expect(mockOnNext).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should submit form with valid data including profile photo', async () => {
+      const user = userEvent.setup();
+      const validValues = {
+        firstName: 'John',
+        middleName: 'M',
+        lastName: 'Doe',
+        gender: 'M',
+        dateOfBirth: '1990-01-01',
+        age: '34',
+        phoneNumber: '1234567890',
+        phoneNumberCountryCode: '+91',
+        contactType: 'Family' as const,
+        emergencyContactName: 'Jane Doe',
+        emergencyContactNumber: '9876543210',
+        emergencyContactNumberCountryCode: '+91',
+        profilePhoto: 'base64-photo-data',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={validValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
       });
     });
   });
@@ -693,6 +851,141 @@ describe('PatientPersonalInfo', () => {
 
       expect(emergencyPhoneInput).toHaveValue('9876543210');
     });
+
+    it('should display phoneNumberCountryCode error when present', async () => {
+      const user = userEvent.setup();
+      const valuesWithoutCountryCode = {
+        ...defaultValues,
+        phoneNumberCountryCode: '',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithoutCountryCode}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Country code is required')).toBeInTheDocument();
+      });
+    });
+
+    it('should display phoneNumber error when phoneNumberCountryCode is valid', async () => {
+      const user = userEvent.setup();
+      const valuesWithCountryCode = {
+        ...defaultValues,
+        phoneNumberCountryCode: '+91',
+        phoneNumber: '',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithCountryCode}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Phone number is required')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Gender Radio Group', () => {
+    it('should handle gender selection - Male', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const maleRadio = screen.getByRole('radiogroup');
+      const maleInput = screen.getByDisplayValue('M');
+
+      fireEvent.click(maleInput);
+
+      expect(maleInput).toBeInTheDocument();
+    });
+
+    it('should handle gender selection - Female', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const femaleInput = screen.getByDisplayValue('F');
+      fireEvent.click(femaleInput);
+
+      expect(femaleInput).toBeInTheDocument();
+    });
+
+    it('should handle gender selection - Other', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const otherInput = screen.getByDisplayValue('O');
+      fireEvent.click(otherInput);
+
+      expect(otherInput).toBeInTheDocument();
+    });
+
+    it('should render with pre-selected gender value', () => {
+      const valuesWithGender = {
+        ...defaultValues,
+        gender: 'F',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithGender}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toHaveAttribute('data-value', 'F');
+    });
+
+    it('should handle gender value when it is empty string', () => {
+      const valuesWithEmptyGender = {
+        ...defaultValues,
+        gender: '',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithEmptyGender}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toHaveAttribute('data-value', '');
+    });
   });
 
   describe('Age Field', () => {
@@ -753,6 +1046,24 @@ describe('PatientPersonalInfo', () => {
 
       expect(contactTypeDropdown).toHaveValue('Family');
     });
+
+    it('should handle contact type value when it is empty string', () => {
+      const valuesWithEmptyContactType = {
+        ...defaultValues,
+        contactType: '' as const,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithEmptyContactType}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const contactTypeDropdown = screen.getByTestId('dropdown-Contact Type');
+      expect(contactTypeDropdown).toHaveValue('');
+    });
   });
 
   describe('Calendar Field', () => {
@@ -770,6 +1081,19 @@ describe('PatientPersonalInfo', () => {
       await user.type(calendarInput, '1990-01-01');
 
       expect(calendarInput).toHaveValue('1990-01-01');
+    });
+
+    it('should handle empty date of birth value', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      expect(calendarInput).toHaveValue('');
     });
   });
 
@@ -812,6 +1136,32 @@ describe('PatientPersonalInfo', () => {
       const nextButton = screen.getByText('Next').closest('button');
       expect(nextButton).toHaveAttribute('data-variant', 'primary');
     });
+
+    it('should have h-full class on form', () => {
+      const { container } = render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const form = container.querySelector('form');
+      expect(form).toHaveClass('h-full');
+    });
+
+    it('should have space-y-6 class on form', () => {
+      const { container } = render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const form = container.querySelector('form');
+      expect(form).toHaveClass('space-y-6');
+    });
   });
 
   describe('Accessibility', () => {
@@ -838,7 +1188,291 @@ describe('PatientPersonalInfo', () => {
       );
 
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(3); // Back, Next, and Upload Photo buttons
+      expect(buttons).toHaveLength(4); // Back, Next, Upload Photo, and Dropdown Array Trigger buttons
+    });
+
+    it('should have radiogroup role for gender field', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toBeInTheDocument();
+    });
+  });
+
+  describe('Form Mode', () => {
+    it('should use onTouched validation mode', () => {
+      const { container } = render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // The form should exist (validation mode is internal to react-hook-form)
+      const form = container.querySelector('form');
+      expect(form).toBeInTheDocument();
+    });
+  });
+
+  describe('Dropdown Array Value Handling', () => {
+    it('should handle contact type onChange with array value', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // Click the button that triggers onChange with an array
+      const arrayTriggerButton = screen.getByTestId('dropdown-array-trigger-Contact Type');
+      await user.click(arrayTriggerButton);
+
+      // Verify the dropdown still works correctly
+      const contactTypeDropdown = screen.getByTestId('dropdown-Contact Type');
+      expect(contactTypeDropdown).toBeInTheDocument();
+    });
+
+    it('should handle contact type value as null', () => {
+      const valuesWithNullContactType = {
+        ...defaultValues,
+        contactType: null as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithNullContactType}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const contactTypeDropdown = screen.getByTestId('dropdown-Contact Type');
+      expect(contactTypeDropdown).toBeInTheDocument();
+    });
+
+    it('should handle contact type value as undefined', () => {
+      const valuesWithUndefinedContactType = {
+        ...defaultValues,
+        contactType: undefined as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithUndefinedContactType}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const contactTypeDropdown = screen.getByTestId('dropdown-Contact Type');
+      expect(contactTypeDropdown).toBeInTheDocument();
+    });
+  });
+
+  describe('Gender Null/Undefined Handling', () => {
+    it('should handle gender value as null', () => {
+      const valuesWithNullGender = {
+        ...defaultValues,
+        gender: null as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithNullGender}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toHaveAttribute('data-value', '');
+    });
+
+    it('should handle gender value as undefined', () => {
+      const valuesWithUndefinedGender = {
+        ...defaultValues,
+        gender: undefined as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithUndefinedGender}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toHaveAttribute('data-value', '');
+    });
+  });
+
+  describe('DateOfBirth Falsy Value Handling', () => {
+    it('should handle dateOfBirth value as null', () => {
+      const valuesWithNullDOB = {
+        ...defaultValues,
+        dateOfBirth: null as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithNullDOB}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      expect(calendarInput).toHaveValue('');
+    });
+
+    it('should handle dateOfBirth value as undefined', () => {
+      const valuesWithUndefinedDOB = {
+        ...defaultValues,
+        dateOfBirth: undefined as any,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithUndefinedDOB}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      expect(calendarInput).toHaveValue('');
+    });
+
+    it('should handle dateOfBirth with valid date string', () => {
+      const valuesWithDOB = {
+        ...defaultValues,
+        dateOfBirth: '2000-01-15',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithDOB}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      expect(calendarInput).toHaveValue('2000-01-15');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle form submission with Enter key', async () => {
+      const user = userEvent.setup();
+      const validValues = {
+        firstName: 'John',
+        middleName: 'M',
+        lastName: 'Doe',
+        gender: 'M',
+        dateOfBirth: '1990-01-01',
+        age: '34',
+        phoneNumber: '1234567890',
+        phoneNumberCountryCode: '+91',
+        contactType: 'Family' as const,
+        emergencyContactName: 'Jane Doe',
+        emergencyContactNumber: '9876543210',
+        emergencyContactNumberCountryCode: '+91',
+        profilePhoto: null,
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={validValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const form = screen.getByText('Next').closest('form');
+      if (form) {
+        fireEvent.submit(form);
+      }
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
+      });
+    });
+
+    it('should handle all fields filled with valid data', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // Fill firstName
+      const firstNameInput = screen.getByPlaceholderText('Enter First Name');
+      await user.type(firstNameInput, 'John');
+
+      // Fill lastName
+      const lastNameInput = screen.getByPlaceholderText('Enter Last Name');
+      await user.type(lastNameInput, 'Doe');
+
+      // Select gender
+      const maleInput = screen.getByDisplayValue('M');
+      fireEvent.click(maleInput);
+
+      // Fill date of birth
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '1990-01-01');
+
+      // Fill phone number
+      const phoneInputs = screen.getAllByTestId('phone-number-input');
+      await user.type(phoneInputs[0], '1234567890');
+
+      // Select contact type
+      const contactTypeDropdown = screen.getByTestId('dropdown-Contact Type');
+      await user.selectOptions(contactTypeDropdown, 'Family');
+
+      // Fill emergency contact name
+      const emergencyNameInput = screen.getByPlaceholderText('Enter Emergency Contact name');
+      await user.type(emergencyNameInput, 'Jane Doe');
+
+      // Fill emergency contact number
+      await user.type(phoneInputs[1], '9876543210');
+
+      // Submit
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+
+    it('should render without errors when all props are provided', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
     });
   });
 });

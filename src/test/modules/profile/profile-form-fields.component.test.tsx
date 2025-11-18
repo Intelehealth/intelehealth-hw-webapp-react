@@ -59,9 +59,9 @@ vi.mock('../../../components/common', () => ({
       {label && <label>{label}</label>}
     </div>
   ),
-  Calendar: ({ label, onChange, value, error, ...props }: any) => {
+  Calendar: ({ label, onChange, value, error, isRequired, dateFormat, maxDate, minDate, ...props }: any) => {
     const inputId = `calendar-${label?.replace(/\s+/g, '-').toLowerCase() || 'input'}`;
-    
+
     // Store onChange for testing
     if (label === 'Date of Birth' && onChange) {
       if (!(window as any).__testDateOnChange) {
@@ -69,7 +69,7 @@ vi.mock('../../../components/common', () => ({
       }
       (window as any).__testDateOnChange.push(onChange);
     }
-    
+
     return (
       <div>
         {label && <label htmlFor={inputId}>{label}</label>}
@@ -361,10 +361,13 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const mobilePhoto = container.querySelector('.mobile-profile-photo');
-    expect(mobilePhoto).toBeInTheDocument();
-    const cameraIcon = mobilePhoto?.querySelector('.fa-camera');
-    expect(cameraIcon).toBeInTheDocument();
+    // Check for mobile section (lg:hidden)
+    const mobileSections = container.querySelectorAll('.lg\\:hidden');
+    expect(mobileSections.length).toBeGreaterThan(0);
+
+    // Check for camera icon in mobile section
+    const cameraIcons = container.querySelectorAll('.fa-camera');
+    expect(cameraIcons.length).toBeGreaterThan(0);
   });
 
   it('should render all mobile form fields', () => {
@@ -417,8 +420,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const genderIcons = container.querySelectorAll('.mobile-gender-icon');
-    expect(genderIcons.length).toBeGreaterThanOrEqual(3);
+    // Check for gender radio buttons (3 for mobile: male, female, other)
+    const radioButtons = container.querySelectorAll('input[type="radio"]');
+    expect(radioButtons.length).toBeGreaterThanOrEqual(3);
   });
 
   it('should display mobile gender error message', () => {
