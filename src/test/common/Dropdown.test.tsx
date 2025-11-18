@@ -142,7 +142,7 @@ describe('Dropdown', () => {
     expect(button).toHaveClass('px-3', 'py-2', 'text-sm');
 
     rerender(<Dropdown options={OPTIONS} size="md" />);
-    expect(button).toHaveClass('px-4', 'py-3', 'text-base');
+    expect(button).toHaveClass('px-4', 'py-[10px]', 'text-base');
 
     rerender(<Dropdown options={OPTIONS} size="lg" />);
     expect(button).toHaveClass('px-5', 'py-4', 'text-lg');

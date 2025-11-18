@@ -4,6 +4,17 @@ export interface Slide {
   description: string;
 }
 
+export interface CountryCode {
+  name: string;
+  code: string;
+  dial_code: string;
+}
+
+export interface PhoneNumberObject {
+  countryCode: string;
+  number: string;
+}
+
 export type WebpackRequireContext = {
   keys: () => string[];
   <T = unknown>(id: string): { default: React.ComponentType<T> };

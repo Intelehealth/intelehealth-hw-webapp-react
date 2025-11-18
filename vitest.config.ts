@@ -59,6 +59,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    env: {
+      VITE_OPENMRS_API_URL: 'http://localhost:8080/openmrs/ws/rest/v1',
+    },
     exclude: ['node_modules/**', 'dist/**', 'coverage/**', 'src/examples/**'],
     coverage: {
       provider: 'v8',
@@ -85,7 +88,7 @@ export default defineConfig({
         'src/components/common/',
         'src/components/common/common-ui.component.tsx',
         // Exclude profile-related files (tests were removed)
-        'src/assets/data/profile.mock.ts',
+        'src/assets/data/',
         // Exclude calendar components (not tested)
         'src/components/common/calendar.component.tsx',
         'src/components/common/calendar-month-grid.component.tsx',

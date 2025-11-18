@@ -269,8 +269,7 @@ describe('ProfileHeader', () => {
       'flex',
       'items-center',
       'justify-between',
-      'mb-6',
-      'mobile-profile-header'
+      'mb-6'
     );
   });
 

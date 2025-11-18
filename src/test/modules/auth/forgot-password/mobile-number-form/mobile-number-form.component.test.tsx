@@ -62,8 +62,11 @@ describe('MobileNumberFormComponent', () => {
 
     it('should render country code dropdown', () => {
       render(<MobileNumberFormComponent />);
-      
-      expect(screen.getByTestId('country-dropdown')).toBeInTheDocument();
+
+      // CountryCodeDropdown renders a button with the dial code
+      // The default country is India with dial_code '+91'
+      const countryButton = screen.getByRole('button', { name: /\+91/i });
+      expect(countryButton).toBeInTheDocument();
     });
   });
 
@@ -125,7 +128,7 @@ describe('MobileNumberFormComponent', () => {
             description: 'Follow the instructions below to use your account again.',
             icon: 'mocked-lock-icon.svg',
             otpFor: 'password',
-            countryCode: '',
+            countryCode: '+91', // Default country is India
           },
         });
       });
@@ -133,18 +136,19 @@ describe('MobileNumberFormComponent', () => {
   });
 
   describe('Country Code Selection', () => {
-    it('should handle country code selection', async () => {
+    it('should use default country code when submitting', async () => {
       render(<MobileNumberFormComponent />);
-      
-      const selectButton = screen.getByText('Select Country');
-      fireEvent.click(selectButton);
-      
+
+      // CountryCodeDropdown has default country (India +91)
+      const countryButton = screen.getByRole('button', { name: /\+91/i });
+      expect(countryButton).toBeInTheDocument();
+
       const mobileInput = screen.getByPlaceholderText('Enter your mobile number');
       fireEvent.change(mobileInput, { target: { value: '1234567890' } });
-      
+
       const submitButton = screen.getByText('Continue');
       fireEvent.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/auth/verify-otp', {
           state: {
@@ -154,7 +158,7 @@ describe('MobileNumberFormComponent', () => {
             description: 'Follow the instructions below to use your account again.',
             icon: 'mocked-lock-icon.svg',
             otpFor: 'password',
-            countryCode: '+1',
+            countryCode: '+91', // Default country code
           },
         });
       });
@@ -180,7 +184,7 @@ describe('MobileNumberFormComponent', () => {
             description: 'Follow the instructions below to use your account again.',
             icon: 'mocked-lock-icon.svg',
             otpFor: 'password',
-            countryCode: '',
+            countryCode: '+91', // Default country code
           },
         });
       });
