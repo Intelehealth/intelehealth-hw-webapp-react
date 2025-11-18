@@ -51,7 +51,6 @@ export const useProfile = (): UseProfileReturn => {
   const [providerDetails, setProviderDetails] =
     useState<ProviderDetailResponse | null>(null);
 
-
   // Update age when profile changes
   useEffect(() => {
     if (profile?.dateOfBirth) {
@@ -133,8 +132,8 @@ export const useProfile = (): UseProfileReturn => {
           )) as ProviderDetailResponse;
           // Store providerDetails for use in updateProfile
           setProviderDetails(providerDetails);
-      }
-    } catch (error) {
+        }
+      } catch (error) {
         console.warn(
           'Failed to fetch provider details (may not be a provider):',
           error

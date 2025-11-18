@@ -302,4 +302,3 @@ export const updateProfileAttributes = async (
     await profileService.requestDataFromMultipleSources(attributeRequests);
   }
 };
-

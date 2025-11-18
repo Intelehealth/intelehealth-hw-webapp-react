@@ -40,7 +40,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   } = useForm<ProfileFormValues>({
     resolver: yupResolver(profileSchema),
     defaultValues: {
-      username: profile?.username || '', 
+      username: profile?.username || '',
       firstName: profile?.firstName || '',
       middleName: profile?.middleName || '',
       lastName: profile?.lastName || '',

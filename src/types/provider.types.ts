@@ -145,5 +145,3 @@ export interface HealthWorkerProfile {
   isActive: boolean;
   userProperties: UserProperty;
 }
-
-
