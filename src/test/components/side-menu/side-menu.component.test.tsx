@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
@@ -167,7 +167,7 @@ describe('SideMenu', () => {
       renderWithRouter(<SideMenu />);
 
       const homeLink = screen.getByText('Home').closest('a');
-      expect(homeLink).toHaveAttribute('href', '/dashboard');
+      expect(homeLink).toHaveAttribute('href', '#/dashboard');
     });
 
     it('should render menu items with icons', () => {
@@ -221,7 +221,7 @@ describe('SideMenu', () => {
       renderWithRouter(<SideMenu />);
 
       const addPatientsLink = screen.getByText('Add Patients').closest('a');
-      expect(addPatientsLink).toHaveAttribute('href', '/patient/add');
+      expect(addPatientsLink).toHaveAttribute('href', '#/patient/add');
     });
 
     it('should render Add Patients button with icon', () => {

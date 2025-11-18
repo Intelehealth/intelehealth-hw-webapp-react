@@ -96,6 +96,22 @@ vi.mock('../../components/down-menu/down-menu.component', () => ({
   default: () => <div data-testid="down-menu">DownMenu</div>,
 }));
 
+// Import reducers
+import { authReducer } from '../../reducers/auth.reducer';
+import loaderReducer from '../../reducers/loader.reducer';
+import patientReducer from '../../reducers/patient.reducer';
+
+// Create a mock store for testing
+const createMockStore = () => {
+  return configureStore({
+    reducer: {
+      auth: authReducer as any,
+      loader: loaderReducer,
+      patient: patientReducer as any,
+    },
+  });
+};
+
 // Helper to render AppRoutes
 const renderAppRoutes = () => {
   const store = createMockStore();
@@ -118,7 +134,7 @@ describe('AppRoutes', () => {
   });
 
   it('should render HashRouter as the root component', () => {
-    const { container } = render(<AppRoutes />);
+    const { container } = renderAppRoutes();
 
     // The component should render without errors
     expect(container.firstChild).toBeInTheDocument();

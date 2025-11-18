@@ -22,23 +22,31 @@ const PublicPage = () => <div data-testid="public-page">Public Page</div>;
 const ProtectedPage = () => <div data-testid="protected-page">Protected Page</div>;
 const LoginPage = () => <div data-testid="login-page">Login Page</div>;
 
+// Helper to set window.location.hash for testing
+const setLocationHash = (path: string) => {
+  Object.defineProperty(window, 'location', {
+    value: {
+      hash: `#${path}`,
+      pathname: '/',
+      href: `http://localhost:3000/#${path}`,
+      origin: 'http://localhost:3000',
+    },
+    writable: true,
+    configurable: true,
+  });
+};
+
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Reset window.location.pathname to a default value
-    Object.defineProperty(window, 'location', {
-      value: {
-        pathname: '/dashboard',
-      },
-      writable: true,
-      configurable: true,
-    });
+    // Set default hash
+    setLocationHash('/dashboard');
   });
 
   describe('Authentication Checks', () => {
     it('should redirect to default login path when no token is present', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
+      setLocationHash('/dashboard');
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -59,6 +67,7 @@ describe('ProtectedRoute', () => {
 
     it('should allow access when token is present', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
+      setLocationHash('/dashboard');
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -78,6 +87,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle empty string token as falsy', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue('');
+      setLocationHash('/dashboard');
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -157,7 +167,7 @@ describe('ProtectedRoute', () => {
   describe('Ignored Routes', () => {
     it('should allow access to ignored routes without token', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth/login';
+      setLocationHash('/auth/login');
 
       render(
         <MemoryRouter initialEntries={['/auth/login']}>
@@ -177,7 +187,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle multiple ignored routes', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/public/page';
+      setLocationHash('/public/page');
 
       render(
         <MemoryRouter initialEntries={['/public/page']}>
@@ -196,7 +206,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle empty ignored routes array', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/dashboard';
+      setLocationHash('/dashboard');
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -216,7 +226,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle route matching with startsWith', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth/forgot-password';
+      setLocationHash('/auth/forgot-password');
 
       render(
         <MemoryRouter initialEntries={['/auth/forgot-password']}>
@@ -235,7 +245,7 @@ describe('ProtectedRoute', () => {
 
     it('should match exact route when path equals ignored route', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth';
+      setLocationHash('/auth');
 
       render(
         <MemoryRouter initialEntries={['/auth']}>
@@ -254,7 +264,7 @@ describe('ProtectedRoute', () => {
 
     it('should not match routes that do not start with ignored routes', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/dashboard/settings';
+      setLocationHash('/dashboard/settings');
 
       render(
         <MemoryRouter initialEntries={['/dashboard/settings']}>
@@ -274,7 +284,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle complex nested route patterns', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/api/public/data/users';
+      setLocationHash('/api/public/data/users');
 
       render(
         <MemoryRouter initialEntries={['/api/public/data/users']}>
@@ -293,7 +303,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle special characters in route paths', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth/reset-password';
+      setLocationHash('/auth/reset-password');
 
       render(
         <MemoryRouter initialEntries={['/auth/reset-password']}>
@@ -363,7 +373,7 @@ describe('ProtectedRoute', () => {
 
     it('should render Outlet without Loader for ignored routes', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth/login';
+      setLocationHash('/auth/login');
 
       render(
         <MemoryRouter initialEntries={['/auth/login']}>
@@ -440,7 +450,7 @@ describe('ProtectedRoute', () => {
 
     it('should not render Navigate for ignored routes', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/public';
+      setLocationHash('/public');
 
       render(
         <MemoryRouter initialEntries={['/public']}>
@@ -497,7 +507,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle pathname change while token remains null', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/dashboard';
+      setLocationHash('/dashboard');
 
       // Test protected route without token
       const { unmount } = render(
@@ -515,7 +525,7 @@ describe('ProtectedRoute', () => {
       unmount();
 
       // Change to ignored route
-      window.location.pathname = '/auth/register';
+      setLocationHash('/auth/register');
 
       render(
         <MemoryRouter initialEntries={['/auth/register']}>
@@ -551,7 +561,7 @@ describe('ProtectedRoute', () => {
 
     it('should prioritize ignored routes over authentication check', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue(null);
-      window.location.pathname = '/auth/login';
+      setLocationHash('/auth/login');
 
       render(
         <MemoryRouter initialEntries={['/auth/login']}>
@@ -571,7 +581,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle root path', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
-      window.location.pathname = '/';
+      setLocationHash('/');
 
       render(
         <MemoryRouter initialEntries={['/']}>
@@ -589,7 +599,7 @@ describe('ProtectedRoute', () => {
 
     it('should handle query parameters in pathname', () => {
       vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
-      window.location.pathname = '/dashboard';
+      setLocationHash('/dashboard');
 
       render(
         <MemoryRouter initialEntries={['/dashboard?tab=settings']}>
