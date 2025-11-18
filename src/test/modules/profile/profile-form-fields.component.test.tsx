@@ -364,9 +364,10 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const mobilePhoto = container.querySelector('.mobile-profile-photo');
-    expect(mobilePhoto).toBeInTheDocument();
-    const cameraIcon = mobilePhoto?.querySelector('.fa-camera');
+    // Mobile photo section is in lg:hidden div with flex flex-col items-center gap-3
+    const mobilePhotoSection = container.querySelector('.lg\\:hidden .flex.flex-col.items-center.gap-3');
+    expect(mobilePhotoSection).toBeInTheDocument();
+    const cameraIcon = mobilePhotoSection?.querySelector('.fa-camera');
     expect(cameraIcon).toBeInTheDocument();
   });
 
@@ -420,8 +421,10 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const genderIcons = container.querySelectorAll('.mobile-gender-icon');
-    expect(genderIcons.length).toBeGreaterThanOrEqual(3);
+    // Gender icons are in the mobile section (lg:hidden) with fa-mars, fa-venus, fa-transgender classes
+    const mobileSection = container.querySelector('.lg\\:hidden');
+    const genderIcons = mobileSection?.querySelectorAll('.fa-mars, .fa-venus, .fa-transgender');
+    expect(genderIcons?.length).toBeGreaterThanOrEqual(3);
   });
 
   it('should display mobile gender error message', () => {

@@ -109,8 +109,9 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      // eslint-disable-next-line no-console -- error logging
+
       console.error('Permission request error:', error);
+      setShowPermissionModal(false);
       onPermissionDenied?.();
     } finally {
       setIsRequesting(false);

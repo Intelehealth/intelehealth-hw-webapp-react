@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { store } from '../../store/store';
 import AppRoutes from '../../routes/app.routes';
 import ROUTES from '../../routes/paths';
 
@@ -84,6 +86,11 @@ vi.mock('../../components/down-menu/down-menu.component', () => ({
   default: () => <div data-testid="down-menu">DownMenu</div>,
 }));
 
+// Helper to render with Redux Provider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<Provider store={store}>{component}</Provider>);
+};
+
 describe('AppRoutes', () => {
   beforeEach(() => {
     // Reset location to default
@@ -94,12 +101,12 @@ describe('AppRoutes', () => {
 
   it('should render without crashing', () => {
     expect(() => {
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
     }).not.toThrow();
   });
 
   it('should render BrowserRouter as the root component', () => {
-    const { container } = render(<AppRoutes />);
+    const { container } = renderWithProvider(<AppRoutes />);
 
     // The component should render without errors
     expect(container.firstChild).toBeInTheDocument();
@@ -110,7 +117,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/login';
       mockLocation.href = 'http://localhost:3000/auth/login';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });
@@ -119,7 +126,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/forgot-username';
       mockLocation.href = 'http://localhost:3000/auth/forgot-username';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });
@@ -128,7 +135,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/forgot-password';
       mockLocation.href = 'http://localhost:3000/auth/forgot-password';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });
@@ -137,7 +144,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/verify-otp';
       mockLocation.href = 'http://localhost:3000/auth/verify-otp';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });
@@ -146,7 +153,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/reset-password';
       mockLocation.href = 'http://localhost:3000/auth/reset-password';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });
@@ -157,7 +164,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/';
       mockLocation.href = 'http://localhost:3000/';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
     });
@@ -166,7 +173,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/dashboard';
       mockLocation.href = 'http://localhost:3000/dashboard';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
     });
@@ -177,7 +184,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/common-ui';
       mockLocation.href = 'http://localhost:3000/common-ui';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('example-usage')).toBeInTheDocument();
     });
@@ -188,7 +195,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/unknown-route';
       mockLocation.href = 'http://localhost:3000/unknown-route';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
     });
@@ -197,7 +204,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/some/deep/unknown/route';
       mockLocation.href = 'http://localhost:3000/some/deep/unknown/route';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
     });
@@ -208,7 +215,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/';
       mockLocation.href = 'http://localhost:3000/';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       // Should render main container for protected routes
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
@@ -218,7 +225,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/login';
       mockLocation.href = 'http://localhost:3000/auth/login';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       // Should render protected route wrapper for auth routes
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
@@ -245,7 +252,7 @@ describe('AppRoutes', () => {
     it('should import all required components', () => {
       // This test ensures all imports are working correctly
       expect(() => {
-        render(<AppRoutes />);
+        renderWithProvider(<AppRoutes />);
       }).not.toThrow();
     });
   });
@@ -255,7 +262,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/login';
       mockLocation.href = 'http://localhost:3000/auth/login';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       // The protected route should be rendered with ignored routes
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
@@ -265,7 +272,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/dashboard';
       mockLocation.href = 'http://localhost:3000/dashboard';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       // The main container should be rendered for protected routes
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
@@ -277,7 +284,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '';
       mockLocation.href = 'http://localhost:3000';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
     });
@@ -286,7 +293,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/';
       mockLocation.href = 'http://localhost:3000/';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('main-container')).toBeInTheDocument();
     });
@@ -295,7 +302,7 @@ describe('AppRoutes', () => {
       mockLocation.pathname = '/auth/login/';
       mockLocation.href = 'http://localhost:3000/auth/login/';
       
-      render(<AppRoutes />);
+      renderWithProvider(<AppRoutes />);
 
       expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     });

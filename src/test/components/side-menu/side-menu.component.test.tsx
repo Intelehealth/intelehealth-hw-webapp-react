@@ -53,23 +53,23 @@ describe('SideMenu', () => {
 
   it('should render the sidebar with correct classes', () => {
     const { container } = renderWithRouter(<SideMenu />);
-
-    const sidebar = container.querySelector('aside');
-    expect(sidebar).toHaveClass('fixed', 'top-0', 'left-0', 'h-screen', 'bg-(--color-primary)', 'shadow-lg', 'z-50', 'p-2', 'transition-all', 'duration-300', 'w-64', '-translate-x-full', 'md:translate-x-0');
-  });
-
-  it('should render the logo in header', () => {
-    renderWithRouter(<SideMenu />);
     
-    const logo = screen.getByAltText('hero');
-    expect(logo).toBeInTheDocument();
-    expect(logo).toHaveClass('h-[74px]', 'object-contain');
+    const sidebar = container.querySelector('aside');
+    expect(sidebar).toHaveClass('fixed', 'top-0', 'left-0', 'h-screen', 'bg-transparent', 'z-50', 'transition-all', 'duration-300', 'w-64', '-translate-x-full', 'md:translate-x-0');
   });
+
+    it('should render the logo in header', () => {
+      renderWithRouter(<SideMenu />);
+      
+      const logo = screen.getByAltText('hero');
+      expect(logo).toBeInTheDocument();
+      expect(logo).toHaveClass('h-12', 'md:h-[74px]', 'object-contain');
+    });
 
   it('should render all menu items', () => {
     renderWithRouter(<SideMenu />);
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Achievements')).toBeInTheDocument();
     expect(screen.getByText('Help & Support')).toBeInTheDocument();
     expect(screen.getByText('Educational Videos')).toBeInTheDocument();
@@ -80,14 +80,14 @@ describe('SideMenu', () => {
   it('should render menu items with correct icons', () => {
     renderWithRouter(<SideMenu />);
     
-    const dashboardIcon = screen.getByText('Dashboard').closest('a')?.querySelector('img');
+    const homeIcon = screen.getByText('Home').closest('a')?.querySelector('img');
     const achievementsIcon = screen.getByText('Achievements').closest('a')?.querySelector('img');
     const helpIcon = screen.getByText('Help & Support').closest('a')?.querySelector('img');
     const videosIcon = screen.getByText('Educational Videos').closest('a')?.querySelector('img');
     const settingsIcon = screen.getByText('Settings').closest('a')?.querySelector('img');
     const aboutIcon = screen.getByText('About us').closest('a')?.querySelector('img');
     
-    expect(dashboardIcon).toBeInTheDocument();
+    expect(homeIcon).toBeInTheDocument();
     expect(achievementsIcon).toBeInTheDocument();
     expect(helpIcon).toBeInTheDocument();
     expect(videosIcon).toBeInTheDocument();
@@ -98,8 +98,8 @@ describe('SideMenu', () => {
   it('should render menu items with correct classes', () => {
     renderWithRouter(<SideMenu />);
     
-    const dashboardLink = screen.getByText('Dashboard').closest('a');
-    expect(dashboardLink).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
+    const homeLink = screen.getByText('Home').closest('a');
+    expect(homeLink).toHaveClass('flex', 'items-center', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition');
   });
 
   it('should render toggle button for collapsing', () => {
@@ -107,23 +107,23 @@ describe('SideMenu', () => {
     
     const toggleButton = screen.getAllByRole('button')[1]; // Second button is the toggle
     expect(toggleButton).toBeInTheDocument();
-    expect(toggleButton).toHaveClass('absolute', 'top-13', 'right-0', 'bg-white', 'border', 'border-(--color-primary)', 'shadow', 'rounded-full', 'w-6', 'h-6', 'flex', 'items-center', 'justify-center', 'z-50', 'hover:bg-gray-100', 'transition');
+    expect(toggleButton).toHaveClass('hidden', 'md:flex', 'absolute', 'bg-white', 'shadow-md', 'rounded-full', 'items-center', 'justify-center', 'z-50', 'hover:bg-gray-100', 'transition-all');
   });
 
   it('should toggle collapsed state when toggle button is clicked', () => {
-    renderWithRouter(<SideMenu />);
+    const { container } = renderWithRouter(<SideMenu />);
     
     const toggleButton = screen.getAllByRole('button')[1]; // Second button is the toggle
-    const sidebar = screen.getByRole('complementary');
+    const sidebar = container.querySelector('aside');
     
     // Initially not collapsed
-    expect(sidebar).not.toHaveClass('md:w-25');
+    expect(sidebar).toHaveClass('w-64');
     
     // Click toggle button
     fireEvent.click(toggleButton);
     
     // Should be collapsed
-    expect(sidebar).toHaveClass('w-24');
+    expect(sidebar).toHaveClass('w-20', 'md:w-24');
   });
 
   it('should show mobile toggle button on mobile screens', () => {
@@ -159,11 +159,11 @@ describe('SideMenu', () => {
   });
 
   it('should have proper structure with header, navigation, and main content', () => {
-    renderWithRouter(<SideMenu />);
+    const { container } = renderWithRouter(<SideMenu />);
     
-    const sidebar = screen.getByRole('complementary');
-    const header = sidebar.querySelector('div:first-child');
-    const navigation = sidebar.querySelector('nav');
+    const sidebar = container.querySelector('aside');
+    const header = sidebar?.querySelector('div:first-child');
+    const navigation = sidebar?.querySelector('nav');
     
     expect(header).toBeInTheDocument();
     expect(navigation).toBeInTheDocument();
@@ -172,16 +172,16 @@ describe('SideMenu', () => {
   it('should render menu items with correct icon classes', () => {
     renderWithRouter(<SideMenu />);
     
-    const dashboardIcon = screen.getByText('Dashboard').closest('a')?.querySelector('img');
-    expect(dashboardIcon).toHaveClass('w-6', 'h-6');
+    const homeIcon = screen.getByText('Home').closest('a')?.querySelector('img');
+    expect(homeIcon).toHaveClass('w-5', 'h-5', 'md:w-6', 'md:h-6');
   });
 
   it('should handle mobile menu toggle correctly', () => {
     mockInnerWidth.mockReturnValue(500); // Mobile width
-    renderWithRouter(<SideMenu />);
+    const { container } = renderWithRouter(<SideMenu />);
     
     const mobileToggleButton = screen.getAllByRole('button')[0]; // First button is mobile toggle
-    const sidebar = screen.getByRole('complementary');
+    const sidebar = container.querySelector('aside');
     
     // Initially hidden on mobile
     expect(sidebar).toHaveClass('-translate-x-full', 'md:translate-x-0');
@@ -197,14 +197,14 @@ describe('SideMenu', () => {
     renderWithRouter(<SideMenu />);
     
     const menuItems = screen.getAllByRole('link');
-    expect(menuItems).toHaveLength(9); // 1 Add Patients + 7 main menu items + 1 logout link
+    expect(menuItems).toHaveLength(8); // 1 Add Patients + 6 main menu items + 1 logout link
     
     menuItems.forEach((link, index) => {
       // Add Patients button has different classes than regular menu items
       if (index === 0) { // Add Patients button
-        expect(link).toHaveClass('w-full', 'flex', 'items-center', 'bg-white', 'rounded-lg', 'px-4', 'py-2', 'justify-between', 'shadow-md', 'hover:shadow-lg', 'transition-shadow');
+        expect(link).toHaveClass('w-full', 'flex', 'items-center', 'bg-white', 'rounded-lg', 'justify-between', 'shadow-md', 'hover:shadow-lg', 'transition-shadow');
       } else { // Regular menu items
-        expect(link).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition');
+        expect(link).toHaveClass('flex', 'items-center', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition');
       }
       
       // Check for either img or i element (Profile uses i, others use img)
@@ -229,7 +229,7 @@ describe('SideMenu', () => {
     
     if (logoutText) {
       logoutButton = logoutText.closest('a');
-      expect(logoutButton).toHaveClass('flex', 'items-center', 'gap-3', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition', 'p-4');
+      expect(logoutButton).toHaveClass('flex', 'items-center', 'rounded-lg', 'hover:bg-(--color-primary-dark)', 'transition');
     } else {
       // If text is not visible (collapsed), find by looking for the last link
       const allLinks = screen.getAllByRole('link');
@@ -255,7 +255,7 @@ describe('SideMenu', () => {
     
     const logoutIcon = logoutLink?.querySelector('img');
     expect(logoutIcon).toBeInTheDocument();
-    expect(logoutIcon).toHaveClass('w-6', 'h-6');
+    expect(logoutIcon).toHaveClass('w-5', 'h-5', 'md:w-6', 'md:h-6');
   });
 
   it('should show thumbnail logo when collapsed', () => {
@@ -278,23 +278,22 @@ describe('SideMenu', () => {
   it('should have proper sidebar structure with rounded background', () => {
     const { container } = renderWithRouter(<SideMenu />);
     
-    const sidebarBackground = container.querySelector('.flex.flex-col.rounded-lg.h-screen.bg-\\(--color-primary\\).p-2');
+    const sidebarBackground = container.querySelector('.flex.flex-col.rounded-lg.bg-\\(--color-primary\\)');
     expect(sidebarBackground).toBeInTheDocument();
   });
 
   it('should render menu items with correct spacing', () => {
     const { container } = renderWithRouter(<SideMenu />);
     
-    const navigation = container.querySelector('nav.flex-1.space-y-2');
+    const navigation = container.querySelector('nav.flex-1');
     expect(navigation).toBeInTheDocument();
   });
 
   it('should render logout section at bottom', () => {
     const { container } = renderWithRouter(<SideMenu />);
     
-    // Logout section may not exist or have different structure
-    const logoutSection = container.querySelector('nav.flex-1.space-y-2.mt-auto') || 
-                         container.querySelector('nav.flex-1.space-y-2');
+    // Logout section is in a div with border-t
+    const logoutSection = container.querySelector('.border-t.border-gray-300\\/20.mt-auto');
     expect(logoutSection).toBeInTheDocument();
   });
 
@@ -306,13 +305,13 @@ describe('SideMenu', () => {
   });
 
   it('should have proper responsive classes when collapsed', () => {
-    renderWithRouter(<SideMenu />);
+    const { container } = renderWithRouter(<SideMenu />);
     
     const toggleButton = screen.getAllByRole('button')[1];
     fireEvent.click(toggleButton);
     
-    const sidebar = screen.getByRole('complementary');
-    expect(sidebar).toHaveClass('w-24');
+    const sidebar = container.querySelector('aside');
+    expect(sidebar).toHaveClass('w-20', 'md:w-24');
   });
 
   it('should render toggle button with correct chevron icon', () => {
@@ -320,7 +319,7 @@ describe('SideMenu', () => {
     
     const toggleButton = screen.getAllByRole('button')[1];
     const chevronIcon = toggleButton.querySelector('i');
-    expect(chevronIcon).toHaveClass('fa-solid', 'text-(--color-primary)', 'text-sm', 'fa-chevron-left');
+    expect(chevronIcon).toHaveClass('fa-solid', 'text-(--color-primary)', 'text-sm', 'fa-chevron-right');
   });
 
   it('should change chevron icon when collapsed', () => {
@@ -330,25 +329,25 @@ describe('SideMenu', () => {
     fireEvent.click(toggleButton);
     
     const chevronIcon = toggleButton.querySelector('i');
-    expect(chevronIcon).toHaveClass('fa-solid', 'text-(--color-primary)', 'text-sm', 'fa-chevron-right');
+    expect(chevronIcon).toHaveClass('fa-solid', 'text-(--color-primary)', 'text-sm', 'fa-chevron-left');
   });
 
   it('should render menu items with correct text styling', () => {
     renderWithRouter(<SideMenu />);
     
-    const dashboardText = screen.getByText('Dashboard');
-    expect(dashboardText).toHaveClass('text-white');
+    const homeText = screen.getByText('Home');
+    expect(homeText).toHaveClass('text-white');
   });
 
   it('should handle outside click on mobile to close menu', () => {
     mockInnerWidth.mockReturnValue(500); // Mobile width
-    renderWithRouter(<SideMenu />);
+    const { container } = renderWithRouter(<SideMenu />);
     
     const mobileToggleButton = screen.getAllByRole('button')[0];
     fireEvent.click(mobileToggleButton);
     
     // Menu should be open
-    const sidebar = screen.getByRole('complementary');
+    const sidebar = container.querySelector('aside');
     expect(sidebar).toHaveClass('translate-x-0');
     
     // Simulate outside click - click on the overlay
@@ -388,18 +387,20 @@ describe('SideMenu', () => {
 
   it('should not close menu when clicking inside sidebar on mobile', () => {
     mockInnerWidth.mockReturnValue(500); // Mobile width
-    renderWithRouter(<SideMenu />);
-
+    const { container } = renderWithRouter(<SideMenu />);
+    
     const mobileToggleButton = screen.getAllByRole('button')[0];
     fireEvent.click(mobileToggleButton);
-
+    
     // Menu should be open
-    const sidebar = screen.getByRole('complementary');
+    const sidebar = container.querySelector('aside');
     expect(sidebar).toHaveClass('translate-x-0');
-
+    
     // Click inside the sidebar - should not close
-    fireEvent.mouseDown(sidebar);
-
+    if (sidebar) {
+      fireEvent.mouseDown(sidebar);
+    }
+    
     // Menu should still be open
     expect(sidebar).toHaveClass('translate-x-0');
   });

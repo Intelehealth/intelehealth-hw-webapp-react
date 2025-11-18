@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProtectedRoute from '../../routes/protected.route';
+import { store } from '../../store/store';
 import { storage } from '../../utils/storage';
 
 // Mock the storage utility
@@ -12,7 +14,7 @@ vi.mock('../../utils/storage', () => ({
 }));
 
 // Mock the Loader component
-vi.mock('../../components/loader', () => ({
+vi.mock('../../components/common', () => ({
   Loader: () => <div data-testid="loader">Loading...</div>,
 }));
 
@@ -26,6 +28,11 @@ Object.defineProperty(window, 'location', {
   writable: true,
 });
 
+// Helper to render with Redux Provider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<Provider store={store}>{component}</Provider>);
+};
+
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,7 +41,7 @@ describe('ProtectedRoute', () => {
   it('should redirect to login when no token is present', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -47,7 +54,7 @@ describe('ProtectedRoute', () => {
   it('should allow access when token is present', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -61,7 +68,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
     mockLocation.pathname = '/auth/login';
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/auth/login']}>
         <ProtectedRoute ignoredRoutes={['/auth/login']} />
       </MemoryRouter>
@@ -74,7 +81,7 @@ describe('ProtectedRoute', () => {
   it('should redirect to custom redirect path when provided', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute redirectPath="/custom-login" />
       </MemoryRouter>
@@ -88,7 +95,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
     mockLocation.pathname = '/public/page';
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/public/page']}>
         <ProtectedRoute ignoredRoutes={['/auth', '/public']} />
       </MemoryRouter>
@@ -101,7 +108,7 @@ describe('ProtectedRoute', () => {
   it('should handle empty ignored routes array', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute ignoredRoutes={[]} />
       </MemoryRouter>
@@ -114,7 +121,7 @@ describe('ProtectedRoute', () => {
   it('should render loader when authenticated', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -127,7 +134,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
     mockLocation.pathname = '/auth/forgot-password';
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/auth/forgot-password']}>
         <ProtectedRoute ignoredRoutes={['/auth']} />
       </MemoryRouter>
@@ -140,7 +147,7 @@ describe('ProtectedRoute', () => {
   it('should use default redirect path when not provided', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -154,7 +161,7 @@ describe('ProtectedRoute', () => {
     // Test with valid token
     vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    const { rerender } = render(
+    const { rerender } = renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -166,9 +173,11 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
     rerender(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <ProtectedRoute />
-      </MemoryRouter>
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <ProtectedRoute />
+        </MemoryRouter>
+      </Provider>
     );
 
     expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
@@ -178,7 +187,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
     mockLocation.pathname = '/auth';
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/auth']}>
         <ProtectedRoute ignoredRoutes={['/auth']} />
       </MemoryRouter>
@@ -192,7 +201,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue(null);
     mockLocation.pathname = '/api/public/data';
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/api/public/data']}>
         <ProtectedRoute ignoredRoutes={['/api/public', '/auth']} />
       </MemoryRouter>
@@ -205,7 +214,7 @@ describe('ProtectedRoute', () => {
   it('should maintain component structure', () => {
     vi.mocked(storage.getAuthToken).mockReturnValue('valid-token');
 
-    render(
+    renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -221,7 +230,7 @@ describe('ProtectedRoute', () => {
     // Test different paths
     mockLocation.pathname = '/dashboard';
     
-    const { rerender } = render(
+    const { rerender } = renderWithProvider(
       <MemoryRouter initialEntries={['/dashboard']}>
         <ProtectedRoute />
       </MemoryRouter>
@@ -233,9 +242,11 @@ describe('ProtectedRoute', () => {
     mockLocation.pathname = '/auth/login';
     
     rerender(
-      <MemoryRouter initialEntries={['/auth/login']}>
-        <ProtectedRoute ignoredRoutes={['/auth']} />
-      </MemoryRouter>
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/auth/login']}>
+          <ProtectedRoute ignoredRoutes={['/auth']} />
+        </MemoryRouter>
+      </Provider>
     );
 
     // Should not redirect

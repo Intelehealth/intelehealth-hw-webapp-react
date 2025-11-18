@@ -177,7 +177,7 @@ describe('Firebase Messaging Service Worker', () => {
   describe('Background Message Handler', () => {
     it('should setup background message handler', () => {
       // Simulate setup
-      mockMessaging.onBackgroundMessage((payload: any) => {
+      mockMessaging.onBackgroundMessage(() => {
         // Handler logic
       });
 
