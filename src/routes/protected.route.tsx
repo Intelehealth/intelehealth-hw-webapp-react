@@ -12,7 +12,8 @@ const ProtectedRoute: React.FC<Props> = ({
   ignoredRoutes = [],
 }) => {
   const token = storage.getAuthToken();
-  const currentPath = window.location.pathname;
+  // For HashRouter, get the path from the hash instead of pathname
+  const currentPath = window.location.hash.replace('#', '') || '/';
 
   // If route is ignored (like login, public pages) -> skip auth check
   if (ignoredRoutes.some(route => currentPath.startsWith(route))) {

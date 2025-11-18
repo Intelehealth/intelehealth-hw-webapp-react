@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
@@ -16,7 +16,7 @@ import AddPatientPage from '../pages/patient/add/add-patient.page';
 import ProfilePage from '../pages/profile/profile.page';
 
 const AppRoutes = () => (
-  <BrowserRouter>
+  <HashRouter>
     <Routes>
       {/* Auth routes (ignored) */}
       <Route
@@ -66,7 +66,7 @@ const AppRoutes = () => (
       {/* 404 fallback */}
       <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
     </Routes>
-  </BrowserRouter>
+  </HashRouter>
 );
 
 export default AppRoutes;

@@ -5,20 +5,16 @@ import { configureStore } from '@reduxjs/toolkit';
 import ROUTES from '../../routes/paths';
 import AppRoutes from '../../routes/app.routes';
 
-// Import reducers
-import { authReducer } from '../../reducers/auth.reducer';
-import loaderReducer from '../../reducers/loader.reducer';
-import patientReducer from '../../reducers/patient.reducer';
-
-// Create a mock store for testing
-const createMockStore = () => {
-  return configureStore({
-    reducer: {
-      auth: authReducer as any,
-      loader: loaderReducer,
-      patient: patientReducer as any,
-    },
-  });
+// Mock window.location for HashRouter
+const mockLocation = {
+  href: 'http://localhost:3000',
+  origin: 'http://localhost:3000',
+  pathname: '/',
+  search: '',
+  hash: '',
+  assign: vi.fn(),
+  replace: vi.fn(),
+  reload: vi.fn(),
 };
 
 // Mock storage
@@ -121,9 +117,11 @@ describe('AppRoutes', () => {
     }).not.toThrow();
   });
 
-  it('should render BrowserRouter as the root component', () => {
-    const { container } = renderAppRoutes();
-    expect(container).toBeInTheDocument();
+  it('should render HashRouter as the root component', () => {
+    const { container } = render(<AppRoutes />);
+
+    // The component should render without errors
+    expect(container.firstChild).toBeInTheDocument();
   });
 
   describe('Environment-based basename', () => {
