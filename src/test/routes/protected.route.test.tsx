@@ -96,7 +96,7 @@ describe('ProtectedRoute', () => {
     });
 
     it('should handle undefined token', () => {
-      vi.mocked(storage.getAuthToken).mockReturnValue(undefined);
+      vi.mocked(storage.getAuthToken).mockReturnValue(null);
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>

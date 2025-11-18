@@ -343,27 +343,27 @@ describe('patientOtherInfoSchema', () => {
   describe('schema configuration', () => {
     it('should mark sonDaughterWifeOf as optional', () => {
       const schema = patientOtherInfoSchema.describe();
-      expect(schema.fields.sonDaughterWifeOf.optional).toBe(true);
+      expect((schema.fields.sonDaughterWifeOf as any).optional).toBe(true);
     });
 
     it('should mark occupation as optional', () => {
       const schema = patientOtherInfoSchema.describe();
-      expect(schema.fields.occupation.optional).toBe(true);
+      expect((schema.fields.occupation as any).optional).toBe(true);
     });
 
     it('should mark caste as optional', () => {
       const schema = patientOtherInfoSchema.describe();
-      expect(schema.fields.caste.optional).toBe(true);
+      expect((schema.fields.caste as any).optional).toBe(true);
     });
 
     it('should mark economicStatus as optional', () => {
       const schema = patientOtherInfoSchema.describe();
-      expect(schema.fields.economicStatus.optional).toBe(true);
+      expect((schema.fields.economicStatus as any).optional).toBe(true);
     });
 
     it('should mark education as required', () => {
       const schema = patientOtherInfoSchema.describe();
-      expect(schema.fields.education.optional).toBe(false);
+      expect((schema.fields.education as any).optional).toBe(false);
     });
   });
 });

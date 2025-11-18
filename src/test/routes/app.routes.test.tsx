@@ -6,7 +6,7 @@ import ROUTES from '../../routes/paths';
 import AppRoutes from '../../routes/app.routes';
 
 // Import reducers
-import authReducer from '../../reducers/auth.reducer';
+import { authReducer } from '../../reducers/auth.reducer';
 import loaderReducer from '../../reducers/loader.reducer';
 import patientReducer from '../../reducers/patient.reducer';
 
@@ -14,9 +14,9 @@ import patientReducer from '../../reducers/patient.reducer';
 const createMockStore = () => {
   return configureStore({
     reducer: {
-      auth: authReducer,
+      auth: authReducer as any,
       loader: loaderReducer,
-      patient: patientReducer,
+      patient: patientReducer as any,
     },
   });
 };

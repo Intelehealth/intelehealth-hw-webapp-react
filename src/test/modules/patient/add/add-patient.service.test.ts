@@ -94,7 +94,7 @@ describe('patientService', () => {
           addresses: [],
           attributes: [],
         },
-      } as AddPatientData;
+      } as unknown as AddPatientData;
 
       const error = new Error('Failed to create patient');
       mockOpenMRSPost.mockRejectedValue(error);

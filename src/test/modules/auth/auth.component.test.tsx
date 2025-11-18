@@ -514,7 +514,7 @@ describe('AuthComponent', () => {
 
     it('should handle single slide', () => {
       const singleSlide = [
-        { title: 'Only Slide', description: 'Only description' },
+        { image: 'test-image.jpg', title: 'Only Slide', description: 'Only description' },
       ];
       render(<AuthComponent {...defaultProps} slides={singleSlide} />);
 
@@ -524,6 +524,7 @@ describe('AuthComponent', () => {
 
     it('should handle many slides', () => {
       const manySlides = Array.from({ length: 10 }, (_, i) => ({
+        image: `test-image-${i}.jpg`,
         title: `Slide ${i}`,
         description: `Description ${i}`,
       }));

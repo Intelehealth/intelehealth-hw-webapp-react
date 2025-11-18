@@ -185,15 +185,20 @@ describe('Profile Helpers', () => {
     it('should map provider attributes to key-value pairs', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [
           {
-            attributeType: { name: 'emailId', display: 'Email' },
+            uuid: 'attr-inst-1',
+            display: 'Email: john@example.com',
+            attributeType: { uuid: 'attr-1', name: 'emailId', display: 'Email' },
             value: 'john@example.com',
           },
           {
-            attributeType: { name: 'phoneNumber', display: 'Phone' },
+            uuid: 'attr-inst-2',
+            display: 'Phone: 1234567890',
+            attributeType: { uuid: 'attr-2', name: 'phoneNumber', display: 'Phone' },
             value: '1234567890',
           },
         ],
@@ -217,6 +222,7 @@ describe('Profile Helpers', () => {
     it('should return empty object if providerDetails has no attributes', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
       };
@@ -317,9 +323,9 @@ describe('Profile Helpers', () => {
         username: 'johndoe',
         systemId: 'admin',
         display: 'John Doe (johndoe)',
-        person: { uuid: 'person-123', display: 'John Doe' },
-        roles: [{ name: 'System Administrator', display: 'System Administrator' }],
-        privileges: [{ name: 'Edit Users', display: 'Edit Users' }],
+        person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
+        roles: [{ uuid: 'role-1', name: 'System Administrator', display: 'System Administrator' }],
+        privileges: [{ uuid: 'priv-1', name: 'Edit Users', display: 'Edit Users' }],
         retired: false,
         userProperties: {},
       };
@@ -340,6 +346,7 @@ describe('Profile Helpers', () => {
 
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
       };
@@ -391,9 +398,10 @@ describe('Profile Helpers', () => {
     it('should handle missing optional fields', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: '',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: true,
@@ -429,8 +437,8 @@ describe('Profile Helpers', () => {
         username: 'janedoe',
         systemId: 'admin',
         display: 'Jane Doe',
-        person: { uuid: 'person-456', display: 'Jane Doe' },
-        roles: [{ name: 'Doctor', display: 'Doctor' }],
+        person: { uuid: 'person-456', display: 'Jane Doe', gender: 'F' },
+        roles: [{ uuid: 'role-2', name: 'Doctor', display: 'Doctor' }],
         privileges: [],
         retired: false,
         userProperties: {},
@@ -451,6 +459,7 @@ describe('Profile Helpers', () => {
 
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-456',
+        display: 'Jane Doe - DOC001',
         identifier: 'DOC001',
         person: { uuid: 'person-456', display: 'Jane Doe', gender: 'F' },
       };
@@ -505,9 +514,10 @@ describe('Profile Helpers', () => {
     it('should fallback to Email attribute from personAttributes', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: 'user123',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: false,
@@ -534,9 +544,10 @@ describe('Profile Helpers', () => {
     it('should fallback to Telephone Number from personAttributes', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: 'user123',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: false,
@@ -563,9 +574,10 @@ describe('Profile Helpers', () => {
     it('should use setup_location as fallback for setupLocation', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: 'user123',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: false,
@@ -592,9 +604,10 @@ describe('Profile Helpers', () => {
     it('should handle null birthdate', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: 'user123',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: false,
@@ -622,9 +635,10 @@ describe('Profile Helpers', () => {
     it('should handle null age', () => {
       const userDetails: UserDetailResponse = {
         uuid: 'user-123',
+        username: 'user123',
         systemId: 'admin',
         display: 'User',
-        person: { uuid: 'person-123', display: 'User' },
+        person: { uuid: 'person-123', display: 'User', gender: 'M' },
         roles: [],
         privileges: [],
         retired: false,
@@ -654,6 +668,7 @@ describe('Profile Helpers', () => {
     it('should return attribute UUID when found', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [
@@ -673,6 +688,7 @@ describe('Profile Helpers', () => {
     it('should return null if attribute type does not match', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [
@@ -692,6 +708,7 @@ describe('Profile Helpers', () => {
     it('should return null if display name does not match', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [
@@ -711,6 +728,7 @@ describe('Profile Helpers', () => {
     it('should return null if attribute is voided', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [
@@ -735,6 +753,7 @@ describe('Profile Helpers', () => {
     it('should return null if providerDetails has no attributes', () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
       };
@@ -864,6 +883,7 @@ describe('Profile Helpers', () => {
     it('should update email, phone, and setupLocation attributes', async () => {
       const providerDetails: ProviderDetailResponse = {
         uuid: 'provider-123',
+        display: 'John Doe - EMP001',
         identifier: 'EMP001',
         person: { uuid: 'person-123', display: 'John Doe', gender: 'M' },
         attributes: [

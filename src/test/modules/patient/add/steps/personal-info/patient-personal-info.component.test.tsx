@@ -902,7 +902,6 @@ describe('PatientPersonalInfo', () => {
 
   describe('Gender Radio Group', () => {
     it('should handle gender selection - Male', async () => {
-      const user = userEvent.setup();
       render(
         <PatientPersonalInfo
           defaultValues={defaultValues}
@@ -911,7 +910,6 @@ describe('PatientPersonalInfo', () => {
         />
       );
 
-      const maleRadio = screen.getByRole('radiogroup');
       const maleInput = screen.getByDisplayValue('M');
 
       fireEvent.click(maleInput);
@@ -920,7 +918,6 @@ describe('PatientPersonalInfo', () => {
     });
 
     it('should handle gender selection - Female', async () => {
-      const user = userEvent.setup();
       render(
         <PatientPersonalInfo
           defaultValues={defaultValues}
@@ -936,7 +933,6 @@ describe('PatientPersonalInfo', () => {
     });
 
     it('should handle gender selection - Other', async () => {
-      const user = userEvent.setup();
       render(
         <PatientPersonalInfo
           defaultValues={defaultValues}
@@ -1375,7 +1371,6 @@ describe('PatientPersonalInfo', () => {
 
   describe('Edge Cases', () => {
     it('should handle form submission with Enter key', async () => {
-      const user = userEvent.setup();
       const validValues = {
         firstName: 'John',
         middleName: 'M',
