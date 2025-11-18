@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppRoutes from '../../routes/app.routes';
 import ROUTES from '../../routes/paths';
 
-// Mock window.location for BrowserRouter
+// Mock window.location for HashRouter
 const mockLocation = {
   href: 'http://localhost:3000',
   origin: 'http://localhost:3000',
@@ -98,7 +98,7 @@ describe('AppRoutes', () => {
     }).not.toThrow();
   });
 
-  it('should render BrowserRouter as the root component', () => {
+  it('should render HashRouter as the root component', () => {
     const { container } = render(<AppRoutes />);
 
     // The component should render without errors

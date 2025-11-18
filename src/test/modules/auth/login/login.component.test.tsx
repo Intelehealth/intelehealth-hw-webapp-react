@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import i18n from '../../../../i18n'; // adjust path if needed
 
@@ -75,9 +75,9 @@ describe('LoginComponent (Vite + Vitest)', () => {
   const setup = () => {
     render(
       <I18nextProvider i18n={i18n}>
-        <BrowserRouter>
+        <HashRouter>
           <LoginComponent />
-        </BrowserRouter>
+        </HashRouter>
       </I18nextProvider>
     );
   };

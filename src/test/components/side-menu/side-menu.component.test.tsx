@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
 
@@ -29,7 +29,7 @@ Object.defineProperty(window, 'innerWidth', {
 
 describe('SideMenu', () => {
   const renderWithRouter = (component: React.ReactElement) => {
-    return render(<BrowserRouter>{component}</BrowserRouter>);
+    return render(<HashRouter>{component}</HashRouter>);
   };
 
   beforeEach(() => {
