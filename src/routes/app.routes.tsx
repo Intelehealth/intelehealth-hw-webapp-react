@@ -3,8 +3,6 @@ import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
 
-const mode = process.env.NODE_ENV;
-
 // Pages
 import CommonUiComponent from '../components/common/common-ui.component';
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
@@ -20,7 +18,7 @@ import NotFoundPage from '../pages/not-found/not-found.page';
 import ProfilePage from '../pages/profile/profile.page';
 
 const AppRoutes = () => (
-  <BrowserRouter basename={mode === 'development' ? '/' : '/hwwebapp'}>
+  <BrowserRouter>
     <Routes>
       {/* Auth routes (ignored) */}
       <Route
