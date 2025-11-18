@@ -27,15 +27,6 @@ vi.mock('../../../modules/profile/profile.service', () => ({
   },
 }));
 
-// Mock import.meta.env
-vi.stubGlobal('import', {
-  meta: {
-    env: {
-      VITE_OPENMRS_API_URL: 'http://localhost:8080/openmrs/ws/rest/v1',
-    },
-  },
-});
-
 describe('Profile Helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();

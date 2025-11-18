@@ -59,6 +59,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    env: {
+      VITE_OPENMRS_API_URL: 'http://localhost:8080/openmrs/ws/rest/v1',
+    },
     exclude: ['node_modules/**', 'dist/**', 'coverage/**', 'src/examples/**'],
     coverage: {
       provider: 'v8',
