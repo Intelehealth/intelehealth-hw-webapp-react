@@ -5,18 +5,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import ROUTES from '../../routes/paths';
 import AppRoutes from '../../routes/app.routes';
 
-// Mock window.location for HashRouter
-const mockLocation = {
-  href: 'http://localhost:3000',
-  origin: 'http://localhost:3000',
-  pathname: '/',
-  search: '',
-  hash: '',
-  assign: vi.fn(),
-  replace: vi.fn(),
-  reload: vi.fn(),
-};
-
 // Mock storage
 vi.mock('../../utils/storage', () => ({
   storage: {
