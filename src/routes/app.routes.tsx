@@ -17,10 +17,8 @@ import DashboardPage from '../pages/dashboard/dashboard.page';
 import NotFoundPage from '../pages/not-found/not-found.page';
 import ProfilePage from '../pages/profile/profile.page';
 
-const mode = process.env.NODE_ENV;
-
 const AppRoutes = () => (
-  <HashRouter basename={mode === 'development' ? '/' : '/hwwebapp'}>
+  <HashRouter>
     <Routes>
       {/* Auth routes (ignored) */}
       <Route
