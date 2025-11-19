@@ -36,69 +36,65 @@ class FCMService {
    */
   private async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     try {
-      if ('serviceWorker' in navigator) {
-        // Register service worker
-        const registration = await navigator.serviceWorker.register(
-          '/firebase-messaging-sw.js',
-          { scope: '/' }
-        );
+      // Register service worker
+      const registration = await navigator.serviceWorker.register(
+        '/firebase-messaging-sw.js',
+        { scope: '/' }
+      );
 
-        // Wait for service worker to be ready
-        await navigator.serviceWorker.ready;
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
 
-        // Small delay to ensure service worker script is fully executed
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay to ensure service worker script is fully executed
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Prepare Firebase config
-        const firebaseConfig = {
-          apiKey: env.FIREBASE_API_KEY,
-          authDomain: env.FIREBASE_AUTH_DOMAIN,
-          projectId: env.FIREBASE_PROJECT_ID,
-          storageBucket: env.FIREBASE_STORAGE_BUCKET,
-          messagingSenderId: env.FIREBASE_MESSAGING_SENDER_ID,
-          appId: env.FIREBASE_APP_ID,
-        };
+      // Prepare Firebase config
+      const firebaseConfig = {
+        apiKey: env.FIREBASE_API_KEY,
+        authDomain: env.FIREBASE_AUTH_DOMAIN,
+        projectId: env.FIREBASE_PROJECT_ID,
+        storageBucket: env.FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: env.FIREBASE_MESSAGING_SENDER_ID,
+        appId: env.FIREBASE_APP_ID,
+      };
 
-        // Send config to service worker
-        // Try active first, then installing, then wait for activation
-        const sendConfig = (worker: ServiceWorker | null) => {
-          if (worker) {
-            worker.postMessage({
-              type: 'FIREBASE_CONFIG',
-              config: firebaseConfig,
-            });
+      // Send config to service worker
+      // Try active first, then installing, then wait for activation
+      const sendConfig = (worker: ServiceWorker | null) => {
+        if (worker) {
+          worker.postMessage({
+            type: 'FIREBASE_CONFIG',
+            config: firebaseConfig,
+          });
+        }
+      };
+
+      if (registration.active) {
+        sendConfig(registration.active);
+      } else if (registration.installing) {
+        registration.installing.addEventListener('statechange', () => {
+          if (registration.installing?.state === 'activated') {
+            sendConfig(registration.active);
           }
-        };
+        });
+      } else if (registration.waiting) {
+        sendConfig(registration.waiting);
+      }
 
-        if (registration.active) {
-          sendConfig(registration.active);
-        } else if (registration.installing) {
-          registration.installing.addEventListener('statechange', () => {
-            if (registration.installing?.state === 'activated') {
+      // Also listen for new service worker activation
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated' && registration.active) {
               sendConfig(registration.active);
             }
           });
-        } else if (registration.waiting) {
-          sendConfig(registration.waiting);
         }
+      });
 
-        // Also listen for new service worker activation
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'activated' && registration.active) {
-                sendConfig(registration.active);
-              }
-            });
-          }
-        });
-
-        return registration;
-      }
-      return null;
+      return registration;
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Service worker registration error:', error);
       return null;
     }
@@ -118,7 +114,6 @@ class FCMService {
         !env.FIREBASE_APP_ID ||
         !env.FIREBASE_VAPID_KEY
       ) {
-        // eslint-disable-next-line no-console
         console.warn('Firebase configuration is incomplete');
         return false;
       }
@@ -159,7 +154,6 @@ class FCMService {
 
         // Verify messaging instance is valid
         if (!this.messaging) {
-          // eslint-disable-next-line no-console
           console.error('Failed to initialize Firebase Messaging instance');
           return false;
         }
@@ -171,12 +165,11 @@ class FCMService {
         return true;
       }
 
-      // eslint-disable-next-line no-console
       console.warn('Service Worker not supported in this browser');
       return false;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      // eslint-disable-next-line no-console
+
       console.error('FCM initialization error:', err);
       this.config.onError?.(err);
       return false;
@@ -225,7 +218,7 @@ class FCMService {
       return this.token;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      // eslint-disable-next-line no-console
+
       console.error('FCM permission request error:', err);
       this.config.onError?.(err);
       return null;
@@ -326,7 +319,7 @@ class FCMService {
       return null;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      // eslint-disable-next-line no-console
+
       console.error('FCM get token error:', err);
       return null;
     }
@@ -372,7 +365,7 @@ class FCMService {
       return null;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      // eslint-disable-next-line no-console
+
       console.error('FCM token validation error:', err);
       this.clearStoredToken();
       return null;
@@ -409,7 +402,6 @@ class FCMService {
    */
   private setupForegroundMessageHandler(): void {
     if (!this.messaging) {
-      // eslint-disable-next-line no-console -- error logging
       console.warn(
         'FCM messaging not initialized, cannot set up foreground handler'
       );
@@ -436,11 +428,9 @@ class FCMService {
             try {
               this.config.onMessageReceived(payload);
             } catch (error) {
-              // eslint-disable-next-line no-console -- error logging
               console.error('Error in onMessageReceived callback:', error);
             }
           } else {
-            // eslint-disable-next-line no-console -- error logging
             console.warn('FCM message received but no handler configured');
           }
         }
@@ -449,7 +439,7 @@ class FCMService {
       this.isMessageHandlerSetup = true;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      // eslint-disable-next-line no-console -- error logging
+
       console.error('Error setting up FCM foreground message handler:', err);
       this.config.onError?.(err);
     }
@@ -471,7 +461,6 @@ class FCMService {
       this.token = null;
       return true;
     } catch (error) {
-      // eslint-disable-next-line no-console -- error logging
       console.error('Error deleting FCM token:', error);
       return false;
     }
@@ -491,7 +480,6 @@ class FCMService {
     if (this.messaging && !this.isMessageHandlerSetup) {
       this.setupForegroundMessageHandler();
     } else if (this.messaging && this.isMessageHandlerSetup) {
-      // eslint-disable-next-line no-console -- error logging
       console.error(
         'Config updated, handler already set up (will use new callback)'
       );
