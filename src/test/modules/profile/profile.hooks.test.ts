@@ -360,6 +360,7 @@ describe('useProfile', () => {
     await act(async () => {
       try {
         await result.current.updateProfile({ firstName: 'Jane' });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         // Expected to throw
       }

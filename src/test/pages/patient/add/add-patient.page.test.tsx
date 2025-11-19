@@ -283,6 +283,7 @@ describe('AddPatientPage', () => {
     });
 
     it('should not cause multiple renders on mount', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       let renderCount = 0;
 
       const CountingComponent = vi.fn(() => {

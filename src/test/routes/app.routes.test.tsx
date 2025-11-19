@@ -1,9 +1,9 @@
-import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import ROUTES from '../../routes/paths';
+import { render } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppRoutes from '../../routes/app.routes';
+import ROUTES from '../../routes/paths';
 
 // Mock storage
 vi.mock('../../utils/storage', () => ({

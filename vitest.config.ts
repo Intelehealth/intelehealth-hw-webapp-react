@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 const mockCssPlugin = (): Plugin => ({
   name: 'mock-react-datepicker-css',
   enforce: 'pre', // Run before other plugins
-  resolveId(id, importer) {
+  resolveId(id) {
     // Handle the CSS import for react-datepicker
     if (
       id === 'react-datepicker/dist/react-datepicker.css' ||

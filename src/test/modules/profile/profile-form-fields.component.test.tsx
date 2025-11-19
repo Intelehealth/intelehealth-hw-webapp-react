@@ -59,6 +59,7 @@ vi.mock('../../../components/common', () => ({
       {label && <label>{label}</label>}
     </div>
   ),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Calendar: ({ label, onChange, value, error, isRequired, dateFormat, maxDate, minDate, ...props }: any) => {
     const inputId = `calendar-${label?.replace(/\s+/g, '-').toLowerCase() || 'input'}`;
 

@@ -43,6 +43,7 @@ vi.mock('../../../components/common', () => ({
   Loader: vi.fn(() => <div data-testid="loader">Loading...</div>),
 }));
 
+
 vi.mock('../../../modules/auth/common/image-slider.component', () => ({
   default: vi.fn(
     ({

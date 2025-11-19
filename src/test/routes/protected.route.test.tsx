@@ -36,6 +36,7 @@ const setLocationHash = (path: string) => {
   });
 };
 
+
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();

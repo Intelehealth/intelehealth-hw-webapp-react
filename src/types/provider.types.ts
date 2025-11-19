@@ -93,11 +93,9 @@ export interface ProviderResponse {
   results: Provider[];
 }
 
-export interface ProviderDetailResponse extends Provider {}
-
-export interface PersonDetailResponse extends Person {}
-
-export interface UserDetailResponse extends User {}
+export type ProviderDetailResponse = Provider;
+export type PersonDetailResponse = Person;
+export type UserDetailResponse = User;
 
 // Mapped profile data for application use
 export interface HealthWorkerProfile {
