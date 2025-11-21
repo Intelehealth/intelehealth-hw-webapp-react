@@ -8,7 +8,6 @@ import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
 import iconQuestionMark from '../../../assets/icons/icon-rounded-question-mark.svg';
 import { Button, Checkbox, Dropdown, Input } from '../../../components/common';
 import Card from '../../../components/common/card.component';
-import Tooltip from '../../../components/common/tooltip.component';
 import { useLogin } from './login.hooks';
 import { loginSchema } from './login.validation';
 
@@ -50,9 +49,7 @@ const LoginComponent: React.FC = () => {
             Please enter your login details
           </h2>
           <span className="ml-2 lg:flex align-middle">
-            <Tooltip text="Enter the credentials given by intelehealth team">
-              <img src={iconQuestionMark} alt="info" />
-            </Tooltip>
+            <img src={iconQuestionMark} alt="info" />
           </span>
         </div>
 

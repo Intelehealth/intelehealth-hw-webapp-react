@@ -99,7 +99,7 @@ export const useFCM = (
           },
           onError: err => {
             setError(err);
-            // eslint-disable-next-line no-console -- error logging
+
             console.error('FCM error:', err);
           },
         });
@@ -114,7 +114,7 @@ export const useFCM = (
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
-        // eslint-disable-next-line no-console -- error logging
+
         console.error('FCM initialization error:', error);
       }
     };

@@ -1,712 +1,395 @@
+import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
+import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileForm from '../../../modules/profile/profile-form.component';
 
-// Mock the useProfile hook
-const mockProfile = {
-  username: 'johndoe',
-  firstName: 'John',
-  middleName: 'M',
-  lastName: 'Doe',
-  email: 'john.doe@example.com',
-  phone: '1234567890',
-  dateOfBirth: '1990-01-01',
-  gender: 'male' as const,
-  setupLocation: 'sf-clinic',
-};
-
-const mockUpdateProfile = vi.fn();
-const mockUploadPhoto = vi.fn();
-const mockTakePhoto = vi.fn();
-
+// --- Mocks ---
 const mockUseProfile = vi.fn();
 
 vi.mock('../../../modules/profile/profile.hooks', () => ({
   useProfile: (...args: any[]) => mockUseProfile(...args),
 }));
 
-// Mock react-hook-form
-const mockRegister = vi.fn((name) => ({
-  name,
-  onChange: vi.fn(),
-  onBlur: vi.fn(),
-  ref: vi.fn(),
-}));
-
-const mockHandleSubmit = vi.fn((callback) => (e: React.FormEvent) => {
-  e.preventDefault();
-  return callback({
-    username: 'johndoe',
-    firstName: 'John',
-    middleName: 'M',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '1234567890',
-    dateOfBirth: '1990-01-01',
-    gender: 'male' as const,
-    setupLocation: 'sf-clinic',
-  });
-});
-
-const mockSetValue = vi.fn();
-const mockWatch = vi.fn();
-const mockReset = vi.fn();
-const mockTrigger = vi.fn();
-
-const mockUseForm = vi.fn(() => ({
-  register: mockRegister,
-  handleSubmit: mockHandleSubmit,
-  formState: {
-    errors: {},
-    isSubmitting: false,
-  },
-  setValue: mockSetValue,
-  watch: mockWatch,
-  reset: mockReset,
-  trigger: mockTrigger,
-}));
-
-vi.mock('react-hook-form', () => ({
-  useForm: (...args: any[]) => (mockUseForm as (...args: any[]) => any)(...args),
-  yupResolver: vi.fn(),
-}));
-
-// Mock child components
-vi.mock('../../../components/common', () => ({
-  Button: ({ children, onClick, type, isLoading, loadingText, ...props }: any) => (
-    <button
-      type={type || 'button'}
-      onClick={onClick}
-      disabled={isLoading}
-      data-testid="save-button"
-      {...props}
-    >
-      {isLoading ? loadingText : children}
-    </button>
-  ),
-  PhotoUploadModal: ({ isOpen, onClose, onTakePhoto, onUploadPhoto }: any) => {
-    if (!isOpen) return null;
-    return (
-      <div data-testid="photo-upload-modal">
-        <button data-testid="modal-close" onClick={onClose}>
-          Close
+vi.mock('../../../components/common/photo-upload-modal.component', () => ({
+  default: ({ isOpen, onClose, onTakePhoto, onUploadPhoto }: any) => {
+    return isOpen ? (
+      <div data-testid="photo-modal">
+        <button onClick={onTakePhoto}>take-photo</button>
+        <button onClick={() => onUploadPhoto(new File(['test'], 'test.png'))}>
+          upload-photo
         </button>
-        <button data-testid="modal-take-photo" onClick={onTakePhoto}>
-          Take Photo
-        </button>
-        <input
-          data-testid="modal-upload-photo"
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              onUploadPhoto(file);
-            }
-          }}
-        />
+        <button onClick={onClose}>close-modal</button>
       </div>
-    );
+    ) : null;
   },
-  Card: ({ children, className, contentClassName, ...props }: any) => (
-    <div data-testid="card" className={className} data-content-class={contentClassName} {...props}>
-      {children}
-    </div>
-  ),
 }));
 
-vi.mock('../../../components/common/card.component', () => ({
-  default: ({ children, className, contentClassName, ...props }: any) => (
-    <div data-testid="card" className={className} data-content-class={contentClassName} {...props}>
-      {children}
-    </div>
-  ),
-}));
+// Dummy reducer for loader sections
+const mockStore = (loaderValue = 0) =>
+  configureStore({
+    reducer: {
+      loader: () => ({ sections: { 'profile-save': loaderValue } }),
+    },
+  });
 
-vi.mock('../../../modules/profile/profile-header.component', () => ({
-  default: ({ notificationsEnabled, onNotificationsChange }: any) => (
-    <div data-testid="profile-header">
-      <input
-        type="checkbox"
-        checked={notificationsEnabled}
-        onChange={(e) => onNotificationsChange(e.target.checked)}
-        data-testid="notifications-toggle"
-      />
-    </div>
-  ),
-}));
+describe('ProfileForm Component', () => {
+  const mockUpdateProfile = vi.fn();
+  const mockUploadPhoto = vi.fn();
+  const mockTakePhoto = vi.fn();
+  const mockCalculateAge = vi.fn(() => 35);
+  const mockUpdateAgeForDate = vi.fn();
+  const mockRefreshProfile = vi.fn();
 
-vi.mock('../../../modules/profile/profile-form-fields.component', () => ({
-  default: ({ onPhotoModalOpen, onCountryChange }: any) => (
-    <div data-testid="profile-form-fields">
-      <button data-testid="open-photo-modal" onClick={onPhotoModalOpen}>
-        Open Photo Modal
-      </button>
-      <button data-testid="country-change" onClick={() => onCountryChange({ name: 'India', code: 'in', dial_code: '+91' })}>
-        Change Country
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../../../modules/profile/password-section.component', () => ({
-  default: ({ passwordData, onPasswordChange, onGeneratePassword }: any) => (
-    <div data-testid="password-section">
-      <button data-testid="generate-password" onClick={onGeneratePassword}>
-        Generate Password
-      </button>
-      <input
-        data-testid="current-password"
-        type="password"
-        value={passwordData.currentPassword}
-        onChange={(e) =>
-          onPasswordChange({
-            ...passwordData,
-            currentPassword: e.target.value,
-          })
-        }
-      />
-      <input
-        data-testid="new-password"
-        type="password"
-        value={passwordData.newPassword}
-        onChange={(e) =>
-          onPasswordChange({
-            ...passwordData,
-            newPassword: e.target.value,
-          })
-        }
-      />
-      <input
-        data-testid="confirm-password"
-        type="password"
-        value={passwordData.confirmPassword}
-        onChange={(e) =>
-          onPasswordChange({
-            ...passwordData,
-            confirmPassword: e.target.value,
-          })
-        }
-      />
-    </div>
-  ),
-}));
-
-describe('ProfileForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdateProfile.mockResolvedValue(undefined);
-    mockUploadPhoto.mockResolvedValue(undefined);
-    mockTakePhoto.mockResolvedValue(undefined);
-    mockWatch.mockImplementation((field?: string) => {
-      if (field) return mockProfile[field as keyof typeof mockProfile];
-      return mockProfile;
-    });
-    // Set default mock implementation
+
     mockUseProfile.mockReturnValue({
-      profile: mockProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-  });
-
-  it('should render without crashing', () => {
-    expect(() => {
-      render(<ProfileForm />);
-    }).not.toThrow();
-  });
-
-  it('should render loading state when profile is null and loading is true', () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: null,
-      loading: true,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    render(<ProfileForm />);
-
-    expect(screen.getByText('Loading profile...')).toBeInTheDocument();
-    const spinner = screen.getByText('Loading profile...').previousElementSibling;
-    expect(spinner).toHaveClass('animate-spin');
-  });
-
-  it('should render form when profile is loaded', () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: mockProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    render(<ProfileForm />);
-
-    expect(screen.getByTestId('profile-header')).toBeInTheDocument();
-    expect(screen.getByTestId('profile-form-fields')).toBeInTheDocument();
-    expect(screen.getByTestId('password-section')).toBeInTheDocument();
-    expect(screen.getByTestId('save-button')).toBeInTheDocument();
-  });
-
-  it('should apply className prop', () => {
-    render(<ProfileForm className="custom-class" />);
-
-    const card = screen.getByTestId('card');
-    expect(card).toHaveClass('custom-class');
-  });
-
-  it('should handle form submission', async () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: mockProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    render(<ProfileForm />);
-
-    const form = screen.getByTestId('card').querySelector('form');
-    expect(form).toBeInTheDocument();
-
-    fireEvent.submit(form!);
-
-    await waitFor(() => {
-      expect(mockHandleSubmit).toHaveBeenCalled();
-    });
-  });
-
-  it('should call updateProfile on successful form submission', async () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: mockProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    // Mock handleSubmit to call the callback
-    const submitCallback = vi.fn((callback: any) => (e: React.FormEvent) => {
-      e.preventDefault();
-      callback({
-        username: 'johndoe',
+      profile: {
+        id: '123',
+        username: 'john',
         firstName: 'John',
-        middleName: 'M',
+        middleName: '',
         lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '1234567890',
-        dateOfBirth: '1990-01-01',
-        gender: 'male' as const,
-        setupLocation: 'sf-clinic',
-      });
-    });
-
-    mockUseForm.mockReturnValueOnce({
-      register: mockRegister,
-      handleSubmit: submitCallback,
-      formState: {
-        errors: {},
-        isSubmitting: false,
-      },
-      setValue: mockSetValue,
-      watch: mockWatch,
-      reset: mockReset,
-      trigger: mockTrigger,
-    });
-
-    render(<ProfileForm />);
-
-    const form = screen.getByTestId('card').querySelector('form');
-    fireEvent.submit(form!);
-
-    await waitFor(() => {
-      expect(mockUpdateProfile).toHaveBeenCalledWith({
-        username: 'johndoe',
-        firstName: 'John',
-        middleName: 'M',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '1234567890',
+        email: 'john@example.com',
+        phone: '9876543210',
         dateOfBirth: '1990-01-01',
         gender: 'male',
-        setupLocation: 'sf-clinic',
-      });
+        setupLocation: 'India',
+        address: {
+          street: '123 Main St',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          country: 'India',
+          zipCode: '400001',
+        },
+        role: 'doctor',
+        department: 'General Medicine',
+        employeeId: 'EMP001',
+        joinDate: '2020-01-01',
+        lastLogin: '2025-01-01',
+        isActive: true,
+        preferences: {
+          language: 'en',
+          timezone: 'Asia/Kolkata',
+          notifications: {
+            email: true,
+            sms: true,
+            push: true,
+          },
+        },
+      },
+      hwProfile: null,
+      age: 35,
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
     });
   });
 
-  it('should handle form submission error', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const setup = (loaderValue = 0) =>
+    render(
+      <Provider store={mockStore(loaderValue)}>
+        <ProfileForm />
+      </Provider>
+    );
+
+  // --------------------------------------------------------
+  it('renders form with profile data', () => {
+    setup();
+
+    // Use getAllByDisplayValue since there are duplicate inputs (mobile + desktop)
+    const usernameInputs = screen.getAllByDisplayValue('john');
+    expect(usernameInputs.length).toBeGreaterThan(0);
     
-    const errorMock = new Error('Update failed');
-    const errorUpdateProfile = vi.fn().mockRejectedValue(errorMock);
+    const firstNameInputs = screen.getAllByDisplayValue('John');
+    expect(firstNameInputs.length).toBeGreaterThan(0);
     
-    mockUseProfile.mockReturnValueOnce({
-      profile: mockProfile,
-      loading: false,
-      updateProfile: errorUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
+    expect(
+      screen.getByRole('button', { name: /save/i })
+    ).toBeInTheDocument();
+  });
 
-    // Mock handleSubmit to call the callback
-    const submitCallback = vi.fn((callback: any) => (e: React.FormEvent) => {
-      e.preventDefault();
-      callback({
-        username: 'johndoe',
-        firstName: 'John',
-        middleName: 'M',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '1234567890',
-        dateOfBirth: '1990-01-01',
-        gender: 'male' as const,
-        setupLocation: 'sf-clinic',
-      });
-    });
+  // --------------------------------------------------------
+  it('submits form and calls updateProfile', async () => {
+    setup();
 
-    mockUseForm.mockReturnValueOnce({
-      register: mockRegister,
-      handleSubmit: submitCallback,
-      formState: {
-        errors: {},
-        isSubmitting: false,
-      },
-      setValue: mockSetValue,
-      watch: mockWatch,
-      reset: mockReset,
-      trigger: mockTrigger,
-    });
-
-    render(<ProfileForm />);
-
-    const form = screen.getByTestId('card').querySelector('form');
-    fireEvent.submit(form!);
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save profile:', errorMock);
+      expect(mockUpdateProfile).toHaveBeenCalled();
     });
+  });
+
+  // --------------------------------------------------------
+  it('disables save button when saving is true', () => {
+    setup(2); // loader.sections['profile-save'] > 0
+
+    // When saving, the button text changes to "Saving..."
+    const btn = screen.getByRole('button', { name: /saving/i });
+    expect(btn).toBeDisabled();
+  });
+
+  // --------------------------------------------------------
+  it('opens photo modal on trigger', () => {
+    setup();
+
+    // Use getAllByRole since there are duplicate buttons (mobile + desktop)
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]); // Click the first one
+
+    expect(screen.getByTestId('photo-modal')).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------
+  it('handles photo upload callback', async () => {
+    setup();
+
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]); // Click the first one
+    fireEvent.click(screen.getByText('upload-photo'));
+
+    expect(mockUploadPhoto).toHaveBeenCalled();
+  });
+
+  // --------------------------------------------------------
+  it('handles take photo callback', async () => {
+    setup();
+
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]); // Click the first one
+    fireEvent.click(screen.getByText('take-photo'));
+
+    expect(mockTakePhoto).toHaveBeenCalled();
+  });
+
+  it('should show loading state when profile is null (lines 109-119)', () => {
+    // Override the beforeEach mock to return null profile
+    mockUseProfile.mockReturnValue({
+      profile: null,
+      hwProfile: null,
+      age: null,
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    const { container } = render(
+      <Provider store={mockStore()}>
+        <ProfileForm />
+      </Provider>
+    );
+
+    // Verify the loading state is shown:
+    // 1. The form (save button) is NOT shown - this confirms we're in loading state
+    expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
+    
+    // 2. Check that the spinner HTML is present in the container
+    // This verifies lines 109-119 are executed
+    const html = container.innerHTML;
+    expect(html).toContain('animate-spin');
+    expect(html).toContain('rounded-full');
+    expect(html).toContain('h-8');
+    expect(html).toContain('w-8');
+    
+    // 3. Verify the spinner element exists (check for null first)
+    const spinner = container.querySelector('.animate-spin');
+    expect(spinner).not.toBeNull();
+    if (spinner) {
+      expect(spinner).toHaveClass('animate-spin', 'rounded-full', 'h-8', 'w-8', 'border-b-2');
+    }
+  });
+
+  // --------------------------------------------------------
+  it('should reset form when profile changes (lines 76-84)', async () => {
+    const { rerender } = setup();
+
+    // Verify initial values are set (use getAllByDisplayValue since there are duplicates)
+    expect(screen.getAllByDisplayValue('john').length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue('John').length).toBeGreaterThan(0);
+
+    // Update profile to trigger useEffect
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: 'newuser',
+        firstName: 'Jane',
+        middleName: 'Marie',
+        lastName: 'Smith',
+        email: 'jane@example.com',
+        phone: '1234567890',
+        dateOfBirth: '1995-01-01',
+        gender: 'female',
+        setupLocation: 'USA',
+        address: {
+          street: '456 Oak St',
+          city: 'New York',
+          state: 'NY',
+          country: 'USA',
+          zipCode: '10001',
+        },
+        role: 'nurse',
+        department: 'Emergency',
+        employeeId: 'EMP002',
+        joinDate: '2021-01-01',
+        lastLogin: '2025-01-15',
+        isActive: true,
+        preferences: {
+          language: 'en',
+          timezone: 'America/New_York',
+          notifications: {
+            email: true,
+            sms: true,
+            push: true,
+          },
+        },
+      },
+      hwProfile: null,
+      age: 30,
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    // Rerender with new profile to trigger useEffect
+    rerender(
+      <Provider store={mockStore()}>
+        <ProfileForm />
+      </Provider>
+    );
+
+    // Wait for form to be reset with new values (use getAllByDisplayValue for duplicates)
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('newuser').length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue('Jane').length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue('Smith').length).toBeGreaterThan(0);
+    });
+  });
+
+  // --------------------------------------------------------
+  it('should handle profile with undefined/null values in reset (lines 76-84)', () => {
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: undefined,
+        firstName: null,
+        middleName: undefined,
+        lastName: '',
+        email: null,
+        phone: undefined,
+        dateOfBirth: null,
+        gender: undefined,
+        setupLocation: null,
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: '',
+        },
+        role: '',
+        department: '',
+        employeeId: '',
+        joinDate: '',
+        lastLogin: '',
+        isActive: true,
+        preferences: {
+          language: 'en',
+          timezone: 'UTC',
+          notifications: {
+            email: false,
+            sms: false,
+            push: false,
+          },
+        },
+      },
+      hwProfile: null,
+      age: null,
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    setup();
+
+    // Verify form renders with empty values (fallbacks applied from lines 76-84)
+    const emptyInputs = screen.getAllByDisplayValue('');
+    expect(emptyInputs.length).toBeGreaterThan(0);
+    
+    // Verify gender defaults to 'male' when undefined (line 83)
+    const genderInputs = screen.getAllByDisplayValue('male');
+    expect(genderInputs.length).toBeGreaterThan(0);
+  });
+
+  // --------------------------------------------------------
+  it('should handle form submission error (lines 67-68)', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('Update failed');
+    
+    mockUpdateProfile.mockRejectedValue(error);
+
+    setup();
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalled();
+    });
+
+    // Wait for error to be logged
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save profile:', error);
+    }, { timeout: 1000 });
 
     consoleErrorSpy.mockRestore();
   });
 
-  it('should reset form when profile changes', async () => {
-    // First render with initial profile
-    const { rerender } = render(<ProfileForm />);
-    mockReset.mockClear();
+  // --------------------------------------------------------
+  it('should close photo modal when close button is clicked', () => {
+    setup();
 
-    // Change profile - mock should return new profile
-    const newProfile = { ...mockProfile, firstName: 'Jane' };
-    mockUseProfile.mockReturnValue({
-      profile: newProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]);
 
-    // Rerender with new profile - this should trigger useEffect
-    rerender(<ProfileForm />);
+    expect(screen.getByTestId('photo-modal')).toBeInTheDocument();
 
-    // The useEffect should call reset when profile changes
-    // Wait for the effect to run
-    await waitFor(() => {
-      expect(mockReset).toHaveBeenCalledWith({
-        username: 'johndoe',
-        firstName: 'Jane',
-        middleName: 'M',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '1234567890',
-        dateOfBirth: '1990-01-01',
-        gender: 'male',
-        setupLocation: 'sf-clinic',
-      });
-    });
+    fireEvent.click(screen.getByText('close-modal'));
+
+    expect(screen.queryByTestId('photo-modal')).not.toBeInTheDocument();
   });
 
-  it('should reset form with empty strings when profile fields are falsy', async () => {
-    // First render with initial profile
-    const { rerender } = render(<ProfileForm />);
-    mockReset.mockClear();
+  // --------------------------------------------------------
+  it('should generate password when generate button is clicked (lines 90-96)', () => {
+    setup();
 
-    // Change profile with falsy values to test the || '' branches
-    const profileWithFalsyValues = {
-      username: null as any,
-      firstName: '',
-      middleName: null as any,
-      lastName: undefined as any,
-      email: '',
-      phone: null as any,
-      dateOfBirth: undefined as any,
-      gender: null as any,
-      setupLocation: '',
-    };
+    // Find the generate password button
+    const generateButton = screen.getByRole('button', { name: /generate a new password/i });
 
-    mockUseProfile.mockReturnValue({
-      profile: profileWithFalsyValues,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
+    // Get the password input fields (they appear twice - mobile and desktop)
+    const newPasswordInputs = screen.getAllByPlaceholderText('Enter new password');
+    const confirmPasswordInputs = screen.getAllByPlaceholderText('Confirm password');
 
-    // Rerender with new profile - this should trigger useEffect
-    rerender(<ProfileForm />);
+    // Verify initial state (empty)
+    expect(newPasswordInputs[0]).toHaveValue('');
+    expect(confirmPasswordInputs[0]).toHaveValue('');
 
-    // The useEffect should call reset with empty strings for falsy values
-    // Wait for the effect to run
-    await waitFor(() => {
-      expect(mockReset).toHaveBeenCalledWith({
-        username: '',
-        firstName: '',
-        middleName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        dateOfBirth: '',
-        gender: 'male', // default value when falsy
-        setupLocation: '',
-      });
-    });
-  });
-
-  it('should handle password generation', () => {
-    render(<ProfileForm />);
-
-    const generateButton = screen.getByTestId('generate-password');
+    // Click generate button
     fireEvent.click(generateButton);
 
-    const newPasswordInput = screen.getByTestId('new-password') as HTMLInputElement;
-    const confirmPasswordInput = screen.getByTestId('confirm-password') as HTMLInputElement;
-
-    expect(newPasswordInput.value).toBe('GeneratedPassword123!');
-    expect(confirmPasswordInput.value).toBe('GeneratedPassword123!');
-  });
-
-  it('should handle password data changes', () => {
-    render(<ProfileForm />);
-
-    const currentPasswordInput = screen.getByTestId('current-password') as HTMLInputElement;
-    fireEvent.change(currentPasswordInput, { target: { value: 'oldpassword' } });
-
-    expect(currentPasswordInput.value).toBe('oldpassword');
-
-    const newPasswordInput = screen.getByTestId('new-password') as HTMLInputElement;
-    fireEvent.change(newPasswordInput, { target: { value: 'newpassword' } });
-
-    expect(newPasswordInput.value).toBe('newpassword');
-  });
-
-  it('should open photo modal when button is clicked', () => {
-    render(<ProfileForm />);
-
-    expect(screen.queryByTestId('photo-upload-modal')).not.toBeInTheDocument();
-
-    const openPhotoButton = screen.getByTestId('open-photo-modal');
-    fireEvent.click(openPhotoButton);
-
-    expect(screen.getByTestId('photo-upload-modal')).toBeInTheDocument();
-  });
-
-  it('should close photo modal when close button is clicked', () => {
-    render(<ProfileForm />);
-
-    const openPhotoButton = screen.getByTestId('open-photo-modal');
-    fireEvent.click(openPhotoButton);
-
-    expect(screen.getByTestId('photo-upload-modal')).toBeInTheDocument();
-
-    const closeButton = screen.getByTestId('modal-close');
-    fireEvent.click(closeButton);
-
-    expect(screen.queryByTestId('photo-upload-modal')).not.toBeInTheDocument();
-  });
-
-  it('should handle take photo', async () => {
-    render(<ProfileForm />);
-
-    const openPhotoButton = screen.getByTestId('open-photo-modal');
-    fireEvent.click(openPhotoButton);
-
-    const takePhotoButton = screen.getByTestId('modal-take-photo');
-    fireEvent.click(takePhotoButton);
-
-    await waitFor(() => {
-      expect(mockTakePhoto).toHaveBeenCalled();
-      expect(screen.queryByTestId('photo-upload-modal')).not.toBeInTheDocument();
-    });
-  });
-
-  it('should handle upload photo', async () => {
-    render(<ProfileForm />);
-
-    const openPhotoButton = screen.getByTestId('open-photo-modal');
-    fireEvent.click(openPhotoButton);
-
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    const uploadInput = screen.getByTestId('modal-upload-photo') as HTMLInputElement;
-
-    fireEvent.change(uploadInput, { target: { files: [file] } });
-
-    await waitFor(() => {
-      expect(mockUploadPhoto).toHaveBeenCalledWith(file);
-      expect(screen.queryByTestId('photo-upload-modal')).not.toBeInTheDocument();
-    });
-  });
-
-  it('should toggle notifications', () => {
-    render(<ProfileForm />);
-
-    const notificationsToggle = screen.getByTestId('notifications-toggle') as HTMLInputElement;
-    expect(notificationsToggle.checked).toBe(true);
-
-    fireEvent.change(notificationsToggle, { target: { checked: false } });
-
-    expect(notificationsToggle.checked).toBe(false);
-  });
-
-  it('should show loading state on save button when isSubmitting is true', () => {
-    mockUseForm.mockReturnValueOnce({
-      register: mockRegister,
-      handleSubmit: mockHandleSubmit,
-      formState: {
-        errors: {},
-        isSubmitting: true,
-      },
-      setValue: mockSetValue,
-      watch: mockWatch,
-      reset: mockReset,
-      trigger: mockTrigger,
-    });
-
-    render(<ProfileForm />);
-
-    const saveButton = screen.getByTestId('save-button');
-    expect(saveButton).toHaveTextContent('Saving...');
-    expect(saveButton).toBeDisabled();
-  });
-
-  it('should show loading state on save button when loading is true', () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: mockProfile,
-      loading: true,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    render(<ProfileForm />);
-
-    const saveButton = screen.getByTestId('save-button');
-    expect(saveButton).toHaveTextContent('Saving...');
-    expect(saveButton).toBeDisabled();
-  });
-
-  it('should initialize form with profile default values', () => {
-    mockUseForm.mockClear();
-    render(<ProfileForm />);
-
-    expect(mockUseForm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaultValues: {
-          username: 'johndoe',
-          firstName: 'John',
-          middleName: 'M',
-          lastName: 'Doe',
-          email: 'john.doe@example.com',
-          phone: '1234567890',
-          dateOfBirth: '1990-01-01',
-          gender: 'male',
-          setupLocation: 'sf-clinic',
-        },
-      })
-    );
-  });
-
-  it('should initialize form with empty values when profile is null', () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: null,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    mockUseForm.mockClear();
-
-    render(<ProfileForm />);
-
-    expect(mockUseForm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaultValues: {
-          username: '',
-          firstName: '',
-          middleName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          dateOfBirth: '',
-          gender: 'male',
-          setupLocation: '',
-        },
-      })
-    );
-  });
-
-  it('should handle country change', () => {
-    render(<ProfileForm />);
-
-    const countryChangeButton = screen.getByTestId('country-change');
-    fireEvent.click(countryChangeButton);
-
-    // The onCountryChange is an empty function, so we just verify it doesn't throw
-    expect(countryChangeButton).toBeInTheDocument();
-  });
-
-  it('should render Card with correct className and contentClassName', () => {
-    render(<ProfileForm className="custom-class" />);
-
-    const card = screen.getByTestId('card');
-    expect(card).toHaveClass('custom-class');
-    expect(card).toHaveAttribute('data-content-class', 'p-4 md:p-4 lg:p-6');
-  });
-
-  it('should not reset form when profile is null', () => {
-    mockUseProfile.mockReturnValueOnce({
-      profile: null,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    mockReset.mockClear();
-    render(<ProfileForm />);
-
-    // reset should not be called if profile is null
-    expect(mockReset).not.toHaveBeenCalled();
-  });
-
-  it('should handle profile with missing fields', () => {
-    const incompleteProfile = {
-      firstName: 'John',
-      // Other fields are undefined
-    } as any;
-
-    mockUseProfile.mockReturnValueOnce({
-      profile: incompleteProfile,
-      loading: false,
-      updateProfile: mockUpdateProfile,
-      uploadPhoto: mockUploadPhoto,
-      takePhoto: mockTakePhoto,
-    });
-
-    expect(() => {
-      render(<ProfileForm />);
-    }).not.toThrow();
+    // Verify both fields are populated with the generated password
+    expect(newPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
+    expect(confirmPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
   });
 });
-

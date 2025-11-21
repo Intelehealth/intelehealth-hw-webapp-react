@@ -97,7 +97,7 @@ const ResetPasswordComponent: React.FC<ResetPasswordComponentProps> = ({
                 Enter your new password
               </h2>
               <span className="ml-2 lg:flex align-middle">
-                <Tooltip text="Enter the credentials given by intelehealth team">
+                <Tooltip text="Enter a strong password that meets the security requirements">
                   <img src={iconQuestionMark} alt="info" />
                 </Tooltip>
               </span>
@@ -166,7 +166,7 @@ const ResetPasswordComponent: React.FC<ResetPasswordComponentProps> = ({
                 rightIcon={<img src={iconRightArrow} />}
                 isLoading={loading}
               >
-                <span className="mx-auto w-full text-base">Continue</span>
+                <span className="mx-auto w-full text-base">Submit</span>
               </Button>
             </div>
           </form>

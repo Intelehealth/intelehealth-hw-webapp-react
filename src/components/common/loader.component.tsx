@@ -31,9 +31,8 @@ export const Loader: React.FC<LoaderProps> = ({ id, mode }) => {
   }
   const hasAnySectionLoading = Object.values(sections).some(count => count > 0);
 
-  // Global overlay loader
-  if (!globalCount || hasAnySectionLoading) return null;
-  // if (globalCount === 0) return null;
+  // Global overlay loader - only show when globalCount > 0 and no sections are loading
+  if (globalCount <= 0 || hasAnySectionLoading) return null;
   return (
     <div className="global-loader">
       <div className="spinner global-spinner" />

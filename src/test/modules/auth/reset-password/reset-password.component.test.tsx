@@ -220,7 +220,7 @@ describe('ResetPasswordComponent', () => {
       );
       
       // Submit the form
-      const submitButton = screen.getByRole('button', { name: 'Continue' });
+      const submitButton = screen.getByRole('button', { name: 'Submit' });
       fireEvent.click(submitButton);
       
       // Wait for form submission to complete
@@ -247,7 +247,7 @@ describe('ResetPasswordComponent', () => {
         />
       );
       
-      const submitButton = screen.getByRole('button', { name: 'Continue' });
+      const submitButton = screen.getByRole('button', { name: 'Submit' });
       expect(submitButton).toBeDisabled();
     });
   });
@@ -365,7 +365,7 @@ describe('ResetPasswordComponent', () => {
       
       const tooltips = screen.getAllByTestId('tooltip');
       expect(tooltips).toHaveLength(2);
-      expect(tooltips[0]).toHaveAttribute('title', 'Enter the credentials given by intelehealth team');
+      expect(tooltips[0]).toHaveAttribute('title', 'Enter a strong password that meets the security requirements');
       expect(tooltips[1]).toHaveAttribute('title', 'Generate a new random password for you');
     });
   });

@@ -171,6 +171,37 @@
   background-color: var(--color-primary-dark); /* white dot */
 }
 
+/* Language Dropdown Scrollbar Styles */
+.language-dropdown ul {
+  overflow-y: auto !important;
+  max-height: 140px; /* max-h-60 equivalent */
+  scrollbar-width: thin; /* Firefox - thin scrollbar */
+  scrollbar-color: rgba(127, 123, 146, 0.5) transparent; /* Firefox - thumb and track colors */
+}
+
+.language-dropdown ul::-webkit-scrollbar {
+  width: 8px; /* Chrome, Safari, Opera - scrollbar width */
+  display: block; /* Ensure scrollbar is visible */
+}
+
+.language-dropdown ul::-webkit-scrollbar-track {
+  background: transparent; /* Track background */
+}
+
+.language-dropdown ul::-webkit-scrollbar-thumb {
+  background-color: rgba(
+    127,
+    123,
+    146,
+    0.5
+  ); /* Thumb color using --color-muted */
+  border-radius: 4px; /* Rounded scrollbar thumb */
+}
+
+.language-dropdown ul::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(127, 123, 146, 0.7); /* Darker on hover */
+}
+
 /* Responsive Css for different sizes */
 @media (max-width: 768px) {
   .form-input-base {

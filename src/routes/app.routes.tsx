@@ -15,6 +15,10 @@ import NotFoundPage from '../pages/not-found/not-found.page';
 import AddPatientPage from '../pages/patient/add/add-patient.page';
 import ProfilePage from '../pages/profile/profile.page';
 
+// Profile Guard Components
+import { ProfileGuardProvider } from '../context/ProfileGuardContext';
+import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
+
 const AppRoutes = () => (
   <HashRouter>
     <Routes>
@@ -51,11 +55,11 @@ const AppRoutes = () => (
             <Route
               path={ROUTES.PATIENT.ADD_PATIENT}
               element={
-                // <ProfileGuardProvider>
-                //   <ProfileRouteGuard>
-                <AddPatientPage />
-                //   </ProfileRouteGuard>
-                // </ProfileGuardProvider>
+                <ProfileGuardProvider>
+                  <ProfileRouteGuard>
+                    <AddPatientPage />
+                  </ProfileRouteGuard>
+                </ProfileGuardProvider>
               }
             ></Route>
           </Route>
