@@ -45,6 +45,139 @@ vi.mock('../../../../../../components/common', () => ({
   ),
 }));
 
+// Mock country-state-city
+vi.mock('country-state-city', () => ({
+  Country: {
+    getAllCountries: vi.fn(() => [
+      { name: 'India', isoCode: 'IN' },
+      { name: 'United States', isoCode: 'US' },
+      { name: 'United Kingdom', isoCode: 'GB' },
+    ]),
+  },
+  State: {
+    getStatesOfCountry: vi.fn((isoCode: string) => {
+      if (isoCode === 'IN') {
+        return [
+          { name: 'Karnataka', isoCode: 'KA' },
+          { name: 'Maharashtra', isoCode: 'MH' },
+          { name: 'Tamil Nadu', isoCode: 'TN' },
+        ];
+      }
+      return [];
+    }),
+  },
+  City: {
+    getCitiesOfState: vi.fn((countryIsoCode: string, stateIsoCode: string) => {
+      if (countryIsoCode === 'IN' && stateIsoCode === 'KA') {
+        return [
+          { name: 'Bangalore', isoCode: 'BLR' },
+          { name: 'Mysore', isoCode: 'MYS' },
+        ];
+      }
+      return [];
+    }),
+  },
+}));
+
+// Mock the selector components
+vi.mock('../../../../../../components/common/country-select.component', () => ({
+  default: ({ label, options, onChange, value, error, isRequired, placeholder }: any) => {
+    // Provide default options if not provided
+    const defaultOptions = options || [
+      { value: 'India', label: 'India' },
+      { value: 'United States', label: 'United States' },
+      { value: 'United Kingdom', label: 'United Kingdom' },
+    ];
+    return (
+      <div>
+        {label && (
+          <label>
+            {label} {isRequired && <span>*</span>}
+          </label>
+        )}
+        <select
+          value={Array.isArray(value) ? value[0] : value || ''}
+          onChange={(e) => onChange?.(e.target.value)}
+          data-testid={`dropdown-${label}`}
+        >
+          <option value="">{placeholder}</option>
+          {defaultOptions.map((option: any) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {error && <span className="error">{error}</span>}
+      </div>
+    );
+  },
+}));
+
+vi.mock('../../../../../../components/common/state-selector.component', () => ({
+  default: ({ label, options, onChange, value, error, isRequired, placeholder, countryId }: any) => {
+    // Provide default options if countryId is provided
+    const defaultOptions = options || (countryId === 'India' ? [
+      { value: 'Karnataka', label: 'Karnataka' },
+      { value: 'Maharashtra', label: 'Maharashtra' },
+      { value: 'Tamil Nadu', label: 'Tamil Nadu' },
+    ] : []);
+    return (
+      <div>
+        {label && (
+          <label>
+            {label} {isRequired && <span>*</span>}
+          </label>
+        )}
+        <select
+          value={Array.isArray(value) ? value[0] : value || ''}
+          onChange={(e) => onChange?.(e.target.value)}
+          data-testid={`dropdown-${label}`}
+        >
+          <option value="">{placeholder}</option>
+          {defaultOptions.map((option: any) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {error && <span className="error">{error}</span>}
+      </div>
+    );
+  },
+}));
+
+vi.mock('../../../../../../components/common/city-selector.component', () => ({
+  default: ({ label, options, onChange, value, error, isRequired, placeholder, countryId, stateId }: any) => {
+    // Provide default options if both countryId and stateId are provided
+    const defaultOptions = options || (countryId === 'India' && stateId === 'Karnataka' ? [
+      { value: 'Bangalore', label: 'Bangalore' },
+      { value: 'Mysore', label: 'Mysore' },
+    ] : []);
+    return (
+      <div>
+        {label && (
+          <label>
+            {label} {isRequired && <span>*</span>}
+          </label>
+        )}
+        <select
+          value={Array.isArray(value) ? value[0] : value || ''}
+          onChange={(e) => onChange?.(e.target.value)}
+          data-testid={`dropdown-${label}`}
+        >
+          <option value="">{placeholder}</option>
+          {defaultOptions.map((option: any) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {error && <span className="error">{error}</span>}
+      </div>
+    );
+  },
+}));
+
 // Mock the countries data
 vi.mock('../../../../../../assets/data/countries', () => ({
   countries: [
@@ -182,7 +315,7 @@ describe('PatientAddressInfo', () => {
       expect(districtLabel.parentElement).toContainHTML('*');
     });
 
-    it('should render city dropdown with required indicator', () => {
+    it('should render city input field with required indicator', () => {
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -192,7 +325,7 @@ describe('PatientAddressInfo', () => {
       );
 
       expect(screen.getByText('Village/Town/City')).toBeInTheDocument();
-      expect(screen.getByTestId('dropdown-Village/Town/City')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Village/Town/City')).toBeInTheDocument();
       const cityLabel = screen.getByText('Village/Town/City');
       expect(cityLabel.parentElement).toContainHTML('*');
     });
@@ -246,23 +379,41 @@ describe('PatientAddressInfo', () => {
       expect(ukElements.length).toBeGreaterThan(0);
     });
 
-    it('should render state options from countries data', () => {
+    it('should render state options when country is selected', async () => {
       render(
         <PatientAddressInfo
-          defaultValues={defaultValues}
+          defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
         />
       );
 
-      const stateDropdown = screen.getByTestId('dropdown-State');
-      expect(stateDropdown).toBeInTheDocument();
-      // Options are rendered from countries array
-      const options = stateDropdown.querySelectorAll('option');
-      expect(options.length).toBeGreaterThan(1); // Placeholder + countries
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        expect(stateDropdown).toBeInTheDocument();
+        const options = stateDropdown.querySelectorAll('option');
+        expect(options.length).toBeGreaterThan(1); // Placeholder + states
+      });
     });
 
-    it('should render district options from countries data', () => {
+    it('should render district options when country and state are selected', async () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await waitFor(() => {
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        expect(districtDropdown).toBeInTheDocument();
+        const options = districtDropdown.querySelectorAll('option');
+        expect(options.length).toBeGreaterThan(1); // Placeholder + cities
+      });
+    });
+
+    it('should render district dropdown with options', () => {
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -274,22 +425,7 @@ describe('PatientAddressInfo', () => {
       const districtDropdown = screen.getByTestId('dropdown-District');
       expect(districtDropdown).toBeInTheDocument();
       const options = districtDropdown.querySelectorAll('option');
-      expect(options.length).toBeGreaterThan(1);
-    });
-
-    it('should render city options from countries data', () => {
-      render(
-        <PatientAddressInfo
-          defaultValues={defaultValues}
-          onNext={mockOnNext}
-          onPrev={mockOnPrev}
-        />
-      );
-
-      const cityDropdown = screen.getByTestId('dropdown-Village/Town/City');
-      expect(cityDropdown).toBeInTheDocument();
-      const options = cityDropdown.querySelectorAll('option');
-      expect(options.length).toBeGreaterThan(1);
+      expect(options.length).toBeGreaterThan(0); // At least placeholder option
     });
   });
 
@@ -552,6 +688,9 @@ describe('PatientAddressInfo', () => {
       );
 
       const countryDropdown = screen.getByTestId('dropdown-Country');
+      await waitFor(() => {
+        expect(countryDropdown.querySelector('option[value="India"]')).toBeInTheDocument();
+      });
       await user.selectOptions(countryDropdown, 'India');
 
       expect(countryDropdown).toHaveValue('India');
@@ -561,32 +700,42 @@ describe('PatientAddressInfo', () => {
       const user = userEvent.setup();
       render(
         <PatientAddressInfo
-          defaultValues={defaultValues}
+          defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
         />
       );
 
-      const stateDropdown = screen.getByTestId('dropdown-State');
-      await user.selectOptions(stateDropdown, 'India');
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        expect(stateDropdown.querySelector('option[value="Karnataka"]')).toBeInTheDocument();
+      });
 
-      expect(stateDropdown).toHaveValue('India');
+      const stateDropdown = screen.getByTestId('dropdown-State');
+      await user.selectOptions(stateDropdown, 'Karnataka');
+
+      expect(stateDropdown).toHaveValue('Karnataka');
     });
 
     it('should handle district selection', async () => {
       const user = userEvent.setup();
       render(
         <PatientAddressInfo
-          defaultValues={defaultValues}
+          defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
         />
       );
 
-      const districtDropdown = screen.getByTestId('dropdown-District');
-      await user.selectOptions(districtDropdown, 'India');
+      await waitFor(() => {
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        expect(districtDropdown.querySelector('option[value="Bangalore"]')).toBeInTheDocument();
+      });
 
-      expect(districtDropdown).toHaveValue('India');
+      const districtDropdown = screen.getByTestId('dropdown-District');
+      await user.selectOptions(districtDropdown, 'Bangalore');
+
+      expect(districtDropdown).toHaveValue('Bangalore');
     });
 
     it('should handle city selection', async () => {
@@ -599,10 +748,11 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const cityDropdown = screen.getByTestId('dropdown-Village/Town/City');
-      await user.selectOptions(cityDropdown, 'India');
+      // City is actually an Input field, not a dropdown
+      const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
+      await user.type(cityInput, 'Bangalore');
 
-      expect(cityDropdown).toHaveValue('India');
+      expect(cityInput).toHaveValue('Bangalore');
     });
 
     it('should handle correspondingAddress1 input change', async () => {
@@ -715,9 +865,13 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2); // Back and Next
-      buttons.forEach(button => {
+      // Get all buttons and filter for action buttons (Back and Next)
+      const allButtons = screen.getAllByRole('button');
+      const actionButtons = allButtons.filter(
+        button => button.textContent === 'Back' || button.textContent === 'Next'
+      );
+      expect(actionButtons).toHaveLength(2); // Back and Next
+      actionButtons.forEach(button => {
         expect(button).toHaveAccessibleName();
       });
     });
