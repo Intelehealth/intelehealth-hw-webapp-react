@@ -26,9 +26,56 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          sentry: ['@sentry/react', '@sentry/tracing'],
+        manualChunks: (id: string) => {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            // React core
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            // React Router
+            if (id.includes('react-router')) {
+              return 'vendor-router';
+            }
+            // Sentry
+            if (id.includes('@sentry')) {
+              return 'vendor-sentry';
+            }
+            // Firebase
+            if (id.includes('firebase')) {
+              return 'vendor-firebase';
+            }
+            // Country State City (large library)
+            if (id.includes('country-state-city')) {
+              return 'vendor-country-state-city';
+            }
+            // Date picker
+            if (id.includes('react-datepicker')) {
+              return 'vendor-datepicker';
+            }
+            // Toast notifications
+            if (id.includes('react-toastify')) {
+              return 'vendor-toastify';
+            }
+            // Redux
+            if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
+              return 'vendor-redux';
+            }
+            // i18n
+            if (id.includes('i18next') || id.includes('react-i18next')) {
+              return 'vendor-i18n';
+            }
+            // Other large dependencies
+            if (
+              id.includes('axios') ||
+              id.includes('yup') ||
+              id.includes('@hookform')
+            ) {
+              return 'vendor-utils';
+            }
+            // All other node_modules
+            return 'vendor-other';
+          }
         },
         // Optimize asset file naming for nginx MIME type handling
         assetFileNames: assetInfo => {

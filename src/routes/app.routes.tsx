@@ -1,71 +1,152 @@
+import { Suspense, lazy } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
 
-// Pages
-import CommonUiComponent from '../components/common/common-ui.component';
-import ForgotPasswordPage from '../pages/auth/forgot-password/forgot-password.page';
-import ForgotUsernamePage from '../pages/auth/forgot-username/forgot-username.page';
-import LoginPage from '../pages/auth/login/login.page';
-import ResetPasswordPage from '../pages/auth/reset-password/reset-password.page';
-import VerifyOtpPage from '../pages/auth/verify-otp/verify-otp.page';
-import DashboardPage from '../pages/dashboard/dashboard.page';
-import NotFoundPage from '../pages/not-found/not-found.page';
-import AddPatientPage from '../pages/patient/add/add-patient.page';
-import ProfilePage from '../pages/profile/profile.page';
+// Simple loading fallback for code-split routes
+const RouteLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="spinner" />
+  </div>
+);
+
+// Lazy load pages for code splitting
+const CommonUiComponent = lazy(
+  () => import('../components/common/common-ui.component')
+);
+const ForgotPasswordPage = lazy(
+  () => import('../pages/auth/forgot-password/forgot-password.page')
+);
+const ForgotUsernamePage = lazy(
+  () => import('../pages/auth/forgot-username/forgot-username.page')
+);
+const LoginPage = lazy(() => import('../pages/auth/login/login.page'));
+const ResetPasswordPage = lazy(
+  () => import('../pages/auth/reset-password/reset-password.page')
+);
+const VerifyOtpPage = lazy(
+  () => import('../pages/auth/verify-otp/verify-otp.page')
+);
+const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
+const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
+const AddPatientPage = lazy(
+  () => import('../pages/patient/add/add-patient.page')
+);
+const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 
 const AppRoutes = () => (
   <HashRouter>
-    <Routes>
-      {/* Auth routes (ignored) */}
-      <Route
-        path={ROUTES.AUTH.BASE}
-        element={
-          <ProtectedRoute ignoredRoutes={[...Object.values(ROUTES.AUTH)]} />
-        }
-      >
-        <Route path={ROUTES.AUTH.LOGIN} element={<LoginPage />} />
+    <Suspense fallback={<RouteLoader />}>
+      <Routes>
+        {/* Auth routes (ignored) */}
         <Route
-          path={ROUTES.AUTH.FORGOT_USERNAME}
-          element={<ForgotUsernamePage />}
-        />
-        <Route
-          path={ROUTES.AUTH.FORGOT_PASSWORD}
-          element={<ForgotPasswordPage />}
-        />
-        <Route path={ROUTES.AUTH.VERIFY_OTP} element={<VerifyOtpPage />} />
-        <Route
-          path={ROUTES.AUTH.RESET_PASSWORD}
-          element={<ResetPasswordPage />}
-        />
-      </Route>
+          path={ROUTES.AUTH.BASE}
+          element={
+            <ProtectedRoute ignoredRoutes={[...Object.values(ROUTES.AUTH)]} />
+          }
+        >
+          <Route
+            path={ROUTES.AUTH.LOGIN}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <LoginPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.AUTH.FORGOT_USERNAME}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <ForgotUsernamePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.AUTH.FORGOT_PASSWORD}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <ForgotPasswordPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.AUTH.VERIFY_OTP}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <VerifyOtpPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.AUTH.RESET_PASSWORD}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <ResetPasswordPage />
+              </Suspense>
+            }
+          />
+        </Route>
 
-      {/* Protected routes */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<MainContainer />}>
-          <Route path={ROUTES.ROOT} element={<DashboardPage />} />
-          <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
-          <Route path={ROUTES.PATIENT.BASE}>
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainContainer />}>
             <Route
-              path={ROUTES.PATIENT.ADD_PATIENT}
+              path={ROUTES.ROOT}
               element={
-                // <ProfileGuardProvider>
-                //   <ProfileRouteGuard>
-                <AddPatientPage />
-                //   </ProfileRouteGuard>
-                // </ProfileGuardProvider>
+                <Suspense fallback={<RouteLoader />}>
+                  <DashboardPage />
+                </Suspense>
               }
-            ></Route>
+            />
+            <Route
+              path={ROUTES.DASHBOARD}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.PROFILE}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <ProfilePage />
+                </Suspense>
+              }
+            />
+            <Route path={ROUTES.PATIENT.BASE}>
+              <Route
+                path={ROUTES.PATIENT.ADD_PATIENT}
+                element={
+                  <Suspense fallback={<RouteLoader />}>
+                    <AddPatientPage />
+                  </Suspense>
+                }
+              ></Route>
+            </Route>
           </Route>
         </Route>
-      </Route>
-      <Route path={ROUTES.COMMON_UI} element={<CommonUiComponent />} />
+        <Route
+          path={ROUTES.COMMON_UI}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <CommonUiComponent />
+            </Suspense>
+          }
+        />
 
-      {/* 404 fallback */}
-      <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
-    </Routes>
+        {/* 404 fallback */}
+        <Route
+          path={ROUTES.NOT_FOUND}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <NotFoundPage />
+            </Suspense>
+          }
+        />
+      </Routes>
+    </Suspense>
   </HashRouter>
 );
 
