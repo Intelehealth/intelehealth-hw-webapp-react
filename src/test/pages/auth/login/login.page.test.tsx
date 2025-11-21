@@ -166,5 +166,82 @@ describe('LoginPage', () => {
       expect(LoginPage).toBeDefined();
       expect(typeof LoginPage).toBe('function');
     });
+
+    it('should be a React functional component', () => {
+      expect(LoginPage).toBeInstanceOf(Function);
+      const { container } = render(<LoginPage />);
+      expect(container).toBeInTheDocument();
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle re-renders correctly', () => {
+      const { rerender } = render(<LoginPage />);
+      expect(screen.getByTestId('auth-component')).toBeInTheDocument();
+      
+      rerender(<LoginPage />);
+      expect(screen.getByTestId('auth-component')).toBeInTheDocument();
+    });
+
+    it('should render with all slides data', () => {
+      render(<LoginPage />);
+      
+      // Verify all slides are present
+      expect(screen.getByTestId('slide-0')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-1')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-2')).toBeInTheDocument();
+      
+      // Verify slides array structure
+      const allSlides = screen.getAllByTestId(/^slide-\d+$/);
+      expect(allSlides.length).toBe(3);
+    });
+
+    it('should pass hideSliderImagesForMobile as boolean true', () => {
+      render(<LoginPage />);
+      
+      const hideSlider = screen.getByTestId('auth-hide-slider');
+      expect(hideSlider).toHaveTextContent('true');
+      expect(hideSlider.textContent).toBe('true');
+    });
+
+    it('should render LoginComponent inside AuthComponent children', () => {
+      render(<LoginPage />);
+      
+      const authComponent = screen.getByTestId('auth-component');
+      const loginComponent = screen.getByTestId('login-component');
+      const authChildren = screen.getByTestId('auth-children');
+      
+      expect(authComponent).toContainElement(authChildren);
+      expect(authChildren).toContainElement(loginComponent);
+    });
+  });
+
+  describe('Component Props Completeness', () => {
+    it('should pass all required props to AuthComponent', () => {
+      render(<LoginPage />);
+      
+      // Verify title prop
+      expect(screen.getByTestId('auth-title')).toHaveTextContent('Welcome back!');
+      
+      // Verify description prop
+      expect(screen.getByTestId('auth-description')).toHaveTextContent('Please login to continue with your work');
+      
+      // Verify mobileImage prop
+      expect(screen.getByTestId('auth-mobile-image')).toHaveTextContent('mocked-logo.png');
+      
+      // Verify hideSliderImagesForMobile prop
+      expect(screen.getByTestId('auth-hide-slider')).toHaveTextContent('true');
+      
+      // Verify slides prop (all 3 slides)
+      expect(screen.getAllByTestId(/^slide-\d+$/)).toHaveLength(3);
+    });
+
+    it('should render all slide images correctly', () => {
+      render(<LoginPage />);
+      
+      expect(screen.getByTestId('slide-image-0')).toHaveTextContent('mocked-slider-1.png');
+      expect(screen.getByTestId('slide-image-1')).toHaveTextContent('mocked-slider-2.png');
+      expect(screen.getByTestId('slide-image-2')).toHaveTextContent('mocked-slider-3.png');
+    });
   });
 });
