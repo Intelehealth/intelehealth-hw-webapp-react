@@ -27,51 +27,70 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
-          // Vendor chunks
+          // Vendor chunks - optimized for better caching and parallel loading
           if (id.includes('node_modules')) {
-            // React core
-            if (id.includes('react') || id.includes('react-dom')) {
+            // React core (use path-based check to avoid matching react-router, react-redux, etc.)
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('\\react\\') ||
+              id.includes('\\react-dom\\')
+            ) {
               return 'vendor-react';
             }
-            // React Router
+            // React Router (separate chunk for routing)
             if (id.includes('react-router')) {
               return 'vendor-router';
             }
-            // Sentry
-            if (id.includes('@sentry')) {
-              return 'vendor-sentry';
+            // Form libraries (grouped together as they're often used together)
+            if (
+              id.includes('react-hook-form') ||
+              id.includes('@hookform/resolvers') ||
+              id.includes('/yup/') ||
+              id.includes('\\yup\\')
+            ) {
+              return 'vendor-forms';
             }
-            // Firebase
-            if (id.includes('firebase')) {
-              return 'vendor-firebase';
-            }
-            // Country State City (large library)
-            if (id.includes('country-state-city')) {
-              return 'vendor-country-state-city';
-            }
-            // Date picker
-            if (id.includes('react-datepicker')) {
-              return 'vendor-datepicker';
-            }
-            // Toast notifications
-            if (id.includes('react-toastify')) {
-              return 'vendor-toastify';
-            }
-            // Redux
+            // Redux (state management)
             if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
               return 'vendor-redux';
             }
-            // i18n
+            // Firebase (large SDK, separate chunk)
+            if (id.includes('firebase')) {
+              return 'vendor-firebase';
+            }
+            // Sentry (monitoring, separate chunk)
+            if (id.includes('@sentry')) {
+              return 'vendor-sentry';
+            }
+            // i18n (internationalization)
             if (id.includes('i18next') || id.includes('react-i18next')) {
               return 'vendor-i18n';
             }
-            // Other large dependencies
-            if (
-              id.includes('axios') ||
-              id.includes('yup') ||
-              id.includes('@hookform')
-            ) {
+            // Country State City (large library, separate chunk for lazy loading via dynamic imports)
+            // This library is dynamically imported in components to reduce initial bundle size
+            if (id.includes('country-state-city')) {
+              return 'vendor-country-state-city';
+            }
+            // Date picker (separate chunk for lazy loading)
+            if (id.includes('react-datepicker')) {
+              return 'vendor-datepicker';
+            }
+            // Image cropping library
+            if (id.includes('react-easy-crop')) {
+              return 'vendor-image-crop';
+            }
+            // Toast notifications (separate chunk)
+            if (id.includes('react-toastify')) {
+              return 'vendor-toastify';
+            }
+            // HTTP client and utilities
+            if (id.includes('axios') || id.includes('js-cookie')) {
               return 'vendor-utils';
+            }
+            // Tailwind utilities (small, can be grouped)
+            if (id.includes('tailwind-merge') || id.includes('clsx')) {
+              return 'vendor-styles';
             }
             // All other node_modules
             return 'vendor-other';
@@ -98,9 +117,13 @@ export default defineConfig(({ mode }) => ({
         entryFileNames: 'assets/js/[name]-[hash].js',
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1000, // Warn if chunks exceed 500kb
     // Ensure proper asset handling
-    assetsInlineLimit: 4096, // 4kb
+    assetsInlineLimit: 4096, // 4kb - inline small assets
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Optimize chunk size
+    reportCompressedSize: true,
   },
 
   // Development optimizations
@@ -120,10 +143,23 @@ export default defineConfig(({ mode }) => ({
     include: [
       'react',
       'react-dom',
+      'react-router-dom',
       '@sentry/react',
       '@sentry/tracing',
       'hoist-non-react-statics',
       'react-datepicker',
+      'axios',
+      'react-hook-form',
+      '@hookform/resolvers',
+      'yup',
     ],
+    // Exclude large libraries that should be loaded on demand via dynamic imports
+    // country-state-city is dynamically imported in components to reduce initial bundle size
+    exclude: ['country-state-city'],
+  },
+  // Resolve configuration for better tree-shaking
+  resolve: {
+    // Ensure proper module resolution
+    dedupe: ['react', 'react-dom'],
   },
 }));

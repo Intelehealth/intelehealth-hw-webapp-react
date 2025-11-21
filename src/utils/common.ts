@@ -1,7 +1,10 @@
-import { Country } from 'country-state-city';
 import type { CountryCode } from '../types/common.types';
 
-export function getCountryCode(countryCode: string): CountryCode | undefined {
+export async function getCountryCode(
+  countryCode: string
+): Promise<CountryCode | undefined> {
+  // Dynamically import country-state-city to reduce initial bundle size
+  const { Country } = await import('country-state-city');
   const country = Country.getAllCountries().find(
     country => `+${country.phonecode}` === countryCode
   );

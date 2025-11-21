@@ -1,5 +1,4 @@
 import type { ICountry } from 'country-state-city';
-import { Country } from 'country-state-city';
 import { forwardRef, useEffect, useMemo, useState } from 'react';
 import Dropdown, { type DropdownOption } from './dropdown.component';
 
@@ -47,10 +46,19 @@ const CountrySelect = forwardRef<HTMLDivElement, CountrySelectProps>(
     ref
   ) => {
     const [countries, setCountries] = useState<ICountry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      const allCountries = Country.getAllCountries();
-      setCountries(allCountries);
+      // Dynamically import country-state-city to reduce initial bundle size
+      import('country-state-city')
+        .then(({ Country }) => {
+          const allCountries = Country.getAllCountries();
+          setCountries(allCountries);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setIsLoading(false);
+        });
     }, []);
 
     const options: DropdownOption[] = useMemo(
@@ -72,7 +80,7 @@ const CountrySelect = forwardRef<HTMLDivElement, CountrySelectProps>(
         options={options}
         value={value}
         onChange={handleChange}
-        placeholder={placeholder}
+        placeholder={isLoading ? 'Loading countries...' : placeholder}
         label={label}
         labelClassName={labelClassName}
         error={error}
@@ -82,7 +90,7 @@ const CountrySelect = forwardRef<HTMLDivElement, CountrySelectProps>(
         multiple={multiple}
         searchable={searchable}
         clearable={clearable}
-        disabled={disabled}
+        disabled={disabled || isLoading}
         isRequired={isRequired}
         className={className}
         aria-label={ariaLabel}

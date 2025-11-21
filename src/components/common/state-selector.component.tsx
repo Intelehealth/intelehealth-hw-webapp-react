@@ -1,5 +1,4 @@
 import type { IState } from 'country-state-city';
-import { Country, State } from 'country-state-city';
 import { forwardRef, useEffect, useMemo, useState } from 'react';
 import Dropdown, { type DropdownOption } from './dropdown.component';
 
@@ -49,24 +48,36 @@ const StateSelector = forwardRef<HTMLDivElement, StateSelectorProps>(
     ref
   ) => {
     const [states, setStates] = useState<IState[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
       if (!countryId) {
         setStates([]);
+        setIsLoading(false);
         return;
       }
 
-      // Find country by name (countryId is passed as country name string)
-      const countryName = typeof countryId === 'string' ? countryId : '';
-      const allCountries = Country.getAllCountries();
-      const country = allCountries.find(c => c.name === countryName);
+      setIsLoading(true);
+      // Dynamically import country-state-city to reduce initial bundle size
+      import('country-state-city')
+        .then(({ Country, State }) => {
+          // Find country by name (countryId is passed as country name string)
+          const countryName = typeof countryId === 'string' ? countryId : '';
+          const allCountries = Country.getAllCountries();
+          const country = allCountries.find(c => c.name === countryName);
 
-      if (country) {
-        const countryStates = State.getStatesOfCountry(country.isoCode);
-        setStates(countryStates);
-      } else {
-        setStates([]);
-      }
+          if (country) {
+            const countryStates = State.getStatesOfCountry(country.isoCode);
+            setStates(countryStates);
+          } else {
+            setStates([]);
+          }
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setStates([]);
+          setIsLoading(false);
+        });
     }, [countryId]);
 
     const options: DropdownOption[] = useMemo(
@@ -88,7 +99,7 @@ const StateSelector = forwardRef<HTMLDivElement, StateSelectorProps>(
         options={options}
         value={value}
         onChange={handleChange}
-        placeholder={placeholder}
+        placeholder={isLoading ? 'Loading states...' : placeholder}
         label={label}
         labelClassName={labelClassName}
         error={error}
@@ -98,7 +109,7 @@ const StateSelector = forwardRef<HTMLDivElement, StateSelectorProps>(
         multiple={multiple}
         searchable={searchable}
         clearable={clearable}
-        disabled={disabled || !countryId}
+        disabled={disabled || !countryId || isLoading}
         isRequired={isRequired}
         className={className}
         aria-label={ariaLabel}
