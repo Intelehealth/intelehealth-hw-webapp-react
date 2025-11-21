@@ -1,5 +1,5 @@
 import { Button } from '../../../../../components/common';
-import type { PatientFormData } from '../../add-patient.types';
+import type { PatientFormData } from '../../../../../types/patient/add/add-patient.types';
 
 interface PatientPreviewComponentProps {
   data: PatientFormData;

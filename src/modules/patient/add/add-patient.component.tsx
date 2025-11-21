@@ -7,8 +7,8 @@ import iconThreeDotGreenRounded from '../../../assets/icons/icon-three-dot-green
 import iconUserGreenRoundedBordered from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
 import iconUserGreenRoundedFilled from '../../../assets/icons/icon-user-green-rounded-filled.svg';
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
+import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
 import { useAddPatient } from './add-patient.hooks';
-import type { PatientFormData } from './add-patient.types';
 import AddressInfo from './steps/address-info/patient-address-info.component';
 import OtherInfo from './steps/other-info/patient-other-info.component';
 import Preview from './steps/patient-preview/patient-preview.component';
