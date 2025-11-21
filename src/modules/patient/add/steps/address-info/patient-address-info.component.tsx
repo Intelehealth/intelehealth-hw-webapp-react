@@ -1,8 +1,10 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
-import { countries } from '../../../../../assets/data/countries';
-import { Button, Dropdown, Input } from '../../../../../components/common';
+import { Button, Input } from '../../../../../components/common';
+import CitySelector from '../../../../../components/common/city-selector.component';
+import CountrySelect from '../../../../../components/common/country-select.component';
+import StateSelector from '../../../../../components/common/state-selector.component';
 import { patientAddressInfoSchema } from './patient-address-info.validation';
 
 type PatientAddressInfoFormValues = InferType<typeof patientAddressInfoSchema>;
@@ -51,12 +53,9 @@ export default function PatientAddressInfo({
               />
             </div>
             <div>
-              <Dropdown
+              <CountrySelect
                 label="Country"
                 placeholder="Select Country"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
                 labelClassName="text-(--color-muted)"
                 error={errors.country?.message}
                 value={watch('country') ?? ''}
@@ -68,12 +67,10 @@ export default function PatientAddressInfo({
               />
             </div>
             <div>
-              <Dropdown
+              <StateSelector
+                countryId={watch('country') ?? ''}
                 label="State"
                 placeholder="Select State"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
                 labelClassName="text-(--color-muted)"
                 error={errors.state?.message}
                 value={watch('state') ?? ''}
@@ -88,12 +85,11 @@ export default function PatientAddressInfo({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <Dropdown
+              <CitySelector
+                countryId={watch('country') ?? ''}
+                stateId={watch('state') ?? ''}
                 label="District"
                 placeholder="Select District"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
                 labelClassName="text-(--color-muted)"
                 error={errors.district?.message}
                 value={watch('district') ?? ''}
@@ -105,19 +101,11 @@ export default function PatientAddressInfo({
               />
             </div>
             <div>
-              <Dropdown
+              <Input
+                {...register('city')}
+                placeholder="Enter Village/Town/City"
                 label="Village/Town/City"
-                placeholder="Select Village/Town/City"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
-                labelClassName="text-(--color-muted)"
                 error={errors.city?.message}
-                value={watch('city') ?? ''}
-                onChange={(value: string | string[]) => {
-                  const selectedValue = Array.isArray(value) ? value[0] : value;
-                  setValue('city', selectedValue);
-                }}
                 isRequired={true}
               />
             </div>
