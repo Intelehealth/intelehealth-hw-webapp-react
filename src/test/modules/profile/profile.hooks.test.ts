@@ -1038,7 +1038,7 @@ describe('useProfile', () => {
     toastSpy.mockRestore();
   });
 
-  it('updates profiles with image URL when image blob is valid (lines 150-153)', async () => {
+  it('updates profiles with image URL when image blob is valid (lines 129-130)', async () => {
     const mockGetUser = mockStorage.getUser as MockedFunction<
       typeof mockStorage.getUser
     >;
@@ -1046,8 +1046,6 @@ describe('useProfile', () => {
     mockGetUser.mockReturnValue(
       JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
     );
-
-    const consoleLogSpy = vi.spyOn(console, 'log');
 
     mockedProfileService.getUserByUuid.mockResolvedValue({
       uuid: 'user123',
@@ -1090,18 +1088,12 @@ describe('useProfile', () => {
       () => {
         expect(result.current.profile).not.toBeNull();
         expect(result.current.hwProfile).not.toBeNull();
-        // Verify both console logs for image updates were called (lines 151, 153)
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          '[HW Profile Image] Updated hwProfile with image URL'
-        );
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          '[HW Profile Image] Updated profile with image URL'
-        );
+        // Verify profiles were updated with image URLs (lines 129-130)
+        expect(result.current.profile?.avatar).toContain('blob:');
+        expect(result.current.hwProfile?.avatar).toContain('blob:');
       },
       { timeout: 3000 }
     );
-
-    consoleLogSpy.mockRestore();
   });
 
   it('covers fallback branch on line 230: familyName fallback to profile.lastName', async () => {
