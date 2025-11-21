@@ -92,14 +92,18 @@ describe('CountrySelect', () => {
       }).not.toThrow();
     });
 
-    it('should render with default placeholder', () => {
+    it('should render with default placeholder', async () => {
       render(<CountrySelect />);
-      expect(screen.getByText('Select Country')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Select Country')).toBeInTheDocument();
+      });
     });
 
-    it('should render with custom placeholder', () => {
+    it('should render with custom placeholder', async () => {
       render(<CountrySelect placeholder="Choose Country" />);
-      expect(screen.getByText('Choose Country')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Choose Country')).toBeInTheDocument();
+      });
     });
 
     it('should render with label', () => {
