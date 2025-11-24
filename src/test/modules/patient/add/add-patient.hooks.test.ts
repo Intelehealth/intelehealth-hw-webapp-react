@@ -43,7 +43,7 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
 }));
 
 import { useAddPatient } from '../../../../modules/patient/add/add-patient.hooks';
-import type { PatientFormData } from '../../../../modules/patient/add/add-patient.types';
+import type { PatientFormData } from '../../../../types/patient/add/add-patient.types';
 
 const {
   mockCreatePatient,

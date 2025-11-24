@@ -4,8 +4,11 @@ import {
   patientIdentifierType,
 } from '../../../assets/data/openmrs_uuids';
 import { showToast } from '../../../services/toast';
+import type {
+  AddPatientData,
+  PatientFormData,
+} from '../../../types/patient/add/add-patient.types';
 import { patientService } from './add-patient.service';
-import type { AddPatientData, PatientFormData } from './add-patient.types';
 
 interface UseAddPatientReturn {
   handleAddPatient: (patientData: PatientFormData) => Promise<boolean>;

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientPreviewComponent from '../../../../../../modules/patient/add/steps/patient-preview/patient-preview.component';
-import type { PatientFormData } from '../../../../../../modules/patient/add/add-patient.types';
+import type { PatientFormData } from '../../../../../../types/patient/add/add-patient.types';
 
 // Mock the common components
 vi.mock('../../../../../../components/common', () => ({

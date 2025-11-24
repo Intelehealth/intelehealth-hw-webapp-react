@@ -28,14 +28,15 @@ const InputPhoneNumber = ({
     if (value && value.countryCode) {
       isUpdatingFromProps.current = true;
       setPhoneNumber(value.number || '');
-      const getCountry = getCountryCode(value.countryCode);
-      if (getCountry) {
-        setCountry(getCountry);
-      }
-      // Reset flag after state updates have been processed
-      setTimeout(() => {
-        isUpdatingFromProps.current = false;
-      }, 0);
+      getCountryCode(value.countryCode).then(country => {
+        if (country) {
+          setCountry(country);
+        }
+        // Reset flag after state updates have been processed
+        setTimeout(() => {
+          isUpdatingFromProps.current = false;
+        }, 0);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.countryCode]); // Only depend on countryCode to avoid infinite loops
