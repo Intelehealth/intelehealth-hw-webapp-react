@@ -2,8 +2,8 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
 import { Button, Input } from '../../../../../components/common';
-import CitySelector from '../../../../../components/common/city-selector.component';
 import CountrySelect from '../../../../../components/common/country-select.component';
+import DistrictSelector from '../../../../../components/common/district-selector.component';
 import StateSelector from '../../../../../components/common/state-selector.component';
 import { patientAddressInfoSchema } from './patient-address-info.validation';
 
@@ -85,7 +85,7 @@ export default function PatientAddressInfo({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <CitySelector
+              <DistrictSelector
                 countryId={watch('country') ?? ''}
                 stateId={watch('state') ?? ''}
                 label="District"

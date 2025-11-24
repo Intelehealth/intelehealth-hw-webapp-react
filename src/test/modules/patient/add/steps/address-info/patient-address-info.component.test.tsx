@@ -146,7 +146,7 @@ vi.mock('../../../../../../components/common/state-selector.component', () => ({
   },
 }));
 
-vi.mock('../../../../../../components/common/city-selector.component', () => ({
+vi.mock('../../../../../../components/common/district-selector.component', () => ({
   default: ({ label, options, onChange, value, error, isRequired, placeholder, countryId, stateId }: any) => {
     // Provide default options if both countryId and stateId are provided
     const defaultOptions = options || (countryId === 'India' && stateId === 'Karnataka' ? [

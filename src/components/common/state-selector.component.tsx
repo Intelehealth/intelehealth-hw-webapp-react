@@ -1,5 +1,6 @@
-import type { IState } from 'country-state-city';
 import { forwardRef, useEffect, useMemo, useState } from 'react';
+import type { State } from '../../types/common.types';
+import { getStatesByCountry } from '../../utils/states-districts';
 import Dropdown, { type DropdownOption } from './dropdown.component';
 
 export interface StateSelectorProps {
@@ -47,7 +48,7 @@ const StateSelector = forwardRef<HTMLDivElement, StateSelectorProps>(
     },
     ref
   ) => {
-    const [states, setStates] = useState<IState[]>([]);
+    const [states, setStates] = useState<State[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -58,33 +59,36 @@ const StateSelector = forwardRef<HTMLDivElement, StateSelectorProps>(
       }
 
       setIsLoading(true);
-      // Dynamically import country-state-city to reduce initial bundle size
-      import('country-state-city')
-        .then(({ Country, State }) => {
-          // Find country by name (countryId is passed as country name string)
-          const countryName = typeof countryId === 'string' ? countryId : '';
-          const allCountries = Country.getAllCountries();
-          const country = allCountries.find(c => c.name === countryName);
+      try {
+        const countryName = typeof countryId === 'string' ? countryId : '';
 
-          if (country) {
-            const countryStates = State.getStatesOfCountry(country.isoCode);
-            setStates(countryStates);
-          } else {
-            setStates([]);
-          }
-          setIsLoading(false);
-        })
-        .catch(() => {
+        if (countryName) {
+          // Get states for the selected country
+          const countryStates = getStatesByCountry(countryName);
+          // Transform State objects to match the expected format
+          const formattedStates = countryStates.map(state => ({
+            name: state.state,
+            state: state.state,
+            stateHi: state['state-hi'],
+            districts: state.districts,
+          }));
+          setStates(formattedStates as State[]);
+        } else {
           setStates([]);
-          setIsLoading(false);
-        });
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading states:', error);
+        setStates([]);
+        setIsLoading(false);
+      }
     }, [countryId]);
 
     const options: DropdownOption[] = useMemo(
       () =>
         states.map(state => ({
-          value: state.name,
-          label: state.name,
+          value: state.state,
+          label: state.state,
         })),
       [states]
     );

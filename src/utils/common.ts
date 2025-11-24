@@ -1,17 +1,19 @@
 import type { CountryCode } from '../types/common.types';
+import { getCountryByDialCode } from './countries';
 
 export async function getCountryCode(
   countryCode: string
 ): Promise<CountryCode | undefined> {
-  // Dynamically import country-state-city to reduce initial bundle size
-  const { Country } = await import('country-state-city');
-  const country = Country.getAllCountries().find(
-    country => `+${country.phonecode}` === countryCode
-  );
+  // Return undefined for empty or whitespace-only strings
+  if (!countryCode || !countryCode.trim()) {
+    return undefined;
+  }
+  // Get country by dial code from local JSON data
+  const country = getCountryByDialCode(countryCode);
   if (!country) return undefined;
   return {
-    name: country?.name,
-    code: country?.isoCode,
-    dial_code: `+${country?.phonecode}`,
+    name: country.name,
+    code: country.code || '',
+    dial_code: country.dial_code || countryCode,
   };
 }

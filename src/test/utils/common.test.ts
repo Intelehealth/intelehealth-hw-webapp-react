@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getCountryCode } from '../../utils/common';
+import * as countriesModule from '../../utils/countries';
 
 describe('common.ts', () => {
   describe('getCountryCode', () => {
@@ -98,6 +99,40 @@ describe('common.ts', () => {
     it('should handle dial code with extra characters', async () => {
       const result = await getCountryCode('+91abc');
       expect(result).toBeUndefined();
+    });
+
+    it('should handle country with missing code', async () => {
+      // Mock getCountryByDialCode to return a country without code
+      vi.spyOn(countriesModule, 'getCountryByDialCode').mockReturnValueOnce({
+        name: 'Test Country',
+        dial_code: '+999',
+        code: undefined,
+      } as any);
+
+      const result = await getCountryCode('+999');
+      expect(result).toBeDefined();
+      expect(result?.code).toBe('');
+      expect(result?.dial_code).toBe('+999');
+      expect(result?.name).toBe('Test Country');
+
+      vi.restoreAllMocks();
+    });
+
+    it('should handle country with missing dial_code', async () => {
+      // Mock getCountryByDialCode to return a country without dial_code
+      vi.spyOn(countriesModule, 'getCountryByDialCode').mockReturnValueOnce({
+        name: 'Test Country',
+        dial_code: undefined,
+        code: 'TC',
+      } as any);
+
+      const result = await getCountryCode('+888');
+      expect(result).toBeDefined();
+      expect(result?.code).toBe('TC');
+      expect(result?.dial_code).toBe('+888'); // Should use countryCode parameter
+      expect(result?.name).toBe('Test Country');
+
+      vi.restoreAllMocks();
     });
   });
 });

@@ -1,10 +1,11 @@
-import type { ICity } from 'country-state-city';
 import { forwardRef, useEffect, useMemo, useState } from 'react';
+import type { District } from '../../types/common.types';
+import { getDistrictsByState } from '../../utils/states-districts';
 import Dropdown, { type DropdownOption } from './dropdown.component';
 
-export interface CitySelectorProps {
-  countryId?: number | string;
-  stateId?: number | string;
+export interface DistrictSelectorProps {
+  countryId?: string;
+  stateId?: string;
   value?: string | string[];
   onChange?: (value: string | string[]) => void;
   placeholder?: string;
@@ -24,14 +25,14 @@ export interface CitySelectorProps {
   'aria-labelledby'?: string;
 }
 
-const CitySelector = forwardRef<HTMLDivElement, CitySelectorProps>(
+const DistrictSelector = forwardRef<HTMLDivElement, DistrictSelectorProps>(
   (
     {
       countryId,
       stateId,
       value,
       onChange,
-      placeholder = 'Select City',
+      placeholder = 'Select District',
       label,
       labelClassName = '',
       error,
@@ -49,58 +50,43 @@ const CitySelector = forwardRef<HTMLDivElement, CitySelectorProps>(
     },
     ref
   ) => {
-    const [cities, setCities] = useState<ICity[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
       if (!countryId || !stateId) {
-        setCities([]);
+        setDistricts([]);
         setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      // Dynamically import country-state-city to reduce initial bundle size
-      import('country-state-city')
-        .then(({ City, Country, State }) => {
-          // Find country by name (countryId is passed as country name string)
-          const countryName = typeof countryId === 'string' ? countryId : '';
-          const stateName = typeof stateId === 'string' ? stateId : '';
+      try {
+        const countryName = typeof countryId === 'string' ? countryId : '';
+        const stateName = typeof stateId === 'string' ? stateId : '';
 
-          const allCountries = Country.getAllCountries();
-          const country = allCountries.find(c => c.name === countryName);
-
-          if (country) {
-            const allStates = State.getStatesOfCountry(country.isoCode);
-            const state = allStates.find(s => s.name === stateName);
-
-            if (state) {
-              const stateCities = City.getCitiesOfState(
-                country.isoCode,
-                state.isoCode
-              );
-              setCities(stateCities);
-            } else {
-              setCities([]);
-            }
-          } else {
-            setCities([]);
-          }
-          setIsLoading(false);
-        })
-        .catch(() => {
-          setCities([]);
-          setIsLoading(false);
-        });
+        if (countryName && stateName) {
+          // Get districts for the state in the specified country
+          const districtsData = getDistrictsByState(stateName, countryName);
+          setDistricts(districtsData);
+        } else {
+          setDistricts([]);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading districts:', error);
+        setDistricts([]);
+        setIsLoading(false);
+      }
     }, [countryId, stateId]);
 
     const options: DropdownOption[] = useMemo(
       () =>
-        cities.map(city => ({
-          value: city.name,
-          label: city.name,
+        districts.map(district => ({
+          value: district.name,
+          label: district.name,
         })),
-      [cities]
+      [districts]
     );
 
     const handleChange = (selectedValue: string | string[]) => {
@@ -113,7 +99,7 @@ const CitySelector = forwardRef<HTMLDivElement, CitySelectorProps>(
         options={options}
         value={value}
         onChange={handleChange}
-        placeholder={isLoading ? 'Loading cities...' : placeholder}
+        placeholder={isLoading ? 'Loading districts...' : placeholder}
         label={label}
         labelClassName={labelClassName}
         error={error}
@@ -133,6 +119,6 @@ const CitySelector = forwardRef<HTMLDivElement, CitySelectorProps>(
   }
 );
 
-CitySelector.displayName = 'CitySelector';
+DistrictSelector.displayName = 'DistrictSelector';
 
-export default CitySelector;
+export default DistrictSelector;

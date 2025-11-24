@@ -4,18 +4,16 @@ import { forwardRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CountrySelect from '../../../components/common/country-select.component';
 
-// Mock country-state-city
+// Mock countries utility
 const mockCountries = [
-  { name: 'India', isoCode: 'IN' },
-  { name: 'United States', isoCode: 'US' },
-  { name: 'United Kingdom', isoCode: 'GB' },
-  { name: 'Canada', isoCode: 'CA' },
+  { name: 'India', code: 'IN', dial_code: '+91' },
+  { name: 'United States', code: 'US', dial_code: '+1' },
+  { name: 'United Kingdom', code: 'GB', dial_code: '+44' },
+  { name: 'Canada', code: 'CA', dial_code: '+1' },
 ];
 
-vi.mock('country-state-city', () => ({
-  Country: {
-    getAllCountries: vi.fn(() => mockCountries),
-  },
+vi.mock('../../../utils/countries', () => ({
+  getAllCountries: vi.fn(() => mockCountries),
 }));
 
 // Mock the Dropdown component
@@ -38,6 +36,11 @@ vi.mock('../../../components/common/dropdown.component', () => ({
       }: any,
       ref: any
     ) => {
+      // Ensure value is properly handled for controlled components
+      const selectValue = Array.isArray(value) 
+        ? (value.length > 0 ? value[0] : '')
+        : (value !== undefined && value !== null ? value : '');
+      
       return (
         <div ref={ref} className={className}>
           {label && (
@@ -46,7 +49,7 @@ vi.mock('../../../components/common/dropdown.component', () => ({
             </label>
           )}
           <select
-            value={Array.isArray(value) ? value[0] : value || ''}
+            value={selectValue}
             onChange={(e) => {
               if (multiple) {
                 const selectedValues = Array.from(
@@ -304,8 +307,8 @@ describe('CountrySelect', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty countries list', async () => {
-      const countryStateCity = await import('country-state-city');
-      vi.mocked(countryStateCity.Country.getAllCountries).mockReturnValueOnce([]);
+      const countriesModule = await import('../../../utils/countries');
+      vi.mocked(countriesModule.getAllCountries).mockReturnValueOnce([]);
       render(<CountrySelect label="Country" />);
       await waitFor(() => {
         const dropdown = screen.getByTestId('dropdown-Country');

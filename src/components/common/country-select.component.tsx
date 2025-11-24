@@ -1,5 +1,6 @@
-import type { ICountry } from 'country-state-city';
 import { forwardRef, useEffect, useMemo, useState } from 'react';
+import type { Country } from '../../types';
+import { getAllCountries } from '../../utils/countries';
 import Dropdown, { type DropdownOption } from './dropdown.component';
 
 export interface CountrySelectProps {
@@ -45,20 +46,19 @@ const CountrySelect = forwardRef<HTMLDivElement, CountrySelectProps>(
     },
     ref
   ) => {
-    const [countries, setCountries] = useState<ICountry[]>([]);
+    const [countries, setCountries] = useState<Country[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      // Dynamically import country-state-city to reduce initial bundle size
-      import('country-state-city')
-        .then(({ Country }) => {
-          const allCountries = Country.getAllCountries();
-          setCountries(allCountries);
-          setIsLoading(false);
-        })
-        .catch(() => {
-          setIsLoading(false);
-        });
+      // Load countries from local JSON data
+      try {
+        const allCountries = getAllCountries();
+        setCountries(allCountries);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading countries:', error);
+        setIsLoading(false);
+      }
     }, []);
 
     const options: DropdownOption[] = useMemo(

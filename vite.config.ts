@@ -67,11 +67,6 @@ export default defineConfig(({ mode }) => ({
             if (id.includes('i18next') || id.includes('react-i18next')) {
               return 'vendor-i18n';
             }
-            // Country State City (large library, separate chunk for lazy loading via dynamic imports)
-            // This library is dynamically imported in components to reduce initial bundle size
-            if (id.includes('country-state-city')) {
-              return 'vendor-country-state-city';
-            }
             // Date picker (separate chunk for lazy loading)
             if (id.includes('react-datepicker')) {
               return 'vendor-datepicker';
@@ -117,7 +112,7 @@ export default defineConfig(({ mode }) => ({
         entryFileNames: 'assets/js/[name]-[hash].js',
       },
     },
-    chunkSizeWarningLimit: 1000, // Warn if chunks exceed 500kb
+    chunkSizeWarningLimit: 1000, // Warn if chunks exceed 1000kb
     // Ensure proper asset handling
     assetsInlineLimit: 4096, // 4kb - inline small assets
     // Enable CSS code splitting
@@ -153,9 +148,6 @@ export default defineConfig(({ mode }) => ({
       '@hookform/resolvers',
       'yup',
     ],
-    // Exclude large libraries that should be loaded on demand via dynamic imports
-    // country-state-city is dynamically imported in components to reduce initial bundle size
-    exclude: ['country-state-city'],
   },
   // Resolve configuration for better tree-shaking
   resolve: {
