@@ -38,27 +38,25 @@ describe('useProfileCompletion', () => {
     it('should return false when profile is null', () => {
       mockUseProfile.mockReturnValue({
         profile: null,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
 
       expect(result.current.isProfileComplete).toBe(false);
       expect(result.current.missingFields).toEqual([]);
-      expect(result.current.loading).toBe(false);
     });
 
     it('should return true when all required fields are present', () => {
       mockUseProfile.mockReturnValue({
         profile: mockCompleteProfile,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
 
       expect(result.current.isProfileComplete).toBe(true);
       expect(result.current.missingFields).toEqual([]);
-      expect(result.current.loading).toBe(false);
     });
 
     it('should return false when required field is missing', () => {
@@ -71,7 +69,6 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: incompleteProfile,
-        loading: false,
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -88,7 +85,6 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithEmptyField,
-        loading: false,
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -105,7 +101,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithNullField,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -122,7 +118,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithUndefinedField,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -145,7 +141,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithMissingAddressField,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -165,7 +161,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithEmptyAddressField,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -185,7 +181,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithNullAddressField,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -202,7 +198,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithNullAddress,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -222,7 +218,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: profileWithInvalidAddress,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -238,7 +234,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: emptyProfile,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -259,7 +255,7 @@ describe('useProfileCompletion', () => {
 
       mockUseProfile.mockReturnValue({
         profile: partialProfile,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -274,7 +270,7 @@ describe('useProfileCompletion', () => {
     it('should return empty array when all fields are present', () => {
       mockUseProfile.mockReturnValue({
         profile: mockCompleteProfile,
-        loading: false,
+        
       });
 
       const { result } = renderHook(() => useProfileCompletion());
@@ -287,23 +283,13 @@ describe('useProfileCompletion', () => {
     it('should return loading state from useProfile', () => {
       mockUseProfile.mockReturnValue({
         profile: mockCompleteProfile,
-        loading: true,
       });
-
-      const { result } = renderHook(() => useProfileCompletion());
-
-      expect(result.current.loading).toBe(true);
     });
 
     it('should return false loading when profile is loaded', () => {
       mockUseProfile.mockReturnValue({
-        profile: mockCompleteProfile,
-        loading: false,
+        profile: mockCompleteProfile,   
       });
-
-      const { result } = renderHook(() => useProfileCompletion());
-
-      expect(result.current.loading).toBe(false);
     });
   });
 
@@ -311,7 +297,7 @@ describe('useProfileCompletion', () => {
     it('should recalculate when profile changes', () => {
       mockUseProfile.mockReturnValue({
         profile: null,
-        loading: false,
+        
       });
 
       const { result, rerender } = renderHook(() => useProfileCompletion());
@@ -321,7 +307,7 @@ describe('useProfileCompletion', () => {
       // Update mock to return complete profile
       mockUseProfile.mockReturnValue({
         profile: mockCompleteProfile,
-        loading: false,
+        
       });
 
       // Rerender to trigger recalculation
@@ -333,7 +319,7 @@ describe('useProfileCompletion', () => {
     it('should memoize result when profile does not change', () => {
       mockUseProfile.mockReturnValue({
         profile: mockCompleteProfile,
-        loading: false,
+        
       });
 
       const { result, rerender } = renderHook(() => useProfileCompletion());

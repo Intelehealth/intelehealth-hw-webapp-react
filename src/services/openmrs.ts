@@ -1,3 +1,5 @@
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { store } from '../store/store';
 import { HttpService } from './http';
 
 class OpenMRSService extends HttpService {
@@ -12,18 +14,39 @@ class OpenMRSService extends HttpService {
       withCredentials: true,
     });
 
-    // Request interceptor - ensure credentials are sent and add debugging
+    // Request interceptor - ensure credentials are sent and handle loader
     this.axiosInstance.interceptors.request.use(config => {
       config.withCredentials = true;
+
+      // Handle loader: default showLoader is true, can be disabled with showLoader: false
+      const showLoader = config.headers?.loader !== false;
+      if (showLoader) {
+        const id = (config.headers['loader-id'] as string) || undefined;
+        store.dispatch(startLoading(id));
+      }
       return config;
     });
 
-    // Response interceptor - capture JSESSIONID if returned
+    // Response interceptor - capture JSESSIONID if returned and handle loader
     this.axiosInstance.interceptors.response.use(
       response => {
+        // Handle loader: stop loading on successful response
+        const requestHeaders = response.config?.headers;
+        const showLoader = requestHeaders?.loader !== false;
+        if (showLoader) {
+          const id = (requestHeaders?.['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
         return response;
       },
       error => {
+        // Handle loader: stop loading on error
+        const requestHeaders = error.config?.headers;
+        const showLoader = requestHeaders?.loader !== false;
+        if (showLoader) {
+          const id = (requestHeaders?.['loader-id'] as string) || undefined;
+          store.dispatch(stopLoading(id));
+        }
         // 401 check can be added here if needed
         if (error.response?.status === 401) {
           // Handle unauthorized access

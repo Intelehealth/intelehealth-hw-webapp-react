@@ -24,7 +24,6 @@ export type PersonDetailsType = {
   }>;
 };
 
-// Helper: Calculate age from date of birth
 export const calculateAge = (dateOfBirth: string): number => {
   const today = new Date();
   const birthDate = new Date(dateOfBirth);
@@ -39,7 +38,6 @@ export const calculateAge = (dateOfBirth: string): number => {
   return age;
 };
 
-// Helper: Get error message from error object
 export const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object' && 'response' in error) {
     const axiosError = error as { response?: { data?: { message?: string } } };
@@ -48,7 +46,6 @@ export const getErrorMessage = (error: unknown): string => {
   return '';
 };
 
-// Helper: Build image URL from person UUID
 export const buildImageUrl = (
   personUuid: string | undefined,
   providerPersonUuid?: string
@@ -57,10 +54,10 @@ export const buildImageUrl = (
   const baseUrl =
     import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
   const uuid = providerPersonUuid || personUuid;
-  return uuid ? `${baseUrl}/personimage/${uuid}` : '';
+  // uuid is guaranteed to be truthy here due to the check above
+  return `${baseUrl}/personimage/${uuid}`;
 };
 
-// Helper: Map provider attributes to key-value pairs
 export const mapProviderAttributes = (
   providerDetails: ProviderDetailResponse | null
 ): { [key: string]: string } => {
@@ -75,7 +72,6 @@ export const mapProviderAttributes = (
   return attributes;
 };
 
-// Helper: Map person attributes to key-value pairs
 export const mapPersonAttributes = (personDetails: {
   attributes?: Array<{
     attributeType: { name: string; display?: string };
@@ -94,7 +90,6 @@ export const mapPersonAttributes = (personDetails: {
   return personAttributes;
 };
 
-// Helper: Convert OpenMRS gender to React format
 export const convertGender = (gender?: string): 'male' | 'female' | 'other' => {
   if (gender === 'M') return 'male';
   if (gender === 'F') return 'female';
@@ -102,7 +97,6 @@ export const convertGender = (gender?: string): 'male' | 'female' | 'other' => {
   return (gender?.toLowerCase() as 'male' | 'female' | 'other') || 'male';
 };
 
-// Helper: Create HealthWorkerProfile from API responses
 export const createHealthWorkerProfile = (
   userDetails: UserDetailResponse,
   personDetails: {
@@ -124,7 +118,6 @@ export const createHealthWorkerProfile = (
 ): HealthWorkerProfile => {
   const roles = userDetails.roles.map(r => r.name);
   const privileges = userDetails.privileges.map(p => p.name);
-
   return {
     userUuid: userDetails.uuid,
     username: userDetails.username || '',
@@ -153,7 +146,6 @@ export const createHealthWorkerProfile = (
   };
 };
 
-// Helper: Create Profile from API responses
 export const createProfile = (
   userDetails: UserDetailResponse,
   personDetails: {
@@ -175,7 +167,6 @@ export const createProfile = (
 ): Profile => {
   const genderValue =
     providerDetails?.person?.gender || personDetails.gender || 'M';
-
   return {
     id: personDetails.uuid,
     firstName: personDetails.preferredName?.givenName || '',
@@ -213,31 +204,27 @@ export const createProfile = (
   };
 };
 
-// Helper: Get attribute UUID from provider details
 export const getAttributeUuid = (
   providerDetails: ProviderDetailResponse | null,
   attrTypeUuid: string,
   displayName: string
 ): string | null => {
   if (!providerDetails?.attributes) return null;
-  for (const attr of providerDetails.attributes) {
-    const attrTyped = attr as unknown as {
-      uuid: string;
-      attributeType?: { uuid: string; display: string };
-      voided?: boolean;
-    };
-    if (
-      attrTyped.attributeType?.uuid === attrTypeUuid &&
-      attrTyped.attributeType?.display === displayName &&
-      !attrTyped.voided
-    ) {
-      return attrTyped.uuid;
-    }
-  }
-  return null;
+  const attr = providerDetails.attributes.find(
+    a =>
+      (
+        a as unknown as {
+          attributeType?: { uuid: string; display: string };
+          voided?: boolean;
+        }
+      ).attributeType?.uuid === attrTypeUuid &&
+      (a as unknown as { attributeType?: { uuid: string; display: string } })
+        .attributeType?.display === displayName &&
+      !(a as unknown as { voided?: boolean }).voided
+  );
+  return (attr as unknown as { uuid: string })?.uuid || null;
 };
 
-// Helper: Process image file to base64
 export const processImageFile = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -259,7 +246,6 @@ export const processImageFile = (file: File): Promise<string> => {
   });
 };
 
-// Helper: Update profile attributes
 export const updateProfileAttributes = async (
   data: { email?: string; phone?: string; setupLocation?: string },
   providerDetails: ProviderDetailResponse | null,
@@ -273,7 +259,6 @@ export const updateProfileAttributes = async (
   providerAttributeTypes.results?.forEach(attrType => {
     attributeTypeMap[attrType.display] = attrType.uuid;
   });
-
   const attributeRequests: Promise<unknown>[] = [];
   ['emailId', 'phoneNumber', 'setupLocation'].forEach(key => {
     const value =
@@ -297,7 +282,6 @@ export const updateProfileAttributes = async (
       );
     }
   });
-
   if (attributeRequests.length > 0) {
     await profileService.requestDataFromMultipleSources(attributeRequests);
   }

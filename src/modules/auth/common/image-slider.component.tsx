@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react';
-
-type Slide = {
-  image: string;
-  title: string;
-  description: string;
-};
+import type { Slide } from '../../../types/common.types';
 
 interface ImageSliderProps {
   slides: Slide[];
@@ -42,14 +37,33 @@ const ImageSlider = ({
         {slides.map((slide, index) => (
           <div
             key={index}
-            className="min-w-full flex px-6 lg:px-0 lg:flex-col items-center justify-center"
+            className="min-w-full flex px-6 lg:px-0 lg:flex-col items-center justify-center relative"
           >
             {!hideImages && (
-              <img
-                src={slide.image}
-                alt={slide.title}
-                className="w-[50%] lg:w-full h-40 lg:h-96 object-contain rounded-lg"
-              />
+              <>
+                <div className="relative w-[50%] lg:w-full h-40 lg:h-96">
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                </div>
+                {/* Heartbeat images positioned outside the slider image */}
+                {slide.heartbeat1 && (
+                  <img
+                    src={slide.heartbeat1}
+                    alt="heartbeat red"
+                    className="absolute -top-8 -right-5 lg:-top-12 lg:-right-5 w-34 h-34 lg:w-32 lg:h-32 object-contain z-10"
+                  />
+                )}
+                {slide.heartbeat2 && (
+                  <img
+                    src={slide.heartbeat2}
+                    alt="heartbeat green"
+                    className="absolute top-4 -left-5 lg:top-12 lg:-left-1 w-34 h-34 lg:w-30 lg:h-30 object-contain z-10"
+                  />
+                )}
+              </>
             )}
             <div
               className={`mt-5 lg:text-center ${hideImages ? 'text-center' : 'text-left'}`}

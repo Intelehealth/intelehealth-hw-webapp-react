@@ -220,7 +220,8 @@ describe('profileService', () => {
 
       expect(mockOpenMRSPost).toHaveBeenCalledWith(
         '/person/person-uuid-123',
-        updateData
+        updateData,
+        undefined
       );
       expect(result).toEqual(mockResponse);
     });
@@ -269,7 +270,7 @@ describe('profileService', () => {
           ...nameData,
           preferred: true,
           prefix: null,
-        }
+        },undefined
       );
       expect(result).toEqual(mockResponse);
     });
@@ -320,7 +321,8 @@ describe('profileService', () => {
           ...nameData,
           preferred: true,
           prefix: null,
-        }
+        },
+        undefined
       );
       expect(result).toEqual(mockResponse);
     });
@@ -413,7 +415,8 @@ describe('profileService', () => {
 
       expect(mockOpenMRSPost).toHaveBeenCalledWith(
         '/provider/provider-uuid-123/attribute/attr-uuid-456',
-        { value }
+        { value },
+        undefined
       );
       expect(result).toEqual(mockResponse);
     });
@@ -443,7 +446,8 @@ describe('profileService', () => {
         {
           attributeType: attributeTypeUuid,
           value,
-        }
+        },
+        undefined
       );
       expect(result).toEqual(mockResponse);
     });
@@ -473,7 +477,8 @@ describe('profileService', () => {
         {
           attributeType: attributeTypeUuid,
           value,
-        }
+        },
+        undefined   
       );
       expect(result).toEqual(mockResponse);
     });

@@ -2,6 +2,8 @@ export interface Slide {
   image: string;
   title: string;
   description: string;
+  heartbeat1?: string; // red heartbeat image
+  heartbeat2?: string; // green heartbeat image
 }
 
 export interface CountryCode {

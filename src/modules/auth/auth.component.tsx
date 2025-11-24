@@ -76,7 +76,7 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
               { label: 'ગુજરાતી', value: 'gujarati' },
             ]}
             value="english"
-            className="w-[30%] min-w-[50px] max-w-[150px]"
+            className="w-[30%] min-w-[50px] max-w-[150px] language-dropdown"
           />
         </div>
         <div className="md:hidden lg:hidden flex flex-col justify-center w-full mt-20">

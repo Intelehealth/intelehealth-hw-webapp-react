@@ -40,38 +40,50 @@ export const profileService = {
   // POST /person/{uuid} - Update person (gender, age, birthdate)
   updatePerson: (
     personUuid: string,
-    data: { gender: string; age: number; birthdate: string }
-  ) => OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}`, data),
+    data: { gender: string; age: number; birthdate: string },
+    config?: { headers?: Record<string, string> }
+  ) => OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}`, data, config),
 
   // POST /person/{uuid}/name - Create person name
   createPersonName: (
     personUuid: string,
-    data: { givenName: string; middleName: string; familyName: string }
+    data: { givenName: string; middleName: string; familyName: string },
+    config?: { headers?: Record<string, string> }
   ) =>
-    OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}/name`, {
-      ...data,
-      preferred: true,
-      prefix: null,
-    }),
+    OpenMRSApi.post(
+      `${API_ENDPOINTS.PERSON}/${personUuid}/name`,
+      {
+        ...data,
+        preferred: true,
+        prefix: null,
+      },
+      config
+    ),
 
   // POST /person/{uuid}/name/{nameUuid} - Update person name
   updatePersonName: (
     personUuid: string,
     nameUuid: string,
-    data: { givenName: string; middleName: string; familyName: string }
+    data: { givenName: string; middleName: string; familyName: string },
+    config?: { headers?: Record<string, string> }
   ) =>
-    OpenMRSApi.post(`${API_ENDPOINTS.PERSON}/${personUuid}/name/${nameUuid}`, {
-      ...data,
-      preferred: true,
-      prefix: null,
-    }),
+    OpenMRSApi.post(
+      `${API_ENDPOINTS.PERSON}/${personUuid}/name/${nameUuid}`,
+      {
+        ...data,
+        preferred: true,
+        prefix: null,
+      },
+      config
+    ),
 
   // POST /provider/{uuid}/attribute or /provider/{uuid}/attribute/{attrUuid} - Add/Update provider attribute
   addOrUpdateProviderAttribute: (
     providerUuid: string,
     attrUuid: string | null,
     attributeTypeUuid: string,
-    value: string
+    value: string,
+    config?: { headers?: Record<string, string> }
   ) => {
     if (!value) return Promise.resolve(null);
     if (attrUuid) {
@@ -80,14 +92,19 @@ export const profileService = {
         `/provider/${providerUuid}/attribute/${attrUuid}`,
         {
           value,
-        }
+        },
+        config
       );
     } else {
       // Add new attribute
-      return OpenMRSApi.post(`/provider/${providerUuid}/attribute`, {
-        attributeType: attributeTypeUuid,
-        value,
-      });
+      return OpenMRSApi.post(
+        `/provider/${providerUuid}/attribute`,
+        {
+          attributeType: attributeTypeUuid,
+          value,
+        },
+        config
+      );
     }
   },
 
@@ -100,8 +117,6 @@ export const profileService = {
   // POST /personimage - Update profile image (from profile.service.ts)
   updateProfileImage: (data: { person: string; base64EncodedImage: string }) =>
     OpenMRSApi.post(API_ENDPOINTS.PERSON_IMAGE, data),
-
-  // POST /auth/validateProviderAttribute - Validate provider attribute (from auth.service.ts)
   validateProviderAttribute: (data: {
     attributeType: string;
     attributeValue: string;

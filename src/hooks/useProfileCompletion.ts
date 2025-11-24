@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useProfile } from '../modules/profile/profile.hooks';
 
 export const useProfileCompletion = () => {
-  const { profile, loading } = useProfile();
+  const { profile } = useProfile();
 
   // Memoize profile completion check to avoid unnecessary recalculations
   const isProfileComplete = useMemo(() => {
@@ -85,6 +85,5 @@ export const useProfileCompletion = () => {
   return {
     isProfileComplete,
     missingFields,
-    loading,
   };
 };

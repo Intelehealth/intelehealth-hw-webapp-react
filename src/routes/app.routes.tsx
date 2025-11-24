@@ -35,6 +35,10 @@ const AddPatientPage = lazy(
 );
 const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 
+// Profile Guard Components
+import { ProfileGuardProvider } from '../context/ProfileGuardContext';
+import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
+
 const AppRoutes = () => (
   <HashRouter>
     <Suspense fallback={<RouteLoader />}>
@@ -95,7 +99,11 @@ const AppRoutes = () => (
               path={ROUTES.ROOT}
               element={
                 <Suspense fallback={<RouteLoader />}>
-                  <DashboardPage />
+                  <ProfileGuardProvider>
+                    <ProfileRouteGuard>
+                      <AddPatientPage />
+                    </ProfileRouteGuard>
+                  </ProfileGuardProvider>
                 </Suspense>
               }
             />
