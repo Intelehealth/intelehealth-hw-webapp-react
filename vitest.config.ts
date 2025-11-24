@@ -80,6 +80,8 @@ export default defineConfig({
         'src/examples/**',
         // Exclude entire types folder (pure type definition files with no runtime code)
         'src/types/**',
+        // Exclude all .types.ts files (pure type definition files)
+        '**/*.types.ts',
         'src/services/mindmap.ts',
         'src/services/openmrs.ts',
         'src/config/sentry.ts',
@@ -99,6 +101,7 @@ export default defineConfig({
         // Exclude entry point files (mostly boilerplate)
         'src/main.tsx',
         'src/App.tsx',
+        'src/modules/patient/add/add-patient.types.ts',
       ],
       // 100% coverage requirements
       thresholds: {

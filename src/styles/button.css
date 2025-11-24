@@ -40,6 +40,14 @@
   border: 1px solid var(--color-primary-light); /* border-[--color-primary] */
 }
 
+/* Keep arrow icon primary color (#2f1e91) on hover */
+.btn-primary-variant:hover span:last-child img,
+.btn-primary-variant:hover > span:last-child img {
+  filter: brightness(0) saturate(100%) invert(18%) sepia(79%) saturate(2000%)
+    hue-rotate(245deg) brightness(0.57) contrast(1.2);
+  opacity: 1;
+}
+
 .btn-primary-light-variant {
   color: var(--color-primary); /* text-[--color-primary] */
   background-color: var(--color-primary-light); /* bg-[--color-primary-light] */

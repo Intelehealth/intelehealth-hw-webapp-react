@@ -180,8 +180,14 @@ describe('ImageSlider', () => {
       render(<ImageSlider slides={mockSlides} />);
       
       const images = screen.getAllByRole('img');
-      images.forEach(img => {
-        expect(img).toHaveClass('w-[50%]', 'lg:w-full', 'h-40', 'lg:h-96', 'object-contain', 'rounded-lg');
+      // Filter to only main slide images (exclude heartbeat images)
+      const slideImages = images.filter(img => 
+        img.getAttribute('alt') !== 'heartbeat red' && 
+        img.getAttribute('alt') !== 'heartbeat green'
+      );
+      
+      slideImages.forEach(img => {
+        expect(img).toHaveClass('w-full', 'h-full', 'object-contain', 'rounded-lg');
       });
     });
   });

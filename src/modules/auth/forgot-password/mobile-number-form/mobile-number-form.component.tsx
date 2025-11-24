@@ -64,7 +64,8 @@ const MobileNumberFormComponent = () => {
         Enter Mobile Number
       </h3>
       <label className="block text-base text-(--color-muted) mb-4">
-        Please enter the mobile number registered with Intelehealth
+        Please enter the mobile number registered with Intelehealth.Please check
+        and enter the OTP
       </label>
       <div className="flex gap-2 justify-between w-full mb-2 lg:mb-4">
         <div className="w-1/3">

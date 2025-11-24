@@ -1,8 +1,10 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Button, PhotoUploadModal } from '../../components/common';
+import { useSelector } from 'react-redux';
+import { Button, PhotoUploadModal, Loader } from '../../components/common';
 import Card from '../../components/common/card.component';
+import type { RootState } from '../../store/store';
 import type { PasswordChangeRequest } from '../../types/profile.types';
 import PasswordSection from './password-section.component';
 import ProfileFormFields from './profile-form-fields.component';
@@ -15,8 +17,12 @@ interface ProfileFormProps {
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
-  const { profile, loading, updateProfile, uploadPhoto, takePhoto } =
-    useProfile();
+  const { profile, updateProfile, uploadPhoto, takePhoto } = useProfile();
+
+  // Get section loading state from Redux
+  const isSaving = useSelector(
+    (state: RootState) => state.loader.sections['profile-save'] > 0
+  );
 
   const [passwordData, setPasswordData] = React.useState<PasswordChangeRequest>(
     {
@@ -99,7 +105,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   };
 
   // Show loading state while profile data is being fetched
-  if (!profile && loading) {
+  if (!profile) {
     return (
       <Card className={`w-full ${className}`} contentClassName="p-4 md:p-4">
         <div className="flex items-center justify-center py-8">
@@ -107,9 +113,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
             className="animate-spin rounded-full h-8 w-8 border-b-2"
             style={{ borderColor: 'var(--color-primary)' }}
           ></div>
-          <span className="ml-2 text-body-medium text-[--color-dark]">
-            Loading profile...
-          </span>
         </div>
       </Card>
     );
@@ -150,11 +153,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
             type="submit"
             variant="primary"
             size="md"
-            isLoading={isSubmitting || loading}
-            loadingText="Saving..."
+            disabled={isSubmitting || isSaving}
             className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-4 lg:py-2 text-base lg:text-sm font-semibold cursor-pointer mt-6 lg:mt-0 disabled:bg-gray-400 disabled:cursor-not-allowed lg:!px-6"
           >
-            Save
+            {isSaving ? (
+              <span className="flex items-center gap-2">
+                <Loader id="profile-save" mode="inline" />
+                <span>Saving...</span>
+              </span>
+            ) : (
+              'Save'
+            )}
           </Button>
         </div>
       </form>
