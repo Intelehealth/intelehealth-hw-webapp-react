@@ -21,6 +21,23 @@ const mockSlides = [
   },
 ];
 
+const mockSlidesWithHeartbeat = [
+  {
+    image: 'slide1.jpg',
+    title: 'Slide 1 Title',
+    description: 'Slide 1 Description',
+    heartbeat1: 'heartbeat-red.png',
+    heartbeat2: 'heartbeat-green.png',
+  },
+  {
+    image: 'slide2.jpg',
+    title: 'Slide 2 Title',
+    description: 'Slide 2 Description',
+    heartbeat1: 'heartbeat-red.png',
+    heartbeat2: 'heartbeat-green.png',
+  },
+];
+
 describe('ImageSlider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,6 +206,74 @@ describe('ImageSlider', () => {
       slideImages.forEach(img => {
         expect(img).toHaveClass('w-full', 'h-full', 'object-contain', 'rounded-lg');
       });
+    });
+
+    it('should display heartbeat1 images when provided', () => {
+      render(<ImageSlider slides={mockSlidesWithHeartbeat} hideImages={false} />);
+      
+      const heartbeat1Images = screen.getAllByAltText('heartbeat red');
+      expect(heartbeat1Images).toHaveLength(2);
+      heartbeat1Images.forEach(img => {
+        expect(img).toHaveAttribute('src', 'heartbeat-red.png');
+        expect(img).toHaveClass('absolute', '-top-8', '-right-5', 'lg:-top-12', 'lg:-right-5', 'w-34', 'h-34', 'lg:w-32', 'lg:h-32', 'object-contain', 'z-10');
+      });
+    });
+
+    it('should display heartbeat2 images when provided', () => {
+      render(<ImageSlider slides={mockSlidesWithHeartbeat} hideImages={false} />);
+      
+      const heartbeat2Images = screen.getAllByAltText('heartbeat green');
+      expect(heartbeat2Images).toHaveLength(2);
+      heartbeat2Images.forEach(img => {
+        expect(img).toHaveAttribute('src', 'heartbeat-green.png');
+        expect(img).toHaveClass('absolute', 'top-4', '-left-5', 'lg:top-12', 'lg:-left-1', 'w-34', 'h-34', 'lg:w-30', 'lg:h-30', 'object-contain', 'z-10');
+      });
+    });
+
+    it('should hide heartbeat images when hideImages is true', () => {
+      render(<ImageSlider slides={mockSlidesWithHeartbeat} hideImages={true} />);
+      
+      expect(screen.queryByAltText('heartbeat red')).not.toBeInTheDocument();
+      expect(screen.queryByAltText('heartbeat green')).not.toBeInTheDocument();
+    });
+
+    it('should render heartbeat1 when only heartbeat1 is provided', () => {
+      const slidesWithOnlyHeartbeat1 = [
+        {
+          image: 'slide1.jpg',
+          title: 'Slide 1 Title',
+          description: 'Slide 1 Description',
+          heartbeat1: 'heartbeat-red.png',
+        },
+      ];
+      
+      render(<ImageSlider slides={slidesWithOnlyHeartbeat1} hideImages={false} />);
+      
+      expect(screen.getByAltText('heartbeat red')).toBeInTheDocument();
+      expect(screen.queryByAltText('heartbeat green')).not.toBeInTheDocument();
+    });
+
+    it('should render heartbeat2 when only heartbeat2 is provided', () => {
+      const slidesWithOnlyHeartbeat2 = [
+        {
+          image: 'slide1.jpg',
+          title: 'Slide 1 Title',
+          description: 'Slide 1 Description',
+          heartbeat2: 'heartbeat-green.png',
+        },
+      ];
+      
+      render(<ImageSlider slides={slidesWithOnlyHeartbeat2} hideImages={false} />);
+      
+      expect(screen.queryByAltText('heartbeat red')).not.toBeInTheDocument();
+      expect(screen.getByAltText('heartbeat green')).toBeInTheDocument();
+    });
+
+    it('should not render heartbeat images when they are not provided', () => {
+      render(<ImageSlider slides={mockSlides} hideImages={false} />);
+      
+      expect(screen.queryByAltText('heartbeat red')).not.toBeInTheDocument();
+      expect(screen.queryByAltText('heartbeat green')).not.toBeInTheDocument();
     });
   });
 
