@@ -49,16 +49,12 @@ const getProfileState = (
   const emailAttr = provider?.attributes?.find(
     attr =>
       attr.attributeType.display === 'emailId' ||
-      attr.attributeType.name === 'emailId' ||
-      attr.attributeType.display === 'Email' ||
-      attr.attributeType.display === 'email'
+      attr.attributeType.name === 'emailId'
   );
   const phoneAttr = provider?.attributes?.find(
     attr =>
       attr.attributeType.display === 'phoneNumber' ||
-      attr.attributeType.name === 'phoneNumber' ||
-      attr.attributeType.display === 'Telephone Number' ||
-      attr.attributeType.display === 'phoneNumber'
+      attr.attributeType.name === 'phoneNumber'
   );
 
   const email = emailAttr?.value;
@@ -69,21 +65,10 @@ const getProfileState = (
     firstName || lastName || gender || birthdate || email || phone;
   if (!hasAnyData) return 'not-started';
 
-  // Check if all required fields are filled
-  const hasAllRequired =
-    firstName &&
-    lastName &&
-    gender &&
-    birthdate &&
-    email &&
-    phone &&
-    firstName.trim() !== '' &&
-    lastName.trim() !== '' &&
-    gender.trim() !== '' &&
-    birthdate.trim() !== '' &&
-    email.trim() !== '' &&
-    phone.trim() !== '';
-
+  const fields = [firstName, lastName, gender, birthdate, email, phone];
+  const isNotEmpty = (value: string | undefined) =>
+    value !== null && value !== undefined && String(value).trim() !== '';
+  const hasAllRequired = fields.every(isNotEmpty);
   return hasAllRequired ? 'complete' : 'incomplete';
 };
 
@@ -165,6 +150,7 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     refreshProfileStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
