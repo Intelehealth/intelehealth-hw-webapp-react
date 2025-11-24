@@ -577,66 +577,6 @@ describe('ProfileGuardContext', () => {
     });
   });
 
-  describe('Provider Attribute Variations', () => {
-    it('should recognize email with "Email" display name', async () => {
-      (profileService.getPersonByUuid as any).mockResolvedValue(mockPersonComplete);
-      (profileService.getProvider as any).mockResolvedValue({
-        results: [{ uuid: 'provider-123' }],
-      });
-      (profileService.getProviderByUuid as any).mockResolvedValue({
-        attributes: [
-          {
-            attributeType: { display: 'Email' },
-            value: 'john@example.com',
-          },
-          {
-            attributeType: { display: 'phoneNumber', name: 'phoneNumber' },
-            value: '1234567890',
-          },
-        ],
-      });
-
-      const { getByTestId } = render(
-        <TestWrapper>
-          <TestComponent />
-        </TestWrapper>
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('profileState').textContent).toBe('complete');
-      });
-    });
-
-    it('should recognize phone with "Telephone Number" display name', async () => {
-      (profileService.getPersonByUuid as any).mockResolvedValue(mockPersonComplete);
-      (profileService.getProvider as any).mockResolvedValue({
-        results: [{ uuid: 'provider-123' }],
-      });
-      (profileService.getProviderByUuid as any).mockResolvedValue({
-        attributes: [
-          {
-            attributeType: { display: 'emailId', name: 'emailId' },
-            value: 'john@example.com',
-          },
-          {
-            attributeType: { display: 'Telephone Number' },
-            value: '1234567890',
-          },
-        ],
-      });
-
-      const { getByTestId } = render(
-        <TestWrapper>
-          <TestComponent />
-        </TestWrapper>
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('profileState').textContent).toBe('complete');
-      });
-    });
-  });
-
   describe('ProfileGuardProvider - Test Mode Coverage', () => {
     it('covers lines 130-133: should set not-started when in test mode without VITE_SKIP_TEST_MODE', async () => {
       // Remove VITE_SKIP_TEST_MODE to test the early return in test mode

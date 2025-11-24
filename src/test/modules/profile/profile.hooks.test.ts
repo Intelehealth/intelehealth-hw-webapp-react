@@ -1718,4 +1718,122 @@ describe('useProfile', () => {
       base64EncodedImage: 'base64encodedstring',
     });
   });
+
+  it('covers line 200 branch: should update profile when only middleName is provided', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(
+      JSON.stringify({
+        uuid: 'user123',
+        person: { uuid: 'person123' },
+      })
+    );
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      attributes: [],
+    } as any);
+
+    // First call for initial load, second call during update
+    mockedProfileService.getPersonByUuid
+      .mockResolvedValueOnce({
+        uuid: 'person123',
+        display: 'John Doe',
+        attributes: [],
+      } as any)
+      .mockResolvedValueOnce({
+        uuid: 'person123',
+        display: 'John Doe',
+        attributes: [],
+        preferredName: { uuid: 'name123' },
+      } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+    mockedProfileService.updatePersonName.mockResolvedValue({} as any);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Update with only middleName (no firstName, no lastName)
+    // This tests the branch on line 200: if (data.firstName || data.middleName || data.lastName)
+    // where data.firstName is falsy but data.middleName is truthy
+    await result.current.updateProfile({
+      middleName: 'MiddleOnly',
+    });
+
+    expect(mockedProfileService.updatePersonName).toHaveBeenCalled();
+  });
+
+  it('covers line 200 false branch: should update profile when no name fields are provided', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(
+      JSON.stringify({
+        uuid: 'user123',
+        person: { uuid: 'person123' },
+      })
+    );
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+    mockedProfileService.updatePersonName.mockClear();
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Update with only email (no name fields)
+    // This tests the FALSE branch on line 200: if (data.firstName || data.middleName || data.lastName)
+    await result.current.updateProfile({
+      email: 'newemail@example.com',
+    });
+
+    // Should NOT call updatePersonName since no name fields were provided
+    expect(mockedProfileService.updatePersonName).not.toHaveBeenCalled();
+  });
 });
