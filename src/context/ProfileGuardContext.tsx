@@ -36,8 +36,6 @@ interface ProviderResponse {
     value: string;
   }>;
 }
-
-// Helper function to determine profile state from OpenMRS Person and Provider APIs
 const getProfileState = (
   person: PersonResponse | null,
   provider: ProviderResponse | null
@@ -48,8 +46,6 @@ const getProfileState = (
   const lastName = person.preferredName?.familyName;
   const gender = person.gender;
   const birthdate = person.birthdate;
-
-  // Get email and phone from provider attributes (emailId and phoneNumber)
   const emailAttr = provider?.attributes?.find(
     attr =>
       attr.attributeType.display === 'emailId' ||
