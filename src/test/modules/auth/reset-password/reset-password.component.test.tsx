@@ -436,7 +436,7 @@ describe('ResetPasswordComponent', () => {
       }, { timeout: 3000 });
     });
 
-    it('should display confirm password error message when passwords do not match', async () => {
+    it('should display Confirm new password error message when passwords do not match', async () => {
       mockUseResetPassword.mockReturnValue({
         handleResetPassword: mockHandleResetPassword,
         handleGenerateNewPassword: mockHandleGenerateNewPassword,

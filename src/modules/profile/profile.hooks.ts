@@ -7,7 +7,6 @@ import type {
   UserDetailResponse,
 } from '../../types/provider.types';
 import { storage } from '../../utils/storage';
-
 import {
   calculateAge,
   createHealthWorkerProfile,
@@ -61,6 +60,38 @@ export const useProfile = (): UseProfileReturn => {
     loadProfile();
   }, []);
 
+  const updateAvatars = (
+    hwProfile: HealthWorkerProfile,
+    profile: Profile,
+    avatarUrl: string
+  ) => {
+    setHwProfile({ ...hwProfile, avatar: avatarUrl });
+    setProfile({ ...profile, avatar: avatarUrl });
+  };
+
+  const fetchProfileImage = async (
+    personUuid: string,
+    newHwProfile: HealthWorkerProfile,
+    newProfile: Profile
+  ) => {
+    try {
+      const imageBlob = (await profileService.getProfileImage(
+        personUuid
+      )) as Blob;
+      const avatarUrl =
+        imageBlob?.size > 0 ? URL.createObjectURL(imageBlob) : '';
+      updateAvatars(newHwProfile, newProfile, avatarUrl);
+    } catch (error) {
+      updateAvatars(newHwProfile, newProfile, '');
+      const errorStatus =
+        (error as { status?: number; response?: { status?: number } })
+          ?.status ||
+        (error as { response?: { status?: number } })?.response?.status;
+      if (errorStatus !== 404)
+        console.error('[Profile] Failed to fetch image:', error);
+    }
+  };
+
   const loadProfile = async () => {
     try {
       const userData = storage.getUser();
@@ -69,10 +100,12 @@ export const useProfile = (): UseProfileReturn => {
       const user = JSON.parse(userData);
       if (!user.uuid)
         throw new Error('User UUID not found. Please log in again.');
+
       const userDetails = (await profileService.getUserByUuid(
         user.uuid
       )) as UserDetailResponse;
       let providerDetails: ProviderDetailResponse | null = null;
+
       try {
         const providerData = (await profileService.getProvider(user.uuid)) as {
           results?: Array<{ uuid: string }>;
@@ -86,15 +119,18 @@ export const useProfile = (): UseProfileReturn => {
       } catch {
         setProviderDetails(null);
       }
+
       const finalPersonUuid = userDetails.person?.uuid || user.person?.uuid;
       if (!finalPersonUuid)
         throw new Error('Person UUID not found. Please log in again.');
+
       const personDetails = (await profileService.getPersonByUuid(
         finalPersonUuid
       )) as PersonDetailsType;
       const attributes = mapProviderAttributes(providerDetails);
       const personAttributes = mapPersonAttributes(personDetails);
       const roles = userDetails.roles.map(r => r.name);
+
       const newHwProfile = createHealthWorkerProfile(
         userDetails,
         personDetails,
@@ -113,46 +149,9 @@ export const useProfile = (): UseProfileReturn => {
       setHwProfile(newHwProfile);
       setProfile(newProfile);
 
-      // Fetch profile image with comprehensive logging
       const personUuidForImage =
         providerDetails?.person?.uuid || finalPersonUuid;
-
-      try {
-        const imageBlob = (await profileService.getProfileImage(
-          personUuidForImage
-        )) as Blob;
-
-        if (imageBlob && imageBlob.size > 0) {
-          const imageUrl = URL.createObjectURL(imageBlob);
-
-          // Update profiles with the fetched image URL using the newly created objects
-          setHwProfile({ ...newHwProfile, avatar: imageUrl });
-          setProfile({ ...newProfile, avatar: imageUrl });
-        } else {
-          console.warn('[HW Profile Image] Received empty or invalid blob:', {
-            personUuidForImage,
-            blobSize: imageBlob?.size || 0,
-          });
-        }
-      } catch (error) {
-        const errorStatus =
-          (error as { status?: number; response?: { status?: number } })
-            ?.status ||
-          (error as { response?: { status?: number } })?.response?.status;
-
-        if (errorStatus !== 404) {
-          console.error(
-            '[HW Profile Image] Failed to fetch profile image (non-404 error):',
-            {
-              personUuidForImage,
-              error: error instanceof Error ? error.message : String(error),
-              status: errorStatus,
-              fullError: error,
-              timestamp: new Date().toISOString(),
-            }
-          );
-        }
-      }
+      await fetchProfileImage(personUuidForImage, newHwProfile, newProfile);
     } catch (error) {
       showToast('Error', 'Failed to load profile data', 'error');
       console.error('Profile loading error:', error);
@@ -182,6 +181,7 @@ export const useProfile = (): UseProfileReturn => {
       const age = data.dateOfBirth
         ? calculateAge(data.dateOfBirth)
         : profile.age;
+
       if (openMRSGender && age && data.dateOfBirth) {
         await profileService.updatePerson(hwProfile.personUuid, {
           gender: openMRSGender,
@@ -189,9 +189,13 @@ export const useProfile = (): UseProfileReturn => {
           birthdate: data.dateOfBirth,
         });
       }
+
       const personDetails = (await profileService.getPersonByUuid(
         hwProfile.personUuid
-      )) as { preferredName?: { uuid: string } };
+      )) as {
+        preferredName?: { uuid: string };
+      };
+
       if (data.firstName || data.middleName || data.lastName) {
         const nameData = {
           givenName: data.firstName || profile.firstName,
@@ -208,6 +212,7 @@ export const useProfile = (): UseProfileReturn => {
           await profileService.createPersonName(hwProfile.personUuid, nameData);
         }
       }
+
       await updateProfileAttributes(
         data,
         providerDetails,
@@ -240,8 +245,12 @@ export const useProfile = (): UseProfileReturn => {
         reader.onerror = () => reject(new Error('Failed to read file'));
         reader.readAsDataURL(file);
       });
-      if (profile) setProfile({ ...profile, avatar: dataUrl });
-      if (hwProfile) setHwProfile({ ...hwProfile, avatar: dataUrl });
+
+      if (profile && hwProfile) {
+        setProfile({ ...profile, avatar: dataUrl });
+        setHwProfile({ ...hwProfile, avatar: dataUrl });
+      }
+
       const cleanedBase64 = await processImageFile(file);
       const personUuid =
         providerDetails?.person?.uuid ||
@@ -249,6 +258,7 @@ export const useProfile = (): UseProfileReturn => {
         profile?.id ||
         '';
       if (!personUuid) throw new Error('Person UUID not found');
+
       await profileService.updateProfileImage({
         person: personUuid,
         base64EncodedImage: cleanedBase64,
@@ -256,25 +266,24 @@ export const useProfile = (): UseProfileReturn => {
       const baseUrl =
         import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
       const imageUrl = `${baseUrl}/personimage/${personUuid}?t=${Date.now()}`;
-      if (profile) setProfile({ ...profile, avatar: imageUrl });
-      if (hwProfile) setHwProfile({ ...hwProfile, avatar: imageUrl });
+
+      if (profile && hwProfile) {
+        setProfile({ ...profile, avatar: imageUrl });
+        setHwProfile({ ...hwProfile, avatar: imageUrl });
+      }
       await loadProfile();
       showToast('Success', 'Profile picture uploaded successfully!', 'success');
     } catch (error: unknown) {
       showToast(
         'Error',
-        error instanceof Error ? error.message : 'Person UUID not foundoto',
+        error instanceof Error ? error.message : 'Failed to upload photo',
         'error'
       );
     }
   };
 
   const takePhoto = async () => {
-    try {
-      showToast('Info', 'Camera functionality not implemented yet', 'info');
-    } catch {
-      showToast('Error', 'Failed to take photo', 'error');
-    }
+    showToast('Info', 'Camera functionality not implemented yet', 'info');
   };
 
   return {

@@ -47,15 +47,10 @@ export const getErrorMessage = (error: unknown): string => {
 };
 
 export const buildImageUrl = (
-  personUuid: string | undefined,
-  providerPersonUuid?: string
+  _personUuid?: string | undefined,
+  _providerPersonUuid?: string
 ): string => {
-  if (!personUuid && !providerPersonUuid) return '';
-  const baseUrl =
-    import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
-  const uuid = providerPersonUuid || personUuid;
-  // uuid is guaranteed to be truthy here due to the check above
-  return `${baseUrl}/personimage/${uuid}`;
+  return '';
 };
 
 export const mapProviderAttributes = (

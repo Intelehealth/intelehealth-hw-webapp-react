@@ -5,6 +5,7 @@ import type {
   UseFormSetValue,
   UseFormWatch,
 } from 'react-hook-form';
+import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import { Calendar, Dropdown, Input, Radio } from '../../components/common';
 import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
@@ -22,6 +23,7 @@ interface ProfileFormFieldsProps {
     code: string;
     dial_code: string;
   }) => void;
+  profileImage?: string;
 }
 
 const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
@@ -32,6 +34,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
   trigger,
   onPhotoModalOpen,
   onCountryChange,
+  profileImage,
 }) => {
   const locationOptions = [
     { value: 'sf-clinic', label: 'San Francisco Clinic' },
@@ -54,8 +57,20 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         {/* Profile Photo Section - Mobile */}
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <i className="fa-solid fa-camera text-gray-500 text-2xl"></i>
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden">
+              {profileImage ? (
+                <img
+                  src={profileImage}
+                  alt="Profile"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <img
+                  src={DefaultUserImage}
+                  alt="Default Profile"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              )}
             </div>
           </div>
           <button
@@ -75,6 +90,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             placeholder="Username"
             variant="default"
             size="wide"
+            disabled={true}
           />
 
           <Dropdown
@@ -152,13 +168,26 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
       <div className="hidden lg:block space-y-2">
         <div className="flex flex-col items-start gap-2">
           <div className="relative">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-              <i className="fa-solid fa-user text-gray-400 text-lg"></i>
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+              {profileImage ? (
+                <img
+                  src={profileImage}
+                  alt="Profile"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <img
+                  src={DefaultUserImage}
+                  alt="Default Profile"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              )}
             </div>
             <button
               type="button"
               className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer"
               style={{ backgroundColor: 'var(--color-primary)' }}
+              onClick={onPhotoModalOpen}
             >
               <i className="fa-solid fa-camera text-white text-xs"></i>
             </button>
@@ -219,6 +248,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           placeholder="Username"
           variant="default"
           size="wide"
+          disabled={true}
         />
 
         <Input

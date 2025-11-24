@@ -3,58 +3,58 @@ import { useNavigate } from 'react-router-dom';
 import { useProfileGuard } from '../../context/ProfileGuardContext';
 import ROUTES from '../../routes/paths';
 import ProfileStatusModal from './profile-status-modal.component';
+import { Loader } from '../../components/common';
 
 // Route Guard Component
 interface ProfileRouteGuardProps {
   children: React.ReactNode;
 }
 
+const PROFILE_LOADER_ID = 'profile-guard';
+
 const ProfileRouteGuard: React.FC<ProfileRouteGuardProps> = ({ children }) => {
-  const { isProfileComplete, loading, profileState } = useProfileGuard();
+  const { isProfileComplete, profileState } = useProfileGuard();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [hasChecked, setHasChecked] = React.useState(false);
 
   const handleGoToProfile = () => {
     setIsModalOpen(false);
     navigate(ROUTES.PROFILE);
   };
-
-  // Show modal when profile is incomplete and not loading
   React.useEffect(() => {
-    if (!loading && !isProfileComplete) {
-      setIsModalOpen(true);
-    } else if (isProfileComplete) {
-      // Close modal when profile becomes complete
-      setIsModalOpen(false);
+    if (
+      profileState === 'complete' ||
+      profileState === 'incomplete' ||
+      profileState === 'not-started'
+    ) {
+      setHasChecked(true);
+      setIsModalOpen(!isProfileComplete);
     }
-  }, [isProfileComplete, loading]);
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-  if (!isProfileComplete) {
+  }, [isProfileComplete, profileState, hasChecked]);
+
+  if (!hasChecked) {
     return (
       <>
-        {/* Show the modal verlay */}
-        {isModalOpen && (
-          <ProfileStatusModal
-            isOpen={isModalOpen}
-            onGoToProfile={handleGoToProfile}
-            profileState={
-              profileState === 'not-started' ? 'not-started' : 'incomplete'
-            }
-          />
-        )}
-        {/* Don't render children when profile is incomplete */}
+        <Loader id={PROFILE_LOADER_ID} />
       </>
     );
   }
 
-  // Profile is complete, render children (AddPatientPage)
-  return <>{children}</>;
+  return (
+    <>
+      {!isProfileComplete && (
+        <ProfileStatusModal
+          isOpen={isModalOpen}
+          onGoToProfile={handleGoToProfile}
+          profileState={
+            profileState === 'not-started' ? 'not-started' : 'incomplete'
+          }
+        />
+      )}
+      {isProfileComplete && children}
+    </>
+  );
 };
 
 export default ProfileRouteGuard;

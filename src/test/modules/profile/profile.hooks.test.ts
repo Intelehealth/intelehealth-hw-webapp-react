@@ -978,14 +978,14 @@ describe('useProfile', () => {
     }, { timeout: 3000 });
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[HW Profile Image] Failed to fetch profile image (non-404 error):',
+      '[Profile] Failed to fetch image:',
       expect.any(Object)
     );
 
     consoleErrorSpy.mockRestore();
   });
 
-  it('handles takePhoto error when toast throws', async () => {
+  it('shows info toast when takePhoto is called', async () => {
     const mockGetUser = mockStorage.getUser as MockedFunction<
       typeof mockStorage.getUser
     >;
@@ -1019,20 +1019,15 @@ describe('useProfile', () => {
       expect(result.current.profile).not.toBeNull();
     });
 
-    // Spy on showToast and make it throw on the first call to trigger catch block (lines 312-313)
-    const toastSpy = vi.spyOn(toast, 'showToast')
-      .mockImplementationOnce(() => {
-        throw new Error('Toast failed');
-      })
-      .mockImplementation(() => 'toast-id' as any);
+    const toastSpy = vi.spyOn(toast, 'showToast');
 
     await result.current.takePhoto();
 
-    // Verify error toast is called (from catch block)
+    // Verify info toast is called
     expect(toastSpy).toHaveBeenCalledWith(
-      'Error',
-      'Failed to take photo',
-      'error'
+      'Info',
+      'Camera functionality not implemented yet',
+      'info'
     );
 
     toastSpy.mockRestore();
@@ -1411,5 +1406,316 @@ describe('useProfile', () => {
 
     // The branch on line 297 is exercised: error instanceof Error ? ... : 'Person UUID not foundoto'
     // When processImageFile throws a string instead of Error, the false branch is taken
+  });
+
+  it('covers line 109: fallback to user.person.uuid when userDetails.person.uuid is undefined', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    // Mock user with person.uuid
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person-from-user' } })
+    );
+
+    // Mock userDetails WITHOUT person.uuid to trigger fallback
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: undefined, // This is undefined, so fallback to user.person.uuid
+      roles: [{ name: 'Doctor' }],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person-from-user',
+      display: 'John Doe',
+      preferredName: { givenName: 'John', familyName: 'Doe' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Verify that getPersonByUuid was called with the fallback person UUID
+    expect(mockedProfileService.getPersonByUuid).toHaveBeenCalledWith('person-from-user');
+  });
+
+  it('covers lines 175-177: updates person name when firstName, middleName, or lastName provided', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(JSON.stringify({ uuid: 'user123' }));
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      person: { uuid: 'person123' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      preferredName: { uuid: 'name123', givenName: 'John', familyName: 'Doe' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    mockedProfileService.updatePersonName.mockResolvedValue({} as any);
+    mockedProfileService.getProviderAttributeTypes.mockResolvedValue({
+      results: [],
+    } as any);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Update profile with name changes
+    await result.current.updateProfile({
+      firstName: 'Jane',
+      middleName: 'Marie',
+      lastName: 'Smith',
+    });
+
+    // Verify that updatePersonName was called with the new name data
+    expect(mockedProfileService.updatePersonName).toHaveBeenCalledWith(
+      'person123',
+      'name123',
+      {
+        givenName: 'Jane',
+        middleName: 'Marie',
+        familyName: 'Smith',
+      }
+    );
+  });
+
+  it('covers lines 175-180: updates person name with only middleName', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(JSON.stringify({ uuid: 'user123' }));
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      person: { uuid: 'person123' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      preferredName: { uuid: 'name123', givenName: 'John', familyName: 'Doe' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    mockedProfileService.updatePersonName.mockResolvedValue({} as any);
+    mockedProfileService.getProviderAttributeTypes.mockResolvedValue({
+      results: [],
+    } as any);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Update profile with only middleName to test fallback branches on lines 177-179
+    await result.current.updateProfile({
+      middleName: 'Marie',
+    });
+
+    // Verify that updatePersonName was called with fallback values
+    expect(mockedProfileService.updatePersonName).toHaveBeenCalledWith(
+      'person123',
+      'name123',
+      {
+        givenName: 'John', // Falls back to profile.firstName
+        middleName: 'Marie',
+        familyName: 'Doe', // Falls back to profile.lastName
+      }
+    );
+  });
+
+  it('covers line 221: fallback chain for personUuid in uploadPhoto (providerDetails.person.uuid)', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(JSON.stringify({ uuid: 'user123' }));
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      person: { uuid: 'person-from-provider' },
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+    mockedProfileService.updateProfileImage.mockResolvedValue({} as any);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
+
+    // Mock FileReader
+    const mockFileReader = {
+      readAsDataURL: vi.fn(),
+      onload: null as any,
+      onerror: null as any,
+    };
+
+    vi.spyOn(global, 'FileReader').mockImplementation(
+      () => mockFileReader as any
+    );
+
+    // Clear update calls to isolate this test
+    mockedProfileService.updateProfileImage.mockClear();
+
+    const uploadPromise = result.current.uploadPhoto(file);
+
+    // Trigger onload
+    if (mockFileReader.onload) {
+      mockFileReader.onload({
+        target: { result: 'data:image/jpeg;base64,mockdata' },
+      } as any);
+    }
+
+    await uploadPromise;
+
+    // Verify that updateProfileImage was called with providerDetails.person.uuid
+    expect(mockedProfileService.updateProfileImage).toHaveBeenCalledWith({
+      person: 'person-from-provider',
+      base64EncodedImage: 'base64encodedstring',
+    });
+  });
+
+  it('covers line 221: fallback to hwProfile.personUuid when providerDetails.person.uuid is not available', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(JSON.stringify({ uuid: 'user123' }));
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+    mockedProfileService.updateProfileImage.mockResolvedValue({} as any);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
+
+    // Mock FileReader
+    const mockFileReader = {
+      readAsDataURL: vi.fn(),
+      onload: null as any,
+      onerror: null as any,
+    };
+
+    vi.spyOn(global, 'FileReader').mockImplementation(
+      () => mockFileReader as any
+    );
+
+    // Clear update calls to isolate this test
+    mockedProfileService.updateProfileImage.mockClear();
+
+    const uploadPromise = result.current.uploadPhoto(file);
+
+    // Trigger onload
+    if (mockFileReader.onload) {
+      mockFileReader.onload({
+        target: { result: 'data:image/jpeg;base64,mockdata' },
+      } as any);
+    }
+
+    await uploadPromise;
+
+    // Verify that updateProfileImage was called with hwProfile.personUuid (fallback)
+    expect(mockedProfileService.updateProfileImage).toHaveBeenCalledWith({
+      person: 'person123',
+      base64EncodedImage: 'base64encodedstring',
+    });
   });
 });

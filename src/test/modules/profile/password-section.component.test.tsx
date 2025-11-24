@@ -184,7 +184,7 @@ describe('PasswordSection', () => {
     });
   });
 
-  it('should call onPasswordChange when confirm password changes', () => {
+  it('should call onPasswordChange when Confirm new password changes', () => {
     render(
       <PasswordSection
         passwordData={mockPasswordData}
@@ -193,7 +193,7 @@ describe('PasswordSection', () => {
       />
     );
 
-    const confirmPasswordInput = screen.getByPlaceholderText('Confirm password');
+    const confirmPasswordInput = screen.getByPlaceholderText('Confirm new password');
     fireEvent.change(confirmPasswordInput, { target: { value: 'newpass123' } });
 
     expect(mockOnPasswordChange).toHaveBeenCalledWith({

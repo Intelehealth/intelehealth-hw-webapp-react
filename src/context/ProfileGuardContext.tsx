@@ -1,54 +1,92 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { MindmapAuthGatewayApi } from '../services/mindmap';
-import type { Profile } from '../types/profile.types';
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { useDispatch } from 'react-redux';
+import { storage } from '../utils/storage';
+import profileService from '../modules/profile/profile.service';
 
-const API_ENDPOINTS = {
-  PROFILE: '/profile',
-} as const;
+const PROFILE_LOADER_ID = 'profile-guard';
 
 interface ProfileGuardContextType {
   isProfileComplete: boolean;
-  loading: boolean;
   profileState: 'not-started' | 'incomplete' | 'complete';
   refreshProfileStatus: () => Promise<void>;
 }
 
 const ProfileGuardContext = createContext<ProfileGuardContextType | null>(null);
 
-// Helper function to determine profile state
+// OpenMRS Person API response type
+interface PersonResponse {
+  preferredName?: {
+    givenName: string;
+    middleName?: string;
+    familyName: string;
+  };
+  gender?: string;
+  birthdate?: string;
+  attributes?: Array<{
+    attributeType: { display: string };
+    value: string;
+  }>;
+}
+
+// OpenMRS Provider API response type
+interface ProviderResponse {
+  attributes?: Array<{
+    attributeType: { display: string; name?: string };
+    value: string;
+  }>;
+}
+
+// Helper function to determine profile state from OpenMRS Person and Provider APIs
 const getProfileState = (
-  profile: Profile | null
+  person: PersonResponse | null,
+  provider: ProviderResponse | null
 ): 'not-started' | 'incomplete' | 'complete' => {
-  if (!profile) return 'not-started';
+  if (!person) return 'not-started';
 
-  // Check if profile is completely empty (not started)
+  const firstName = person.preferredName?.givenName;
+  const lastName = person.preferredName?.familyName;
+  const gender = person.gender;
+  const birthdate = person.birthdate;
+
+  // Get email and phone from provider attributes (emailId and phoneNumber)
+  const emailAttr = provider?.attributes?.find(
+    attr =>
+      attr.attributeType.display === 'emailId' ||
+      attr.attributeType.name === 'emailId' ||
+      attr.attributeType.display === 'Email' ||
+      attr.attributeType.display === 'email'
+  );
+  const phoneAttr = provider?.attributes?.find(
+    attr =>
+      attr.attributeType.display === 'phoneNumber' ||
+      attr.attributeType.name === 'phoneNumber' ||
+      attr.attributeType.display === 'Telephone Number' ||
+      attr.attributeType.display === 'phoneNumber'
+  );
+
+  const email = emailAttr?.value;
+  const phone = phoneAttr?.value;
+
+  // Check if profile has any data
   const hasAnyData =
-    profile.firstName ||
-    profile.lastName ||
-    profile.email ||
-    profile.phone ||
-    profile.dateOfBirth ||
-    profile.gender ||
-    profile.setupLocation ||
-    profile.username ||
-    profile.middleName;
-
+    firstName || lastName || gender || birthdate || email || phone;
   if (!hasAnyData) return 'not-started';
 
-  // Check if profile is incomplete (has some data but missing required fields)
-  const requiredFields = [
-    'firstName',
-    'lastName',
-    'email',
-    'phone',
-    'dateOfBirth',
-    'gender',
-    'setupLocation',
-  ];
-  const hasAllRequired = requiredFields.every(field => {
-    const value = profile[field as keyof Profile];
-    return value !== null && value !== undefined && value !== '';
-  });
+  // Check if all required fields are filled
+  const hasAllRequired =
+    firstName &&
+    lastName &&
+    gender &&
+    birthdate &&
+    email &&
+    phone &&
+    firstName.trim() !== '' &&
+    lastName.trim() !== '' &&
+    gender.trim() !== '' &&
+    birthdate.trim() !== '' &&
+    email.trim() !== '' &&
+    phone.trim() !== '';
 
   return hasAllRequired ? 'complete' : 'incomplete';
 };
@@ -56,15 +94,15 @@ const getProfileState = (
 export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const dispatch = useDispatch();
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [profileState, setProfileState] = useState<
     'not-started' | 'incomplete' | 'complete'
   >('not-started');
-  const [loading, setLoading] = useState(true);
 
   const refreshProfileStatus = async () => {
     try {
-      setLoading(true);
+      dispatch(startLoading(PROFILE_LOADER_ID));
       // Avoid real network calls during tests (prevents jsdom XHR AggregateError)
       // Allow bypassing test mode check via VITE_SKIP_TEST_MODE env var
       if (
@@ -77,18 +115,55 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
         setProfileState('not-started');
         return;
       }
-      // Get profile data to determine state
-      const profile = await MindmapAuthGatewayApi.get<Profile>(
-        API_ENDPOINTS.PROFILE
-      );
-      const state = getProfileState(profile || null);
+
+      // Get user data from storage
+      const userData = storage.getUser();
+      if (!userData) {
+        setIsProfileComplete(false);
+        setProfileState('not-started');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const personUuid = user.person?.uuid;
+
+      if (!personUuid) {
+        setIsProfileComplete(false);
+        setProfileState('not-started');
+        return;
+      }
+
+      // Get person data from OpenMRS API
+      const person = (await profileService.getPersonByUuid(
+        personUuid
+      )) as PersonResponse;
+      // Get provider data to access email and phone attributes
+      let provider: ProviderResponse | null = null;
+      try {
+        const providerData = (await profileService.getProvider(user.uuid)) as {
+          results?: Array<{ uuid: string }>;
+        };
+        if (providerData?.results?.[0]) {
+          provider = (await profileService.getProviderByUuid(
+            providerData.results[0].uuid
+          )) as ProviderResponse;
+        }
+      } catch (providerError) {
+        console.warn(
+          '[ProfileGuard] Could not fetch provider data:',
+          providerError
+        );
+      }
+
+      const state = getProfileState(person || null, provider);
       setProfileState(state);
       setIsProfileComplete(state === 'complete');
-    } catch {
+    } catch (error) {
+      console.error('[ProfileGuard] Error fetching profile:', error);
       setIsProfileComplete(false);
       setProfileState('not-started');
     } finally {
-      setLoading(false);
+      dispatch(stopLoading(PROFILE_LOADER_ID));
     }
   };
 
@@ -98,7 +173,7 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ProfileGuardContext.Provider
-      value={{ isProfileComplete, loading, profileState, refreshProfileStatus }}
+      value={{ isProfileComplete, profileState, refreshProfileStatus }}
     >
       {children}
     </ProfileGuardContext.Provider>
