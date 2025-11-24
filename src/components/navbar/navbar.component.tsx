@@ -4,10 +4,12 @@ import iconNotification from '../../assets/icons/icon-notification.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import userDefault from '../../assets/images/user-default.png';
+import { useProfile } from '../../modules/profile/profile.hooks';
 import ROUTES from '../../routes/paths';
 import { Input } from '../common';
 
 const Navbar = () => {
+  const { profile } = useProfile();
   return (
     <header className="bg-white shadow-md flex flex-col justify-between gap-4 items-center p-4 rounded-lg">
       {/* Desktop */}
@@ -37,9 +39,9 @@ const Navbar = () => {
             className="cursor-pointer hover:opacity-80 transition-opacity"
           >
             <img
-              src={userDefault}
+              src={profile?.avatar || userDefault}
               alt="Profile"
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full object-cover"
             />
           </Link>
         </div>

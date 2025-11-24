@@ -10,6 +10,7 @@ import { Button, Checkbox, Dropdown, Input } from '../../../components/common';
 import Card from '../../../components/common/card.component';
 import { useLogin } from './login.hooks';
 import { loginSchema } from './login.validation';
+import Tooltip from '../../../components/common/tooltip.component';
 
 type LoginFormValues = InferType<typeof loginSchema>;
 
@@ -49,7 +50,9 @@ const LoginComponent: React.FC = () => {
             Please enter your login details
           </h2>
           <span className="ml-2 lg:flex align-middle">
-            <img src={iconQuestionMark} alt="info" />
+            <Tooltip text="Enter the credentials given by intelehealth team">
+              <img src={iconQuestionMark} alt="info" />
+            </Tooltip>
           </span>
         </div>
 

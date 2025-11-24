@@ -117,14 +117,14 @@ export const useVerifyOtp = (stateData?: {
       });
     } catch (error: unknown) {
       setLoading(false);
-      let message = 'Verify OTP Failed';
+      let message = 'Invalid OTP';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as {
           response?: { data?: { message?: string } };
         };
         message = axiosError.response?.data?.message || message;
       }
-      showToast('Verify OTP Failed', message, 'error');
+      showToast('Invalid OTP', message, 'error');
     }
   };
 

@@ -26,7 +26,7 @@ describe('resetPasswordSchema', () => {
         confirmPassword: '12345',
       };
       
-      await expect(resetPasswordSchema.validate(invalidData)).rejects.toThrow('Password must be at least 6 characters');
+      await expect(resetPasswordSchema.validate(invalidData)).rejects.toThrow('Password length must be greater than or equal to 8 and with combination of small,capital and digits');
     });
 
     it('should accept password with exactly 6 characters', async () => {
@@ -137,7 +137,7 @@ describe('resetPasswordSchema', () => {
         confirmPassword: '123',
       };
       
-      await expect(resetPasswordSchema.validate(invalidData)).rejects.toThrow('Password must be at least 6 characters');
+      await expect(resetPasswordSchema.validate(invalidData)).rejects.toThrow('Password length must be greater than or equal to 8 and with combination of small,capital and digits');
     });
   });
 

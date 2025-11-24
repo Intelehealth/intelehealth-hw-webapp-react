@@ -379,7 +379,7 @@ describe('ProfileForm Component', () => {
 
     // Get the password input fields (they appear twice - mobile and desktop)
     const newPasswordInputs = screen.getAllByPlaceholderText('Enter new password');
-    const confirmPasswordInputs = screen.getAllByPlaceholderText('Confirm password');
+    const confirmPasswordInputs = screen.getAllByPlaceholderText('Confirm new password');
 
     // Verify initial state (empty)
     expect(newPasswordInputs[0]).toHaveValue('');
