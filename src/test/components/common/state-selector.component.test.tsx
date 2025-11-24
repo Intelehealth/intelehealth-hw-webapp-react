@@ -4,31 +4,20 @@ import { forwardRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StateSelector from '../../../components/common/state-selector.component';
 
-// Mock country-state-city
-const mockCountries = [
-  { name: 'India', isoCode: 'IN' },
-  { name: 'United States', isoCode: 'US' },
-  { name: 'United Kingdom', isoCode: 'GB' },
-];
-
+// Mock states-districts utility
 const mockStates = [
-  { name: 'Karnataka', isoCode: 'KA' },
-  { name: 'Maharashtra', isoCode: 'MH' },
-  { name: 'Tamil Nadu', isoCode: 'TN' },
+  { state: 'Karnataka', 'state-hi': 'कर्नाटक', districts: [] },
+  { state: 'Maharashtra', 'state-hi': 'महाराष्ट्र', districts: [] },
+  { state: 'Tamil Nadu', 'state-hi': 'तमिल नाडु', districts: [] },
 ];
 
-vi.mock('country-state-city', () => ({
-  Country: {
-    getAllCountries: vi.fn(() => mockCountries),
-  },
-  State: {
-    getStatesOfCountry: vi.fn((isoCode: string) => {
-      if (isoCode === 'IN') {
-        return mockStates;
-      }
-      return [];
-    }),
-  },
+vi.mock('../../../utils/states-districts', () => ({
+  getStatesByCountry: vi.fn((countryName: string) => {
+    if (countryName === 'India') {
+      return mockStates;
+    }
+    return [];
+  }),
 }));
 
 // Mock the Dropdown component
@@ -59,7 +48,9 @@ vi.mock('../../../components/common/dropdown.component', () => ({
             </label>
           )}
           <select
-            value={Array.isArray(value) ? value[0] : value || ''}
+            value={multiple 
+              ? (Array.isArray(value) ? value : [])
+              : (Array.isArray(value) ? value[0] : (value !== undefined && value !== null ? value : ''))}
             onChange={(e) => {
               if (multiple) {
                 const selectedValues = Array.from(
@@ -367,8 +358,8 @@ describe('StateSelector', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty states list', async () => {
-      const countryStateCity = await import('country-state-city');
-      vi.mocked(countryStateCity.State.getStatesOfCountry).mockReturnValueOnce([]);
+      const statesDistrictsModule = await import('../../../utils/states-districts');
+      vi.mocked(statesDistrictsModule.getStatesByCountry).mockReturnValueOnce([]);
       render(<StateSelector countryId="United States" label="State" />);
       await waitFor(() => {
         const dropdown = screen.getByTestId('dropdown-State');
