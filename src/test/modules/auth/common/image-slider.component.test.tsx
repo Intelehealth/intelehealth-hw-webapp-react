@@ -221,12 +221,12 @@ describe('ImageSlider', () => {
 
     it('should display heartbeat2 images when provided', () => {
       render(<ImageSlider slides={mockSlidesWithHeartbeat} hideImages={false} />);
-      
+
       const heartbeat2Images = screen.getAllByAltText('heartbeat green');
       expect(heartbeat2Images).toHaveLength(2);
       heartbeat2Images.forEach(img => {
         expect(img).toHaveAttribute('src', 'heartbeat-green.png');
-        expect(img).toHaveClass('absolute', 'top-4', '-left-5', 'lg:top-12', 'lg:-left-1', 'w-34', 'h-34', 'lg:w-30', 'lg:h-30', 'object-contain', 'z-10');
+        expect(img).toHaveClass('absolute', 'top-4', '-left-5', 'lg:top-80', 'lg:-left-1', 'w-34', 'h-34', 'lg:w-30', 'lg:h-30', 'object-contain', 'z-10');
       });
     });
 

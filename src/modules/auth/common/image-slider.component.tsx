@@ -41,14 +41,7 @@ const ImageSlider = ({
           >
             {!hideImages && (
               <>
-                <div className="relative w-[50%] lg:w-full h-40 lg:h-96">
-                  <img
-                    src={slide.image}
-                    alt={slide.title}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                {/* Heartbeat images positioned outside the slider image */}
+                {/* Heartbeat 1 positioned before the slider image */}
                 {slide.heartbeat1 && (
                   <img
                     src={slide.heartbeat1}
@@ -56,11 +49,19 @@ const ImageSlider = ({
                     className="absolute -top-8 -right-5 lg:-top-12 lg:-right-5 w-34 h-34 lg:w-32 lg:h-32 object-contain z-10"
                   />
                 )}
+                <div className="relative w-[50%] lg:w-full h-40 lg:h-96">
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                </div>
+                {/* Heartbeat 2 positioned after the slider image */}
                 {slide.heartbeat2 && (
                   <img
                     src={slide.heartbeat2}
                     alt="heartbeat green"
-                    className="absolute top-4 -left-5 lg:top-12 lg:-left-1 w-34 h-34 lg:w-30 lg:h-30 object-contain z-10"
+                    className="absolute top-4 -left-5 lg:top-80 lg:-left-1 w-34 h-34 lg:w-30 lg:h-30 object-contain z-10"
                   />
                 )}
               </>
