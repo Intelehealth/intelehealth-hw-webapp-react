@@ -1,6 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthComponent from '../../../modules/auth/auth.component';
+import userEvent from '@testing-library/user-event';
+
+// Mock i18next
+vi.mock('i18next', () => ({
+  default: {
+    changeLanguage: vi.fn(),
+  },
+  changeLanguage: vi.fn(),
+}));
+
+// Import after mock to get the mocked version
+import { changeLanguage } from 'i18next';
 
 // Mock the assets
 vi.mock('../../../assets/logo/intelehealth-logo-white.png', () => ({
@@ -25,16 +37,22 @@ vi.mock('../../../components/common', () => ({
       options,
       value,
       className,
+      onChange,
     }: {
       options: Array<{ value: string | number; label: string }>;
       value: string | number;
       className?: string;
+      onChange?: (value: string | string[]) => void;
     }) => (
       <div data-testid="dropdown" className={className}>
         {options.map((option) => (
-          <div key={option.value} data-testid={`option-${option.value}`}>
+          <button
+            key={option.value}
+            data-testid={`option-${option.value}`}
+            onClick={() => onChange?.(option.value as string)}
+          >
             {option.label}
-          </div>
+          </button>
         ))}
         <span data-testid="dropdown-value">{value}</span>
       </div>
@@ -344,6 +362,108 @@ describe('AuthComponent', () => {
       expect(screen.getByTestId('option-marathi')).toBeInTheDocument();
       expect(screen.getByTestId('option-bangoli')).toBeInTheDocument();
       expect(screen.getByTestId('option-gujarati')).toBeInTheDocument();
+    });
+
+    it('should call handleLanguageChange when language is selected', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const hindiOption = screen.getByTestId('option-hindi');
+      await user.click(hindiOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('hi');
+    });
+
+    it('should call changeLanguage with correct language code for marathi', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const marathiOption = screen.getByTestId('option-marathi');
+      await user.click(marathiOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('mr');
+    });
+
+    it('should call changeLanguage with correct language code for malayalam', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const malayalamOption = screen.getByTestId('option-bangoli');
+      await user.click(malayalamOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('ml');
+    });
+
+    it('should call changeLanguage with correct language code for gujarati', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const gujaratiOption = screen.getByTestId('option-gujarati');
+      await user.click(gujaratiOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('gu');
+    });
+
+    it('should call changeLanguage with default "en" for english', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const englishOption = screen.getByTestId('option-english');
+      await user.click(englishOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('en');
+    });
+
+    it('should handle array value in handleLanguageChange', async () => {
+      const user = userEvent.setup();
+
+      // Create a custom mock that passes array instead of string
+      vi.doMock('../../../components/common', () => ({
+        Dropdown: ({
+          options,
+          value,
+          className,
+          onChange,
+        }: {
+          options: Array<{ value: string; label: string }>;
+          value: string;
+          className?: string;
+          onChange?: (value: string | string[]) => void;
+        }) => (
+          <div data-testid="dropdown" className={className}>
+            {options.map((option) => (
+              <button
+                key={option.value}
+                data-testid={`option-${option.value}`}
+                onClick={() => onChange?.([option.value])}
+              >
+                {option.label}
+              </button>
+            ))}
+            <span data-testid="dropdown-value">{value}</span>
+          </div>
+        ),
+        Loader: () => <div data-testid="loader">Loading...</div>,
+      }));
+
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      const hindiOption = screen.getByTestId('option-hindi');
+      await user.click(hindiOption);
+
+      expect(changeLanguage).toHaveBeenCalledWith('hi');
     });
   });
 
