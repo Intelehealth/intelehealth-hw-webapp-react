@@ -6,6 +6,9 @@ import type {
   UseFormWatch,
 } from 'react-hook-form';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
+import IconMale from '../../assets/icons/icon-male.svg';
+import IconFemale from '../../assets/icons/icon-female.svg';
+import IconGenderOther from '../../assets/icons/icon-gender-other.svg';
 import { Calendar, Dropdown, Input, Radio } from '../../components/common';
 import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
@@ -144,15 +147,15 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="male" label="Male" />
-                <i className="fa-solid fa-mars text-gray-600 text-sm"></i>
+                <img src={IconMale} alt="Male" className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="female" label="Female" />
-                <i className="fa-solid fa-venus text-gray-600 text-sm"></i>
+                <img src={IconFemale} alt="Female" className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
                 <Radio {...register('gender')} value="other" label="Other" />
-                <i className="fa-solid fa-transgender text-gray-600 text-sm"></i>
+                <img src={IconGenderOther} alt="Other" className="w-4 h-4" />
               </div>
             </div>
             {errors.gender && (
@@ -217,9 +220,18 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             Gender <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-4">
-            <Radio {...register('gender')} value="male" label="Male" />
-            <Radio {...register('gender')} value="female" label="Female" />
-            <Radio {...register('gender')} value="other" label="Other" />
+            <div className="flex items-center gap-2">
+              <Radio {...register('gender')} value="male" label="Male" />
+              <img src={IconMale} alt="Male" className="w-4 h-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Radio {...register('gender')} value="female" label="Female" />
+              <img src={IconFemale} alt="Female" className="w-4 h-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Radio {...register('gender')} value="other" label="Other" />
+              <img src={IconGenderOther} alt="Other" className="w-4 h-4" />
+            </div>
           </div>
           {errors.gender && (
             <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>

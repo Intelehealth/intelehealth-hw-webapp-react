@@ -3,14 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useProfileGuard } from '../../context/ProfileGuardContext';
 import ROUTES from '../../routes/paths';
 import ProfileStatusModal from './profile-status-modal.component';
-import { Loader } from '../../components/common';
 
 // Route Guard Component
 interface ProfileRouteGuardProps {
   children: React.ReactNode;
 }
-
-const PROFILE_LOADER_ID = 'profile-guard';
 
 const ProfileRouteGuard: React.FC<ProfileRouteGuardProps> = ({ children }) => {
   const { isProfileComplete, profileState } = useProfileGuard();
@@ -22,23 +19,18 @@ const ProfileRouteGuard: React.FC<ProfileRouteGuardProps> = ({ children }) => {
     setIsModalOpen(false);
     navigate(ROUTES.PROFILE);
   };
+
   React.useEffect(() => {
-    if (
-      profileState === 'complete' ||
-      profileState === 'incomplete' ||
-      profileState === 'not-started'
-    ) {
+    // Only proceed once we have a non-loading profile state
+    if (profileState !== 'loading' && !hasChecked) {
       setHasChecked(true);
       setIsModalOpen(!isProfileComplete);
     }
   }, [isProfileComplete, profileState, hasChecked]);
 
-  if (!hasChecked) {
-    return (
-      <>
-        <Loader id={PROFILE_LOADER_ID} />
-      </>
-    );
+  // Don't render anything while loading
+  if (profileState === 'loading' || !hasChecked) {
+    return null;
   }
 
   return (
