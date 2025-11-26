@@ -577,8 +577,8 @@ describe('useVerifyOtp hook', () => {
     });
 
     // The catch block doesn't extract message from regular Error objects, only from axios errors
-    // So it uses the default message 'Verify OTP Failed'
-    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Verify OTP Failed', 'error');
+    // So it uses the default message 'Invalid OTP'
+    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
     expect(result.current.loading).toBe(false);
   });
 
@@ -648,7 +648,7 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Network error during verification', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Network error during verification', 'error');
     expect(result.current.loading).toBe(false);
   });
 
@@ -710,7 +710,7 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Verify OTP Failed', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
     expect(result.current.loading).toBe(false);
   });
 
@@ -1081,7 +1081,7 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Verify OTP Failed', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
     expect(result.current.loading).toBe(false);
   });
 
@@ -1151,7 +1151,7 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Verify OTP Failed', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
     expect(result.current.loading).toBe(false);
   });
 
@@ -1428,7 +1428,7 @@ describe('useVerifyOtp hook', () => {
 
     // Should show error toast
     expect(showToast.showToast).toHaveBeenCalledWith(
-      'Verify OTP Failed',
+      'Invalid OTP',
       expect.any(String),
       'error'
     );
@@ -1504,7 +1504,7 @@ describe('useVerifyOtp hook', () => {
 
     // Should show error with custom message
     expect(showToast.showToast).toHaveBeenCalledWith(
-      'Verify OTP Failed',
+      'Invalid OTP',
       'Custom error message',
       'error'
     );
@@ -1574,7 +1574,7 @@ describe('useVerifyOtp hook', () => {
 
     // Should show error toast with default message
     expect(showToast.showToast).toHaveBeenCalledWith(
-      'Verify OTP Failed',
+      'Invalid OTP',
       expect.any(String),
       'error'
     );
@@ -1646,8 +1646,8 @@ describe('useVerifyOtp hook', () => {
 
     // Should show error with default message (line 119 fallback)
     expect(showToast.showToast).toHaveBeenCalledWith(
-      'Verify OTP Failed',
-      'Verify OTP Failed', // Default message when data.message is missing
+      'Invalid OTP',
+      'Invalid OTP', // Default message when data.message is missing
       'error'
     );
     

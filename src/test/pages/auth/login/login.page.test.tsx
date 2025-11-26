@@ -19,6 +19,14 @@ vi.mock('../../../../assets/logo/intelehealth-logo-white.png', () => ({
   default: 'mocked-logo.png',
 }));
 
+vi.mock('../../../../assets/images/slider/left_red_heartbeat.png', () => ({
+  default: 'mocked-red-heartbeat.png',
+}));
+
+vi.mock('../../../../assets/images/slider/right_green_heartbeat.png', () => ({
+  default: 'mocked-green-heartbeat.png',
+}));
+
 // Mock the AuthComponent
 vi.mock('../../../../modules/auth/auth.component', () => ({
   default: vi.fn(({ children, title, description, slides, mobileImage, hideSliderImagesForMobile }) => (
@@ -28,11 +36,13 @@ vi.mock('../../../../modules/auth/auth.component', () => ({
       <div data-testid="auth-mobile-image">{mobileImage}</div>
       <div data-testid="auth-hide-slider">{String(hideSliderImagesForMobile)}</div>
       <div data-testid="auth-slides">
-        {slides.map((slide: { title: string; description: string; image: string }, index: number) => (
+        {slides.map((slide: { title: string; description: string; image: string; heartbeat1?: string; heartbeat2?: string }, index: number) => (
           <div key={index} data-testid={`slide-${index}`}>
             <div data-testid={`slide-title-${index}`}>{slide.title}</div>
             <div data-testid={`slide-description-${index}`}>{slide.description}</div>
             <div data-testid={`slide-image-${index}`}>{slide.image}</div>
+            {slide.heartbeat1 && <div data-testid={`slide-heartbeat1-${index}`}>{slide.heartbeat1}</div>}
+            {slide.heartbeat2 && <div data-testid={`slide-heartbeat2-${index}`}>{slide.heartbeat2}</div>}
           </div>
         ))}
       </div>
@@ -84,6 +94,8 @@ describe('LoginPage', () => {
         'Intelehealth is an innovative telemedicine platform designed to bridge the healthcare access gap in remote regions by connecting frontline health workers and patients with a virtual doctor to provide high-quality health services.'
       );
       expect(screen.getByTestId('slide-image-0')).toHaveTextContent('mocked-slider-1.png');
+      expect(screen.getByTestId('slide-heartbeat1-0')).toHaveTextContent('mocked-red-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat2-0')).toHaveTextContent('mocked-green-heartbeat.png');
       
       // Check slide 1
       expect(screen.getByTestId('slide-title-1')).toHaveTextContent('Take patient visits');
@@ -91,6 +103,8 @@ describe('LoginPage', () => {
         'This platform is powered by Ayu, a programmable digital assistant that supports frontline health workers with evidence-based protocols for primary healthcare in regional languages.'
       );
       expect(screen.getByTestId('slide-image-1')).toHaveTextContent('mocked-slider-2.png');
+      expect(screen.getByTestId('slide-heartbeat1-1')).toHaveTextContent('mocked-red-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat2-1')).toHaveTextContent('mocked-green-heartbeat.png');
       
       // Check slide 2
       expect(screen.getByTestId('slide-title-2')).toHaveTextContent('Provide prescriptions');
@@ -98,6 +112,8 @@ describe('LoginPage', () => {
         'The cloud-based open source platform designed for a low-resource environment combined with a customized implementation strategy creates a digital health solution for impactful health outcomes.'
       );
       expect(screen.getByTestId('slide-image-2')).toHaveTextContent('mocked-slider-3.png');
+      expect(screen.getByTestId('slide-heartbeat1-2')).toHaveTextContent('mocked-red-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat2-2')).toHaveTextContent('mocked-green-heartbeat.png');
     });
 
     it('should have exactly 3 slides', () => {
@@ -142,6 +158,8 @@ describe('LoginPage', () => {
       expect(screen.getByTestId('slide-title-0')).toBeInTheDocument();
       expect(screen.getByTestId('slide-description-0')).toBeInTheDocument();
       expect(screen.getByTestId('slide-image-0')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-heartbeat1-0')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-heartbeat2-0')).toBeInTheDocument();
     });
   });
 
@@ -159,12 +177,103 @@ describe('LoginPage', () => {
       
       expect(screen.getByTestId('auth-mobile-image')).toHaveTextContent('mocked-logo.png');
     });
+
+    it('should import and use heartbeat images correctly', () => {
+      render(<LoginPage />);
+      
+      // Verify heartbeat1 (red heartbeat) is used in all slides
+      expect(screen.getByTestId('slide-heartbeat1-0')).toHaveTextContent('mocked-red-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat1-1')).toHaveTextContent('mocked-red-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat1-2')).toHaveTextContent('mocked-red-heartbeat.png');
+      
+      // Verify heartbeat2 (green heartbeat) is used in all slides
+      expect(screen.getByTestId('slide-heartbeat2-0')).toHaveTextContent('mocked-green-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat2-1')).toHaveTextContent('mocked-green-heartbeat.png');
+      expect(screen.getByTestId('slide-heartbeat2-2')).toHaveTextContent('mocked-green-heartbeat.png');
+    });
   });
 
   describe('Component Exports', () => {
     it('should export LoginPage as default', () => {
       expect(LoginPage).toBeDefined();
       expect(typeof LoginPage).toBe('function');
+    });
+
+    it('should be a React functional component', () => {
+      expect(LoginPage).toBeInstanceOf(Function);
+      const { container } = render(<LoginPage />);
+      expect(container).toBeInTheDocument();
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle re-renders correctly', () => {
+      const { rerender } = render(<LoginPage />);
+      expect(screen.getByTestId('auth-component')).toBeInTheDocument();
+      
+      rerender(<LoginPage />);
+      expect(screen.getByTestId('auth-component')).toBeInTheDocument();
+    });
+
+    it('should render with all slides data', () => {
+      render(<LoginPage />);
+      
+      // Verify all slides are present
+      expect(screen.getByTestId('slide-0')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-1')).toBeInTheDocument();
+      expect(screen.getByTestId('slide-2')).toBeInTheDocument();
+      
+      // Verify slides array structure
+      const allSlides = screen.getAllByTestId(/^slide-\d+$/);
+      expect(allSlides.length).toBe(3);
+    });
+
+    it('should pass hideSliderImagesForMobile as boolean true', () => {
+      render(<LoginPage />);
+      
+      const hideSlider = screen.getByTestId('auth-hide-slider');
+      expect(hideSlider).toHaveTextContent('true');
+      expect(hideSlider.textContent).toBe('true');
+    });
+
+    it('should render LoginComponent inside AuthComponent children', () => {
+      render(<LoginPage />);
+      
+      const authComponent = screen.getByTestId('auth-component');
+      const loginComponent = screen.getByTestId('login-component');
+      const authChildren = screen.getByTestId('auth-children');
+      
+      expect(authComponent).toContainElement(authChildren);
+      expect(authChildren).toContainElement(loginComponent);
+    });
+  });
+
+  describe('Component Props Completeness', () => {
+    it('should pass all required props to AuthComponent', () => {
+      render(<LoginPage />);
+      
+      // Verify title prop
+      expect(screen.getByTestId('auth-title')).toHaveTextContent('Welcome back!');
+      
+      // Verify description prop
+      expect(screen.getByTestId('auth-description')).toHaveTextContent('Please login to continue with your work');
+      
+      // Verify mobileImage prop
+      expect(screen.getByTestId('auth-mobile-image')).toHaveTextContent('mocked-logo.png');
+      
+      // Verify hideSliderImagesForMobile prop
+      expect(screen.getByTestId('auth-hide-slider')).toHaveTextContent('true');
+      
+      // Verify slides prop (all 3 slides)
+      expect(screen.getAllByTestId(/^slide-\d+$/)).toHaveLength(3);
+    });
+
+    it('should render all slide images correctly', () => {
+      render(<LoginPage />);
+      
+      expect(screen.getByTestId('slide-image-0')).toHaveTextContent('mocked-slider-1.png');
+      expect(screen.getByTestId('slide-image-1')).toHaveTextContent('mocked-slider-2.png');
+      expect(screen.getByTestId('slide-image-2')).toHaveTextContent('mocked-slider-3.png');
     });
   });
 });

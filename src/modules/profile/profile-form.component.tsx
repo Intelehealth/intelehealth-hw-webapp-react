@@ -140,6 +140,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           trigger={trigger}
           onPhotoModalOpen={() => setIsPhotoModalOpen(true)}
           onCountryChange={() => {}}
+          profileImage={profile.avatar}
         />
 
         <PasswordSection

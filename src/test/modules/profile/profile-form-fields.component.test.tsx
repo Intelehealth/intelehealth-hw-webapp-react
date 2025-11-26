@@ -460,8 +460,11 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const desktopPhoto = container.querySelector('.fa-user');
-    expect(desktopPhoto).toBeInTheDocument();
+    // Check for profile image (uses img tag with DefaultUserImage, not fa-user icon)
+    const profileImages = container.querySelectorAll('img[alt="Default Profile"]');
+    expect(profileImages.length).toBeGreaterThan(0);
+
+    // Check for camera button icon
     const cameraButton = container.querySelector('.fa-camera');
     expect(cameraButton).toBeInTheDocument();
   });
@@ -888,6 +891,74 @@ describe('ProfileFormFields', () => {
     fireEvent.change(desktopLocation, { target: { value: 'ny-clinic' } });
 
     expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'ny-clinic');
+  });
+
+  it('covers lines 62-66: renders mobile profile image when profileImage prop is provided', () => {
+    const mockProfileImage = 'https://example.com/profile.jpg';
+    const { container } = render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={mockErrors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+        profileImage={mockProfileImage}
+      />
+    );
+
+    // Check that the actual profile image is rendered (not the default)
+    const profileImages = container.querySelectorAll(`img[src="${mockProfileImage}"]`);
+    expect(profileImages.length).toBeGreaterThan(0);
+
+    // Verify alt text for profile image
+    const actualProfileImage = container.querySelector('img[alt="Profile"]');
+    expect(actualProfileImage).toBeInTheDocument();
+    expect(actualProfileImage?.getAttribute('src')).toBe(mockProfileImage);
+  });
+
+  it('covers lines 173-177: renders desktop profile image when profileImage prop is provided', () => {
+    const mockProfileImage = 'https://example.com/profile.jpg';
+    const { container } = render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={mockErrors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+        profileImage={mockProfileImage}
+      />
+    );
+
+    // Check that the actual profile image is rendered in desktop view
+    const allProfileImages = container.querySelectorAll(`img[src="${mockProfileImage}"]`);
+    // Should have at least 2 (mobile and desktop)
+    expect(allProfileImages.length).toBeGreaterThanOrEqual(2);
+
+    // Verify multiple instances with "Profile" alt text (mobile and desktop)
+    const profileImagesWithAlt = container.querySelectorAll('img[alt="Profile"]');
+    expect(profileImagesWithAlt.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders default user image when profileImage is not provided', () => {
+    const { container } = render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={mockErrors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+      />
+    );
+
+    // Check for default profile image
+    const defaultImages = container.querySelectorAll('img[alt="Default Profile"]');
+    expect(defaultImages.length).toBeGreaterThan(0);
   });
 });
 

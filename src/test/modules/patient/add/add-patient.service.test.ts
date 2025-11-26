@@ -20,7 +20,7 @@ import {
 import type {
   AddPatientData,
   PersonImage,
-} from '../../../../modules/patient/add/add-patient.types';
+} from '../../../../types/patient/add/add-patient.types';
 
 const { mockOpenMRSPost, mockOpenMRSGet } = h;
 

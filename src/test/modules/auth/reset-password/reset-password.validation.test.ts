@@ -181,7 +181,6 @@ describe('resetPasswordSchema', () => {
         newPassword: 'password',
         confirmPassword: 'password',
       };
-
       await expect(resetPasswordSchema.validate(invalidData)).rejects.toThrow();
     });
   });

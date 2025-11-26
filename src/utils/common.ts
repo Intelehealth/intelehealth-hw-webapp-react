@@ -1,6 +1,19 @@
-import { countries } from '../assets/data/countries';
 import type { CountryCode } from '../types/common.types';
+import { getCountryByDialCode } from './countries';
 
-export function getCountryCode(countryCode: string): CountryCode | undefined {
-  return countries.find(val => val.dial_code === countryCode);
+export async function getCountryCode(
+  countryCode: string
+): Promise<CountryCode | undefined> {
+  // Return undefined for empty or whitespace-only strings
+  if (!countryCode || !countryCode.trim()) {
+    return undefined;
+  }
+  // Get country by dial code from local JSON data
+  const country = getCountryByDialCode(countryCode);
+  if (!country) return undefined;
+  return {
+    name: country.name,
+    code: country.code || '',
+    dial_code: country.dial_code || countryCode,
+  };
 }

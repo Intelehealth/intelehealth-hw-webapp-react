@@ -40,7 +40,8 @@ const VerifyOtpComponent: React.FC = () => {
           Enter verification code
         </h3>
         <p className="text-(--color-muted) text-base mb-6 w-full">
-          6-digit OTP sent to your registered number or email.
+          6-digit OTP sent to your registered number or email.Please check and
+          enter the OTP
         </p>
 
         {/* OTP Inputs */}

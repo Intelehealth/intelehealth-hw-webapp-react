@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import ProfileRouteGuard from '../../../modules/profile/profile-route-guard.component';
+import { loaderReducer } from '../../../reducers/loader.reducer';
 
 // Mock useProfileGuard hook
 const mockUseProfileGuard = vi.fn();
@@ -14,6 +17,13 @@ const mockNavigate = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+}));
+
+// Mock Loader component
+vi.mock('../../../components/common', () => ({
+  Loader: ({ id }: { id?: string }) => (
+    <div data-testid={`loader-${id || 'global'}`}>Loading...</div>
+  ),
 }));
 
 // Mock ProfileStatusModal
@@ -39,43 +49,56 @@ vi.mock('../../../modules/profile/profile-status-modal.component', () => ({
   },
 }));
 
+// Create test store
+const createTestStore = () => {
+  return configureStore({
+    reducer: {
+      loader: loaderReducer,
+    },
+  });
+};
+
 describe('ProfileRouteGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
   });
 
-  it('should show loading spinner when loading is true', () => {
+  it('should render loader initially before profile check completes', () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: true,
       profileState: 'not-started',
     });
 
+    const store = createTestStore();
     const { container } = render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
-    // Check for spinner element
-    const spinner = container.querySelector('.animate-spin');
-    expect(spinner).toBeInTheDocument();
-    expect(screen.queryByText('Children content')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('profile-status-modal')).not.toBeInTheDocument();
+    // With the fix, not-started now shows modal instead of loader
+    // The loader only shows during the initial render before useEffect runs
+    // Since we're mocking the hook, it returns immediately with not-started
+    // So we expect the modal to be shown for not-started state
+    expect(container.querySelector('[data-testid="profile-status-modal"]')).toBeInTheDocument();
   });
 
-  it('should show modal when profile is incomplete and not loading', async () => {
+  it('should show modal when profile is incomplete', async () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'incomplete',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -89,14 +112,16 @@ describe('ProfileRouteGuard', () => {
   it('should show modal with not-started state when profileState is not-started', async () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'not-started',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -109,14 +134,16 @@ describe('ProfileRouteGuard', () => {
   it('should render children when profile is complete', () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: true,
-      loading: false,
       profileState: 'complete',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div data-testid="children-content">Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div data-testid="children-content">Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     expect(screen.getByTestId('children-content')).toBeInTheDocument();
@@ -126,14 +153,16 @@ describe('ProfileRouteGuard', () => {
   it('should call handleGoToProfile and navigate to profile when modal button is clicked', async () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'incomplete',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -150,23 +179,20 @@ describe('ProfileRouteGuard', () => {
   });
 
   it('should close modal when profile becomes complete', async () => {
-    const { rerender } = render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
-    );
+    const store = createTestStore();
 
     // Initially incomplete
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'incomplete',
     });
 
-    rerender(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+    const { rerender } = render(
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -176,14 +202,15 @@ describe('ProfileRouteGuard', () => {
     // Profile becomes complete
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: true,
-      loading: false,
       profileState: 'complete',
     });
 
     rerender(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -191,52 +218,19 @@ describe('ProfileRouteGuard', () => {
     });
   });
 
-  it('should open modal when loading changes from true to false and profile is incomplete', async () => {
-    // Initially loading
-    mockUseProfileGuard.mockReturnValue({
-      isProfileComplete: false,
-      loading: true,
-      profileState: 'incomplete',
-    });
-
-    const { rerender } = render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
-    );
-
-    // Should show loading spinner
-    expect(screen.queryByTestId('profile-status-modal')).not.toBeInTheDocument();
-
-    // Loading completes, profile still incomplete
-    mockUseProfileGuard.mockReturnValue({
-      isProfileComplete: false,
-      loading: false,
-      profileState: 'incomplete',
-    });
-
-    rerender(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('profile-status-modal')).toBeInTheDocument();
-    });
-  });
-
   it('should not render children when profile is incomplete', async () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'incomplete',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div data-testid="children-content">Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div data-testid="children-content">Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {
@@ -248,14 +242,16 @@ describe('ProfileRouteGuard', () => {
   it('should pass correct profileState to modal when profileState is incomplete', async () => {
     mockUseProfileGuard.mockReturnValue({
       isProfileComplete: false,
-      loading: false,
       profileState: 'incomplete',
     });
 
+    const store = createTestStore();
     render(
-      <ProfileRouteGuard>
-        <div>Children content</div>
-      </ProfileRouteGuard>
+      <Provider store={store}>
+        <ProfileRouteGuard>
+          <div>Children content</div>
+        </ProfileRouteGuard>
+      </Provider>
     );
 
     await waitFor(() => {

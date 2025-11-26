@@ -134,11 +134,11 @@ const ResetPasswordComponent: React.FC<ResetPasswordComponentProps> = ({
               )}
             </div>
 
-            {/* Confirm Password */}
+            {/* Confirm new password */}
             <div className="mb-4">
               <div className="flex justify-between">
                 <label className="small-label text-base text-(--color-muted)">
-                  Confirm Password
+                  Confirm new password
                 </label>
               </div>
 

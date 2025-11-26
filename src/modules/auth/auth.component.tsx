@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
 import { Dropdown } from '../../components/common';
@@ -6,6 +6,7 @@ import { Loader } from '../../components/common';
 import { env } from '../../config/env';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';
+import { changeLanguage } from 'i18next';
 
 interface AuthComponentProps {
   children?: React.ReactNode;
@@ -26,6 +27,23 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
   showLanguages = true,
   hideSliderImagesForMobile = false,
 }) => {
+  const [selectedLanguage, setSelectedLanguage] = useState('english');
+
+  const languageMap: Record<string, string> = {
+    english: 'en',
+    hindi: 'hi',
+    marathi: 'mr',
+    bangoli: 'ml',
+    gujarati: 'gu',
+  };
+
+  const handleLanguageChange = (value: string | string[]) => {
+    const language = Array.isArray(value) ? value[0] : value;
+    setSelectedLanguage(language);
+    // Change the i18n language
+    const i18nLanguageCode = languageMap[language] || 'en';
+    changeLanguage(i18nLanguageCode);
+  };
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <Loader />
@@ -75,7 +93,8 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
               { label: 'മലയാളം', value: 'bangoli' },
               { label: 'ગુજરાતી', value: 'gujarati' },
             ]}
-            value="english"
+            value={selectedLanguage}
+            onChange={handleLanguageChange}
             className="w-[30%] min-w-[50px] max-w-[150px] language-dropdown"
           />
         </div>

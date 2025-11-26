@@ -72,7 +72,7 @@ const PasswordSection: React.FC<PasswordSectionProps> = ({
               confirmPassword: e.target.value,
             })
           }
-          placeholder="Confirm password"
+          placeholder="Confirm new password"
           variant="default"
           size="md"
         />

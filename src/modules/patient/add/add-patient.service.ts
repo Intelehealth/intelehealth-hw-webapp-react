@@ -1,5 +1,8 @@
 import { OpenMRSApi } from '../../../services/openmrs';
-import type { AddPatientData, PersonImage } from './add-patient.types';
+import type {
+  AddPatientData,
+  PersonImage,
+} from '../../../types/patient/add/add-patient.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = {

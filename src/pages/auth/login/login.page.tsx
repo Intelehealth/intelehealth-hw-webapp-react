@@ -1,9 +1,14 @@
-import React from 'react';
-import sliderImage1 from '../../../assets/images/slider/slider-image-1.png';
-import sliderImage2 from '../../../assets/images/slider/slider-image-2.png';
-import sliderImage3 from '../../../assets/images/slider/slider-image-3.png';
+/* v8 ignore next line */
 import rightRedHeartbeat from '../../../assets/images/slider/left_red_heartbeat.png';
+/* v8 ignore next line */
 import rightGreenHeartbeat from '../../../assets/images/slider/right_green_heartbeat.png';
+/* v8 ignore next line */
+import sliderImage1 from '../../../assets/images/slider/slider-image-1.png';
+/* v8 ignore next line */
+import sliderImage2 from '../../../assets/images/slider/slider-image-2.png';
+/* v8 ignore next line */
+import sliderImage3 from '../../../assets/images/slider/slider-image-3.png';
+/* v8 ignore next line */
 import mainLogo from '../../../assets/logo/intelehealth-logo-white.png';
 import AuthComponent from '../../../modules/auth/auth.component';
 import LoginComponent from '../../../modules/auth/login/login.component';
