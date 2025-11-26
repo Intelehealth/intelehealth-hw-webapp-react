@@ -216,13 +216,12 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
           <div className="border-t border-gray-300/20 mt-auto">
             <nav>
               <a
-                href="#"
                 onClick={() => {
                   setIsMobileOpen(false);
                   storage.clearAuthToken();
                   navigate('/auth/login');
                 }}
-                className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
+                className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition cursor-pointer ${
                   isCollapsed
                     ? 'justify-center py-3 px-0 md:py-4'
                     : 'p-3 md:p-4'
