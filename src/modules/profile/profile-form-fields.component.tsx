@@ -37,9 +37,9 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
   profileImage,
 }) => {
   const locationOptions = [
-    { value: 'sf-clinic', label: 'San Francisco Clinic' },
-    { value: 'la-clinic', label: 'Los Angeles Clinic' },
-    { value: 'ny-clinic', label: 'New York Clinic' },
+    { value: 'telemedicine-clinic1 ', label: 'Telemedicine Clinic 1' },
+    { value: 'telemedicine-clinic2', label: 'Telemedicine Clinic 2' },
+    { value: 'telemedicine-clinic3', label: 'Telemedicine Clinic 3' },
   ];
 
   // Watch form values for real-time updates
@@ -214,7 +214,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
 
         <div>
           <label className="form-label block mb-2">
-            Gender <span className="text-[--color-error]">*</span>
+            Gender <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-4">
             <Radio {...register('gender')} value="male" label="Male" />
@@ -222,9 +222,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             <Radio {...register('gender')} value="other" label="Other" />
           </div>
           {errors.gender && (
-            <p className="text-sm text-[--color-error] mt-1">
-              {errors.gender.message}
-            </p>
+            <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
           )}
         </div>
 
@@ -241,7 +239,8 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
       </div>
 
       {/* Column 2: Username, Middle Name, Date of Birth, Age */}
-      <div className="space-y-2">
+      <div className="space-y-2 ">
+        <div className="pb-4"> </div>
         <Input
           label="User name"
           {...register('username')}
@@ -250,7 +249,6 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           size="wide"
           disabled={true}
         />
-
         <Input
           label="Middle Name"
           {...register('middleName')}
@@ -262,7 +260,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         />
 
         <div className="flex gap-4">
-          <div className="flex-1">
+          <div className="flex-1 fa-hand-pointer">
             <Calendar
               label="Date of Birth"
               value={watch('dateOfBirth') || ''}
@@ -282,7 +280,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           </div>
           <div className="w-24">
             <label className="form-label block mb-2">
-              Age <span className="text-[--color-error]">*</span>
+              Age <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -297,6 +295,8 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
 
       {/* Column 3: Setup Location, Last Name, Phone Number */}
       <div className="space-y-2">
+        <div className="pb-4"> </div>
+
         <Dropdown
           label="Setup location"
           value={watch('setupLocation') || ''}
@@ -322,7 +322,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
 
         <div>
           <label className="form-label block mb-2">
-            Phone Number <span className="text-[--color-error]">*</span>
+            Phone Number <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-2">
             <div className="w-1/3">

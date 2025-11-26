@@ -186,24 +186,18 @@ describe('ProfileForm Component', () => {
       </Provider>
     );
 
-    // Verify the loading state is shown:
+    // Verify the loading state - when profile is null, form returns null
     // 1. The form (save button) is NOT shown - this confirms we're in loading state
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
-    
-    // 2. Check that the spinner HTML is present in the container
-    // This verifies lines 109-119 are executed
+
+    // 2. Verify that nothing is rendered (form returns null when profile is null)
+    // This verifies line 107 is executed (return profile ? ... : null)
     const html = container.innerHTML;
-    expect(html).toContain('animate-spin');
-    expect(html).toContain('rounded-full');
-    expect(html).toContain('h-8');
-    expect(html).toContain('w-8');
-    
-    // 3. Verify the spinner element exists (check for null first)
-    const spinner = container.querySelector('.animate-spin');
-    expect(spinner).not.toBeNull();
-    if (spinner) {
-      expect(spinner).toHaveClass('animate-spin', 'rounded-full', 'h-8', 'w-8', 'border-b-2');
-    }
+    expect(html).toBe('');
+
+    // 3. Verify no form elements are present
+    expect(container.querySelector('form')).toBeNull();
+   
   });
 
   // --------------------------------------------------------

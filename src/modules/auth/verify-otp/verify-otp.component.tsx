@@ -4,9 +4,9 @@ import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
 import iconRoundedLock from '../../../assets/icons/icon-rounded-lock.svg';
 import { Button } from '../../../components/common';
 import Card from '../../../components/common/card.component';
+import type { VerifyOtpState } from '../../../types/auth/verify-otp.types';
 import AuthCardTitle from '../common/auth-card-title.component';
 import { useVerifyOtp } from './verify-otp.hooks';
-import type { VerifyOtpState } from '../../../types/auth/verify-otp.types';
 
 const VerifyOtpComponent: React.FC = () => {
   const location = useLocation();
@@ -40,8 +40,8 @@ const VerifyOtpComponent: React.FC = () => {
           Enter verification code
         </h3>
         <p className="text-(--color-muted) text-base mb-6 w-full">
-          6-digit OTP sent to your registered number or email.Please check and
-          enter the OTP
+          6-digit OTP sent to your registered number or email. Please check and
+          enter the OTP.
         </p>
 
         {/* OTP Inputs */}

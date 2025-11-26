@@ -2,9 +2,21 @@ import * as yup from 'yup';
 
 export const profileSchema = yup.object({
   username: yup.string().trim().defined(),
-  firstName: yup.string().trim().required('First name is required'),
-  middleName: yup.string().trim().defined(),
-  lastName: yup.string().trim().required('Last name is required'),
+  firstName: yup
+    .string()
+    .trim()
+    .required('First name is required')
+    .matches(/^[A-Za-z\s]+$/, 'Enter alphabets only'),
+  middleName: yup
+    .string()
+    .trim()
+    .matches(/^[A-Za-z\s]*$/, 'Enter alphabets only')
+    .defined(),
+  lastName: yup
+    .string()
+    .trim()
+    .required('Last name is required')
+    .matches(/^[A-Za-z\s]+$/, 'Enter alphabets only'),
   email: yup
     .string()
     .trim()

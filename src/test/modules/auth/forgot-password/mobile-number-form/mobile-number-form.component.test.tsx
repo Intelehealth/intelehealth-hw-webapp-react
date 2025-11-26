@@ -55,7 +55,7 @@ describe('MobileNumberFormComponent', () => {
       render(<MobileNumberFormComponent />);
       
       expect(screen.getByText('Enter Mobile Number')).toBeInTheDocument();
-      expect(screen.getByText('Please enter the mobile number registered with Intelehealth.Please check and enter the OTP')).toBeInTheDocument();
+      expect(screen.getByText('Please enter the mobile number registered with Intelehealth.')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Enter your mobile number')).toBeInTheDocument();
       expect(screen.getByText('Continue')).toBeInTheDocument();
     });
