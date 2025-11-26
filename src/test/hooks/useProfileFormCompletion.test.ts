@@ -11,10 +11,10 @@ describe('useProfileFormCompletion', () => {
     phone: '1234567890',
     dateOfBirth: '1990-01-01',
     gender: 'male',
-    setupLocation: 'sf-clinic',
+    setupLocation: 'telemedicine-clinic1',
     address: {
       street: '123 Main St',
-      city: 'San Francisco',
+      city: 'Telemedicine Clinic 1',
       state: 'CA',
       country: 'USA',
       zipCode: '94102',
@@ -110,7 +110,7 @@ describe('useProfileFormCompletion', () => {
         ...mockCompleteFormData,
         address: {
           street: '123 Main St',
-          city: 'San Francisco',
+          city: 'Telemedicine Clinic 1',
           // Missing state, country, zipCode
         },
       };

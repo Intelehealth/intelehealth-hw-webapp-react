@@ -96,7 +96,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
           >
             {label}
-            {isRequired && <span className="text-error-500 ml-1">*</span>}
+            {isRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
 

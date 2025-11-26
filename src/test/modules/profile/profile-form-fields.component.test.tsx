@@ -228,9 +228,9 @@ describe('ProfileFormFields', () => {
 
     const locationSelects = screen.getAllByRole('combobox');
     const locationSelect = locationSelects[0];
-    fireEvent.change(locationSelect, { target: { value: 'sf-clinic' } });
+    fireEvent.change(locationSelect, { target: { value: 'telemedicine-clinic1 ' } });
 
-    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'sf-clinic');
+    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic1 ');
   });
 
   it('should handle array value in location onChange', () => {
@@ -279,14 +279,14 @@ describe('ProfileFormFields', () => {
     // Test string value (else branch) - covers the else path for both mobile and desktop
     mockSetValue.mockClear();
     const locationSelects = screen.getAllByRole('combobox');
-    fireEvent.change(locationSelects[0], { target: { value: 'sf-clinic' } });
-    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'sf-clinic');
-    
+    fireEvent.change(locationSelects[0], { target: { value: 'telemedicine-clinic1 ' } });
+    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic1 ');
+
     // Test desktop dropdown with string value
     mockSetValue.mockClear();
     if (locationSelects.length > 1) {
-      fireEvent.change(locationSelects[1], { target: { value: 'ny-clinic' } });
-      expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'ny-clinic');
+      fireEvent.change(locationSelects[1], { target: { value: 'telemedicine-clinic3' } });
+      expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic3');
     }
   });
 
@@ -666,9 +666,9 @@ describe('ProfileFormFields', () => {
     const locationSelects = screen.getAllByRole('combobox');
     // Test desktop location dropdown
     const desktopLocation = locationSelects[1];
-    fireEvent.change(desktopLocation, { target: { value: 'la-clinic' } });
+    fireEvent.change(desktopLocation, { target: { value: 'telemedicine-clinic2' } });
 
-    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'la-clinic');
+    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic2');
   });
 
   it('should render required field indicators', () => {
@@ -684,7 +684,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const requiredAsterisks = container.querySelectorAll('.text-\\[--color-error\\]');
+    const requiredAsterisks = container.querySelectorAll('.text-red-500');
     expect(requiredAsterisks.length).toBeGreaterThan(0);
   });
 
@@ -888,9 +888,9 @@ describe('ProfileFormFields', () => {
     const locationSelects = screen.getAllByRole('combobox');
     // Desktop location is the second one
     const desktopLocation = locationSelects[1];
-    fireEvent.change(desktopLocation, { target: { value: 'ny-clinic' } });
+    fireEvent.change(desktopLocation, { target: { value: 'telemedicine-clinic3' } });
 
-    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'ny-clinic');
+    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic3');
   });
 
   it('covers lines 62-66: renders mobile profile image when profileImage prop is provided', () => {

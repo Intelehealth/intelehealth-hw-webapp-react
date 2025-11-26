@@ -66,7 +66,7 @@ const Calendar: React.FC<CalendarProps> = ({
     'form-input-base',
     sizeClasses[size],
     error && 'border-error-500 focus:border-error-500 focus:ring-error-500',
-    disabled && 'bg-gray-100 cursor-not-allowed',
+    disabled ? 'bg-gray-100 cursor-not-allowed' : 'cursor-pointer',
     className
   );
 

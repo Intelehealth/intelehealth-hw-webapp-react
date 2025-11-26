@@ -11,7 +11,7 @@ export const mockProfile: Profile = {
   gender: 'male',
   address: {
     street: '123 Healthcare Drive',
-    city: 'San Francisco',
+    city: 'Telemedicine Clinic 1',
     state: 'California',
     country: 'United States',
     zipCode: '94102',
@@ -25,7 +25,7 @@ export const mockProfile: Profile = {
   isActive: true,
   username: 'nurse1',
   age: 28,
-  setupLocation: 'sf-clinic',
+  setupLocation: 'telemedicine-clinic1',
   preferences: {
     language: 'en',
     timezone: 'Asia/Kolkata',

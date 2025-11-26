@@ -2,7 +2,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
-import { Button, PhotoUploadModal, Loader } from '../../components/common';
+import { Button, Loader, PhotoUploadModal } from '../../components/common';
 import Card from '../../components/common/card.component';
 import type { RootState } from '../../store/store';
 import type { PasswordChangeRequest } from '../../types/profile.types';
@@ -104,21 +104,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     setIsPhotoModalOpen(false);
   };
 
-  // Show loading state while profile data is being fetched
-  if (!profile) {
-    return (
-      <Card className={`w-full ${className}`} contentClassName="p-4 md:p-4">
-        <div className="flex items-center justify-center py-8">
-          <div
-            className="animate-spin rounded-full h-8 w-8 border-b-2"
-            style={{ borderColor: 'var(--color-primary)' }}
-          ></div>
-        </div>
-      </Card>
-    );
-  }
-
-  return (
+  return profile ? (
     <Card
       className={`w-full bg-white lg:bg-inherit min-h-screen lg:min-h-0 p-0 lg:p-inherit ${className}`}
       contentClassName="p-4 md:p-4 lg:p-6"
@@ -177,7 +163,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
         />
       )}
     </Card>
-  );
+  ) : null;
 };
 
 export default ProfileForm;
