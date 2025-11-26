@@ -78,6 +78,7 @@ describe('ProfileGuardContext', () => {
     uuid: 'person-123',
     preferredName: {
       givenName: 'John',
+      middleName: 'Michael',
       familyName: 'Doe',
     },
     gender: 'M',
@@ -495,6 +496,7 @@ describe('ProfileGuardContext', () => {
       });
 
       // Update mock to return complete profile
+      (profileService.getPersonByUuid as any).mockResolvedValue(mockPersonComplete);
       (profileService.getProviderByUuid as any).mockResolvedValue(mockProviderComplete);
 
       // Click refresh button

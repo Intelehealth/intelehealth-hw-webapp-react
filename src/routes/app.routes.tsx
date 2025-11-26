@@ -128,7 +128,11 @@ const AppRoutes = () => (
                 path={ROUTES.PATIENT.ADD_PATIENT}
                 element={
                   <Suspense fallback={<RouteLoader />}>
-                    <AddPatientPage />
+                    <ProfileGuardProvider>
+                      <ProfileRouteGuard>
+                        <AddPatientPage />
+                      </ProfileRouteGuard>
+                    </ProfileGuardProvider>
                   </Suspense>
                 }
               ></Route>

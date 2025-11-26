@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { startLoading, stopLoading } from '../reducers/loader.reducer';
 import { useDispatch } from 'react-redux';
-import { storage } from '../utils/storage';
 import profileService from '../modules/profile/profile.service';
+import { startLoading, stopLoading } from '../reducers/loader.reducer';
+import { storage } from '../utils/storage';
 
 const PROFILE_LOADER_ID = 'profile-guard';
 
 interface ProfileGuardContextType {
   isProfileComplete: boolean;
-  profileState: 'not-started' | 'incomplete' | 'complete';
+  profileState: 'loading' | 'not-started' | 'incomplete' | 'complete';
   refreshProfileStatus: () => Promise<void>;
 }
 
@@ -43,6 +43,7 @@ const getProfileState = (
   if (!person) return 'not-started';
 
   const firstName = person.preferredName?.givenName;
+  const middleName = person.preferredName?.middleName;
   const lastName = person.preferredName?.familyName;
   const gender = person.gender;
   const birthdate = person.birthdate;
@@ -62,10 +63,24 @@ const getProfileState = (
 
   // Check if profile has any data
   const hasAnyData =
-    firstName || lastName || gender || birthdate || email || phone;
+    firstName ||
+    middleName ||
+    lastName ||
+    gender ||
+    birthdate ||
+    email ||
+    phone;
   if (!hasAnyData) return 'not-started';
 
-  const fields = [firstName, lastName, gender, birthdate, email, phone];
+  const fields = [
+    firstName,
+    middleName,
+    lastName,
+    gender,
+    birthdate,
+    email,
+    phone,
+  ];
   const isNotEmpty = (value: string | undefined) =>
     value !== null && value !== undefined && String(value).trim() !== '';
   const hasAllRequired = fields.every(isNotEmpty);
@@ -78,8 +93,8 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
   const dispatch = useDispatch();
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [profileState, setProfileState] = useState<
-    'not-started' | 'incomplete' | 'complete'
-  >('not-started');
+    'loading' | 'not-started' | 'incomplete' | 'complete'
+  >('loading');
 
   const refreshProfileStatus = async () => {
     try {
