@@ -1,11 +1,12 @@
-import { changeLanguage } from 'i18next';
 import React, { useState } from 'react';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
-import { Dropdown, Loader } from '../../components/common';
+import { Dropdown } from '../../components/common';
+import { Loader } from '../../components/common';
 import { env } from '../../config/env';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';
+import { changeLanguage } from 'i18next';
 
 interface AuthComponentProps {
   children?: React.ReactNode;
@@ -43,7 +44,6 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
     const i18nLanguageCode = languageMap[language] || 'en';
     changeLanguage(i18nLanguageCode);
   };
-
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <Loader />

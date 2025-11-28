@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly AUTH_GATEWAY_API_URL: string;
   readonly OPENMRS_API_URL?: string;
   readonly PORTAL_API_URL?: string;
+  readonly CONFIG_API_URL?: string;
   readonly DEBUG_MODE?: string;
   readonly API_TIMEOUT?: string;
   readonly SENTRY_DSN?: string;
@@ -27,6 +28,7 @@ export const env: ImportMetaEnv = {
   AUTH_GATEWAY_API_URL: import.meta.env.VITE_AUTH_GATEWAY_API_URL,
   OPENMRS_API_URL: import.meta.env.VITE_OPENMRS_API_URL,
   PORTAL_API_URL: import.meta.env.VITE_PORTAL_API_URL,
+  CONFIG_API_URL: import.meta.env.VITE_CONFIG_API_URL,
   DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE,
   API_TIMEOUT: import.meta.env.VITE_API_TIMEOUT,
   SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,

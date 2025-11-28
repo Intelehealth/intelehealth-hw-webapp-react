@@ -17,6 +17,13 @@ vi.mock('./i18n', () => ({
 // Mock react-toastify CSS
 vi.mock('react-toastify/dist/ReactToastify.css', () => ({}));
 
+// Mock config actions to prevent API calls during tests
+vi.mock('./actions/config.actions', () => ({
+  fetchConfig: vi.fn(() => () => Promise.resolve({})),
+  clearConfigError: vi.fn(),
+  resetConfig: vi.fn(),
+}));
+
 describe('App component', () => {
   it('renders the app without errors', () => {
     render(

@@ -2,6 +2,7 @@ import { render, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import {
   ProfileGuardProvider,
@@ -44,12 +45,14 @@ const createTestStore = () => {
   });
 };
 
-// Wrapper component that provides Redux store
+// Wrapper component that provides Redux store and Router
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const store = createTestStore();
   return (
     <Provider store={store}>
-      <ProfileGuardProvider>{children}</ProfileGuardProvider>
+      <MemoryRouter>
+        <ProfileGuardProvider>{children}</ProfileGuardProvider>
+      </MemoryRouter>
     </Provider>
   );
 };
@@ -384,7 +387,7 @@ describe('ProfileGuardContext', () => {
       expect(getByTestId('isProfileComplete').textContent).toBe('false');
     });
 
-    it('should set profileState to "not-started" when user data is not found', async () => {
+    it('should set profileState to "no-auth" when user data is not found and redirect to login', async () => {
       (storage.getUser as any).mockReturnValue(null);
 
       const { getByTestId } = render(
@@ -394,7 +397,7 @@ describe('ProfileGuardContext', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('profileState').textContent).toBe('not-started');
+        expect(getByTestId('profileState').textContent).toBe('no-auth');
       });
 
       expect(getByTestId('isProfileComplete').textContent).toBe('false');
@@ -524,7 +527,9 @@ describe('ProfileGuardContext', () => {
           const store = createTestStore();
           return (
             <Provider store={store}>
-              <ProfileGuardProvider>{children}</ProfileGuardProvider>
+              <MemoryRouter>
+                <ProfileGuardProvider>{children}</ProfileGuardProvider>
+              </MemoryRouter>
             </Provider>
           );
         },
@@ -564,7 +569,9 @@ describe('ProfileGuardContext', () => {
           const store = createTestStore();
           return (
             <Provider store={store}>
-              <ProfileGuardProvider>{children}</ProfileGuardProvider>
+              <MemoryRouter>
+                <ProfileGuardProvider>{children}</ProfileGuardProvider>
+              </MemoryRouter>
             </Provider>
           );
         },
@@ -615,7 +622,7 @@ describe('ProfileGuardContext', () => {
       });
     });
 
-    it('covers lines 147-150: should set not-started when personUuid is not found', async () => {
+    it('covers lines 147-150: should set no-auth and redirect when personUuid is not found', async () => {
       // Mock user without person.uuid
       (storage.getUser as any).mockReturnValue(
         JSON.stringify({
@@ -641,7 +648,7 @@ describe('ProfileGuardContext', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('profileState').textContent).toBe('not-started');
+        expect(getByTestId('profileState').textContent).toBe('no-auth');
         expect(getByTestId('isComplete').textContent).toBe('false');
       });
 

@@ -337,7 +337,11 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             Phone Number <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-2">
-            <div className="w-1/3">
+            <div
+              className="w-1/3"
+              onClick={e => e.stopPropagation()}
+              onSubmit={e => e.preventDefault()}
+            >
               <CountryCodeDropdown onChange={onCountryChange} />
             </div>
             <div className="w-2/3">
