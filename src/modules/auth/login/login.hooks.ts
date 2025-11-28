@@ -2,10 +2,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../../services/toast';
+import type { LoginCredentials } from '../../../types/auth/login.types';
 import { cookie } from '../../../utils/cookie';
 import { storage } from '../../../utils/storage';
 import loginService from './login.service';
-import type { LoginCredentials } from '../../../types/auth/login.types';
 
 interface UseLoginReturn {
   handleLogin: (credentials: LoginCredentials) => Promise<void>;
@@ -19,6 +19,10 @@ export const useLogin = (): UseLoginReturn => {
   const handleLogin = async (credentials: LoginCredentials) => {
     try {
       setLoading(true);
+      storage.clearAuthToken();
+      storage.clearUser();
+      cookie.removeJSessionId();
+
       // Encode OpenMRS basic auth
       const cred = `${credentials.username}:${credentials.password}`;
       const base64cred = btoa(cred);
@@ -37,11 +41,13 @@ export const useLogin = (): UseLoginReturn => {
 
       // Then call our backend login
       const { token } = await loginService.login(credentials);
+      if (!token) throw new Error('Login to backend failed');
       storage.setAuthToken(token);
       storage.setUser(JSON.stringify(user));
 
       //show toast message
       showToast('Login Successful', `Welcome back`, 'success');
+      setLoading(false);
 
       //redirect to dashboard or some other page
       navigate('/dashboard');
