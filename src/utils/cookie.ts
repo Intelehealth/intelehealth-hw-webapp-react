@@ -38,4 +38,7 @@ export const cookie = {
   getJSessionId: (): string | undefined => {
     return Cookies.get('JSESSIONID');
   },
+  removeJSessionId: (): void => {
+    Cookies.remove('JSESSIONID');
+  },
 };
