@@ -9,8 +9,11 @@ const h = vi.hoisted(() => ({
   mockBackendLogin: vi.fn(),
   mockShowToast: vi.fn(),
   mockSetCookie: vi.fn(),
+  mockRemoveJSessionId: vi.fn(),
   mockSetAuthToken: vi.fn(),
   mockSetUser: vi.fn(),
+  mockClearAuthToken: vi.fn(),
+  mockClearUser: vi.fn(),
   mockNavigate: vi.fn(),
 }));
 
@@ -34,6 +37,7 @@ vi.mock('../../../../services/toast', () => ({
 vi.mock('../../../../utils/cookie', () => ({
   cookie: {
     setCookie: (...args: unknown[]) => h.mockSetCookie(...args),
+    removeJSessionId: (...args: unknown[]) => h.mockRemoveJSessionId(...args),
   },
 }));
 
@@ -41,6 +45,8 @@ vi.mock('../../../../utils/storage', () => ({
   storage: {
     setAuthToken: (...args: unknown[]) => h.mockSetAuthToken(...args),
     setUser: (...args: unknown[]) => h.mockSetUser(...args),
+    clearAuthToken: (...args: unknown[]) => h.mockClearAuthToken(...args),
+    clearUser: (...args: unknown[]) => h.mockClearUser(...args),
   },
 }));
 
@@ -66,8 +72,11 @@ const {
   mockBackendLogin,
   mockShowToast,
   mockSetCookie,
+  mockRemoveJSessionId,
   mockSetAuthToken,
   mockSetUser,
+  mockClearAuthToken,
+  mockClearUser,
   mockNavigate,
 } = h;
 
