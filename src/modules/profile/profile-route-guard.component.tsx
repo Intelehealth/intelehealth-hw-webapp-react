@@ -24,12 +24,15 @@ const ProfileRouteGuard: React.FC<ProfileRouteGuardProps> = ({ children }) => {
     // Only proceed once we have a non-loading profile state
     if (profileState !== 'loading' && !hasChecked) {
       setHasChecked(true);
-      setIsModalOpen(!isProfileComplete);
+      // Don't show modal if user is not authenticated (cache cleared)
+      if (profileState !== 'no-auth') {
+        setIsModalOpen(!isProfileComplete);
+      }
     }
   }, [isProfileComplete, profileState, hasChecked]);
 
-  // Don't render anything while loading
-  if (profileState === 'loading' || !hasChecked) {
+  // Don't render anything while loading or when user is not authenticated
+  if (profileState === 'loading' || !hasChecked || profileState === 'no-auth') {
     return null;
   }
 

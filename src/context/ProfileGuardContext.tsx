@@ -1,14 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import profileService from '../modules/profile/profile.service';
 import { startLoading, stopLoading } from '../reducers/loader.reducer';
 import { storage } from '../utils/storage';
+import ROUTES from '../routes/paths';
 
 const PROFILE_LOADER_ID = 'profile-guard';
 
 interface ProfileGuardContextType {
   isProfileComplete: boolean;
-  profileState: 'loading' | 'not-started' | 'incomplete' | 'complete';
+  profileState:
+    | 'loading'
+    | 'not-started'
+    | 'incomplete'
+    | 'complete'
+    | 'no-auth';
   refreshProfileStatus: () => Promise<void>;
 }
 
@@ -91,9 +98,10 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [profileState, setProfileState] = useState<
-    'loading' | 'not-started' | 'incomplete' | 'complete'
+    'loading' | 'not-started' | 'incomplete' | 'complete' | 'no-auth'
   >('loading');
 
   const refreshProfileStatus = async () => {
@@ -115,8 +123,10 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Get user data from storage
       const userData = storage.getUser();
       if (!userData) {
+        // No user data - cache cleared, redirect to login
         setIsProfileComplete(false);
-        setProfileState('not-started');
+        setProfileState('no-auth');
+        navigate(`${ROUTES.AUTH.BASE}/${ROUTES.AUTH.LOGIN}`, { replace: true });
         return;
       }
 
@@ -124,8 +134,10 @@ export const ProfileGuardProvider: React.FC<{ children: React.ReactNode }> = ({
       const personUuid = user.person?.uuid;
 
       if (!personUuid) {
+        // User data exists but no person UUID - cache cleared, redirect to login
         setIsProfileComplete(false);
-        setProfileState('not-started');
+        setProfileState('no-auth');
+        navigate(`${ROUTES.AUTH.BASE}/${ROUTES.AUTH.LOGIN}`, { replace: true });
         return;
       }
 
