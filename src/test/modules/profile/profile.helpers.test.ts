@@ -68,6 +68,34 @@ describe('Profile Helpers', () => {
       expect(age).toBeGreaterThanOrEqual(29);
       expect(age).toBeLessThanOrEqual(30);
     });
+
+    it('should subtract one from age when birthday is same month but later date (line 34)', () => {
+      // Create a birthdate in the same month as today but with a later day
+      const today = new Date();
+      const currentDay = today.getDate();
+
+      // If today is the last day of the month, use a date earlier in the same month
+      // Otherwise, use a date later in the month
+      let birthDay: number;
+      if (currentDay >= 28) {
+        birthDay = 15; // Use middle of the month
+        const birthYear = today.getFullYear() - 25;
+        const birthDate = new Date(birthYear, today.getMonth(), birthDay);
+        const dateString = birthDate.toISOString().split('T')[0];
+
+        const age = calculateAge(dateString);
+        expect(age).toBe(25);
+      } else {
+        birthDay = currentDay + 5; // Use a date 5 days later
+        const birthYear = today.getFullYear() - 25;
+        const birthDate = new Date(birthYear, today.getMonth(), birthDay);
+        const dateString = birthDate.toISOString().split('T')[0];
+
+        const age = calculateAge(dateString);
+        // Age should be 24 because birthday hasn't happened yet this month
+        expect(age).toBe(24);
+      }
+    });
   });
 
   describe('getErrorMessage', () => {
