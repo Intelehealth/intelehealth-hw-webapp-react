@@ -32,7 +32,7 @@ const CountryCodeDropdown = ({
     <div className="relative w-full">
       {/* Selected */}
       <button
-        type="button"
+        type="button" // added type
         onClick={() => setOpen(!open)}
         className="w-full border border-gray-300 rounded-lg px-4 py-2.5 flex items-center justify-between bg-white shadow-sm"
       >
