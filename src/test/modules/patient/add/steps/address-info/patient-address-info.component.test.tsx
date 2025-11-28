@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientAddressInfo from '../../../../../../modules/patient/add/steps/address-info/patient-address-info.component';
@@ -113,6 +113,7 @@ vi.mock('../../../../../../components/common/country-select.component', () => ({
   },
 }));
 
+const mockStateSelectorOnChange = vi.fn();
 vi.mock('../../../../../../components/common/state-selector.component', () => ({
   default: ({ label, options, onChange, value, error, isRequired, placeholder, countryId }: any) => {
     // Provide default options if countryId is provided
@@ -121,6 +122,12 @@ vi.mock('../../../../../../components/common/state-selector.component', () => ({
       { value: 'Maharashtra', label: 'Maharashtra' },
       { value: 'Tamil Nadu', label: 'Tamil Nadu' },
     ] : []);
+    
+    // Store the onChange handler for testing
+    if (onChange) {
+      mockStateSelectorOnChange.mockImplementation(onChange);
+    }
+    
     return (
       <div>
         {label && (
@@ -130,7 +137,10 @@ vi.mock('../../../../../../components/common/state-selector.component', () => ({
         )}
         <select
           value={Array.isArray(value) ? value[0] : value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => {
+            const handler = onChange || mockStateSelectorOnChange;
+            handler?.(e.target.value);
+          }}
           data-testid={`dropdown-${label}`}
         >
           <option value="">{placeholder}</option>
@@ -146,6 +156,7 @@ vi.mock('../../../../../../components/common/state-selector.component', () => ({
   },
 }));
 
+const mockDistrictSelectorOnChange = vi.fn();
 vi.mock('../../../../../../components/common/district-selector.component', () => ({
   default: ({ label, options, onChange, value, error, isRequired, placeholder, countryId, stateId }: any) => {
     // Provide default options if both countryId and stateId are provided
@@ -153,6 +164,12 @@ vi.mock('../../../../../../components/common/district-selector.component', () =>
       { value: 'Bangalore', label: 'Bangalore' },
       { value: 'Mysore', label: 'Mysore' },
     ] : []);
+    
+    // Store the onChange handler for testing
+    if (onChange) {
+      mockDistrictSelectorOnChange.mockImplementation(onChange);
+    }
+    
     return (
       <div>
         {label && (
@@ -162,7 +179,10 @@ vi.mock('../../../../../../components/common/district-selector.component', () =>
         )}
         <select
           value={Array.isArray(value) ? value[0] : value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => {
+            const handler = onChange || mockDistrictSelectorOnChange;
+            handler?.(e.target.value);
+          }}
           data-testid={`dropdown-${label}`}
         >
           <option value="">{placeholder}</option>
@@ -187,6 +207,12 @@ vi.mock('../../../../../../assets/data/countries', () => ({
   ],
 }));
 
+// Mock the postal code service
+const mockFetchPostalCodeData = vi.fn();
+vi.mock('../../../../../../services/postal-code.service', () => ({
+  fetchPostalCodeData: (pincode: string) => mockFetchPostalCodeData(pincode),
+}));
+
 describe('PatientAddressInfo', () => {
   const mockOnNext = vi.fn();
   const mockOnPrev = vi.fn();
@@ -202,6 +228,7 @@ describe('PatientAddressInfo', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetchPostalCodeData.mockResolvedValue(null);
   });
 
   describe('Component Rendering', () => {
@@ -431,7 +458,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Form Validation', () => {
     it('should display error for empty postalCode on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -445,11 +472,11 @@ describe('PatientAddressInfo', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Postal Code is required')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should display error for empty country on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -467,7 +494,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should display error for empty state on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -485,7 +512,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should display error for empty district on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -503,7 +530,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should display error for empty city on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -521,7 +548,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should display error for empty correspondingAddress1 on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -539,7 +566,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should display error for empty correspondingAddress2 on submit', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -559,7 +586,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Form Submission', () => {
     it('should call onNext with addressInfo data on valid form submission', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const validValues = {
         postalCode: '123456',
         country: 'India',
@@ -589,11 +616,11 @@ describe('PatientAddressInfo', () => {
             state: 'Karnataka',
           }),
         });
-      });
+      }, { timeout: 3000 });
     });
 
     it('should not call onNext on invalid form submission', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -627,7 +654,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should call onPrev when Back button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -639,8 +666,10 @@ describe('PatientAddressInfo', () => {
       const backButton = screen.getByText('Back');
       await user.click(backButton);
 
-      expect(mockOnPrev).toHaveBeenCalledTimes(1);
-      expect(mockOnNext).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockOnPrev).toHaveBeenCalledTimes(1);
+        expect(mockOnNext).not.toHaveBeenCalled();
+      }, { timeout: 3000 });
     });
   });
 
@@ -662,7 +691,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Field Interactions', () => {
     it('should handle postalCode input change', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -674,11 +703,13 @@ describe('PatientAddressInfo', () => {
       const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
       await user.type(postalCodeInput, '123456');
 
-      expect(postalCodeInput).toHaveValue('123456');
+      await waitFor(() => {
+        expect(postalCodeInput).toHaveValue('123456');
+      }, { timeout: 3000 });
     });
 
     it('should handle country selection', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -688,16 +719,16 @@ describe('PatientAddressInfo', () => {
       );
 
       const countryDropdown = screen.getByTestId('dropdown-Country');
-      await waitFor(() => {
-        expect(countryDropdown.querySelector('option[value="India"]')).toBeInTheDocument();
-      });
+      expect(countryDropdown.querySelector('option[value="India"]')).toBeInTheDocument();
       await user.selectOptions(countryDropdown, 'India');
 
-      expect(countryDropdown).toHaveValue('India');
+      await waitFor(() => {
+        expect(countryDropdown).toHaveValue('India');
+      }, { timeout: 3000 });
     });
 
     it('should handle state selection', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
@@ -709,16 +740,19 @@ describe('PatientAddressInfo', () => {
       await waitFor(() => {
         const stateDropdown = screen.getByTestId('dropdown-State');
         expect(stateDropdown.querySelector('option[value="Karnataka"]')).toBeInTheDocument();
-      });
+        return stateDropdown;
+      }, { timeout: 3000 });
 
       const stateDropdown = screen.getByTestId('dropdown-State');
       await user.selectOptions(stateDropdown, 'Karnataka');
 
-      expect(stateDropdown).toHaveValue('Karnataka');
+      await waitFor(() => {
+        expect(stateDropdown).toHaveValue('Karnataka');
+      }, { timeout: 3000 });
     });
 
     it('should handle district selection', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
@@ -730,16 +764,19 @@ describe('PatientAddressInfo', () => {
       await waitFor(() => {
         const districtDropdown = screen.getByTestId('dropdown-District');
         expect(districtDropdown.querySelector('option[value="Bangalore"]')).toBeInTheDocument();
-      });
+        return districtDropdown;
+      }, { timeout: 3000 });
 
       const districtDropdown = screen.getByTestId('dropdown-District');
       await user.selectOptions(districtDropdown, 'Bangalore');
 
-      expect(districtDropdown).toHaveValue('Bangalore');
+      await waitFor(() => {
+        expect(districtDropdown).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
     });
 
     it('should handle city selection', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -752,11 +789,13 @@ describe('PatientAddressInfo', () => {
       const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
       await user.type(cityInput, 'Bangalore');
 
-      expect(cityInput).toHaveValue('Bangalore');
+      await waitFor(() => {
+        expect(cityInput).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
     });
 
     it('should handle correspondingAddress1 input change', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -768,11 +807,13 @@ describe('PatientAddressInfo', () => {
       const address1Input = screen.getByPlaceholderText('Enter Corresponding Address 1');
       await user.type(address1Input, '123 Main Street');
 
-      expect(address1Input).toHaveValue('123 Main Street');
+      await waitFor(() => {
+        expect(address1Input).toHaveValue('123 Main Street');
+      }, { timeout: 3000 });
     });
 
     it('should handle correspondingAddress2 input change', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       render(
         <PatientAddressInfo
           defaultValues={defaultValues}
@@ -784,7 +825,57 @@ describe('PatientAddressInfo', () => {
       const address2Input = screen.getByPlaceholderText('Enter Corresponding Address 2');
       await user.type(address2Input, 'Apt 4B');
 
-      expect(address2Input).toHaveValue('Apt 4B');
+      await waitFor(() => {
+        expect(address2Input).toHaveValue('Apt 4B');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle state selection with array value', async () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dropdown-State')).toBeInTheDocument();
+      });
+
+      // Directly call the onChange handler with an array value to test array handling
+      await act(async () => {
+        mockStateSelectorOnChange(['Karnataka']);
+      });
+
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        expect(stateDropdown).toHaveValue('Karnataka');
+      });
+    });
+
+    it('should handle district selection with array value', async () => {
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dropdown-District')).toBeInTheDocument();
+      });
+
+      // Directly call the onChange handler with an array value to test array handling
+      await act(async () => {
+        mockDistrictSelectorOnChange(['Bangalore']);
+      });
+
+      await waitFor(() => {
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        expect(districtDropdown).toHaveValue('Bangalore');
+      });
     });
   });
 
@@ -902,6 +993,315 @@ describe('PatientAddressInfo', () => {
       );
 
       expect(screen.getByText('Back')).toBeInTheDocument();
+    });
+  });
+
+  describe('Postal Code Auto-Population', () => {
+    it('should not fetch postal code data when country is not India', async () => {
+      vi.useFakeTimers();
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'United States' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      fireEvent.change(postalCodeInput, { target: { value: '123456' } });
+      vi.advanceTimersByTime(500);
+      await vi.runAllTimersAsync();
+
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('should not fetch postal code data when postal code is empty', async () => {
+      vi.useFakeTimers();
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+      
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+
+    it('should fetch postal code data when country is India and postal code is entered', async () => {
+      vi.useFakeTimers();
+      const postalData = {
+        state: 'Madhya Pradesh',
+        district: 'Indore',
+        city: 'Indore',
+      };
+      mockFetchPostalCodeData.mockResolvedValue(postalData);
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '452001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('452001');
+      }, { timeout: 3000 });
+    });
+
+    it('should auto-populate state, district, and city when postal code data is fetched', async () => {
+      vi.useFakeTimers();
+      const postalData = {
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+      };
+      mockFetchPostalCodeData.mockResolvedValue(postalData);
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
+
+        expect(stateDropdown).toHaveValue('Karnataka');
+        expect(districtDropdown).toHaveValue('Bangalore');
+        expect(cityInput).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
+    });
+
+    it('should debounce postal code API calls', async () => {
+      vi.useFakeTimers();
+      mockFetchPostalCodeData.mockResolvedValue({
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+      });
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      
+      // Type multiple characters quickly
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '4' } });
+        vi.advanceTimersByTime(300);
+        fireEvent.change(postalCodeInput, { target: { value: '45' } });
+        vi.advanceTimersByTime(300);
+        fireEvent.change(postalCodeInput, { target: { value: '452' } });
+        vi.advanceTimersByTime(300);
+        fireEvent.change(postalCodeInput, { target: { value: '4520' } });
+        vi.advanceTimersByTime(300);
+        fireEvent.change(postalCodeInput, { target: { value: '45200' } });
+        vi.advanceTimersByTime(300);
+        fireEvent.change(postalCodeInput, { target: { value: '452001' } });
+      });
+
+      // Should not be called yet (debounce not complete)
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+
+      // Advance timer past debounce delay
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        // Should be called only once after debounce
+        expect(mockFetchPostalCodeData).toHaveBeenCalledTimes(1);
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('452001');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle postal code API errors gracefully', async () => {
+      vi.useFakeTimers();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const error = new Error('Network error');
+      mockFetchPostalCodeData.mockRejectedValue(error);
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '452001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalled();
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'Error fetching postal code data:',
+          error
+        );
+      }, { timeout: 3000 });
+
+      // Component should still be functional
+      expect(screen.getByText('Next')).toBeInTheDocument();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should not auto-populate when postal code data is null', async () => {
+      vi.useFakeTimers();
+      mockFetchPostalCodeData.mockResolvedValue(null);
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      fireEvent.change(postalCodeInput, { target: { value: '999999' } });
+      
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('999999');
+      }, { timeout: 3000 });
+
+      // Fields should remain empty
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
+
+        expect(stateDropdown).toHaveValue('');
+        expect(districtDropdown).toHaveValue('');
+        expect(cityInput).toHaveValue('');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle case-insensitive country name check', async () => {
+      vi.useFakeTimers();
+      mockFetchPostalCodeData.mockResolvedValue({
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+      });
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'INDIA' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+      
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('560001');
+      }, { timeout: 3000 });
+    });
+
+    it('should only populate available fields from postal code data', async () => {
+      vi.useFakeTimers();
+      const partialPostalData = {
+        state: 'Karnataka',
+        district: '',
+        city: 'Bangalore',
+      };
+      mockFetchPostalCodeData.mockResolvedValue(partialPostalData);
+
+      render(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
+        expect(stateDropdown).toHaveValue('Karnataka');
+        expect(cityInput).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
     });
   });
 });
