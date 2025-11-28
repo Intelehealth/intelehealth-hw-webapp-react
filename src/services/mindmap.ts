@@ -50,7 +50,6 @@ class MindmapService extends HttpService {
         return response;
       },
       error => {
-        //dispatch loader: stopLoading()
         // In Axios errors, the original request config is in error.config, not error.headers
         const requestHeaders = error.config?.headers;
         const showLoader = requestHeaders?.loader !== false;
@@ -74,3 +73,4 @@ export const MindmapAuthGatewayApi = new MindmapService(
   env.AUTH_GATEWAY_API_URL
 );
 export const MindmapPortalApi = new MindmapService(env.PORTAL_API_URL!);
+export const MindmapConfigApi = new MindmapService(env.CONFIG_API_URL!);
