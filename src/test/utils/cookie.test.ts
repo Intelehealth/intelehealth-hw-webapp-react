@@ -156,4 +156,12 @@ describe('cookie utility', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('removeJSessionId', () => {
+    it('removes JSESSIONID cookie', () => {
+      cookie.removeJSessionId();
+
+      expect(Cookies.remove).toHaveBeenCalledWith('JSESSIONID');
+    });
+  });
 });

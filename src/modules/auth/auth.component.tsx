@@ -1,3 +1,4 @@
+import { changeLanguage } from 'i18next';
 import React, { useState } from 'react';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
