@@ -72,11 +72,11 @@ const {
   mockBackendLogin,
   mockShowToast,
   mockSetCookie,
-  mockRemoveJSessionId,
+  mockRemoveJSessionId: _mockRemoveJSessionId,
   mockSetAuthToken,
   mockSetUser,
-  mockClearAuthToken,
-  mockClearUser,
+  mockClearAuthToken: _mockClearAuthToken,
+  mockClearUser: _mockClearUser,
   mockNavigate,
 } = h;
 
