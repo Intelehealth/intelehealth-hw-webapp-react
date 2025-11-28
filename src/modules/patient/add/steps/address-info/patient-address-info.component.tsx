@@ -1,10 +1,12 @@
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useEffect } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
 import { Button, Input } from '../../../../../components/common';
 import CountrySelect from '../../../../../components/common/country-select.component';
 import DistrictSelector from '../../../../../components/common/district-selector.component';
 import StateSelector from '../../../../../components/common/state-selector.component';
+import { fetchPostalCodeData } from '../../../../../services/postal-code.service';
 import { patientAddressInfoSchema } from './patient-address-info.validation';
 
 type PatientAddressInfoFormValues = InferType<typeof patientAddressInfoSchema>;
@@ -34,6 +36,49 @@ export default function PatientAddressInfo({
     defaultValues,
   });
 
+  const country = watch('country');
+  const postalCode = watch('postalCode');
+
+  useEffect(() => {
+    const loadPostalCodeData = async () => {
+      // Only proceed if country is India and postal code is entered
+      if (country?.toLowerCase() !== 'india' || !postalCode) {
+        return;
+      }
+
+      try {
+        const postalData = await fetchPostalCodeData(postalCode);
+
+        if (postalData) {
+          // Set state if available
+          if (postalData.state) {
+            setValue('state', postalData.state, { shouldValidate: true });
+          }
+
+          // Set district if available
+          if (postalData.district) {
+            setValue('district', postalData.district, { shouldValidate: true });
+          }
+
+          // Set city if available
+          if (postalData.city) {
+            setValue('city', postalData.city, { shouldValidate: true });
+          }
+        }
+      } catch (error) {
+        // Silently handle errors - don't show error to user if API fails
+        console.error('Error fetching postal code data:', error);
+      }
+    };
+
+    // Debounce the API call to avoid too many requests
+    const timeoutId = setTimeout(() => {
+      loadPostalCodeData();
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [country, postalCode, setValue]);
+
   const handleNext = (data: PatientAddressInfoFormValues) => {
     onNext({ addressInfo: data });
   };
@@ -43,15 +88,6 @@ export default function PatientAddressInfo({
       <div className="flex flex-col h-full">
         <div className="h-full flex flex-col gap-6 md:overflow-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <Input
-                {...register('postalCode')}
-                placeholder="Enter Postal Code Name"
-                label="Postal Code"
-                error={errors.postalCode?.message}
-                isRequired={true}
-              />
-            </div>
             <div>
               <CountrySelect
                 label="Country"
@@ -63,6 +99,16 @@ export default function PatientAddressInfo({
                   const selectedValue = Array.isArray(value) ? value[0] : value;
                   setValue('country', selectedValue);
                 }}
+                isRequired={true}
+                clearable={false}
+              />
+            </div>
+            <div>
+              <Input
+                {...register('postalCode')}
+                placeholder="Enter Postal Code Name"
+                label="Postal Code"
+                error={errors.postalCode?.message}
                 isRequired={true}
               />
             </div>
@@ -79,6 +125,7 @@ export default function PatientAddressInfo({
                   setValue('state', selectedValue);
                 }}
                 isRequired={true}
+                clearable={false}
               />
             </div>
           </div>
@@ -98,6 +145,7 @@ export default function PatientAddressInfo({
                   setValue('district', selectedValue);
                 }}
                 isRequired={true}
+                clearable={false}
               />
             </div>
             <div>
