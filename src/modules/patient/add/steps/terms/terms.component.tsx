@@ -97,7 +97,7 @@ export default function PatientTermsComponent({
         </section>
         <section className="mb-6">
           <h2 className="text-base mb-1 text-(--color-primary-dark) font-semibold">
-            Concent:
+            Consent:
           </h2>
           <p className="text-sm">
             I have read and understood the notice for consent. The details have

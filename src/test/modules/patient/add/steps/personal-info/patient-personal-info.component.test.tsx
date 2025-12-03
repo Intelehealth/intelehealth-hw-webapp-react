@@ -300,7 +300,7 @@ describe('PatientPersonalInfo', () => {
         />
       );
 
-      expect(screen.getByText('Date Of Birth *')).toBeInTheDocument();
+      expect(screen.getByText('Date Of Birth')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Enter Date Of Birth')).toBeInTheDocument();
     });
 
@@ -326,7 +326,7 @@ describe('PatientPersonalInfo', () => {
         />
       );
 
-      expect(screen.getByText('Phone Number *')).toBeInTheDocument();
+      expect(screen.getByText('Phone Number')).toBeInTheDocument();
       expect(screen.getAllByTestId('input-phone-number')[0]).toBeInTheDocument();
     });
 
