@@ -91,7 +91,7 @@ export default function PatientPersonalInfo({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex flex-col">
                 <label className="text-base text-(--color-muted) mb-2">
-                  Gender
+                  Gender<span className="text-red-500 ml-1">*</span>
                 </label>
                 <RadioGroup
                   {...register('gender')}
@@ -112,11 +112,12 @@ export default function PatientPersonalInfo({
                 <Calendar
                   {...register('dateOfBirth')}
                   placeholder="Enter Date Of Birth"
-                  label="Date Of Birth *"
+                  label="Date Of Birth"
                   error={errors.dateOfBirth?.message}
                   value={watch('dateOfBirth') || ''}
                   onChange={(date: string) => setValue('dateOfBirth', date)}
                   dateFormat="dd/MM/yyyy"
+                  isRequired={true}
                 />
               </div>
               <div>
@@ -131,7 +132,7 @@ export default function PatientPersonalInfo({
               </div>
               <div>
                 <label className="block text-base text-(--color-muted) mb-2">
-                  Phone Number *
+                  Phone Number<span className="text-red-500 ml-1">*</span>
                 </label>
                 <InputPhoneNumber
                   onChange={val => {

@@ -226,7 +226,7 @@ describe('PatientTermsComponent', () => {
       render(
         <PatientTermsComponent onNext={mockOnNext} onPrev={mockOnPrev} />
       );
-      expect(screen.getByText('Concent:')).toBeInTheDocument();
+      expect(screen.getByText('Consent:')).toBeInTheDocument();
     });
 
     it('should render consent statement', () => {
@@ -242,7 +242,7 @@ describe('PatientTermsComponent', () => {
       render(
         <PatientTermsComponent onNext={mockOnNext} onPrev={mockOnPrev} />
       );
-      const heading = screen.getByText('Concent:');
+      const heading = screen.getByText('Consent:');
       expect(heading).toHaveClass('text-base', 'mb-1', 'font-semibold');
     });
 

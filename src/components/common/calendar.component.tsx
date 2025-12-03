@@ -93,7 +93,7 @@ const Calendar: React.FC<CalendarProps> = ({
           )}
         >
           {label}
-          {isRequired && <span className="text-error-500 ml-1">*</span>}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
       <div className="relative">
