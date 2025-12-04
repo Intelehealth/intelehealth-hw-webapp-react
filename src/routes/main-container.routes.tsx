@@ -13,7 +13,10 @@ const MainContainer = () => {
         <div className="flex h-full flex-col">
           <div className="flex flex-col md:p-3 gap-2 h-full">
             <Navbar />
-            <div className="flex-1 bg-white rounded-lg shadow-md overflow-auto">
+            <div
+              className="flex-1 bg-white rounded-lg shadow-md overflow-auto"
+              id="main-container-content"
+            >
               <Outlet />
             </div>
             <div className="md:hidden">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconLocationGreenRoundedBordered from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
 import iconLocationGreenRoundedFilled from '../../../assets/icons/icon-location-green-rounded-filled.svg';
 import iconLocationGreenRounded from '../../../assets/icons/icon-location-green-rounded.svg';
@@ -7,6 +8,7 @@ import iconThreeDotGreenRounded from '../../../assets/icons/icon-three-dot-green
 import iconUserGreenRoundedBordered from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
 import iconUserGreenRoundedFilled from '../../../assets/icons/icon-user-green-rounded-filled.svg';
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
+import ROUTES from '../../../routes/paths';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
 import { useAddPatient } from './add-patient.hooks';
 import AddressInfo from './steps/address-info/patient-address-info.component';
@@ -18,7 +20,8 @@ import Terms from './steps/terms/terms.component';
 
 export default function AddPatientComponent() {
   const { handleAddPatient } = useAddPatient();
-  const [step, setStep] = useState(1);
+  const navigate = useNavigate();
+  const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<PatientFormData>({
     personalInfo: {
       firstName: '',
@@ -64,9 +67,24 @@ export default function AddPatientComponent() {
   };
 
   const prevStep = () => {
-    if (step > 0) setStep(s => s - 1);
-    else setStep(0);
+    if (step > 0) {
+      setStep(s => s - 1);
+      return;
+    }
+    navigate(ROUTES.DASHBOARD, { replace: true });
   };
+
+  /**
+   * Scroll to the top of the main container content when the step changes
+   */
+  useEffect(() => {
+    const mainContainerContent = document.getElementById(
+      'main-container-content'
+    );
+    if (mainContainerContent) {
+      mainContainerContent.scrollTo(0, 0);
+    }
+  }, [step]);
 
   const stepsArray = [
     {
@@ -108,10 +126,6 @@ export default function AddPatientComponent() {
       setStep(s => s + 1);
     }
   };
-
-  useEffect(() => {
-    setStep(0);
-  }, []);
 
   return (
     <div className="flex p-6 flex-col h-full">
