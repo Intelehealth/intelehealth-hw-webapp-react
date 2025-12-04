@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AddPatientComponent from '../../../modules/patient/add/add-patient.component';
 
@@ -190,59 +192,74 @@ vi.mock('../../../assets/icons/icon-user-plus-green-rounded.svg', () => ({
   default: 'icon-user-plus-green-rounded.svg',
 }));
 
+// Helper function to render with router
+const renderWithRouter = (component: React.ReactElement) => {
+  return render(<MemoryRouter>{component}</MemoryRouter>);
+};
+
 describe('AddPatientComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('Initial Render', () => {
-    it('should render without crashing', () => {
-      render(<AddPatientComponent />);
-      expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+    it('should render without crashing', async () => {
+      renderWithRouter(<AddPatientComponent />);
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
     });
 
     it('should start at step 0 (Privacy Policy)', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       });
     });
 
-    it('should render header with Add Patient label on desktop', () => {
-      render(<AddPatientComponent />);
+    it('should render header with Add Patient label on desktop', async () => {
+      renderWithRouter(<AddPatientComponent />);
 
-      const label = screen.getByText('Add Patient');
-      expect(label).toBeInTheDocument();
-      expect(label).toHaveClass('text-base');
+      await waitFor(() => {
+        const label = screen.getByText('Add Patient');
+        expect(label).toBeInTheDocument();
+        expect(label).toHaveClass('text-base');
+      });
     });
 
-    it('should render mobile header', () => {
-      render(<AddPatientComponent />);
+    it('should render mobile header', async () => {
+      renderWithRouter(<AddPatientComponent />);
 
-      const mobileHeader = screen.getByText('Add New Patient');
-      expect(mobileHeader).toBeInTheDocument();
-      expect(mobileHeader).toHaveClass('text-lg', 'font-semibold', 'md:hidden');
+      await waitFor(() => {
+        const mobileHeader = screen.getByText('Add New Patient');
+        expect(mobileHeader).toBeInTheDocument();
+        expect(mobileHeader).toHaveClass('text-lg', 'font-semibold', 'md:hidden');
+      });
     });
 
-    it('should render icon in header', () => {
-      const { container } = render(<AddPatientComponent />);
+    it('should render icon in header', async () => {
+      const { container } = renderWithRouter(<AddPatientComponent />);
 
-      const icon = container.querySelector('img[src="icon-user-plus-green-rounded.svg"]');
-      expect(icon).toBeInTheDocument();
+      await waitFor(() => {
+        const icon = container.querySelector('img[src="icon-user-plus-green-rounded.svg"]');
+        expect(icon).toBeInTheDocument();
+      });
     });
 
-    it('should not show step indicator on Privacy Policy step', () => {
-      render(<AddPatientComponent />);
+    it('should not show step indicator on Privacy Policy step', async () => {
+      renderWithRouter(<AddPatientComponent />);
 
-      const stepIndicators = screen.queryByAltText('Personal');
-      expect(stepIndicators).not.toBeInTheDocument();
+      await waitFor(() => {
+        const stepIndicators = screen.queryByAltText('Personal');
+        expect(stepIndicators).not.toBeInTheDocument();
+      });
     });
   });
 
   describe('Step Navigation', () => {
     it('should navigate from Privacy Policy to Terms', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       const nextButton = screen.getByTestId('privacy-next');
       fireEvent.click(nextButton);
@@ -253,7 +270,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate from Terms to Personal Info', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms step
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -267,7 +284,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate backwards from Terms to Privacy Policy', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -281,7 +298,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle prevStep when step is 0', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -296,7 +313,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate through all steps in order', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Privacy Policy -> Terms
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -318,7 +335,7 @@ describe('AddPatientComponent', () => {
 
   describe('Step Indicator', () => {
     it('should show step indicator when on Personal Info step (step 2)', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -333,7 +350,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show step indicator when on Address Info step (step 3)', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -350,7 +367,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show step indicator when on Other Info step (step 4)', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -369,14 +386,14 @@ describe('AddPatientComponent', () => {
     });
 
     it('should not show step indicator on Privacy Policy step (step 0)', () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       const personalIndicator = screen.queryByAltText('Personal');
       expect(personalIndicator).not.toBeInTheDocument();
     });
 
     it('should not show step indicator on Terms step (step 1)', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       fireEvent.click(screen.getByTestId('privacy-next'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
@@ -387,7 +404,7 @@ describe('AddPatientComponent', () => {
 
     it('should not show step indicator on Preview step (step 5)', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -409,7 +426,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show correct icon for current step', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -422,7 +439,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show filled icon for completed steps', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info step (Personal should be filled)
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -437,7 +454,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show unfilled icon for future steps', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -452,7 +469,7 @@ describe('AddPatientComponent', () => {
 
   describe('Form Data Management', () => {
     it('should update formData when moving to next step', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and fill data
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -472,7 +489,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should preserve form data when navigating backwards', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -495,7 +512,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle profilePhoto as string in defaultValues', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and submit
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -518,7 +535,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle profilePhoto as non-string (null) in defaultValues', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info (no data submitted yet)
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -538,7 +555,7 @@ describe('AddPatientComponent', () => {
   describe('Form Submission', () => {
     it('should call handleAddPatient when submitting from Other Info step', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -560,7 +577,7 @@ describe('AddPatientComponent', () => {
 
     it('should navigate to Preview on successful submission', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -580,7 +597,7 @@ describe('AddPatientComponent', () => {
 
     it('should not navigate to Preview on failed submission', async () => {
       mockHandleAddPatient.mockResolvedValue(false);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -604,7 +621,7 @@ describe('AddPatientComponent', () => {
 
     it('should merge form data correctly before submission', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -638,7 +655,7 @@ describe('AddPatientComponent', () => {
   describe('Preview Step', () => {
     it('should render Preview with all form data', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps to Preview
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -665,7 +682,7 @@ describe('AddPatientComponent', () => {
 
   describe('Edge Cases', () => {
     it('should handle nextStep being called multiple times', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       const nextButton = screen.getByTestId('privacy-next');
       fireEvent.click(nextButton);
@@ -676,14 +693,16 @@ describe('AddPatientComponent', () => {
       });
     });
 
-    it('should handle empty form data structure', () => {
-      render(<AddPatientComponent />);
+    it('should handle empty form data structure', async () => {
+      renderWithRouter(<AddPatientComponent />);
 
-      expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
     });
 
     it('should render dividers between step indicators', async () => {
-      render(<AddPatientComponent />);
+      const { container } = renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info to see step indicators
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -693,21 +712,12 @@ describe('AddPatientComponent', () => {
         expect(screen.getByTestId('personal-info')).toBeInTheDocument();
       });
 
-      const { container } = render(<AddPatientComponent />);
-      // Navigate to show step indicator
-      fireEvent.click(screen.getAllByTestId('privacy-next')[0]);
-      await waitFor(() => expect(screen.getAllByTestId('terms')[0]).toBeInTheDocument());
-      fireEvent.click(screen.getAllByTestId('terms-next')[0]);
-      await waitFor(() => {
-        expect(screen.getAllByTestId('personal-info')[0]).toBeInTheDocument();
-      });
-
       const hrs = container.querySelectorAll('hr.border-dashed');
       expect(hrs.length).toBeGreaterThan(0);
     });
 
     it('should apply correct CSS classes to step labels', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
       fireEvent.click(screen.getByTestId('privacy-next'));
@@ -724,17 +734,44 @@ describe('AddPatientComponent', () => {
 
   describe('useEffect Hook', () => {
     it('should set step to 0 on component mount', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       });
     });
+
+    it('should scroll to top when step changes', async () => {
+      // Create a mock element with scrollTo method
+      const mockScrollTo = vi.fn();
+      const mockElement = {
+        scrollTo: mockScrollTo,
+      };
+
+      // Mock getElementById to return our mock element
+      const originalGetElementById = document.getElementById;
+      document.getElementById = vi.fn(() => mockElement as any);
+
+      renderWithRouter(<AddPatientComponent />);
+
+      // Navigate to next step to trigger useEffect
+      fireEvent.click(screen.getByTestId('privacy-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('terms')).toBeInTheDocument();
+      });
+
+      // Verify scrollTo was called
+      expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
+
+      // Restore original getElementById
+      document.getElementById = originalGetElementById;
+    });
   });
 
   describe('Conditional Rendering', () => {
     it('should only render current step component', async () => {
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Privacy Policy step
       expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -752,7 +789,7 @@ describe('AddPatientComponent', () => {
 
     it('should handle step > 3 condition in nextStep', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      render(<AddPatientComponent />);
+      renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info (step 4)
       fireEvent.click(screen.getByTestId('privacy-next'));
