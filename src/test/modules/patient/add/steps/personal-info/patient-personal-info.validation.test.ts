@@ -156,21 +156,95 @@ describe('patientPersonalInfoSchema', () => {
       }
     });
 
-    it('should fail when age exceeds 3 characters', async () => {
-      const data = { ...validData, age: '1234' };
+    it('should fail when both dateOfBirth and age are undefined', async () => {
+      const data = { ...validData };
+      delete (data as { dateOfBirth?: string }).dateOfBirth;
+      delete (data as { age?: string }).age;
       const result = await patientPersonalInfoSchema.isValid(data);
       expect(result).toBe(false);
     });
 
-    it('should show error message when age exceeds 3 characters', async () => {
-      const data = { ...validData, age: '1234' };
+    it('should show error message when both dateOfBirth and age are undefined', async () => {
+      const data = { ...validData };
+      delete (data as { dateOfBirth?: string }).dateOfBirth;
+      delete (data as { age?: string }).age;
       try {
         await patientPersonalInfoSchema.validate(data);
       } catch (error) {
         expect((error as { message: string }).message).toBe(
-          'Age seems invalid'
+          'Date of birth or age is required'
         );
       }
+    });
+
+    it('should validate when age is undefined but dateOfBirth is provided', async () => {
+      const data = { ...validData };
+      delete (data as { age?: string }).age;
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(true);
+    });
+
+    it('should fail when age exceeds 120', async () => {
+      const data = { ...validData, age: '121' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+
+    it('should show error message when age exceeds 120', async () => {
+      const data = { ...validData, age: '121' };
+      try {
+        await patientPersonalInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Age must be between 0 and 120'
+        );
+      }
+    });
+
+    it('should fail when age is negative', async () => {
+      const data = { ...validData, age: '-1' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+
+    it('should show error message when age is negative', async () => {
+      const data = { ...validData, age: '-1' };
+      try {
+        await patientPersonalInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Age must be between 0 and 120'
+        );
+      }
+    });
+
+    it('should fail when age contains non-numeric characters', async () => {
+      const data = { ...validData, age: 'abc' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+
+    it('should show error message when age contains non-numeric characters', async () => {
+      const data = { ...validData, age: 'abc' };
+      try {
+        await patientPersonalInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Age must be between 0 and 120'
+        );
+      }
+    });
+
+    it('should validate with age 0', async () => {
+      const data = { ...validData, age: '0' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(true);
+    });
+
+    it('should validate with age 120', async () => {
+      const data = { ...validData, age: '120' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(true);
     });
 
     it('should validate with 1 character age', async () => {
@@ -187,6 +261,30 @@ describe('patientPersonalInfoSchema', () => {
 
     it('should validate with 3 character age', async () => {
       const data = { ...validData, age: '100' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(true);
+    });
+
+    it('should fail when age has decimal point', async () => {
+      const data = { ...validData, age: '25.5' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+
+    it('should show error message when age has decimal point', async () => {
+      const data = { ...validData, age: '25.5' };
+      try {
+        await patientPersonalInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Age must be between 0 and 120'
+        );
+      }
+    });
+
+    it('should validate when dateOfBirth is undefined and age is provided', async () => {
+      const data = { ...validData, age: '30' };
+      delete (data as { dateOfBirth?: string }).dateOfBirth;
       const result = await patientPersonalInfoSchema.isValid(data);
       expect(result).toBe(true);
     });

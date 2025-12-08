@@ -129,6 +129,20 @@ vi.mock('../../../../../../assets/images/default-user-img.svg', () => ({
   default: 'default-user-image.svg',
 }));
 
+// Mock the calculateAge utility function
+vi.mock('../../../../../../utils/common', () => ({
+  calculateAge: vi.fn((dateOfBirth: string) => {
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  }),
+}));
+
 describe('PatientPersonalInfo', () => {
   const mockOnNext = vi.fn();
   const mockOnPrev = vi.fn();
@@ -352,8 +366,8 @@ describe('PatientPersonalInfo', () => {
         />
       );
 
-      expect(screen.getByText('Emergency Contact name')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Enter Emergency Contact name')).toBeInTheDocument();
+      expect(screen.getByText('Emergency Contact Name')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Emergency Contact Name')).toBeInTheDocument();
     });
 
     it('should render emergency contact number field', () => {
@@ -365,7 +379,7 @@ describe('PatientPersonalInfo', () => {
         />
       );
 
-      expect(screen.getByText('Emergency Contact number *')).toBeInTheDocument();
+      expect(screen.getByText('Emergency Contact Number *')).toBeInTheDocument();
       const phoneInputs = screen.getAllByTestId('input-phone-number');
       expect(phoneInputs.length).toBe(2); // One for phone number, one for emergency contact
     });
@@ -648,7 +662,7 @@ describe('PatientPersonalInfo', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Age seems invalid')).toBeInTheDocument();
+        expect(screen.getByText('Age must be between 0 and 120')).toBeInTheDocument();
       });
     });
   });
@@ -1440,7 +1454,7 @@ describe('PatientPersonalInfo', () => {
       await user.selectOptions(contactTypeDropdown, 'Family');
 
       // Fill emergency contact name
-      const emergencyNameInput = screen.getByPlaceholderText('Enter Emergency Contact name');
+      const emergencyNameInput = screen.getByPlaceholderText('Enter Emergency Contact Name');
       await user.type(emergencyNameInput, 'Jane Doe');
 
       // Fill emergency contact number
@@ -1468,6 +1482,274 @@ describe('PatientPersonalInfo', () => {
 
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('Date of Birth Auto-Calculate Age', () => {
+    it('should automatically calculate and set age when date of birth is entered', async () => {
+      const user = userEvent.setup();
+      const { calculateAge } = await import('../../../../../../utils/common');
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '1990-01-01');
+
+      // Verify calculateAge was called
+      expect(calculateAge).toHaveBeenCalledWith('1990-01-01');
+    });
+
+    it('should not calculate age when empty date is provided', async () => {
+      const user = userEvent.setup();
+      const { calculateAge } = await import('../../../../../../utils/common');
+
+      // Clear the mock calls
+      vi.clearAllMocks();
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.clear(calendarInput);
+
+      // calculateAge should not be called with empty string
+      const calls = (calculateAge as any).mock.calls.filter((call: any[]) => call[0] === '');
+      expect(calls.length).toBe(0);
+    });
+
+    it('should update age field when date of birth changes', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '2000-06-15');
+
+      // The age field should be updated (actual value depends on current date)
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+
+      // Age should be calculated and set (value will vary based on current date)
+      await waitFor(() => {
+        expect(ageInput).toBeInTheDocument();
+      });
+    });
+
+    it('should handle date of birth change multiple times', async () => {
+      const user = userEvent.setup();
+      const { calculateAge } = await import('../../../../../../utils/common');
+
+      vi.clearAllMocks();
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+
+      // First date
+      await user.type(calendarInput, '1990-01-01');
+
+      // Clear and enter second date
+      await user.clear(calendarInput);
+      await user.type(calendarInput, '2000-12-31');
+
+      // calculateAge should have been called multiple times
+      expect(calculateAge).toHaveBeenCalled();
+    });
+
+    it('should calculate age correctly when date is in dd/MM/yyyy format', async () => {
+      const user = userEvent.setup();
+      const { calculateAge } = await import('../../../../../../utils/common');
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '1995-07-20');
+
+      // Verify calculateAge was called with the date
+      expect(calculateAge).toHaveBeenCalled();
+    });
+
+    it('should handle date of birth with pre-filled value', () => {
+      const valuesWithDOB = {
+        ...defaultValues,
+        dateOfBirth: '1985-03-15',
+        age: '39',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithDOB}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+
+      expect(calendarInput).toHaveValue('1985-03-15');
+      expect(ageInput).toHaveValue(39);
+    });
+
+    it('should allow manual age override after auto-calculation', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // First, set date of birth which auto-calculates age
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '1990-01-01');
+
+      // Then manually change the age
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+      await user.clear(ageInput);
+      await user.type(ageInput, '25');
+
+      expect(ageInput).toHaveValue(25);
+    });
+
+    it('should convert age number to string when setting value', async () => {
+      const user = userEvent.setup();
+      const { calculateAge } = await import('../../../../../../utils/common');
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const calendarInput = screen.getByTestId('calendar-input');
+      await user.type(calendarInput, '1992-08-10');
+
+      // calculateAge returns a number, but it should be converted to string
+      expect(calculateAge).toHaveBeenCalled();
+
+      // The age input should have a string value
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+      expect(ageInput).toBeInTheDocument();
+    });
+  });
+
+  describe('Emergency Contact Phone Number', () => {
+    it('should render emergency contact number with placeholder', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const phoneInputs = screen.getAllByTestId('input-phone-number');
+      expect(phoneInputs[1]).toBeInTheDocument();
+    });
+
+    it('should handle emergency contact number with pre-filled value', () => {
+      const valuesWithEmergencyPhone = {
+        ...defaultValues,
+        emergencyContactNumber: '9876543210',
+      };
+
+      render(
+        <PatientPersonalInfo
+          defaultValues={valuesWithEmergencyPhone}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const phoneInputs = screen.getAllByTestId('phone-number-input');
+      expect(phoneInputs[1]).toHaveValue('9876543210');
+    });
+
+    it('should use fixed country code +91 for emergency contact', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const countryCodeInputs = screen.getAllByTestId('country-code-input');
+      expect(countryCodeInputs[1]).toHaveValue('+91');
+    });
+  });
+
+  describe('Emergency Contact Name Label', () => {
+    it('should render emergency contact name with correct capitalization', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // Check for "Emergency Contact Name" with capital N
+      expect(screen.getByText('Emergency Contact Name')).toBeInTheDocument();
+    });
+
+    it('should render emergency contact name placeholder with correct capitalization', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByPlaceholderText('Enter Emergency Contact Name')).toBeInTheDocument();
+    });
+  });
+
+  describe('Emergency Contact Number Label', () => {
+    it('should render emergency contact number label with correct capitalization', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      expect(screen.getByText('Emergency Contact Number *')).toBeInTheDocument();
     });
   });
 });

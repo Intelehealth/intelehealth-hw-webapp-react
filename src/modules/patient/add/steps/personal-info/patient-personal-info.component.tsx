@@ -12,6 +12,7 @@ import {
 } from '../../../../../components/common';
 import InputPhoneNumber from '../../../../../components/common/input-phone-number.component';
 import { ProfilePhotoUpload } from '../../../../../components/common/profile-photo-upload.component';
+import { calculateAge } from '../../../../../utils/common';
 import { patientPersonalInfoSchema } from './patient-personal-info.validation';
 
 type PatientPersonalInfoFormValues = InferType<
@@ -67,6 +68,7 @@ export default function PatientPersonalInfo({
                   label="First Name"
                   error={errors.firstName?.message}
                   isRequired={true}
+                  allowedPattern={/^[A-Za-z]$/}
                 />
               </div>
               <div>
@@ -75,6 +77,7 @@ export default function PatientPersonalInfo({
                   placeholder="Enter Middle Name"
                   label="Middle Name"
                   error={errors.middleName?.message}
+                  allowedPattern={/^[A-Za-z]$/}
                 />
               </div>
               <div>
@@ -84,6 +87,7 @@ export default function PatientPersonalInfo({
                   label="Last Name"
                   error={errors.lastName?.message}
                   isRequired={true}
+                  allowedPattern={/^[A-Za-z]$/}
                 />
               </div>
             </div>
@@ -115,7 +119,13 @@ export default function PatientPersonalInfo({
                   label="Date Of Birth"
                   error={errors.dateOfBirth?.message}
                   value={watch('dateOfBirth') || ''}
-                  onChange={(date: string) => setValue('dateOfBirth', date)}
+                  onChange={(date: string) => {
+                    setValue('dateOfBirth', date);
+                    if (date) {
+                      const age = calculateAge(date);
+                      setValue('age', age.toString());
+                    }
+                  }}
                   dateFormat="dd/MM/yyyy"
                   isRequired={true}
                 />
@@ -175,15 +185,15 @@ export default function PatientPersonalInfo({
               <div>
                 <Input
                   {...register('emergencyContactName')}
-                  placeholder="Enter Emergency Contact name"
-                  label="Emergency Contact name"
+                  placeholder="Enter Emergency Contact Name"
+                  label="Emergency Contact Name"
                   error={errors.emergencyContactName?.message}
                   isRequired={true}
                 />
               </div>
               <div>
                 <label className="block text-base text-(--color-muted) mb-2">
-                  Emergency Contact number *
+                  Emergency Contact Number *
                 </label>
                 <InputPhoneNumber
                   onChange={val => {
@@ -193,6 +203,7 @@ export default function PatientPersonalInfo({
                     number: watch('emergencyContactNumber'),
                     countryCode: '+91',
                   }}
+                  placeholder="Enter Emergency Contact Number"
                   error={
                     errors.emergencyContactNumber?.message
                       ? errors.emergencyContactNumber.message

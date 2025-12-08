@@ -106,7 +106,7 @@ export default function PatientAddressInfo({
             <div>
               <Input
                 {...register('postalCode')}
-                placeholder="Enter Postal Code Name"
+                placeholder="Enter Postal Code"
                 label="Postal Code"
                 error={errors.postalCode?.message}
                 isRequired={true}

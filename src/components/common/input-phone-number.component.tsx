@@ -7,12 +7,14 @@ import Input from './input.component';
 interface InputPhoneNumberProps {
   value: PhoneNumberObject;
   error: string;
+  placeholder?: string;
   onChange: (phoneNumberObject: PhoneNumberObject) => void;
 }
 
 const InputPhoneNumber = ({
   value,
   error,
+  placeholder = 'Enter phone number',
   onChange,
 }: InputPhoneNumberProps) => {
   const [country, setCountry] = useState<CountryCode>({
@@ -61,7 +63,7 @@ const InputPhoneNumber = ({
         />
       </div>
       <Input
-        placeholder="Enter Phone Number"
+        placeholder={placeholder}
         error={error}
         isRequired={true}
         onChange={e => setPhoneNumber(e.target.value)}

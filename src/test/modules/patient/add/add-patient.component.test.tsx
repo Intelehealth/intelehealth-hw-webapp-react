@@ -2,44 +2,44 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AddPatientComponent from '../../../modules/patient/add/add-patient.component';
+import AddPatientComponent from '../../../../modules/patient/add/add-patient.component';
 
 // Mock the hooks
 const mockHandleAddPatient = vi.fn();
-vi.mock('../../../modules/patient/add/add-patient.hooks', () => ({
+vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
   useAddPatient: () => ({
     handleAddPatient: mockHandleAddPatient,
   }),
 }));
 
 // Mock all the step components
-vi.mock('../../../modules/patient/add/steps/privacy-policy/patient-privacy-policy.component', () => ({
-  default: ({ onNext, onPrev }: { onNext: () => void; onPrev: () => void }) => (
+vi.mock('../../../../modules/patient/add/steps/privacy-policy/patient-privacy-policy.component', () => ({
+  default: ({ onNext, onPrev }: { onNext: (data: any) => void; onPrev: () => void }) => (
     <div data-testid="privacy-policy">
-      <button data-testid="privacy-next" onClick={onNext}>
-        Next
+      <button data-testid="privacy-accept" onClick={() => onNext({ privacyPolicyAccepted: true })}>
+        Accept
       </button>
-      <button data-testid="privacy-prev" onClick={onPrev}>
-        Previous
+      <button data-testid="privacy-decline" onClick={onPrev}>
+        Decline
       </button>
     </div>
   ),
 }));
 
-vi.mock('../../../modules/patient/add/steps/terms/terms.component', () => ({
-  default: ({ onNext, onPrev }: { onNext: () => void; onPrev: () => void }) => (
+vi.mock('../../../../modules/patient/add/steps/terms/terms.component', () => ({
+  default: ({ onNext, onPrev }: { onNext: (data: any) => void; onPrev: () => void }) => (
     <div data-testid="terms">
-      <button data-testid="terms-next" onClick={onNext}>
-        Next
+      <button data-testid="terms-accept" onClick={() => onNext({ termsAccepted: true })}>
+        Accept
       </button>
-      <button data-testid="terms-prev" onClick={onPrev}>
-        Previous
+      <button data-testid="terms-decline" onClick={onPrev}>
+        Decline
       </button>
     </div>
   ),
 }));
 
-vi.mock('../../../modules/patient/add/steps/personal-info/patient-personal-info.component', () => ({
+vi.mock('../../../../modules/patient/add/steps/personal-info/patient-personal-info.component', () => ({
   default: ({
     onNext,
     onPrev,
@@ -84,7 +84,7 @@ vi.mock('../../../modules/patient/add/steps/personal-info/patient-personal-info.
   ),
 }));
 
-vi.mock('../../../modules/patient/add/steps/address-info/patient-address-info.component', () => ({
+vi.mock('../../../../modules/patient/add/steps/address-info/patient-address-info.component', () => ({
   default: ({
     onNext,
     onPrev,
@@ -123,7 +123,7 @@ vi.mock('../../../modules/patient/add/steps/address-info/patient-address-info.co
   ),
 }));
 
-vi.mock('../../../modules/patient/add/steps/other-info/patient-other-info.component', () => ({
+vi.mock('../../../../modules/patient/add/steps/other-info/patient-other-info.component', () => ({
   default: ({
     onNext,
     onPrev,
@@ -158,7 +158,7 @@ vi.mock('../../../modules/patient/add/steps/other-info/patient-other-info.compon
   ),
 }));
 
-vi.mock('../../../modules/patient/add/steps/patient-preview/patient-preview.component', () => ({
+vi.mock('../../../../modules/patient/add/steps/patient-preview/patient-preview.component', () => ({
   default: ({ data }: { data: any }) => (
     <div data-testid="preview">
       <div data-testid="preview-data">{JSON.stringify(data)}</div>
@@ -167,28 +167,28 @@ vi.mock('../../../modules/patient/add/steps/patient-preview/patient-preview.comp
 }));
 
 // Mock asset imports
-vi.mock('../../../assets/icons/icon-location-green-rounded-bordered.svg', () => ({
+vi.mock('../../../../assets/icons/icon-location-green-rounded-bordered.svg', () => ({
   default: 'icon-location-green-rounded-bordered.svg',
 }));
-vi.mock('../../../assets/icons/icon-location-green-rounded-filled.svg', () => ({
+vi.mock('../../../../assets/icons/icon-location-green-rounded-filled.svg', () => ({
   default: 'icon-location-green-rounded-filled.svg',
 }));
-vi.mock('../../../assets/icons/icon-location-green-rounded.svg', () => ({
+vi.mock('../../../../assets/icons/icon-location-green-rounded.svg', () => ({
   default: 'icon-location-green-rounded.svg',
 }));
-vi.mock('../../../assets/icons/icon-three-dot-green-rounded-bordered.svg', () => ({
+vi.mock('../../../../assets/icons/icon-three-dot-green-rounded-bordered.svg', () => ({
   default: 'icon-three-dot-green-rounded-bordered.svg',
 }));
-vi.mock('../../../assets/icons/icon-three-dot-green-rounded.svg', () => ({
+vi.mock('../../../../assets/icons/icon-three-dot-green-rounded.svg', () => ({
   default: 'icon-three-dot-green-rounded.svg',
 }));
-vi.mock('../../../assets/icons/icon-user-green-rounded-bordered.svg', () => ({
+vi.mock('../../../../assets/icons/icon-user-green-rounded-bordered.svg', () => ({
   default: 'icon-user-green-rounded-bordered.svg',
 }));
-vi.mock('../../../assets/icons/icon-user-green-rounded-filled.svg', () => ({
+vi.mock('../../../../assets/icons/icon-user-green-rounded-filled.svg', () => ({
   default: 'icon-user-green-rounded-filled.svg',
 }));
-vi.mock('../../../assets/icons/icon-user-plus-green-rounded.svg', () => ({
+vi.mock('../../../../assets/icons/icon-user-plus-green-rounded.svg', () => ({
   default: 'icon-user-plus-green-rounded.svg',
 }));
 
@@ -261,8 +261,8 @@ describe('AddPatientComponent', () => {
     it('should navigate from Privacy Policy to Terms', async () => {
       renderWithRouter(<AddPatientComponent />);
 
-      const nextButton = screen.getByTestId('privacy-next');
-      fireEvent.click(nextButton);
+      const acceptButton = screen.getByTestId('privacy-accept');
+      fireEvent.click(acceptButton);
 
       await waitFor(() => {
         expect(screen.getByTestId('terms')).toBeInTheDocument();
@@ -273,11 +273,11 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms step
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
       // Go to Personal Info step
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => {
         expect(screen.getByTestId('personal-info')).toBeInTheDocument();
       });
@@ -287,11 +287,11 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
       // Go back to Privacy Policy
-      fireEvent.click(screen.getByTestId('terms-prev'));
+      fireEvent.click(screen.getByTestId('terms-decline'));
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       });
@@ -305,8 +305,8 @@ describe('AddPatientComponent', () => {
       });
 
       // Try to go back from step 0
-      const prevButton = screen.getByTestId('privacy-prev');
-      fireEvent.click(prevButton);
+      const declineButton = screen.getByTestId('privacy-decline');
+      fireEvent.click(declineButton);
 
       // Should stay at Privacy Policy (step 0)
       expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -316,11 +316,11 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Privacy Policy -> Terms
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
       // Terms -> Personal Info
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
 
       // Personal Info -> Address Info
@@ -338,9 +338,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
 
       // Step indicator should be visible
@@ -353,9 +353,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -370,9 +370,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -395,7 +395,7 @@ describe('AddPatientComponent', () => {
     it('should not show step indicator on Terms step (step 1)', async () => {
       renderWithRouter(<AddPatientComponent />);
 
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
       const personalIndicator = screen.queryByAltText('Personal');
@@ -407,9 +407,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -429,9 +429,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
 
       const personalIcon = screen.getByAltText('Personal');
@@ -442,9 +442,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info step (Personal should be filled)
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -457,9 +457,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
 
       const addressIcon = screen.getByAltText('Address');
@@ -472,9 +472,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and fill data
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
 
       // Move to Address Info
@@ -492,9 +492,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -515,9 +515,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and submit
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -538,9 +538,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info (no data submitted yet)
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => {
         expect(screen.getByTestId('personal-info')).toBeInTheDocument();
       });
@@ -558,9 +558,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -580,9 +580,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -600,9 +600,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -624,9 +624,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -658,9 +658,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps to Preview
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
@@ -684,7 +684,7 @@ describe('AddPatientComponent', () => {
     it('should handle nextStep being called multiple times', async () => {
       renderWithRouter(<AddPatientComponent />);
 
-      const nextButton = screen.getByTestId('privacy-next');
+      const nextButton = screen.getByTestId('privacy-accept');
       fireEvent.click(nextButton);
       fireEvent.click(nextButton);
 
@@ -705,9 +705,9 @@ describe('AddPatientComponent', () => {
       const { container } = renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info to see step indicators
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => {
         expect(screen.getByTestId('personal-info')).toBeInTheDocument();
       });
@@ -720,9 +720,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => {
         expect(screen.getByTestId('personal-info')).toBeInTheDocument();
       });
@@ -755,7 +755,7 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to next step to trigger useEffect
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
 
       await waitFor(() => {
         expect(screen.getByTestId('terms')).toBeInTheDocument();
@@ -779,7 +779,7 @@ describe('AddPatientComponent', () => {
       expect(screen.queryByTestId('personal-info')).not.toBeInTheDocument();
 
       // Navigate to Terms
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => {
         expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
         expect(screen.getByTestId('terms')).toBeInTheDocument();
@@ -792,9 +792,9 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info (step 4)
-      fireEvent.click(screen.getByTestId('privacy-next'));
+      fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-next'));
+      fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('personal-next'));
       await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
