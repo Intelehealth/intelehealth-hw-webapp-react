@@ -7,6 +7,7 @@ import CountrySelect from '../../../../../components/common/country-select.compo
 import DistrictSelector from '../../../../../components/common/district-selector.component';
 import StateSelector from '../../../../../components/common/state-selector.component';
 import { fetchPostalCodeData } from '../../../../../services/postal-code.service';
+import { showToast } from '../../../../../services/toast';
 import { patientAddressInfoSchema } from './patient-address-info.validation';
 
 type PatientAddressInfoFormValues = InferType<typeof patientAddressInfoSchema>;
@@ -64,6 +65,13 @@ export default function PatientAddressInfo({
           if (postalData.city) {
             setValue('city', postalData.city, { shouldValidate: true });
           }
+        } else {
+          // Show error toast when no data found for postal code
+          showToast(
+            'Invalid Postal Code',
+            'No data found for the entered postal code',
+            'error'
+          );
         }
       } catch (error) {
         // Silently handle errors - don't show error to user if API fails
