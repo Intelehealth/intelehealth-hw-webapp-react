@@ -470,13 +470,13 @@ describe('Input Component', () => {
 
   describe('ForwardRef', () => {
     it('should forward ref to input element', () => {
-      const ref = { current: null } as React.RefObject<HTMLInputElement>;
+      const ref = React.createRef<HTMLInputElement>();
       render(<Input ref={ref} />);
       expect(ref.current).toBeInstanceOf(HTMLInputElement);
     });
 
     it('should allow access to input methods via ref', () => {
-      const ref = { current: null } as React.RefObject<HTMLInputElement>;
+      const ref = React.createRef<HTMLInputElement>();
       render(<Input ref={ref} />);
       expect(ref.current?.focus).toBeDefined();
       expect(ref.current?.blur).toBeDefined();
