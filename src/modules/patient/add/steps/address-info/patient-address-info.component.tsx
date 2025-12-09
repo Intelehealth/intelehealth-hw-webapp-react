@@ -1,14 +1,22 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useEffect } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
+import { useDispatch, useSelector } from 'react-redux';
 import type { InferType } from 'yup';
-import { Button, Input } from '../../../../../components/common';
+import { Button, Input, Loader } from '../../../../../components/common';
 import CountrySelect from '../../../../../components/common/country-select.component';
 import DistrictSelector from '../../../../../components/common/district-selector.component';
 import StateSelector from '../../../../../components/common/state-selector.component';
+import {
+  startLoading,
+  stopLoading,
+} from '../../../../../reducers/loader.reducer';
 import { fetchPostalCodeData } from '../../../../../services/postal-code.service';
 import { showToast } from '../../../../../services/toast';
+import type { RootState } from '../../../../../store/store';
 import { patientAddressInfoSchema } from './patient-address-info.validation';
+
+const POSTAL_CODE_LOADER_ID = 'postal-code-loader';
 
 type PatientAddressInfoFormValues = InferType<typeof patientAddressInfoSchema>;
 
@@ -23,6 +31,12 @@ export default function PatientAddressInfo({
   onNext,
   onPrev,
 }: PatientAddressInfoProps) {
+  const dispatch = useDispatch();
+  const isPostalCodeLoading = useSelector(
+    (state: RootState) =>
+      (state.loader.sections[POSTAL_CODE_LOADER_ID] ?? 0) > 0
+  );
+
   const {
     register,
     handleSubmit,
@@ -43,10 +57,15 @@ export default function PatientAddressInfo({
   useEffect(() => {
     const loadPostalCodeData = async () => {
       // Only proceed if country is India and postal code is entered
-      if (country?.toLowerCase() !== 'india' || !postalCode) {
+      if (
+        country?.toLowerCase() !== 'india' ||
+        !postalCode ||
+        postalCode.length < 6
+      ) {
         return;
       }
 
+      dispatch(startLoading(POSTAL_CODE_LOADER_ID));
       try {
         const postalData = await fetchPostalCodeData(postalCode);
 
@@ -76,6 +95,8 @@ export default function PatientAddressInfo({
       } catch (error) {
         // Silently handle errors - don't show error to user if API fails
         console.error('Error fetching postal code data:', error);
+      } finally {
+        dispatch(stopLoading(POSTAL_CODE_LOADER_ID));
       }
     };
 
@@ -85,7 +106,7 @@ export default function PatientAddressInfo({
     }, 500); // Wait 500ms after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [country, postalCode, setValue]);
+  }, [country, postalCode, setValue, dispatch]);
 
   const handleNext = (data: PatientAddressInfoFormValues) => {
     onNext({ addressInfo: data });
@@ -118,6 +139,12 @@ export default function PatientAddressInfo({
                 label="Postal Code"
                 error={errors.postalCode?.message}
                 isRequired={true}
+                disabled={isPostalCodeLoading}
+                rightIcon={
+                  isPostalCodeLoading ? (
+                    <Loader mode="inline" id={POSTAL_CODE_LOADER_ID} />
+                  ) : undefined
+                }
               />
             </div>
             <div>

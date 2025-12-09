@@ -1,7 +1,28 @@
+import { configureStore } from '@reduxjs/toolkit';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientAddressInfo from '../../../../../../modules/patient/add/steps/address-info/patient-address-info.component';
+import { loaderReducer } from '../../../../../../reducers/loader.reducer';
+
+// Create test store
+const createTestStore = () => {
+  return configureStore({
+    reducer: {
+      loader: loaderReducer,
+    },
+  });
+};
+
+// Helper function to render with Redux Provider
+const renderWithProvider = (ui: React.ReactElement) => {
+  const store = createTestStore();
+  return {
+    ...render(<Provider store={store}>{ui}</Provider>),
+    store,
+  };
+};
 
 // Mock the common components
 vi.mock('../../../../../../components/common', () => ({
@@ -10,7 +31,7 @@ vi.mock('../../../../../../components/common', () => ({
       {children}
     </button>
   ),
-  Input: ({ label, placeholder, error, isRequired, ...props }: any) => (
+  Input: ({ label, placeholder, error, isRequired, rightIcon, ...props }: any) => (
     <div>
       {label && (
         <label>
@@ -18,6 +39,7 @@ vi.mock('../../../../../../components/common', () => ({
         </label>
       )}
       <input placeholder={placeholder} {...props} />
+      {rightIcon}
       {error && <span className="error">{error}</span>}
     </div>
   ),
@@ -43,6 +65,12 @@ vi.mock('../../../../../../components/common', () => ({
       {error && <span className="error">{error}</span>}
     </div>
   ),
+  Loader: () => <span data-testid="loader">Loading...</span>,
+}));
+
+// Mock the toast service
+vi.mock('../../../../../../services/toast', () => ({
+  showToast: vi.fn(),
 }));
 
 // Mock country-state-city
@@ -80,6 +108,7 @@ vi.mock('country-state-city', () => ({
 }));
 
 // Mock the selector components
+const mockCountrySelectorOnChange = vi.fn();
 vi.mock('../../../../../../components/common/country-select.component', () => ({
   default: ({ label, options, onChange, value, error, isRequired, placeholder }: any) => {
     // Provide default options if not provided
@@ -88,6 +117,12 @@ vi.mock('../../../../../../components/common/country-select.component', () => ({
       { value: 'United States', label: 'United States' },
       { value: 'United Kingdom', label: 'United Kingdom' },
     ];
+    
+    // Store the onChange handler for testing
+    if (onChange) {
+      mockCountrySelectorOnChange.mockImplementation(onChange);
+    }
+    
     return (
       <div>
         {label && (
@@ -97,7 +132,10 @@ vi.mock('../../../../../../components/common/country-select.component', () => ({
         )}
         <select
           value={Array.isArray(value) ? value[0] : value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => {
+            const handler = onChange || mockCountrySelectorOnChange;
+            handler?.(e.target.value);
+          }}
           data-testid={`dropdown-${label}`}
         >
           <option value="">{placeholder}</option>
@@ -234,7 +272,7 @@ describe('PatientAddressInfo', () => {
   describe('Component Rendering', () => {
     it('should render without crashing', () => {
       expect(() => {
-        render(
+        renderWithProvider(
           <PatientAddressInfo
             defaultValues={defaultValues}
             onNext={mockOnNext}
@@ -255,7 +293,7 @@ describe('PatientAddressInfo', () => {
         correspondingAddress2: 'Apt 4B',
       };
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={valuesWithData}
           onNext={mockOnNext}
@@ -268,7 +306,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render form element', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -283,7 +321,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Form Fields Rendering', () => {
     it('should render postalCode field with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -298,7 +336,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render country dropdown with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -313,7 +351,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render state dropdown with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -328,7 +366,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render district dropdown with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -343,7 +381,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render city input field with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -358,7 +396,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render correspondingAddress1 field with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -373,7 +411,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render correspondingAddress2 field with required indicator', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -390,7 +428,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Dropdown Options', () => {
     it('should render country options from countries data', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -407,7 +445,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render state options when country is selected', async () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -424,7 +462,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render district options when country and state are selected', async () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
           onNext={mockOnNext}
@@ -441,7 +479,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render district dropdown with options', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -459,7 +497,7 @@ describe('PatientAddressInfo', () => {
   describe('Form Validation', () => {
     it('should display error for empty postalCode on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -477,7 +515,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty country on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -495,7 +533,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty state on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -513,7 +551,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty district on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -531,7 +569,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty city on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -549,7 +587,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty correspondingAddress1 on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -567,7 +605,7 @@ describe('PatientAddressInfo', () => {
 
     it('should display error for empty correspondingAddress2 on submit', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -597,7 +635,7 @@ describe('PatientAddressInfo', () => {
         correspondingAddress2: 'Apt 4B',
       };
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={validValues}
           onNext={mockOnNext}
@@ -621,7 +659,7 @@ describe('PatientAddressInfo', () => {
 
     it('should not call onNext on invalid form submission', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -640,7 +678,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Back Button', () => {
     it('should render Back button', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -655,7 +693,7 @@ describe('PatientAddressInfo', () => {
 
     it('should call onPrev when Back button is clicked', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -675,7 +713,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Next Button', () => {
     it('should render Next button', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -692,7 +730,7 @@ describe('PatientAddressInfo', () => {
   describe('Field Interactions', () => {
     it('should handle postalCode input change', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -710,7 +748,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle country selection', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -729,7 +767,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle state selection', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -753,7 +791,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle district selection', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
           onNext={mockOnNext}
@@ -777,7 +815,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle city selection', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -796,7 +834,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle correspondingAddress1 input change', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -814,7 +852,7 @@ describe('PatientAddressInfo', () => {
 
     it('should handle correspondingAddress2 input change', async () => {
       const user = userEvent.setup({ delay: null });
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -831,7 +869,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should handle state selection with array value', async () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -855,7 +893,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should handle district selection with array value', async () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India', state: 'Karnataka' }}
           onNext={mockOnNext}
@@ -881,7 +919,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Layout and Styling', () => {
     it('should have correct form layout classes', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -894,7 +932,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should have correct button layout classes', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -907,7 +945,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render Back button with secondary variant', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -920,7 +958,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should render Next button with primary variant', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -935,7 +973,7 @@ describe('PatientAddressInfo', () => {
 
   describe('Accessibility', () => {
     it('should have all required field indicators', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -948,7 +986,7 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should have accessible buttons', () => {
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -971,7 +1009,7 @@ describe('PatientAddressInfo', () => {
   describe('Component Props', () => {
     it('should accept and use onNext prop', () => {
       const customOnNext = vi.fn();
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={customOnNext}
@@ -984,7 +1022,7 @@ describe('PatientAddressInfo', () => {
 
     it('should accept and use onPrev prop', () => {
       const customOnPrev = vi.fn();
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={defaultValues}
           onNext={mockOnNext}
@@ -999,7 +1037,7 @@ describe('PatientAddressInfo', () => {
   describe('Postal Code Auto-Population', () => {
     it('should not fetch postal code data when country is not India', async () => {
       vi.useFakeTimers();
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'United States' }}
           onNext={mockOnNext}
@@ -1018,7 +1056,7 @@ describe('PatientAddressInfo', () => {
 
     it('should not fetch postal code data when postal code is empty', async () => {
       vi.useFakeTimers();
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1047,7 +1085,7 @@ describe('PatientAddressInfo', () => {
       };
       mockFetchPostalCodeData.mockResolvedValue(postalData);
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1078,7 +1116,7 @@ describe('PatientAddressInfo', () => {
       };
       mockFetchPostalCodeData.mockResolvedValue(postalData);
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1118,7 +1156,7 @@ describe('PatientAddressInfo', () => {
         city: 'Bangalore',
       });
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1167,7 +1205,7 @@ describe('PatientAddressInfo', () => {
       const error = new Error('Network error');
       mockFetchPostalCodeData.mockRejectedValue(error);
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1201,7 +1239,7 @@ describe('PatientAddressInfo', () => {
       vi.useFakeTimers();
       mockFetchPostalCodeData.mockResolvedValue(null);
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1243,7 +1281,7 @@ describe('PatientAddressInfo', () => {
         city: 'Bangalore',
       });
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'INDIA' }}
           onNext={mockOnNext}
@@ -1275,7 +1313,7 @@ describe('PatientAddressInfo', () => {
       };
       mockFetchPostalCodeData.mockResolvedValue(partialPostalData);
 
-      render(
+      renderWithProvider(
         <PatientAddressInfo
           defaultValues={{ ...defaultValues, country: 'India' }}
           onNext={mockOnNext}
@@ -1302,6 +1340,208 @@ describe('PatientAddressInfo', () => {
         expect(stateDropdown).toHaveValue('Karnataka');
         expect(cityInput).toHaveValue('Bangalore');
       }, { timeout: 3000 });
+    });
+
+    it('should not fetch postal code data when postal code length is less than 6', async () => {
+      vi.useFakeTimers();
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '12345' } }); // 5 digits - less than 6
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+
+    it('should not fetch postal code data when country is undefined', async () => {
+      vi.useFakeTimers();
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: '' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+
+    it('should handle partial postal code data without state', async () => {
+      vi.useFakeTimers();
+      const partialPostalData = {
+        state: '',
+        district: 'Bangalore',
+        city: 'Bangalore',
+      };
+      mockFetchPostalCodeData.mockResolvedValue(partialPostalData);
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      // Since state is empty, only city should be populated (district depends on mock which requires state)
+      await waitFor(() => {
+        const cityInput = screen.getByPlaceholderText('Enter Village/Town/City');
+        expect(cityInput).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle partial postal code data without city', async () => {
+      vi.useFakeTimers();
+      const partialPostalData = {
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: '',
+      };
+      mockFetchPostalCodeData.mockResolvedValue(partialPostalData);
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={{ ...defaultValues, country: 'India' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      await act(async () => {
+        fireEvent.change(postalCodeInput, { target: { value: '560001' } });
+        vi.advanceTimersByTime(500);
+        await vi.runAllTimersAsync();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockFetchPostalCodeData).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        const stateDropdown = screen.getByTestId('dropdown-State');
+        const districtDropdown = screen.getByTestId('dropdown-District');
+        expect(stateDropdown).toHaveValue('Karnataka');
+        expect(districtDropdown).toHaveValue('Bangalore');
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Nullish Coalescing Edge Cases', () => {
+    it('should handle undefined country in district selector', () => {
+      const defaultValuesWithUndefined = {
+        postalCode: '',
+        country: undefined as unknown as string,
+        state: undefined as unknown as string,
+        district: undefined as unknown as string,
+        city: '',
+        correspondingAddress1: '',
+        correspondingAddress2: '',
+      };
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={defaultValuesWithUndefined}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      // Component should render without crashing
+      expect(screen.getByTestId('dropdown-Country')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-State')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-District')).toBeInTheDocument();
+    });
+
+    it('should handle country change from undefined state', async () => {
+      const user = userEvent.setup({ delay: null });
+      const defaultValuesWithUndefined = {
+        postalCode: '',
+        country: undefined as unknown as string,
+        state: '',
+        district: '',
+        city: '',
+        correspondingAddress1: '',
+        correspondingAddress2: '',
+      };
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={defaultValuesWithUndefined}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const countryDropdown = screen.getByTestId('dropdown-Country');
+      await user.selectOptions(countryDropdown, 'India');
+
+      await waitFor(() => {
+        expect(countryDropdown).toHaveValue('India');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle country selection with array value', async () => {
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dropdown-Country')).toBeInTheDocument();
+      });
+
+      // Directly call the onChange handler with an array value to test array handling
+      await act(async () => {
+        mockCountrySelectorOnChange(['India']);
+      });
+
+      await waitFor(() => {
+        const countryDropdown = screen.getByTestId('dropdown-Country');
+        expect(countryDropdown).toHaveValue('India');
+      });
     });
   });
 });
