@@ -35,14 +35,121 @@ describe('patientAddressInfoSchema', () => {
       }
     });
 
-    it('should validate with different postalCode formats', async () => {
-      const data1 = { ...validData, postalCode: '123456' };
-      const data2 = { ...validData, postalCode: '12345' };
-      const data3 = { ...validData, postalCode: 'ABC123' };
+    it('should validate 6-digit postal code for India', async () => {
+      const data = { ...validData, country: 'India', postalCode: '123456' };
+      expect(await patientAddressInfoSchema.isValid(data)).toBe(true);
+    });
+
+    it('should fail when postal code is not 6 digits for India', async () => {
+      const data1 = { ...validData, country: 'India', postalCode: '12345' };
+      const data2 = { ...validData, country: 'India', postalCode: '1234567' };
+      const data3 = { ...validData, country: 'India', postalCode: 'ABC123' };
+      const data4 = { ...validData, country: 'India', postalCode: '12345A' };
+
+      expect(await patientAddressInfoSchema.isValid(data1)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data2)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data3)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data4)).toBe(false);
+    });
+
+    it('should show error message for invalid India postal code', async () => {
+      const data = { ...validData, country: 'India', postalCode: '12345' };
+      try {
+        await patientAddressInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Postal Code must be exactly 6 digits for India'
+        );
+      }
+    });
+
+    it('should validate 3-10 alphanumeric postal code for other countries', async () => {
+      const data1 = { ...validData, country: 'USA', postalCode: 'ABC123' };
+      const data2 = { ...validData, country: 'UK', postalCode: 'SW1A1AA' };
+      const data3 = { ...validData, country: 'Canada', postalCode: 'K1A0B1' };
+      const data4 = { ...validData, country: 'Australia', postalCode: '2000' };
+      const data5 = { ...validData, country: 'Germany', postalCode: '10115' };
 
       expect(await patientAddressInfoSchema.isValid(data1)).toBe(true);
       expect(await patientAddressInfoSchema.isValid(data2)).toBe(true);
       expect(await patientAddressInfoSchema.isValid(data3)).toBe(true);
+      expect(await patientAddressInfoSchema.isValid(data4)).toBe(true);
+      expect(await patientAddressInfoSchema.isValid(data5)).toBe(true);
+    });
+
+    it('should fail when postal code is less than 3 characters for non-India countries', async () => {
+      const data1 = { ...validData, country: 'USA', postalCode: 'AB' };
+      const data2 = { ...validData, country: 'UK', postalCode: '12' };
+
+      expect(await patientAddressInfoSchema.isValid(data1)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data2)).toBe(false);
+    });
+
+    it('should fail when postal code is more than 10 characters for non-India countries', async () => {
+      const data = {
+        ...validData,
+        country: 'USA',
+        postalCode: '12345678901',
+      };
+
+      expect(await patientAddressInfoSchema.isValid(data)).toBe(false);
+    });
+
+    it('should fail when postal code contains special characters for non-India countries', async () => {
+      const data1 = { ...validData, country: 'USA', postalCode: 'ABC-123' };
+      const data2 = { ...validData, country: 'UK', postalCode: 'SW1 1AA' };
+      const data3 = { ...validData, country: 'Canada', postalCode: 'K1A 0B1' };
+
+      expect(await patientAddressInfoSchema.isValid(data1)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data2)).toBe(false);
+      expect(await patientAddressInfoSchema.isValid(data3)).toBe(false);
+    });
+
+    it('should show error message for invalid non-India postal code', async () => {
+      const data = { ...validData, country: 'USA', postalCode: 'AB' };
+      try {
+        await patientAddressInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Postal Code must be 3-10 alphanumeric characters'
+        );
+      }
+    });
+
+    it('should validate exactly 3 character postal code for non-India countries', async () => {
+      const data = { ...validData, country: 'USA', postalCode: 'ABC' };
+      expect(await patientAddressInfoSchema.isValid(data)).toBe(true);
+    });
+
+    it('should validate exactly 10 character postal code for non-India countries', async () => {
+      const data = { ...validData, country: 'USA', postalCode: 'ABCDEFGHIJ' };
+      expect(await patientAddressInfoSchema.isValid(data)).toBe(true);
+    });
+
+    it('should handle postal code validation based on country change', async () => {
+      // India postal code valid for India
+      const indiaData = {
+        ...validData,
+        country: 'India',
+        postalCode: '123456',
+      };
+      expect(await patientAddressInfoSchema.isValid(indiaData)).toBe(true);
+
+      // Same postal code invalid for USA (only 6 digits, no alpha)
+      const usaData = { ...validData, country: 'USA', postalCode: '123456' };
+      expect(await patientAddressInfoSchema.isValid(usaData)).toBe(true); // Actually valid as alphanumeric
+
+      // Alphanumeric code valid for USA
+      const usaData2 = { ...validData, country: 'USA', postalCode: 'ABC123' };
+      expect(await patientAddressInfoSchema.isValid(usaData2)).toBe(true);
+
+      // Same code invalid for India
+      const indiaData2 = {
+        ...validData,
+        country: 'India',
+        postalCode: 'ABC123',
+      };
+      expect(await patientAddressInfoSchema.isValid(indiaData2)).toBe(false);
     });
   });
 
@@ -326,9 +433,9 @@ describe('patientAddressInfoSchema', () => {
   describe('edge cases', () => {
     it('should handle whitespace-only values as invalid', async () => {
       const data = { ...validData, postalCode: '   ' };
-      // Yup string validation doesn't trim by default, so whitespace passes
+      // With custom validation, whitespace-only postal codes fail
       const result = await patientAddressInfoSchema.isValid(data);
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it('should handle very long address strings', async () => {

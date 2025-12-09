@@ -13,6 +13,7 @@ export interface InputProps
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   isRequired?: boolean;
+  allowedPattern?: RegExp;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -29,6 +30,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       className,
       disabled,
       type = 'text', // Default to 'text' if type is not specified
+      allowedPattern,
       ...props
     },
     ref
@@ -66,20 +68,31 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
     // Handle keydown for number-only input
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (type === 'tel') {
-        const charCode = e.key;
+      const key = e.key;
 
-        // Allow backspace, delete, arrows, and numbers 0-9
-        if (
-          !(
-            (charCode >= '0' && charCode <= '9') || // Numbers 0-9
-            charCode === 'Backspace' || // Backspace
-            charCode === 'Delete' || // Delete
-            charCode === 'ArrowLeft' || // Left arrow
-            charCode === 'ArrowRight' // Right arrow
-          )
-        ) {
-          e.preventDefault(); // Prevent non-numeric input
+      // Allow system keys
+      const allowedSpecialKeys = [
+        'Backspace',
+        'Delete',
+        'ArrowLeft',
+        'ArrowRight',
+        'Tab',
+        'Home',
+        'End',
+      ];
+      if (allowedSpecialKeys.includes(key)) return;
+
+      // If a regex pattern is provided, test the key
+      if (allowedPattern && !allowedPattern.test(key)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Existing "tel" type numeric restriction
+      if (type === 'tel') {
+        if (!(key >= '0' && key <= '9')) {
+          e.preventDefault();
+          return;
         }
       }
     };
