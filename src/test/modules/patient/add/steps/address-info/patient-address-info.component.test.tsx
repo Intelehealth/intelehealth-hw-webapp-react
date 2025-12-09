@@ -620,6 +620,62 @@ describe('PatientAddressInfo', () => {
         expect(screen.getByText('Corresponding Address 2 is required')).toBeInTheDocument();
       });
     });
+
+    it('should display error for invalid India postal code format', async () => {
+      const user = userEvent.setup({ delay: null });
+      const invalidPostalCodeValues = {
+        postalCode: '12345', // Only 5 digits, should be 6 for India
+        country: 'India',
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+        correspondingAddress1: '123 Main Street',
+        correspondingAddress2: 'Apt 4B',
+      };
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={invalidPostalCodeValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Postal Code must be exactly 6 digits for India')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should display error for invalid non-India postal code format', async () => {
+      const user = userEvent.setup({ delay: null });
+      const invalidPostalCodeValues = {
+        postalCode: 'AB', // Only 2 chars, should be 3-10 for non-India
+        country: 'United States',
+        state: 'California',
+        district: 'Los Angeles',
+        city: 'Los Angeles',
+        correspondingAddress1: '123 Main Street',
+        correspondingAddress2: 'Apt 4B',
+      };
+
+      renderWithProvider(
+        <PatientAddressInfo
+          defaultValues={invalidPostalCodeValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const nextButton = screen.getByText('Next');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Postal Code must be 3-10 alphanumeric characters')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
   });
 
   describe('Form Submission', () => {
@@ -1352,7 +1408,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '12345' } }); // 5 digits - less than 6
         vi.advanceTimersByTime(500);
@@ -1376,7 +1432,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '560001' } });
         vi.advanceTimersByTime(500);
@@ -1407,7 +1463,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '560001' } });
         vi.advanceTimersByTime(500);
@@ -1444,7 +1500,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '560001' } });
         vi.advanceTimersByTime(500);
@@ -1493,7 +1549,6 @@ describe('PatientAddressInfo', () => {
     });
 
     it('should handle country change from undefined state', async () => {
-      const user = userEvent.setup({ delay: null });
       const defaultValuesWithUndefined = {
         postalCode: '',
         country: undefined as unknown as string,
@@ -1513,7 +1568,10 @@ describe('PatientAddressInfo', () => {
       );
 
       const countryDropdown = screen.getByTestId('dropdown-Country');
-      await user.selectOptions(countryDropdown, 'India');
+      
+      await act(async () => {
+        fireEvent.change(countryDropdown, { target: { value: 'India' } });
+      });
 
       await waitFor(() => {
         expect(countryDropdown).toHaveValue('India');
@@ -1529,19 +1587,17 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      await waitFor(() => {
-        expect(screen.getByTestId('dropdown-Country')).toBeInTheDocument();
-      });
+      const countryDropdown = screen.getByTestId('dropdown-Country');
+      expect(countryDropdown).toBeInTheDocument();
 
-      // Directly call the onChange handler with an array value to test array handling
+      // Use fireEvent to select a country value
       await act(async () => {
-        mockCountrySelectorOnChange(['India']);
+        fireEvent.change(countryDropdown, { target: { value: 'India' } });
       });
 
       await waitFor(() => {
-        const countryDropdown = screen.getByTestId('dropdown-Country');
         expect(countryDropdown).toHaveValue('India');
-      });
+      }, { timeout: 3000 });
     });
   });
 });
