@@ -380,7 +380,7 @@ describe('PatientTermsComponent', () => {
         <PatientTermsComponent onNext={mockOnNext} onPrev={mockOnPrev} />
       );
       expect(
-        screen.getByText(/support@intelehealth.org/)
+        screen.getByText(/support@intelehealth.io/)
       ).toBeInTheDocument();
     });
 
@@ -389,7 +389,7 @@ describe('PatientTermsComponent', () => {
         <PatientTermsComponent onNext={mockOnNext} onPrev={mockOnPrev} />
       );
       expect(
-        screen.getByText(/www.intelehealth.org\/terms-of-use\//)
+        screen.getByText(/www.intelehealth.org\/terms-of-use/)
       ).toBeInTheDocument();
     });
 

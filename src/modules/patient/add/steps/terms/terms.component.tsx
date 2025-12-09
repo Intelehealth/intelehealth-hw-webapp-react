@@ -47,9 +47,25 @@ export default function PatientTermsComponent({
             </li>
             <li className="mb-5">
               The details of what and how my personal data would be processed by
-              Intelehealth has been provided for in its terms of use
-              www.intelehealth.org/terms-of-use/ and privacy policy –
-              www.intelehealth.org/privacy-policy.
+              Intelehealth has been provided for in its terms of use{' '}
+              <a
+                className="text-indigo-600 underline"
+                href="https://www.intelehealth.org/terms-of-use"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                www.intelehealth.org/terms-of-use
+              </a>{' '}
+              and privacy policy{' '}
+              <a
+                className="text-indigo-600 underline"
+                href="https://www.intelehealth.org/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                www.intelehealth.org/privacy-policy
+              </a>
+              .
             </li>
             <li className="mb-5">
               Intelehealth, RMP, health worker may make notes during the
@@ -90,8 +106,14 @@ export default function PatientTermsComponent({
             </li>
             <li className="mb-5">
               I can reach out to Intelehealth if I have any queries regarding
-              the processing of my personal data at support@intelehealth.org and
-              Intelehealth will respond in a reasonable time.
+              the processing of my personal data at{' '}
+              <a
+                className="text-indigo-600 underline"
+                href="mailto:support@intelehealth.io"
+              >
+                support@intelehealth.io
+              </a>{' '}
+              and Intelehealth will respond in a reasonable time.
             </li>
           </ul>
         </section>
