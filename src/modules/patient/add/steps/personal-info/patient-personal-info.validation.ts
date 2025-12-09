@@ -8,7 +8,14 @@ export const patientPersonalInfoSchema = yup
     lastName: yup.string().required('Last name is required'),
     gender: yup.string().required('Gender is required'),
     dateOfBirth: yup.string().notRequired(),
-    age: yup.string().notRequired().optional().max(3, 'Age seems invalid'),
+    age: yup
+      .string()
+      .notRequired()
+      .optional()
+      .test('valid-age', 'Age must be between 0 and 120', value => {
+        if (!value) return true; // allow empty
+        return /^(?:[0-9]|[1-9][0-9]|1[01][0-9]|120)$/.test(value);
+      }),
     phoneNumberCountryCode: yup.string().required('Country code is required'),
     phoneNumber: yup.string().required('Phone number is required'),
     contactType: yup.string().required('Contact type is required'),

@@ -301,7 +301,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       expect(postalCodeInput).toHaveValue('123456');
     });
 
@@ -330,7 +330,7 @@ describe('PatientAddressInfo', () => {
       );
 
       expect(screen.getByText('Postal Code')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Enter Postal Code Name')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter Postal Code')).toBeInTheDocument();
       const postalCodeLabel = screen.getByText('Postal Code');
       expect(postalCodeLabel.parentElement).toContainHTML('*');
     });
@@ -738,7 +738,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await user.type(postalCodeInput, '123456');
 
       await waitFor(() => {
@@ -1045,7 +1045,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       fireEvent.change(postalCodeInput, { target: { value: '123456' } });
       vi.advanceTimersByTime(500);
       await vi.runAllTimersAsync();
@@ -1093,7 +1093,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '452001' } });
         vi.advanceTimersByTime(500);
@@ -1124,7 +1124,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '560001' } });
         vi.advanceTimersByTime(500);
@@ -1164,7 +1164,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       
       // Type multiple characters quickly
       await act(async () => {
@@ -1213,7 +1213,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '452001' } });
         vi.advanceTimersByTime(500);
@@ -1247,7 +1247,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       fireEvent.change(postalCodeInput, { target: { value: '999999' } });
       
       await act(async () => {
@@ -1289,7 +1289,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       fireEvent.change(postalCodeInput, { target: { value: '560001' } });
       
       await act(async () => {
@@ -1321,7 +1321,7 @@ describe('PatientAddressInfo', () => {
         />
       );
 
-      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code Name');
+      const postalCodeInput = screen.getByPlaceholderText('Enter Postal Code');
       await act(async () => {
         fireEvent.change(postalCodeInput, { target: { value: '560001' } });
         vi.advanceTimersByTime(500);

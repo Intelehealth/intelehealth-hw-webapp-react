@@ -95,7 +95,7 @@ describe('useAddPatient hook', () => {
     it('should successfully create a patient without profile photo', async () => {
       const generatedIdentifier = 'PAT-12345';
       const patientResponse = {
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       };
 
       mockGenerateIdentifier.mockResolvedValue({
@@ -124,7 +124,7 @@ describe('useAddPatient hook', () => {
     it('should successfully create a patient with profile photo', async () => {
       const generatedIdentifier = 'PAT-12345';
       const patientResponse = {
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       };
       const photoData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
@@ -169,7 +169,7 @@ describe('useAddPatient hook', () => {
         identifiers: [generatedIdentifier],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());
@@ -203,7 +203,7 @@ describe('useAddPatient hook', () => {
         identifiers: [generatedIdentifier],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());
@@ -241,7 +241,7 @@ describe('useAddPatient hook', () => {
         identifiers: [generatedIdentifier],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());
@@ -282,7 +282,7 @@ describe('useAddPatient hook', () => {
         identifiers: [generatedIdentifier],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());
@@ -339,7 +339,7 @@ describe('useAddPatient hook', () => {
 
       mockGenerateIdentifier.mockResolvedValue({ identifiers: ['PAT-123'] });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());
@@ -428,7 +428,7 @@ describe('useAddPatient hook', () => {
         identifiers: ['PAT-12345'],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
       mockUpdatePersonImage.mockRejectedValue(new Error('Upload failed'));
 
@@ -468,7 +468,7 @@ describe('useAddPatient hook', () => {
         identifiers: ['PAT-12345'],
       });
       mockCreatePatient.mockResolvedValue({
-        data: { uuid: 'patient-uuid-123' },
+        uuid: 'patient-uuid-123',
       });
 
       const { result } = renderHook(() => useAddPatient());

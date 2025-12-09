@@ -25,7 +25,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
 
       if (patient && patientData.personalInfo.profilePhoto) {
         await patientService.updatePersonImage({
-          person: patient.data.uuid,
+          person: patient.uuid,
           image: patientData.personalInfo.profilePhoto as string,
         });
       }
