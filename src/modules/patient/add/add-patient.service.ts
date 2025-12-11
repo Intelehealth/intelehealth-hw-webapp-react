@@ -1,8 +1,5 @@
 import { OpenMRSApi } from '../../../services/openmrs';
-import type {
-  AddPatientData,
-  PersonImage,
-} from '../../../types/patient/add/add-patient.types';
+import type { AddPatientData } from '../../../types/patient/add/add-patient.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = {
@@ -26,10 +23,6 @@ export const patientService = {
         ),
       }
     ),
-
-  updatePersonImage: (personImageData: PersonImage) =>
-    //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    OpenMRSApi.post<any>(`/personimage`, personImageData),
 };
 
 export default patientService;

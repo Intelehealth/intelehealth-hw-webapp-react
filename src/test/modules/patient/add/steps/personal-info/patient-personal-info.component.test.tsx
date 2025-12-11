@@ -1012,7 +1012,7 @@ describe('PatientPersonalInfo', () => {
       expect(ageInput).toHaveAttribute('type', 'number');
     });
 
-    it('should have max attribute set to 150', () => {
+    it('should have max attribute set to 120', () => {
       render(
         <PatientPersonalInfo
           defaultValues={defaultValues}
@@ -1022,7 +1022,20 @@ describe('PatientPersonalInfo', () => {
       );
 
       const ageInput = screen.getByPlaceholderText('Enter Age');
-      expect(ageInput).toHaveAttribute('max', '150');
+      expect(ageInput).toHaveAttribute('max', '120');
+    });
+
+    it('should have min attribute set to 0', () => {
+      render(
+        <PatientPersonalInfo
+          defaultValues={defaultValues}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      const ageInput = screen.getByPlaceholderText('Enter Age');
+      expect(ageInput).toHaveAttribute('min', '0');
     });
   });
 
