@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   mockCreatePatient: vi.fn(),
   mockGenerateIdentifier: vi.fn(),
-  mockUpdatePersonImage: vi.fn(),
+  mockUpdateProfileImage: vi.fn(),
   mockShowToast: vi.fn(),
 }));
 
@@ -14,7 +14,12 @@ vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
     createPatient: (...args: unknown[]) => h.mockCreatePatient(...args),
     genratePatientIdentifier: (...args: unknown[]) =>
       h.mockGenerateIdentifier(...args),
-    updatePersonImage: (...args: unknown[]) => h.mockUpdatePersonImage(...args),
+  },
+}));
+
+vi.mock('../../../../modules/profile/profile.service', () => ({
+  profileService: {
+    updateProfileImage: (...args: unknown[]) => h.mockUpdateProfileImage(...args),
   },
 }));
 
@@ -48,7 +53,7 @@ import type { PatientFormData } from '../../../../types/patient/add/add-patient.
 const {
   mockCreatePatient,
   mockGenerateIdentifier,
-  mockUpdatePersonImage,
+  mockUpdateProfileImage,
   mockShowToast,
 } = h;
 
@@ -112,7 +117,7 @@ describe('useAddPatient hook', () => {
 
       expect(mockGenerateIdentifier).toHaveBeenCalledTimes(1);
       expect(mockCreatePatient).toHaveBeenCalledTimes(1);
-      expect(mockUpdatePersonImage).not.toHaveBeenCalled();
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
       expect(mockShowToast).toHaveBeenCalledWith(
         'Patient Added Successfully',
         'Patient has been added successfully',
@@ -140,7 +145,7 @@ describe('useAddPatient hook', () => {
         identifiers: [generatedIdentifier],
       });
       mockCreatePatient.mockResolvedValue(patientResponse);
-      mockUpdatePersonImage.mockResolvedValue({ success: true });
+      mockUpdateProfileImage.mockResolvedValue({ success: true });
 
       const { result } = renderHook(() => useAddPatient());
 
@@ -151,9 +156,9 @@ describe('useAddPatient hook', () => {
 
       expect(mockGenerateIdentifier).toHaveBeenCalledTimes(1);
       expect(mockCreatePatient).toHaveBeenCalledTimes(1);
-      expect(mockUpdatePersonImage).toHaveBeenCalledWith({
+      expect(mockUpdateProfileImage).toHaveBeenCalledWith({
         person: 'patient-uuid-123',
-        image: photoData,
+        base64EncodedImage: photoData,
       });
       expect(mockShowToast).toHaveBeenCalledWith(
         'Patient Added Successfully',
@@ -430,7 +435,7 @@ describe('useAddPatient hook', () => {
       mockCreatePatient.mockResolvedValue({
         uuid: 'patient-uuid-123',
       });
-      mockUpdatePersonImage.mockRejectedValue(new Error('Upload failed'));
+      mockUpdateProfileImage.mockRejectedValue(new Error('Upload failed'));
 
       const { result } = renderHook(() => useAddPatient());
 

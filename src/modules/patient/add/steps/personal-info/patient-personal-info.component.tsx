@@ -1,6 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
+import IconFemale from '../../../../../assets/icons/icon-female.svg';
+import IconGenderOther from '../../../../../assets/icons/icon-gender-other.svg';
+import IconMale from '../../../../../assets/icons/icon-male.svg';
 import DefaultUserImage from '../../../../../assets/images/default-user-img.svg';
 import {
   Button,
@@ -104,9 +107,22 @@ export default function PatientPersonalInfo({
                   value={watch('gender') ?? ''}
                   error={errors.gender?.message}
                 >
-                  <Radio value="M" label="Male" variant="primary" />
-                  <Radio value="F" label="Female" variant="primary" />
-                  <Radio value="O" label="Other" variant="primary" />
+                  <div className="flex items-center gap-2">
+                    <Radio value="M" label="Male" variant="primary" />
+                    <img src={IconMale} alt="Male" className="w-4 h-4" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Radio value="F" label="Female" variant="primary" />
+                    <img src={IconFemale} alt="Female" className="w-4 h-4" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Radio value="O" label="Other" variant="primary" />
+                    <img
+                      src={IconGenderOther}
+                      alt="Other"
+                      className="w-4 h-4"
+                    />
+                  </div>
                 </RadioGroup>
               </div>
             </div>
@@ -134,7 +150,8 @@ export default function PatientPersonalInfo({
                 <Input
                   {...register('age')}
                   type="number"
-                  max={150}
+                  max={120}
+                  min={0}
                   placeholder="Enter Age"
                   label="Or Age"
                   error={errors.age?.message}
@@ -189,6 +206,7 @@ export default function PatientPersonalInfo({
                   label="Emergency Contact Name"
                   error={errors.emergencyContactName?.message}
                   isRequired={true}
+                  allowedPattern={/^[A-Za-z]$/}
                 />
               </div>
               <div>

@@ -8,6 +8,7 @@ import type {
   AddPatientData,
   PatientFormData,
 } from '../../../types/patient/add/add-patient.types';
+import { profileService } from '../../profile/profile.service';
 import { patientService } from './add-patient.service';
 
 interface UseAddPatientReturn {
@@ -24,9 +25,9 @@ export const useAddPatient = (): UseAddPatientReturn => {
       const patient = await patientService.createPatient(formattedPatientData);
 
       if (patient && patientData.personalInfo.profilePhoto) {
-        await patientService.updatePersonImage({
+        await profileService.updateProfileImage({
           person: patient.uuid,
-          image: patientData.personalInfo.profilePhoto as string,
+          base64EncodedImage: patientData.personalInfo.profilePhoto as string,
         });
       }
 
