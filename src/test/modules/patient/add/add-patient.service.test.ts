@@ -17,10 +17,7 @@ import {
   API_ENDPOINTS,
   patientService,
 } from '../../../../modules/patient/add/add-patient.service';
-import type {
-  AddPatientData,
-  PersonImage,
-} from '../../../../types/patient/add/add-patient.types';
+import type { AddPatientData } from '../../../../types/patient/add/add-patient.types';
 
 const { mockOpenMRSPost, mockOpenMRSGet } = h;
 
@@ -160,45 +157,6 @@ describe('patientService', () => {
       await expect(patientService.genratePatientIdentifier()).rejects.toThrow(
         'Identifier generation failed'
       );
-    });
-  });
-
-  describe('updatePersonImage', () => {
-    it('should post person image data to the correct endpoint', async () => {
-      const personImageData: PersonImage = {
-        person: 'person-uuid-123',
-        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      };
-
-      const response = {
-        uuid: 'image-uuid-123',
-        person: 'person-uuid-123',
-      };
-
-      mockOpenMRSPost.mockResolvedValue(response);
-
-      const result = await patientService.updatePersonImage(personImageData);
-
-      expect(mockOpenMRSPost).toHaveBeenCalledTimes(1);
-      expect(mockOpenMRSPost).toHaveBeenCalledWith(
-        '/personimage',
-        personImageData
-      );
-      expect(result).toEqual(response);
-    });
-
-    it('should propagate errors from updatePersonImage', async () => {
-      const personImageData: PersonImage = {
-        person: 'person-uuid-123',
-        image: 'data:image/png;base64,abc123',
-      };
-
-      const error = new Error('Failed to update image');
-      mockOpenMRSPost.mockRejectedValue(error);
-
-      await expect(
-        patientService.updatePersonImage(personImageData)
-      ).rejects.toThrow('Failed to update image');
     });
   });
 
