@@ -27,7 +27,9 @@ export const useAddPatient = (): UseAddPatientReturn => {
       if (patient && patientData.personalInfo.profilePhoto) {
         await profileService.updateProfileImage({
           person: patient.uuid,
-          base64EncodedImage: patientData.personalInfo.profilePhoto as string,
+          base64EncodedImage: patientData.personalInfo.profilePhoto.split(
+            ','
+          )[1] as string,
         });
       }
 

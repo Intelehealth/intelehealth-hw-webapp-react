@@ -178,6 +178,7 @@ export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(
             error ? errorId : undefined,
             helperText ? helperId : undefined
           )}
+          data-value={value ?? ''}
           className={cn(className)}
         >
           {React.Children.map(children, child => {

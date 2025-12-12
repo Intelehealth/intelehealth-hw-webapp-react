@@ -51,7 +51,7 @@ export interface PatientFormData {
     emergencyContactName: string;
     emergencyContactNumber: string;
     emergencyContactNumberCountryCode: string;
-    profilePhoto: File | null | string;
+    profilePhoto: null | string;
   };
   addressInfo: {
     postalCode: string;

@@ -101,11 +101,12 @@ export default function PatientPersonalInfo({
                   Gender<span className="text-red-500 ml-1">*</span>
                 </label>
                 <RadioGroup
-                  {...register('gender')}
-                  onChange={value => setValue('gender', value)}
-                  className="flex gap-2 md:gap-4"
+                  name="gender"
                   value={watch('gender') ?? ''}
+                  onChange={(value: string) => setValue('gender', value)}
                   error={errors.gender?.message}
+                  aria-labelledby="gender-label"
+                  className="flex gap-2 md:gap-4"
                 >
                   <div className="flex items-center gap-2">
                     <Radio value="M" label="Male" variant="primary" />
