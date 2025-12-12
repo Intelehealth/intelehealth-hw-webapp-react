@@ -43,7 +43,11 @@ export default function PatientAddressInfo({
   useEffect(() => {
     const loadPostalCodeData = async () => {
       // Only proceed if country is India and postal code is entered
-      if (country?.toLowerCase() !== 'india' || !postalCode) {
+      if (
+        country?.toLowerCase() !== 'india' ||
+        !postalCode ||
+        postalCode.trim().length < 6
+      ) {
         return;
       }
 
@@ -68,8 +72,8 @@ export default function PatientAddressInfo({
         } else {
           // Show error toast when no data found for postal code
           showToast(
-            'Invalid Postal Code',
-            'No data found for the entered postal code',
+            'No address found',
+            'No address found for this Postal Code. Please select or enter manually.',
             'error'
           );
         }

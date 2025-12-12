@@ -158,7 +158,7 @@ describe('useAddPatient hook', () => {
       expect(mockCreatePatient).toHaveBeenCalledTimes(1);
       expect(mockUpdateProfileImage).toHaveBeenCalledWith({
         person: 'patient-uuid-123',
-        base64EncodedImage: photoData,
+        base64EncodedImage: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       });
       expect(mockShowToast).toHaveBeenCalledWith(
         'Patient Added Successfully',
