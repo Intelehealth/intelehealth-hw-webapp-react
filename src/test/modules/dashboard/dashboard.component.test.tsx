@@ -18,12 +18,6 @@ describe('DashboardComponent', () => {
     expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
   });
 
-  it('should render the Add Patients section', () => {
-    render(<DashboardComponent />);
-
-    expect(screen.getByText('Add Patients')).toBeInTheDocument();
-  });
-
   it('should render prescription card with correct subtitle', () => {
     const { container } = render(<DashboardComponent />);
 
@@ -66,13 +60,6 @@ describe('DashboardComponent', () => {
     expect(gridContainer).toBeInTheDocument();
   });
 
-  it('should render the Add Patients icon', () => {
-    const { container } = render(<DashboardComponent />);
-
-    const icon = container.querySelector('.fa-user-plus');
-    expect(icon).toBeInTheDocument();
-  });
-
   it('should have four dashboard cards', () => {
     render(<DashboardComponent />);
 
@@ -98,13 +85,6 @@ describe('DashboardComponent', () => {
     // Prescription card should have an image
     const images = container.querySelectorAll('img');
     expect(images.length).toBeGreaterThan(0);
-  });
-
-  it('should render Add Patients section with correct styling', () => {
-    render(<DashboardComponent />);
-
-    const addPatientsText = screen.getByText('Add Patients');
-    expect(addPatientsText).toHaveClass('font-medium', 'text-xs');
   });
 
   it('should render all card icons', () => {

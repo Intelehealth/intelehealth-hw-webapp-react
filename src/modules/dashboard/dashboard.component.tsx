@@ -41,7 +41,7 @@ const DashboardComponent = () => {
           />
         </div>
       </div>
-      <div className="flex">
+      {/* <div className="flex">
         <div
           className={`bg-(--color-primary) rounded-2xl shadow-md flex border border-gray-200 min-h-[150px]`}
         >
@@ -59,7 +59,7 @@ const DashboardComponent = () => {
             </span>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
