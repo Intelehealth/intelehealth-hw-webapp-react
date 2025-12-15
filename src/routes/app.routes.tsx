@@ -39,6 +39,9 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
+// 🟡Ayu Module
+const AyuModule = lazy(() => import('../modules/ayu'));
+
 const AppRoutes = () => (
   <HashRouter>
     <Suspense fallback={<RouteLoader />}>
@@ -144,6 +147,16 @@ const AppRoutes = () => (
           element={
             <Suspense fallback={<RouteLoader />}>
               <CommonUiComponent />
+            </Suspense>
+          }
+        />
+
+        {/* 🟡Ayu Module Route */}
+        <Route
+          path={ROUTES.AYU}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <AyuModule />
             </Suspense>
           }
         />
