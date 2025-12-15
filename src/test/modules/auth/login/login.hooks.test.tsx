@@ -108,6 +108,7 @@ describe('useLogin hook', () => {
     const openmrsUser = {
       uuid: 'u-1',
       display: 'Test User',
+      roles: [{ display: 'Organizational: Nurse' }],
     } as unknown as Record<string, unknown>;
 
     mockOpenMRSLogin.mockResolvedValue({
@@ -173,8 +174,41 @@ describe('useLogin hook', () => {
     expect(screen.getByTestId('loading').textContent).toBe('false');
   });
 
+  it('fails when user does not have required role and does not call backend login', async () => {
+  const openmrsUser = {
+    uuid: 'u-3',
+    roles: [{ display: 'Organizational: Doctor' }, { display: 'Organizational: System Administrator' }],
+  } as unknown as Record<string, unknown>;
+
+  mockOpenMRSLogin.mockResolvedValue({
+    user: openmrsUser,
+    sessionId: 'sess-role',
+    authenticated: true,
+  });
+
+  render(
+    <MemoryRouter>
+      <TestComponent username="john" password="secret" />
+    </MemoryRouter>
+  );
+
+  fireEvent.click(screen.getByTestId('login-btn'));
+
+  await waitFor(() => {
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Login Failed',
+      'User does not have required roles to login',
+      'error'
+    );
+    expect(mockBackendLogin).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  expect(screen.getByTestId('loading').textContent).toBe('false');
+});
+
   it('fails on backend login with axios-style error message and shows that message', async () => {
-    const openmrsUser = { uuid: 'u-2' } as unknown as Record<string, unknown>;
+    const openmrsUser = { uuid: 'u-2',  roles: [{ display: 'Organizational: Nurse' }], } as unknown as Record<string, unknown>;
     mockOpenMRSLogin.mockResolvedValue({
       user: openmrsUser,
       sessionId: 'sess-xyz',

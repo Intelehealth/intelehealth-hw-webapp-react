@@ -39,18 +39,33 @@ export const useLogin = (): UseLoginReturn => {
       if (!authenticated) throw new Error('Login to OpenMRS failed');
       cookie.setCookie('JSESSIONID', sessionId);
 
-      // Then call our backend login
-      const { token } = await loginService.login(credentials);
-      if (!token) throw new Error('Login to backend failed');
-      storage.setAuthToken(token);
-      storage.setUser(JSON.stringify(user));
+      let userRoles: string[] = [];
+      if (user && user.roles) {
+        userRoles = user.roles.map(role => role.display);
+      }
+      // Check if user has required roles
+      const hasRequiredRole = userRoles.some(role =>
+        ['Organizational: Nurse'].includes(role)
+      );
+      if (!hasRequiredRole) {
+        showToast(
+          'Login Failed',
+          `User does not have required roles to login`,
+          'error'
+        );
+      } else {
+        // Then call our backend login
+        const { token } = await loginService.login(credentials);
+        if (!token) throw new Error('Login to backend failed');
+        storage.setAuthToken(token);
+        storage.setUser(JSON.stringify(user));
 
-      //show toast message
-      showToast('Login Successful', `Welcome back`, 'success');
+        //show toast message
+        showToast('Login Successful', `Welcome back`, 'success');
+        //redirect to dashboard or some other page
+        navigate('/dashboard');
+      }
       setLoading(false);
-
-      //redirect to dashboard or some other page
-      navigate('/dashboard');
     } catch (error: unknown) {
       setLoading(false);
       let message = 'Login Failed';

@@ -23,6 +23,12 @@ export interface ResetPasswordResponseModel {
   data?: unknown;
 }
 
+export interface RoleModel {
+  display: string;
+  uuid: string;
+  name: string;
+}
+
 export interface User {
   username: string;
   uuid: string;
@@ -33,7 +39,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  roles: RoleModel[];
 }
 
 export interface OpenMRSLoginResponse {
