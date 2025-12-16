@@ -119,7 +119,7 @@ export const ReduxConcepts: React.FC = () => {
             <p>
               User: {authState.user.name} ({authState.user.email})
             </p>
-            <p>Role: {authState.user.roles[0]?.name}</p>
+            <p>Role: {authState.user?.roles[0]?.name}</p>
           </div>
         )}
         {authState.error && (

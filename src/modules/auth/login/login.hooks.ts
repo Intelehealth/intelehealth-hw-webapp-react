@@ -5,6 +5,7 @@ import { showToast } from '../../../services/toast';
 import type { LoginCredentials } from '../../../types/auth/login.types';
 import { cookie } from '../../../utils/cookie';
 import { storage } from '../../../utils/storage';
+import { NURSE_ROLE } from './login.constant';
 import loginService from './login.service';
 
 interface UseLoginReturn {
@@ -45,7 +46,7 @@ export const useLogin = (): UseLoginReturn => {
       }
       // Check if user has required roles
       const hasRequiredRole = userRoles.some(role =>
-        ['Organizational: Nurse'].includes(role)
+        [NURSE_ROLE].includes(role)
       );
       if (!hasRequiredRole) {
         showToast(

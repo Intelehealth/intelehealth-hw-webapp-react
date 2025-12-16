@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOCTOR_ROLE, NURSE_ROLE, SYSTEM_ADMIN_ROLE } from '../../../../modules/auth/login/login.constant';
 
 // Hoisted mocks to avoid Vitest hoisting issues
 const h = vi.hoisted(() => ({
@@ -108,7 +109,7 @@ describe('useLogin hook', () => {
     const openmrsUser = {
       uuid: 'u-1',
       display: 'Test User',
-      roles: [{ display: 'Organizational: Nurse' }],
+      roles: [{ display: NURSE_ROLE }],
     } as unknown as Record<string, unknown>;
 
     mockOpenMRSLogin.mockResolvedValue({
@@ -177,7 +178,7 @@ describe('useLogin hook', () => {
   it('fails when user does not have required role and does not call backend login', async () => {
   const openmrsUser = {
     uuid: 'u-3',
-    roles: [{ display: 'Organizational: Doctor' }, { display: 'Organizational: System Administrator' }],
+    roles: [{ display: DOCTOR_ROLE }, { display: SYSTEM_ADMIN_ROLE }],
   } as unknown as Record<string, unknown>;
 
   mockOpenMRSLogin.mockResolvedValue({
@@ -208,7 +209,7 @@ describe('useLogin hook', () => {
 });
 
   it('fails on backend login with axios-style error message and shows that message', async () => {
-    const openmrsUser = { uuid: 'u-2',  roles: [{ display: 'Organizational: Nurse' }], } as unknown as Record<string, unknown>;
+    const openmrsUser = { uuid: 'u-2',  roles: [{ display: NURSE_ROLE }], } as unknown as Record<string, unknown>;
     mockOpenMRSLogin.mockResolvedValue({
       user: openmrsUser,
       sessionId: 'sess-xyz',
