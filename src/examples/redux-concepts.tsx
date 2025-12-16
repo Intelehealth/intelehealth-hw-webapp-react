@@ -37,8 +37,12 @@ export const ReduxConcepts: React.FC = () => {
         id: '1',
         name: email.split('@')[0],
         email: email,
-        role: 'user',
-        username: '',
+        roles: [{
+          display: 'user',
+          uuid: '',
+          name: 'user'
+        }],
+        username: '', 
         uuid: '',
         person: {
           uuid: '',
@@ -115,7 +119,7 @@ export const ReduxConcepts: React.FC = () => {
             <p>
               User: {authState.user.name} ({authState.user.email})
             </p>
-            <p>Role: {authState.user.role}</p>
+            <p>Role: {authState.user.roles[0]?.name}</p>
           </div>
         )}
         {authState.error && (
