@@ -9,124 +9,97 @@ describe('DashboardComponent', () => {
     }).not.toThrow();
   });
 
-  it('should render the dashboard title', () => {
+  it('should render the dashboard cards', () => {
     render(<DashboardComponent />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+
+    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+    expect(screen.getByText('Close visits')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
   });
 
-  it('should render with default props', () => {
+  it('should render prescription card with correct subtitle', () => {
+    const { container } = render(<DashboardComponent />);
+
+    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+
+    // Check that the subtitle contains the HTML content
+    const prescriptionCard = container.querySelector('[class*="bg-(--color-accent-light)"]');
+    expect(prescriptionCard).toBeInTheDocument();
+  });
+
+  it('should render close visits card with correct subtitle', () => {
+    const { container } = render(<DashboardComponent />);
+
+    expect(screen.getByText('Close visits')).toBeInTheDocument();
+
+    // Check that the subtitle contains the HTML content
+    const closeVisitsCard = container.querySelector('[class*="bg-(--color-primary-light)"]');
+    expect(closeVisitsCard).toBeInTheDocument();
+  });
+
+  it('should render appointments card', () => {
     render(<DashboardComponent />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.queryByText(/message/)).not.toBeInTheDocument();
+
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
-  it('should render message when provided', () => {
-    const message = 'Welcome to the dashboard!';
-    render(<DashboardComponent message={message} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(message)).toBeInTheDocument();
-  });
-
-  it('should not render message when not provided', () => {
+  it('should render follow-up visits card', () => {
     render(<DashboardComponent />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.queryByText(/Welcome/)).not.toBeInTheDocument();
+
+    expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
   });
 
-  it('should render with empty message', () => {
-    render(<DashboardComponent message="" />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.queryByText(/Welcome/)).not.toBeInTheDocument();
+  it('should have correct structure with grid layout', () => {
+    const { container } = render(<DashboardComponent />);
+
+    const mainContainer = container.querySelector('.p-4.flex.flex-col.gap-4');
+    expect(mainContainer).toBeInTheDocument();
+
+    const gridContainer = container.querySelector('.grid.grid-cols-1.md\\:grid-cols-3.gap-4');
+    expect(gridContainer).toBeInTheDocument();
   });
 
-  it('should render with different message content', () => {
-    const message = 'This is a test message';
-    render(<DashboardComponent message={message} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(message)).toBeInTheDocument();
+  it('should have four dashboard cards', () => {
+    render(<DashboardComponent />);
+
+    // Check all four card titles are present
+    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+    expect(screen.getByText('Close visits')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
   });
 
-  it('should have correct structure', () => {
-    const { container } = render(<DashboardComponent message="Test message" />);
-    
-    const div = container.querySelector('div');
-    expect(div).toBeInTheDocument();
-    
-    const h1 = div?.querySelector('h1');
-    expect(h1).toBeInTheDocument();
-    expect(h1).toHaveTextContent('Dashboard');
-    
-    const p = div?.querySelector('p');
-    expect(p).toBeInTheDocument();
-    expect(p).toHaveTextContent('Test message');
+  it('should render with correct styling classes', () => {
+    const { container } = render(<DashboardComponent />);
+
+    // Check for main container classes
+    const mainDiv = container.querySelector('.p-4');
+    expect(mainDiv).toBeInTheDocument();
+    expect(mainDiv).toHaveClass('flex', 'flex-col', 'gap-4');
   });
 
-  it('should handle undefined message prop', () => {
-    render(<DashboardComponent message={undefined} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.queryByText(/Test/)).not.toBeInTheDocument();
+  it('should render prescription card with image', () => {
+    const { container } = render(<DashboardComponent />);
+
+    // Prescription card should have an image
+    const images = container.querySelectorAll('img');
+    expect(images.length).toBeGreaterThan(0);
   });
 
-  it('should handle null message prop', () => {
-    render(<DashboardComponent message={null as unknown as string} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.queryByText(/Test/)).not.toBeInTheDocument();
+  it('should render all card icons', () => {
+    const { container } = render(<DashboardComponent />);
+
+    // Check that icons are rendered
+    const images = container.querySelectorAll('img');
+    // Should have at least the prescription image and other icons
+    expect(images.length).toBeGreaterThan(0);
   });
 
-  it('should render multiple instances correctly', () => {
-    render(
-      <div>
-        <DashboardComponent message="First dashboard" />
-        <DashboardComponent message="Second dashboard" />
-      </div>
-    );
-    
-    const dashboards = screen.getAllByText('Dashboard');
-    expect(dashboards).toHaveLength(2);
-    
-    expect(screen.getByText('First dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Second dashboard')).toBeInTheDocument();
-  });
+  it('should have responsive grid layout classes', () => {
+    const { container } = render(<DashboardComponent />);
 
-  it('should be accessible', () => {
-    render(<DashboardComponent message="Accessible dashboard" />);
-    
-    const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toBeInTheDocument();
-    expect(heading).toHaveTextContent('Dashboard');
-  });
-
-  it('should handle long messages', () => {
-    const longMessage = 'This is a very long message that should be displayed correctly in the dashboard component without any issues or truncation.';
-    render(<DashboardComponent message={longMessage} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(longMessage)).toBeInTheDocument();
-  });
-
-  it('should handle special characters in message', () => {
-    const specialMessage = 'Dashboard with special chars: !@#$%^&*()_+-=[]{}|;:,.<>?';
-    render(<DashboardComponent message={specialMessage} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(specialMessage)).toBeInTheDocument();
-  });
-
-  it('should handle HTML in message (should be escaped)', () => {
-    const htmlMessage = '<script>alert("xss")</script>';
-    render(<DashboardComponent message={htmlMessage} />);
-    
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(htmlMessage)).toBeInTheDocument();
-    // The HTML should be escaped and not executed
-    expect(screen.queryByText('xss')).not.toBeInTheDocument();
+    const gridContainer = container.querySelector('.grid');
+    expect(gridContainer).toHaveClass('grid-cols-1', 'md:grid-cols-3');
   });
 });

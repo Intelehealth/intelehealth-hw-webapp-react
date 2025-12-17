@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { AuthState, User } from '../../types/auth/auth.types';
 import { authReducer, type AuthAction } from '../../reducers/auth.reducer';
+import type { AuthState, User } from '../../types/auth/auth.types';
 
 describe('authReducer', () => {
   const mockUser: User = {
     id: '1',
     username: 'testuser',
     email: 'test@example.com',
-    role: 'user',
+    roles: [{
+      display: 'user',
+      uuid: '',
+      name: 'user'
+    }],
     name: '',
     uuid: '',
     person: {

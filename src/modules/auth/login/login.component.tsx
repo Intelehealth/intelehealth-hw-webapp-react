@@ -122,6 +122,7 @@ const LoginComponent: React.FC = () => {
               const selectedValue = Array.isArray(value) ? value[0] : value;
               setValue('role', selectedValue as 'nurse' | 'doctor' | 'admin');
             }}
+            disabled={true}
           />
         </div>
 
