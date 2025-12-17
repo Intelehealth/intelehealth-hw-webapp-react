@@ -39,6 +39,6 @@ export const cookie = {
     return Cookies.get('JSESSIONID');
   },
   removeJSessionId: (): void => {
-    Cookies.remove('JSESSIONID');
+    Cookies.remove('JSESSIONID', { path: '/' });
   },
 };
