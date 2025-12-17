@@ -160,8 +160,9 @@ describe('cookie utility', () => {
   describe('removeJSessionId', () => {
     it('removes JSESSIONID cookie', () => {
       cookie.removeJSessionId();
-
-      expect(Cookies.remove).toHaveBeenCalledWith('JSESSIONID');
-    });
+      expect(Cookies.remove).toHaveBeenCalledWith(
+        'JSESSIONID',expect.objectContaining({ path: '/' }));
+          }
+        );
   });
 });
