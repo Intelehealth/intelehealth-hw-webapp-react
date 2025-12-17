@@ -40,5 +40,6 @@ export const cookie = {
   },
   removeJSessionId: (): void => {
     Cookies.remove('JSESSIONID', { path: '/' });
+    Cookies.remove('JSESSIONID', { path: '/openmrs' });
   },
 };
