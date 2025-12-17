@@ -162,6 +162,8 @@ describe('cookie utility', () => {
       cookie.removeJSessionId();
       expect(Cookies.remove).toHaveBeenCalledWith(
         'JSESSIONID',expect.objectContaining({ path: '/' }));
+        expect(Cookies.remove).toHaveBeenCalledWith(
+        'JSESSIONID',expect.objectContaining({ path: '/openmrs' }));
           }
         );
   });
