@@ -32,7 +32,11 @@ export const useLogin = (): UseLoginReturn => {
           Authorization: `Basic ${base64cred}`,
         },
       };
-      // First call OpenMRS login
+
+      // First call OpenMRS Logout to clear any existing session
+      await loginService.openMRSLogout(axiosConfig);
+
+      // Second call OpenMRS login
       const { user, sessionId, authenticated } =
         await loginService.openMRSLogin(axiosConfig);
 

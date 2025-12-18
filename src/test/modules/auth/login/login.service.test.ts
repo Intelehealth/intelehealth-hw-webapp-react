@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   mindmapPost: vi.fn(),
   openmrsGet: vi.fn(),
+  openmrsDelete: vi.fn(),
 }));
 
 vi.mock('../../../../services/mindmap', () => ({
@@ -13,7 +14,10 @@ vi.mock('../../../../services/mindmap', () => ({
 }));
 
 vi.mock('../../../../services/openmrs', () => ({
-  OpenMRSApi: { get: (...args: unknown[]) => h.openmrsGet(...args) },
+  OpenMRSApi: {
+    get: (...args: unknown[]) => h.openmrsGet(...args),
+    delete: (...args: unknown[]) => h.openmrsDelete(...args),
+  },
 }));
 
 import { API_ENDPOINTS, loginService } from '../../../../modules/auth/login/login.service';
@@ -78,5 +82,19 @@ describe('login.service', () => {
   it('exports the correct API endpoints', () => {
     expect(API_ENDPOINTS.LOGIN).toBe('/auth/login');
     expect(API_ENDPOINTS.OPENMRSLOGIN).toBe('/session');
+  });
+
+  it('openMRSLogout() calls OpenMRS DELETE /session with given axios config', async () => {
+    const config = { headers: { Authorization: 'Basic logout' } };
+    h.openmrsDelete.mockResolvedValue({ status: 204 });
+
+    const result = await loginService.openMRSLogout(config);
+
+    expect(h.openmrsDelete).toHaveBeenCalledTimes(1);
+    expect(h.openmrsDelete).toHaveBeenCalledWith(
+      API_ENDPOINTS.OPENMRSLOGIN,
+      config
+    );
+    expect(result).toEqual({ status: 204 });
   });
 });
