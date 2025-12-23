@@ -1,7 +1,10 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, type Resolver } from 'react-hook-form';
 import type { InferType } from 'yup';
-import { countries } from '../../../../../assets/data/countries';
+import { casteOptions } from '../../../../../assets/data/caste';
+import { educationOptions } from '../../../../../assets/data/education';
+import { economicStatusOptions } from '../../../../../assets/data/economic-status';
+import { occupationOptions } from '../../../../../assets/data/occupation';
 import { Button, Dropdown, Input } from '../../../../../components/common';
 import { patientOtherInfoSchema } from './patient-other-info.validation';
 
@@ -53,9 +56,7 @@ export default function PatientOtherInfo({
               <Dropdown
                 label="Occupation"
                 placeholder="Select Occupation"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
+                options={occupationOptions}
                 labelClassName="text-(--color-muted)"
                 error={errors.occupation?.message}
                 value={watch('occupation') ?? ''}
@@ -69,9 +70,7 @@ export default function PatientOtherInfo({
               <Dropdown
                 label="Caste"
                 placeholder="Select Caste"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
+                options={casteOptions}
                 labelClassName="text-(--color-muted)"
                 error={errors.caste?.message}
                 value={watch('caste') ?? ''}
@@ -88,9 +87,7 @@ export default function PatientOtherInfo({
               <Dropdown
                 label="Education"
                 placeholder="Select Education"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
+                options={educationOptions}
                 labelClassName="text-(--color-muted)"
                 error={errors.education?.message}
                 value={watch('education') ?? ''}
@@ -105,9 +102,7 @@ export default function PatientOtherInfo({
               <Dropdown
                 label="Economic Status"
                 placeholder="Select Economic Status"
-                options={countries.map(val => {
-                  return { label: val.name, value: val.name };
-                })}
+                options={economicStatusOptions}
                 labelClassName="text-(--color-muted)"
                 error={errors.economicStatus?.message}
                 value={watch('economicStatus') ?? ''}
