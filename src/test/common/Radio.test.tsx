@@ -461,4 +461,192 @@ describe('RadioGroup', () => {
 
     expect(screen.getAllByRole('radio')).toHaveLength(2);
   });
+
+  // Tests for nested Radio children (wrapped in divs)
+  it('renders with nested Radio children wrapped in divs', () => {
+    render(
+      <RadioGroup name="gender" value="M">
+        <div className="flex items-center gap-2">
+          <Radio value="M" label="Male" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Radio value="F" label="Female" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Radio value="O" label="Other" />
+        </div>
+      </RadioGroup>
+    );
+
+    expect(screen.getByLabelText('Male')).toBeInTheDocument();
+    expect(screen.getByLabelText('Female')).toBeInTheDocument();
+    expect(screen.getByLabelText('Other')).toBeInTheDocument();
+  });
+
+  it('applies same name attribute to nested Radio children', () => {
+    render(
+      <RadioGroup name="gender" value="M">
+        <div>
+          <Radio value="M" label="Male" />
+        </div>
+        <div>
+          <Radio value="F" label="Female" />
+        </div>
+      </RadioGroup>
+    );
+
+    const radios = screen.getAllByRole('radio');
+    radios.forEach(radio => {
+      expect(radio).toHaveAttribute('name', 'gender');
+    });
+  });
+
+  it('only one radio can be selected at a time with nested children', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <RadioGroup name="gender" value="M" onChange={handleChange}>
+        <div>
+          <Radio value="M" label="Male" />
+        </div>
+        <div>
+          <Radio value="F" label="Female" />
+        </div>
+        <div>
+          <Radio value="O" label="Other" />
+        </div>
+      </RadioGroup>
+    );
+
+    const maleRadio = screen.getByLabelText('Male');
+    const femaleRadio = screen.getByLabelText('Female');
+    const otherRadio = screen.getByLabelText('Other');
+
+    // Initially, Male should be checked
+    expect(maleRadio).toBeChecked();
+    expect(femaleRadio).not.toBeChecked();
+    expect(otherRadio).not.toBeChecked();
+
+    // Click Female
+    await user.click(femaleRadio);
+    expect(handleChange).toHaveBeenCalledWith('F');
+  });
+
+  it('marks the correct nested radio as checked based on value prop', () => {
+    const { rerender } = render(
+      <RadioGroup name="test" value="option1">
+        <div>
+          <Radio value="option1" label="Option 1" />
+        </div>
+        <div>
+          <Radio value="option2" label="Option 2" />
+        </div>
+        <div>
+          <Radio value="option3" label="Option 3" />
+        </div>
+      </RadioGroup>
+    );
+
+    expect(screen.getByLabelText('Option 1')).toBeChecked();
+    expect(screen.getByLabelText('Option 2')).not.toBeChecked();
+    expect(screen.getByLabelText('Option 3')).not.toBeChecked();
+
+    rerender(
+      <RadioGroup name="test" value="option2">
+        <div>
+          <Radio value="option1" label="Option 1" />
+        </div>
+        <div>
+          <Radio value="option2" label="Option 2" />
+        </div>
+        <div>
+          <Radio value="option3" label="Option 3" />
+        </div>
+      </RadioGroup>
+    );
+
+    expect(screen.getByLabelText('Option 1')).not.toBeChecked();
+    expect(screen.getByLabelText('Option 2')).toBeChecked();
+    expect(screen.getByLabelText('Option 3')).not.toBeChecked();
+  });
+
+  it('handles onChange with nested Radio children', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <RadioGroup name="test" value="option1" onChange={handleChange}>
+        <div>
+          <Radio value="option1" label="Option 1" />
+        </div>
+        <div>
+          <Radio value="option2" label="Option 2" />
+        </div>
+      </RadioGroup>
+    );
+
+    await user.click(screen.getByLabelText('Option 2'));
+    expect(handleChange).toHaveBeenCalledWith('option2');
+  });
+
+  it('prevents multiple selections with nested Radio children (regression test)', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <RadioGroup name="gender" value="" onChange={handleChange}>
+        <div className="flex items-center gap-2">
+          <Radio value="M" label="Male" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Radio value="F" label="Female" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Radio value="O" label="Other" />
+        </div>
+      </RadioGroup>
+    );
+
+    const maleRadio = screen.getByLabelText('Male');
+    const femaleRadio = screen.getByLabelText('Female');
+    const otherRadio = screen.getByLabelText('Other');
+
+    // All radios should have the same name attribute
+    expect(maleRadio).toHaveAttribute('name', 'gender');
+    expect(femaleRadio).toHaveAttribute('name', 'gender');
+    expect(otherRadio).toHaveAttribute('name', 'gender');
+
+    // Click Male
+    await user.click(maleRadio);
+    expect(handleChange).toHaveBeenCalledWith('M');
+    handleChange.mockClear();
+
+    // Click Female - only Female should be selected
+    await user.click(femaleRadio);
+    expect(handleChange).toHaveBeenCalledWith('F');
+  });
+
+  it('handles mixed direct and nested Radio children', () => {
+    render(
+      <RadioGroup name="mixed" value="option2">
+        <Radio value="option1" label="Option 1" />
+        <div>
+          <Radio value="option2" label="Option 2" />
+        </div>
+        <Radio value="option3" label="Option 3" />
+      </RadioGroup>
+    );
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(3);
+
+    // All should have the same name
+    radios.forEach(radio => {
+      expect(radio).toHaveAttribute('name', 'mixed');
+    });
+
+    // Option 2 should be checked
+    expect(screen.getByLabelText('Option 2')).toBeChecked();
+  });
 });
