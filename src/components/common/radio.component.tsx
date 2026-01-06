@@ -183,13 +183,40 @@ export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(
         >
           {React.Children.map(children, child => {
             if (React.isValidElement<RadioProps>(child)) {
-              return React.cloneElement(child, {
-                name,
-                checked: child.props.value === value,
-                onChange: handleChange,
-                error: error ? undefined : child.props.error,
-                helperText: error ? undefined : child.props.helperText,
-              });
+              // If it's a Radio component, clone it with the necessary props
+              if (child.type === Radio) {
+                return React.cloneElement(child, {
+                  name,
+                  checked: child.props.value === value,
+                  onChange: handleChange,
+                  error: error ? undefined : child.props.error,
+                  helperText: error ? undefined : child.props.helperText,
+                });
+              }
+              // If it's a wrapper element (like a div), recursively process its children
+              if (child.props?.children) {
+                return React.cloneElement(
+                  child,
+                  {},
+                  React.Children.map(child.props.children, nestedChild => {
+                    if (
+                      React.isValidElement<RadioProps>(nestedChild) &&
+                      nestedChild.type === Radio
+                    ) {
+                      return React.cloneElement(nestedChild, {
+                        name,
+                        checked: nestedChild.props.value === value,
+                        onChange: handleChange,
+                        error: error ? undefined : nestedChild.props.error,
+                        helperText: error
+                          ? undefined
+                          : nestedChild.props.helperText,
+                      });
+                    }
+                    return nestedChild;
+                  })
+                );
+              }
             }
             return child;
           })}
