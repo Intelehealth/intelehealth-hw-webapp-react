@@ -353,10 +353,16 @@ describe('common.ts', () => {
       });
 
       it('should correctly handle monthDiff > 0 condition', () => {
-        // Birthday in a past month
+        // Birthday in a past month (2 months ago)
         const today = new Date();
-        const pastMonth = (today.getMonth() - 2 + 12) % 12;
-        const year = pastMonth > today.getMonth() ? today.getFullYear() - 24 : today.getFullYear() - 25;
+        const currentMonth = today.getMonth();
+        const pastMonth = (currentMonth - 2 + 12) % 12;
+
+        // If subtracting 2 months wraps around to last year (e.g., Jan/Feb -> Nov/Dec)
+        // we need to subtract one more year
+        const yearAdjustment = currentMonth < 2 ? -26 : -25;
+        const year = today.getFullYear() + yearAdjustment;
+
         const dateOfBirth = `${year}-${String(pastMonth + 1).padStart(2, '0')}-15`;
         const age = calculateAge(dateOfBirth);
         expect(age).toBe(25);

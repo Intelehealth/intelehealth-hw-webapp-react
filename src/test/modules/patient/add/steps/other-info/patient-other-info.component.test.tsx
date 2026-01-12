@@ -45,12 +45,35 @@ vi.mock('../../../../../../components/common', () => ({
   ),
 }));
 
-// Mock the countries data
-vi.mock('../../../../../../assets/data/countries', () => ({
-  countries: [
-    { name: 'India', code: 'IN' },
-    { name: 'United States', code: 'US' },
-    { name: 'United Kingdom', code: 'UK' },
+// Mock the data files
+vi.mock('../../../../../../assets/data/caste', () => ({
+  casteOptions: [
+    { label: 'General', value: 'General' },
+    { label: 'OBC', value: 'OBC' },
+    { label: 'SC', value: 'SC' },
+  ],
+}));
+
+vi.mock('../../../../../../assets/data/education', () => ({
+  educationOptions: [
+    { label: 'Illiterate', value: 'Illiterate' },
+    { label: 'Primary', value: 'Primary' },
+    { label: 'Graduate & Higher', value: 'Graduate & Higher' },
+  ],
+}));
+
+vi.mock('../../../../../../assets/data/economic-status', () => ({
+  economicStatusOptions: [
+    { label: 'APL', value: 'APL' },
+    { label: 'BPL', value: 'BPL' },
+  ],
+}));
+
+vi.mock('../../../../../../assets/data/occupation', () => ({
+  occupationOptions: [
+    { label: 'Salaried Employee', value: 'Salaried Employee' },
+    { label: 'Student', value: 'Student' },
+    { label: 'Unemployed', value: 'Unemployed' },
   ],
 }));
 
@@ -85,10 +108,10 @@ describe('PatientOtherInfo', () => {
     it('should render with default values', () => {
       const valuesWithData = {
         sonDaughterWifeOf: 'John Doe',
-        occupation: 'Engineer',
+        occupation: 'Salaried Employee',
         caste: 'General',
-        education: 'Graduate',
-        economicStatus: 'Middle Class',
+        education: 'Graduate & Higher',
+        economicStatus: 'APL',
       };
 
       render(
@@ -187,7 +210,7 @@ describe('PatientOtherInfo', () => {
   });
 
   describe('Dropdown Options', () => {
-    it('should render occupation options from countries data', () => {
+    it('should render occupation options from occupation data', () => {
       render(
         <PatientOtherInfo
           defaultValues={defaultValues}
@@ -199,10 +222,10 @@ describe('PatientOtherInfo', () => {
       const occupationDropdown = screen.getByTestId('dropdown-Occupation');
       expect(occupationDropdown).toBeInTheDocument();
       const options = occupationDropdown.querySelectorAll('option');
-      expect(options.length).toBeGreaterThan(1); // Placeholder + countries
+      expect(options.length).toBeGreaterThan(1); // Placeholder + occupation options
     });
 
-    it('should render caste options from countries data', () => {
+    it('should render caste options from caste data', () => {
       render(
         <PatientOtherInfo
           defaultValues={defaultValues}
@@ -217,7 +240,7 @@ describe('PatientOtherInfo', () => {
       expect(options.length).toBeGreaterThan(1);
     });
 
-    it('should render education options from countries data', () => {
+    it('should render education options from education data', () => {
       render(
         <PatientOtherInfo
           defaultValues={defaultValues}
@@ -232,7 +255,7 @@ describe('PatientOtherInfo', () => {
       expect(options.length).toBeGreaterThan(1);
     });
 
-    it('should render economic status options from countries data', () => {
+    it('should render economic status options from economic status data', () => {
       render(
         <PatientOtherInfo
           defaultValues={defaultValues}
@@ -273,7 +296,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Primary',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -294,7 +317,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Primary',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -315,7 +338,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Primary',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -336,7 +359,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Primary',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -357,10 +380,10 @@ describe('PatientOtherInfo', () => {
       const user = userEvent.setup();
       const validValues = {
         sonDaughterWifeOf: 'John Doe',
-        occupation: 'Engineer',
+        occupation: 'Salaried Employee',
         caste: 'General',
-        education: 'Graduate',
-        economicStatus: 'Middle Class',
+        education: 'Graduate & Higher',
+        economicStatus: 'APL',
       };
 
       render(
@@ -377,7 +400,7 @@ describe('PatientOtherInfo', () => {
       await waitFor(() => {
         expect(mockOnNext).toHaveBeenCalledWith({
           otherInfo: expect.objectContaining({
-            education: 'Graduate',
+            education: 'Graduate & Higher',
           }),
         });
       });
@@ -389,7 +412,7 @@ describe('PatientOtherInfo', () => {
         sonDaughterWifeOf: '',
         occupation: '',
         caste: '',
-        education: 'Graduate',
+        education: 'Primary',
         economicStatus: '',
       };
 
@@ -407,7 +430,7 @@ describe('PatientOtherInfo', () => {
       await waitFor(() => {
         expect(mockOnNext).toHaveBeenCalledWith({
           otherInfo: expect.objectContaining({
-            education: 'Graduate',
+            education: 'Primary',
           }),
         });
       });
@@ -509,9 +532,9 @@ describe('PatientOtherInfo', () => {
       );
 
       const occupationDropdown = screen.getByTestId('dropdown-Occupation');
-      await user.selectOptions(occupationDropdown, 'India');
+      await user.selectOptions(occupationDropdown, 'Student');
 
-      expect(occupationDropdown).toHaveValue('India');
+      expect(occupationDropdown).toHaveValue('Student');
     });
 
     it('should handle caste selection', async () => {
@@ -525,9 +548,9 @@ describe('PatientOtherInfo', () => {
       );
 
       const casteDropdown = screen.getByTestId('dropdown-Caste');
-      await user.selectOptions(casteDropdown, 'India');
+      await user.selectOptions(casteDropdown, 'General');
 
-      expect(casteDropdown).toHaveValue('India');
+      expect(casteDropdown).toHaveValue('General');
     });
 
     it('should handle education selection', async () => {
@@ -541,9 +564,9 @@ describe('PatientOtherInfo', () => {
       );
 
       const educationDropdown = screen.getByTestId('dropdown-Education');
-      await user.selectOptions(educationDropdown, 'India');
+      await user.selectOptions(educationDropdown, 'Primary');
 
-      expect(educationDropdown).toHaveValue('India');
+      expect(educationDropdown).toHaveValue('Primary');
     });
 
     it('should handle economic status selection', async () => {
@@ -557,9 +580,9 @@ describe('PatientOtherInfo', () => {
       );
 
       const economicStatusDropdown = screen.getByTestId('dropdown-Economic Status');
-      await user.selectOptions(economicStatusDropdown, 'India');
+      await user.selectOptions(economicStatusDropdown, 'BPL');
 
-      expect(economicStatusDropdown).toHaveValue('India');
+      expect(economicStatusDropdown).toHaveValue('BPL');
     });
   });
 
@@ -684,7 +707,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Illiterate',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -706,7 +729,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Illiterate',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -728,7 +751,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Illiterate',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}
@@ -750,7 +773,7 @@ describe('PatientOtherInfo', () => {
         <PatientOtherInfo
           defaultValues={{
             ...defaultValues,
-            education: 'Graduate',
+            education: 'Illiterate',
           }}
           onNext={mockOnNext}
           onPrev={mockOnPrev}

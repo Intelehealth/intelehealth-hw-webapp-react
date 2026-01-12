@@ -23,6 +23,9 @@ export const loginService = {
       API_ENDPOINTS.OPENMRSLOGIN,
       credentials
     ),
+
+  openMRSLogout: (credentials: AxiosRequestConfig) =>
+    OpenMRSApi.delete(API_ENDPOINTS.OPENMRSLOGIN, credentials),
 };
 
 export default loginService;

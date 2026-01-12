@@ -7,6 +7,7 @@ import { DOCTOR_ROLE, NURSE_ROLE, SYSTEM_ADMIN_ROLE } from '../../../../modules/
 // Hoisted mocks to avoid Vitest hoisting issues
 const h = vi.hoisted(() => ({
   mockOpenMRSLogin: vi.fn(),
+  mockOpenMRSLogout: vi.fn(),
   mockBackendLogin: vi.fn(),
   mockShowToast: vi.fn(),
   mockSetCookie: vi.fn(),
@@ -23,10 +24,12 @@ vi.mock('../../../../modules/auth/login/login.service', () => {
     loginService: {
       login: h.mockBackendLogin,
       openMRSLogin: h.mockOpenMRSLogin,
+      openMRSLogout: h.mockOpenMRSLogout,
     },
     default: {
       login: h.mockBackendLogin,
       openMRSLogin: h.mockOpenMRSLogin,
+      openMRSLogout: h.mockOpenMRSLogout,
     },
   };
 });
@@ -70,6 +73,7 @@ import { useLogin } from '../../../../modules/auth/login/login.hooks';
 // Destructure hoisted mocks for convenience
 const {
   mockOpenMRSLogin,
+  mockOpenMRSLogout,
   mockBackendLogin,
   mockShowToast,
   mockSetCookie,
@@ -99,6 +103,31 @@ const TestComponent: React.FC<{ username: string; password: string }> = ({
     </div>
   );
 };
+
+describe('OpenMRS Logout', () => {
+  const axiosConfig = {
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should call openMRSLogout with axiosConfig', async () => {
+    // Arrange
+    mockOpenMRSLogout.mockResolvedValueOnce(undefined);
+
+    // Act
+    await mockOpenMRSLogout(axiosConfig);
+
+    // Assert
+    expect(mockOpenMRSLogout).toHaveBeenCalledTimes(1);
+    expect(mockOpenMRSLogout).toHaveBeenCalledWith(axiosConfig);
+  });
+});
 
 describe('useLogin hook', () => {
   beforeEach(() => {
