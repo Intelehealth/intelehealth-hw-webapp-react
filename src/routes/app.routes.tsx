@@ -140,6 +140,14 @@ const AppRoutes = () => (
                 }
               ></Route>
             </Route>
+            <Route
+              path={ROUTES.AYU}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AyuModule />
+                </Suspense>
+              }
+            />
           </Route>
         </Route>
         <Route
@@ -150,17 +158,6 @@ const AppRoutes = () => (
             </Suspense>
           }
         />
-
-        {/* 🟡Ayu Module Route */}
-        <Route
-          path={ROUTES.AYU}
-          element={
-            <Suspense fallback={<RouteLoader />}>
-              <AyuModule />
-            </Suspense>
-          }
-        />
-
         {/* 404 fallback */}
         <Route
           path={ROUTES.NOT_FOUND}

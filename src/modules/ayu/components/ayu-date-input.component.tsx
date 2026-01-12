@@ -1,7 +1,7 @@
 import { resolveLabel } from '../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
 
-export function AyuSelect({
+export function AyuDateInput({
   question,
   parent,
   previousSibling,
@@ -12,13 +12,11 @@ export function AyuSelect({
       {label && (
         <label className="text-sm font-medium text-gray-700">{label}</label>
       )}
-      <select className="w-full border rounded px-3 py-2">
-        {question.answerOption?.map((opt, i) => (
-          <option key={i} value={opt.valueString}>
-            {opt.valueString || opt.valueCoding?.display}
-          </option>
-        ))}
-      </select>
+      <input
+        type="date"
+        disabled={question.readOnly}
+        className="w-full border rounded px-3 py-2"
+      />
     </div>
   );
 }

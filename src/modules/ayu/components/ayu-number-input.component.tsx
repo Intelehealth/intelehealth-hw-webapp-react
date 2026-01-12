@@ -1,7 +1,7 @@
 import { resolveLabel } from '../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
 
-export function AyuSelect({
+export function AyuNumberInput({
   question,
   parent,
   previousSibling,
@@ -12,13 +12,20 @@ export function AyuSelect({
       {label && (
         <label className="text-sm font-medium text-gray-700">{label}</label>
       )}
-      <select className="w-full border rounded px-3 py-2">
-        {question.answerOption?.map((opt, i) => (
-          <option key={i} value={opt.valueString}>
-            {opt.valueString || opt.valueCoding?.display}
-          </option>
-        ))}
-      </select>
+      <input
+        type="number"
+        disabled={question.readOnly}
+        className=" w-full
+    border border-gray-300
+    rounded px-3 py-2
+    focus:outline-none
+    focus:border-blue-500
+    focus:ring-1
+    focus:ring-blue-500
+    disabled:bg-gray-100
+    disabled:text-gray-400
+    disabled:cursor-not-allowed"
+      />
     </div>
   );
 }
