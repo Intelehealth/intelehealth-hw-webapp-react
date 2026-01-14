@@ -1,6 +1,6 @@
 import { transformFhirToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
-import fhirJson from './abdominal-distention_fhir_questionnaire.json';
 import { AyuRenderer } from './ayu-renderer.component';
+import fhirJson from './Cough.questionnaire.json';
 
 const ayuSchema = transformFhirToAyu(fhirJson);
 
@@ -10,6 +10,8 @@ export default function DemoPage() {
   }
   return (
     <div className="mx-auto p-6 space-y-6">
+      {/* <Loader type="question" />
+      <Loader type="section" currentSectionIndex={0} /> */}
       <AyuRenderer question={ayuSchema} />
     </div>
   );
