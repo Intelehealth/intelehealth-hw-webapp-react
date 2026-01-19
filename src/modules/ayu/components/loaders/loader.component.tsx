@@ -21,6 +21,7 @@ export const Loader = ({ type, currentSectionIndex }: LoaderProps) => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={currentSectionIndex || 0}
+          currentQuestionIndex={0}
         />
       );
 
@@ -28,7 +29,15 @@ export const Loader = ({ type, currentSectionIndex }: LoaderProps) => {
       return <SideLoader totalQuestions={5} currentQuestionIndex={3} />;
 
     case 'question':
-      return <QuestionLoader />;
+      return (
+        <QuestionLoader
+          totalQuestions={0}
+          questionIndex={0}
+          onNextQuestion={function (): void {
+            throw new Error('Function not implemented.');
+          }}
+        />
+      );
 
     default:
       return null;

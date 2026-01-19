@@ -1,5 +1,5 @@
-import { resolveLabel } from '../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
 
 export function AyuSelect({
   question,

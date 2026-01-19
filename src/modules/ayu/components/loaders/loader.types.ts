@@ -6,6 +6,7 @@ interface SectionProgress {
 interface SectionCompletionLoaderProps {
   sections: SectionProgress[]; // length = 4
   currentSectionIndex: number; // 0-based
+  currentQuestionIndex: number; // 0-based
 }
 
 interface SideLoaderProps {

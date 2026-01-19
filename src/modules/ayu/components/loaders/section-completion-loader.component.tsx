@@ -3,17 +3,20 @@ import type { SectionCompletionLoaderProps } from './loader.types';
 export const SectionCompletionLoader = ({
   sections,
   currentSectionIndex,
+  currentQuestionIndex,
 }: SectionCompletionLoaderProps) => {
   return (
     <div className="flex w-full gap-2">
       {sections.map((section, index) => {
         let width = '0%';
 
-        if (index < currentSectionIndex) {
+        const isCompleted = section.answeredQuestions >= section.totalQuestions;
+
+        if (isCompleted) {
           width = '100%';
         } else if (index === currentSectionIndex) {
           width = `${Math.min(
-            (section.answeredQuestions / section.totalQuestions) * 100,
+            ((currentQuestionIndex + 1) / section.totalQuestions) * 100,
             100
           )}%`;
         }

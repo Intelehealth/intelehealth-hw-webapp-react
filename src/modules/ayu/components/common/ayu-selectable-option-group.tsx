@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { resolveLabel } from '../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
 

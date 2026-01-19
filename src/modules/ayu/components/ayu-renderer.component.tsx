@@ -1,11 +1,11 @@
+import { componentMap } from '../pages/component-map';
+import { resolveAyuComponent } from '../pages/decision-matrix';
 import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
-import { componentMap } from './component-map';
-import { resolveAyuComponent } from './decision-matrix';
-export function AyuRenderer({
+export const AyuRenderer = ({
   question,
   parent,
   previousSibling,
-}: AyuRendererBaseProps) {
+}: AyuRendererBaseProps) => {
   const type = resolveAyuComponent(question);
   const Component = componentMap[type];
 
@@ -16,4 +16,4 @@ export function AyuRenderer({
       previousSibling={previousSibling}
     />
   );
-}
+};

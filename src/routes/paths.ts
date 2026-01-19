@@ -18,7 +18,7 @@ const ROUTES = {
     BASE: '/patient',
     ADD_PATIENT: 'add',
   },
-  AYU: '/ayu',
+  AYU: '/ayu/*',
 };
 
 export default ROUTES;

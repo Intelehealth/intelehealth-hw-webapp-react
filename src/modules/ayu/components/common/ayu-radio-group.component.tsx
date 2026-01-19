@@ -1,6 +1,6 @@
-import { resolveLabel } from '../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../types/ayu-renderer-props.types';
-export function AyuMultiSelect({
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
+export function AyuRadioGroup({
   question,
   parent,
   previousSibling,
@@ -13,7 +13,7 @@ export function AyuMultiSelect({
       )}
       {question.answerOption?.map((opt, i) => (
         <label key={i} className="flex gap-2">
-          <input type="checkbox" />
+          <input type="radio" name={question.linkId} />
           {opt.valueString || opt.valueCoding?.display}
         </label>
       ))}

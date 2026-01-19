@@ -1,13 +1,13 @@
-import { AyuDateInput } from '../components/ayu-date-input.component';
-import { AyuDisplayText } from '../components/ayu-display-text.component';
-import { AyuGroup } from '../components/ayu-group.component';
-import { AyuMultiSelect } from '../components/ayu-multiselect.component';
-import { AyuNumberInput } from '../components/ayu-number-input.component';
-import { AyuRadioGroup } from '../components/ayu-radio-group.component';
-import { AyuRepeatableText } from '../components/ayu-repeatable-text.component';
-import { AyuSelect } from '../components/ayu-select.component';
-import { AyuSelectableOptionGroup } from '../components/ayu-selectable-option-group';
-import { AyuTextInput } from '../components/ayu-text-input.component';
+import { AyuDateInput } from '../components/common/ayu-date-input.component';
+import { AyuDisplayText } from '../components/common/ayu-display-text.component';
+import { AyuGroup } from '../components/common/ayu-group.component';
+import { AyuMultiSelect } from '../components/common/ayu-multiselect.component';
+import { AyuNumberInput } from '../components/common/ayu-number-input.component';
+import { AyuRadioGroup } from '../components/common/ayu-radio-group.component';
+import { AyuRepeatableText } from '../components/common/ayu-repeatable-text.component';
+import { AyuSelect } from '../components/common/ayu-select.component';
+import { AyuSelectableOptionGroup } from '../components/common/ayu-selectable-option-group';
+import { AyuTextInput } from '../components/common/ayu-text-input.component';
 
 export const componentMap = {
   group: AyuGroup,
