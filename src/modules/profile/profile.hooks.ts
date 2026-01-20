@@ -234,9 +234,10 @@ export const useProfile = (): UseProfileReturn => {
   const uploadPhoto = async (file: File) => {
     if (
       !file.name.toLowerCase().endsWith('.jpg') &&
-      !file.name.toLowerCase().endsWith('.jpeg')
+      !file.name.toLowerCase().endsWith('.jpeg') &&
+      !file.name.toLowerCase().endsWith('.png')
     ) {
-      showToast('Warning', 'Upload JPG/JPEG format image only.', 'warning');
+      showToast('Warning', 'Upload JPG/JPEG/PNG format image only.', 'warning');
       return;
     }
     try {
