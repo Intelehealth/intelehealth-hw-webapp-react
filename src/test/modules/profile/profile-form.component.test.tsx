@@ -25,6 +25,19 @@ vi.mock('../../../components/common/photo-upload-modal.component', () => ({
   },
 }));
 
+vi.mock('../../../components/common/image-crop-modal.component', () => ({
+  default: ({ onCropComplete, onCancel }: any) => {
+    return (
+      <div data-testid="crop-modal">
+        <button onClick={() => onCropComplete(new File(['cropped'], 'cropped.png'))}>
+          crop-complete
+        </button>
+        <button onClick={onCancel}>crop-cancel</button>
+      </div>
+    );
+  },
+}));
+
 // Dummy reducer for loader sections
 const mockStore = (loaderValue = 0) =>
   configureStore({
@@ -150,9 +163,13 @@ describe('ProfileForm Component', () => {
 
     const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
     fireEvent.click(photoButtons[0]); // Click the first one
-    fireEvent.click(screen.getByText('upload-photo'));
 
-    expect(mockUploadPhoto).toHaveBeenCalled();
+    // Verify photo modal opens
+    const photoModal = screen.getByTestId('photo-modal');
+    expect(photoModal).toBeInTheDocument();
+
+    // Verify upload button exists
+    expect(screen.getByText('upload-photo')).toBeInTheDocument();
   });
 
   // --------------------------------------------------------
@@ -385,5 +402,84 @@ describe('ProfileForm Component', () => {
     // Verify both fields are populated with the generated password
     expect(newPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
     expect(confirmPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
+  });
+
+  // --------------------------------------------------------
+  it('should open crop modal after uploading photo (lines 185-193)', async () => {
+    setup();
+
+    // Open photo upload modal
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]);
+
+    // Upload a photo
+    fireEvent.click(screen.getByText('upload-photo'));
+
+    // Wait for crop modal to appear
+    await waitFor(() => {
+      expect(screen.getByTestId('crop-modal')).toBeInTheDocument();
+    });
+
+    // Verify crop modal is rendered with correct buttons
+    expect(screen.getByText('crop-complete')).toBeInTheDocument();
+    expect(screen.getByText('crop-cancel')).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------
+  it('should handle crop complete and upload cropped photo (lines 114-119)', async () => {
+    setup();
+
+    // Open photo upload modal
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]);
+
+    // Upload a photo
+    fireEvent.click(screen.getByText('upload-photo'));
+
+    // Wait for crop modal to appear
+    await waitFor(() => {
+      expect(screen.getByTestId('crop-modal')).toBeInTheDocument();
+    });
+
+    // Complete the crop
+    fireEvent.click(screen.getByText('crop-complete'));
+
+    // Verify uploadPhoto was called
+    await waitFor(() => {
+      expect(mockUploadPhoto).toHaveBeenCalled();
+    });
+
+    // Verify crop modal is closed
+    await waitFor(() => {
+      expect(screen.queryByTestId('crop-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  // --------------------------------------------------------
+  it('should handle crop cancel (lines 121-124)', async () => {
+    setup();
+
+    // Open photo upload modal
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]);
+
+    // Upload a photo
+    fireEvent.click(screen.getByText('upload-photo'));
+
+    // Wait for crop modal to appear
+    await waitFor(() => {
+      expect(screen.getByTestId('crop-modal')).toBeInTheDocument();
+    });
+
+    // Cancel the crop
+    fireEvent.click(screen.getByText('crop-cancel'));
+
+    // Verify uploadPhoto was NOT called
+    expect(mockUploadPhoto).not.toHaveBeenCalled();
+
+    // Verify crop modal is closed
+    await waitFor(() => {
+      expect(screen.queryByTestId('crop-modal')).not.toBeInTheDocument();
+    });
   });
 });

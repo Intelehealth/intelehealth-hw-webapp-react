@@ -39,6 +39,7 @@
     "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.63.0",
     "react-i18next": "^15.7.3",
+    "react-image-crop": "^11.0.10",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.1",
     "react-toastify": "^11.0.5",

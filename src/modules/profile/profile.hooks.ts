@@ -232,11 +232,14 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
+    // Accept JPG, JPEG, and PNG formats (PNG is output from crop modal)
+    const fileName = file.name.toLowerCase();
     if (
-      !file.name.toLowerCase().endsWith('.jpg') &&
-      !file.name.toLowerCase().endsWith('.jpeg')
+      !fileName.endsWith('.jpg') &&
+      !fileName.endsWith('.jpeg') &&
+      !fileName.endsWith('.png')
     ) {
-      showToast('Warning', 'Upload JPG/JPEG format image only.', 'warning');
+      showToast('Warning', 'Upload JPG/JPEG/PNG format image only.', 'warning');
       return;
     }
     try {

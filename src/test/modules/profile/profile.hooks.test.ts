@@ -640,13 +640,13 @@ describe('useProfile', () => {
       expect(result.current.profile).not.toBeNull();
     });
 
-    const file = new File(['image'], 'photo.png', { type: 'image/png' });
+    const file = new File(['image'], 'photo.bmp', { type: 'image/bmp' });
 
     await result.current.uploadPhoto(file);
 
     expect(toast.showToast).toHaveBeenCalledWith(
       'Warning',
-      'Upload JPG/JPEG format image only.',
+      'Upload JPG/JPEG/PNG format image only.',
       'warning'
     );
   });

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
-import PhotoCropModal from './photo-crop-modal.component';
+import ImageCropModal from './image-crop-modal.component';
 import PhotoUploadModal from './photo-upload-modal.component';
 
 type ProfilePhotoUploadProps = {
@@ -63,12 +63,14 @@ export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
       </div>
 
       {isCropModalOpen && selectedFile && (
-        <PhotoCropModal
-          image={URL.createObjectURL(selectedFile)}
+        <ImageCropModal
+          image={selectedFile}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
           outputType={imageFormat}
           manual={true}
+          aspectRatio={1}
+          resizeToWidth={256}
         />
       )}
       {isPhotoModalOpen && (

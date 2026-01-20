@@ -17,6 +17,10 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
+// Mock URL.createObjectURL and URL.revokeObjectURL
+global.URL.createObjectURL = vi.fn(() => 'mock-url');
+global.URL.revokeObjectURL = vi.fn();
+
 // Extend expect with custom matchers
 expect.extend({
   // Add custom matchers here if needed

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
 import { Button, Loader, PhotoUploadModal } from '../../components/common';
 import Card from '../../components/common/card.component';
+import ImageCropModal from '../../components/common/image-crop-modal.component';
 import type { RootState } from '../../store/store';
 import type { PasswordChangeRequest } from '../../types/profile.types';
 import PasswordSection from './password-section.component';
@@ -33,6 +34,8 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   );
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = React.useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = React.useState(false);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
 
   // Initialize form with validation
   const {
@@ -100,8 +103,24 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   };
 
   const handleUploadPhoto = (file: File) => {
-    uploadPhoto(file);
+    // Store the selected file and open crop modal
+    setSelectedFile(file);
     setIsPhotoModalOpen(false);
+    setIsCropModalOpen(true);
+  };
+
+  const handleCropComplete = async (croppedImage: string | File) => {
+    // Upload the cropped image
+    setIsCropModalOpen(false);
+    if (croppedImage instanceof File) {
+      await uploadPhoto(croppedImage);
+    }
+    setSelectedFile(null);
+  };
+
+  const handleCropCancel = () => {
+    setIsCropModalOpen(false);
+    setSelectedFile(null);
   };
 
   return profile ? (
@@ -160,6 +179,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           onClose={() => setIsPhotoModalOpen(false)}
           onTakePhoto={handleTakePhoto}
           onUploadPhoto={handleUploadPhoto}
+        />
+      )}
+      {isCropModalOpen && selectedFile && (
+        <ImageCropModal
+          image={selectedFile}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          outputType="file"
+          manual={true}
+          aspectRatio={1}
+          resizeToWidth={256}
         />
       )}
     </Card>
