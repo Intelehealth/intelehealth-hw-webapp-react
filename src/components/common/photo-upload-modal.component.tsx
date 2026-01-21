@@ -13,7 +13,6 @@ interface PhotoUploadModalProps {
   onUploadPhoto: (file: File) => void;
 }
 
-// ✅ Helper function to convert File to base64
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -32,8 +31,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [selectedImageBase64, setSelectedImageBase64] = useState<string>(''); // ✅ Changed to base64 string
-  const cropModalRef = useRef<boolean>(false); // ✅ Guard to prevent multiple modals
+  const [selectedImageBase64, setSelectedImageBase64] = useState<string>('');
+  const cropModalRef = useRef<boolean>(false);
 
   // Hide body scrollbar when modal is open
   useEffect(() => {
@@ -58,7 +57,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   ) => {
     const file = event.target.files?.[0];
     if (file) {
-      // ✅ Guard: prevent multiple modals
       if (cropModalRef.current) {
         return;
       }
@@ -67,7 +65,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       cropModalRef.current = true;
       setIsCropModalOpen(true);
 
-      // ✅ Clear file input to allow re-uploading same file
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -100,8 +97,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
   const handleCropComplete = (croppedImage: string | File) => {
     setIsCropModalOpen(false);
-    setSelectedImageBase64(''); // ✅ Clear base64 reference
-    cropModalRef.current = false; // ✅ Reset guard
+    setSelectedImageBase64('');
+    cropModalRef.current = false;
 
     // Pass the cropped image to the parent component
     if (typeof croppedImage === 'string') {
@@ -120,8 +117,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
   const handleCropCancel = () => {
     setIsCropModalOpen(false);
-    setSelectedImageBase64(''); // ✅ Clear base64 reference
-    cropModalRef.current = false; // ✅ Reset guard
+    setSelectedImageBase64('');
+    cropModalRef.current = false;
   };
 
   return (

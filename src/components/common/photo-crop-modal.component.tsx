@@ -3,7 +3,7 @@ import Cropper from 'react-easy-crop';
 import Button from './button.component';
 
 export interface PhotoCropModalProps {
-  image: string; // ✅ Now only accepts string (base64 or URL)
+  image: string;
   onCropComplete: (croppedImage: string | File) => void;
   manual?: boolean;
   outputType?: 'base64' | 'file';
@@ -94,14 +94,14 @@ const PhotoCropModal = ({
 };
 
 const getCroppedImg = (
-  imageSrc: string, // ✅ Now only accepts string
+  imageSrc: string,
   crop: { x: number; y: number; width: number; height: number },
   outputType: 'base64' | 'file' = 'base64'
 ) => {
   return new Promise<File | string>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
-    image.src = imageSrc; // ✅ Direct string assignment, no blob URL creation
+    image.src = imageSrc;
 
     image.onload = () => {
       const canvas = document.createElement('canvas');
