@@ -5,22 +5,13 @@ import { Loader } from './loader.component';
 import Button from './button.component';
 import CameraCaptureModal from './camera-capture-modal.component';
 import PhotoCropModal from './photo-crop-modal.component';
-
+import { fileToBase64 } from '../../modules/profile/profile.helpers';
 interface PhotoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTakePhoto: () => void;
   onUploadPhoto: (file: File) => void;
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
 
 const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   isOpen,

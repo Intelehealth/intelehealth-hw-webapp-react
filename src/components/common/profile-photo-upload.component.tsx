@@ -2,21 +2,11 @@ import { useCallback, useState } from 'react';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import PhotoCropModal from './photo-crop-modal.component';
 import PhotoUploadModal from './photo-upload-modal.component';
-
+import { fileToBase64 } from '../../modules/profile/profile.helpers';
 type ProfilePhotoUploadProps = {
   image: string; // base64 or URL
   onUpload: (img: string | File) => void;
   imageFormat?: 'base64' | 'file';
-};
-
-// Helper function to convert File to base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 };
 
 export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
