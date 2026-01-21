@@ -3,7 +3,7 @@ import iconLocation from '../../assets/icons/icon-location.svg';
 import iconNotification from '../../assets/icons/icon-notification.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
-import userDefault from '../../assets/images/user-default.png';
+import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import { useProfile } from '../../modules/profile/profile.hooks';
 import ROUTES from '../../routes/paths';
 import { Input } from '../common';
@@ -39,9 +39,12 @@ const Navbar = () => {
             className="cursor-pointer hover:opacity-80 transition-opacity"
           >
             <img
-              src={profile?.avatar || userDefault}
+              src={profile?.avatar || DefaultUserImage}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover"
+              onError={e => {
+                e.currentTarget.src = DefaultUserImage;
+              }}
             />
           </Link>
         </div>

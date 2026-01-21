@@ -13,6 +13,16 @@ interface PhotoUploadModalProps {
   onUploadPhoto: (file: File) => void;
 }
 
+// ✅ Helper function to convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   isOpen,
   onClose,
@@ -22,7 +32,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedImageBase64, setSelectedImageBase64] = useState<string>(''); // ✅ Changed to base64 string
+  const cropModalRef = useRef<boolean>(false); // ✅ Guard to prevent multiple modals
 
   // Hide body scrollbar when modal is open
   useEffect(() => {
@@ -42,11 +53,24 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      setIsCropModalOpen(true); // Open crop modal
+      // ✅ Guard: prevent multiple modals
+      if (cropModalRef.current) {
+        return;
+      }
+      const base64 = await fileToBase64(file);
+      setSelectedImageBase64(base64);
+      cropModalRef.current = true;
+      setIsCropModalOpen(true);
+
+      // ✅ Clear file input to allow re-uploading same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -55,11 +79,18 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     setIsCameraModalOpen(true);
   };
 
-  const handleCameraCapture = (file: File) => {
+  const handleCameraCapture = async (file: File) => {
     dispatch(stopLoading()); // Stop global loader
     setIsCameraModalOpen(false);
-    setSelectedFile(file);
-    setIsCropModalOpen(true); // Open crop modal with captured image
+
+    if (cropModalRef.current) {
+      return;
+    }
+    const base64 = await fileToBase64(file);
+
+    setSelectedImageBase64(base64);
+    cropModalRef.current = true;
+    setIsCropModalOpen(true);
   };
 
   const handleCameraClose = () => {
@@ -69,7 +100,9 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
   const handleCropComplete = (croppedImage: string | File) => {
     setIsCropModalOpen(false);
-    setSelectedFile(null);
+    setSelectedImageBase64(''); // ✅ Clear base64 reference
+    cropModalRef.current = false; // ✅ Reset guard
+
     // Pass the cropped image to the parent component
     if (typeof croppedImage === 'string') {
       fetch(croppedImage)
@@ -87,7 +120,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
   const handleCropCancel = () => {
     setIsCropModalOpen(false);
-    setSelectedFile(null);
+    setSelectedImageBase64(''); // ✅ Clear base64 reference
+    cropModalRef.current = false; // ✅ Reset guard
   };
 
   return (
@@ -192,9 +226,9 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       )}
 
       {/* Crop Modal - Rendered after camera capture or file upload */}
-      {isCropModalOpen && selectedFile && (
+      {isCropModalOpen && selectedImageBase64 && (
         <PhotoCropModal
-          image={selectedFile}
+          image={selectedImageBase64}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
           manual={true}
