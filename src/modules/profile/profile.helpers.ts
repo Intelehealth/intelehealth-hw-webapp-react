@@ -281,6 +281,7 @@ export const updateProfileAttributes = async (
     await profileService.requestDataFromMultipleSources(attributeRequests);
   }
 };
+
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

@@ -44,7 +44,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     resolver: yupResolver(profileSchema),
   });
 
-  // ✅ Reset form ONLY when profile changes
+  // Reset form ONLY when profile changes
   useEffect(() => {
     if (!profile) return;
 
@@ -61,7 +61,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     });
   }, [profile, reset]);
 
-  // ✅ VERY IMPORTANT: memoize avatar
   const profileImage = useMemo<string | undefined>(() => {
     return profile?.avatar || undefined;
   }, [profile?.avatar]);
@@ -118,7 +117,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           trigger={trigger}
           onPhotoModalOpen={() => setIsPhotoModalOpen(true)}
           onCountryChange={() => {}}
-          profileImage={profileImage} // ✅ FIXED
+          profileImage={profileImage}
         />
 
         <PasswordSection
