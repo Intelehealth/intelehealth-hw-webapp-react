@@ -11,6 +11,7 @@ import {
   calculateAge,
   createHealthWorkerProfile,
   createProfile,
+  fileToBase64,
   getErrorMessage,
   mapPersonAttributes,
   mapProviderAttributes,
@@ -253,15 +254,16 @@ export const useProfile = (): UseProfileReturn => {
 
       if (!personUuid) throw new Error('Person UUID not found');
 
+      // Create data URL from the uploaded file to display immediately
+      const dataUrl = await fileToBase64(file);
+
       await profileService.updateProfileImage({
         person: personUuid,
         base64EncodedImage: cleanedBase64,
       });
 
-      const baseUrl =
-        import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
-
-      const avatarUrl = `${baseUrl}/personimage/${personUuid}`;
+      // Use the local data URL immediately to avoid 404 errors while server processes the image
+      const avatarUrl = dataUrl;
 
       setHwProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
       setProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
