@@ -77,6 +77,7 @@ vi.mock('../../../modules/profile/profile.helpers', () => ({
   mapPersonAttributes: vi.fn(() => ({})),
   mapProviderAttributes: vi.fn(() => ({})),
   processImageFile: vi.fn().mockResolvedValue('base64encodedstring'),
+  fileToBase64: vi.fn().mockResolvedValue('data:image/jpeg;base64,mockedbase64data'),
   updateProfileAttributes: vi.fn().mockResolvedValue(undefined),
   getErrorMessage: vi.fn(() => 'Test error message'),
 }));
