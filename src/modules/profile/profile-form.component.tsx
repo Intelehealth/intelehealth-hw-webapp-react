@@ -1,5 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
 import { Button, Loader, PhotoUploadModal } from '../../components/common';
@@ -17,24 +17,21 @@ interface ProfileFormProps {
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
-  const { profile, updateProfile, uploadPhoto, takePhoto } = useProfile();
+  const { profile, updateProfile, uploadPhoto } = useProfile();
 
-  // Get section loading state from Redux
   const isSaving = useSelector(
     (state: RootState) => state.loader.sections['profile-save'] > 0
   );
 
-  const [passwordData, setPasswordData] = React.useState<PasswordChangeRequest>(
-    {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    }
-  );
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = React.useState(false);
+  const [passwordData, setPasswordData] = useState<PasswordChangeRequest>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
 
-  // Initialize form with validation
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -45,66 +42,60 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     trigger,
   } = useForm<ProfileFormValues>({
     resolver: yupResolver(profileSchema),
-    defaultValues: {
-      username: profile?.username || '',
-      firstName: profile?.firstName || '',
-      middleName: profile?.middleName || '',
-      lastName: profile?.lastName || '',
-      email: profile?.email || '',
-      phone: profile?.phone || '',
-      dateOfBirth: profile?.dateOfBirth || '',
-      gender: (profile?.gender as 'male' | 'female' | 'other') || 'male',
-      setupLocation: profile?.setupLocation || '',
-    },
   });
 
-  // Form submission handler with validation
-  const onSubmitForm = async (data: ProfileFormValues) => {
-    try {
-      // Call the updateProfile function from hooks (which calls profile.service)
-      await updateProfile(data);
-    } catch (error) {
-      console.error('Failed to save profile:', error);
-    }
-  };
+  // Reset form ONLY when profile changes
+  useEffect(() => {
+    if (!profile) return;
 
-  // Reset form when profile data changes
-  React.useEffect(() => {
-    if (profile) {
-      reset({
-        username: profile?.username || '',
-        firstName: profile.firstName || '',
-        middleName: profile.middleName || '',
-        lastName: profile.lastName || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
-        dateOfBirth: profile.dateOfBirth || '',
-        gender: (profile.gender as 'male' | 'female' | 'other') || 'male',
-        setupLocation: profile.setupLocation || '',
-      });
-    }
+    reset({
+      username: profile.username || '',
+      firstName: profile.firstName || '',
+      middleName: profile.middleName || '',
+      lastName: profile.lastName || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      dateOfBirth: profile.dateOfBirth || '',
+      gender: (profile.gender as 'male' | 'female' | 'other') || 'male',
+      setupLocation: profile.setupLocation || '',
+    });
   }, [profile, reset]);
 
-  const generatePassword = () => {
+  const profileImage = useMemo<string | undefined>(() => {
+    return profile?.avatar || undefined;
+  }, [profile?.avatar]);
+
+  const onSubmitForm = useCallback(
+    async (data: ProfileFormValues) => {
+      try {
+        await updateProfile(data);
+      } catch (error) {
+        console.error('Failed to save profile:', error);
+      }
+    },
+    [updateProfile]
+  );
+
+  const generatePassword = useCallback(() => {
     const newPassword = 'GeneratedPassword123!';
     setPasswordData(prev => ({
       ...prev,
-      newPassword: newPassword,
+      newPassword,
       confirmPassword: newPassword,
     }));
-  };
+  }, []);
 
-  const handleTakePhoto = () => {
-    takePhoto();
-    setIsPhotoModalOpen(false);
-  };
+  const handleUploadPhoto = useCallback(
+    (file: File) => {
+      uploadPhoto(file);
+      setIsPhotoModalOpen(false);
+    },
+    [uploadPhoto]
+  );
 
-  const handleUploadPhoto = (file: File) => {
-    uploadPhoto(file);
-    setIsPhotoModalOpen(false);
-  };
+  if (!profile) return null;
 
-  return profile ? (
+  return (
     <Card
       className={`w-full bg-white lg:bg-inherit min-h-screen lg:min-h-0 p-0 lg:p-inherit ${className}`}
       contentClassName="p-4 md:p-4 lg:p-6"
@@ -126,7 +117,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           trigger={trigger}
           onPhotoModalOpen={() => setIsPhotoModalOpen(true)}
           onCountryChange={() => {}}
-          profileImage={profile.avatar}
+          profileImage={profileImage}
         />
 
         <PasswordSection
@@ -154,16 +145,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           </Button>
         </div>
       </form>
+
       {isPhotoModalOpen && (
         <PhotoUploadModal
           isOpen={isPhotoModalOpen}
           onClose={() => setIsPhotoModalOpen(false)}
-          onTakePhoto={handleTakePhoto}
+          onTakePhoto={() => {}}
           onUploadPhoto={handleUploadPhoto}
         />
       )}
     </Card>
-  ) : null;
+  );
 };
 
 export default ProfileForm;

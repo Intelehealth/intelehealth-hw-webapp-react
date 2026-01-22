@@ -9,6 +9,7 @@ import {
   convertGender,
   createHealthWorkerProfile,
   createProfile,
+  fileToBase64,
   getAttributeUuid,
   getErrorMessage,
   mapPersonAttributes,
@@ -970,6 +971,107 @@ describe('Profile Helpers', () => {
       const result = await promise;
       expect(result).toBe('iVBORw0KGgoAAAANSUhEUgAAAA==');
       expect(result).not.toContain(' ');
+    });
+  });
+
+  describe('fileToBase64', () => {
+    it('should convert file to base64 data URL string', async () => {
+      const mockFileContent = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+      const file = new File(['test'], 'test.png', { type: 'image/png' });
+
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        onloadend: null as any,
+        onerror: null as any,
+        result: mockFileContent,
+      };
+
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      const promise = fileToBase64(file);
+
+      // Trigger onloadend
+      if (mockFileReader.onloadend) {
+        mockFileReader.onloadend();
+      }
+
+      const result = await promise;
+      expect(result).toBe(mockFileContent);
+      expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(file);
+    });
+
+    it('should reject if FileReader fails', async () => {
+      const file = new File(['test'], 'test.png', { type: 'image/png' });
+
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        onloadend: null as any,
+        onerror: null as any,
+      };
+
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      const promise = fileToBase64(file);
+
+      // Trigger onerror with an error
+      if (mockFileReader.onerror) {
+        const error = new Error('File read error');
+        mockFileReader.onerror(error);
+      }
+
+      await expect(promise).rejects.toThrow('File read error');
+    });
+
+    it('should handle different file types', async () => {
+      const mockFileContent = 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MK';
+
+      const file = new File(['test pdf'], 'test.pdf', { type: 'application/pdf' });
+
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        onloadend: null as any,
+        onerror: null as any,
+        result: mockFileContent,
+      };
+
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      const promise = fileToBase64(file);
+
+      // Trigger onloadend
+      if (mockFileReader.onloadend) {
+        mockFileReader.onloadend();
+      }
+
+      const result = await promise;
+      expect(result).toBe(mockFileContent);
+    });
+
+    it('should handle empty file', async () => {
+      const mockFileContent = 'data:text/plain;base64,';
+
+      const file = new File([], 'empty.txt', { type: 'text/plain' });
+
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        onloadend: null as any,
+        onerror: null as any,
+        result: mockFileContent,
+      };
+
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      const promise = fileToBase64(file);
+
+      // Trigger onloadend
+      if (mockFileReader.onloadend) {
+        mockFileReader.onloadend();
+      }
+
+      const result = await promise;
+      expect(result).toBe(mockFileContent);
     });
   });
 

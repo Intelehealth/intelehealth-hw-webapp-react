@@ -3,7 +3,7 @@ import Cropper from 'react-easy-crop';
 import Button from './button.component';
 
 export interface PhotoCropModalProps {
-  image: string | File;
+  image: string;
   onCropComplete: (croppedImage: string | File) => void;
   manual?: boolean;
   outputType?: 'base64' | 'file';
@@ -51,9 +51,7 @@ const PhotoCropModal = ({
         <div className="flex flex-col items-center space-y-4">
           <div className="relative w-64 h-64 bg-gray-200 rounded-full overflow-hidden">
             <Cropper
-              image={
-                typeof image === 'string' ? image : URL.createObjectURL(image)
-              }
+              image={image}
               crop={crop}
               zoom={zoom}
               aspect={1}
@@ -96,15 +94,14 @@ const PhotoCropModal = ({
 };
 
 const getCroppedImg = (
-  imageSrc: File | string,
+  imageSrc: string,
   crop: { x: number; y: number; width: number; height: number },
   outputType: 'base64' | 'file' = 'base64'
 ) => {
   return new Promise<File | string>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
-    image.src =
-      typeof imageSrc === 'string' ? imageSrc : URL.createObjectURL(imageSrc);
+    image.src = imageSrc;
 
     image.onload = () => {
       const canvas = document.createElement('canvas');
