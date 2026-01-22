@@ -608,7 +608,7 @@ describe('useProfile', () => {
     );
   });
 
-  it('rejects non-jpg/jpeg/png files', async () => {
+  it('rejects non-jpg/jpeg files', async () => {
     const mockGetUser = mockStorage.getUser as MockedFunction<
       typeof mockStorage.getUser
     >;
@@ -645,8 +645,8 @@ describe('useProfile', () => {
     await result.current.uploadPhoto(file);
 
     expect(toast.showToast).toHaveBeenCalledWith(
-      'Warning',
-      'Upload JPG/JPEG/PNG format image only.',
+      'Upload error!',
+      'Upload JPG/JPEG format image only.',
       'warning'
     );
   });

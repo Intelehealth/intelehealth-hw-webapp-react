@@ -132,14 +132,36 @@ const getCroppedImg = (
       ctx.closePath();
       ctx.fill();
 
+      // Create a new canvas with white background for JPEG
+      const finalCanvas = document.createElement('canvas');
+      const finalCtx = finalCanvas.getContext('2d');
+      finalCanvas.width = crop.width;
+      finalCanvas.height = crop.height;
+
+      if (!finalCtx) {
+        return reject(new Error('Could not get final canvas context'));
+      }
+
+      // Fill with white background (required for JPEG)
+      finalCtx.fillStyle = '#FFFFFF';
+      finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+      // Draw the cropped image on top
+      finalCtx.drawImage(canvas, 0, 0);
+
       if (outputType === 'file') {
-        canvas.toBlob(blob => {
-          if (!blob) return reject(new Error('Canvas is empty'));
-          const file = new File([blob], 'cropped.png', { type: 'image/png' });
-          resolve(file);
-        }, 'image/png');
+        finalCanvas.toBlob(
+          blob => {
+            if (!blob) return reject(new Error('Canvas is empty'));
+            const file = new File([blob], 'cropped.jpg', {
+              type: 'image/jpeg',
+            });
+            resolve(file);
+          },
+          'image/jpeg',
+          0.95
+        );
       } else {
-        resolve(canvas.toDataURL('image/png'));
+        resolve(finalCanvas.toDataURL('image/jpeg', 0.95));
       }
     };
 
