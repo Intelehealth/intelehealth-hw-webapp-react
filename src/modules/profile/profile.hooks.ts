@@ -236,8 +236,12 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
-    if (!/\.jpe?g$|\.png$/i.test(file.name)) {
-      showToast('Warning', 'Upload JPG/JPEG/PNG format image only.', 'warning');
+    if (!/\.jpe?g$/i.test(file.name)) {
+      showToast(
+        'Upload error!',
+        'Upload JPG/JPEG format image only.',
+        'warning'
+      );
       return;
     }
 
