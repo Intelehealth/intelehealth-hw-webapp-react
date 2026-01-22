@@ -22,6 +22,7 @@ export const MedicalHistory = ({
     <div>
       <div className="flex gap-2 items-center">
         <QuestionLoader
+          question="Since when have you had this symptom?"
           questionIndex={questionIndex}
           totalQuestions={TOTAL_QUESTIONS}
           onNextQuestion={onNextQuestion}

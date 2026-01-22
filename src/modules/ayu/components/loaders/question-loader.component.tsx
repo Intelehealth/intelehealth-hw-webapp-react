@@ -1,67 +1,87 @@
+import { useEffect, useState } from 'react';
 import iconQuestionMark from '../../../ayu/assets/icon-ayu.svg';
-import type { SectionProps } from '../../types/start-visit.types';
 
-interface QuestionLoaderProps extends SectionProps {
+interface QuestionLoaderProps {
+  question: string;
+  questionIndex: number;
   totalQuestions: number;
+  onNextQuestion: () => void;
 }
 
 export const QuestionLoader = ({
+  question = 'Since when have you had this symptom?',
   questionIndex,
   totalQuestions,
 }: QuestionLoaderProps) => {
-  return (
-    <div className="flex items-start">
-      {/* LEFT: Icon + Loader */}
-      <div className="flex flex-col items-center">
-        <img
-          src={iconQuestionMark}
-          className="w-10 h-10 object-cover mb-1"
-          alt="Ayu Loader"
-        />
+  const [loading, setLoading] = useState(true);
 
-        <div className="relative inline-flex flex-col items-center">
-          {/* Triangle */}
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(t);
+  }, [questionIndex]);
+
+  return (
+    <div className="w-full max-w-[760px]">
+      {/* TOP ROW: ICON + QUESTION COUNT */}
+      <div className="flex items-start gap-3">
+        {/* ICON */}
+        <div className="flex flex-col items-center">
+          <img
+            src={iconQuestionMark}
+            className="w-10 h-10"
+            alt="Question Icon"
+          />
+
+          {/* TRIANGLE */}
           <svg
-            width="20"
-            height="10"
+            width="18"
+            height="9"
             viewBox="0 0 20 10"
-            className="-top-2 text-emerald-50"
+            className="mt-1 text-emerald-50"
           >
             <path
               d="M0 10 C5 10 7.5 0 10 0 C12.5 0 15 10 20 10 Z"
               fill="currentColor"
             />
           </svg>
-
-          {/* Bubble */}
-          <div className="px-2 py-3 rounded-md bg-emerald-50">
-            <div className="flex gap-2">
-              {[0, 1, 2].map(i => (
-                <span
-                  key={i}
-                  className="w-2 h-2 rounded-full bg-emerald-500"
-                  style={{
-                    animation: 'dotBounce 1.4s infinite ease-in-out both',
-                    animationDelay: `${i * 0.2}s`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
         </div>
-      </div>
 
-      {/* RIGHT: Text */}
-      <div className="pt-2">
-        <span
-          className="text-sm font-medium text-gray-800"
-          style={{ color: '#2e1e91' }}
-        >
+        {/* QUESTION COUNT */}
+        <p className="pt-2 text-sm font-medium text-[#2e1e91]">
           {questionIndex + 1} of {totalQuestions} questions
-        </span>
+        </p>
       </div>
 
-      {/* Animation */}
+      {/* GREEN COMMENT BOX (FULL WIDTH) */}
+      <div className="w-full bg-emerald-50 rounded-lg px-4 py-4 min-h-[96px]">
+        {loading ? (
+          <div className="flex gap-2 items-center">
+            {[0, 1, 2].map(i => (
+              <span
+                key={i}
+                className="w-2.5 h-2.5 rounded-full bg-emerald-500"
+                style={{
+                  animation: 'dotBounce 1.4s infinite ease-in-out both',
+                  animationDelay: `${i * 0.2}s`,
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <p className="text-base font-medium text-gray-900">
+              {question}
+              {question && <span className="text-red-500">*</span>}
+            </p>
+            {question && (
+              <p className="text-sm text-gray-500 mt-1">Select any one</p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ANIMATION */}
       <style>
         {`
           @keyframes dotBounce {

@@ -102,10 +102,12 @@ export const StartVisit = () => {
       </div>
 
       {/* 👉 Side Loader */}
-      <SideLoader
-        totalQuestions={sections[currentSectionIndex].totalQuestions}
-        currentQuestionIndex={currentQuestionIndex}
-      />
+      <div className="hidden md:block">
+        <SideLoader
+          totalQuestions={sections[currentSectionIndex].totalQuestions}
+          currentQuestionIndex={currentQuestionIndex}
+        />
+      </div>
 
       {/* 📄 Active Section */}
       <div className="pt-4">

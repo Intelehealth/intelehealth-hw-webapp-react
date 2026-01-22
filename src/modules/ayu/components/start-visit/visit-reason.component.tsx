@@ -1,3 +1,4 @@
+import { useAyuJsonList } from '../../hooks/useAyuJson';
 import AyuButton from '../common/ayu-button.component';
 import { QuestionLoader } from '../loaders/question-loader.component';
 
@@ -20,17 +21,32 @@ export const VisitReason = ({
   const isFirstQuestion = questionIndex === 0;
   const isLastQuestion = questionIndex === TOTAL_QUESTIONS - 1;
 
+  const ayuJsonList = useAyuJsonList('test_Protocols');
+  const names = ayuJsonList.map(item => item.name.replace(/\.json$/i, ''));
   return (
     <div>
       <div className="flex gap-2 items-center">
         <QuestionLoader
+          question="What is the reason for this visit?"
           questionIndex={questionIndex}
           totalQuestions={TOTAL_QUESTIONS}
           onNextQuestion={onNextQuestion}
         />
       </div>
 
-      <div className="mt-6 gap-3 md:justify-end flex my-4">
+      <div className="pt-3 flex flex-wrap gap-3">
+        {names.map(name => (
+          <button
+            key={name}
+            className="px-4 py-2 rounded-lg border border-emerald-400
+                       text-emerald-500 bg-emerald-20
+                       hover:bg-emerald-100 transition"
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div className="mt-6 gap-3 md:justify-end flex my-4 md:mb-0">
         {/* Back logic */}
         <AyuButton
           type="button"
