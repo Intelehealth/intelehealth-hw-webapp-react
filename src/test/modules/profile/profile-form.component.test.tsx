@@ -155,17 +155,6 @@ describe('ProfileForm Component', () => {
     expect(mockUploadPhoto).toHaveBeenCalled();
   });
 
-  // --------------------------------------------------------
-  it('handles take photo callback', async () => {
-    setup();
-
-    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
-    fireEvent.click(photoButtons[0]); // Click the first one
-    fireEvent.click(screen.getByText('take-photo'));
-
-    expect(mockTakePhoto).toHaveBeenCalled();
-  });
-
   it('should show loading state when profile is null (lines 109-119)', () => {
     // Override the beforeEach mock to return null profile
     mockUseProfile.mockReturnValue({

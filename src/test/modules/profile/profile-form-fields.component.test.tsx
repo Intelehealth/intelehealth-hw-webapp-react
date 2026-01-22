@@ -960,5 +960,71 @@ describe('ProfileFormFields', () => {
     const defaultImages = container.querySelectorAll('img[alt="Default Profile"]');
     expect(defaultImages.length).toBeGreaterThan(0);
   });
+
+  it('covers lines 70-71: handles mobile profile image error', () => {
+    const mockProfileImage = 'https://example.com/broken-image.jpg';
+    const { container } = render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={mockErrors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+        profileImage={mockProfileImage}
+      />
+    );
+
+    // Find the mobile profile image (in the lg:hidden section)
+    const mobileSection = container.querySelector('.lg\\:hidden');
+    const mobileProfileImage = mobileSection?.querySelector('img[alt="Profile"]') as HTMLImageElement;
+
+    expect(mobileProfileImage).toBeInTheDocument();
+    expect(mobileProfileImage.src).toContain('broken-image.jpg');
+
+    // Store original src before error
+    const originalSrc = mobileProfileImage.src;
+
+    // Trigger error event to test lines 70-71
+    fireEvent.error(mobileProfileImage);
+
+    // After error, src should be changed (it will be set to DefaultUserImage)
+    // Since DefaultUserImage is imported as a module, we just verify it changed
+    expect(mobileProfileImage.src).not.toBe(originalSrc);
+  });
+
+  it('covers lines 184-185: handles desktop profile image error', () => {
+    const mockProfileImage = 'https://example.com/broken-image.jpg';
+    const { container } = render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={mockErrors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+        profileImage={mockProfileImage}
+      />
+    );
+
+    // Find the desktop profile image (in the hidden.lg:block section)
+    const desktopSection = container.querySelector('.hidden.lg\\:block');
+    const desktopProfileImage = desktopSection?.querySelector('img[alt="Profile"]') as HTMLImageElement;
+
+    expect(desktopProfileImage).toBeInTheDocument();
+    expect(desktopProfileImage.src).toContain('broken-image.jpg');
+
+    // Store original src before error
+    const originalSrc = desktopProfileImage.src;
+
+    // Trigger error event to test lines 184-185
+    fireEvent.error(desktopProfileImage);
+
+    // After error, src should be changed (it will be set to DefaultUserImage)
+    // Since DefaultUserImage is imported as a module, we just verify it changed
+    expect(desktopProfileImage.src).not.toBe(originalSrc);
+  });
 });
 

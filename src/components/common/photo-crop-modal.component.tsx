@@ -3,7 +3,7 @@ import Cropper from 'react-easy-crop';
 import Button from './button.component';
 
 export interface PhotoCropModalProps {
-  image: string | File;
+  image: string;
   onCropComplete: (croppedImage: string | File) => void;
   manual?: boolean;
   outputType?: 'base64' | 'file';
@@ -51,9 +51,7 @@ const PhotoCropModal = ({
         <div className="flex flex-col items-center space-y-4">
           <div className="relative w-64 h-64 bg-gray-200 rounded-full overflow-hidden">
             <Cropper
-              image={
-                typeof image === 'string' ? image : URL.createObjectURL(image)
-              }
+              image={image}
               crop={crop}
               zoom={zoom}
               aspect={1}
@@ -96,15 +94,14 @@ const PhotoCropModal = ({
 };
 
 const getCroppedImg = (
-  imageSrc: File | string,
+  imageSrc: string,
   crop: { x: number; y: number; width: number; height: number },
   outputType: 'base64' | 'file' = 'base64'
 ) => {
   return new Promise<File | string>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
-    image.src =
-      typeof imageSrc === 'string' ? imageSrc : URL.createObjectURL(imageSrc);
+    image.src = imageSrc;
 
     image.onload = () => {
       const canvas = document.createElement('canvas');
@@ -135,14 +132,36 @@ const getCroppedImg = (
       ctx.closePath();
       ctx.fill();
 
+      // Create a new canvas with white background for JPEG
+      const finalCanvas = document.createElement('canvas');
+      const finalCtx = finalCanvas.getContext('2d');
+      finalCanvas.width = crop.width;
+      finalCanvas.height = crop.height;
+
+      if (!finalCtx) {
+        return reject(new Error('Could not get final canvas context'));
+      }
+
+      // Fill with white background (required for JPEG)
+      finalCtx.fillStyle = '#FFFFFF';
+      finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+      // Draw the cropped image on top
+      finalCtx.drawImage(canvas, 0, 0);
+
       if (outputType === 'file') {
-        canvas.toBlob(blob => {
-          if (!blob) return reject(new Error('Canvas is empty'));
-          const file = new File([blob], 'cropped.png', { type: 'image/png' });
-          resolve(file);
-        }, 'image/png');
+        finalCanvas.toBlob(
+          blob => {
+            if (!blob) return reject(new Error('Canvas is empty'));
+            const file = new File([blob], 'cropped.jpg', {
+              type: 'image/jpeg',
+            });
+            resolve(file);
+          },
+          'image/jpeg',
+          0.95
+        );
       } else {
-        resolve(canvas.toDataURL('image/png'));
+        resolve(finalCanvas.toDataURL('image/jpeg', 0.95));
       }
     };
 

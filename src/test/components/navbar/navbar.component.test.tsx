@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import Navbar from '../../../components/navbar/navbar.component';
@@ -161,11 +161,34 @@ describe('Navbar', () => {
 
   it('should have correct gap spacing between elements', () => {
     const { container } = renderWithRouter(<Navbar />);
-    
+
     const mainSection = container.querySelector('.flex.justify-between.items-center.w-full.gap-4');
     expect(mainSection).toHaveClass('gap-4');
-    
+
     const actionsSection = container.querySelector('.flex.items-center.space-x-2.ml-auto.gap-4');
     expect(actionsSection).toHaveClass('gap-4');
+  });
+
+  it('should handle image error by setting default user image (covers lines 46-47)', () => {
+    renderWithRouter(<Navbar />);
+
+    const userAvatar = screen.getByAltText('Profile') as HTMLImageElement;
+    expect(userAvatar).toBeInTheDocument();
+
+    // Store the original (default) src
+    const originalSrc = userAvatar.src;
+
+    // Change the src to simulate a broken profile image
+    userAvatar.src = 'https://example.com/broken-profile.jpg';
+
+    // Verify it changed
+    expect(userAvatar.src).toBe('https://example.com/broken-profile.jpg');
+
+    // Trigger error event using fireEvent from testing-library
+    fireEvent.error(userAvatar);
+
+    // After error, src should be set back to the default image
+    // The default image should be the same as the original src
+    expect(userAvatar.src).toBe(originalSrc);
   });
 });

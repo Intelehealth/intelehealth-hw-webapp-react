@@ -25,7 +25,6 @@ interface UseProfileReturn {
   hwProfile: HealthWorkerProfile | null;
   age: number | null;
   uploadPhoto: (file: File) => Promise<void>;
-  takePhoto: () => Promise<void>;
   calculateAge: (dateOfBirth: string) => number;
   updateAgeForDate: (dateOfBirth: string) => void;
   refreshProfile: () => Promise<void>;
@@ -39,6 +38,12 @@ interface UseProfileReturn {
     gender?: 'male' | 'female' | 'other';
     setupLocation?: string;
   }) => Promise<void>;
+}
+
+interface ProviderSearchResponse {
+  results?: Array<{
+    uuid: string;
+  }>;
 }
 
 export const useProfile = (): UseProfileReturn => {
@@ -56,108 +61,106 @@ export const useProfile = (): UseProfileReturn => {
     setAge(dateOfBirth?.trim() ? calculateAge(dateOfBirth) : null);
   };
 
-  useEffect(() => {
-    loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const updateAvatars = (
-    hwProfile: HealthWorkerProfile,
-    profile: Profile,
-    avatarUrl: string
-  ) => {
-    setHwProfile({ ...hwProfile, avatar: avatarUrl });
-    setProfile({ ...profile, avatar: avatarUrl });
-  };
-
-  const fetchProfileImage = async (
-    personUuid: string,
-    newHwProfile: HealthWorkerProfile,
-    newProfile: Profile
-  ) => {
-    try {
-      const imageBlob = (await profileService.getProfileImage(
-        personUuid
-      )) as Blob;
-      const avatarUrl =
-        imageBlob?.size > 0 ? URL.createObjectURL(imageBlob) : '';
-      updateAvatars(newHwProfile, newProfile, avatarUrl);
-    } catch (error) {
-      updateAvatars(newHwProfile, newProfile, '');
-      const errorStatus =
-        (error as { status?: number; response?: { status?: number } })
-          ?.status ||
-        (error as { response?: { status?: number } })?.response?.status;
-      if (errorStatus !== 404)
-        console.error('[Profile] Failed to fetch image:', error);
-    }
-  };
-
   const loadProfile = async () => {
     try {
       const userData = storage.getUser();
-      if (!userData)
-        throw new Error('User data not found. Please log in again.');
-      const user = JSON.parse(userData);
-      if (!user.uuid)
-        throw new Error('User UUID not found. Please log in again.');
+      if (!userData) throw new Error('User data not found');
+
+      const user = JSON.parse(userData) as {
+        uuid?: string;
+        person?: { uuid?: string };
+      };
+      if (!user.uuid) throw new Error('User UUID not found');
 
       const userDetails = (await profileService.getUserByUuid(
         user.uuid
       )) as UserDetailResponse;
-      let providerDetails: ProviderDetailResponse | null = null;
+
+      // Fetch provider details
+      let providerDetailsLocal: ProviderDetailResponse | null = null;
 
       try {
-        const providerData = (await profileService.getProvider(user.uuid)) as {
-          results?: Array<{ uuid: string }>;
-        };
-        if (providerData?.results?.[0]) {
-          providerDetails = (await profileService.getProviderByUuid(
-            providerData.results[0].uuid
+        const providerSearch = (await profileService.getProvider(
+          user.uuid
+        )) as ProviderSearchResponse;
+
+        const providerUuid = providerSearch?.results?.[0]?.uuid;
+
+        if (providerUuid) {
+          providerDetailsLocal = (await profileService.getProviderByUuid(
+            providerUuid
           )) as ProviderDetailResponse;
-          setProviderDetails(providerDetails);
         }
       } catch {
-        setProviderDetails(null);
+        providerDetailsLocal = null;
       }
 
+      setProviderDetails(prev =>
+        prev?.uuid === providerDetailsLocal?.uuid ? prev : providerDetailsLocal
+      );
+
+      // Get person details
       const finalPersonUuid = userDetails.person?.uuid || user.person?.uuid;
-      if (!finalPersonUuid)
-        throw new Error('Person UUID not found. Please log in again.');
+
+      if (!finalPersonUuid) {
+        throw new Error('Person UUID not found');
+      }
 
       const personDetails = (await profileService.getPersonByUuid(
         finalPersonUuid
       )) as PersonDetailsType;
-      const attributes = mapProviderAttributes(providerDetails);
+
+      // Build profile objects
+      const attributes = mapProviderAttributes(providerDetailsLocal);
       const personAttributes = mapPersonAttributes(personDetails);
       const roles = userDetails.roles.map(r => r.name);
 
-      const newHwProfile = createHealthWorkerProfile(
+      const baseUrl = import.meta.env.VITE_OPENMRS_API_URL || '';
+
+      const avatarUrl = `${baseUrl}/personimage/${finalPersonUuid}?t=${Date.now()}`;
+
+      const nextHwProfile = createHealthWorkerProfile(
         userDetails,
         personDetails,
-        providerDetails,
+        providerDetailsLocal,
         attributes,
         personAttributes
       );
-      const newProfile = createProfile(
+
+      const nextProfile = createProfile(
         userDetails,
         personDetails,
-        providerDetails,
+        providerDetailsLocal,
         attributes,
         personAttributes,
         roles
       );
-      setHwProfile(newHwProfile);
-      setProfile(newProfile);
 
-      const personUuidForImage =
-        providerDetails?.person?.uuid || finalPersonUuid;
-      await fetchProfileImage(personUuidForImage, newHwProfile, newProfile);
+      nextHwProfile.avatar = avatarUrl;
+      nextProfile.avatar = avatarUrl;
+
+      // Update state only if changed
+      setHwProfile(prev => {
+        const shouldUpdate =
+          prev?.providerUuid !== nextHwProfile.providerUuid ||
+          prev?.avatar !== nextHwProfile.avatar;
+        return shouldUpdate ? nextHwProfile : prev;
+      });
+
+      setProfile(prev => {
+        const shouldUpdate =
+          prev?.id !== nextProfile.id || prev?.avatar !== nextProfile.avatar;
+        return shouldUpdate ? nextProfile : prev;
+      });
     } catch (error) {
       showToast('Error', 'Failed to load profile data', 'error');
       console.error('Profile loading error:', error);
     }
   };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   const updateProfile = async (data: {
     firstName?: string;
@@ -232,49 +235,37 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
-    if (
-      !file.name.toLowerCase().endsWith('.jpg') &&
-      !file.name.toLowerCase().endsWith('.jpeg')
-    ) {
-      showToast('Warning', 'Upload JPG/JPEG format image only.', 'warning');
+    if (!/\.jpe?g$/i.test(file.name)) {
+      showToast(
+        'Upload error!',
+        'Upload JPG/JPEG format image only.',
+        'warning'
+      );
       return;
     }
+
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target?.result as string);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-
-      if (profile && hwProfile) {
-        setProfile({ ...profile, avatar: dataUrl });
-        setHwProfile({ ...hwProfile, avatar: dataUrl });
-      }
-
       const cleanedBase64 = await processImageFile(file);
+
       const personUuid =
-        providerDetails?.person?.uuid ||
-        hwProfile?.personUuid ||
-        profile?.id ||
-        '';
+        providerDetails?.person?.uuid || hwProfile?.personUuid || profile?.id;
+
       if (!personUuid) throw new Error('Person UUID not found');
 
       await profileService.updateProfileImage({
         person: personUuid,
         base64EncodedImage: cleanedBase64,
       });
-      const baseUrl =
-        import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
-      const imageUrl = `${baseUrl}/personimage/${personUuid}?t=${Date.now()}`;
 
-      if (profile && hwProfile) {
-        setProfile({ ...profile, avatar: imageUrl });
-        setHwProfile({ ...hwProfile, avatar: imageUrl });
-      }
-      await loadProfile();
+      // Use the server URL with timestamp to force immediate refresh
+      const baseUrl = import.meta.env.VITE_OPENMRS_API_URL || '';
+      const avatarUrl = `${baseUrl}/personimage/${personUuid}?t=${Date.now()}`;
+
+      setHwProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
+      setProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
+
       showToast('Success', 'Profile picture uploaded successfully!', 'success');
-    } catch (error: unknown) {
+    } catch (error) {
       showToast(
         'Error',
         error instanceof Error ? error.message : 'Failed to upload photo',
@@ -283,16 +274,11 @@ export const useProfile = (): UseProfileReturn => {
     }
   };
 
-  const takePhoto = async () => {
-    showToast('Info', 'Camera functionality not implemented yet', 'info');
-  };
-
   return {
     profile,
     hwProfile,
     age,
     uploadPhoto,
-    takePhoto,
     calculateAge,
     updateAgeForDate,
     refreshProfile: loadProfile,

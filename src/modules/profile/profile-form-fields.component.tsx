@@ -66,6 +66,9 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
                   src={profileImage}
                   alt="Profile"
                   className="w-full h-full object-cover rounded-full"
+                  onError={e => {
+                    e.currentTarget.src = DefaultUserImage;
+                  }}
                 />
               ) : (
                 <img
@@ -177,6 +180,9 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
                   src={profileImage}
                   alt="Profile"
                   className="w-full h-full object-cover rounded-full"
+                  onError={e => {
+                    e.currentTarget.src = DefaultUserImage;
+                  }}
                 />
               ) : (
                 <img
