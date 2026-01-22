@@ -11,7 +11,6 @@ import {
   calculateAge,
   createHealthWorkerProfile,
   createProfile,
-  fileToBase64,
   getErrorMessage,
   mapPersonAttributes,
   mapProviderAttributes,
@@ -116,10 +115,9 @@ export const useProfile = (): UseProfileReturn => {
       const personAttributes = mapPersonAttributes(personDetails);
       const roles = userDetails.roles.map(r => r.name);
 
-      const baseUrl =
-        import.meta.env.VITE_OPENMRS_API_URL?.replace('/ws/rest/v1', '') || '';
+      const baseUrl = import.meta.env.VITE_OPENMRS_API_URL || '';
 
-      const avatarUrl = `${baseUrl}/personimage/${finalPersonUuid}`;
+      const avatarUrl = `${baseUrl}/personimage/${finalPersonUuid}?t=${Date.now()}`;
 
       const nextHwProfile = createHealthWorkerProfile(
         userDetails,
@@ -254,16 +252,14 @@ export const useProfile = (): UseProfileReturn => {
 
       if (!personUuid) throw new Error('Person UUID not found');
 
-      // Create data URL from the uploaded file to display immediately
-      const dataUrl = await fileToBase64(file);
-
       await profileService.updateProfileImage({
         person: personUuid,
         base64EncodedImage: cleanedBase64,
       });
 
-      // Use the local data URL immediately to avoid 404 errors while server processes the image
-      const avatarUrl = dataUrl;
+      // Use the server URL with timestamp to force immediate refresh
+      const baseUrl = import.meta.env.VITE_OPENMRS_API_URL || '';
+      const avatarUrl = `${baseUrl}/personimage/${personUuid}?t=${Date.now()}`;
 
       setHwProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
       setProfile(prev => (prev ? { ...prev, avatar: avatarUrl } : prev));
