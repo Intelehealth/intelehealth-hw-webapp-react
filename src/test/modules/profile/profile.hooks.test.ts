@@ -80,6 +80,7 @@ vi.mock('../../../modules/profile/profile.helpers', () => ({
   fileToBase64: vi.fn().mockResolvedValue('data:image/jpeg;base64,mockedbase64data'),
   updateProfileAttributes: vi.fn().mockResolvedValue(undefined),
   getErrorMessage: vi.fn(() => 'Test error message'),
+  validateImageFormat: vi.fn(() => true),
 }));
 
 // ---------- MOCK PROFILE SERVICE ----------
@@ -643,11 +644,14 @@ describe('useProfile', () => {
 
     const file = new File(['image'], 'photo.gif', { type: 'image/gif' });
 
+    // Mock validateImageFormat to return false for this test
+    vi.mocked(helpers.validateImageFormat).mockReturnValueOnce(false);
+
     await result.current.uploadPhoto(file);
 
     expect(toast.showToast).toHaveBeenCalledWith(
       'Upload error!',
-      'Upload JPG/JPEG format image only.',
+      'Upload JPG, JPEG or PNG format image only.',
       'warning'
     );
   });

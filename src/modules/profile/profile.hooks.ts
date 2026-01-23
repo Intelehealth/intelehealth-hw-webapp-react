@@ -16,6 +16,7 @@ import {
   mapProviderAttributes,
   processImageFile,
   updateProfileAttributes,
+  validateImageFormat,
   type PersonDetailsType,
 } from './profile.helpers';
 import profileService from './profile.service';
@@ -235,10 +236,10 @@ export const useProfile = (): UseProfileReturn => {
   };
 
   const uploadPhoto = async (file: File) => {
-    if (!/\.jpe?g$/i.test(file.name)) {
+    if (!validateImageFormat(file)) {
       showToast(
         'Upload error!',
-        'Upload JPG/JPEG format image only.',
+        'Upload JPG, JPEG or PNG format image only.',
         'warning'
       );
       return;

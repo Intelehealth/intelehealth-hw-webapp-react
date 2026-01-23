@@ -290,3 +290,10 @@ export const fileToBase64 = (file: File): Promise<string> => {
     reader.readAsDataURL(file);
   });
 };
+
+export const validateImageFormat = (file: File): boolean => {
+  if (!/\.(jpe?g|png)$/i.test(file.name)) {
+    return false;
+  }
+  return true;
+};
