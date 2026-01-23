@@ -1,0 +1,952 @@
+{
+  "resourceType": "Questionnaire",
+  "id": "ID_3a490134-d198-4e7c-ac59-096f35b0e877",
+  "url": "http://example.org/questionnaire/abdominal-distention",
+  "version": "1.0",
+  "name": "AbdominaldistentionQuestionnaire",
+  "title": "Abdominal distention",
+  "status": "active",
+  "date": "2025-11-24T16:12:26.654124",
+  "publisher": "Medical Assessment System",
+  "description": "A comprehensive questionnaire for assessing abdominal distention",
+  "item": [
+    {
+      "linkId": "1",
+      "text": "Since when have you had this symptom?",
+      "type": "group",
+      "required": true,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "text_hi": "आपको यह लक्षण कब से है?",
+      "text_mr": "तुम्हाला ही लक्षणे कधीपासून जाणवत आहेत?",
+      "item": [
+        {
+          "linkId": "1.1",
+          "text": "Duration value",
+          "type": "decimal",
+          "required": true
+        },
+        {
+          "linkId": "1.2",
+          "text": "Duration unit",
+          "type": "choice",
+          "required": true,
+          "answerOption": [
+            {
+              "valueCoding": {
+                "code": "ID_c5424271-90c1-477b-9ef4-cfe5b86ed0f8",
+                "display": "Hours",
+                "display_hi": "घंटे",
+                "display_mr": "तास"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_f8598cdd-7c17-4d1b-9984-8aee94f0d4a0",
+                "display": "Days",
+                "display_hi": "दिन",
+                "display_mr": "दिवस"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_2069c42d-7ca6-4161-b391-8c129ea9d5a3",
+                "display": "Weeks",
+                "display_hi": "सप्ताह",
+                "display_mr": "आठवडा (आठवडे)"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_bf7ec403-4d2e-47b1-993f-08791d0b1ad4",
+                "display": "Months",
+                "display_hi": "माह",
+                "display_mr": "महिना (ने)"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_fed046d5-cc9e-4449-9bc3-f3f191154a84",
+                "display": "Years",
+                "display_hi": "वर्ष",
+                "display_mr": "वर्ष (र्षे)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "linkId": "2",
+      "text": "How fast did this symptom develop?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "यह लक्षण कितनी तेजी से विकसित हुआ?",
+      "text_mr": "ही लक्षणे किती वेगाने पसरली आहेत?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_dac452a5-5233-499c-8cf6-7d2c089767aa",
+            "display": "Slowly",
+            "display_hi": "धीरे-धीरे",
+            "display_mr": "हळूहळू"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_b4dc8cd1-60e3-47af-ae08-050bc359aebd",
+            "display": "Suddenly",
+            "display_hi": "अचानक",
+            "display_mr": "अचानक"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "3",
+      "text": "Which part of the abdomen do you have distention?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "आपके पेट का कौन सा हिस्सा फूलता है?",
+      "text_mr": "तुमच्या पोटाचा कोणता भाग फुगला आहे?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_c2cbf061-4a4c-43c6-9e2a-4d478a6577da",
+            "display": "All over",
+            "display_hi": "संपूर्ण जगह",
+            "display_mr": "सगळीकडे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_199a6356-3292-43ad-969b-3ebd71a1ca9b",
+            "display": "Part of abdomen",
+            "display_hi": "पेट का कोई हिस्सा",
+            "display_mr": "पोटाचा भाग"
+          }
+        }
+      ],
+      "item": [
+        {
+          "linkId": "3.ID_199a6356-3292-43ad-969b-3ebd71a1ca9b",
+          "text": "Which part of abdomen do you have distention or swelling?",
+          "type": "choice",
+          "required": true,
+          "text_hi": "पेट के किस हिस्से में सूजन या फुलावट है?",
+          "text_mr": "तुमच्या पोटाचा कोणता भाग फुगला आहे किंवा त्याला सूज आली आहे?",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "check-box",
+                    "display": "Check box"
+                  }
+                ]
+              }
+            }
+          ],
+          "answerOption": [
+            {
+              "valueCoding": {
+                "code": "ID_ae6a99f9-10c7-4af6-8fb7-a67c52bca714",
+                "display": "Right upper abdomen",
+                "display_hi": "दाहिना ऊपरी पेट का हिस्सा",
+                "display_mr": "पोटाचा  उजवीकडील वरचा भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_8ca8d1bb-99af-4616-b453-6f5518bcd661",
+                "display": "Left upper abdomen",
+                "display_hi": "बायां ऊपरी पेट का हिस्सा",
+                "display_mr": "पोटाचा  डावीकडील वरचा भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_4601dc05-1896-4354-bb3d-8086adce84f0",
+                "display": "Epigastrium",
+                "display_hi": "ऊपरी पेट",
+                "display_mr": "एपिगॅस्ट्रियम (पोटाच्या वरचा मध्य भाग)"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_a6e502dd-3550-46e5-9816-ac1aed61f421",
+                "display": "Umbilical area",
+                "display_hi": "नाभि क्षेत्र",
+                "display_mr": "नाळ /नाभीचा भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_933ae552-0a16-4f24-87cb-fc738b5c81d7",
+                "display": "Right lumbar area",
+                "display_hi": "दाहिनी तरफ कमर के पास का पेट",
+                "display_mr": "कमरेचा उजवीकडील भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_b094aa1b-69a6-4ccd-a7d3-900a1ac12618",
+                "display": "Left lumbar area",
+                "display_hi": "बायीं तरफ कमर के पास का पेट",
+                "display_mr": "कमरेचा डावीकडील भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_34c6f674-e03b-4c5a-bd2a-4d865a41cdba",
+                "display": "Right lower abdomen",
+                "display_hi": "दायां निचला पेट",
+                "display_mr": "पोटाचा उजवीकडील खालचा भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_6d4ef718-a665-4c59-b82b-cea138f23525",
+                "display": "Left lower abdomen",
+                "display_hi": "बायां निचला पेट",
+                "display_mr": "पोटाचा डावीकडील खालचा भाग"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "ID_190348cf-f400-4d1f-ac5c-ffa5f5168e67",
+                "display": "Suprapubic area",
+                "display_hi": "नाभि के ठीक नीचे और जननांगों के ऊपर का क्षेत्र",
+                "display_mr": "सुप्राप्युबिक भाग"
+              }
+            }
+          ],
+          "repeats": true,
+          "constraint": [
+            {
+              "key": "max-selections",
+              "requirements": "Maximum 10 selections allowed",
+              "severity": "warning"
+            }
+          ],
+          "enableWhen": [
+            {
+              "question": "3",
+              "operator": "=",
+              "answerCoding": {
+                "code": "ID_199a6356-3292-43ad-969b-3ebd71a1ca9b"
+              }
+            }
+          ],
+          "enableBehavior": "all"
+        }
+      ]
+    },
+    {
+      "linkId": "4",
+      "text": "Which of these decreases the size of swelling?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "इनमें से कौन सूजन के आकार को कम करता है?",
+      "text_mr": "यापैकी कशामुळे सूज कमी होते?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://example.org/fhir/StructureDefinition/questionnaire-mutual-exclusivity",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://example.org/fhir/questionnaire-mutual-exclusivity",
+                "code": "none-exclusive",
+                "display": "None option is mutually exclusive with other options"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_6728a2b4-5ef6-42bb-9632-8b240a7d72e5",
+            "display": "None",
+            "display_mr": "काहीही नाही"
+          },
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-optionExclusive",
+              "valueBoolean": true
+            }
+          ]
+        },
+        {
+          "valueCoding": {
+            "code": "ID_55ad6090-145e-46cf-a4f9-b5914b82b736",
+            "display": "Lying flat",
+            "display_mr": "पडून राहणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_15ce99ee-a227-4009-bdee-a3c85d123882",
+            "display": "Pressing",
+            "display_mr": "दाबणे"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "5",
+      "text": "Which of these increases the size of swelling?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "इनमें से कौन सूजन के आकार को बढ़ाता है?",
+      "text_mr": "यापैकी कशामुळे सूज वाढते?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://example.org/fhir/StructureDefinition/questionnaire-mutual-exclusivity",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://example.org/fhir/questionnaire-mutual-exclusivity",
+                "code": "none-exclusive",
+                "display": "None option is mutually exclusive with other options"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_5c3371dd-996d-4131-812f-a2652976c53a",
+            "display": "None",
+            "display_hi": "exclude-from-multi-choice",
+            "display_mr": "काहीही नाही"
+          },
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-optionExclusive",
+              "valueBoolean": true
+            }
+          ]
+        },
+        {
+          "valueCoding": {
+            "code": "ID_06aa0b2c-4224-4e42-b4db-f4b076800f7f",
+            "display": "Coughing",
+            "display_mr": "खोकणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_f3c24297-a8d8-4254-b1fe-6c47b5bdbcb8",
+            "display": "Standing",
+            "display_mr": "उभे राहणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_0249f5ec-1881-4e57-bd90-f03c656870d7",
+            "display": "Straining",
+            "display_mr": "ताण दिल्यामुळे"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "6",
+      "text": "How is this symptom progressing?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "यह लक्षण कैसे बढ़ रहा है?",
+      "text_mr": "लक्षणांची प्रगती कशी आहे?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_06c0fae1-2958-4962-92cd-8f40a273d6bb",
+            "display": "Increasing",
+            "display_hi": "बढ़ रहा है",
+            "display_mr": "वाढत आहे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_d10b05ca-79fc-49d2-af6b-8c96dc3905da",
+            "display": "Decreasing",
+            "display_hi": "घट रहा है",
+            "display_mr": "कमी होत आहे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_6f4e8549-feae-4f9f-8fe1-cadf30410a78",
+            "display": "Recurrent (on & off)",
+            "display_hi": "बार-बार हो रहा है",
+            "display_mr": "वारंवारता (सुरु आणि बंद)"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_eaf37398-bb39-4b4d-8803-c2b642d3b702",
+            "display": "No change",
+            "display_hi": "कोई बदलाव नहीं",
+            "display_mr": "काहीही बदल नाही"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "7",
+      "text": "Does the swelling increase or decrease in size during a 24 hr cycle?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "क्या 24 घंटे के चक्र के दौरान सूजन का आकार बढ़ता है या घटता है?",
+      "text_mr": "24 तासांमध्ये सूज वाढते किंवा कमी होते का?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_eb5bf96e-c625-42e8-ae47-4e1cc9b2dd7b",
+            "display": "Yes",
+            "display_hi": "नहीं",
+            "display_mr": "नाही"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_cc2c1f82-c87b-407a-9df4-3f234d063e05",
+            "display": "No",
+            "display_hi": "हां",
+            "display_mr": "होय"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "8",
+      "text": "Associated symptoms",
+      "type": "choice",
+      "required": true,
+      "text_hi": "क्या आपको निम्नलिखित लक्षण हैं?",
+      "text_mr": "तुम्हाला खालील लक्षणे आहेत का?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "check-box",
+                "display": "Check box"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_00763f7e-8f8f-4350-b780-6102fccd8b16",
+            "display": "Abdominal pain",
+            "display_hi": "पेट में सूजन",
+            "display_mr": "पोट फुगणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_a120e358-d0a7-4333-9654-f68eed75f4cc",
+            "display": "Vomiting",
+            "display_hi": "उल्टी",
+            "display_mr": "उलटी"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_5e615d46-e78c-4f13-8ed9-d524b012614a",
+            "display": "Belching (burping)",
+            "display_hi": "डकार (बर्पिंग)",
+            "display_mr": "ढेकर येणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_20218254-554a-4f90-8646-dbfd24b9cc6e",
+            "display": "Jaundice (Yellow eyes & skin)",
+            "display_hi": "पीलिया (पीली आंखें और त्वचा)",
+            "display_mr": "कावीळ ( डोळे आणि त्वचा पिवळी पडणे)"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_cf39b671-d56b-4db7-84e8-4098fe739951",
+            "display": "Constipation",
+            "display_hi": "कब्ज",
+            "display_mr": "बध्दकोष्ठता"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_cd5d2571-6a46-47e5-8672-e5594789b5cc",
+            "display": "Difficulty in passing gases (flatus)",
+            "display_hi": "गैस पास करने में कठिनाई (फ्लैटस)",
+            "display_mr": "गॅस पास होण्यात अडचण (पोटात गॅसेस साठून राहणे)"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_bd80e889-e139-4112-b4f5-b7f0bbf87348",
+            "display": "Diarrhea (loose stools)",
+            "display_hi": "दस्त (ढीला मल)",
+            "display_mr": "अतिसार (जुलाब होणे)"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_611839cc-552c-4de9-97ae-294a70ddc74d",
+            "display": "Blood in stools",
+            "display_hi": "मल में खून",
+            "display_mr": "विष्ठेतून रक्त पडणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_98cee0e9-5305-4ae2-9efd-de7a41921931",
+            "display": "Black stools",
+            "display_hi": "काला मल",
+            "display_mr": "काली विष्ठा"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_921fb5d8-8132-474c-a15c-ba0543b000ed",
+            "display": "Loss of appetite",
+            "display_hi": "भूख में कमी",
+            "display_mr": "भूक न लागणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_353967a0-f114-45a4-98e3-e07c31a0389d",
+            "display": "Increased appetite",
+            "display_hi": "भूख में वृद्धि",
+            "display_mr": "जास्त भूक लागणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_cebb056a-c583-425e-9d78-1b2cf30f4010",
+            "display": "Weight loss",
+            "display_hi": "वज़न घटना",
+            "display_mr": "वजन कमी होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_deae4cd1-4479-4c96-b39e-561338ba4f87",
+            "display": "Weight gain",
+            "display_hi": "वजन बढ़ना",
+            "display_mr": "वजन वाढणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_f4603bb8-cd35-4732-8728-99d794c31118",
+            "display": "History of passing meconium (first stool) after birth",
+            "display_hi": "जन्म के बाद मेकोनियम (पहला मल) निकलने का इतिहास",
+            "display_mr": "जन्मानंतर मेकोनियम (पहिली शौचास) चा पूर्वइतिहास"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_4a2005c2-1c2f-46fd-bf93-c5d04e921dc8",
+            "display": "History of delayed passage (24 hours after birth) of meconium (first stool)",
+            "display_hi": "मेकोनियम (पहला मल) के देरी से निकलने का इतिहास (जन्म के 24 घंटे बाद)",
+            "display_mr": "जन्मानंतर उशीरा (जन्माच्या 24 तासांनंतर) पहिली शौचास होण्याचा पूर्वइतिहास"
+          }
+        }
+      ],
+      "repeats": true,
+      "constraint": [
+        {
+          "key": "max-selections",
+          "requirements": "Maximum 10 selections allowed",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "linkId": "9",
+      "text": "Do you have any other symptoms?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "क्या आपको निम्नलिखित लक्षण हैं?",
+      "text_mr": "तुम्हाला खालील लक्षणे जाणवत आहेत का?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "check-box",
+                "display": "Check box"
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://example.org/fhir/StructureDefinition/questionnaire-mutual-exclusivity",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://example.org/fhir/questionnaire-mutual-exclusivity",
+                "code": "none-exclusive",
+                "display": "None option is mutually exclusive with other options"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_9305a209-9c41-4af7-b6c1-d9398195242e",
+            "display": "None",
+            "display_hi": "कोई नहीं",
+            "display_mr": "काहीही नाही"
+          },
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-optionExclusive",
+              "valueBoolean": true
+            }
+          ]
+        },
+        {
+          "valueCoding": {
+            "code": "ID_9482b06b-cab0-41d8-9f09-ef155d9a995c",
+            "display": "Fever",
+            "display_hi": "बुखार",
+            "display_mr": "ताप"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_713ad5ef-9475-4066-96de-2d9acd7b8bb0",
+            "display": "Night sweats",
+            "display_hi": "रात को पसीना",
+            "display_mr": "रात्री घाम येणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_8794150d-bace-4b1b-8698-0b690af2a40e",
+            "display": "Difficulty in breathing",
+            "display_hi": "सांस लेने में कठिनाई",
+            "display_mr": "श्वास घेण्यास त्रास होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_abb6be95-1970-4921-bb8b-7cc3e362a337",
+            "display": "Swelling of feet",
+            "display_hi": "पैरों में सूजन",
+            "display_mr": "पायावर सूज येणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_b63e6014-e971-4f06-829b-a1e829277c60",
+            "display": "Shortness of breath on lying",
+            "display_hi": "लेटने पर सांस लेने में कठिनाई",
+            "display_mr": "झोपल्यावर श्वास घेण्यास त्रास होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_7a00e718-09d9-4bd2-a4b6-d00e55edc3f4",
+            "display": "Difficulty in urination",
+            "display_hi": "पेशाब करने में दिक्कत",
+            "display_mr": "लघवी करण्यात अडचण/त्रास"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_0c57704e-7ce7-4dd8-81d4-510ea712de5a",
+            "display": "Decreased urine output",
+            "display_hi": "पेशाब कम आना",
+            "display_mr": "लघवीचे प्रमाण कमी होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_e9c8315d-59f6-4cde-9fa3-91859f48ce54",
+            "display": "Missed periods",
+            "display_hi": "माहवारी छूट जाना",
+            "display_mr": "पाळी चुकणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_a3bf8ad6-c6f6-4266-92d0-211b6cd6c5a0",
+            "display": "Irregular periods",
+            "display_hi": "अनियमित माहवारी",
+            "display_mr": "अनियमित मासिक पाळी"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_6c83f3dc-94d1-43a9-a2fb-e74cc949befe",
+            "display": "Cold intolerance",
+            "display_hi": "ठंड सहन न कर पाना",
+            "display_mr": "थंडी सहन न होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_0aef493f-38c3-455f-9b54-6bdd8a34224b",
+            "display": "Burning urination",
+            "display_hi": "पेशाब करते वक्त जलन होना",
+            "display_mr": "लघवी करताना जळजळ होणे"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_a5bdea21-6aa1-442d-af56-0da8c8ea4e1d",
+            "display": "Fatigue",
+            "display_hi": "थकान",
+            "display_mr": "थकवा"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_ed12393c-274b-4dfb-9699-f48b28c4e1be",
+            "display": "Other",
+            "display_hi": "अन्य लक्षण",
+            "display_mr": "अन्य"
+          }
+        }
+      ],
+      "repeats": true,
+      "constraint": [
+        {
+          "key": "max-selections",
+          "requirements": "Maximum 10 selections allowed",
+          "severity": "warning"
+        },
+        {
+          "key": "none-exclusivity",
+          "requirements": "If 'None' is selected, all other options must be deselected",
+          "severity": "error",
+          "expression": "answer.where(valueCoding.code='ID_9305a209-9c41-4af7-b6c1-d9398195242e').exists() implies answer.count()=1"
+        }
+      ]
+    },
+    {
+      "linkId": "10",
+      "text": "Have you taken any treatment (including self-medication or home remedies) or seen any health provider for this problem?",
+      "type": "choice",
+      "required": true,
+      "text_hi": "क्या आपने इस समस्या के लिए कोई उपचार (स्वयं दवाएं या घरेलू उपचार सहित) लिया है या किसी स्वास्थ्य प्रदाता से परामर्श किया है?",
+      "text_mr": "तुम्ही यासाठी कोणतेही उपचार (स्वत: घेतलेली किंवा घरगुती औषधे घेतली आहेत का किंवा या समस्येसाठी वैद्यकीय मदत घेतली आहे का?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_1ad79251-6bb3-4042-9513-4ecea30a4079",
+            "display": "No",
+            "display_hi": "नहीं",
+            "display_mr": "नाही"
+          }
+        },
+        {
+          "valueCoding": {
+            "code": "ID_626fb1e0-06f9-4dbc-bc12-a775b1952ab5",
+            "display": "Yes",
+            "display_hi": "हां",
+            "display_mr": "होय"
+          }
+        }
+      ],
+      "item": [
+        {
+          "linkId": "10.ID_626fb1e0-06f9-4dbc-bc12-a775b1952ab5",
+          "text": "Describe",
+          "type": "text",
+          "required": true,
+          "text_hi": "वर्णन करें",
+          "text_mr": "वर्णन करा",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "text-box",
+                    "display": "Text box"
+                  }
+                ]
+              }
+            }
+          ],
+          "enableWhen": [
+            {
+              "question": "10",
+              "operator": "=",
+              "answerCoding": {
+                "code": "ID_626fb1e0-06f9-4dbc-bc12-a775b1952ab5"
+              }
+            }
+          ],
+          "enableBehavior": "all"
+        }
+      ]
+    },
+    {
+      "linkId": "11",
+      "text": "Additional Information",
+      "type": "choice",
+      "required": true,
+      "text_hi": "अतिरिक्त जानकारी",
+      "text_mr": "अतिरिक्त माहिती",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                "code": "page",
+                "display": "Page"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "code": "ID_6714cc9a-d4c5-4b6d-99e9-0b1eb8620465",
+            "display": "[Enter additional information]",
+            "display_hi": "[अतिरिक्त जानकारी दर्ज करें]",
+            "display_mr": "[अजून काही माहिती असल्यास भरा]"
+          },
+          "extension": [
+            {
+              "url": "http://example.org/fhir/StructureDefinition/questionnaire-option-text-input",
+              "valueBoolean": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "title_hi": "पेट का फूलना",
+  "title_mr": "पोट फुगणे"
+}
