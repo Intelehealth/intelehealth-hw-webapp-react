@@ -17,12 +17,9 @@ export const VITAL_RANGES = {
 export const createVitalsValidationSchema = (
   fields: VitalField[]
 ): yup.ObjectSchema<VitalsFormValues> => {
-  const schemaShape: Record<
-    string,
-    yup.NumberSchema | yup.StringSchema
-  > = {};
+  const schemaShape: Record<string, yup.NumberSchema | yup.StringSchema> = {};
 
-  fields.forEach((field) => {
+  fields.forEach(field => {
     if (!field.is_enabled) return;
 
     // Handle blood group as string, others as number
