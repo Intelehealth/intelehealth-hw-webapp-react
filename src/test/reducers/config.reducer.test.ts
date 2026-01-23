@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  configReducer,
-  fetchConfigSuccess,
-  fetchConfigFailure,
   clearConfigError,
+  configReducer,
+  fetchConfigFailure,
+  fetchConfigSuccess,
   resetConfig,
 } from '../../reducers/config.reducer';
 import type { AppConfig } from '../../types/config.types';
@@ -102,7 +102,7 @@ describe('configReducer', () => {
         language: [{ code: 'en' }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme' }],
-        patient_vitals: [{ type: 'bp' }],
+        patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
         patient_diagnostics: [{ type: 'xray' }],
         webrtc_section: true,
         webrtc: { enabled: true },

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { fetchConfig, clearConfigError, resetConfig } from '../../actions/config.actions';
-import { configService } from '../../services/config.service';
+import { clearConfigError, fetchConfig, resetConfig } from '../../actions/config.actions';
 import {
-  fetchConfigSuccess,
   fetchConfigFailure,
+  fetchConfigSuccess,
 } from '../../reducers/config.reducer';
+import { configService } from '../../services/config.service';
 import type { AppConfig } from '../../types/config.types';
 
 // Mock the config service
@@ -98,7 +98,7 @@ describe('Config Actions', () => {
         language: [{ code: 'en' }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme' }],
-        patient_vitals: [{ type: 'bp' }],
+        patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
         patient_diagnostics: [{ type: 'xray' }],
         webrtc_section: true,
         webrtc: { enabled: true },
