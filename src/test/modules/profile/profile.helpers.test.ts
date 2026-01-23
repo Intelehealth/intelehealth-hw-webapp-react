@@ -16,6 +16,7 @@ import {
   mapProviderAttributes,
   processImageFile,
   updateProfileAttributes,
+  validateImageFormat,
 } from '../../../modules/profile/profile.helpers';
 import profileService from '../../../modules/profile/profile.service';
 
@@ -1180,6 +1181,68 @@ describe('Profile Helpers', () => {
       );
 
       expect(profileService.requestDataFromMultipleSources).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateImageFormat', () => {
+    it('should return true for valid JPEG file', () => {
+      const file = new File(['test'], 'photo.jpeg', { type: 'image/jpeg' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return true for valid JPG file', () => {
+      const file = new File(['test'], 'photo.jpg', { type: 'image/jpeg' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return true for valid PNG file', () => {
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return true for uppercase JPG extension', () => {
+      const file = new File(['test'], 'PHOTO.JPG', { type: 'image/jpeg' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return true for uppercase JPEG extension', () => {
+      const file = new File(['test'], 'PHOTO.JPEG', { type: 'image/jpeg' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return true for uppercase PNG extension', () => {
+      const file = new File(['test'], 'PHOTO.PNG', { type: 'image/png' });
+      expect(validateImageFormat(file)).toBe(true);
+    });
+
+    it('should return false for invalid GIF file', () => {
+      const file = new File(['test'], 'photo.gif', { type: 'image/gif' });
+      expect(validateImageFormat(file)).toBe(false);
+    });
+
+    it('should return false for invalid BMP file', () => {
+      const file = new File(['test'], 'photo.bmp', { type: 'image/bmp' });
+      expect(validateImageFormat(file)).toBe(false);
+    });
+
+    it('should return false for invalid WEBP file', () => {
+      const file = new File(['test'], 'photo.webp', { type: 'image/webp' });
+      expect(validateImageFormat(file)).toBe(false);
+    });
+
+    it('should return false for non-image file', () => {
+      const file = new File(['test'], 'document.pdf', { type: 'application/pdf' });
+      expect(validateImageFormat(file)).toBe(false);
+    });
+
+    it('should return false for file with no extension', () => {
+      const file = new File(['test'], 'photo', { type: 'image/jpeg' });
+      expect(validateImageFormat(file)).toBe(false);
+    });
+
+    it('should return false for file with mixed case invalid extension', () => {
+      const file = new File(['test'], 'photo.GiF', { type: 'image/gif' });
+      expect(validateImageFormat(file)).toBe(false);
     });
   });
 });

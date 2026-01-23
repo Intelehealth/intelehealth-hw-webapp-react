@@ -20,12 +20,18 @@ export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
 
   const handleTakePhoto = () => {};
 
-  const handleUploadPhoto = useCallback(async (file: File) => {
-    const base64 = await fileToBase64(file);
-    setSelectedImageBase64(base64);
-    setIsPhotoModalOpen(false);
-    setIsCropModalOpen(true);
-  }, []);
+  const handleUploadPhoto = useCallback(
+    async (file: File) => {
+      setIsPhotoModalOpen(false);
+      if (imageFormat === 'base64') {
+        const base64 = await fileToBase64(file);
+        onUpload(base64);
+      } else {
+        onUpload(file);
+      }
+    },
+    [imageFormat, onUpload]
+  );
 
   const handleCropComplete = useCallback(
     async (croppedFile: File | string) => {
