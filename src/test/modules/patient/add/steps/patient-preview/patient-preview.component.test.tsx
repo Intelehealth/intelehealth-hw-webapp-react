@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientPreviewComponent from '../../../../../../modules/patient/add/steps/patient-preview/patient-preview.component';
 import type { PatientFormData } from '../../../../../../types/patient/add/add-patient.types';
 
+// Mock react-router-dom
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
 // Mock the common components
 vi.mock('../../../../../../components/common', () => ({
   Button: ({ children, onClick, type, variant, className }: any) => (
@@ -84,6 +90,7 @@ describe('PatientPreviewComponent', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockClear();
   });
 
   describe('Component Rendering', () => {
@@ -337,6 +344,17 @@ describe('PatientPreviewComponent', () => {
       await user.click(startVisitButton);
       // Button click should not throw error
       expect(startVisitButton).toBeInTheDocument();
+    });
+
+    it('should navigate to /ayu when clicked', async () => {
+      const user = userEvent.setup();
+      render(<PatientPreviewComponent data={completeData} />);
+      const startVisitButton = screen.getByRole('button', { name: /Start Visit/i });
+
+      await user.click(startVisitButton);
+
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
     });
   });
 
