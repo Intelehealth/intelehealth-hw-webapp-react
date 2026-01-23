@@ -88,7 +88,16 @@ describe('useConfig', () => {
         language: [{ code: 'en', name: 'English' }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme', value: 'light' }],
-        patient_vitals: [{ type: 'blood_pressure' }],
+        patient_vitals: [
+          {
+            name: 'Blood Pressure',
+            key: 'blood_pressure',
+            uuid: 'test-uuid',
+            is_mandatory: false,
+            lang: null,
+            is_enabled: true,
+          },
+        ],
         patient_diagnostics: [{ type: 'xray' }],
         webrtc_section: true,
         webrtc: { enabled: true },

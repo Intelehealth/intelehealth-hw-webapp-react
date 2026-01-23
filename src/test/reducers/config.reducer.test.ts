@@ -102,7 +102,16 @@ describe('configReducer', () => {
         language: [{ code: 'en' }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme' }],
-        patient_vitals: [{ type: 'bp' }],
+        patient_vitals: [
+          {
+            name: 'Blood Pressure',
+            key: 'bp',
+            uuid: 'test-uuid',
+            is_mandatory: false,
+            lang: null,
+            is_enabled: true,
+          },
+        ],
         patient_diagnostics: [{ type: 'xray' }],
         webrtc_section: true,
         webrtc: { enabled: true },
