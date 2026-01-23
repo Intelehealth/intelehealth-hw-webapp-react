@@ -111,19 +111,13 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           </div>
         )}
         {error && (
-          <p className="form-error-message mt-1">
-            {error.message as string}
-          </p>
+          <p className="form-error-message mt-1">{error.message as string}</p>
         )}
       </div>
     );
   };
 
-  const renderSection = (
-    title: string,
-    fields: VitalField[],
-    key: string
-  ) => {
+  const renderSection = (title: string, fields: VitalField[], key: string) => {
     if (fields.length === 0) return null;
     return (
       <div key={key}>
@@ -145,16 +139,8 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           bodyMeasurementFields,
           'body-measurements'
         )}
-        {renderSection(
-          "Enter the patient's vitals",
-          vitalFields,
-          'vitals'
-        )}
-        {renderSection(
-          'Additional Measurements',
-          otherFields,
-          'additional'
-        )}
+        {renderSection("Enter the patient's vitals", vitalFields, 'vitals')}
+        {renderSection('Additional Measurements', otherFields, 'additional')}
       </div>
 
       <div className="flex gap-3 md:justify-end my-6">
