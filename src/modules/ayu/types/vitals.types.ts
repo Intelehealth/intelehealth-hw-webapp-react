@@ -1,5 +1,7 @@
-// Re-export VitalModel from config as VitalField for component use
-export type { VitalModel as VitalField } from '../../../types/config.types';
+// Import and re-export VitalModel from config as VitalField for component use
+import type { VitalModel } from '../../../types/config.types';
+
+export type VitalField = VitalModel;
 
 export interface VitalsFormValues {
   height_cm?: number;

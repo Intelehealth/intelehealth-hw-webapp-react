@@ -31,6 +31,7 @@ export const Loader = ({ type, currentSectionIndex }: LoaderProps) => {
     case 'question':
       return (
         <QuestionLoader
+          question="Sample question"
           totalQuestions={0}
           questionIndex={0}
           onNextQuestion={function (): void {

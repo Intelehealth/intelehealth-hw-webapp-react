@@ -19,7 +19,7 @@ export const createVitalsValidationSchema = (
 ): yup.ObjectSchema<VitalsFormValues> => {
   const schemaShape: Record<
     string,
-    yup.NumberSchema | yup.StringSchema | undefined
+    yup.NumberSchema | yup.StringSchema
   > = {};
 
   fields.forEach((field) => {
