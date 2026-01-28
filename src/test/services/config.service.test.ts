@@ -24,7 +24,7 @@ describe('ConfigService', () => {
         language: [{ code: 'en', name: 'English' }],
         patient_registration: { field1: 'value1' },
         theme_config: [{ key: 'theme', value: 'light' }],
-        patient_vitals: [{ type: 'blood_pressure' }],
+        patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
         patient_diagnostics: [{ type: 'xray' }],
         webrtc_section: true,
         webrtc: { enabled: true },
@@ -239,9 +239,9 @@ describe('ConfigService', () => {
           { code: 'mr', name: 'Marathi' },
         ],
         patient_vitals: [
-          { type: 'blood_pressure', unit: 'mmHg' },
-          { type: 'temperature', unit: 'celsius' },
-          { type: 'pulse', unit: 'bpm' },
+          { name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true },
+          { name: 'Temperature', key: 'temperature', uuid: 'uuid-temp', is_mandatory: false, lang: null, is_enabled: true },
+          { name: 'Pulse', key: 'pulse', uuid: 'uuid-pulse', is_mandatory: false, lang: null, is_enabled: true },
         ],
       };
 

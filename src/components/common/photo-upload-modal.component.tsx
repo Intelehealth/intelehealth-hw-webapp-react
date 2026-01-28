@@ -5,7 +5,12 @@ import { Loader } from './loader.component';
 import Button from './button.component';
 import CameraCaptureModal from './camera-capture-modal.component';
 import PhotoCropModal from './photo-crop-modal.component';
-import { fileToBase64 } from '../../modules/profile/profile.helpers';
+import {
+  fileToBase64,
+  validateImageFormat,
+} from '../../modules/profile/profile.helpers';
+import { showToast } from '../../services/toast';
+
 interface PhotoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,9 +53,20 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   ) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (cropModalRef.current) {
+      // Validate file format before processing
+      if (!validateImageFormat(file)) {
+        showToast(
+          'Upload error!',
+          'Upload JPG, JPEG or PNG format image only.',
+          'warning'
+        );
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
+
       const base64 = await fileToBase64(file);
       setSelectedImageBase64(base64);
       cropModalRef.current = true;
@@ -71,9 +87,16 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     dispatch(stopLoading()); // Stop global loader
     setIsCameraModalOpen(false);
 
-    if (cropModalRef.current) {
+    // Validate file format before processing
+    if (!validateImageFormat(file)) {
+      showToast(
+        'Upload error!',
+        'Upload JPG, JPEG or PNG format image only.',
+        'warning'
+      );
       return;
     }
+
     const base64 = await fileToBase64(file);
 
     setSelectedImageBase64(base64);
@@ -195,7 +218,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
                 className="hidden"
               />

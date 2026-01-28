@@ -11,7 +11,7 @@ import { Vitals } from './vitals.component';
 export const StartVisit = () => {
   const [sections, setSections] = useState<SectionState[]>([
     {
-      totalQuestions: 10,
+      totalQuestions: 1,
       answeredQuestions: 0,
       name: 'Vitals',
     }, // Vitals

@@ -17,7 +17,12 @@ export interface PatientRegistrationFieldsConfigModel {
 
 // Vital model
 export interface VitalModel {
-  [key: string]: unknown;
+  name: string;
+  key: string;
+  uuid: string;
+  is_mandatory: boolean;
+  lang: Record<string, string> | null;
+  is_enabled: boolean;
 }
 
 // Specialization model

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../../components/common';
 import type { PatientFormData } from '../../../../../types/patient/add/add-patient.types';
 
@@ -37,6 +38,12 @@ const Card = ({
 export default function PatientPreviewComponent({
   data,
 }: PatientPreviewComponentProps) {
+  const navigate = useNavigate();
+
+  const handleStartVisit = () => {
+    navigate('/ayu');
+  };
+
   return (
     <div className="w-full flex flex-col h-full">
       <div className="bg-gray-50 flex justify-center items-start p-8">
@@ -85,7 +92,12 @@ export default function PatientPreviewComponent({
       </div>
       {/* Buttons */}
       <div className="flex flex-col md:flex-row justify-center gap-3 pb-6">
-        <Button variant="primary" className="w-auto px-8" type="button">
+        <Button
+          variant="primary"
+          className="w-auto px-8"
+          type="button"
+          onClick={handleStartVisit}
+        >
           Start Visit
         </Button>
       </div>
