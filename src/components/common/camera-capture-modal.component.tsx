@@ -18,7 +18,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [error, setError] = useState<string>('');
   const [shouldAutoCapture, setShouldAutoCapture] = useState(false);
 
-  // 🎬 Initialize camera when modal opens
+  // Initialize camera when modal opens
   useEffect(() => {
     if (isOpen) {
       startCamera();
@@ -30,25 +30,25 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     };
   }, [isOpen]);
 
-  // 📹 Start camera and check permissions
+  // Start camera and check permissions
   const startCamera = async () => {
     try {
       setError('');
       setIsCameraReady(false);
 
-      // 🔍 Check browser support
+      // Check browser support
       if (!navigator.mediaDevices?.getUserMedia) {
         setError('Camera not supported on this device');
         return;
       }
 
-      // 🔒 Check secure context
+      // Check secure context
       if (!window.isSecureContext && window.location.hostname !== 'localhost') {
         setError('Camera requires a secure connection (HTTPS)');
         return;
       }
 
-      // 🎫 Check if permission was already granted
+      // Check if permission was already granted
       let permissionAlreadyGranted = false;
       try {
         const permissionStatus = await navigator.permissions.query({
@@ -59,7 +59,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         // Permission API not supported, assume first time
       }
 
-      // 🎥 Request camera access
+      // Request camera access
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -69,11 +69,11 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         audio: false,
       });
 
-      // ⚡ Set auto-capture flag for first-time permission
+      // Set auto-capture flag for first-time permission
       setShouldAutoCapture(!permissionAlreadyGranted);
       setStream(mediaStream);
 
-      // 📺 Setup video stream
+      // Setup video stream
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
@@ -81,7 +81,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             ?.play()
             .then(() => {
               setIsCameraReady(true);
-              // 📸 Auto-capture on first permission grant
+              // Auto-capture on first permission grant
               if (!permissionAlreadyGranted) {
                 setTimeout(capturePhoto, 1000);
               }
@@ -90,7 +90,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         };
       }
     } catch (err) {
-      // ❌ Handle errors with user-friendly messages
+      // Handle errors with user-friendly messages
       if (err instanceof Error) {
         const errorMap: Record<string, string> = {
           NotAllowedError:
@@ -109,13 +109,13 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     }
   };
 
-  // 🛑 Stop camera and release resources
+  // Stop camera and release resources
   const stopCamera = () => {
     stream?.getTracks().forEach(track => track.stop());
     setStream(null);
   };
 
-  // 📸 Capture photo from video stream
+  // Capture photo from video stream
   const capturePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -123,20 +123,20 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0)
       return;
 
-    // 🎨 Setup canvas
+    // Setup canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 🪞 Mirror image for selfie mode
+    // Mirror image for selfie mode
     ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    // 💾 Convert to file and trigger callback
+    // Convert to file and trigger callback
     canvas.toBlob(blob => {
       if (blob) {
         const file = new File([blob], `camera-${Date.now()}.png`, {
@@ -150,7 +150,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 🎭 Hide UI during auto-capture (first time)
+  // Hide UI during auto-capture (first time)
   if (shouldAutoCapture && !error) {
     return (
       <>
@@ -160,7 +160,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     );
   }
 
-  // 🖼️ Show full camera modal for manual capture
+  // Show full camera modal for manual capture
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -172,7 +172,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         className="relative bg-white rounded-2xl lg:rounded-lg shadow-xl mx-6 border border-gray-200 z-10 overflow-hidden"
         style={{ width: '600px', maxWidth: '90vw' }}
       >
-        {/* 📋 Header */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Take Photo</h3>
           <button
@@ -187,9 +187,9 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           </button>
         </div>
 
-        {/* 🎥 Camera Preview */}
+        {/* Camera Preview */}
         <div className="relative bg-black" style={{ height: '450px' }}>
-          {/* ❌ Error State */}
+          {/* Error State */}
           {error && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
               <div className="text-center px-6">
@@ -208,7 +208,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             </div>
           )}
 
-          {/* ⏳ Loading State */}
+          {/* Loading State */}
           {!isCameraReady && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
               <div className="text-center">
@@ -218,7 +218,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             </div>
           )}
 
-          {/* 📹 Video Preview */}
+          {/* Video Preview */}
           <video
             ref={videoRef}
             autoPlay
@@ -228,7 +228,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             style={{ transform: 'scaleX(-1)' }}
           />
 
-          {/* 📸 Capture Button */}
+          {/* Capture Button */}
           {isCameraReady && !error && (
             <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center p-6 bg-gradient-to-t from-black/60 to-transparent">
               <button
