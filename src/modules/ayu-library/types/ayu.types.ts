@@ -10,6 +10,9 @@ export type AyuQuestionType =
   | 'choice';
 
 export interface AyuAnswerOption {
+  valueString?: string;
+  valueInteger?: number;
+  valueDate?: string;
   valueCoding?: {
     code: string;
     display?: string;
@@ -28,7 +31,11 @@ export interface AyuEnableWhen {
   operator: string;
   answerBoolean?: boolean;
   answerString?: string;
-  answerCoding?: { code: string };
+  answerCoding?: {
+    system?: string;
+    code: string;
+    display?: string;
+  };
 }
 
 export interface AyuQuestion {
@@ -61,7 +68,7 @@ export interface AyuQuestion {
 
   enableWhen?: AyuEnableWhen[];
 
-  enableBehavior?: 'all' | 'any';
+  // enableBehavior?: 'all' | 'any';
 
   extension?: FhirExtension[];
 

@@ -89,15 +89,18 @@ export function resolveLabel(
   previousSibling?: AyuQuestion
 ): string | undefined {
   // 1️⃣ Question text itself
-  if (question.text) return question.text;
+  if (question.text !== undefined) return question.text;
 
   // 2️⃣ Previous display item
-  if (previousSibling?.type === 'display' && previousSibling.text) {
+  if (
+    previousSibling?.type === 'display' &&
+    previousSibling.text !== undefined
+  ) {
     return previousSibling.text;
   }
 
   // 3️⃣ Parent group text
-  if (parent?.type === 'group' && parent.text) {
+  if (parent?.type === 'group' && parent.text !== undefined) {
     return parent.text;
   }
 

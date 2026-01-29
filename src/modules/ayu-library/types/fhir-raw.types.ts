@@ -28,6 +28,9 @@ export interface FhirItem {
   repeats?: boolean;
 
   answerOption?: {
+    valueString?: string;
+    valueInteger?: number;
+    valueDate?: string;
     valueCoding?: {
       code: string;
       display?: string;
@@ -44,7 +47,7 @@ export interface FhirItem {
     answerCoding?: { code: string };
   }[];
 
-  enableBehavior?: string;
+  // enableBehavior?: string;
 
   extension?: FhirExtension[];
   item?: FhirItem[];
@@ -69,5 +72,9 @@ export interface FhirEnableWhen {
   operator: string; // 👈 RAW
   answerBoolean?: boolean;
   answerString?: string;
-  answerCoding?: { code: string };
+  answerCoding?: {
+    system?: string;
+    code: string;
+    display?: string;
+  };
 }

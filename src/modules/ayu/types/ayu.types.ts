@@ -12,6 +12,18 @@ export interface FhirQuestionnaire {
   item?: AyuQuestion[];
 }
 
+export interface AyuEnableWhen {
+  question: string;
+  operator: string;
+  answerBoolean?: boolean;
+  answerString?: string;
+  answerCoding?: {
+    system?: string;
+    code: string;
+    display?: string;
+  };
+}
+
 export interface AyuQuestion {
   /** FHIR: item.linkId */
   linkId: string;
@@ -37,6 +49,10 @@ export interface AyuQuestion {
 
   /** FHIR: item.repeats */
   repeats?: boolean;
+
+  enableWhen?: AyuEnableWhen[];
+
+  //  enableBehavior?: 'all' | 'any';
 
   /** FHIR: item.answerOption */
   answerOption?: AyuAnswerOption[];
