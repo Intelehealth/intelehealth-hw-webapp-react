@@ -69,7 +69,7 @@ export interface FhirQuestionnaire {
 
 export interface FhirEnableWhen {
   question: string;
-  operator: string; // 👈 RAW
+  operator: string;
   answerBoolean?: boolean;
   answerString?: string;
   answerCoding?: {

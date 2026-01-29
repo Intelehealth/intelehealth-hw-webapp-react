@@ -7,7 +7,7 @@ export function AyuTextInput({
   previousSibling,
 }: AyuRendererBaseProps) {
   const label = resolveLabel(question, parent, previousSibling);
-  const inputId = `ayu-input-${question.linkId}`;
+  const inputId = `ayu-input-${question?.linkId}`;
 
   return (
     <div className="flex flex-col gap-1">
@@ -19,7 +19,7 @@ export function AyuTextInput({
       <input
         id={inputId}
         type="text"
-        disabled={question.readOnly}
+        disabled={question?.readOnly}
         className="border rounded px-3 py-2"
       />
     </div>

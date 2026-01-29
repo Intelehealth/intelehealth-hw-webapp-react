@@ -88,10 +88,10 @@ export function resolveLabel(
   parent?: AyuQuestion,
   previousSibling?: AyuQuestion
 ): string | undefined {
-  // 1️⃣ Question text itself
+  // Question text itself
   if (question.text !== undefined) return question.text;
 
-  // 2️⃣ Previous display item
+  // Previous display item
   if (
     previousSibling?.type === 'display' &&
     previousSibling.text !== undefined
@@ -99,7 +99,7 @@ export function resolveLabel(
     return previousSibling.text;
   }
 
-  // 3️⃣ Parent group text
+  // Parent group text
   if (parent?.type === 'group' && parent.text !== undefined) {
     return parent.text;
   }

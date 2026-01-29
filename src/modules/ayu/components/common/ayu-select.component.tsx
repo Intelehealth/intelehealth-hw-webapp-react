@@ -7,7 +7,7 @@ export function AyuSelect({
   previousSibling,
 }: AyuRendererBaseProps) {
   const label = resolveLabel(question, parent, previousSibling);
-  const selectId = `ayu-select-${question.linkId}`;
+  const selectId = `ayu-select-${question?.linkId}`;
 
   return (
     <div className="flex flex-col gap-1">
@@ -17,9 +17,9 @@ export function AyuSelect({
         </label>
       )}
       <select id={selectId} className="w-full border rounded px-3 py-2">
-        {question.answerOption?.map((opt, i) => (
+        {question?.answerOption?.map((opt, i) => (
           <option key={i} value={opt.valueString}>
-            {opt.valueString || opt.valueCoding?.display}
+            {opt?.valueString || opt?.valueCoding?.display}
           </option>
         ))}
       </select>

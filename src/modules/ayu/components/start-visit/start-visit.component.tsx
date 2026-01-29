@@ -31,13 +31,13 @@ export const StartVisit = () => {
 
   const goNextQuestion = () => {
     const total = sections[currentSectionIndex].totalQuestions;
-    // ✅ If NOT last question → just move forward
+    //If NOT last question → just move forward
     if (currentQuestionIndex < total - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       return;
     }
 
-    // ✅ LAST QUESTION → mark section completed ONCE
+    // LAST QUESTION → mark section completed ONCE
     setSections(prev => {
       const copy = [...prev];
       copy[currentSectionIndex].answeredQuestions =
@@ -92,7 +92,7 @@ export const StartVisit = () => {
         {currentSectionIndex + 1}/{sections.length}{' '}
         {sections[currentSectionIndex].name}
       </div>
-      {/* 🔝 Top Loader */}
+      {/* Top Loader */}
       <div className="pt-3">
         <SectionCompletionLoader
           sections={sections}
@@ -101,7 +101,7 @@ export const StartVisit = () => {
         />
       </div>
 
-      {/* 👉 Side Loader */}
+      {/* Side Loader */}
       <div className="hidden md:block">
         <SideLoader
           totalQuestions={sections[currentSectionIndex].totalQuestions}
@@ -109,7 +109,7 @@ export const StartVisit = () => {
         />
       </div>
 
-      {/* 📄 Active Section */}
+      {/* Active Section */}
       <div className="pt-4">
         {currentSectionIndex === 0 && (
           <Vitals
