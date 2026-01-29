@@ -42,12 +42,6 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         return;
       }
 
-      // Check secure context
-      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-        setError('Camera requires a secure connection (HTTPS)');
-        return;
-      }
-
       // Check if permission was already granted
       let permissionAlreadyGranted = false;
       try {
@@ -137,15 +131,19 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     ctx.restore();
 
     // Convert to file and trigger callback
-    canvas.toBlob(blob => {
-      if (blob) {
-        const file = new File([blob], `camera-${Date.now()}.png`, {
-          type: 'image/png',
-        });
-        stopCamera();
-        onCapture(file);
-      }
-    }, 'image/png');
+    canvas.toBlob(
+      blob => {
+        if (blob) {
+          const file = new File([blob], `camera-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+          });
+          stopCamera();
+          onCapture(file);
+        }
+      },
+      'image/jpeg',
+      0.95
+    );
   };
 
   if (!isOpen) return null;

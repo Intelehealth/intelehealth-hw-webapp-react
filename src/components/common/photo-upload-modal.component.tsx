@@ -142,13 +142,18 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       return;
     }
 
-    const base64 = await fileToBase64(file);
-    setSelectedImageBase64(base64);
-    cropModalRef.current = true;
-    setIsCropModalOpen(true);
-
-    // Stop loader after crop modal opens
-    dispatch(stopLoading());
+    try {
+      const base64 = await fileToBase64(file);
+      setSelectedImageBase64(base64);
+      cropModalRef.current = true;
+      setIsCropModalOpen(true);
+    } catch (error) {
+      console.error('Error converting file to base64:', error);
+      showToast('Upload error!', 'Failed to process image.', 'error');
+    } finally {
+      // Stop loader after crop modal opens
+      dispatch(stopLoading());
+    }
   };
 
   const handleCameraClose = () => {
@@ -165,10 +170,18 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       fetch(croppedImage)
         .then(res => res.blob())
         .then(blob => {
-          const file = new File([blob], `cropped-${Date.now()}.png`, {
-            type: 'image/png',
+          const file = new File([blob], `cropped-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
           });
           onUploadPhoto(file);
+        })
+        .catch(error => {
+          console.error('Error converting cropped image:', error);
+          showToast(
+            'Upload error!',
+            'Failed to process cropped image.',
+            'error'
+          );
         });
     } else {
       onUploadPhoto(croppedImage);
