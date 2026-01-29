@@ -20,7 +20,7 @@ export function AyuSelectableOptionGroup({
       {label && (
         <label className="text-md font-medium text-black-500">
           {label}
-          {question.required && <span className="text-error-500 ml-1">*</span>}
+          {question?.required && <span className="text-error-500 ml-1">*</span>}
         </label>
       )}
 
@@ -28,9 +28,9 @@ export function AyuSelectableOptionGroup({
         {question?.answerOption?.map(opt => (
           <AyuSelectableOption
             key={opt.valueString || opt.valueCoding?.code}
-            label={opt.valueString || opt.valueCoding?.display}
-            value={opt.valueString}
-            selected={selectedValue === opt.valueString}
+            label={opt?.valueString || opt?.valueCoding?.display}
+            value={opt?.valueString}
+            selected={selectedValue === opt?.valueString}
           />
         ))}
       </div>

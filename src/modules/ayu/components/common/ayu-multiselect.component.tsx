@@ -11,10 +11,10 @@ export function AyuMultiSelect({
       {label && (
         <label className="text-sm font-medium text-gray-700">{label}</label>
       )}
-      {question.answerOption?.map((opt, i) => (
+      {question?.answerOption?.map((opt, i) => (
         <label key={i} className="flex gap-2">
           <input type="checkbox" />
-          {opt.valueString || opt.valueCoding?.display}
+          {opt?.valueString || opt?.valueCoding?.display}
         </label>
       ))}
     </div>
