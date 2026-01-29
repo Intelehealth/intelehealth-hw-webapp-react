@@ -100,7 +100,10 @@ const getCroppedImg = (
 ) => {
   return new Promise<File | string>((resolve, reject) => {
     const image = new Image();
-    image.crossOrigin = 'anonymous';
+    // Only set crossOrigin for external URLs, not for data URLs
+    if (!imageSrc.startsWith('data:')) {
+      image.crossOrigin = 'anonymous';
+    }
     image.src = imageSrc;
 
     image.onload = () => {
@@ -165,7 +168,10 @@ const getCroppedImg = (
       }
     };
 
-    image.onerror = reject;
+    image.onerror = error => {
+      console.error('Error loading image in crop modal:', error);
+      reject(error);
+    };
   });
 };
 
