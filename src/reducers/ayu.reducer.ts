@@ -22,14 +22,14 @@ export const setAyuJsonList = (keyName: string, list: AyuJsonItem[]) => ({
 
 export const ayuReducer = (
   state = initialState,
-  action: AuthAction
+  action: AuthAction | { type: string }
 ): AyuState => {
   switch (action.type) {
     case 'SET_AYU_JSON_LIST':
       return {
         ...state,
-        keyName: action.payload.keyName,
-        list: action.payload.list,
+        keyName: (action as AuthAction).payload.keyName,
+        list: (action as AuthAction).payload.list,
       };
     default:
       return state;

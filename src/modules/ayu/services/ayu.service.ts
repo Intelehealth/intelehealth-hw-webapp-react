@@ -2,9 +2,9 @@ import { MindmapPortalApi } from '../../../services/mindmap';
 import type { AyuApiResponse } from '../types/ayu-json.types';
 
 // Basic API endpoints
-export const API_ENDPOINTS = {
+export const API_ENDPOINTS = Object.freeze({
   MINDMAP_JSON_BY_KEY: '/mindmap/details/',
-} as const;
+} as const);
 
 export async function fetchAyuJsonList(
   keyName: string
