@@ -81,7 +81,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             ?.play()
             .then(() => {
               setIsCameraReady(true);
-              // Auto-capture on first permission grant
+              // Auto-capture on first permission
               if (!permissionAlreadyGranted) {
                 setTimeout(capturePhoto, 1000);
               }
