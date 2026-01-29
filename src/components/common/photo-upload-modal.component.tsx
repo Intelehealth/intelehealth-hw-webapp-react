@@ -25,6 +25,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [selectedImageBase64, setSelectedImageBase64] = useState<string>('');
@@ -79,16 +80,60 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleOpenCamera = () => {
-    dispatch(startLoading()); // Start global loader
-    setIsCameraModalOpen(true);
+    // Detect if device is mobile
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
+    if (isMobile) {
+      // On mobile: Use native camera capture
+      cameraInputRef.current?.click();
+    } else {
+      // On desktop: Show custom camera modal
+      setIsCameraModalOpen(true);
+    }
+  };
+
+  const handleCameraFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file format before processing
+      if (!validateImageFormat(file)) {
+        showToast(
+          'Upload error!',
+          'Upload JPG, JPEG or PNG format image only.',
+          'warning'
+        );
+        // Reset file input
+        if (cameraInputRef.current) {
+          cameraInputRef.current.value = '';
+        }
+        return;
+      }
+
+      const base64 = await fileToBase64(file);
+      setSelectedImageBase64(base64);
+      cropModalRef.current = true;
+      setIsCropModalOpen(true);
+
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = '';
+      }
+    }
   };
 
   const handleCameraCapture = async (file: File) => {
-    dispatch(stopLoading()); // Stop global loader
+    // Show global loader while processing
+    dispatch(startLoading());
+
     setIsCameraModalOpen(false);
 
     // Validate file format before processing
     if (!validateImageFormat(file)) {
+      dispatch(stopLoading());
       showToast(
         'Upload error!',
         'Upload JPG, JPEG or PNG format image only.',
@@ -98,14 +143,15 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     }
 
     const base64 = await fileToBase64(file);
-
     setSelectedImageBase64(base64);
     cropModalRef.current = true;
     setIsCropModalOpen(true);
+
+    // Stop loader after crop modal opens
+    dispatch(stopLoading());
   };
 
   const handleCameraClose = () => {
-    dispatch(stopLoading()); // Stop global loader
     setIsCameraModalOpen(false);
   };
 
@@ -139,6 +185,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     <>
       {/* Global Loader */}
       <Loader />
+
       {/* Upload Modal - Hide when camera or crop modal is open */}
       {isOpen && !isCameraModalOpen && !isCropModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -214,7 +261,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 </Button>
               </div>
 
-              {/* Hidden file input */}
+              {/* Hidden file input for Upload */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -222,12 +269,22 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 onChange={handleFileChange}
                 className="hidden"
               />
+
+              {/* Hidden file input for Camera - triggers native camera */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                onChange={handleCameraFileChange}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* Camera Capture Modal - Rendered outside so it persists */}
+      {/* Camera Capture Modal */}
       {isCameraModalOpen && (
         <CameraCaptureModal
           isOpen={isCameraModalOpen}
