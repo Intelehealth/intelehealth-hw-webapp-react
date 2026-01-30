@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { startLoading, stopLoading } from '../../reducers/loader.reducer';
-import { Loader } from './loader.component';
-import Button from './button.component';
-import CameraCaptureModal from './camera-capture-modal.component';
-import PhotoCropModal from './photo-crop-modal.component';
 import {
   fileToBase64,
   validateImageFormat,
 } from '../../modules/profile/profile.helpers';
+import { startLoading, stopLoading } from '../../reducers/loader.reducer';
 import { showToast } from '../../services/toast';
+import Button from './button.component';
+import CameraCaptureModal from './camera-capture-modal.component';
+import { Loader } from './loader.component';
+import PhotoCropModal from './photo-crop-modal.component';
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -37,8 +37,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     } else {
       document.body.style.overflow = 'unset';
     }
-
-    // Cleanup function to restore scrollbar when component unmounts
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -79,12 +77,10 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleOpenCamera = () => {
-    // Always use custom camera modal for consistent experience
     setIsCameraModalOpen(true);
   };
 
   const handleCameraCapture = async (file: File) => {
-    // Show global loader while processing
     dispatch(startLoading());
 
     setIsCameraModalOpen(false);
@@ -109,7 +105,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       console.error('Error converting file to base64:', error);
       showToast('Upload error!', 'Failed to process image.', 'error');
     } finally {
-      // Stop loader after crop modal opens
       dispatch(stopLoading());
     }
   };
