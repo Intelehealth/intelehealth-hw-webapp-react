@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { startLoading, stopLoading } from '../../reducers/loader.reducer';
-import { Loader } from './loader.component';
-import Button from './button.component';
-import CameraCaptureModal from './camera-capture-modal.component';
-import PhotoCropModal from './photo-crop-modal.component';
 import {
   fileToBase64,
   validateImageFormat,
 } from '../../modules/profile/profile.helpers';
+import { startLoading, stopLoading } from '../../reducers/loader.reducer';
 import { showToast } from '../../services/toast';
+import Button from './button.component';
+import CameraCaptureModal from './camera-capture-modal.component';
+import { Loader } from './loader.component';
+import PhotoCropModal from './photo-crop-modal.component';
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -25,7 +25,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [selectedImageBase64, setSelectedImageBase64] = useState<string>('');
@@ -38,8 +37,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     } else {
       document.body.style.overflow = 'unset';
     }
-
-    // Cleanup function to restore scrollbar when component unmounts
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -80,53 +77,10 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleOpenCamera = () => {
-    // Detect if device is mobile
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
-
-    if (isMobile) {
-      // On mobile: Use native camera capture
-      cameraInputRef.current?.click();
-    } else {
-      // On desktop: Show custom camera modal
-      setIsCameraModalOpen(true);
-    }
-  };
-
-  const handleCameraFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file format before processing
-      if (!validateImageFormat(file)) {
-        showToast(
-          'Upload error!',
-          'Upload JPG, JPEG or PNG format image only.',
-          'warning'
-        );
-        // Reset file input
-        if (cameraInputRef.current) {
-          cameraInputRef.current.value = '';
-        }
-        return;
-      }
-
-      const base64 = await fileToBase64(file);
-      setSelectedImageBase64(base64);
-      cropModalRef.current = true;
-      setIsCropModalOpen(true);
-
-      if (cameraInputRef.current) {
-        cameraInputRef.current.value = '';
-      }
-    }
+    setIsCameraModalOpen(true);
   };
 
   const handleCameraCapture = async (file: File) => {
-    // Show global loader while processing
     dispatch(startLoading());
 
     setIsCameraModalOpen(false);
@@ -151,7 +105,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       console.error('Error converting file to base64:', error);
       showToast('Upload error!', 'Failed to process image.', 'error');
     } finally {
-      // Stop loader after crop modal opens
       dispatch(stopLoading());
     }
   };
@@ -280,16 +233,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 type="file"
                 accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
-                className="hidden"
-              />
-
-              {/* Hidden file input for Camera - triggers native camera */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                onChange={handleCameraFileChange}
                 className="hidden"
               />
             </div>
