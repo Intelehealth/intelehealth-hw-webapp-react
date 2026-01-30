@@ -25,7 +25,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [selectedImageBase64, setSelectedImageBase64] = useState<string>('');
@@ -80,49 +79,8 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleOpenCamera = () => {
-    // Detect if device is mobile
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
-
-    if (isMobile) {
-      // On mobile: Use native camera capture
-      cameraInputRef.current?.click();
-    } else {
-      // On desktop: Show custom camera modal
-      setIsCameraModalOpen(true);
-    }
-  };
-
-  const handleCameraFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file format before processing
-      if (!validateImageFormat(file)) {
-        showToast(
-          'Upload error!',
-          'Upload JPG, JPEG or PNG format image only.',
-          'warning'
-        );
-        // Reset file input
-        if (cameraInputRef.current) {
-          cameraInputRef.current.value = '';
-        }
-        return;
-      }
-
-      const base64 = await fileToBase64(file);
-      setSelectedImageBase64(base64);
-      cropModalRef.current = true;
-      setIsCropModalOpen(true);
-
-      if (cameraInputRef.current) {
-        cameraInputRef.current.value = '';
-      }
-    }
+    // Always use custom camera modal for consistent experience
+    setIsCameraModalOpen(true);
   };
 
   const handleCameraCapture = async (file: File) => {
@@ -280,16 +238,6 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 type="file"
                 accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
-                className="hidden"
-              />
-
-              {/* Hidden file input for Camera - triggers native camera */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                onChange={handleCameraFileChange}
                 className="hidden"
               />
             </div>
