@@ -93,28 +93,42 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
           console.info('[DEBUG]', 'Video metadata loaded, attempting to play');
-          videoRef.current
-            ?.play()
-            .then(() => {
-              console.info('[DEBUG]', 'Video playing successfully');
-              setIsCameraReady(true);
-              // Auto-capture on first permission
-              if (!permissionAlreadyGranted) {
-                console.info('[DEBUG]', 'Scheduling auto-capture in 1000ms');
-                setTimeout(capturePhoto, 1000);
-              } else {
-                console.info(
-                  '[DEBUG]',
-                  'Manual capture mode (permission was already granted)'
-                );
-              }
-              console.groupEnd();
-            })
-            .catch(() => {
-              console.error('[DEBUG ERROR]', 'Failed to play video');
-              setError('Failed to start camera preview');
-              console.groupEnd();
-            });
+
+          // Add timeout to detect hanging play promise
+          const playTimeout = setTimeout(() => {
+            console.warn(
+              '[DEBUG WARN]',
+              'Video play() promise taking longer than 3 seconds'
+            );
+          }, 3000);
+          setTimeout(() => {
+            videoRef.current
+              ?.play()
+              .then(() => {
+                clearTimeout(playTimeout);
+                console.info('[DEBUG]', 'Video playing successfully');
+                setIsCameraReady(true);
+                // Auto-capture on first permission
+                if (!permissionAlreadyGranted) {
+                  console.info('[DEBUG]', 'Scheduling auto-capture in 1000ms');
+                  setTimeout(capturePhoto, 1000);
+                } else {
+                  console.info(
+                    '[DEBUG]',
+                    'Manual capture mode (permission was already granted)'
+                  );
+                }
+                console.groupEnd();
+              })
+              .catch(err => {
+                clearTimeout(playTimeout);
+                console.error('[DEBUG ERROR]', 'Failed to play video:', err);
+                console.error('[DEBUG ERROR]', 'Error name:', err?.name);
+                console.error('[DEBUG ERROR]', 'Error message:', err?.message);
+                setError('Failed to start camera preview');
+                console.groupEnd();
+              });
+          }, 300);
         };
       }
     } catch (err) {
@@ -221,7 +235,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   if (shouldAutoCapture && !error) {
     return (
       <>
-        <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+        <video ref={videoRef} autoPlay playsInline muted />
         <canvas ref={canvasRef} className="hidden" />
       </>
     );
