@@ -235,7 +235,14 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   if (shouldAutoCapture && !error) {
     return (
       <>
-        <video ref={videoRef} autoPlay playsInline muted />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="fixed opacity-0 pointer-events-none"
+          style={{ width: '1px', height: '1px' }}
+        />
         <canvas ref={canvasRef} className="hidden" />
       </>
     );
