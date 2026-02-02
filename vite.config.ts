@@ -26,73 +26,28 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true, // Enable sourcemaps for debugging in production
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks - optimized for better caching and parallel loading
-          // if (id.includes('node_modules')) {
-          //   // React core (use path-based check to avoid matching react-router, react-redux, etc.)
-          //   if (
-          //     id.includes('/react/') ||
-          //     id.includes('/react-dom/') ||
-          //     id.includes('\\react\\') ||
-          //     id.includes('\\react-dom\\')
-          //   ) {
-          //     return 'vendor-react';
-          //   }
-          //   // React Router (separate chunk for routing)
-          //   if (id.includes('react-router')) {
-          //     return 'vendor-router';
-          //   }
-          //   // Form libraries (grouped together as they're often used together)
-          //   if (
-          //     id.includes('react-hook-form') ||
-          //     id.includes('@hookform/resolvers') ||
-          //     id.includes('/yup/') ||
-          //     id.includes('\\yup\\')
-          //   ) {
-          //     return 'vendor-forms';
-          //   }
-          //   // Redux (state management)
-          //   if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
-          //     return 'vendor-redux';
-          //   }
-          //   // Firebase (large SDK, separate chunk)
-          //   if (id.includes('firebase')) {
-          //     return 'vendor-firebase';
-          //   }
-          //   // Sentry (monitoring, separate chunk)
-          //   if (id.includes('@sentry')) {
-          //     return 'vendor-sentry';
-          //   }
-          //   // i18n (internationalization)
-          //   if (id.includes('i18next') || id.includes('react-i18next')) {
-          //     return 'vendor-i18n';
-          //   }
-          //   // Date picker (separate chunk for lazy loading)
-          //   if (id.includes('react-datepicker')) {
-          //     return 'vendor-datepicker';
-          //   }
-          //   // Image cropping library
-          //   if (id.includes('react-easy-crop')) {
-          //     return 'vendor-image-crop';
-          //   }
-          //   // Toast notifications (separate chunk)
-          //   if (id.includes('react-toastify')) {
-          //     return 'vendor-toastify';
-          //   }
-          //   // HTTP client and utilities
-          //   if (id.includes('axios') || id.includes('js-cookie')) {
-          //     return 'vendor-utils';
-          //   }
-          //   // Tailwind utilities (small, can be grouped)
-          //   if (id.includes('tailwind-merge') || id.includes('clsx')) {
-          //     return 'vendor-styles';
-          //   }
-          //   // All other node_modules
-          //   return 'vendor-other';
-          // }
-          vendor: ['react', 'react-dom'],
-          sentry: ['@sentry/react', '@sentry/tracing'],
+        // manualChunks: {
+        //   vendor: ['react', 'react-dom'],
+        //   sentry: ['@sentry/react', '@sentry/tracing'],
+        // },
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Core vendor
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
+            }
+
+            // Sentry (heavy, load once)
+            if (id.includes('@sentry')) {
+              return 'sentry';
+            }
+            if (id.includes('react-datepicker')) return 'datepicker';
+            if (id.includes('date-fns')) return 'date-fns';
+            if (id.includes('firebase')) return 'firebase';
+            if (id.includes('react-toastify')) return 'toast';
+          }
         },
+
         // Optimize asset file naming for nginx MIME type handling
         assetFileNames: assetInfo => {
           if (!assetInfo.name) return `assets/[name]-[hash][extname]`;
