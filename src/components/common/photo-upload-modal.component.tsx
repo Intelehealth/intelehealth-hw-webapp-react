@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   fileToBase64,
@@ -8,9 +8,14 @@ import { startLoading, stopLoading } from '../../reducers/loader.reducer';
 import { showToast } from '../../services/toast';
 import { debugLog } from '../../utils/debug-logger';
 import Button from './button.component';
-import CameraCaptureModal from './camera-capture-modal.component';
 import { Loader } from './loader.component';
-import PhotoCropModal from './photo-crop-modal.component';
+
+// Lazy load heavy modals for better performance
+const CameraCaptureModal = React.lazy(
+  () => import('./camera-capture-modal.component')
+);
+
+const PhotoCropModal = React.lazy(() => import('./photo-crop-modal.component'));
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -285,22 +290,26 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
       {/* Camera Capture Modal */}
       {isCameraModalOpen && (
-        <CameraCaptureModal
-          isOpen={isCameraModalOpen}
-          onClose={handleCameraClose}
-          onCapture={handleCameraCapture}
-        />
+        <Suspense fallback={<Loader />}>
+          <CameraCaptureModal
+            isOpen={isCameraModalOpen}
+            onClose={handleCameraClose}
+            onCapture={handleCameraCapture}
+          />
+        </Suspense>
       )}
       <Loader />
       {/* Crop Modal - Rendered after camera capture or file upload */}
       {isCropModalOpen && selectedImageBase64 && (
-        <PhotoCropModal
-          image={selectedImageBase64}
-          onCropComplete={handleCropComplete}
-          onCancel={handleCropCancel}
-          manual={true}
-          outputType="file"
-        />
+        <Suspense fallback={<Loader />}>
+          <PhotoCropModal
+            image={selectedImageBase64}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+            manual={true}
+            outputType="file"
+          />
+        </Suspense>
       )}
     </>
   );
