@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { debugLog } from '../../utils/debug-logger';
 
 interface CameraCaptureModalProps {
   isOpen: boolean;
@@ -33,12 +34,15 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   // Start camera and check permissions
   const startCamera = async () => {
     try {
+      debugLog.group('Camera Start');
       setError('');
       setIsCameraReady(false);
 
       // Check browser support
       if (!navigator.mediaDevices?.getUserMedia) {
+        debugLog.error('Camera not supported on this device');
         setError('Camera not supported on this device');
+        debugLog.groupEnd();
         return;
       }
 
@@ -49,11 +53,15 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           name: 'camera' as PermissionName,
         });
         permissionAlreadyGranted = permissionStatus.state === 'granted';
+        debugLog.log('Permission status:', permissionStatus.state);
+        debugLog.log('Permission already granted:', permissionAlreadyGranted);
       } catch (err) {
+        debugLog.warn('Permission API not supported, assuming first time');
         // Permission API not supported, assume first time
       }
 
       // Request camera access
+      debugLog.log('Requesting camera access');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -62,30 +70,46 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         },
         audio: false,
       });
+      debugLog.log('Camera access granted, stream obtained');
 
       // Set auto-capture flag for first-time permission
       setShouldAutoCapture(!permissionAlreadyGranted);
+      debugLog.log('Should auto-capture:', !permissionAlreadyGranted);
       setStream(mediaStream);
 
       // Setup video stream
       if (videoRef.current) {
+        debugLog.log('Setting up video stream');
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
+          debugLog.log('Video metadata loaded, attempting to play');
           videoRef.current
             ?.play()
             .then(() => {
+              debugLog.log('Video playing successfully');
               setIsCameraReady(true);
               // Auto-capture on first permission
               if (!permissionAlreadyGranted) {
+                debugLog.log('Scheduling auto-capture in 1000ms');
                 setTimeout(capturePhoto, 1000);
+              } else {
+                debugLog.log(
+                  'Manual capture mode (permission was already granted)'
+                );
               }
+              debugLog.groupEnd();
             })
-            .catch(() => setError('Failed to start camera preview'));
+            .catch(() => {
+              debugLog.error('Failed to play video');
+              setError('Failed to start camera preview');
+              debugLog.groupEnd();
+            });
         };
       }
     } catch (err) {
       // Handle errors with user-friendly messages
       if (err instanceof Error) {
+        debugLog.error('Camera error:', err.name, err.message);
         const errorMap: Record<string, string> = {
           NotAllowedError:
             'Camera permission denied. Please allow camera access.',
@@ -100,6 +124,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           errorMap[err.name] || 'Failed to access camera. Please try again.'
         );
       }
+      debugLog.groupEnd();
     }
   };
 
@@ -111,17 +136,38 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   // Capture photo from video stream
   const capturePhoto = () => {
+    debugLog.log('Capture photo called');
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0)
+    if (
+      !video ||
+      !canvas ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
+      debugLog.warn('Cannot capture: video or canvas not ready', {
+        hasVideo: !!video,
+        hasCanvas: !!canvas,
+        videoWidth: video?.videoWidth,
+        videoHeight: video?.videoHeight,
+      });
       return;
+    }
+
+    debugLog.log('Capturing photo from video stream', {
+      width: video.videoWidth,
+      height: video.videoHeight,
+    });
 
     // Setup canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      debugLog.error('Failed to get canvas context');
+      return;
+    }
 
     // Mirror image for selfie mode
     ctx.save();
@@ -129,16 +175,21 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+    debugLog.log('Image drawn to canvas');
 
     // Convert to file and trigger callback
     canvas.toBlob(
       blob => {
         if (blob) {
+          debugLog.log('Blob created, size:', blob.size);
           const file = new File([blob], `camera-${Date.now()}.jpg`, {
             type: 'image/jpeg',
           });
+          debugLog.log('File created, stopping camera and calling onCapture');
           stopCamera();
           onCapture(file);
+        } else {
+          debugLog.error('Failed to create blob from canvas');
         }
       },
       'image/jpeg',
