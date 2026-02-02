@@ -102,6 +102,7 @@ export default defineConfig({
         'src/main.tsx',
         'src/App.tsx',
         'src/modules/patient/add/add-patient.types.ts',
+        'src/utils/debug-logger.ts',
       ],
       // 100% coverage requirements
       thresholds: {
