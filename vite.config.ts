@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2020',
     minify: 'esbuild',
-    sourcemap: false,
+    sourcemap: false, // Enable sourcemaps for debugging in production
     rollupOptions: {
       output: {
         manualChunks: {

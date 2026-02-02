@@ -33,12 +33,15 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   // Start camera and check permissions
   const startCamera = async () => {
     try {
+      console.group('[DEBUG] Camera Start');
       setError('');
       setIsCameraReady(false);
 
       // Check browser support
       if (!navigator.mediaDevices?.getUserMedia) {
+        console.error('[DEBUG ERROR]', 'Camera not supported on this device');
         setError('Camera not supported on this device');
+        console.groupEnd();
         return;
       }
 
@@ -49,11 +52,22 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           name: 'camera' as PermissionName,
         });
         permissionAlreadyGranted = permissionStatus.state === 'granted';
+        console.info('[DEBUG]', 'Permission status:', permissionStatus.state);
+        console.info(
+          '[DEBUG]',
+          'Permission already granted:',
+          permissionAlreadyGranted
+        );
       } catch (err) {
+        console.warn(
+          '[DEBUG WARN]',
+          'Permission API not supported, assuming first time'
+        );
         // Permission API not supported, assume first time
       }
 
       // Request camera access
+      console.info('[DEBUG]', 'Requesting camera access');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -62,30 +76,51 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         },
         audio: false,
       });
+      console.info('[DEBUG]', 'Camera access granted, stream obtained');
 
       // Set auto-capture flag for first-time permission
       setShouldAutoCapture(!permissionAlreadyGranted);
+      console.info(
+        '[DEBUG]',
+        'Should auto-capture:',
+        !permissionAlreadyGranted
+      );
       setStream(mediaStream);
 
       // Setup video stream
       if (videoRef.current) {
+        console.info('[DEBUG]', 'Setting up video stream');
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
+          console.info('[DEBUG]', 'Video metadata loaded, attempting to play');
           videoRef.current
             ?.play()
             .then(() => {
+              console.info('[DEBUG]', 'Video playing successfully');
               setIsCameraReady(true);
               // Auto-capture on first permission
               if (!permissionAlreadyGranted) {
+                console.info('[DEBUG]', 'Scheduling auto-capture in 1000ms');
                 setTimeout(capturePhoto, 1000);
+              } else {
+                console.info(
+                  '[DEBUG]',
+                  'Manual capture mode (permission was already granted)'
+                );
               }
+              console.groupEnd();
             })
-            .catch(() => setError('Failed to start camera preview'));
+            .catch(() => {
+              console.error('[DEBUG ERROR]', 'Failed to play video');
+              setError('Failed to start camera preview');
+              console.groupEnd();
+            });
         };
       }
     } catch (err) {
       // Handle errors with user-friendly messages
       if (err instanceof Error) {
+        console.error('[DEBUG ERROR]', 'Camera error:', err.name, err.message);
         const errorMap: Record<string, string> = {
           NotAllowedError:
             'Camera permission denied. Please allow camera access.',
@@ -100,6 +135,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           errorMap[err.name] || 'Failed to access camera. Please try again.'
         );
       }
+      console.groupEnd();
     }
   };
 
@@ -111,17 +147,42 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   // Capture photo from video stream
   const capturePhoto = () => {
+    console.info('[DEBUG]', 'Capture photo called');
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0)
+    if (
+      !video ||
+      !canvas ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
+      console.warn(
+        '[DEBUG WARN]',
+        'Cannot capture: video or canvas not ready',
+        {
+          hasVideo: !!video,
+          hasCanvas: !!canvas,
+          videoWidth: video?.videoWidth,
+          videoHeight: video?.videoHeight,
+        }
+      );
       return;
+    }
+
+    console.info('[DEBUG]', 'Capturing photo from video stream', {
+      width: video.videoWidth,
+      height: video.videoHeight,
+    });
 
     // Setup canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('[DEBUG ERROR]', 'Failed to get canvas context');
+      return;
+    }
 
     // Mirror image for selfie mode
     ctx.save();
@@ -129,16 +190,24 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+    console.info('[DEBUG]', 'Image drawn to canvas');
 
     // Convert to file and trigger callback
     canvas.toBlob(
       blob => {
         if (blob) {
+          console.info('[DEBUG]', 'Blob created, size:', blob.size);
           const file = new File([blob], `camera-${Date.now()}.jpg`, {
             type: 'image/jpeg',
           });
+          console.info(
+            '[DEBUG]',
+            'File created, stopping camera and calling onCapture'
+          );
           stopCamera();
           onCapture(file);
+        } else {
+          console.error('[DEBUG ERROR]', 'Failed to create blob from canvas');
         }
       },
       'image/jpeg',

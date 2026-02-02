@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   fileToBase64,
@@ -7,9 +7,14 @@ import {
 import { startLoading, stopLoading } from '../../reducers/loader.reducer';
 import { showToast } from '../../services/toast';
 import Button from './button.component';
-import CameraCaptureModal from './camera-capture-modal.component';
 import { Loader } from './loader.component';
-import PhotoCropModal from './photo-crop-modal.component';
+
+// Lazy load heavy modals for better performance
+const CameraCaptureModal = React.lazy(
+  () => import('./camera-capture-modal.component')
+);
+
+const PhotoCropModal = React.lazy(() => import('./photo-crop-modal.component'));
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -51,8 +56,18 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   ) => {
     const file = event.target.files?.[0];
     if (file) {
+      console.group('[DEBUG] File Upload');
+      console.info(
+        '[DEBUG]',
+        'File selected:',
+        file.name,
+        file.type,
+        file.size
+      );
+
       // Validate file format before processing
       if (!validateImageFormat(file)) {
+        console.warn('[DEBUG WARN]', 'Invalid file format:', file.type);
         showToast(
           'Upload error!',
           'Upload JPG, JPEG or PNG format image only.',
@@ -62,13 +77,22 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        console.groupEnd();
         return;
       }
 
       const base64 = await fileToBase64(file);
+      console.info(
+        '[DEBUG]',
+        'File converted to base64, length:',
+        base64.length
+      );
+
       setSelectedImageBase64(base64);
       cropModalRef.current = true;
       setIsCropModalOpen(true);
+      console.info('[DEBUG]', 'Crop modal opened for file upload');
+      console.groupEnd();
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -77,68 +101,103 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleOpenCamera = () => {
+    console.info('[DEBUG]', 'Opening camera modal');
     setIsCameraModalOpen(true);
   };
 
   const handleCameraCapture = async (file: File) => {
+    console.group('[DEBUG] Camera Capture');
+    console.info(
+      '[DEBUG]',
+      'Camera captured file:',
+      file.name,
+      file.type,
+      file.size
+    );
+    console.info('[DEBUG]', 'Starting loader');
     dispatch(startLoading());
 
     // Validate format
     if (!validateImageFormat(file)) {
+      console.warn('[DEBUG WARN]', 'Invalid camera capture format:', file.type);
       dispatch(stopLoading());
       showToast(
         'Upload error!',
         'Upload JPG, JPEG or PNG format image only.',
         'warning'
       );
+      console.groupEnd();
       return;
     }
 
     try {
       // Convert image
+      console.info('[DEBUG]', 'Converting camera capture to base64');
       const base64 = await fileToBase64(file);
+      console.info(
+        '[DEBUG]',
+        'Conversion successful, base64 length:',
+        base64.length
+      );
 
       // Close camera modal first before opening crop modal
+      console.info('[DEBUG]', 'Closing camera modal');
       setIsCameraModalOpen(false);
 
-      // Wait a tick for camera modal to unmount, then open crop modal
+      // Wait for camera modal to unmount, then open crop modal
+      console.info('[DEBUG]', 'Waiting 150ms for camera modal to unmount');
       setTimeout(() => {
+        console.info('[DEBUG]', 'Setting image base64 and opening crop modal');
         setSelectedImageBase64(base64);
         cropModalRef.current = true;
         setIsCropModalOpen(true);
 
         // Stop loader after crop modal has time to render
+        console.info('[DEBUG]', 'Waiting 200ms before stopping loader');
         setTimeout(() => {
+          console.info('[DEBUG]', 'Stopping loader');
           dispatch(stopLoading());
-        }, 100);
-      }, 50);
+          console.groupEnd();
+        }, 200);
+      }, 150);
     } catch (error) {
+      console.error('[DEBUG ERROR]', 'Error converting file to base64:', error);
       console.error('Error converting file to base64:', error);
       showToast('Upload error!', 'Failed to process image.', 'error');
       dispatch(stopLoading());
+      console.groupEnd();
     }
   };
 
   const handleCameraClose = () => {
+    console.info('[DEBUG]', 'Camera modal closed by user');
     setIsCameraModalOpen(false);
   };
 
   const handleCropComplete = (croppedImage: string | File) => {
+    console.info('[DEBUG]', 'Crop completed, type:', typeof croppedImage);
     setIsCropModalOpen(false);
     setSelectedImageBase64('');
     cropModalRef.current = false;
 
     // Pass the cropped image to the parent component
     if (typeof croppedImage === 'string') {
+      console.info('[DEBUG]', 'Converting base64 string to file');
       fetch(croppedImage)
         .then(res => res.blob())
         .then(blob => {
           const file = new File([blob], `cropped-${Date.now()}.jpg`, {
             type: 'image/jpeg',
           });
+          console.info('[DEBUG]', 'File created, calling onUploadPhoto');
           onUploadPhoto(file);
         })
         .catch(error => {
+          console.error(
+            '[DEBUG ERROR]',
+            'Error converting cropped image:',
+            error
+          );
           console.error('Error converting cropped image:', error);
           showToast(
             'Upload error!',
@@ -147,11 +206,16 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           );
         });
     } else {
+      console.info(
+        '[DEBUG]',
+        'File already in correct format, calling onUploadPhoto'
+      );
       onUploadPhoto(croppedImage);
     }
   };
 
   const handleCropCancel = () => {
+    console.info('[DEBUG]', 'Crop cancelled by user');
     setIsCropModalOpen(false);
     setSelectedImageBase64('');
     cropModalRef.current = false;
@@ -252,22 +316,26 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
       {/* Camera Capture Modal */}
       {isCameraModalOpen && (
-        <CameraCaptureModal
-          isOpen={isCameraModalOpen}
-          onClose={handleCameraClose}
-          onCapture={handleCameraCapture}
-        />
+        <Suspense fallback={<Loader />}>
+          <CameraCaptureModal
+            isOpen={isCameraModalOpen}
+            onClose={handleCameraClose}
+            onCapture={handleCameraCapture}
+          />
+        </Suspense>
       )}
       <Loader />
       {/* Crop Modal - Rendered after camera capture or file upload */}
       {isCropModalOpen && selectedImageBase64 && (
-        <PhotoCropModal
-          image={selectedImageBase64}
-          onCropComplete={handleCropComplete}
-          onCancel={handleCropCancel}
-          manual={true}
-          outputType="file"
-        />
+        <Suspense fallback={<Loader />}>
+          <PhotoCropModal
+            image={selectedImageBase64}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+            manual={true}
+            outputType="file"
+          />
+        </Suspense>
       )}
     </>
   );
