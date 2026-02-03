@@ -94,41 +94,43 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         videoRef.current.onloadedmetadata = () => {
           console.info('[DEBUG]', 'Video metadata loaded, attempting to play');
 
-          // Add timeout to detect hanging play promise
-          const playTimeout = setTimeout(() => {
-            console.warn(
-              '[DEBUG WARN]',
-              'Video play() promise taking longer than 3 seconds'
-            );
-          }, 3000);
-          setTimeout(() => {
-            videoRef.current
-              ?.play()
-              .then(() => {
-                clearTimeout(playTimeout);
-                console.info('[DEBUG]', 'Video playing successfully');
-                setIsCameraReady(true);
-                // Auto-capture on first permission
-                if (!permissionAlreadyGranted) {
-                  console.info('[DEBUG]', 'Scheduling auto-capture in 1000ms');
-                  setTimeout(capturePhoto, 1000);
-                } else {
-                  console.info(
-                    '[DEBUG]',
-                    'Manual capture mode (permission was already granted)'
-                  );
-                }
-                console.groupEnd();
-              })
-              .catch(err => {
-                clearTimeout(playTimeout);
-                console.error('[DEBUG ERROR]', 'Failed to play video:', err);
-                console.error('[DEBUG ERROR]', 'Error name:', err?.name);
-                console.error('[DEBUG ERROR]', 'Error message:', err?.message);
-                setError('Failed to start camera preview');
-                console.groupEnd();
-              });
-          }, 300);
+          // Try to play immediately - autoplay should work since getUserMedia was called from user interaction
+          videoRef.current
+            ?.play()
+            .then(async () => {
+              console.info(
+                '[DEBUG]',
+                'Video play() started, waiting for frames...'
+              );
+
+              // Wait for actual video frames to be available
+              await waitForVideoReady(videoRef.current!);
+
+              console.info(
+                '[DEBUG]',
+                'Video frames available, ready to capture'
+              );
+              setIsCameraReady(true);
+
+              // Auto-capture on first permission
+              if (!permissionAlreadyGranted) {
+                console.info('[DEBUG]', 'Scheduling auto-capture in 300ms');
+                setTimeout(capturePhoto, 300);
+              } else {
+                console.info(
+                  '[DEBUG]',
+                  'Manual capture mode (permission was already granted)'
+                );
+              }
+              console.groupEnd();
+            })
+            .catch(err => {
+              console.error('[DEBUG ERROR]', 'Failed to play video:', err);
+              console.error('[DEBUG ERROR]', 'Error name:', err?.name);
+              console.error('[DEBUG ERROR]', 'Error message:', err?.message);
+              setError('Failed to start camera preview');
+              console.groupEnd();
+            });
         };
       }
     } catch (err) {
@@ -158,6 +160,24 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     stream?.getTracks().forEach(track => track.stop());
     setStream(null);
   };
+
+  // Wait for video to have enough data to play
+  const waitForVideoReady = (video: HTMLVideoElement) =>
+    new Promise<void>(resolve => {
+      if (video.readyState >= 3) {
+        resolve();
+        return;
+      }
+
+      const check = () => {
+        if (video.readyState >= 3) {
+          video.removeEventListener('playing', check);
+          resolve();
+        }
+      };
+
+      video.addEventListener('playing', check);
+    });
 
   // Capture photo from video stream
   const capturePhoto = () => {
@@ -231,10 +251,14 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Hide UI during auto-capture (first time)
+  // Show minimal loading UI during auto-capture (first time)
   if (shouldAutoCapture && !error) {
     return (
-      <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-lg p-8 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-[#2e1e91] rounded-full animate-spin"></div>
+          <p className="text-gray-900 text-lg">Processing camera...</p>
+        </div>
         <video
           ref={videoRef}
           autoPlay
@@ -244,7 +268,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           style={{ width: '1px', height: '1px' }}
         />
         <canvas ref={canvasRef} className="hidden" />
-      </>
+      </div>
     );
   }
 
@@ -300,7 +324,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           {!isCameraReady && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
               <div className="text-center">
-                <div className="w-16 h-16 border-4 border-gray-300 border-t-[#00897B] rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="w-16 h-16 border-4 border-gray-300 border-t-[#2e1e91] rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-900 text-lg">Starting camera...</p>
               </div>
             </div>

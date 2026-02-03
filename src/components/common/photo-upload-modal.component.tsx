@@ -316,7 +316,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 
       {/* Camera Capture Modal */}
       {isCameraModalOpen && (
-        <Suspense fallback={<Loader />}>
+        <Suspense>
           <CameraCaptureModal
             isOpen={isCameraModalOpen}
             onClose={handleCameraClose}
@@ -324,10 +324,10 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           />
         </Suspense>
       )}
-      <Loader />
+
       {/* Crop Modal - Rendered after camera capture or file upload */}
       {isCropModalOpen && selectedImageBase64 && (
-        <Suspense fallback={<Loader />}>
+        <Suspense>
           <PhotoCropModal
             image={selectedImageBase64}
             onCropComplete={handleCropComplete}
