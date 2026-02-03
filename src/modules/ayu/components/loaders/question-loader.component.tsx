@@ -6,12 +6,14 @@ interface QuestionLoaderProps {
   questionIndex: number;
   totalQuestions: number;
   onNextQuestion: () => void;
+  children?: React.ReactNode; // Inject input/UI here
 }
 
 export const QuestionLoader = ({
   question = 'Since when have you had this symptom?',
   questionIndex,
   totalQuestions,
+  children,
 }: QuestionLoaderProps) => {
   const [loading, setLoading] = useState(true);
 
@@ -74,9 +76,8 @@ export const QuestionLoader = ({
               {question}
               {question && <span className="text-red-500">*</span>}
             </p>
-            {question && (
-              <p className="text-sm text-gray-500 mt-1">Select any one</p>
-            )}
+            {/* CHILD UI */}
+            <div className="mt-4">{children}</div>
           </>
         )}
       </div>

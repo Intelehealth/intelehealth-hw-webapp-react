@@ -109,14 +109,18 @@ describe('QuestionLoader', () => {
       expect(asterisk).toHaveClass('text-red-500');
     });
 
-    it('should display "Select any one" hint after loading', async () => {
-      render(<QuestionLoader {...defaultProps} />);
+    it('should render children after loading completes', async () => {
+      render(
+        <QuestionLoader {...defaultProps}>
+          <div>Test child content</div>
+        </QuestionLoader>
+      );
 
       await act(async () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText('Select any one')).toBeInTheDocument();
+      expect(screen.getByText('Test child content')).toBeInTheDocument();
     });
 
     it('should use default question when not provided', async () => {

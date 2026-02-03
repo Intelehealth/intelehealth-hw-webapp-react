@@ -5,7 +5,7 @@ import { SectionCompletionLoader } from '../loaders/section-completion-loader.co
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history.component';
 import { PhysicalExamination } from './physical-examination.component';
-import { VisitReason } from './visit-reason.component';
+import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals.component';
 
 export const StartVisit = () => {

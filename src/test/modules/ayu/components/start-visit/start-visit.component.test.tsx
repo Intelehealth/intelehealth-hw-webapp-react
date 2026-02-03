@@ -29,7 +29,7 @@ vi.mock('../../../../../modules/ayu/components/start-visit/vitals.component', ()
   )),
 }));
 
-vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason.component', () => ({
+vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component', () => ({
   VisitReason: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection }) => (
     <div data-testid="visit-reason-component">
       <div>Visit Reason - Question {questionIndex}</div>
