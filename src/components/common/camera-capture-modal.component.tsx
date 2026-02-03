@@ -91,13 +91,90 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       if (videoRef.current) {
         console.info('[DEBUG]', 'Setting up video stream');
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = () => {
-          console.info('[DEBUG]', 'Video metadata loaded, attempting to play');
 
-          // Try to play immediately - autoplay should work since getUserMedia was called from user interaction
-          videoRef.current
-            ?.play()
+        // Force the video to start loading
+        console.info('[DEBUG]', 'Calling video.load() to force initialization');
+        videoRef.current.load();
+
+        // Add additional event listeners for debugging
+        videoRef.current.onloadstart = () => {
+          console.info('[DEBUG]', 'Video loadstart event fired');
+        };
+
+        videoRef.current.onloadeddata = () => {
+          console.info(
+            '[DEBUG]',
+            'Video loadeddata event fired, readyState:',
+            videoRef.current?.readyState
+          );
+        };
+
+        videoRef.current.oncanplay = () => {
+          console.info(
+            '[DEBUG]',
+            'Video canplay event fired, readyState:',
+            videoRef.current?.readyState
+          );
+        };
+
+        videoRef.current.oncanplaythrough = () => {
+          console.info(
+            '[DEBUG]',
+            'Video canplaythrough event fired, readyState:',
+            videoRef.current?.readyState
+          );
+        };
+
+        videoRef.current.onloadedmetadata = async () => {
+          console.info('[DEBUG]', 'Video metadata loaded, attempting to play');
+          console.info(
+            '[DEBUG]',
+            'Video readyState at metadata:',
+            videoRef.current?.readyState
+          );
+
+          // CRITICAL FIX: Add a small delay before calling play()
+          // This allows the video element to fully initialize
+          console.info('[DEBUG]', 'Waiting 100ms before calling play()...');
+          await new Promise(resolve => setTimeout(resolve, 100));
+          console.info('[DEBUG]', 'Delay complete, now calling play()');
+
+          if (!videoRef.current) {
+            console.error(
+              '[DEBUG ERROR]',
+              'videoRef.current is null after delay'
+            );
+            console.groupEnd();
+            return;
+          }
+
+          // Try to play with enhanced error handling and timeout
+          console.info('[DEBUG]', 'Calling video.play()...');
+
+          const playPromise = videoRef.current.play();
+
+          if (!playPromise) {
+            console.error('[DEBUG ERROR]', 'play() returned undefined/null');
+            setError('Failed to start camera preview (play returned null)');
+            console.groupEnd();
+            return;
+          }
+
+          // Create a timeout promise that rejects after 5 seconds
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              console.error('[DEBUG ERROR]', 'play() promise timeout after 5s');
+              reject(new Error('Video play timeout'));
+            }, 5000);
+          });
+
+          Promise.race([playPromise, timeoutPromise])
             .then(async () => {
+              console.info(
+                '[DEBUG]',
+                'Video play() promise resolved, readyState:',
+                videoRef.current?.readyState
+              );
               console.info(
                 '[DEBUG]',
                 'Video play() started, waiting for frames...'
@@ -109,6 +186,11 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               console.info(
                 '[DEBUG]',
                 'Video frames available, ready to capture'
+              );
+              console.info(
+                '[DEBUG]',
+                'Final readyState:',
+                videoRef.current?.readyState
               );
               setIsCameraReady(true);
 
@@ -125,11 +207,57 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               console.groupEnd();
             })
             .catch(err => {
-              console.error('[DEBUG ERROR]', 'Failed to play video:', err);
+              console.error(
+                '[DEBUG ERROR]',
+                'Failed to play video or timeout:',
+                err
+              );
               console.error('[DEBUG ERROR]', 'Error name:', err?.name);
               console.error('[DEBUG ERROR]', 'Error message:', err?.message);
-              setError('Failed to start camera preview');
-              console.groupEnd();
+              console.error(
+                '[DEBUG ERROR]',
+                'Video readyState:',
+                videoRef.current?.readyState
+              );
+              console.error(
+                '[DEBUG ERROR]',
+                'Video paused:',
+                videoRef.current?.paused
+              );
+              console.error(
+                '[DEBUG ERROR]',
+                'Video error:',
+                videoRef.current?.error
+              );
+
+              // Try to recover by manually proceeding if video seems ready
+              if (videoRef.current && videoRef.current.readyState >= 2) {
+                console.warn(
+                  '[DEBUG WARN]',
+                  'Attempting recovery: video readyState is acceptable, proceeding anyway'
+                );
+                waitForVideoReady(videoRef.current)
+                  .then(() => {
+                    console.info('[DEBUG]', 'Recovery successful, video ready');
+                    setIsCameraReady(true);
+                    if (!permissionAlreadyGranted) {
+                      setTimeout(capturePhoto, 300);
+                    }
+                    console.groupEnd();
+                  })
+                  .catch(recoveryErr => {
+                    console.error(
+                      '[DEBUG ERROR]',
+                      'Recovery failed:',
+                      recoveryErr
+                    );
+                    setError('Failed to start camera preview');
+                    console.groupEnd();
+                  });
+              } else {
+                setError('Failed to start camera preview');
+                console.groupEnd();
+              }
             });
         };
       }
@@ -164,19 +292,73 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   // Wait for video to have enough data to play
   const waitForVideoReady = (video: HTMLVideoElement) =>
     new Promise<void>(resolve => {
+      console.info(
+        '[DEBUG]',
+        'waitForVideoReady called, readyState:',
+        video.readyState
+      );
+
       if (video.readyState >= 3) {
+        console.info('[DEBUG]', 'Video already ready (readyState >= 3)');
         resolve();
         return;
       }
 
       const check = () => {
+        console.info('[DEBUG]', 'Checking readyState:', video.readyState);
         if (video.readyState >= 3) {
+          console.info('[DEBUG]', 'Video ready, removing listeners');
           video.removeEventListener('playing', check);
+          video.removeEventListener('canplay', check);
+          video.removeEventListener('canplaythrough', check);
+          video.removeEventListener('loadeddata', check);
           resolve();
         }
       };
 
+      // Listen to multiple events to catch when video is ready
+      // This ensures we don't miss the event if it already fired
+      console.info(
+        '[DEBUG]',
+        'Adding multiple event listeners for video ready state'
+      );
       video.addEventListener('playing', check);
+      video.addEventListener('canplay', check);
+      video.addEventListener('canplaythrough', check);
+      video.addEventListener('loadeddata', check);
+
+      // Fallback: check periodically in case events don't fire
+      const intervalId = setInterval(() => {
+        console.info(
+          '[DEBUG]',
+          'Interval check, readyState:',
+          video.readyState
+        );
+        if (video.readyState >= 3) {
+          console.info('[DEBUG]', 'Video ready via interval check');
+          clearInterval(intervalId);
+          video.removeEventListener('playing', check);
+          video.removeEventListener('canplay', check);
+          video.removeEventListener('canplaythrough', check);
+          video.removeEventListener('loadeddata', check);
+          resolve();
+        }
+      }, 100);
+
+      // Safety timeout: resolve after 5 seconds regardless
+      setTimeout(() => {
+        console.warn(
+          '[DEBUG WARN]',
+          'Video ready timeout after 5s, readyState:',
+          video.readyState
+        );
+        clearInterval(intervalId);
+        video.removeEventListener('playing', check);
+        video.removeEventListener('canplay', check);
+        video.removeEventListener('canplaythrough', check);
+        video.removeEventListener('loadeddata', check);
+        resolve();
+      }, 5000);
     });
 
   // Capture photo from video stream
