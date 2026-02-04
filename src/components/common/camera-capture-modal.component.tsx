@@ -153,7 +153,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         <div className="relative bg-black" style={{ height: '450px' }}>
           {/* Error State */}
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
+            <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
               <div className="text-center px-6">
                 <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                   <i className="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
@@ -162,7 +162,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 <p className="text-gray-600 text-sm mb-6">{error}</p>
                 <button
                   onClick={onClose}
-                  className="px-6 py-2 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors"
+                  className="px-6 py-2 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors font-medium"
                 >
                   Close
                 </button>
