@@ -8,140 +8,205 @@ interface CameraCaptureModalProps {
 
 const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   isOpen,
+  onClose,
   onCapture,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       startCamera();
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
       document.body.style.overflow = 'unset';
       stopCamera();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const startCamera = async () => {
     try {
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('[Camera] getUserMedia not supported');
-        return;
-      }
-      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-        console.error('[Camera] Not a secure context');
+      setError('');
+      setIsCameraReady(false);
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError('Camera not supported on this device');
         return;
       }
 
-      const constraints: MediaStreamConstraints = {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
         audio: false,
-      };
-      const mediaStream =
-        await navigator.mediaDevices.getUserMedia(constraints);
+      });
+
       setStream(mediaStream);
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Wait for video to be ready to play
-        videoRef.current.onloadedmetadata = () => {
-          // Ensure video is playing
-          videoRef.current
-            ?.play()
-            .then(() => {
-              // Auto-capture after camera is fully ready and playing
-              setTimeout(() => {
-                capturePhoto();
-              }, 1000);
-            })
-            .catch(err => {
-              console.error('[Camera] Error playing video:', err);
-            });
+        videoRef.current.onloadedmetadata = async () => {
+          if (!videoRef.current) return;
+          try {
+            await videoRef.current.play();
+            setIsCameraReady(true);
+          } catch {
+            setError('Failed to start camera preview');
+          }
         };
       }
     } catch (err) {
-      console.error('[Camera] Error accessing camera:', err);
       if (err instanceof Error) {
-        console.error('[Camera] Error name:', err.name);
-        console.error('[Camera] Error message:', err.message);
+        const errorMap: Record<string, string> = {
+          NotAllowedError:
+            'Camera permission denied. Please allow camera access.',
+          PermissionDeniedError:
+            'Camera permission denied. Please allow camera access.',
+          NotFoundError: 'No camera found on this device.',
+          DevicesNotFoundError: 'No camera found on this device.',
+          NotReadableError: 'Camera is already in use by another application.',
+          TrackStartError: 'Camera is already in use by another application.',
+        };
+        setError(
+          errorMap[err.name] || 'Failed to access camera. Please try again.'
+        );
       }
     }
   };
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
+    stream?.getTracks().forEach(track => track.stop());
+    setStream(null);
   };
 
   const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      console.error('[Camera] Video or canvas ref not available');
-      return;
-    }
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    // Check if video has valid dimensions
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.error('[Camera] Video dimensions are zero, cannot capture');
-      return;
-    }
 
-    // Set canvas dimensions to match video
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0)
+      return;
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.error('[Camera] Cannot get canvas context');
-      return;
-    }
+    if (!ctx) return;
 
-    // Save the current canvas state
+    // Mirror image for selfie mode
     ctx.save();
-
-    // Mirror the image horizontally for front camera (selfie mode)
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-
-    // Draw video frame to canvas (full image, no circular mask)
-    // The PhotoCropModal will handle the circular cropping
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Restore the canvas state
     ctx.restore();
-    // Convert canvas to blob and create File as PNG
-    canvas.toBlob(blob => {
-      if (blob) {
-        const file = new File([blob], `camera-${Date.now()}.png`, {
-          type: 'image/png',
-        });
-        stopCamera();
-        onCapture(file);
-      } else {
-        console.error('[Camera] Failed to create blob');
-      }
-    }, 'image/png');
+
+    canvas.toBlob(
+      blob => {
+        if (blob) {
+          const file = new File([blob], `camera-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+          });
+          stopCamera();
+          onCapture(file);
+        }
+      },
+      'image/jpeg',
+      0.95
+    );
   };
 
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Hidden video and canvas - no UI shown */}
-      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-[#2e1e91] lg:bg-white/90"
+        onClick={onClose}
+      />
+
+      <div
+        className="relative bg-white rounded-2xl lg:rounded-lg shadow-xl mx-6 border border-gray-200 z-10 overflow-hidden"
+        style={{ width: '600px', maxWidth: '90vw' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Take Photo</h3>
+          <button
+            onClick={onClose}
+            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors border"
+            style={{ borderColor: '#7f7b92' }}
+          >
+            <i
+              className="fa-solid fa-times"
+              style={{ fontSize: '8px', color: '#7f7b92' }}
+            ></i>
+          </button>
+        </div>
+
+        {/* Camera Preview */}
+        <div className="relative bg-black" style={{ height: '450px' }}>
+          {/* Error State */}
+          {error && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
+              <div className="text-center px-6">
+                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                  <i className="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                <p className="text-gray-900 text-lg mb-2">Camera Error</p>
+                <p className="text-gray-600 text-sm mb-6">{error}</p>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {!isCameraReady && !error && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
+              <div className="text-center">
+                <div className="w-16 h-16 border-4 border-gray-300 border-t-[#2e1e91] rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-900 text-lg">Starting camera...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Video Preview */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+
+          {/* Capture Button */}
+          {isCameraReady && !error && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center p-6 bg-gradient-to-t from-black/60 to-transparent">
+              <button
+                onClick={capturePhoto}
+                className="px-8 py-3 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors font-medium text-lg shadow-lg"
+              >
+                <i className="fa-solid fa-camera mr-2"></i>
+                Capture Photo
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <canvas ref={canvasRef} className="hidden" />
-    </>
+    </div>
   );
 };
 
