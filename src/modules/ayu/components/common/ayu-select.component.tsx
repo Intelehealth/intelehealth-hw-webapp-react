@@ -16,7 +16,10 @@ export function AyuSelect({
           {label}
         </label>
       )}
-      <select id={selectId} className="w-full border rounded px-3 py-2">
+      <select
+        id={selectId}
+        className="bg-white border border-emerald-400 rounded-lg px-3 py-2 focus:outline-none focus:ring-0 focus:border-emerald-400 appearance-none"
+      >
         {question?.answerOption?.map((opt, i) => (
           <option key={i} value={opt.valueString}>
             {opt?.valueString || opt?.valueCoding?.display}

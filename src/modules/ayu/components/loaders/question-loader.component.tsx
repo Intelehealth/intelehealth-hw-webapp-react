@@ -77,7 +77,7 @@ export const QuestionLoader = ({
               {question && <span className="text-red-500">*</span>}
             </p>
             {/* CHILD UI */}
-            <div className="mt-4">{children}</div>
+            <div className="mt-2">{children}</div>
           </>
         )}
       </div>

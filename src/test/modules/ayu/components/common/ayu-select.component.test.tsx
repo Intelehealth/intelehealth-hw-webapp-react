@@ -96,7 +96,7 @@ describe('AyuSelect', () => {
         />
       );
       const select = screen.getByRole('combobox');
-      expect(select).toHaveClass('w-full', 'border', 'rounded', 'px-3', 'py-2');
+      expect(select).toHaveClass('bg-white', 'border', 'border-emerald-400', 'rounded-lg', 'px-3', 'py-2');
     });
   });
 

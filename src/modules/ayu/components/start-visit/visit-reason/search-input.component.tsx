@@ -28,11 +28,9 @@ export const ReasonSearchInput = ({
   addReason,
 }: Props) => {
   return (
-    <div className="mt-4">
-      <p className="text-sm text-gray-500 mt-1">
-        Select one or multiple reasons
-      </p>
-      <div className="relative">
+    <div className="mt-2">
+      <p className="text-sm text-gray-500">Select one or multiple reasons</p>
+      <div className="mt-2 relative">
         {/* ICON */}
         {search.length === 0 && (
           <img

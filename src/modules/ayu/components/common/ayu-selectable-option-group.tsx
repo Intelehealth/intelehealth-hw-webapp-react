@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import lefticon from '../../assets/icon-search.svg';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
-
 export function AyuSelectableOptionGroup({
   question,
   parent,
@@ -27,6 +27,7 @@ export function AyuSelectableOptionGroup({
       <div className="option-group">
         {question?.answerOption?.map(opt => (
           <AyuSelectableOption
+            rightIcon={<img src={lefticon} alt="" />}
             key={opt.valueString || opt.valueCoding?.code}
             label={opt?.valueString || opt?.valueCoding?.display}
             value={opt?.valueString}
