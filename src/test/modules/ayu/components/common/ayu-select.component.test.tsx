@@ -246,6 +246,18 @@ describe('AyuSelect', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      render(
+        <AyuSelect
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
+      expect(screen.queryByRole('label')).not.toBeInTheDocument();
+    });
+
     it('should handle question with empty string text', () => {
       const emptyTextQuestion: AyuQuestion = {
         ...mockQuestion,

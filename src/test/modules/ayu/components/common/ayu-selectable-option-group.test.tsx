@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AyuSelectableOptionGroup } from '../../../../../modules/ayu/components/common/ayu-selectable-option-group';
 import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
 
@@ -314,6 +315,166 @@ describe('AyuSelectableOptionGroup', () => {
       );
       const buttons = screen.getAllByRole('button');
       expect(buttons).toHaveLength(10);
+    });
+
+    it('should handle undefined question gracefully', () => {
+      render(
+        <AyuSelectableOptionGroup
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      // Should render without crashing and without label
+      expect(screen.queryByText('Select an option')).not.toBeInTheDocument();
+    });
+
+    it('should handle option with undefined valueCoding', () => {
+      const questionWithUndefinedCoding: AyuQuestion = {
+        ...mockQuestion,
+        answerOption: [
+          { valueCoding: undefined, valueString: 'Option No Coding' },
+        ],
+      };
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithUndefinedCoding}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Option No Coding' })).toBeInTheDocument();
+    });
+
+    it('should handle option with valueCoding but undefined code', () => {
+      const questionWithUndefinedCode: AyuQuestion = {
+        ...mockQuestion,
+        answerOption: [
+          { valueCoding: { display: 'Option No Code' } as any },
+        ],
+      };
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithUndefinedCode}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Option No Code' })).toBeInTheDocument();
+    });
+  });
+
+  describe('onChange Callback', () => {
+    it('should call onChange with valueCoding code when option is clicked', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={onChange}
+        />
+      );
+
+      const optionC = screen.getByRole('button', { name: 'Option C' });
+      await user.click(optionC);
+
+      expect(onChange).toHaveBeenCalledWith('opt-c');
+    });
+
+    it('should call onChange with undefined when valueCoding is undefined', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const questionWithNoCode: AyuQuestion = {
+        ...mockQuestion,
+        answerOption: [
+          { valueString: 'Option A' },
+        ],
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithNoCode}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      expect(onChange).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call onChange with undefined when valueCoding.code is undefined', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const questionWithUndefinedCode: AyuQuestion = {
+        ...mockQuestion,
+        answerOption: [
+          { valueCoding: { display: 'Option No Code' } as any },
+        ],
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithUndefinedCode}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={onChange}
+        />
+      );
+
+      const option = screen.getByRole('button', { name: 'Option No Code' });
+      await user.click(option);
+
+      expect(onChange).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should not throw error when onChange is undefined', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={undefined}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+
+      // Should not throw error even without onChange prop
+      await expect(user.click(optionA)).resolves.not.toThrow();
+    });
+
+    it('should handle multiple clicks on different options', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      const optionC = screen.getByRole('button', { name: 'Option C' });
+
+      await user.click(optionA);
+      await user.click(optionC);
+
+      expect(onChange).toHaveBeenCalledTimes(2);
+      expect(onChange).toHaveBeenNthCalledWith(1, undefined); // Option A has no valueCoding
+      expect(onChange).toHaveBeenNthCalledWith(2, 'opt-c'); // Option C has code
     });
   });
 });

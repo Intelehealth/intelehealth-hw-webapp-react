@@ -1,20 +1,19 @@
-import { useState } from 'react';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
-import lefticon from '../../assets/icon-search.svg';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../types/ayu.types';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
 export function AyuSelectableOptionGroup({
   question,
   parent,
   previousSibling,
+  value,
+  onChange,
 }: AyuRendererBaseProps) {
-  const label = resolveLabel(question, parent, previousSibling);
-  const [selectedValue] = useState<string | undefined>(undefined);
+  const label = question
+    ? resolveLabel(question, parent, previousSibling)
+    : undefined;
 
-  // const handleSelect = (val: string) => {
-  //   setSelectedValue(val);
-  // };
   return (
     <div className="option-group-wrapper">
       {label && (
@@ -25,13 +24,14 @@ export function AyuSelectableOptionGroup({
       )}
 
       <div className="option-group">
-        {question?.answerOption?.map(opt => (
+        {question?.answerOption?.map((opt: AyuAnswerOption) => (
           <AyuSelectableOption
-            rightIcon={<img src={lefticon} alt="" />}
+            //  rightIcon={<img src={lefticon} alt="" />}
             key={opt.valueString || opt.valueCoding?.code}
             label={opt?.valueString || opt?.valueCoding?.display}
             value={opt?.valueString}
-            selected={selectedValue === opt?.valueString}
+            selected={value === (opt?.valueCoding?.code || opt?.valueString)}
+            onClick={() => onChange?.(opt.valueCoding?.code)}
           />
         ))}
       </div>

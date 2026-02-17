@@ -18,9 +18,10 @@ const mockAyuSchema = {
 
 const mockTransformFhirToAyu = vi.fn(() => mockAyuSchema);
 
-// Mock the transformFhirToAyu utility
+// Mock the transformFhirToAyu utility and resolveLabel
 vi.mock('../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: mockTransformFhirToAyu,
+  resolveLabel: vi.fn((question) => question?.text || null),
 }));
 
 // Mock the JSON import
@@ -29,7 +30,7 @@ vi.mock('../../../../modules/ayu/pages/Cough.questionnaire.json', () => ({
 }));
 
 // Mock the AyuRenderer component
-vi.mock('../../../../modules/ayu/components/ayu-renderer.component', () => ({
+vi.mock('../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question }) => (
     <div data-testid="ayu-renderer">
       <div data-testid="ayu-question">{JSON.stringify(question)}</div>

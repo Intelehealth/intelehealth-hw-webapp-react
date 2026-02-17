@@ -145,26 +145,19 @@ describe('safeJsonParse', () => {
     });
   });
 
-  describe('Error Logging', () => {
-    it('should log error for invalid JSON', () => {
+  describe('Error Handling', () => {
+    it('should silently return null for invalid JSON without logging', () => {
       const json = '{invalid}';
-      safeJsonParse(json);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'JSON parse failed',
-        expect.any(Error)
-      );
+      const result = safeJsonParse(json);
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
-    it('should log error with proper error object', () => {
+    it('should silently return null for unclosed brackets without logging', () => {
       const json = '{"unclosed": "bracket"';
-      safeJsonParse(json);
-      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'JSON parse failed',
-        expect.objectContaining({
-          message: expect.any(String),
-        })
-      );
+      const result = safeJsonParse(json);
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it('should not log error for valid JSON', () => {

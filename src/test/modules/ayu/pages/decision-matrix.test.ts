@@ -201,6 +201,67 @@ describe('decision-matrix', () => {
       });
     });
 
+    describe('Quantity Type Resolution', () => {
+      it('should return "quantity" for quantity type questions', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-a',
+          type: 'quantity',
+          text: 'Enter quantity',
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with required flag', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-b',
+          type: 'quantity',
+          text: 'Enter quantity',
+          required: true,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with repeats', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-c',
+          type: 'quantity',
+          text: 'Enter multiple quantities',
+          repeats: true,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type without text', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-d',
+          type: 'quantity',
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with all properties', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-e',
+          type: 'quantity',
+          text: 'Enter quantity with units',
+          required: true,
+          readOnly: false,
+          repeats: false,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+    });
+
     describe('Choice Type Resolution', () => {
       it('should return "selectableOptionGroup" for choice type questions', () => {
         const question: AyuQuestion = {
@@ -381,6 +442,16 @@ describe('decision-matrix', () => {
         const result: AyuComponentType = resolveAyuComponent(question);
         expect(result).toBe('selectableOptionGroup');
       });
+
+      it('should return valid AyuComponentType for quantity', () => {
+        const question: AyuQuestion = {
+          linkId: 'q26-a',
+          type: 'quantity',
+        };
+
+        const result: AyuComponentType = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
     });
 
     describe('Edge Cases', () => {
@@ -515,7 +586,7 @@ describe('decision-matrix', () => {
       });
 
       it('should be deterministic for all question types', () => {
-        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice'];
+        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice', 'quantity'];
 
         types.forEach(type => {
           const question: AyuQuestion = {
@@ -541,6 +612,7 @@ describe('decision-matrix', () => {
           { type: 'decimal', expected: 'number' },
           { type: 'date', expected: 'date' },
           { type: 'choice', expected: 'selectableOptionGroup' },
+          { type: 'quantity', expected: 'quantity' },
         ];
 
         testCases.forEach(({ type, expected }) => {
@@ -584,6 +656,7 @@ describe('decision-matrix', () => {
         'multi-select',
         'radio',
         'selectableOptionGroup',
+        'quantity',
       ];
 
       validTypes.forEach(type => {

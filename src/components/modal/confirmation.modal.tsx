@@ -7,6 +7,7 @@ type ConfirmModalConfig = {
   icon?: string;
   cancelText?: string;
   confirmText?: string;
+  items?: string[];
   onConfirm?: () => void;
   onClose: () => void;
 };
@@ -18,6 +19,7 @@ export const ConfirmationModal = ({
   icon,
   cancelText = 'Back',
   confirmText = 'Confirm',
+  items,
   onConfirm,
   onClose,
 }: ConfirmModalConfig) => {
@@ -25,7 +27,7 @@ export const ConfirmationModal = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center">
-      <div className="bg-white w-[400px] h-[260px] max-sm:w-[350px] p-4 rounded-2xl flex flex-col">
+      <div className="bg-white w-[400px] max-sm:w-[350px] p-4 rounded-2xl flex flex-col">
         {/* Icon */}
         {icon && (
           <div className="flex justify-center mb-4">
@@ -37,10 +39,21 @@ export const ConfirmationModal = ({
         <h2 className="text-center font-semibold text-black-800">{title}</h2>
 
         {/* Description */}
-        <p className="text-center text-gray-500 mt-3 whitespace-pre-line">
+        <p className="mt-3 text-center text-gray-500 whitespace-pre-line break-words max-w-[280px] mx-auto">
           {description}
         </p>
-
+        {items && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {items.map(item => (
+              <div
+                key={item}
+                className="flex items-center gap-2 px-3 py-1 rounded-sm bg-[#2E1E91] text-white text-sm"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        )}
         {/* Divider */}
         <div className="mt-3 border-b border-gray-200" />
         {/* Footer Buttons Fixed */}

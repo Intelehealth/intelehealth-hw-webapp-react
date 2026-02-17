@@ -32,6 +32,7 @@ export type ConfirmModalConfig = {
   icon?: string;
   cancelText?: string;
   confirmText?: string;
+  items?: string[];
 
   onConfirm?: () => void;
 };
@@ -114,6 +115,7 @@ export const GlobalModalProvider = ({
           icon={modal.icon}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}
+          items={modal.items || []}
           onClose={closeModal}
           onConfirm={() => {
             modal.onConfirm?.();

@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react';
 import iconQuestionMark from '../../../ayu/assets/icon-ayu.svg';
 
 interface QuestionLoaderProps {
-  question: string;
+  question?: string;
   questionIndex: number;
   totalQuestions: number;
-  onNextQuestion: () => void;
+  isShowQuestionNumber?: boolean;
   children?: React.ReactNode; // Inject input/UI here
 }
 
 export const QuestionLoader = ({
-  question = 'Since when have you had this symptom?',
   questionIndex,
   totalQuestions,
   children,
+  isShowQuestionNumber = true,
 }: QuestionLoaderProps) => {
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +24,7 @@ export const QuestionLoader = ({
   }, [questionIndex]);
 
   return (
-    <div className="w-full max-w-[760px]">
+    <div className="w-full max-w-[950px]">
       {/* TOP ROW: ICON + QUESTION COUNT */}
       <div className="flex items-start gap-3">
         {/* ICON */}
@@ -51,14 +51,15 @@ export const QuestionLoader = ({
 
         {/* QUESTION COUNT */}
         <p className="pt-2 text-sm font-medium text-[#2e1e91]">
-          {questionIndex + 1} of {totalQuestions} questions
+          {isShowQuestionNumber &&
+            `${questionIndex + 1} of ${totalQuestions} questions`}
         </p>
       </div>
 
       {/* GREEN COMMENT BOX (FULL WIDTH) */}
-      <div className="w-full bg-emerald-50 rounded-lg px-4 py-4 min-h-[96px]">
+      <div className="bg-emerald-50 rounded-lg px-2 py-2 min-h-[96px]">
         {loading ? (
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center  px-5 py-1">
             {[0, 1, 2].map(i => (
               <span
                 key={i}
@@ -73,11 +74,11 @@ export const QuestionLoader = ({
         ) : (
           <>
             <p className="text-base font-medium text-gray-900">
-              {question}
-              {question && <span className="text-red-500">*</span>}
+              {/* {question} */}
+              {/* {question && <span className="text-red-500">*</span>} */}
             </p>
             {/* CHILD UI */}
-            <div className="mt-2">{children}</div>
+            <>{children}</>
           </>
         )}
       </div>

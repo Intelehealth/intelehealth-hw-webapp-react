@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useAyuJsonList } from '../../../hooks/useAyuJson';
+import { useAyuJsonList } from './useAyuJson.hook';
 
 export const useVisitReasons = () => {
-  const ayuJsonList = useAyuJsonList('demonewprotocols');
+  const ayuJsonList = useAyuJsonList('testing');
 
   const names = useMemo(() => {
     return ayuJsonList
@@ -34,7 +34,7 @@ export const useVisitReasons = () => {
     const map: Record<string, string[]> = {};
 
     names.forEach(name => {
-      const clean = name.replace(/\s+/g, ' ').trim();
+      const clean = name?.replace(/\s+/g, ' ').trim();
       const letter = clean.charAt(0).toUpperCase();
 
       if (!map[letter]) map[letter] = [];
@@ -46,6 +46,13 @@ export const useVisitReasons = () => {
     return map;
   }, [names]);
 
+  const selectedComplaints = useMemo(() => {
+    const set = new Set(selectedReasons);
+    return ayuJsonList.filter(item =>
+      set.has(item.name.replace(/\.json$/i, ''))
+    );
+  }, [ayuJsonList, selectedReasons]);
+
   return {
     search,
     setSearch,
@@ -54,5 +61,6 @@ export const useVisitReasons = () => {
     addReason,
     removeReason,
     grouped,
+    selectedComplaints,
   };
 };

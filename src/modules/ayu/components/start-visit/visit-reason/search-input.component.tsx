@@ -29,6 +29,7 @@ export const ReasonSearchInput = ({
 }: Props) => {
   return (
     <div className="mt-2">
+      What is the reason for this visit?
       <p className="text-sm text-gray-500">Select one or multiple reasons</p>
       <div className="mt-2 relative">
         {/* ICON */}

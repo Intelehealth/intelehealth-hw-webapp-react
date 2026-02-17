@@ -12,16 +12,28 @@ export const StartVisit = () => {
   const [sections, setSections] = useState<SectionState[]>([
     {
       totalQuestions: 1,
-      answeredQuestions: 0,
+      answeredQuestions: 1,
       name: 'Vitals',
+      currentStepIndex: 0,
     }, // Vitals
     {
-      totalQuestions: 6,
+      totalQuestions: 1,
       answeredQuestions: 0,
       name: 'Visit Reason',
+      currentStepIndex: 0,
     }, // Visit Reason
-    { totalQuestions: 8, answeredQuestions: 0, name: 'Physical Exam' }, // Physical Exam
-    { totalQuestions: 5, answeredQuestions: 0, name: 'Medical History' }, // Medical History
+    {
+      totalQuestions: 8,
+      answeredQuestions: 0,
+      name: 'Physical Exam',
+      currentStepIndex: 0,
+    }, // Physical Exam
+    {
+      totalQuestions: 5,
+      answeredQuestions: 0,
+      name: 'Medical History',
+      currentStepIndex: 0,
+    }, // Medical History
   ]);
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -75,6 +87,20 @@ export const StartVisit = () => {
     });
   };
 
+  const updateSectionProgress = (
+    sectionName: string,
+    total: number,
+    answered: number
+  ) => {
+    setSections(prev =>
+      prev.map(section =>
+        section.name === sectionName
+          ? { ...section, totalQuestions: total, answeredQuestions: answered }
+          : section
+      )
+    );
+  };
+
   return (
     <div className="bg-white">
       <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
@@ -97,14 +123,14 @@ export const StartVisit = () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={currentSectionIndex}
-          currentQuestionIndex={currentQuestionIndex}
         />
       </div>
 
       {/* Side Loader */}
       <div className="hidden md:block">
         <SideLoader
-          totalQuestions={sections[currentSectionIndex].totalQuestions}
+          sections={sections}
+          currentSectionIndex={currentSectionIndex}
           currentQuestionIndex={currentQuestionIndex}
         />
       </div>
@@ -115,6 +141,7 @@ export const StartVisit = () => {
           <Vitals
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
+            onPrevQuestion={goPreviousQuestion}
           />
         )}
 
@@ -124,6 +151,9 @@ export const StartVisit = () => {
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}
             onPrevSection={goPreviousSection}
+            onProgressUpdate={(total: number, answered: number) =>
+              updateSectionProgress('Visit Reason', total, answered)
+            }
           />
         )}
 

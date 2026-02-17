@@ -1,9 +1,9 @@
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useVisitReasons } from '../../../../../../modules/ayu/components/start-visit/visit-reason/useVisitReasons.hook';
+import { useVisitReasons } from '../../../../modules/ayu/hooks/useVisitReasons.hook';
 
 // Mock the useAyuJsonList hook
-vi.mock('../../../../../../modules/ayu/hooks/useAyuJson', () => ({
+vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
   useAyuJsonList: vi.fn(() => [
     { name: 'Fever.json' },
     { name: 'Cough.json' },

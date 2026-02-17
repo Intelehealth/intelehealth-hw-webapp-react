@@ -6,6 +6,7 @@ interface Props {
   onNextQuestion: () => void;
   onPrevQuestion: () => void;
   onPrevSection?: () => void;
+  isNextDisabled?: boolean;
 }
 
 export const VisitReasonFooter = ({
@@ -14,14 +15,15 @@ export const VisitReasonFooter = ({
   onNextQuestion,
   onPrevQuestion,
   onPrevSection,
+  isNextDisabled = false,
 }: Props) => {
   const isFirst = questionIndex === 0;
   const isLast = questionIndex === totalQuestions - 1;
 
   return (
-    <div className="mt-8 flex gap-3 justify-end">
+    <div className="flex gap-3 md:justify-end">
       <AyuButton
-        variant="secondary"
+        variant="primarylight"
         onClick={isFirst ? onPrevSection : onPrevQuestion}
         className="w-[120px]"
       >
@@ -30,8 +32,9 @@ export const VisitReasonFooter = ({
 
       <AyuButton
         variant="primary"
+        disabled={isNextDisabled}
         onClick={onNextQuestion}
-        className="w-[120px]"
+        className="w-[120px] border-0"
       >
         {isLast ? 'Confirm' : 'Next'}
       </AyuButton>

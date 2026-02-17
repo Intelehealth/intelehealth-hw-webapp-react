@@ -14,6 +14,7 @@ const ALLOWED_TYPES: AyuQuestionType[] = [
   'decimal',
   'date',
   'choice',
+  'quantity',
 ];
 export function normalizeType(type: string): AyuQuestionType {
   if (ALLOWED_TYPES.includes(type as AyuQuestionType)) {

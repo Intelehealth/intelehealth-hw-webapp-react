@@ -3,22 +3,21 @@ import type { SectionCompletionLoaderProps } from './loader.types';
 export const SectionCompletionLoader = ({
   sections,
   currentSectionIndex,
-  currentQuestionIndex,
 }: SectionCompletionLoaderProps) => {
   return (
     <div className="flex w-full gap-2">
       {sections.map((section, index) => {
         let width = '0%';
 
-        const isCompleted = section.answeredQuestions >= section.totalQuestions;
+        const total = section.totalQuestions || 1;
+        const answered = section.answeredQuestions || 0;
 
-        if (isCompleted) {
+        const progress = Math.min((answered / total) * 100, 100);
+
+        if (answered >= total) {
           width = '100%';
         } else if (index === currentSectionIndex) {
-          width = `${Math.min(
-            ((currentQuestionIndex + 1) / section.totalQuestions) * 100,
-            100
-          )}%`;
+          width = `${progress}%`;
         }
 
         return (

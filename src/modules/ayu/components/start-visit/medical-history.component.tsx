@@ -25,7 +25,6 @@ export const MedicalHistory = ({
           question="Since when have you had this symptom?"
           questionIndex={questionIndex}
           totalQuestions={TOTAL_QUESTIONS}
-          onNextQuestion={onNextQuestion}
         />
       </div>
 
