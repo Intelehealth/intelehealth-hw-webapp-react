@@ -5,6 +5,10 @@ export interface AyuAnswerOption {
     code: string;
     display?: string;
   };
+  extension?: {
+    url: string;
+    valueBoolean?: boolean;
+  }[];
 }
 
 export interface DropdownValues {
@@ -22,7 +26,6 @@ export type AyuAnswerValue =
   | boolean
   | DurationAnswer
   | string[]
-  | number[]
   | null
   | undefined;
 

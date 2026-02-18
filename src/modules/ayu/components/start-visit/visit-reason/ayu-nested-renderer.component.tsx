@@ -5,7 +5,7 @@ import { AyuRenderer } from './ayu-renderer.component';
 interface NestedProps {
   items?: AyuQuestion[];
   answers: Record<string, AyuAnswerValue>;
-  setAnswer: (linkId: string, value: AyuAnswerValue) => void;
+  setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
 }
 
 export const AyuNestedRenderer = ({
@@ -19,15 +19,19 @@ export const AyuNestedRenderer = ({
     if (!item.enableWhen) return true;
 
     return item.enableWhen.every(rule => {
-      const answer = answers[rule.question];
-
-      const expectedValue =
+      const expected =
         rule.answerBoolean ??
         rule.answerString ??
         rule.answerInteger ??
         rule.answerCoding?.code;
 
-      return answer === expectedValue;
+      const parentAnswer = answers[rule.question];
+
+      if (Array.isArray(parentAnswer)) {
+        return parentAnswer.includes(expected as string);
+      }
+
+      return parentAnswer === expected;
     });
   };
 
@@ -108,7 +112,7 @@ export const AyuNestedRenderer = ({
             <AyuRenderer
               question={child}
               value={answers[child.linkId]}
-              onChange={val => setAnswer(child.linkId, val)}
+              onChange={val => setAnswer(child, val)}
             />
 
             {/* Recursively render deeper nesting */}

@@ -591,7 +591,7 @@ describe('AyuNestedRenderer', () => {
       const input = screen.getByTestId('input-child-1');
       fireEvent.change(input, { target: { value: 'new value' } });
 
-      expect(mockSetAnswer).toHaveBeenCalledWith('child-1', 'new value');
+      expect(mockSetAnswer).toHaveBeenCalledWith(items[0], 'new value');
     });
   });
 
@@ -961,8 +961,8 @@ describe('AyuNestedRenderer', () => {
     // The fallback returns values from enableWhen rules when selectedAnswer is non-primitive
 
     it('should use answerString from fallback when available (line 68)', () => {
-      // Use array as answer to reach fallback
-      const arrayAnswer = ['value'] as any;
+      // Use array containing the expected value - enables via includes() but triggers fallback
+      const arrayAnswer: any[] = ['fallback-string'];
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -972,8 +972,8 @@ describe('AyuNestedRenderer', () => {
             {
               question: 'parent-1',
               operator: '=',
-              answerString: 'fallback-string',
-              answerBoolean: arrayAnswer, // Matches array answer for isEnabled
+              answerString: 'fallback-string', // Matches [fallback-string].includes(fallback-string), returned from fallback
+              answerBoolean: undefined, // Undefined so answerString is used for isEnabled
             } as any,
           ],
         },
@@ -992,8 +992,8 @@ describe('AyuNestedRenderer', () => {
     });
 
     it('should use answerInteger from fallback when answerString is undefined (line 69)', () => {
-      // Use array as answer to reach fallback
-      const arrayAnswer = ['value'] as any;
+      // Use array containing the expected value - enables via includes() but triggers fallback
+      const arrayAnswer: any[] = [42];
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -1003,8 +1003,9 @@ describe('AyuNestedRenderer', () => {
             {
               question: 'parent-1',
               operator: '=',
-              answerInteger: 42,
-              answerBoolean: arrayAnswer, // Matches array answer for isEnabled
+              answerBoolean: undefined, // Undefined so continues in ?? chain
+              answerString: undefined, // Undefined so continues in ?? chain
+              answerInteger: 42, // Matches [42].includes(42), returned from fallback
             } as any,
           ],
         },
@@ -1023,10 +1024,8 @@ describe('AyuNestedRenderer', () => {
     });
 
     it('should use answerBoolean from fallback when answerString and answerInteger are undefined (line 70)', () => {
-      // For line 70: answerBoolean must be truthy in fallback and used for isEnabled matching
-      // Since answerBoolean is FIRST in isEnabled cascade, we must use it as expectedValue
-      // Use array to bypass primitive/object checks and reach fallback
-      const arrayAnswer: any = ['test-value'];
+      // Use string 'true' instead of boolean - React doesn't render booleans as text
+      const arrayAnswer: any[] = ['true'];
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -1036,9 +1035,9 @@ describe('AyuNestedRenderer', () => {
             {
               question: 'parent-1',
               operator: '=',
-              answerBoolean: arrayAnswer, // Use array for reference equality in isEnabled
-              // answerString and answerInteger are undefined
-              // Fallback will return answerBoolean (the array, which is truthy)
+              answerBoolean: 'true', // Matches ['true'].includes('true'), returned from fallback
+              answerString: undefined, // Undefined so answerBoolean is used
+              answerInteger: undefined, // Undefined
             } as any,
           ],
         },
@@ -1052,18 +1051,15 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // Array is returned from fallback (truthy), so parent label div should be rendered
-      // Arrays render as strings like "test-value" when joined
+      // answerBoolean ('true' string) is returned from fallback and rendered
       const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
       expect(parentLabelDiv).toBeInTheDocument();
-      // Check that the child question is rendered (item is enabled)
-      expect(screen.getByText('Child Question')).toBeInTheDocument();
+      expect(screen.getByText('true')).toBeInTheDocument();
     });
 
     it('should use answerCoding.code from fallback when other types are undefined (line 71)', () => {
-      // For line 71: answerString, answerInteger, answerBoolean must be falsy, answerCoding.code must be truthy
-      // Use array reference for both answer and answerCoding.code to achieve reference equality
-      const arrayAnswer: any = ['test-value'];
+      // Use array containing code - enables via includes() but triggers fallback
+      const arrayAnswer: any[] = ['code-123'];
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -1077,7 +1073,7 @@ describe('AyuNestedRenderer', () => {
               answerString: undefined, // Undefined (falsy in OR chain)
               answerInteger: undefined, // Undefined (falsy in OR chain)
               answerCoding: {
-                code: arrayAnswer, // Use array for both matching and fallback return
+                code: 'code-123', // Matches [code-123].includes(code-123), returned from fallback
               },
             } as any,
           ],
@@ -1092,12 +1088,10 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // answerCoding.code (the array) is fourth in OR chain and is truthy
-      // Array is rendered, so parent label div should be present
+      // answerCoding.code is fourth in OR chain and rendered as "code-123"
       const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
       expect(parentLabelDiv).toBeInTheDocument();
-      // Child question should also render
-      expect(screen.getByText('Child Question')).toBeInTheDocument();
+      expect(screen.getByText('code-123')).toBeInTheDocument();
     });
 
     it('should return null from fallback when all answer types are falsy (line 72)', () => {

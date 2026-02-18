@@ -22,7 +22,7 @@ interface UseFHIRStepperReturn {
   currentIndex: number;
   total: number;
   answers: Record<string, AyuAnswerValue>;
-  setAnswer: (linkId: string, value: AyuAnswerValue) => void;
+  setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
   goNext: () => void;
   topLevelItems: AyuQuestion[];
   isLast: boolean;
@@ -66,11 +66,51 @@ export const useFHIRStepper = (
     onComplete?.(answers);
   };
 
-  const setAnswer = (linkId: string, value: AyuAnswerValue) => {
+  const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {
+    const linkId = question.linkId;
+
     setAnswers(prev => {
+      let finalValue: AyuAnswerValue = value;
+
+      // Handle repeats (multi-select toggle)
+      if (question.type === 'choice' && question.repeats) {
+        const currentValue = prev[linkId];
+        const currentArray: string[] = Array.isArray(currentValue)
+          ? currentValue
+          : [];
+
+        const selectedValue = value as string;
+
+        const isExclusive = isMutuallyExclusiveOption(question, selectedValue);
+
+        // If clicked option is mutually exclusive
+        if (isExclusive) {
+          // If already selected → unselect
+          if (currentArray.includes(selectedValue)) {
+            finalValue = [];
+          } else {
+            // Replace all with only this option
+            finalValue = [selectedValue];
+          }
+        } else {
+          // Normal option clicked
+
+          // Remove any mutually exclusive option from array
+          const filtered = currentArray.filter(code => {
+            return !isMutuallyExclusiveOption(question, code);
+          });
+
+          if (filtered.includes(selectedValue)) {
+            finalValue = filtered.filter(v => v !== selectedValue);
+          } else {
+            finalValue = [...filtered, selectedValue];
+          }
+        }
+      }
+
       const updated: Record<string, AyuAnswerValue> = {
         ...prev,
-        [linkId]: value,
+        [linkId]: finalValue,
       };
 
       if (!autoNext || !currentQuestion) return updated;
@@ -85,7 +125,7 @@ export const useFHIRStepper = (
         return updated;
       }
 
-      // If the changed question is not the current top-level question, do not auto-advance
+      // If changed question is not current top-level, don't auto advance
       if (currentQuestion.linkId !== getTopLevelLinkId(linkId)) {
         return updated;
       }
@@ -102,22 +142,26 @@ export const useFHIRStepper = (
               rule.answerInteger ??
               rule.answerCoding?.code;
 
-            return updated[rule.question] === expected;
+            const parentAnswer = updated[rule.question];
+
+            if (Array.isArray(parentAnswer)) {
+              return parentAnswer.includes(expected as string);
+            }
+
+            return parentAnswer === expected;
           });
 
         return isVisible && child.type === 'string';
       });
 
-      // Check if we're on the last question
       const isLastQuestion = currentIndex === structuralTotal - 1;
 
-      // Auto-move to next question if current top-level question is complete and has no visible string children
-      // BUT don't auto-advance on the last question - require manual submit
       if (
         shouldMoveNext &&
         !hasVisibleStringChild &&
         !isAdvancingRef.current &&
-        !isLastQuestion
+        !isLastQuestion &&
+        !(currentQuestion.type === 'choice' && currentQuestion.repeats)
       ) {
         isAdvancingRef.current = true;
 
@@ -148,7 +192,15 @@ export const useFHIRStepper = (
     updatedAnswers: Record<string, unknown>
   ) => {
     // Parent must be answered
-    if (!updatedAnswers[question.linkId]) return false;
+    const parentAnswer = updatedAnswers[question.linkId];
+
+    if (
+      question.repeats
+        ? !Array.isArray(parentAnswer) || parentAnswer.length === 0
+        : !parentAnswer
+    ) {
+      return false;
+    }
 
     // For choice questions, check if any nested child has duration structure
     if (question.type === 'choice' && question.item?.length) {
@@ -187,7 +239,13 @@ export const useFHIRStepper = (
             rule.answerInteger ??
             rule.answerCoding?.code;
 
-          return updatedAnswers[rule.question] === expected;
+          const parentAnswer = updatedAnswers[rule.question];
+
+          if (Array.isArray(parentAnswer)) {
+            return parentAnswer.includes(expected as string);
+          }
+
+          return parentAnswer === expected;
         });
 
       if (!isVisible) continue;
@@ -198,6 +256,21 @@ export const useFHIRStepper = (
     }
 
     return true;
+  };
+
+  const isMutuallyExclusiveOption = (
+    question: AyuQuestion,
+    optionCode: string
+  ) => {
+    const option = question.answerOption?.find(
+      opt => opt.valueCoding?.code === optionCode
+    );
+
+    return option?.extension?.some(
+      ext =>
+        ext.url === 'urn:intelehealth:mutually-exclusive' &&
+        ext.valueBoolean === true
+    );
   };
 
   return {

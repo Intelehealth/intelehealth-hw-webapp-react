@@ -24,16 +24,23 @@ export function AyuSelectableOptionGroup({
       )}
 
       <div className="option-group">
-        {question?.answerOption?.map((opt: AyuAnswerOption) => (
-          <AyuSelectableOption
-            //  rightIcon={<img src={lefticon} alt="" />}
-            key={opt.valueString || opt.valueCoding?.code}
-            label={opt?.valueString || opt?.valueCoding?.display}
-            value={opt?.valueString}
-            selected={value === (opt?.valueCoding?.code || opt?.valueString)}
-            onClick={() => onChange?.(opt.valueCoding?.code)}
-          />
-        ))}
+        {question?.answerOption?.map((opt: AyuAnswerOption) => {
+          const optionValue = opt?.valueCoding?.code || opt?.valueString || '';
+
+          const isSelected = question?.repeats
+            ? Array.isArray(value) && value.includes(optionValue)
+            : value === optionValue;
+
+          return (
+            <AyuSelectableOption
+              key={optionValue}
+              label={opt?.valueString || opt?.valueCoding?.display}
+              value={optionValue}
+              selected={isSelected}
+              onClick={() => onChange?.(optionValue)}
+            />
+          );
+        })}
       </div>
     </div>
   );

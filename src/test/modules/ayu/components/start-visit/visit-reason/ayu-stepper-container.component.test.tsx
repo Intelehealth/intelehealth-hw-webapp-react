@@ -36,7 +36,7 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-n
           <input
             data-testid={`nested-input-${item.linkId}`}
             value={answers[item.linkId] || ''}
-            onChange={e => setAnswer(item.linkId, e.target.value)}
+            onChange={e => setAnswer(item, e.target.value)}
           />
         </div>
       ))}
@@ -856,7 +856,7 @@ describe('AyuStepperContainer', () => {
       const input = screen.getByTestId('input-q1');
       fireEvent.change(input, { target: { value: 'new answer' } });
 
-      expect(mockSetAnswer).toHaveBeenCalledWith('q1', 'new answer');
+      expect(mockSetAnswer).toHaveBeenCalledWith(question, 'new answer');
     });
 
     it('should pass setAnswer to AyuNestedRenderer', () => {
@@ -890,7 +890,7 @@ describe('AyuStepperContainer', () => {
       const input = screen.getByTestId('nested-input-q1.1');
       fireEvent.change(input, { target: { value: 'nested answer' } });
 
-      expect(mockSetAnswer).toHaveBeenCalledWith('q1.1', 'nested answer');
+      expect(mockSetAnswer).toHaveBeenCalledWith(question.item![0], 'nested answer');
     });
   });
 

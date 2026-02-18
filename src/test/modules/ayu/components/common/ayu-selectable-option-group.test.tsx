@@ -385,7 +385,7 @@ describe('AyuSelectableOptionGroup', () => {
       expect(onChange).toHaveBeenCalledWith('opt-c');
     });
 
-    it('should call onChange with undefined when valueCoding is undefined', async () => {
+    it('should call onChange with valueString when valueCoding is undefined', async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       const questionWithNoCode: AyuQuestion = {
@@ -407,10 +407,10 @@ describe('AyuSelectableOptionGroup', () => {
       const optionA = screen.getByRole('button', { name: 'Option A' });
       await user.click(optionA);
 
-      expect(onChange).toHaveBeenCalledWith(undefined);
+      expect(onChange).toHaveBeenCalledWith('Option A');
     });
 
-    it('should call onChange with undefined when valueCoding.code is undefined', async () => {
+    it('should call onChange with empty string when both valueCoding.code and valueString are undefined', async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       const questionWithUndefinedCode: AyuQuestion = {
@@ -432,7 +432,7 @@ describe('AyuSelectableOptionGroup', () => {
       const option = screen.getByRole('button', { name: 'Option No Code' });
       await user.click(option);
 
-      expect(onChange).toHaveBeenCalledWith(undefined);
+      expect(onChange).toHaveBeenCalledWith('');
     });
 
     it('should not throw error when onChange is undefined', async () => {
@@ -473,8 +473,77 @@ describe('AyuSelectableOptionGroup', () => {
       await user.click(optionC);
 
       expect(onChange).toHaveBeenCalledTimes(2);
-      expect(onChange).toHaveBeenNthCalledWith(1, undefined); // Option A has no valueCoding
+      expect(onChange).toHaveBeenNthCalledWith(1, 'Option A'); // Option A has valueString
       expect(onChange).toHaveBeenNthCalledWith(2, 'opt-c'); // Option C has code
+    });
+  });
+
+  describe('Selection State', () => {
+    it('should mark option as selected when value matches for single-select', () => {
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="opt-c"
+          onChange={vi.fn()}
+        />
+      );
+
+      const optionC = screen.getByRole('button', { name: 'Option C' });
+      expect(optionC).toHaveClass('selected');
+    });
+
+    it('should mark option as selected when value includes option for multi-select', () => {
+      const multiSelectQuestion: AyuQuestion = {
+        ...mockQuestion,
+        repeats: true,
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['Option A', 'opt-c']}
+          onChange={vi.fn()}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      const optionC = screen.getByRole('button', { name: 'Option C' });
+      expect(optionA).toHaveClass('selected');
+      expect(optionC).toHaveClass('selected');
+    });
+
+    it('should not mark option as selected when value does not match', () => {
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="other-value"
+          onChange={vi.fn()}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      expect(optionA).not.toHaveClass('selected');
+    });
+
+    it('should handle undefined value', () => {
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+          onChange={vi.fn()}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      expect(optionA).not.toHaveClass('selected');
     });
   });
 });

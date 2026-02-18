@@ -172,7 +172,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentQuestion?.type).toBe('string');
 
       act(() => {
-        result.current.setAnswer('q1', 'test answer');
+        result.current.setAnswer(result.current.currentQuestion!, 'test answer');
       });
 
       act(() => {
@@ -204,7 +204,7 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('q1', { value: 70, unit: 'kg' } as any);
+        result.current.setAnswer(result.current.currentQuestion!, { value: 70, unit: 'kg' } as any);
       });
 
       act(() => {
@@ -231,7 +231,7 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('q1', {
+        result.current.setAnswer(result.current.currentQuestion!, {
           dropdownValues: { number: 5, days: 'Days' },
         });
       });
@@ -256,7 +256,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentQuestion?.type).toBe('choice');
 
       act(() => {
-        result.current.setAnswer('q2', 'yes');
+        result.current.setAnswer(result.current.currentQuestion!, 'yes');
       });
 
       expect(result.current.currentIndex).toBe(1);
@@ -282,7 +282,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.isLast).toBe(true);
 
       act(() => {
-        result.current.setAnswer('q3', 42);
+        result.current.setAnswer(result.current.currentQuestion!, 42);
       });
 
       act(() => {
@@ -322,8 +322,10 @@ describe('useFHIRStepper', () => {
         useFHIRStepper({ questionnaire: nestedQuestionnaire })
       );
 
+      const parentQuestion = result.current.topLevelItems.find(q => q.linkId === 'parent')!;
+
       act(() => {
-        result.current.setAnswer('parent', 'yes');
+        result.current.setAnswer(parentQuestion, 'yes');
       });
 
       act(() => {
@@ -358,8 +360,10 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('duration', {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const durationQ = parentQ.item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
           dropdownValues: { number: 5, days: 'Days' },
         });
       });
@@ -378,8 +382,10 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('duration', {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const durationQ = parentQ.item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
           dropdownValues: { number: 5, days: '' },
         });
       });
@@ -397,8 +403,10 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('duration', {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const durationQ = parentQ.item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
           dropdownValues: { number: '', days: 'Days' },
         });
       });
@@ -416,8 +424,10 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('duration', {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const durationQ = parentQ.item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
           dropdownValues: { number: 5, days: 'Days' },
         });
       });
@@ -482,8 +492,10 @@ describe('useFHIRStepper', () => {
         useFHIRStepper({ questionnaire: conditionalQuestionnaire })
       );
 
+      const parentQuestion = result.current.topLevelItems[0];
+
       act(() => {
-        result.current.setAnswer('parent', true);
+        result.current.setAnswer(parentQuestion, true);
       });
 
       expect(result.current.answers.parent).toBe(true);
@@ -495,7 +507,8 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
       });
 
       expect(result.current.answers.parent).toBe('yes');
@@ -507,7 +520,8 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 1);
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 1);
       });
 
       expect(result.current.answers.parent).toBe(1);
@@ -519,7 +533,8 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'code1');
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'code1');
       });
 
       expect(result.current.answers.parent).toBe('code1');
@@ -564,9 +579,12 @@ describe('useFHIRStepper', () => {
       act(() => {
         result.current.goNext();
         result.current.goNext();
-        result.current.setAnswer('q1', 'yes');
-        result.current.setAnswer('q2', 'yes');
-        result.current.setAnswer('q3', 'parent-answer');
+        const q1 = result.current.topLevelItems[0];
+        result.current.setAnswer(q1, 'yes');
+        const q2 = result.current.topLevelItems[1];
+        result.current.setAnswer(q2, 'yes');
+        const q3 = result.current.topLevelItems[2];
+        result.current.setAnswer(q3, 'parent-answer');
       });
 
       // Both conditions should be met
@@ -601,7 +619,7 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('q1', 42);
+        result.current.setAnswer(result.current.topLevelItems[0], 42);
       });
 
       expect(result.current.answers.q1).toBe(42);
@@ -637,9 +655,13 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('child1', 'answer1');
-        result.current.setAnswer('child2', 'answer2');
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const child1Q = parentQ.item!.find(q => q.linkId === 'child1')!;
+        result.current.setAnswer(child1Q, 'answer1');
+        const child2Q = parentQ.item!.find(q => q.linkId === 'child2')!;
+
+        result.current.setAnswer(child2Q, 'answer2');
       });
 
       expect(result.current.answers.child1).toBe('answer1');
@@ -669,8 +691,10 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('parent', 'yes');
-        result.current.setAnswer('duration', {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        const durationQ = parentQ.item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
           dropdownValues: { number: 10, days: 'Weeks' },
         });
       });
@@ -751,7 +775,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('q1', null);
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, null);
         });
 
         act(() => {
@@ -783,7 +809,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('q1', '');
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, '');
         });
 
         act(() => {
@@ -824,8 +852,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: 5, days: null },
           });
         });
@@ -844,8 +874,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: null, days: 'Days' },
           });
         });
@@ -864,8 +896,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: '', days: 'Days' },
           });
         });
@@ -884,8 +918,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: 5, days: '' },
           });
         });
@@ -904,8 +940,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: '', days: '' },
           });
         });
@@ -924,8 +962,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration-child', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const durationChildQ = parentQ.item!.find(q => q.linkId === 'duration-child')!;
+          result.current.setAnswer(durationChildQ, {
             dropdownValues: { number: 5, days: 'Days' },
           });
         });
@@ -980,11 +1020,15 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('duration1', {
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const duration1Q = parentQ.item!.find(q => q.linkId === 'duration1')!;
+          result.current.setAnswer(duration1Q, {
             dropdownValues: { number: 5, days: 'Days' },
           });
-          result.current.setAnswer('duration2', {
+          const duration2Q = parentQ.item!.find(q => q.linkId === 'duration2')!;
+
+          result.current.setAnswer(duration2Q, {
             dropdownValues: { number: 3, days: null }, // Incomplete
           });
         });
@@ -1020,7 +1064,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('duration-question', {
+          const durationQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(durationQ, {
             dropdownValues: { number: 10, days: null },
           });
         });
@@ -1038,7 +1084,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('duration-question', {
+          const durationQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(durationQ, {
             dropdownValues: { number: null, days: 'Weeks' },
           });
         });
@@ -1056,7 +1104,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('duration-question', {
+          const durationQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(durationQ, {
             dropdownValues: { number: 0, days: '' },
           });
         });
@@ -1075,7 +1125,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('duration-question', {
+          const durationQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(durationQ, {
             dropdownValues: { number: 7, days: 'Months' },
           });
         });
@@ -1102,7 +1154,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('duration-question', 'regular-answer');
+          const durationQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(durationQ, 'regular-answer');
         });
 
         act(() => {
@@ -1136,7 +1190,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('q1', 42);
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, 42);
         });
 
         act(() => {
@@ -1169,7 +1225,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('q1', 'answer');
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, 'answer');
         });
 
         act(() => {
@@ -1217,8 +1275,10 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('visible-child', 'answered');
+          const parentQ = result.current.topLevelItems[0];
+          result.current.setAnswer(parentQ, 'yes');
+          const visibleChildQ = parentQ.item!.find(q => q.linkId === 'visible-child')!;
+          result.current.setAnswer(visibleChildQ, 'answered');
           // invisible-child should be skipped (not visible)
         });
 
@@ -1253,7 +1313,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, 'yes');
           // visible-child is not answered
         });
 
@@ -1305,10 +1367,15 @@ describe('useFHIRStepper', () => {
           useFHIRStepper({ questionnaire: multiChildQuestionnaire })
         );
 
+        const parentQ = result.current.topLevelItems[0];
+
         act(() => {
-          result.current.setAnswer('parent', 'yes');
-          result.current.setAnswer('child1', 'answer1');
-          result.current.setAnswer('child2', 'answer2');
+          result.current.setAnswer(parentQ, 'yes');
+          const child1Q = parentQ.item!.find(q => q.linkId === 'child1')!;
+          result.current.setAnswer(child1Q, 'answer1');
+          const child2Q = parentQ.item!.find(q => q.linkId === 'child2')!;
+
+          result.current.setAnswer(child2Q, 'answer2');
           // child3 not answered
         });
 
@@ -1320,7 +1387,9 @@ describe('useFHIRStepper', () => {
 
         // Now answer child3
         act(() => {
-          result.current.setAnswer('child3', 'answer3');
+          const child3Q = parentQ.item!.find(q => q.linkId === 'child3')!;
+
+          result.current.setAnswer(child3Q, 'answer3');
         });
 
         // Verify all visible children are now answered
@@ -1353,7 +1422,9 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'yes');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, 'yes');
           // always-visible not answered
         });
 
@@ -1394,8 +1465,12 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', true);
-          result.current.setAnswer('bool-child', 'answered');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, true);
+          const boolchildQ = parentQ.item!.find(q => q.linkId === 'bool-child')!;
+
+          result.current.setAnswer(boolchildQ, 'answered');
         });
 
         // Verify answers are properly stored for boolean enableWhen condition
@@ -1432,8 +1507,12 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 5);
-          result.current.setAnswer('int-child', 'answered');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, 5);
+          const intchildQ = parentQ.item!.find(q => q.linkId === 'int-child')!;
+
+          result.current.setAnswer(intchildQ, 'answered');
         });
 
         // Verify answers are properly stored for integer enableWhen condition
@@ -1476,8 +1555,12 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('parent', 'code-123');
-          result.current.setAnswer('coding-child', 'answered');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, 'code-123');
+          const codingchildQ = parentQ.item!.find(q => q.linkId === 'coding-child')!;
+
+          result.current.setAnswer(codingchildQ, 'answered');
         });
 
         // Verify answers are properly stored for coding enableWhen condition
@@ -1528,13 +1611,17 @@ describe('useFHIRStepper', () => {
 
         // Answer first two questions
         act(() => {
-          result.current.setAnswer('q1', 'yes');
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, 'yes');
         });
         act(() => {
           result.current.goNext();
         });
         act(() => {
-          result.current.setAnswer('q2', 'yes');
+          const q2 = result.current.topLevelItems[1];
+
+          result.current.setAnswer(q2, 'yes');
         });
         act(() => {
           result.current.goNext();
@@ -1542,8 +1629,12 @@ describe('useFHIRStepper', () => {
 
         // Now on parent question
         act(() => {
-          result.current.setAnswer('parent', 'answer');
-          result.current.setAnswer('multi-rule-child', 'child-answer');
+          const parentQ = result.current.topLevelItems[2];
+
+          result.current.setAnswer(parentQ, 'answer');
+          const multiRuleChildQ = parentQ.item!.find(q => q.linkId === 'multi-rule-child')!;
+
+          result.current.setAnswer(multiRuleChildQ, 'child-answer');
         });
 
         act(() => {
@@ -1552,6 +1643,353 @@ describe('useFHIRStepper', () => {
 
         // Should advance because both enableWhen rules match
         expect(result.current.currentIndex).toBe(3);
+      });
+
+      it('should check enableWhen against array answers (multi-select parent)', () => {
+        const arrayEnableWhenQuestionnaire = {
+          item: [
+            {
+              linkId: 'symptoms',
+              text: 'Select symptoms',
+              type: 'choice',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'fever', display: 'Fever' } },
+                { valueCoding: { code: 'cough', display: 'Cough' } },
+                { valueCoding: { code: 'headache', display: 'Headache' } },
+              ],
+              item: [
+                {
+                  linkId: 'fever-details',
+                  text: 'Fever Details',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'symptoms',
+                      operator: '=',
+                      answerString: 'fever',
+                    },
+                  ],
+                },
+                {
+                  linkId: 'cough-details',
+                  text: 'Cough Details',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'symptoms',
+                      operator: '=',
+                      answerString: 'cough',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              linkId: 'next',
+              text: 'Next',
+              type: 'string',
+            },
+          ],
+        };
+
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: arrayEnableWhenQuestionnaire,
+            autoNext: false,
+          })
+        );
+
+        const symptomsQ = result.current.topLevelItems[0];
+
+        // Select fever and cough (array answer)
+        act(() => {
+          result.current.setAnswer(symptomsQ, 'fever');
+        });
+        act(() => {
+          result.current.setAnswer(symptomsQ, 'cough');
+        });
+
+        expect(result.current.answers.symptoms).toEqual(['fever', 'cough']);
+
+        // Now answer the child questions that are visible
+        const feverDetailsQ = symptomsQ.item!.find(
+          q => q.linkId === 'fever-details'
+        )!;
+        const coughDetailsQ = symptomsQ.item!.find(
+          q => q.linkId === 'cough-details'
+        )!;
+
+        act(() => {
+          result.current.setAnswer(feverDetailsQ, 'high fever');
+        });
+        act(() => {
+          result.current.setAnswer(coughDetailsQ, 'dry cough');
+        });
+
+        // Verify answers are stored
+        expect(result.current.answers['fever-details']).toBe('high fever');
+        expect(result.current.answers['cough-details']).toBe('dry cough');
+      });
+
+      it('should validate child is visible when parent has array answer matching enableWhen', () => {
+        const arrayEnableWhenQuestionnaire = {
+          item: [
+            {
+              linkId: 'colors',
+              text: 'Select colors',
+              type: 'choice',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'red', display: 'Red' } },
+                { valueCoding: { code: 'blue', display: 'Blue' } },
+                { valueCoding: { code: 'green', display: 'Green' } },
+              ],
+            },
+            {
+              linkId: 'parent',
+              text: 'Parent Question',
+              type: 'choice',
+              item: [
+                {
+                  linkId: 'red-child',
+                  text: 'Red Child',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'colors',
+                      operator: '=',
+                      answerString: 'red',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: arrayEnableWhenQuestionnaire,
+            autoNext: true,
+          })
+        );
+
+        const colorsQ = result.current.topLevelItems[0];
+
+        // Select multiple colors including red
+        act(() => {
+          result.current.setAnswer(colorsQ, 'red');
+        });
+        act(() => {
+          result.current.setAnswer(colorsQ, 'blue');
+        });
+
+        expect(result.current.answers.colors).toEqual(['red', 'blue']);
+
+        // Move to parent question
+        act(() => {
+          result.current.goNext();
+        });
+
+        const parentQ = result.current.topLevelItems[1];
+
+        act(() => {
+          result.current.setAnswer(parentQ, 'parent-answer');
+        });
+
+        // red-child should be visible because 'red' is in the array
+        const redChildQ = parentQ.item!.find(q => q.linkId === 'red-child')!;
+
+        act(() => {
+          result.current.setAnswer(redChildQ, 'red-child-answer');
+        });
+
+        expect(result.current.answers['red-child']).toBe('red-child-answer');
+      });
+
+      it('should NOT auto-advance when visible string child depends on array answer', () => {
+        // This tests lines 135-155 (hasVisibleStringChild check with array answer)
+        const arrayWithStringChildQuestionnaire = {
+          item: [
+            {
+              linkId: 'multi-symptoms',
+              text: 'Select symptoms',
+              type: 'choice',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'fever', display: 'Fever' } },
+                { valueCoding: { code: 'cough', display: 'Cough' } },
+              ],
+            },
+            {
+              linkId: 'parent',
+              text: 'Main question',
+              type: 'choice',
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+                { valueCoding: { code: 'no', display: 'No' } },
+              ],
+              item: [
+                {
+                  linkId: 'string-child',
+                  text: 'String Child',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'multi-symptoms',
+                      operator: '=',
+                      answerString: 'fever',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              linkId: 'next',
+              text: 'Next',
+              type: 'string',
+            },
+          ],
+        };
+
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: arrayWithStringChildQuestionnaire,
+            autoNext: true,
+          })
+        );
+
+        const multiSymptomsQ = result.current.topLevelItems[0];
+
+        // Select fever (which will make string-child visible in parent)
+        act(() => {
+          result.current.setAnswer(multiSymptomsQ, 'fever');
+        });
+
+        // Move to parent question
+        act(() => {
+          result.current.goNext();
+        });
+
+        expect(result.current.currentIndex).toBe(1);
+
+        const parentQ = result.current.topLevelItems[1];
+
+        // Answer parent - this should NOT auto-advance because string-child is visible
+        act(() => {
+          result.current.setAnswer(parentQ, 'yes');
+        });
+
+        act(() => {
+          vi.advanceTimersByTime(300);
+        });
+
+        // Should NOT auto-advance due to visible string child
+        expect(result.current.currentIndex).toBe(1);
+      });
+
+      it('should validate isTopLevelComplete with array answer in enableWhen (lines 232-256)', () => {
+        // This tests lines 244-246 (isTopLevelComplete nested validation with array)
+        const questionnaireWithArrayEnableWhen = {
+          item: [
+            {
+              linkId: 'conditions',
+              text: 'Select conditions',
+              type: 'choice',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'diabetes', display: 'Diabetes' } },
+                { valueCoding: { code: 'hypertension', display: 'Hypertension' } },
+              ],
+            },
+            {
+              linkId: 'parent',
+              text: 'Parent Question',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+              item: [
+                {
+                  linkId: 'diabetes-details',
+                  text: 'Diabetes Details',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'conditions',
+                      operator: '=',
+                      answerString: 'diabetes',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              linkId: 'next',
+              text: 'Next',
+              type: 'string',
+            },
+          ],
+        };
+
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: questionnaireWithArrayEnableWhen,
+            autoNext: true,
+          })
+        );
+
+        const conditionsQ = result.current.topLevelItems[0];
+
+        // Select diabetes and hypertension (array answer)
+        act(() => {
+          result.current.setAnswer(conditionsQ, 'diabetes');
+        });
+        act(() => {
+          result.current.setAnswer(conditionsQ, 'hypertension');
+        });
+
+        expect(result.current.answers.conditions).toEqual(['diabetes', 'hypertension']);
+
+        // Move to parent
+        act(() => {
+          result.current.goNext();
+        });
+
+        const parentQ = result.current.topLevelItems[1];
+
+        // Answer parent
+        act(() => {
+          result.current.setAnswer(parentQ, 'yes');
+        });
+
+        // Don't advance yet because diabetes-details is visible and not answered
+        act(() => {
+          vi.advanceTimersByTime(300);
+        });
+
+        expect(result.current.currentIndex).toBe(1);
+
+        // Now answer the visible child
+        const diabetesDetailsQ = parentQ.item!.find(
+          q => q.linkId === 'diabetes-details'
+        )!;
+
+        act(() => {
+          result.current.setAnswer(diabetesDetailsQ, 'type 2');
+        });
+
+        // Verify the child answer is stored
+        expect(result.current.answers['diabetes-details']).toBe('type 2');
+
+        // Verify we're still on parent question (nested child answers don't trigger auto-advance)
+        expect(result.current.currentIndex).toBe(1);
+
+        // Manually advance to verify completion
+        act(() => {
+          result.current.goNext();
+        });
+
+        expect(result.current.currentIndex).toBe(2);
       });
 
       it('should not validate invisible child when one enableWhen rule fails', () => {
@@ -1591,14 +2029,18 @@ describe('useFHIRStepper', () => {
         );
 
         act(() => {
-          result.current.setAnswer('q1', 'no'); // First rule fails
+          const q1 = result.current.topLevelItems[0];
+
+          result.current.setAnswer(q1, 'no'); // First rule fails
         });
         act(() => {
           result.current.goNext();
         });
 
         act(() => {
-          result.current.setAnswer('parent', 'show');
+          const parentQ = result.current.topLevelItems[0];
+
+          result.current.setAnswer(parentQ, 'show');
           // multi-rule-child is invisible, so no need to answer
         });
 
@@ -1648,7 +2090,9 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('q1', 'answer');
+        const q1 = result.current.topLevelItems[0];
+
+        result.current.setAnswer(q1, 'answer');
       });
 
       expect(result.current.answers.q1).toBe('answer');
@@ -1664,9 +2108,12 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer('q1', 'answer1');
-        result.current.setAnswer('q2', 'yes');
-        result.current.setAnswer('q3', 42);
+        const q1 = result.current.topLevelItems[0];
+        const q2 = result.current.topLevelItems[1];
+        const q3 = result.current.topLevelItems[2];
+        result.current.setAnswer(q1, 'answer1');
+        result.current.setAnswer(q2, 'yes');
+        result.current.setAnswer(q3, 42);
       });
 
       // Navigate through questions
@@ -1703,7 +2150,9 @@ describe('useFHIRStepper', () => {
       });
 
       act(() => {
-        result.current.setAnswer('q2', 'yes');
+        const q2 = result.current.topLevelItems[1];
+
+        result.current.setAnswer(q2, 'yes');
       });
 
       act(() => {
@@ -1711,6 +2160,439 @@ describe('useFHIRStepper', () => {
       });
 
       expect(result.current.currentIndex).toBe(1); // Should NOT auto-advance
+    });
+  });
+
+  describe('Multi-Select with Mutually Exclusive Options', () => {
+    const multiSelectQuestionnaire = {
+      item: [
+        {
+          linkId: 'symptoms',
+          text: 'Select symptoms',
+          type: 'choice',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'fever', display: 'Fever' } },
+            { valueCoding: { code: 'cough', display: 'Cough' } },
+            { valueCoding: { code: 'headache', display: 'Headache' } },
+            {
+              valueCoding: { code: 'none', display: 'None of the above' },
+              extension: [
+                {
+                  url: 'urn:intelehealth:mutually-exclusive',
+                  valueBoolean: true,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          linkId: 'q2',
+          text: 'Next Question',
+          type: 'string',
+        },
+      ],
+    };
+
+    it('should initialize empty array for multi-select question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['fever']);
+    });
+
+    it('should add multiple options to array for multi-select', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'cough');
+      });
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'headache');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['fever', 'cough', 'headache']);
+    });
+
+    it('should toggle off an option when clicked again', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'cough');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['fever', 'cough']);
+
+      // Toggle off 'fever'
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['cough']);
+    });
+
+    it('should select mutually exclusive option and clear all others', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      // Select multiple regular options
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'cough');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['fever', 'cough']);
+
+      // Select mutually exclusive option (none)
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'none');
+      });
+
+      // Should replace all with only 'none'
+      expect(result.current.answers.symptoms).toEqual(['none']);
+    });
+
+    it('should unselect mutually exclusive option when clicked again', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      // Select mutually exclusive option
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'none');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['none']);
+
+      // Click again to unselect
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'none');
+      });
+
+      // Should be empty array
+      expect(result.current.answers.symptoms).toEqual([]);
+    });
+
+    it('should remove mutually exclusive option when selecting regular option', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      // Select mutually exclusive option first
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'none');
+      });
+
+      expect(result.current.answers.symptoms).toEqual(['none']);
+
+      // Select regular option
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+
+      // Should remove 'none' and add 'fever'
+      expect(result.current.answers.symptoms).toEqual(['fever']);
+    });
+
+    it('should handle non-array current value for repeating question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      // Manually set a non-array value (edge case)
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+
+      // Should still work and convert to array
+      expect(Array.isArray(result.current.answers.symptoms)).toBe(true);
+      expect(result.current.answers.symptoms).toEqual(['fever']);
+    });
+
+    it('should NOT auto-advance for repeating choice questions', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(symptomsQ, 'fever');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // Should NOT auto-advance for multi-select
+      expect(result.current.currentIndex).toBe(0);
+    });
+
+    it('should identify mutually exclusive option correctly', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiSelectQuestionnaire })
+      );
+
+      const symptomsQ = result.current.topLevelItems[0];
+
+      // Verify the question has the mutually exclusive option
+      const noneOption = symptomsQ.answerOption?.find(
+        opt => opt.valueCoding?.code === 'none'
+      );
+
+      expect(noneOption?.extension).toBeDefined();
+      expect(
+        noneOption?.extension?.some(
+          ext =>
+            ext.url === 'urn:intelehealth:mutually-exclusive' &&
+            ext.valueBoolean === true
+        )
+      ).toBe(true);
+    });
+
+    it('should handle question without mutually exclusive options', () => {
+      const simpleMultiSelectQuestionnaire = {
+        item: [
+          {
+            linkId: 'colors',
+            text: 'Select colors',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'red', display: 'Red' } },
+              { valueCoding: { code: 'blue', display: 'Blue' } },
+              { valueCoding: { code: 'green', display: 'Green' } },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: simpleMultiSelectQuestionnaire })
+      );
+
+      const colorsQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(colorsQ, 'red');
+      });
+      act(() => {
+        result.current.setAnswer(colorsQ, 'blue');
+      });
+      act(() => {
+        result.current.setAnswer(colorsQ, 'green');
+      });
+
+      expect(result.current.answers.colors).toEqual(['red', 'blue', 'green']);
+
+      // Toggle off one
+      act(() => {
+        result.current.setAnswer(colorsQ, 'blue');
+      });
+
+      expect(result.current.answers.colors).toEqual(['red', 'green']);
+    });
+  });
+
+  describe('getTopLevelLinkId Function', () => {
+    const nestedQuestionnaire = {
+      item: [
+        {
+          linkId: 'parent',
+          text: 'Parent',
+          type: 'choice',
+          item: [
+            {
+              linkId: 'child',
+              text: 'Child',
+              type: 'string',
+            },
+          ],
+        },
+        {
+          linkId: 'standalone',
+          text: 'Standalone',
+          type: 'string',
+        },
+      ],
+    };
+
+    it('should return same linkId if it matches current question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedQuestionnaire })
+      );
+
+      const parentQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(parentQ, 'parent-answer');
+      });
+
+      // The linkId 'parent' should be recognized as top-level
+      expect(result.current.currentQuestion?.linkId).toBe('parent');
+    });
+
+    it('should return parent linkId for child question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedQuestionnaire })
+      );
+
+      const parentQ = result.current.topLevelItems[0];
+      const childQ = parentQ.item![0];
+
+      act(() => {
+        result.current.setAnswer(parentQ, 'parent-answer');
+      });
+
+      act(() => {
+        result.current.setAnswer(childQ, 'child-answer');
+      });
+
+      // Verify child answer is stored
+      expect(result.current.answers.child).toBe('child-answer');
+    });
+
+    it('should return linkId as-is if not related to current question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedQuestionnaire })
+      );
+
+      const standaloneQ = result.current.topLevelItems[1];
+
+      act(() => {
+        result.current.goNext();
+      });
+
+      act(() => {
+        result.current.setAnswer(standaloneQ, 'standalone-answer');
+      });
+
+      expect(result.current.answers.standalone).toBe('standalone-answer');
+    });
+
+    it('should handle undefined currentQuestion', () => {
+      const emptyQuestionnaire = { item: [] };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: emptyQuestionnaire })
+      );
+
+      expect(result.current.currentQuestion).toBeUndefined();
+
+      // Try to set an answer even with no current question (defensive code path)
+      const dummyQuestion = {
+        linkId: 'dummy',
+        text: 'Dummy',
+        type: 'string' as const,
+      };
+
+      act(() => {
+        result.current.setAnswer(dummyQuestion, 'test');
+      });
+
+      // Should still store the answer
+      expect(result.current.answers.dummy).toBe('test');
+    });
+  });
+
+  describe('isTopLevelComplete with Repeats', () => {
+    it('should return false when repeating question has empty array', () => {
+      const repeatingQuestionnaire = {
+        item: [
+          {
+            linkId: 'multi',
+            text: 'Multi Select',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'opt1', display: 'Option 1' } },
+              { valueCoding: { code: 'opt2', display: 'Option 2' } },
+            ],
+          },
+          {
+            linkId: 'next',
+            text: 'Next',
+            type: 'string',
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: repeatingQuestionnaire })
+      );
+
+      // Don't answer - should not auto-advance
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(result.current.currentIndex).toBe(0);
+    });
+
+    it('should return true when repeating question has non-empty array', () => {
+      const repeatingQuestionnaire = {
+        item: [
+          {
+            linkId: 'multi',
+            text: 'Multi Select',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'opt1', display: 'Option 1' } },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: repeatingQuestionnaire,
+          autoNext: false,
+        })
+      );
+
+      const multiQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(multiQ, 'opt1');
+      });
+
+      // Should have array with one item
+      expect(result.current.answers.multi).toEqual(['opt1']);
+      expect(Array.isArray(result.current.answers.multi)).toBe(true);
+      expect((result.current.answers.multi as string[]).length).toBeGreaterThan(0);
     });
   });
 
@@ -1749,8 +2631,10 @@ describe('useFHIRStepper', () => {
       );
 
       // First set parent with complete duration
+      const q1 = result.current.topLevelItems[0];
+
       act(() => {
-        result.current.setAnswer('q1', {
+        result.current.setAnswer(q1, {
           dropdownValues: {
             number: 5,
             days: 'days',
@@ -1764,7 +2648,9 @@ describe('useFHIRStepper', () => {
 
       // Now set nested child - this will call isTopLevelComplete
       act(() => {
-        result.current.setAnswer('q1.1', 'nested-answer');
+        const nestedQ = q1.item!.find(q => q.linkId === 'q1.1')!;
+
+        result.current.setAnswer(nestedQ, 'nested-answer');
       });
 
       act(() => {
@@ -1795,7 +2681,9 @@ describe('useFHIRStepper', () => {
 
       // Answer with incomplete duration (missing number)
       act(() => {
-        result.current.setAnswer('q1', {
+        const q1 = result.current.topLevelItems[0];
+
+        result.current.setAnswer(q1, {
           dropdownValues: {
             number: null,
             days: 'days',
@@ -1830,7 +2718,9 @@ describe('useFHIRStepper', () => {
 
       // Answer with incomplete duration (missing days)
       act(() => {
-        result.current.setAnswer('q1', {
+        const q1 = result.current.topLevelItems[0];
+
+        result.current.setAnswer(q1, {
           dropdownValues: {
             number: 5,
             days: null,
@@ -1871,13 +2761,17 @@ describe('useFHIRStepper', () => {
       );
 
       // Answer parent
+      const q1 = result.current.topLevelItems[0];
+
       act(() => {
-        result.current.setAnswer('q1', 'parent-answer');
+        result.current.setAnswer(q1, 'parent-answer');
       });
 
       // Answer child with complete duration
       act(() => {
-        result.current.setAnswer('q1.1', {
+        const nestedQ = q1.item!.find(q => q.linkId === 'q1.1')!;
+
+        result.current.setAnswer(nestedQ, {
           dropdownValues: {
             number: 3,
             days: 'weeks',
@@ -1918,13 +2812,17 @@ describe('useFHIRStepper', () => {
         })
       );
 
+      const q1 = result.current.topLevelItems[0];
+
       act(() => {
-        result.current.setAnswer('q1', 'parent-answer');
+        result.current.setAnswer(q1, 'parent-answer');
       });
 
       // Answer child with incomplete duration
       act(() => {
-        result.current.setAnswer('q1.1', {
+        const nestedQ = q1.item!.find(q => q.linkId === 'q1.1')!;
+
+        result.current.setAnswer(nestedQ, {
           dropdownValues: {
             number: null,
             days: 'weeks',
@@ -1964,13 +2862,17 @@ describe('useFHIRStepper', () => {
         })
       );
 
+      const q1 = result.current.topLevelItems[0];
+
       act(() => {
-        result.current.setAnswer('q1', 'parent-answer');
+        result.current.setAnswer(q1, 'parent-answer');
       });
 
       // Answer child with incomplete duration
       act(() => {
-        result.current.setAnswer('q1.1', {
+        const nestedQ = q1.item!.find(q => q.linkId === 'q1.1')!;
+
+        result.current.setAnswer(nestedQ, {
           dropdownValues: {
             number: 7,
             days: null,

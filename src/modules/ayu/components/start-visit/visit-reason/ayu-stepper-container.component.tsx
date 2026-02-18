@@ -137,7 +137,7 @@ export const AyuStepperContainer = ({
                   <AyuRenderer
                     question={question}
                     value={answers[question.linkId]}
-                    onChange={val => setAnswer(question.linkId, val)}
+                    onChange={val => setAnswer(question, val)}
                   />
                   {question.item && (
                     <AyuNestedRenderer
@@ -177,6 +177,7 @@ export const AyuStepperContainer = ({
                             answers[question.linkId] !== undefined) ||
                           (question.type === 'quantity' &&
                             answers[question.linkId] !== undefined) ||
+                          (question.type === 'choice' && question.repeats) ||
                           isDurationChoice ||
                           hasNestedDuration ||
                           question.item?.some(
@@ -191,7 +192,12 @@ export const AyuStepperContainer = ({
                           className="w-full md:w-[10%]"
                           disabled={
                             hasVisibleRequiredNestedString ||
-                            isQuantityInvalid(question)
+                            isQuantityInvalid(question) ||
+                            (question.type === 'choice' &&
+                              question.repeats &&
+                              (!Array.isArray(answers[question.linkId]) ||
+                                (answers[question.linkId] as string[])
+                                  .length === 0))
                           }
                           onClick={() => {
                             if (isLast) {
