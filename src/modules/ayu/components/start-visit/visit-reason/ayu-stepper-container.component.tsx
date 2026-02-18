@@ -31,8 +31,14 @@ export const AyuStepperContainer = ({
   const totalSteps = topLevelItems.length;
   const lastQuestionRef = useRef<HTMLDivElement | null>(null);
 
+  const prevCompletedRef = useRef<number>(-1);
+
   useEffect(() => {
-    const completedSteps = currentIndex + 1; // All top-level items before the current one are completed
+    const completedSteps = currentIndex;
+
+    if (prevCompletedRef.current === completedSteps) return;
+
+    prevCompletedRef.current = completedSteps;
     onProgressUpdate?.(totalSteps, completedSteps);
   }, [currentIndex, totalSteps, onProgressUpdate]);
 

@@ -90,9 +90,10 @@ describe('StartVisit', () => {
       expect(screen.getByTestId('section-completion-loader')).toBeInTheDocument();
     });
 
-    it('should render SideLoader', () => {
+    it('should not render SideLoader for sections with single question', () => {
       render(<StartVisit />);
-      expect(screen.getByTestId('side-loader')).toBeInTheDocument();
+      // Vitals section has only 1 question, so SideLoader should not render
+      expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
     });
 
     it('should render Vitals component initially', () => {
@@ -394,25 +395,30 @@ describe('StartVisit', () => {
       expect(loader).toHaveTextContent('Section: 1, Question: 1');
     });
 
-    it('should pass correct props to SideLoader', () => {
+    it('should pass correct props to SideLoader', async () => {
+      const user = userEvent.setup();
       render(<StartVisit />);
 
+      // Navigate to Physical Exam which has 8 questions (SideLoader will render)
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(screen.getByText('Next Question'));
+
       const sideLoader = screen.getByTestId('side-loader');
-      expect(sideLoader).toHaveTextContent('Question 1 of 1');
+      expect(sideLoader).toHaveTextContent('Question 1 of 8');
     });
 
     it('should update SideLoader when navigating to different sections', async () => {
       const user = userEvent.setup();
       render(<StartVisit />);
 
-      // Initially shows Vitals (1 question)
-      expect(screen.getByText('Question 1 of 1')).toBeInTheDocument();
+      // Initially in Vitals (1 question) - SideLoader not rendered
+      expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
 
-      // Move to Visit Reason (1 question)
+      // Move to Visit Reason (1 question) - SideLoader still not rendered
       await user.click(screen.getByText('Next Vitals'));
-      expect(screen.getByText('Question 1 of 1')).toBeInTheDocument();
+      expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
 
-      // Move to Physical Exam (8 questions)
+      // Move to Physical Exam (8 questions) - SideLoader now rendered
       await user.click(screen.getByText('Next Question'));
       expect(screen.getByText('Question 1 of 8')).toBeInTheDocument();
     });
@@ -788,9 +794,10 @@ describe('StartVisit', () => {
       const completeButton = screen.getByText('Complete Visit Reason');
       await user.click(completeButton);
 
-      // Both section loaders should still be rendering correctly
+      // Section completion loader should still be rendering correctly
       expect(screen.getByTestId('section-completion-loader')).toBeInTheDocument();
-      expect(screen.getByTestId('side-loader')).toBeInTheDocument();
+      // SideLoader not rendered for Visit Reason (only 1 question)
+      expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
     });
   });
 });

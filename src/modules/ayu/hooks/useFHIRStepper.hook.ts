@@ -39,7 +39,7 @@ export const useFHIRStepper = (
   const topLevelItems = useMemo(() => {
     const items = questionnaire?.item || [];
     return items.filter((item: AyuQuestion) => item.type !== 'group');
-  }, [questionnaire?.item]);
+  }, [questionnaire]);
 
   const structuralTotal = topLevelItems.length;
 

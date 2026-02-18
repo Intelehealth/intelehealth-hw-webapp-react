@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import type { SectionState } from '../../types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
@@ -87,19 +87,27 @@ export const StartVisit = () => {
     });
   };
 
-  const updateSectionProgress = (
-    sectionName: string,
-    total: number,
-    answered: number
-  ) => {
-    setSections(prev =>
-      prev.map(section =>
-        section.name === sectionName
-          ? { ...section, totalQuestions: total, answeredQuestions: answered }
-          : section
-      )
-    );
-  };
+  const handleVisitReasonProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Visit Reason', total, answered);
+    },
+    []
+  );
+
+  const updateSectionProgress = useCallback(
+    (sectionName: string, total: number, answered: number) => {
+      setSections(prev =>
+        prev.map(section =>
+          section.name === sectionName
+            ? { ...section, totalQuestions: total, answeredQuestions: answered }
+            : section
+        )
+      );
+      // SYNC SIDE LOADER INDEX HERE
+      setCurrentQuestionIndex(answered);
+    },
+    []
+  );
 
   return (
     <div className="bg-white">
@@ -127,13 +135,15 @@ export const StartVisit = () => {
       </div>
 
       {/* Side Loader */}
-      <div className="hidden md:block">
-        <SideLoader
-          sections={sections}
-          currentSectionIndex={currentSectionIndex}
-          currentQuestionIndex={currentQuestionIndex}
-        />
-      </div>
+      {sections[currentSectionIndex]?.totalQuestions > 1 && (
+        <div className="hidden md:block">
+          <SideLoader
+            sections={sections}
+            currentSectionIndex={currentSectionIndex}
+            currentQuestionIndex={currentQuestionIndex}
+          />
+        </div>
+      )}
 
       {/* Active Section */}
       <div className="pt-4">
@@ -151,9 +161,7 @@ export const StartVisit = () => {
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}
             onPrevSection={goPreviousSection}
-            onProgressUpdate={(total: number, answered: number) =>
-              updateSectionProgress('Visit Reason', total, answered)
-            }
+            onProgressUpdate={handleVisitReasonProgress}
           />
         )}
 

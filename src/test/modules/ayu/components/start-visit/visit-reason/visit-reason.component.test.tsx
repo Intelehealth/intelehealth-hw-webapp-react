@@ -727,8 +727,8 @@ describe('VisitReason', () => {
       const progressButton = screen.getByTestId('stepper-progress-button');
       await user.click(progressButton);
 
-      // When not complete (3 out of 5), should pass 0
-      expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
+      // When not complete (3 out of 5), should pass actual progress
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 3);
     });
 
     it('should update progress to 1 when all stepper questions are answered', async () => {
@@ -773,8 +773,8 @@ describe('VisitReason', () => {
       const progressCompleteButton = screen.getByTestId('stepper-progress-complete');
       await user.click(progressCompleteButton);
 
-      // When complete (5 out of 5), should pass 1
-      expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
+      // When complete (5 out of 5), should pass actual progress
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 5);
     });
 
     it('should handle onProgressUpdate being undefined', async () => {

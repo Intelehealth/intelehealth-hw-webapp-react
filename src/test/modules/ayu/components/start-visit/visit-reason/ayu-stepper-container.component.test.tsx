@@ -199,7 +199,7 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 1);
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 0);
     });
 
     it('should update progress when currentIndex changes', () => {
@@ -228,7 +228,7 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 1);
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 0);
 
       // Update to next question
       mockUseFHIRStepper.mockReturnValue({
@@ -250,7 +250,7 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 2);
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 1);
     });
   });
 

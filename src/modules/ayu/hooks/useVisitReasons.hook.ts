@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAyuJsonList } from './useAyuJson.hook';
 
 export const useVisitReasons = () => {
-  const ayuJsonList = useAyuJsonList('testing');
+  const ayuJsonList = useAyuJsonList('IDA6');
 
   const names = useMemo(() => {
     return ayuJsonList

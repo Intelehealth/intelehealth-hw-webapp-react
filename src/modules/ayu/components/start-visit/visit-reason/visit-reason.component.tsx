@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
@@ -53,30 +53,35 @@ export const VisitReason = ({
       open: true,
       onConfirm: () => {
         const schema = transformFhirToAyu(selectedComplaints[0].json);
-
         setAyuSchema(schema);
         setShowStepper(true); //Switch UI
       },
     });
   };
 
+  const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
+
+  const handleStepperComplete = useCallback(() => {
+    onProgressUpdate?.(1, 1);
+    setShowStepper(false);
+    onNextQuestion();
+  }, [onProgressUpdate, onNextQuestion]);
+
+  const handleStepperProgress = useCallback(
+    (total: number, answered: number) => {
+      onProgressUpdate?.(total, answered);
+    },
+    [onProgressUpdate]
+  );
+
   // STEP 2: If stepper active, render it instead
-  if (showStepper && ayuSchema) {
+  if (showStepper && stableSchema) {
     return (
       <div className="w-full flex flex-col h-full">
         <AyuStepperContainer
-          questionnaire={ayuSchema}
-          onComplete={() => {
-            // Mark Visit Reason section as fully complete (1 out of 1 questions)
-            onProgressUpdate?.(1, 1);
-            setShowStepper(false); // optional
-            onNextQuestion(); // move to next main section
-          }}
-          onProgressUpdate={(total: number, answered: number) => {
-            // Keep parent's totalQuestions as 1, but update answered progress as a fraction
-            // This treats the entire stepper as a single question
-            onProgressUpdate?.(1, answered === total ? 1 : 0);
-          }}
+          questionnaire={stableSchema}
+          onComplete={handleStepperComplete}
+          onProgressUpdate={handleStepperProgress}
         />
       </div>
     );
