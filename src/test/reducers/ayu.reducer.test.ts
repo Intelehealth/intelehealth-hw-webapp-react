@@ -6,7 +6,7 @@ describe('ayuReducer', () => {
   const mockAyuJsonItem1: AyuJsonItem = {
     id: 1,
     name: 'Test Item 1',
-    json: '{"field1": "value1"}',
+    json: { resourceType: 'Questionnaire', item: [] },
     keyName: 'test-key-1',
     isActive: true,
   };
@@ -14,7 +14,7 @@ describe('ayuReducer', () => {
   const mockAyuJsonItem2: AyuJsonItem = {
     id: 2,
     name: 'Test Item 2',
-    json: '{"field2": "value2"}',
+    json: { resourceType: 'Questionnaire', item: [] },
     keyName: 'test-key-2',
     isActive: false,
   };
@@ -22,7 +22,7 @@ describe('ayuReducer', () => {
   const mockAyuJsonItem3: AyuJsonItem = {
     id: 3,
     name: 'Test Item 3',
-    json: '{"field3": "value3"}',
+    json: { resourceType: 'Questionnaire', item: [] },
     keyName: 'test-key-3',
     isActive: true,
   };
@@ -228,7 +228,7 @@ describe('ayuReducer', () => {
       const specialItem: AyuJsonItem = {
         id: 4,
         name: 'Special',
-        json: '{"special": "chars!@#$%^&*()"}',
+        json: { resourceType: 'Questionnaire', item: [] },
         keyName: 'special-key',
         isActive: true,
       };
@@ -239,7 +239,7 @@ describe('ayuReducer', () => {
       };
       const result = ayuReducer(initialState, action);
 
-      expect(result.list[0].json).toBe('{"special": "chars!@#$%^&*()"}');
+      expect(result.list[0].json).toEqual({ resourceType: 'Questionnaire', item: [] });
     });
 
     it('should handle items with isActive as false', () => {
@@ -319,7 +319,7 @@ describe('ayuReducer', () => {
       result.list.forEach((item) => {
         expect(typeof item.id).toBe('number');
         expect(typeof item.name).toBe('string');
-        expect(typeof item.json).toBe('string');
+        expect(typeof item.json).toBe('object');
         expect(typeof item.keyName).toBe('string');
         expect(typeof item.isActive).toBe('boolean');
       });

@@ -5,9 +5,20 @@ export function AyuTextInput({
   question,
   parent,
   previousSibling,
+  value,
+  onChange,
 }: AyuRendererBaseProps) {
-  const label = resolveLabel(question, parent, previousSibling);
+  const label = question
+    ? resolveLabel(question, parent, previousSibling)
+    : undefined;
   const inputId = `ayu-input-${question?.linkId}`;
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    onChange?.(newValue);
+  };
+
+  const inputValue = value !== null && value !== undefined ? String(value) : '';
 
   return (
     <div className="flex flex-col gap-1">
@@ -16,11 +27,13 @@ export function AyuTextInput({
           {label}
         </label>
       )}
-      <input
+      <textarea
         id={inputId}
-        type="text"
+        value={inputValue}
+        onChange={handleChange}
         disabled={question?.readOnly}
-        className="border rounded px-3 py-2"
+        rows={2}
+        className="border bg-white border-solid border-[#20c997] rounded px-3 py-2 outline-none resize-y"
       />
     </div>
   );

@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import * as React from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAyuJsonList } from '../../../../modules/ayu/hooks/useAyuJson';
+import { useAyuJsonList } from '../../../../modules/ayu/hooks/useAyuJson.hook';
 import type { AyuApiResponse } from '../../../../modules/ayu/types/ayu-json.types';
 import { ayuReducer } from '../../../../reducers/ayu.reducer';
 

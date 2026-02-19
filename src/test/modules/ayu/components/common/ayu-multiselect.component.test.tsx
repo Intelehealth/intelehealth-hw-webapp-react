@@ -244,6 +244,18 @@ describe('AyuMultiSelect', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      const { container } = render(
+        <AyuMultiSelect
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(container.firstChild).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
     it('should handle question with empty string text', () => {
       const emptyTextQuestion: AyuQuestion = {
         ...mockQuestion,
