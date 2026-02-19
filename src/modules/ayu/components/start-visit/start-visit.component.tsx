@@ -3,7 +3,7 @@ import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import type { SectionState } from '../../types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
-import { MedicalHistory } from './medical-history.component';
+import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination.component';
 import { VisitReason } from './visit-reason.component';
 import { Vitals } from './vitals.component';
@@ -44,10 +44,6 @@ export const StartVisit = () => {
         copy[currentSectionIndex].totalQuestions;
       return copy;
     });
-
-    if (sections[currentSectionIndex] === sections[sections.length - 1]) {
-      alert('Completed all sections!');
-    }
 
     goNextSection();
   };
@@ -136,14 +132,7 @@ export const StartVisit = () => {
           />
         )}
 
-        {currentSectionIndex === 3 && (
-          <MedicalHistory
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-            onPrevSection={goPreviousSection}
-          />
-        )}
+        {currentSectionIndex === 3 && <MedicalHistory />}
       </div>
     </div>
   );
