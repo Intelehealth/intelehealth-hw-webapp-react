@@ -31,21 +31,36 @@ const PRIMARY_COLOR = '#0fd197';
 
 export const MedicalHistory = () => {
   const navigate = useNavigate();
-  const [conditions, setConditions] = useState<MedicalCondition[]>(MEDICAL_CONDITIONS);
+  const [conditions, setConditions] =
+    useState<MedicalCondition[]>(MEDICAL_CONDITIONS);
 
   const updateCondition = (id: number, updates: Partial<MedicalCondition>) => {
-    setConditions(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
+    setConditions(prev =>
+      prev.map(c => (c.id === id ? { ...c, ...updates } : c))
+    );
   };
 
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 bg-primary-500 transform rotate-45 flex items-center justify-center">
-          <svg className="w-4 h-4 text-white -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="w-4 h-4 text-white -rotate-45"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         </div>
-        <span className="text-base font-semibold text-gray-700">{TOTAL_QUESTIONS} questions</span>
+        <span className="text-base font-semibold text-gray-700">
+          {TOTAL_QUESTIONS} questions
+        </span>
       </div>
 
       <div className="mb-4">
@@ -61,7 +76,10 @@ export const MedicalHistory = () => {
           const isYes = condition.hasCondition === 'Yes';
 
           return (
-            <div key={condition.id} className="bg-emerald-50 rounded-none p-4 border-b border-emerald-100 last:border-b-0 last:rounded-b-lg first:rounded-t-lg space-y-3">
+            <div
+              key={condition.id}
+              className="bg-emerald-50 rounded-none p-4 border-b border-emerald-100 last:border-b-0 last:rounded-b-lg first:rounded-t-lg space-y-3"
+            >
               <div className="flex items-center justify-between gap-4">
                 <p className="text-base text-gray-900 flex-1">
                   {condition.id + 1}. {condition.name}
@@ -69,7 +87,9 @@ export const MedicalHistory = () => {
 
                 <AyuYesNoButton
                   value={condition.hasCondition as 'Yes' | 'No' | null}
-                  onChange={(value) => updateCondition(condition.id, { hasCondition: value })}
+                  onChange={value =>
+                    updateCondition(condition.id, { hasCondition: value })
+                  }
                   activeColor={PRIMARY_COLOR}
                 />
               </div>
@@ -86,11 +106,21 @@ export const MedicalHistory = () => {
                         <AyuButton
                           key={option}
                           type="button"
-                          onClick={() => updateCondition(condition.id, { relation: option })}
-                          variant={condition.relation === option ? 'primary' : 'secondary'}
+                          onClick={() =>
+                            updateCondition(condition.id, { relation: option })
+                          }
+                          variant={
+                            condition.relation === option
+                              ? 'primary'
+                              : 'secondary'
+                          }
                           size="sm"
                           className={`${condition.relation === option ? 'text-white border-0' : 'bg-white text-gray-700 border-0'} px-3 py-1.5 text-sm`}
-                          style={condition.relation === option ? { backgroundColor: PRIMARY_COLOR } : {}}
+                          style={
+                            condition.relation === option
+                              ? { backgroundColor: PRIMARY_COLOR }
+                              : {}
+                          }
                         >
                           {option}
                         </AyuButton>
@@ -107,7 +137,11 @@ export const MedicalHistory = () => {
                       <input
                         type="text"
                         value={condition.describeRelation || ''}
-                        onChange={e => updateCondition(condition.id, { describeRelation: e.target.value })}
+                        onChange={e =>
+                          updateCondition(condition.id, {
+                            describeRelation: e.target.value,
+                          })
+                        }
                         placeholder="Grandfather"
                         className="w-/full px-3 py-2 text-base border border-[#0fd197] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0fd197] bg-white"
                       />
@@ -123,7 +157,11 @@ export const MedicalHistory = () => {
                       <input
                         type="text"
                         value={condition.describeIllness || ''}
-                        onChange={e => updateCondition(condition.id, { describeIllness: e.target.value })}
+                        onChange={e =>
+                          updateCondition(condition.id, {
+                            describeIllness: e.target.value,
+                          })
+                        }
                         placeholder="Grandfather"
                         className="w-full px-3 py-2 text-base border border-[#0fd197] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0fd197] bg-white"
                       />
@@ -139,7 +177,6 @@ export const MedicalHistory = () => {
           <AyuButton
             type="submit"
             onClick={() => {
-              console.log('Medical History Complete:', conditions);
               navigate('/ayu/renders');
             }}
             variant="primary"

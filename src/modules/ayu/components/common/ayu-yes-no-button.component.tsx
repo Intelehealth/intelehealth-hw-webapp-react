@@ -14,10 +14,14 @@ export const AyuYesNoButton = ({
   disabled = false,
 }: AyuYesNoButtonProps) => {
   const getButtonClass = (option: 'Yes' | 'No') =>
-    value === option ? 'text-white !border-0' : 'bg-white text-gray-700 !border-0';
+    value === option
+      ? 'text-white !border-0'
+      : 'bg-white text-gray-700 !border-0';
 
   const getButtonStyle = (option: 'Yes' | 'No') =>
-    value === option ? { backgroundColor: activeColor, border: 'none' } : { border: 'none' };
+    value === option
+      ? { backgroundColor: activeColor, border: 'none' }
+      : { border: 'none' };
 
   return (
     <div className="flex gap-2">

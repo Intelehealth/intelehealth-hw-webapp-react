@@ -245,15 +245,13 @@ describe('MedicalHistory', () => {
   });
 
   describe('Submit Button', () => {
-    it('should call navigate and log data when Submit is clicked', async () => {
+    it('should navigate to /ayu/renders when Submit is clicked', async () => {
       const user = userEvent.setup();
-      const consoleSpy = vi.spyOn(console, 'log');
       renderWithRouter(<MedicalHistory />);
 
       const submitButton = screen.getByRole('button', { name: /Submit/i });
       await user.click(submitButton);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Medical History Complete:', expect.any(Array));
       expect(mockNavigate).toHaveBeenCalledWith('/ayu/renders');
     });
   });
