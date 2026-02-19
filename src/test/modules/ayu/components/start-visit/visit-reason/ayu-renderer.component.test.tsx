@@ -38,6 +38,9 @@ vi.mock('../../../../../../modules/ayu/pages/component-map', () => {
       quantity: vi.fn(({ question }) => (
         <div data-testid="quantity-component">{question.text}</div>
       )),
+      associatedSymptoms: vi.fn(({ question }) => (
+        <div data-testid="associated-symptoms-component">{question.text}</div>
+      )),
     },
   };
 });
@@ -170,6 +173,27 @@ describe('AyuRenderer', () => {
 
       expect(mockResolveAyuComponent).toHaveBeenCalledWith(question);
       expect(screen.getByTestId('quantity-component')).toBeInTheDocument();
+    });
+
+    it('should render associatedSymptoms component for associated symptoms type', () => {
+      const question: AyuQuestion = {
+        linkId: 'q9',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+      };
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+
+      render(<AyuRenderer question={question} />);
+
+      expect(mockResolveAyuComponent).toHaveBeenCalledWith(question);
+      expect(screen.getByTestId('associated-symptoms-component')).toBeInTheDocument();
     });
   });
 
@@ -314,6 +338,99 @@ describe('AyuRenderer', () => {
         }),
         undefined
       );
+    });
+
+    it('should pass answers prop as empty object when not provided', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Test Question',
+        type: 'string',
+      };
+      mockResolveAyuComponent.mockReturnValue('text');
+
+      render(<AyuRenderer question={question} />);
+
+      expect(mockTextComponent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          answers: {},
+        }),
+        undefined
+      );
+    });
+
+    it('should pass provided answers prop to component', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Test Question',
+        type: 'string',
+      };
+      const answers = { 'other-q': 'some-value' };
+      mockResolveAyuComponent.mockReturnValue('text');
+
+      render(<AyuRenderer question={question} answers={answers} />);
+
+      expect(mockTextComponent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          answers: answers,
+        }),
+        undefined
+      );
+    });
+
+    it('should pass setAnswer wrapper to component', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Test Question',
+        type: 'string',
+      };
+      const mockSetAnswer = vi.fn();
+      mockResolveAyuComponent.mockReturnValue('text');
+
+      render(<AyuRenderer question={question} setAnswer={mockSetAnswer} />);
+
+      expect(mockTextComponent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          setAnswer: expect.any(Function),
+        }),
+        undefined
+      );
+    });
+
+    it('should delegate setAnswer calls through to the provided setAnswer prop', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Test Question',
+        type: 'string',
+      };
+      const mockSetAnswer = vi.fn();
+      mockResolveAyuComponent.mockReturnValue('text');
+
+      render(<AyuRenderer question={question} setAnswer={mockSetAnswer} />);
+
+      const passedSetAnswer = mockTextComponent.mock.calls[0][0].setAnswer as (
+        q: AyuQuestion,
+        v: unknown
+      ) => void;
+      passedSetAnswer(question, 'new-value');
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(question, 'new-value');
+    });
+
+    it('should not throw when setAnswer is undefined and wrapper is called', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Test Question',
+        type: 'string',
+      };
+      mockResolveAyuComponent.mockReturnValue('text');
+
+      render(<AyuRenderer question={question} />);
+
+      const passedSetAnswer = mockTextComponent.mock.calls[0][0].setAnswer as (
+        q: AyuQuestion,
+        v: unknown
+      ) => void;
+      expect(() => passedSetAnswer(question, 'value')).not.toThrow();
     });
   });
 

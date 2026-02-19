@@ -133,7 +133,7 @@ describe('AyuNumberInput', () => {
         />
       );
       const label = screen.getByText('Enter your age');
-      expect(label).toHaveClass('text-sm', 'font-medium', 'text-gray-700');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-gray-700');
     });
   });
 

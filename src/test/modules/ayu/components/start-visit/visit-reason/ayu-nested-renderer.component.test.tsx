@@ -276,17 +276,20 @@ describe('AyuNestedRenderer', () => {
 
   describe('Parent Answer Label Display', () => {
     it('should display parent answer label for non-string types', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'opt-1', display: 'Parent Option' } }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'Parent Option',
-            },
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
           ],
         },
       ];
@@ -294,7 +297,8 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': 'Parent Option' }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'opt-1' }}
           setAnswer={mockSetAnswer}
         />
       );
@@ -303,17 +307,20 @@ describe('AyuNestedRenderer', () => {
     });
 
     it('should not display parent answer label for string types', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'Parent Option' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'string',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'Parent Option',
-            },
+            { question: 'parent-1', operator: '=', answerString: 'Parent Option' },
           ],
         },
       ];
@@ -321,64 +328,70 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
+          parentQuestion={parentQ}
           answers={{ 'parent-1': 'Parent Option' }}
           setAnswer={mockSetAnswer}
         />
       );
 
+      // isStringType = true so the emerald label section is suppressed
       expect(screen.queryByText('Parent Option')).not.toBeInTheDocument();
     });
 
-    it('should display parent answer when answer matches enableWhen condition', () => {
+    it('should display the answerOption display when answerCoding code matches', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'opt-1', display: 'Option One' } }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerCoding: { code: 'opt-1' },
-            },
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
           ],
         },
       ];
 
-      // The component expects the answer value to match expectedValue for enableWhen
-      // So we provide 'opt-1' directly, matching answerCoding.code
       render(
         <AyuNestedRenderer
           items={items}
+          parentQuestion={parentQ}
           answers={{ 'parent-1': 'opt-1' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // When answer is a string, getParentAnswerLabel returns answerCoding.code
-      expect(screen.getByText('opt-1')).toBeInTheDocument();
+      expect(screen.getByText('Option One')).toBeInTheDocument();
     });
 
-    it('should handle string answers in getParentAnswerLabel', () => {
+    it('should display the answerOption valueString when answerString matches', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'yes' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'yes',
-            },
+            { question: 'parent-1', operator: '=', answerString: 'yes' },
           ],
         },
       ];
 
-      // For string answers, provide the string directly
       render(
         <AyuNestedRenderer
           items={items}
+          parentQuestion={parentQ}
           answers={{ 'parent-1': 'yes' }}
           setAnswer={mockSetAnswer}
         />
@@ -388,17 +401,20 @@ describe('AyuNestedRenderer', () => {
     });
 
     it('should render arrow SVG icon for parent label', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'Parent Option' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'Parent Option',
-            },
+            { question: 'parent-1', operator: '=', answerString: 'Parent Option' },
           ],
         },
       ];
@@ -406,6 +422,7 @@ describe('AyuNestedRenderer', () => {
       const { container } = render(
         <AyuNestedRenderer
           items={items}
+          parentQuestion={parentQ}
           answers={{ 'parent-1': 'Parent Option' }}
           setAnswer={mockSetAnswer}
         />
@@ -413,8 +430,8 @@ describe('AyuNestedRenderer', () => {
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg).toHaveAttribute('width', '16');
-      expect(svg).toHaveAttribute('height', '16');
+      expect(svg).toHaveAttribute('width', '14');
+      expect(svg).toHaveAttribute('height', '14');
     });
   });
 
@@ -687,6 +704,13 @@ describe('AyuNestedRenderer', () => {
     });
 
     it('should have correct parent label styling', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'Parent Option' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -705,59 +729,55 @@ describe('AyuNestedRenderer', () => {
       const { container } = render(
         <AyuNestedRenderer
           items={items}
+          parentQuestion={parentQ}
           answers={{ 'parent-1': 'Parent Option' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      const labelContainer = container.querySelector('.text-\\[\\#20c997\\]');
+      const labelContainer = container.querySelector('.text-emerald-600');
       expect(labelContainer).toBeInTheDocument();
-      expect(labelContainer).toHaveClass('flex', 'items-center', 'gap-2', 'font-medium');
+      expect(labelContainer).toHaveClass('flex', 'items-center', 'gap-2', 'font-semibold');
     });
   });
 
-  describe('getParentAnswerLabel - Fallback Cases', () => {
-    it('should use answerInteger as fallback when answer is undefined', () => {
+  describe('getParentAnswerLabel - Behavior', () => {
+    it('should not show label when parentQuestion is not provided', () => {
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Child Question',
           type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerInteger: 99,
-            },
-          ],
+          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
         },
       ];
 
-      // Answer matches so item is enabled
-      render(
+      const { container } = render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': 99 }}
+          answers={{ 'parent-1': 'yes' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // The label displays the answerInteger value
-      expect(screen.getByText('99')).toBeInTheDocument();
+      // No parentQuestion → getParentAnswerLabel returns null → no label rendered
+      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
     });
 
-    it('should use answerString as fallback when answer is undefined', () => {
+    it('should show label from valueCoding.display when answerCoding.code matches an option', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'code-a', display: 'Option A' } }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'string-fallback',
-            },
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'code-a' } },
           ],
         },
       ];
@@ -765,26 +785,60 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': 'string-fallback' }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'code-a' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      expect(screen.getByText('string-fallback')).toBeInTheDocument();
+      expect(screen.getByText('Option A')).toBeInTheDocument();
     });
 
-    it('should not render parent label when answerBoolean is falsy', () => {
+    it('should show label from valueString when answerString matches an option', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'Yes Option' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: false,
-            },
+            { question: 'parent-1', operator: '=', answerString: 'Yes Option' },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'Yes Option' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByText('Yes Option')).toBeInTheDocument();
+    });
+
+    it('should not show label when no matching answerOption is found in parentQuestion', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'choice',
+          // opt-1 is enabled but parentQ has no option with code 'opt-1'
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
           ],
         },
       ];
@@ -792,93 +846,58 @@ describe('AyuNestedRenderer', () => {
       const { container } = render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': false }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'opt-1' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // answerBoolean: false is falsy, so falls through to answerCoding
-      // answerCoding is undefined, so falls through to selectedAnswer (false)
-      // false doesn't render in React, but the label section shouldn't render
-      // because parentAnswerLabel will be falsy
-      const labelContainer = container.querySelector('.text-\\[\\#20c997\\]');
-      expect(labelContainer).not.toBeInTheDocument();
+      // Item is enabled but no matching option in parentQ → label is null
+      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
     });
 
-    it('should use answerBoolean: true as fallback', () => {
+    it('should not show label when parentQuestion has no answerOption', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        // no answerOption
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: true,
-            },
-          ],
+          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
         },
       ];
 
       const { container } = render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': true }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'yes' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // answerBoolean: true is truthy and is returned
-      // But booleans don't render in React, so no text appears
-      // However the label container should exist
-      const labelContainer = container.querySelector('.text-\\[\\#20c997\\]');
-      expect(labelContainer).toBeInTheDocument();
+      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
     });
 
-    it('should use selectedAnswer as final fallback', () => {
+    it('should use answerCoding.code as the lookup key when other enableWhen types are absent', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'code-x', display: 'Code X Display' } }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'matched-value',
-            },
-          ],
-        },
-      ];
-
-      // When all other fallbacks are undefined, returns selectedAnswer
-      render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': 'matched-value' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('matched-value')).toBeInTheDocument();
-    });
-
-    it('should handle object answer with display property', () => {
-      // To execute object handling code, we need the object to pass isEnabled
-      // We do this by using the same object reference as the expected value
-      const objectAnswer: any = { code: 'test-code', display: 'Test Display' };
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: objectAnswer as any, // Use object as expected value
-            },
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'code-x' } },
           ],
         },
       ];
@@ -886,28 +905,29 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': objectAnswer }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'code-x' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // Object with display property should show the display value
-      expect(screen.getByText('Test Display')).toBeInTheDocument();
+      expect(screen.getByText('Code X Display')).toBeInTheDocument();
     });
 
-    it('should handle object answer with code but no display', () => {
-      const objectAnswer: any = { code: 'test-code' };
+    it('should use answerString as the lookup key when answerBoolean is absent', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'answer-text' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: objectAnswer as any, // Use object as expected value
-            },
+            { question: 'parent-1', operator: '=', answerString: 'answer-text' },
           ],
         },
       ];
@@ -915,66 +935,31 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': objectAnswer }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'answer-text' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // Object without display should use code property
-      expect(screen.getByText('test-code')).toBeInTheDocument();
+      expect(screen.getByText('answer-text')).toBeInTheDocument();
     });
 
-    it('should handle object answer without display or code properties', () => {
-      const objectAnswer: any = { value: 'custom-value' };
+    it('should prefer valueCoding.display over valueString when option has both', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'c1', display: 'Coding Display' }, valueString: 'String Value' },
+        ],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
           type: 'choice',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: objectAnswer as any, // Use object as expected value
-            },
-          ],
-        },
-      ];
-
-      // Object without display or code should be handled gracefully (return null)
-      // The component should not crash when rendering objects without display/code
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': objectAnswer }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // Should render without the parent answer label (since getParentAnswerLabel returns null)
-      // The parent label div should not be rendered
-      const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
-      expect(parentLabelDiv).not.toBeInTheDocument();
-    });
-
-    // Tests for fallback return statement coverage (lines 66-72)
-    // The fallback returns values from enableWhen rules when selectedAnswer is non-primitive
-
-    it('should use answerString from fallback when available (line 68)', () => {
-      // Use array containing the expected value - enables via includes() but triggers fallback
-      const arrayAnswer: any[] = ['fallback-string'];
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'fallback-string', // Matches [fallback-string].includes(fallback-string), returned from fallback
-              answerBoolean: undefined, // Undefined so answerString is used for isEnabled
-            } as any,
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'c1' } },
           ],
         },
       ];
@@ -982,153 +967,77 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': arrayAnswer }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'c1' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // answerString is first in OR chain and renders
-      expect(screen.getByText('fallback-string')).toBeInTheDocument();
+      // valueCoding.display takes priority
+      expect(screen.getByText('Coding Display')).toBeInTheDocument();
+      expect(screen.queryByText('String Value')).not.toBeInTheDocument();
     });
 
-    it('should use answerInteger from fallback when answerString is undefined (line 69)', () => {
-      // Use array containing the expected value - enables via includes() but triggers fallback
-      const arrayAnswer: any[] = [42];
+    it('should not show label for string-type items even when parentQuestion is provided', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'yes' }],
+      };
+
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
+          type: 'string',
           enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: undefined, // Undefined so continues in ?? chain
-              answerString: undefined, // Undefined so continues in ?? chain
-              answerInteger: 42, // Matches [42].includes(42), returned from fallback
-            } as any,
+            { question: 'parent-1', operator: '=', answerString: 'yes' },
           ],
         },
       ];
 
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // isStringType = true suppresses the label section
+      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
+    });
+
+    it('should handle enableWhen with array parent answer via includes check', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'Option A' } }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'choice',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-a' } },
+          ],
+        },
+      ];
+
+      // Array answer: item is enabled because ['opt-a'].includes('opt-a')
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'parent-1': arrayAnswer }}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': ['opt-a'] }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // answerInteger is second in OR chain and renders
-      expect(screen.getByText('42')).toBeInTheDocument();
-    });
-
-    it('should use answerBoolean from fallback when answerString and answerInteger are undefined (line 70)', () => {
-      // Use string 'true' instead of boolean - React doesn't render booleans as text
-      const arrayAnswer: any[] = ['true'];
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: 'true', // Matches ['true'].includes('true'), returned from fallback
-              answerString: undefined, // Undefined so answerBoolean is used
-              answerInteger: undefined, // Undefined
-            } as any,
-          ],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': arrayAnswer }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // answerBoolean ('true' string) is returned from fallback and rendered
-      const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
-      expect(parentLabelDiv).toBeInTheDocument();
-      expect(screen.getByText('true')).toBeInTheDocument();
-    });
-
-    it('should use answerCoding.code from fallback when other types are undefined (line 71)', () => {
-      // Use array containing code - enables via includes() but triggers fallback
-      const arrayAnswer: any[] = ['code-123'];
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: undefined, // Undefined (falsy in OR chain)
-              answerString: undefined, // Undefined (falsy in OR chain)
-              answerInteger: undefined, // Undefined (falsy in OR chain)
-              answerCoding: {
-                code: 'code-123', // Matches [code-123].includes(code-123), returned from fallback
-              },
-            } as any,
-          ],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': arrayAnswer }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // answerCoding.code is fourth in OR chain and rendered as "code-123"
-      const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
-      expect(parentLabelDiv).toBeInTheDocument();
-      expect(screen.getByText('code-123')).toBeInTheDocument();
-    });
-
-    it('should return null from fallback when all answer types are falsy (line 72)', () => {
-      // For line 72: all answer types must be undefined/falsy so null is returned
-      // Use undefined as answer - it's not a primitive string/number/boolean, so reaches fallback
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            {
-              question: 'parent-1',
-              operator: '=',
-              answerBoolean: undefined, // All undefined
-              answerString: undefined,
-              answerInteger: undefined,
-              answerCoding: undefined,
-            } as any,
-          ],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': undefined }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // All undefined in fallback OR chain, returns null
-      // No parent label should be rendered since parentAnswerLabel is null
-      const parentLabelDiv = container.querySelector('.flex.items-center.gap-2.text-\\[\\#20c997\\]');
-      expect(parentLabelDiv).not.toBeInTheDocument();
-      // But the child question should still render since item is enabled (undefined === undefined)
-      expect(screen.getByText('Child Question')).toBeInTheDocument();
+      expect(screen.getByText('Option A')).toBeInTheDocument();
     });
   });
 });

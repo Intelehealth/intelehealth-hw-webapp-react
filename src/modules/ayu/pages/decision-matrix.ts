@@ -11,9 +11,22 @@ export type AyuComponentType =
   | 'multi-select'
   | 'radio'
   | 'selectableOptionGroup'
-  | 'quantity';
+  | 'quantity'
+  | 'associatedSymptoms';
 
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
+  const isAssociatedSymptoms =
+    q.type === 'choice' &&
+    q.extension?.some(
+      ext =>
+        ext.url === 'urn:intelehealth:original-question-text' &&
+        ext.valueString === 'Associated symptoms'
+    );
+
+  if (isAssociatedSymptoms) {
+    return 'associatedSymptoms';
+  }
+
   switch (q.type) {
     case 'group':
       return 'group';

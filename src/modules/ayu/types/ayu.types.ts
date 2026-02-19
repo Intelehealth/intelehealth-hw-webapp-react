@@ -88,4 +88,8 @@ export interface AyuQuestion {
     inputType?: 'radio' | 'select';
     placeholder?: string;
   };
+  extension?: {
+    url: string;
+    valueString?: string;
+  }[];
 }

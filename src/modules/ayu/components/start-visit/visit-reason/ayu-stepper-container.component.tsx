@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
+import { resolveAyuComponent } from '../../../pages/decision-matrix';
 import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
@@ -138,14 +139,18 @@ export const AyuStepperContainer = ({
                     question={question}
                     value={answers[question.linkId]}
                     onChange={val => setAnswer(question, val)}
+                    answers={answers}
+                    setAnswer={setAnswer}
                   />
-                  {question.item && (
-                    <AyuNestedRenderer
-                      items={question.item}
-                      answers={answers}
-                      setAnswer={setAnswer}
-                    />
-                  )}
+                  {question.item &&
+                    resolveAyuComponent(question) !== 'associatedSymptoms' && (
+                      <AyuNestedRenderer
+                        items={question.item}
+                        parentQuestion={question}
+                        answers={answers}
+                        setAnswer={setAnswer}
+                      />
+                    )}
                   {/* ACTION BUTTONS */}
                   {isActive && (
                     <div className="mt-3 flex gap-3 md:justify-end">
@@ -195,17 +200,22 @@ export const AyuStepperContainer = ({
                             isQuantityInvalid(question) ||
                             (question.type === 'choice' &&
                               question.repeats &&
+                              resolveAyuComponent(question) !==
+                                'associatedSymptoms' &&
                               (!Array.isArray(answers[question.linkId]) ||
                                 (answers[question.linkId] as string[])
-                                  .length === 0))
+                                  .length === 0)) ||
+                            (resolveAyuComponent(question) ===
+                              'associatedSymptoms' &&
+                              (!Array.isArray(answers[question.linkId]) ||
+                                (answers[question.linkId] as string[]).length <
+                                  (question.answerOption?.length ?? 0)))
                           }
                           onClick={() => {
                             if (isLast) {
                               onProgressUpdate?.(totalSteps, totalSteps);
-                              onComplete?.(answers);
-                            } else {
-                              goNext();
                             }
+                            goNext();
                           }}
                         >
                           Submit
@@ -220,10 +230,8 @@ export const AyuStepperContainer = ({
                           onClick={() => {
                             if (isLast) {
                               onProgressUpdate?.(totalSteps, totalSteps);
-                              onComplete?.(answers);
-                            } else {
-                              goNext();
                             }
+                            goNext();
                           }}
                         >
                           Skip

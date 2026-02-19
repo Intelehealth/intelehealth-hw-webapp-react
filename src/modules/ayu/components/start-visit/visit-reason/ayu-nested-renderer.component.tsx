@@ -4,12 +4,14 @@ import { AyuRenderer } from './ayu-renderer.component';
 
 interface NestedProps {
   items?: AyuQuestion[];
+  parentQuestion?: AyuQuestion;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
 }
 
 export const AyuNestedRenderer = ({
   items,
+  parentQuestion,
   answers,
   setAnswer,
 }: NestedProps) => {
@@ -35,46 +37,22 @@ export const AyuNestedRenderer = ({
     });
   };
 
-  const getParentAnswerLabel = (
-    item: AyuQuestion
-  ): string | number | boolean | null => {
-    if (!item.enableWhen?.[0]) return null;
+  const getParentAnswerLabel = (item: AyuQuestion): string | null => {
+    if (!item.enableWhen?.length || !parentQuestion) return null;
 
     const rule = item.enableWhen[0];
-    const parentQuestionLinkId = rule.question;
-    const selectedAnswer = answers[parentQuestionLinkId];
 
-    // If the answer is an object with display or code property, use that
-    if (
-      selectedAnswer &&
-      typeof selectedAnswer === 'object' &&
-      !Array.isArray(selectedAnswer)
-    ) {
-      const answerObj = selectedAnswer as unknown as Record<string, unknown>;
-      const display = answerObj.display;
-      const code = answerObj.code;
-      if (typeof display === 'string') return display;
-      if (typeof code === 'string') return code;
-      return null; // Don't return complex objects
-    }
+    const expected =
+      rule.answerBoolean ??
+      rule.answerString ??
+      rule.answerInteger ??
+      rule.answerCoding?.code;
 
-    // Return primitive values only
-    if (
-      typeof selectedAnswer === 'string' ||
-      typeof selectedAnswer === 'number' ||
-      typeof selectedAnswer === 'boolean'
-    ) {
-      return selectedAnswer;
-    }
-
-    // Otherwise, return the expected answer from the rule
-    return (
-      item.enableWhen[0].answerString ||
-      item.enableWhen[0].answerInteger ||
-      item.enableWhen[0].answerBoolean ||
-      item.enableWhen[0].answerCoding?.code ||
-      null
+    const option = parentQuestion.answerOption?.find(
+      opt => opt.valueCoding?.code === expected || opt.valueString === expected
     );
+
+    return option?.valueCoding?.display || option?.valueString || null;
   };
 
   const enabledItems = items.filter(isEnabled);
@@ -85,12 +63,12 @@ export const AyuNestedRenderer = ({
   const isStringType = firstItem?.type === 'string';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-3">
       {!isStringType && parentAnswerLabel && (
-        <div className="flex items-center gap-2 text-[#20c997] font-medium">
+        <div className="flex items-center gap-2 text-emerald-600 font-semibold mt-4">
           <svg
-            width="16"
-            height="16"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
             fill="currentColor"
             className="flex-shrink-0"
@@ -101,7 +79,7 @@ export const AyuNestedRenderer = ({
         </div>
       )}
       {!isStringType && (
-        <div className="text-sm text-gray-500 -mt-2">
+        <div className="text-sm text-gray-500 -mt-4 ml-5">
           {firstItem?.repeats ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
         </div>
       )}

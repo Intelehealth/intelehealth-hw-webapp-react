@@ -30,6 +30,7 @@ describe('componentMap', () => {
         'selectableOptionGroup',
         'multi-select',
         'quantity',
+        'associatedSymptoms',
       ];
 
       expectedKeys.forEach(key => {
@@ -37,9 +38,9 @@ describe('componentMap', () => {
       });
     });
 
-    it('should have exactly 10 component mappings', () => {
+    it('should have exactly 11 component mappings', () => {
       const keys = Object.keys(componentMap);
-      expect(keys).toHaveLength(10);
+      expect(keys).toHaveLength(11);
     });
 
     it('should have group component mapping', () => {
@@ -91,6 +92,11 @@ describe('componentMap', () => {
       expect(componentMap).toHaveProperty('quantity');
       expect(componentMap.quantity).toBeDefined();
     });
+
+    it('should have associatedSymptoms component mapping', () => {
+      expect(componentMap).toHaveProperty('associatedSymptoms');
+      expect(componentMap.associatedSymptoms).toBeDefined();
+    });
   });
 
   describe('Component Values', () => {
@@ -139,6 +145,10 @@ describe('componentMap', () => {
     it('should have quantity component as a function', () => {
       expect(typeof componentMap.quantity).toBe('function');
     });
+
+    it('should have associatedSymptoms component as a function', () => {
+      expect(typeof componentMap.associatedSymptoms).toBe('function');
+    });
   });
 
   describe('Component Names', () => {
@@ -181,6 +191,10 @@ describe('componentMap', () => {
     it('should have AyuDuration component for quantity key', () => {
       expect(componentMap.quantity.name).toBe('AyuDuration');
     });
+
+    it('should have AyuAssociatedSymptoms component for associatedSymptoms key', () => {
+      expect(componentMap.associatedSymptoms.name).toBe('AyuAssociatedSymptoms');
+    });
   });
 
   describe('Access Patterns', () => {
@@ -193,6 +207,7 @@ describe('componentMap', () => {
       expect(componentMap.select).toBeDefined();
       expect(componentMap.selectableOptionGroup).toBeDefined();
       expect(componentMap.quantity).toBeDefined();
+      expect(componentMap.associatedSymptoms).toBeDefined();
     });
 
     it('should allow bracket notation access for hyphenated keys', () => {
@@ -230,6 +245,7 @@ describe('componentMap', () => {
         'selectableOptionGroup',
         'multi-select',
         'quantity',
+        'associatedSymptoms',
       ];
 
       const actualKeys = Object.keys(componentMap);
@@ -257,6 +273,7 @@ describe('componentMap', () => {
       expect(componentMap.group).toBeDefined(); // grouping
       expect(componentMap.display).toBeDefined(); // display only
       expect(componentMap['repeatable-text']).toBeDefined(); // repeatable input
+      expect(componentMap.associatedSymptoms).toBeDefined(); // associated symptoms
     });
   });
 
@@ -273,6 +290,7 @@ describe('componentMap', () => {
         selectableOptionGroup: 'AyuSelectableOptionGroup',
         'multi-select': 'AyuMultiSelect',
         quantity: 'AyuDuration',
+        associatedSymptoms: 'AyuAssociatedSymptoms',
       };
 
       Object.entries(mapping).forEach(([key, expectedName]) => {

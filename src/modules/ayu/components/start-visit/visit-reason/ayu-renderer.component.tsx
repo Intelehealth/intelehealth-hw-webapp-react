@@ -7,6 +7,8 @@ export const AyuRenderer = ({
   previousSibling,
   value,
   onChange,
+  answers,
+  setAnswer,
 }: AyuRendererBaseProps) => {
   if (!question) return null;
 
@@ -20,6 +22,8 @@ export const AyuRenderer = ({
       previousSibling={previousSibling}
       value={value}
       onChange={onChange}
+      answers={answers || {}}
+      setAnswer={(question, value) => setAnswer?.(question, value)}
     />
   );
 };

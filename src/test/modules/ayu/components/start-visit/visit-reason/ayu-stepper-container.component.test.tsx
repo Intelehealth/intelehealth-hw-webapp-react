@@ -62,9 +62,16 @@ vi.mock('../../../../../../modules/ayu/hooks/useFHIRStepper.hook', () => ({
   useFHIRStepper: vi.fn(),
 }));
 
-// Import the mocked function after the mock is set up
+// Mock resolveAyuComponent so we can control associatedSymptoms detection
+vi.mock('../../../../../../modules/ayu/pages/decision-matrix', () => ({
+  resolveAyuComponent: vi.fn(),
+}));
+
+// Import the mocked functions after mocks are set up
 import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
+import { resolveAyuComponent } from '../../../../../../modules/ayu/pages/decision-matrix';
 const mockUseFHIRStepper = vi.mocked(useFHIRStepper);
+const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
 
 describe('AyuStepperContainer', () => {
   const mockOnComplete = vi.fn();
@@ -80,6 +87,8 @@ describe('AyuStepperContainer', () => {
     vi.clearAllMocks();
     // Reset scroll mock
     Element.prototype.scrollIntoView = vi.fn();
+    // Default: resolveAyuComponent returns 'selectableOptionGroup' (not associatedSymptoms)
+    mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
   });
 
   describe('Basic Rendering', () => {
@@ -417,7 +426,7 @@ describe('AyuStepperContainer', () => {
       const submitButton = screen.getByTestId('button-submit');
       fireEvent.click(submitButton);
 
-      expect(mockOnComplete).toHaveBeenCalledWith(answers);
+      expect(mockGoNext).toHaveBeenCalled();
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
     });
 
@@ -717,7 +726,7 @@ describe('AyuStepperContainer', () => {
       const skipButton = screen.getByTestId('button-skip');
       fireEvent.click(skipButton);
 
-      expect(mockOnComplete).toHaveBeenCalledWith(answers);
+      expect(mockGoNext).toHaveBeenCalled();
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
     });
   });
@@ -1589,6 +1598,324 @@ describe('AyuStepperContainer', () => {
 
       // Whitespace-only string shows submit button but should be considered for validation
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+  });
+
+  describe('Associated Symptoms Question Type', () => {
+    it('should show submit button for associatedSymptoms question', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+          { valueCoding: { code: 'cough', display: 'Cough' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['fever', 'NO_cough'] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should disable submit when not all associatedSymptoms options answered', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+          { valueCoding: { code: 'cough', display: 'Cough' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        // Only 1 of 2 options answered
+        answers: { q1: ['fever'] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeDisabled();
+    });
+
+    it('should enable submit when all associatedSymptoms options are answered', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+          { valueCoding: { code: 'cough', display: 'Cough' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        // All 2 options answered (fever yes, cough no)
+        answers: { q1: ['fever', 'NO_cough'] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    it('should NOT render nested renderer for associatedSymptoms question', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        item: [{ linkId: 'nested-q', text: 'Duration', type: 'string' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // associatedSymptoms handles its own nested rendering internally
+      expect(screen.queryByTestId('nested-renderer')).not.toBeInTheDocument();
+    });
+
+    it('should disable submit for associatedSymptoms when answer is not an array', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'not-an-array' },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeDisabled();
+    });
+  });
+
+  describe('Choice with Repeats Submit Button', () => {
+    it('should show submit button for choice type with repeats even without answer', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Multi Select Question',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt1', display: 'Option 1' } },
+          { valueCoding: { code: 'opt2', display: 'Option 2' } },
+        ],
+      };
+
+      // Use default mock (selectableOptionGroup, not associatedSymptoms)
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should disable submit for choice with repeats when no options selected', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Multi Select Question',
+        type: 'choice',
+        repeats: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: [] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeDisabled();
+    });
+
+    it('should enable submit for choice with repeats when at least one option selected', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Multi Select Question',
+        type: 'choice',
+        repeats: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['opt1'] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    it('should NOT show submit for choice without repeats and no duration', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Single Select Question',
+        type: 'choice',
+        repeats: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'opt1' },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Non-repeats choice without duration - no submit button shown
+      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
     });
   });
 });

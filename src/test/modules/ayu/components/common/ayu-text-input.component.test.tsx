@@ -17,14 +17,18 @@ describe('AyuTextInput', () => {
 
   describe('Rendering', () => {
     it('should render text input with label', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
       render(
         <AyuTextInput
-          question={mockQuestion}
+          question={questionWithLabel}
           parent={undefined}
           previousSibling={undefined}
         />
       );
-      expect(screen.getByLabelText('What is your name?')).toBeInTheDocument();
+      expect(screen.getByLabelText('Additional information')).toBeInTheDocument();
       expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
@@ -84,6 +88,44 @@ describe('AyuTextInput', () => {
       expect(input.tagName).toBe('TEXTAREA');
     });
 
+    it('should render label text only when label is "Additional information"', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByText('Additional information')).toBeInTheDocument();
+    });
+
+    it('should not render label text when label is not "Additional information"', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.queryByText('What is your name?')).not.toBeInTheDocument();
+    });
+
+    it('should have placeholder text "Describe..."', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Describe...');
+    });
+
     it('should have correct CSS classes', () => {
       render(
         <AyuTextInput
@@ -93,21 +135,25 @@ describe('AyuTextInput', () => {
         />
       );
       const input = screen.getByRole('textbox');
-      expect(input).toHaveClass('border', 'rounded', 'px-3', 'py-2');
+      expect(input).toHaveClass('border', 'rounded-md', 'px-3', 'py-2');
     });
   });
 
   describe('Label Styling', () => {
     it('should render label with correct CSS classes', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
       render(
         <AyuTextInput
-          question={mockQuestion}
+          question={questionWithLabel}
           parent={undefined}
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('What is your name?');
-      expect(label).toHaveClass('text-sm', 'font-medium', 'text-gray-700');
+      const label = screen.getByText('Additional information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
   });
 

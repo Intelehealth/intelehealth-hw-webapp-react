@@ -1,7 +1,7 @@
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
-import { AyuDropdown } from './ayu-dropdown.component';
 import { DURATION_DROPDOWN_CONFIGS } from '../../utils/constants';
+import { AyuDropdown } from './ayu-dropdown.component';
 
 export function AyuDuration({
   question,
@@ -37,7 +37,7 @@ export function AyuDuration({
   return (
     <div className="space-y-3">
       {label && (
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label className="text-md font-medium text-gray-700">{label}</label>
       )}
 
       {/* Duration Dropdowns */}

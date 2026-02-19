@@ -6,4 +6,6 @@ export interface AyuRendererBaseProps {
   previousSibling?: AyuQuestion;
   value?: AyuAnswerValue;
   onChange?: (value: AyuAnswerValue) => void;
+  answers?: Record<string, AyuAnswerValue>;
+  setAnswer?: (question: AyuQuestion, value: AyuAnswerValue) => void;
 }
