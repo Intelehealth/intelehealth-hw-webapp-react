@@ -13,16 +13,21 @@
 }
 
 .selectable-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 16px 8px 16px;
-  min-width: 120px;
+  min-width: 80px;
   border-radius: 8px;
-  border: 1px solid #20c997;
+  border: 1px solid #0fd197;
   background-color: #ffffff;
   color: #1b163a;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 150%;
+  height: 40px;
 }
 
 .selectable-option:hover {

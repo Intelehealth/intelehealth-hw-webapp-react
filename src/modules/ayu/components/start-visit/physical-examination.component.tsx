@@ -1,52 +1,124 @@
+import { useMemo } from 'react';
 import type { SectionProps } from '../../types/start-visit.types';
 import AyuButton from '../common/ayu-button.component';
 import { QuestionLoader } from '../loaders/question-loader.component';
+import { usePhysicalExam } from '../../hooks/usePhysicalExam';
+import { flattenPhysicalExamQuestions } from '../../utils/physical-exam.utils';
+import physicalExamData from '../../data/physical-exam.data.json';
 
-const TOTAL_QUESTIONS = 8;
+export const PhysicalExamination = ({ onPrevSection }: SectionProps) => {
+  // Flatten the physical exam questions once
+  const flattenedQuestions = useMemo(
+    () => flattenPhysicalExamQuestions(physicalExamData),
+    []
+  );
 
-export const PhysicalExamination = ({
-  questionIndex,
-  onNextQuestion,
-  onPrevQuestion,
-  onPrevSection,
-}: SectionProps) => {
-  const isFirstQuestion = questionIndex === 0;
-  const isLastQuestion = questionIndex === TOTAL_QUESTIONS - 1;
+  const {
+    currentQuestion,
+    currentQuestionIndex,
+    totalQuestions,
+    answers,
+    handleAnswer,
+    handleImageCapture,
+    handleImageRemove,
+    goToNextQuestion,
+    goToPreviousQuestion,
+    isFirstQuestion,
+    isLastQuestion,
+    validation,
+  } = usePhysicalExam(flattenedQuestions);
+
+  const handleAnswerSelect = (answerId: string, isExclusive: boolean) => {
+    if (currentQuestion) {
+      handleAnswer(
+        currentQuestion.id,
+        answerId,
+        currentQuestion.multiChoice,
+        isExclusive
+      );
+
+      // Auto-advance to next question after a short delay
+      // For single choice or exclusive options, go to next immediately
+      if (!currentQuestion.multiChoice || isExclusive) {
+        setTimeout(() => {
+          if (isLastQuestion) {
+            // TODO: FOR TESTING PURPOSE ONLY - VALIDATION COMMENTED OUT
+            // TODO: REVERT THIS LATER TO ENABLE REQUIRED FIELD VALIDATION
+            // // Validate all required questions before finishing
+            // if (!validation.isValid) {
+            //   alert(
+            //     `Please answer all required questions:\n${validation.missingQuestions.join('\n')}`
+            //   );
+            //   return;
+            // }
+            // TODO: Save answers and move to next section
+            // For now, just show completion message
+            alert('Physical examination completed!');
+          } else {
+            goToNextQuestion();
+          }
+        }, 300); // Small delay for visual feedback
+      }
+    }
+  };
+
+
+  if (!currentQuestion) {
+    return (
+      <div className="text-center p-8">
+        <p>Loading physical examination questions...</p>
+      </div>
+    );
+  }
+
+  const selectedAnswer = answers[currentQuestion.id];
+  const capturedImages = (answers[`${currentQuestion.id}_images`] as string[]) || [];
 
   return (
     <div>
-      <div className="flex gap-2 items-center">
-        <QuestionLoader
-          question="Since when have you had this symptom?"
-          questionIndex={questionIndex}
-          totalQuestions={TOTAL_QUESTIONS}
-          onNextQuestion={onNextQuestion}
-        />
-      </div>
+      <QuestionLoader
+        question={currentQuestion.text}
+        questionIndex={currentQuestionIndex}
+        totalQuestions={totalQuestions}
+        onNextQuestion={goToNextQuestion}
+        showAsterisk={false}
+        physicalExamQuestion={currentQuestion}
+        selectedAnswer={selectedAnswer}
+        onAnswerSelect={handleAnswerSelect}
+        onImageCapture={(imageData: string) => handleImageCapture(currentQuestion.id, imageData)}
+        onImageRemove={(imageIndex: number) => handleImageRemove(currentQuestion.id, imageIndex)}
+        capturedImages={capturedImages}
+      />
 
-      <div className="mt-6 gap-3 md:justify-end flex my-4">
-        {/* Back logic */}
-        <AyuButton
-          type="button"
-          variant="secondary"
-          onClick={isFirstQuestion ? onPrevSection : onPrevQuestion}
-          className="w-full md:w-[10%]"
-        >
-          <span className="mx-auto w-full text-base">Back</span>
-        </AyuButton>
-
-        {/* Next logic */}
-        <AyuButton
-          type="submit"
-          variant="primary"
-          onClick={onNextQuestion}
-          className="w-full md:w-[10%]"
-        >
-          <span className="mx-auto w-full text-base">
-            {isLastQuestion ? 'Confirm' : 'Next'}
-          </span>
-        </AyuButton>
-      </div>
+      {/* For multi-choice questions, show a Next button */}
+      {currentQuestion.multiChoice && (
+        <div className="mt-6 flex justify-end">
+          <AyuButton
+            type="button"
+            variant="primary"
+            onClick={() => {
+              if (isLastQuestion) {
+                // TODO: FOR TESTING PURPOSE ONLY - VALIDATION COMMENTED OUT
+                // TODO: REVERT THIS LATER TO ENABLE REQUIRED FIELD VALIDATION
+                // if (!validation.isValid) {
+                //   alert(
+                //     `Please answer all required questions:\n${validation.missingQuestions.join('\n')}`
+                //   );
+                //   return;
+                // }
+                alert('Physical examination completed!');
+              } else {
+                goToNextQuestion();
+              }
+            }}
+            className="w-full md:w-[15%]"
+          >
+            <span className="mx-auto w-full text-base">
+              {isLastQuestion ? 'Confirm' : 'Next'}
+            </span>
+          </AyuButton>
+        </div>
+      )}
     </div>
   );
 };

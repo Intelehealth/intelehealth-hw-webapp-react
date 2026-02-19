@@ -257,9 +257,12 @@ export const useVitals = (onNextQuestion: () => void) => {
 
   // Setup form with validation
   // Only create validation schema if we have config
+  // TODO: FOR TESTING PURPOSE ONLY - VALIDATION COMMENTED OUT
+  // TODO: REVERT THIS LATER TO ENABLE REQUIRED FIELD VALIDATION
   const validationSchema = useMemo(() => {
     if (vitalsConfig.length === 0) return undefined;
-    return createVitalsValidationSchema(vitalsConfig);
+    // return createVitalsValidationSchema(vitalsConfig);
+    return undefined; // Disabled for testing
   }, [vitalsConfig]);
 
   const {
@@ -269,7 +272,8 @@ export const useVitals = (onNextQuestion: () => void) => {
     setValue,
     formState: { errors },
   } = useForm<VitalsFormValues>({
-    resolver: validationSchema ? yupResolver(validationSchema) : undefined,
+    // resolver: validationSchema ? yupResolver(validationSchema) : undefined,
+    resolver: undefined, // Disabled for testing
     mode: 'onChange',
   });
 

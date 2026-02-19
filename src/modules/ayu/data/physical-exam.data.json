@@ -1,0 +1,292 @@
+{
+  "id": "476q4jppos6tg7t3qug97udg17",
+  "text": "Physical Exam",
+  "engineVersion": "3.0",
+  "options": [
+    {
+      "id": "7hrmfqn0krat7sjobfh9rjr5i0",
+      "text": "General exams",
+      "language": "General Exams:",
+      "display-or": "ସାଧାରଣ ପରୀକ୍ଷା",
+      "options": [
+        {
+          "id": "0blae61v5pgt9hcv3fni2ad6nd",
+          "text": "Eyes: Jaundice",
+          "display-or": "ଆଖି: ଜଣ୍ଡିସ୍",
+          "options": [
+            {
+              "id": "5saf8na9hgasnsda8khh7jgqdm",
+              "text": "Is there jaundice?*",
+              "job-aid-type": "image",
+              "job-aid-file": "jaundiceexample",
+              "language": "%",
+              "isRequired": "true",
+              "enable-exclusive-option": "true",
+              "display-or": "କାମଳ ଅଛକି? *",
+              "options": [
+                {
+                  "id": "3gnt6celojtod43p771dq8ivr0",
+                  "text": "No",
+                  "language": "no jaundice seen",
+                  "display-or": "ନାଁ",
+                  "display-hi": "नहीं"
+                },
+                {
+                  "id": "0tniotfjt5upifs5ndt3grbstg",
+                  "text": "Yes",
+                  "language": "jaundice seen",
+                  "display-or": "ହଁ",
+                  "display-hi": "हाँ"
+                },
+                {
+                  "id": "ID_1214278407",
+                  "text": "Take a picture",
+                  "input-type": "camera",
+                  "is-exclusive-option": "true",
+                  "language": "[picture taken]",
+                  "display-or": "ଫଟ ନିଅ",
+                  "display-hi": "चित्र खींचें"
+                }
+              ],
+              "display-hi": "क्या जौंडिस है *"
+            }
+          ],
+          "display-hi": "आंखें: पीलिया रोग"
+        },
+        {
+          "id": "ID_415887386",
+          "text": "Eyes: Pallor",
+          "display-or": "ଆଖି: ପାଲୋରା",
+          "options": [
+            {
+              "id": "3lntlnfs0va65rqdo136utmfmf",
+              "text": "Is there pallor?*",
+              "job-aid-type": "video",
+              "job-aid-file": "conjunctivaexample",
+              "language": "%",
+              "display-or": "ରକ୍ତ ହୀନତା ଅଛି କି? *",
+              "enable-exclusive-option": "true",
+              "isRequired": "true",
+              "options": [
+                {
+                  "id": "2pt0hg68o89t624k0b2ngp16a2",
+                  "text": "Normal",
+                  "language": "normal pallor",
+                  "display-or": "ନାହିଁ",
+                  "display-hi": "सामान्य"
+                },
+                {
+                  "id": "7o55cbfvcet2dtkj43ssip5je9",
+                  "text": "Pale",
+                  "language": "pale pallor",
+                  "display-or": "ଅଛି",
+                  "display-hi": "सफ़ेद"
+                },
+                {
+                  "id": "ID_1954219899",
+                  "text": "Take a picture",
+                  "input-type": "camera",
+                  "language": "[picture taken]",
+                  "display-or": "ଫଟ ନିଅ",
+                  "is-exclusive-option": "true",
+                  "display-hi": "चित्र खींचें"
+                }
+              ],
+              "display-hi": "क्या लाली कम है *"
+            }
+          ],
+          "display-hi": "आँखेंः पेलर (पांडुता)"
+        },
+        {
+          "id": "0gfk4826emivm01aoeltg2lrfb",
+          "text": "Arm",
+          "display-or": "ବାହୁ",
+          "options": [
+            {
+              "id": "6qtsmnaurf40drgsbpf55dbbef",
+              "text": "Pinch skin*",
+              "isRequired": true,
+              "display-or": "ଚମଡ଼ା ପଶିଯିବା*",
+              "options": [
+                {
+                  "id": "2ba1sf5pis2bk3lbe6hqjvm13c",
+                  "text": "Normal",
+                  "language": "pinch test normal",
+                  "display-or": "ହଁ",
+                  "display-hi": "सामान्य"
+                },
+                {
+                  "id": "0u9urrb01daa0g0u9hi5bc2dr5",
+                  "text": "Slow",
+                  "language": "appears slow on pinch test",
+                  "display-or": "ନାଁ",
+                  "display-hi": "धीमा"
+                }
+              ],
+              "display-hi": "त्वचा पर चिकोटी काटें (पिंच करें)*"
+            }
+          ],
+          "display-hi": "बांह"
+        },
+        {
+          "id": "4skk1vd3pgmhh4v0qmt1vff91m",
+          "text": "Nail abnormality",
+          "display-or": "ହାତ",
+          "options": [
+            {
+              "id": "5s4jcisk6ipicrd2k55uvef0gg",
+              "text": "Is there any nail abnormality?*",
+              "job-aid-type": "image",
+              "job-aid-file": "abnormalnails",
+              "language": "%",
+              "isRequired": "true",
+              "enable-exclusive-option": "true",
+              "display-or": "ନଖ ଫୁଲିଛି କି? *",
+              "multi-choice": true,
+              "options": [
+                {
+                  "id": "31mlk01davo6blu1as82mim2u3",
+                  "text": "Nails are normal",
+                  "language": "nails normal",
+                  "display-or": "ଫୁଲା ଅଛି",
+                  "display-hi": "सामान्य हैं",
+                  "exclude-from-multi-choice": true
+                },
+                {
+                  "id": "3fp5hubboifaqe6hn9bsck3rq3",
+                  "text": "Clubbing",
+                  "language": "clubbing",
+                  "display-or": "ନଖ ଚତ୍ମୁଚି ଭଳି ପଶି ଯାଇଛି",
+                  "display-hi": "मुट्ठी जैसा"
+                },
+                {
+                  "id": "6iq8nsiocdpje2eslgao0g5c4s",
+                  "text": "Spoon Nails",
+                  "language": "spoon nails",
+                  "display-or": "ରଙ୍ଗ ପରିବର୍ତ୍ତନ ହେଉଛ",
+                  "display-hi": "चम्मच जैसा"
+                },
+                {
+                  "id": "6luvtcj14erouol995jtnm4rf7",
+                  "text": "Discolored",
+                  "language": "discolored nails",
+                  "display-or": "ଠିକ୍ ଅଛି",
+                  "display-hi": "बेरंगा"
+                },
+                {
+                  "id": "ID_428480652",
+                  "text": "Take a picture",
+                  "input-type": "camera",
+                  "is-exclusive-option": "true",
+                  "language": "[picture taken]",
+                  "display-or": "ଫଟ ନିଅ",
+                  "display-hi": "चित्र खींचें"
+                }
+              ],
+              "display-hi": "क्या नाख़ून सामान्य है *ं"
+            }
+          ],
+          "display-hi": "नाखून में विकृति"
+        },
+        {
+          "id": "ID_888899761",
+          "text": "Nail anemia",
+          "display-or": "ନଖ ର ଆନେମିଆ",
+          "options": [
+            {
+              "id": "ID_1109515145",
+              "text": "Are the nails pale?*",
+              "language": "%",
+              "isRequired": "true",
+              "enable-exclusive-option": "true",
+              "display-or": "ନଖ ରେ ଫିକା ରଂଗ *",
+              "options": [
+                {
+                  "id": "ID_377766203",
+                  "text": "Nails are normal",
+                  "display-or": "ଫିକା ରଂଗ ନାହିଁ",
+                  "display-hi": "सामान्य हैं"
+                },
+                {
+                  "id": "ID_1933772393",
+                  "text": "Nails are pale",
+                  "display-or": "ଫିକା ରଂଗ",
+                  "display-hi": "नाख़ून सफ़ेद हैं"
+                },
+                {
+                  "id": "ID_646885323",
+                  "text": "Take a picture",
+                  "input-type": "camera",
+                  "display-or": "ଫଟ ନିଅ",
+                  "is-exclusive-option": "true",
+                  "language": "[picture taken]",
+                  "display-hi": "चित्र खींचें"
+                }
+              ],
+              "display-hi": "क्या नाख़ून सफ़ेद हैं *"
+            }
+          ],
+          "display-hi": "नेल एनीमिया"
+        },
+        {
+          "id": "0lhp3ulsufnavi3f7o0bdg66s3",
+          "text": "Ankle",
+          "display-or": "ଗୋଇଠି",
+          "options": [
+            {
+              "id": "3ufr8egutqs65irlr8u2gi8iid",
+              "text": "Is there ankle oedema?",
+              "job-aid-type": "image",
+              "job-aid-file": "ankleedemaexample",
+              "language": "%",
+              "display-or": "ଗୋଇଠି ଫୁଲିଛି କି?",
+              "enable-exclusive-option": "true",
+              "options": [
+                {
+                  "id": "7s72difltncg15eq8uk51djqv6",
+                  "text": "No oedema",
+                  "language": "no pedal oedema",
+                  "display-or": "ନାହିଁ",
+                  "display-hi": "सूजन नहीं"
+                },
+                {
+                  "id": "7266ke3fpvk3kv2bplvf7cqcl2",
+                  "text": "In left",
+                  "language": "pedal oedema in left foot",
+                  "display-or": "ବାମ",
+                  "display-hi": "बायीं तरफ"
+                },
+                {
+                  "id": "ID_287551897",
+                  "text": "In right",
+                  "language": "pedal oedema in right foot",
+                  "display-or": "ଡାହାଣ",
+                  "display-hi": "दायीं तरफ"
+                },
+                {
+                  "id": "ID_1390923199",
+                  "text": "Both",
+                  "language": "pedal oedema in both feet",
+                  "display-or": "ଉଭୟ ପଟ",
+                  "display-hi": "दोनों"
+                },
+                {
+                  "id": "ID_1292783417",
+                  "text": "Take a picture",
+                  "input-type": "camera",
+                  "language": "[picture taken]",
+                  "display-or": "ଫଟ ନିଅ",
+                  "is-exclusive-option": "true",
+                  "display-hi": "चित्र खींचें"
+                }
+              ],
+              "display-hi": "टखने में सुजन है क्या"
+            }
+          ],
+          "display-hi": "एड़ी"
+        }
+      ],
+      "display-hi": "सामान्य जाँच"
+    }
+  ]
+}
