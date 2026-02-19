@@ -3,6 +3,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AyuYesNoButton } from '../../../../../modules/ayu/components/common/ayu-yes-no-button.component';
 
+// Mock AyuButton to render a plain <button> so we can inspect className and style directly
+vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () => ({
+  default: vi.fn(({ children, onClick, className, style, disabled, ...props }) => (
+    <button
+      onClick={onClick}
+      className={className}
+      style={style}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </button>
+  )),
+}));
+
 describe('AyuYesNoButton', () => {
   describe('Rendering', () => {
     it('should render both Yes and No buttons', () => {
@@ -11,75 +26,102 @@ describe('AyuYesNoButton', () => {
       expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
     });
 
-    it('should render with no selected value (null)', () => {
+    it('should render inside a flex container', () => {
+      const { container } = render(<AyuYesNoButton value={null} onChange={vi.fn()} />);
+      expect(container.firstChild).toHaveClass('flex', 'gap-2');
+    });
+  });
+
+  describe('getButtonClass — inactive (value is null)', () => {
+    it('Yes button should have inactive class when value is null', () => {
       render(<AyuYesNoButton value={null} onChange={vi.fn()} />);
       const yesButton = screen.getByRole('button', { name: /yes/i });
-      const noButton = screen.getByRole('button', { name: /no/i });
       expect(yesButton).toHaveClass('bg-white', 'text-gray-700');
-      expect(noButton).toHaveClass('bg-white', 'text-gray-700');
     });
 
-    it('should apply active styles to Yes button when value is "Yes"', () => {
+    it('No button should have inactive class when value is null', () => {
+      render(<AyuYesNoButton value={null} onChange={vi.fn()} />);
+      const noButton = screen.getByRole('button', { name: /no/i });
+      expect(noButton).toHaveClass('bg-white', 'text-gray-700');
+    });
+  });
+
+  describe('getButtonClass — active', () => {
+    it('Yes button should have active class when value is "Yes"', () => {
       render(<AyuYesNoButton value="Yes" onChange={vi.fn()} />);
       const yesButton = screen.getByRole('button', { name: /yes/i });
       expect(yesButton).toHaveClass('text-white');
-      expect(yesButton).not.toHaveClass('bg-white', 'text-gray-700');
+      expect(yesButton).not.toHaveClass('bg-white');
     });
 
-    it('should apply inactive styles to No button when value is "Yes"', () => {
+    it('No button should have inactive class when value is "Yes"', () => {
       render(<AyuYesNoButton value="Yes" onChange={vi.fn()} />);
       const noButton = screen.getByRole('button', { name: /no/i });
       expect(noButton).toHaveClass('bg-white', 'text-gray-700');
     });
 
-    it('should apply active styles to No button when value is "No"', () => {
+    it('No button should have active class when value is "No"', () => {
       render(<AyuYesNoButton value="No" onChange={vi.fn()} />);
       const noButton = screen.getByRole('button', { name: /no/i });
       expect(noButton).toHaveClass('text-white');
-      expect(noButton).not.toHaveClass('bg-white', 'text-gray-700');
+      expect(noButton).not.toHaveClass('bg-white');
     });
 
-    it('should apply inactive styles to Yes button when value is "No"', () => {
+    it('Yes button should have inactive class when value is "No"', () => {
       render(<AyuYesNoButton value="No" onChange={vi.fn()} />);
       const yesButton = screen.getByRole('button', { name: /yes/i });
       expect(yesButton).toHaveClass('bg-white', 'text-gray-700');
     });
   });
 
-  describe('Styles', () => {
-    it('should apply default activeColor to Yes button when selected', () => {
+  describe('getButtonStyle — active', () => {
+    it('should apply default activeColor style to Yes when selected', () => {
       render(<AyuYesNoButton value="Yes" onChange={vi.fn()} />);
-      const yesButton = screen.getByRole('button', { name: /yes/i });
-      expect(yesButton).toHaveStyle({ backgroundColor: '#0fd197' });
+      expect(screen.getByRole('button', { name: /yes/i })).toHaveStyle({
+        backgroundColor: '#0fd197',
+      });
     });
 
-    it('should apply custom activeColor to Yes button when selected', () => {
+    it('should apply custom activeColor style to Yes when selected', () => {
       render(<AyuYesNoButton value="Yes" onChange={vi.fn()} activeColor="#ff0000" />);
-      const yesButton = screen.getByRole('button', { name: /yes/i });
-      expect(yesButton).toHaveStyle({ backgroundColor: '#ff0000' });
+      expect(screen.getByRole('button', { name: /yes/i })).toHaveStyle({
+        backgroundColor: '#ff0000',
+      });
     });
 
-    it('should apply default activeColor to No button when selected', () => {
+    it('should apply default activeColor style to No when selected', () => {
       render(<AyuYesNoButton value="No" onChange={vi.fn()} />);
-      const noButton = screen.getByRole('button', { name: /no/i });
-      expect(noButton).toHaveStyle({ backgroundColor: '#0fd197' });
+      expect(screen.getByRole('button', { name: /no/i })).toHaveStyle({
+        backgroundColor: '#0fd197',
+      });
     });
 
-    it('should apply custom activeColor to No button when selected', () => {
+    it('should apply custom activeColor style to No when selected', () => {
       render(<AyuYesNoButton value="No" onChange={vi.fn()} activeColor="#123456" />);
-      const noButton = screen.getByRole('button', { name: /no/i });
-      expect(noButton).toHaveStyle({ backgroundColor: '#123456' });
+      expect(screen.getByRole('button', { name: /no/i })).toHaveStyle({
+        backgroundColor: '#123456',
+      });
+    });
+  });
+
+  describe('getButtonStyle — inactive', () => {
+    it('should not apply backgroundColor to unselected Yes when value is "No"', () => {
+      render(<AyuYesNoButton value="No" onChange={vi.fn()} activeColor="#ff0000" />);
+      expect(screen.getByRole('button', { name: /yes/i })).not.toHaveStyle({
+        backgroundColor: '#ff0000',
+      });
     });
 
-    it('should not apply activeColor to unselected buttons', () => {
+    it('should not apply backgroundColor to unselected No when value is "Yes"', () => {
       render(<AyuYesNoButton value="Yes" onChange={vi.fn()} activeColor="#ff0000" />);
-      const noButton = screen.getByRole('button', { name: /no/i });
-      expect(noButton).not.toHaveStyle({ backgroundColor: '#ff0000' });
+      expect(screen.getByRole('button', { name: /no/i })).not.toHaveStyle({
+        backgroundColor: '#ff0000',
+      });
     });
   });
 
   describe('Click Handlers', () => {
-    it('should call onChange with "Yes" when Yes button is clicked', async () => {
+    it('should call onChange with "Yes" when Yes is clicked', async () => {
       const handleChange = vi.fn();
       const user = userEvent.setup();
       render(<AyuYesNoButton value={null} onChange={handleChange} />);
@@ -88,7 +130,7 @@ describe('AyuYesNoButton', () => {
       expect(handleChange).toHaveBeenCalledTimes(1);
     });
 
-    it('should call onChange with "No" when No button is clicked', async () => {
+    it('should call onChange with "No" when No is clicked', async () => {
       const handleChange = vi.fn();
       const user = userEvent.setup();
       render(<AyuYesNoButton value={null} onChange={handleChange} />);
@@ -97,7 +139,7 @@ describe('AyuYesNoButton', () => {
       expect(handleChange).toHaveBeenCalledTimes(1);
     });
 
-    it('should call onChange again when clicking already selected value', async () => {
+    it('should call onChange even when clicking the already-selected value', async () => {
       const handleChange = vi.fn();
       const user = userEvent.setup();
       render(<AyuYesNoButton value="Yes" onChange={handleChange} />);
@@ -107,13 +149,13 @@ describe('AyuYesNoButton', () => {
   });
 
   describe('Disabled State', () => {
-    it('should disable both buttons when disabled prop is true', () => {
+    it('should disable both buttons when disabled is true', () => {
       render(<AyuYesNoButton value={null} onChange={vi.fn()} disabled />);
       expect(screen.getByRole('button', { name: /yes/i })).toBeDisabled();
       expect(screen.getByRole('button', { name: /no/i })).toBeDisabled();
     });
 
-    it('should not call onChange when Yes button is disabled and clicked', async () => {
+    it('should not call onChange when Yes is disabled', async () => {
       const handleChange = vi.fn();
       const user = userEvent.setup();
       render(<AyuYesNoButton value={null} onChange={handleChange} disabled />);
@@ -121,7 +163,7 @@ describe('AyuYesNoButton', () => {
       expect(handleChange).not.toHaveBeenCalled();
     });
 
-    it('should not call onChange when No button is disabled and clicked', async () => {
+    it('should not call onChange when No is disabled', async () => {
       const handleChange = vi.fn();
       const user = userEvent.setup();
       render(<AyuYesNoButton value={null} onChange={handleChange} disabled />);
@@ -129,7 +171,7 @@ describe('AyuYesNoButton', () => {
       expect(handleChange).not.toHaveBeenCalled();
     });
 
-    it('should not disable buttons when disabled prop is false (default)', () => {
+    it('should not disable buttons when disabled is false (default)', () => {
       render(<AyuYesNoButton value={null} onChange={vi.fn()} />);
       expect(screen.getByRole('button', { name: /yes/i })).not.toBeDisabled();
       expect(screen.getByRole('button', { name: /no/i })).not.toBeDisabled();

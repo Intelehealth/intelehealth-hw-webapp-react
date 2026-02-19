@@ -10,7 +10,8 @@ export type AyuComponentType =
   | 'select'
   | 'multi-select'
   | 'radio'
-  | 'selectableOptionGroup';
+  | 'selectableOptionGroup'
+  | 'quantity';
 
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
   switch (q.type) {
@@ -31,9 +32,10 @@ export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
       return 'date';
 
     case 'choice':
-      // if (q.ui?.inputType === 'radio') return 'radio';
-      //return q.repeats ? 'multi-select' : 'select';
       return 'selectableOptionGroup';
+
+    case 'quantity':
+      return 'quantity';
 
     default:
       return 'text';

@@ -1,12 +1,15 @@
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../types/ayu.types';
 
 export function AyuSelect({
   question,
   parent,
   previousSibling,
 }: AyuRendererBaseProps) {
-  const label = resolveLabel(question, parent, previousSibling);
+  const label = question
+    ? resolveLabel(question, parent, previousSibling)
+    : undefined;
   const selectId = `ayu-select-${question?.linkId}`;
 
   return (
@@ -16,8 +19,11 @@ export function AyuSelect({
           {label}
         </label>
       )}
-      <select id={selectId} className="w-full border rounded px-3 py-2">
-        {question?.answerOption?.map((opt, i) => (
+      <select
+        id={selectId}
+        className="bg-white border border-emerald-400 rounded-lg px-3 py-2 focus:outline-none focus:ring-0 focus:border-emerald-400 appearance-none"
+      >
+        {question?.answerOption?.map((opt: AyuAnswerOption, i: number) => (
           <option key={i} value={opt.valueString}>
             {opt?.valueString || opt?.valueCoding?.display}
           </option>

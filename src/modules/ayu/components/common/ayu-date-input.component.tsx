@@ -6,7 +6,9 @@ export function AyuDateInput({
   parent,
   previousSibling,
 }: AyuRendererBaseProps) {
-  const label = resolveLabel(question, parent, previousSibling);
+  const label = question
+    ? resolveLabel(question, parent, previousSibling)
+    : undefined;
   const inputId = `ayu-date-${question?.linkId}`;
 
   return (

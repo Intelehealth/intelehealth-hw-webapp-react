@@ -1,7 +1,7 @@
 import type { AyuQuestion } from '../../types/ayu.types';
-import { AyuRenderer } from '../ayu-renderer.component';
+import { AyuRenderer } from '../start-visit/visit-reason/ayu-renderer.component';
 
-export function AyuGroup({ question }: { question: AyuQuestion }) {
+export function AyuGroup({ question }: { question?: AyuQuestion }) {
   return (
     <div className="space-y-4 bg-gray-50 p-4 rounded-md border border-gray-200">
       {question?.text && (
