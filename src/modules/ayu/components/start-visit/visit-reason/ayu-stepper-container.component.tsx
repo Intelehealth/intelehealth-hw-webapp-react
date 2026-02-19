@@ -146,6 +146,7 @@ export const AyuStepperContainer = ({
                     resolveAyuComponent(question) !== 'associatedSymptoms' && (
                       <AyuNestedRenderer
                         items={question.item}
+                        parentQuestion={question}
                         answers={answers}
                         setAnswer={setAnswer}
                       />

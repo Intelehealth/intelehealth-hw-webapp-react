@@ -105,6 +105,7 @@ export const AyuAssociatedSymptoms = ({
       {question.item && (
         <AyuNestedRenderer
           items={question.item}
+          parentQuestion={question}
           answers={{ ...answers, [question.linkId]: yesValues }}
           setAnswer={setAnswer}
         />
