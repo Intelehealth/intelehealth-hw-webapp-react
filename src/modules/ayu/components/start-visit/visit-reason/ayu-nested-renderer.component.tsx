@@ -85,7 +85,7 @@ export const AyuNestedRenderer = ({
   const isStringType = firstItem?.type === 'string';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-3">
       {!isStringType && parentAnswerLabel && (
         <div className="flex items-center gap-2 text-[#20c997] font-medium">
           <svg

@@ -262,6 +262,97 @@ describe('decision-matrix', () => {
       });
     });
 
+    describe('Associated Symptoms Resolution', () => {
+      it('should return "associatedSymptoms" for choice type with associated symptoms extension', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('associatedSymptoms');
+      });
+
+      it('should return "associatedSymptoms" when extension present with repeats', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-assoc-repeat',
+          type: 'choice',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('associatedSymptoms');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension url does not match', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-wrong-url',
+          type: 'choice',
+          extension: [
+            {
+              url: 'urn:intelehealth:other-extension',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" when valueString does not match', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-wrong-value',
+          type: 'choice',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Chief complaint',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" for non-choice type even with the extension', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-string-ext',
+          type: 'string',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).not.toBe('associatedSymptoms');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension array is empty', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-empty-ext',
+          type: 'choice',
+          extension: [],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension is absent', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-no-ext',
+          type: 'choice',
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+    });
+
     describe('Choice Type Resolution', () => {
       it('should return "selectableOptionGroup" for choice type questions', () => {
         const question: AyuQuestion = {
@@ -657,6 +748,7 @@ describe('decision-matrix', () => {
         'radio',
         'selectableOptionGroup',
         'quantity',
+        'associatedSymptoms',
       ];
 
       validTypes.forEach(type => {

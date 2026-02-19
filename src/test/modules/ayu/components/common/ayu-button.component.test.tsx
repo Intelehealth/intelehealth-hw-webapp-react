@@ -28,6 +28,12 @@ describe('AyuButton', () => {
       expect(button).toHaveClass('btn-primary-light-variant');
     });
 
+    it('should render with white variant', () => {
+      render(<AyuButton variant="white">White</AyuButton>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('btn-white-variant');
+    });
+
     it('should render with default size (md)', () => {
       render(<AyuButton>Medium Button</AyuButton>);
       const button = screen.getByRole('button');

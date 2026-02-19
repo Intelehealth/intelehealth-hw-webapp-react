@@ -2887,4 +2887,175 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(0);
     });
   });
+
+  describe('Mutually Exclusive Options (Multi-Select)', () => {
+    const questionWithMutuallyExclusive = {
+      item: [
+        {
+          linkId: 'q1',
+          text: 'Multi Select',
+          type: 'choice',
+          repeats: true,
+          answerOption: [
+            {
+              valueCoding: { code: 'opt1', display: 'Option 1' },
+            },
+            {
+              valueCoding: { code: 'opt2', display: 'Option 2' },
+            },
+            {
+              valueCoding: { code: 'none', display: 'None of the above' },
+              extension: [
+                { url: 'urn:intelehealth:mutually-exclusive', valueBoolean: true },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should store array directly when value is pre-computed array', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, ['opt1', 'NO_opt2']);
+      });
+
+      expect(result.current.answers['q1']).toEqual(['opt1', 'NO_opt2']);
+    });
+
+    it('should add non-exclusive option to array when not already selected', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+
+      expect(result.current.answers['q1']).toEqual(['opt1']);
+    });
+
+    it('should remove non-exclusive option when it is already selected (toggle off)', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+
+      expect(result.current.answers['q1']).toEqual([]);
+    });
+
+    it('should replace all selections with mutually exclusive option when clicked', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+      act(() => {
+        result.current.setAnswer(q1, 'opt2');
+      });
+
+      // Now click the mutually exclusive option
+      act(() => {
+        result.current.setAnswer(q1, 'none');
+      });
+
+      expect(result.current.answers['q1']).toEqual(['none']);
+    });
+
+    it('should deselect mutually exclusive option when clicked again (toggle off)', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, 'none');
+      });
+
+      // Click mutually exclusive again to deselect
+      act(() => {
+        result.current.setAnswer(q1, 'none');
+      });
+
+      expect(result.current.answers['q1']).toEqual([]);
+    });
+
+    it('should remove mutually exclusive option when a non-exclusive option is clicked', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      // First select the exclusive option
+      act(() => {
+        result.current.setAnswer(q1, 'none');
+      });
+
+      expect(result.current.answers['q1']).toEqual(['none']);
+
+      // Now click a normal option - should remove 'none' and add 'opt1'
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+
+      expect(result.current.answers['q1']).toEqual(['opt1']);
+    });
+
+    it('should accumulate multiple non-exclusive options', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionWithMutuallyExclusive, autoNext: false })
+      );
+      const q1 = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+      act(() => {
+        result.current.setAnswer(q1, 'opt2');
+      });
+
+      expect(result.current.answers['q1']).toEqual(['opt1', 'opt2']);
+    });
+
+    it('should not auto-advance for repeats choice question even when answered', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: {
+            item: [
+              { ...questionWithMutuallyExclusive.item[0] },
+              { linkId: 'q2', text: 'Question 2', type: 'string', required: false },
+            ],
+          },
+          autoNext: true,
+        })
+      );
+
+      const q1 = result.current.topLevelItems[0];
+      act(() => {
+        result.current.setAnswer(q1, 'opt1');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // Should NOT auto-advance because repeats choice requires manual submit
+      expect(result.current.currentIndex).toBe(0);
+    });
+  });
 });

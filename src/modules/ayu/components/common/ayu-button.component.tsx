@@ -2,7 +2,7 @@ import React, { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cn } from '../../utils/cn';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'primarylight';
+  variant?: 'primary' | 'secondary' | 'primarylight' | 'white';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   loadingText?: string;
@@ -36,6 +36,7 @@ const AyuButton = forwardRef<HTMLButtonElement, ButtonProps>(
       primary: cn('btn-primary-variant'),
       primarylight: cn('btn-primary-light-variant'),
       secondary: cn('btn-secondary-variant'),
+      white: cn('btn-white-variant'),
     };
 
     const sizeClasses = {

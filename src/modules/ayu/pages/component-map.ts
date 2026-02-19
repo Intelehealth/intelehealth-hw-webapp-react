@@ -1,3 +1,4 @@
+import { AyuAssociatedSymptoms } from '../components/common/ayu-associated-symptoms.component';
 import { AyuDateInput } from '../components/common/ayu-date-input.component';
 import { AyuDisplayText } from '../components/common/ayu-display-text.component';
 import { AyuDuration } from '../components/common/ayu-duration.component';
@@ -20,4 +21,5 @@ export const componentMap = {
   selectableOptionGroup: AyuSelectableOptionGroup,
   'multi-select': AyuMultiSelect,
   quantity: AyuDuration,
+  associatedSymptoms: AyuAssociatedSymptoms,
 };

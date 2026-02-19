@@ -74,36 +74,44 @@ export const useFHIRStepper = (
 
       // Handle repeats (multi-select toggle)
       if (question.type === 'choice' && question.repeats) {
-        const currentValue = prev[linkId];
-        const currentArray: string[] = Array.isArray(currentValue)
-          ? currentValue
-          : [];
-
-        const selectedValue = value as string;
-
-        const isExclusive = isMutuallyExclusiveOption(question, selectedValue);
-
-        // If clicked option is mutually exclusive
-        if (isExclusive) {
-          // If already selected → unselect
-          if (currentArray.includes(selectedValue)) {
-            finalValue = [];
-          } else {
-            // Replace all with only this option
-            finalValue = [selectedValue];
-          }
+        if (Array.isArray(value)) {
+          // Value is a pre-computed array (e.g. from AyuAssociatedSymptoms) — store directly.
+          finalValue = value;
         } else {
-          // Normal option clicked
+          const currentValue = prev[linkId];
+          const currentArray: string[] = Array.isArray(currentValue)
+            ? currentValue
+            : [];
 
-          // Remove any mutually exclusive option from array
-          const filtered = currentArray.filter(code => {
-            return !isMutuallyExclusiveOption(question, code);
-          });
+          const selectedValue = value as string;
 
-          if (filtered.includes(selectedValue)) {
-            finalValue = filtered.filter(v => v !== selectedValue);
+          const isExclusive = isMutuallyExclusiveOption(
+            question,
+            selectedValue
+          );
+
+          // If clicked option is mutually exclusive
+          if (isExclusive) {
+            // If already selected → unselect
+            if (currentArray.includes(selectedValue)) {
+              finalValue = [];
+            } else {
+              // Replace all with only this option
+              finalValue = [selectedValue];
+            }
           } else {
-            finalValue = [...filtered, selectedValue];
+            // Normal option clicked
+
+            // Remove any mutually exclusive option from array
+            const filtered = currentArray.filter(code => {
+              return !isMutuallyExclusiveOption(question, code);
+            });
+
+            if (filtered.includes(selectedValue)) {
+              finalValue = filtered.filter(v => v !== selectedValue);
+            } else {
+              finalValue = [...filtered, selectedValue];
+            }
           }
         }
       }
