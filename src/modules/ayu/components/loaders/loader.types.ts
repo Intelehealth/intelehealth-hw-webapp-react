@@ -6,12 +6,14 @@ interface SectionProgress {
 interface SectionCompletionLoaderProps {
   sections: SectionProgress[]; // length = 4
   currentSectionIndex: number; // 0-based
-  currentQuestionIndex: number; // 0-based
 }
 
 interface SideLoaderProps {
-  totalQuestions: number;
-  currentQuestionIndex: number; // 0-based
+  sections: {
+    totalQuestions: number;
+  }[];
+  currentSectionIndex: number;
+  currentQuestionIndex: number;
 }
 
 export type { SectionCompletionLoaderProps, SectionProgress, SideLoaderProps };

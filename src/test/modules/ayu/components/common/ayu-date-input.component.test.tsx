@@ -149,6 +149,19 @@ describe('AyuDateInput', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      render(
+        <AyuDateInput
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const input = document.querySelector('input[type="date"]');
+      expect(input).toBeInTheDocument();
+      expect(screen.queryByRole('label')).not.toBeInTheDocument();
+    });
+
     it('should handle question with empty string text', () => {
       const emptyTextQuestion: AyuQuestion = {
         ...mockQuestion,

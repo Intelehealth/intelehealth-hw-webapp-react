@@ -1,6 +1,6 @@
+import { useVitals } from '../../hooks/useVitals';
 import type { SectionProps } from '../../types/start-visit.types';
 import type { VitalField, VitalsFormValues } from '../../types/vitals.types';
-import { useVitals } from '../../hooks/useVitals';
 import AyuButton from '../common/ayu-button.component';
 
 const TOTAL_QUESTIONS = 10;

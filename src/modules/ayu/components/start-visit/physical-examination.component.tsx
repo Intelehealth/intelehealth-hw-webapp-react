@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
+import physicalExamData from '../../data/physical-exam.data.json';
+import { usePhysicalExam } from '../../hooks/usePhysicalExam';
 import type { SectionProps } from '../../types/start-visit.types';
+import { flattenPhysicalExamQuestions } from '../../utils/physical-exam.utils';
 import AyuButton from '../common/ayu-button.component';
 import { QuestionLoader } from '../loaders/question-loader.component';
-import { usePhysicalExam } from '../../hooks/usePhysicalExam';
-import { flattenPhysicalExamQuestions } from '../../utils/physical-exam.utils';
-import physicalExamData from '../../data/physical-exam.data.json';
 
 export const PhysicalExamination = ({ onPrevSection }: SectionProps) => {
   // Flatten the physical exam questions once
@@ -62,7 +62,6 @@ export const PhysicalExamination = ({ onPrevSection }: SectionProps) => {
     }
   };
 
-
   if (!currentQuestion) {
     return (
       <div className="text-center p-8">
@@ -72,7 +71,8 @@ export const PhysicalExamination = ({ onPrevSection }: SectionProps) => {
   }
 
   const selectedAnswer = answers[currentQuestion.id];
-  const capturedImages = (answers[`${currentQuestion.id}_images`] as string[]) || [];
+  const capturedImages =
+    (answers[`${currentQuestion.id}_images`] as string[]) || [];
 
   return (
     <div>
@@ -85,8 +85,12 @@ export const PhysicalExamination = ({ onPrevSection }: SectionProps) => {
         physicalExamQuestion={currentQuestion}
         selectedAnswer={selectedAnswer}
         onAnswerSelect={handleAnswerSelect}
-        onImageCapture={(imageData: string) => handleImageCapture(currentQuestion.id, imageData)}
-        onImageRemove={(imageIndex: number) => handleImageRemove(currentQuestion.id, imageIndex)}
+        onImageCapture={(imageData: string) =>
+          handleImageCapture(currentQuestion.id, imageData)
+        }
+        onImageRemove={(imageIndex: number) =>
+          handleImageRemove(currentQuestion.id, imageIndex)
+        }
         capturedImages={capturedImages}
       />
 

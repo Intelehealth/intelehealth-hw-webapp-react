@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { transformFhirToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
-import { AyuRenderer } from '../components/ayu-renderer.component';
 import { StartVisit } from '../components/start-visit/start-visit.component';
+import { AyuRenderer } from '../components/start-visit/visit-reason/ayu-renderer.component';
 import fhirJson from './Cough.questionnaire.json';
 
 const ayuSchema = transformFhirToAyu(fhirJson);

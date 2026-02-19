@@ -21,6 +21,7 @@ vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () 
 
 describe('Vitals Component', () => {
   const mockOnNextQuestion = vi.fn();
+  const mockOnPrevQuestion = vi.fn();
   const mockHandleSubmit = vi.fn((callback) => (e: any) => {
     e?.preventDefault();
     callback();
@@ -135,7 +136,7 @@ describe('Vitals Component', () => {
         isLoading: true,
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
       expect(screen.getByText('Loading vitals configuration...')).toBeInTheDocument();
     });
 
@@ -145,19 +146,19 @@ describe('Vitals Component', () => {
         isLoading: true,
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
       expect(screen.queryByRole('button', { name: /Next/i })).not.toBeInTheDocument();
     });
   });
 
   describe('Form Rendering', () => {
     it('should render form when not loading', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
     it('should render all three sections with correct titles', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText("Enter patient's body measurement details")).toBeInTheDocument();
       expect(screen.getByText("Enter the patient's vitals")).toBeInTheDocument();
@@ -172,7 +173,7 @@ describe('Vitals Component', () => {
         otherFields: [],
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.queryByText("Enter patient's body measurement details")).not.toBeInTheDocument();
       expect(screen.queryByText("Enter the patient's vitals")).not.toBeInTheDocument();
@@ -182,7 +183,7 @@ describe('Vitals Component', () => {
 
   describe('Field Rendering', () => {
     it('should render all body measurement fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Height (cm)')).toBeInTheDocument();
       expect(screen.getByText('Weight (kg)')).toBeInTheDocument();
@@ -190,7 +191,7 @@ describe('Vitals Component', () => {
     });
 
     it('should render all vital fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('BP Systolic')).toBeInTheDocument();
       expect(screen.getByText('BP Diastolic')).toBeInTheDocument();
@@ -198,21 +199,21 @@ describe('Vitals Component', () => {
     });
 
     it('should render all other fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Blood Group')).toBeInTheDocument();
       expect(screen.getByText('Waist to Hip Ratio (WHR)')).toBeInTheDocument();
     });
 
     it('should show mandatory indicator for required fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const heightLabel = screen.getByText('Height (cm)').parentElement;
       expect(heightLabel?.textContent).toContain('*');
     });
 
     it('should not show mandatory indicator for optional fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const bpSystolicLabel = screen.getByText('BP Systolic').parentElement;
       const asterisks = bpSystolicLabel?.querySelectorAll('.text-red-500');
@@ -220,7 +221,7 @@ describe('Vitals Component', () => {
     });
 
     it('should render input fields with correct placeholders', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByPlaceholderText('E.g., 172 cm')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('E.g., 63 kg')).toBeInTheDocument();
@@ -230,21 +231,21 @@ describe('Vitals Component', () => {
 
   describe('Read-only Fields', () => {
     it('should make BMI field read-only', () => {
-      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const bmiInput = container.querySelector('input[name="bmi"]');
       expect(bmiInput).toHaveAttribute('readonly');
     });
 
     it('should make Waist to Hip Ratio field read-only', () => {
-      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const whrInput = container.querySelector('input[name="waist_to_hip_ratio"]');
       expect(whrInput).toHaveAttribute('readonly');
     });
 
     it('should apply read-only styling to BMI field', () => {
-      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const bmiInput = container.querySelector('input[name="bmi"]');
       expect(bmiInput).toHaveClass('bg-gray-50', 'cursor-not-allowed');
@@ -259,7 +260,7 @@ describe('Vitals Component', () => {
       });
       mockGetBMIStatus.mockReturnValue('Normal');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('(Normal)')).toBeInTheDocument();
     });
@@ -271,7 +272,7 @@ describe('Vitals Component', () => {
       });
       mockGetBMIStatus.mockReturnValue('Normal');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const statusElement = screen.getByText('(Normal)');
       expect(statusElement).toHaveClass('text-green-600');
@@ -284,7 +285,7 @@ describe('Vitals Component', () => {
       });
       mockGetBMIStatus.mockReturnValue('Underweight');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const statusElement = screen.getByText('(Underweight)');
       expect(statusElement).toHaveClass('text-yellow-600');
@@ -297,7 +298,7 @@ describe('Vitals Component', () => {
       });
       mockGetBMIStatus.mockReturnValue('Overweight');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const statusElement = screen.getByText('(Overweight)');
       expect(statusElement).toHaveClass('text-yellow-600');
@@ -310,7 +311,7 @@ describe('Vitals Component', () => {
       });
       mockGetBMIStatus.mockReturnValue('Obese');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const statusElement = screen.getByText('(Obese)');
       expect(statusElement).toHaveClass('text-red-600');
@@ -319,7 +320,7 @@ describe('Vitals Component', () => {
     it('should not display BMI status when BMI value is undefined', () => {
       mockWatch.mockReturnValue(undefined);
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.queryByText(/Normal|Underweight|Overweight|Obese/)).not.toBeInTheDocument();
     });
@@ -339,7 +340,7 @@ describe('Vitals Component', () => {
         return undefined;
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('BP Dia is too high. This should be a priority visit')).toBeInTheDocument();
     });
@@ -357,7 +358,7 @@ describe('Vitals Component', () => {
         return undefined;
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.queryByText('BP Dia is too high. This should be a priority visit')).not.toBeInTheDocument();
     });
@@ -376,7 +377,7 @@ describe('Vitals Component', () => {
         return undefined;
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockIsBPHighFn).toHaveBeenCalledWith(150, 95);
     });
@@ -391,7 +392,7 @@ describe('Vitals Component', () => {
         },
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Height must be between 50 and 250 cm')).toBeInTheDocument();
     });
@@ -404,7 +405,7 @@ describe('Vitals Component', () => {
         },
       });
 
-      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const errorIcon = container.querySelector('svg.text-red-500');
       expect(errorIcon).toBeInTheDocument();
@@ -418,7 +419,7 @@ describe('Vitals Component', () => {
         },
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const weightInput = screen.getByPlaceholderText('E.g., 63 kg');
       expect(weightInput).toHaveClass('border-red-500');
@@ -430,7 +431,7 @@ describe('Vitals Component', () => {
         errors: {},
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const heightInput = screen.getByPlaceholderText('E.g., 172 cm');
       expect(heightInput).not.toHaveClass('border-red-500');
@@ -440,7 +441,7 @@ describe('Vitals Component', () => {
   describe('Form Submission', () => {
     it('should call handleSubmit when form is submitted', async () => {
       const user = userEvent.setup();
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const submitButton = screen.getByRole('button');
       await user.click(submitButton);
@@ -450,7 +451,7 @@ describe('Vitals Component', () => {
 
     it('should call onSubmit when form is valid', async () => {
       const user = userEvent.setup();
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const submitButton = screen.getByRole('button');
       await user.click(submitButton);
@@ -463,32 +464,32 @@ describe('Vitals Component', () => {
 
   describe('Button Text', () => {
     it('should display "Next" button when not on last question', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Next')).toBeInTheDocument();
     });
 
     it('should display "Confirm" button when on last question', () => {
-      render(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Confirm')).toBeInTheDocument();
     });
 
     it('should not display "Next" when on last question', () => {
-      render(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.queryByText('Next')).not.toBeInTheDocument();
     });
 
     it('should render button with primary variant', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('data-variant', 'primary');
     });
 
     it('should render button with submit type', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('type', 'submit');
@@ -497,21 +498,21 @@ describe('Vitals Component', () => {
 
   describe('Field Types', () => {
     it('should render number input for numeric fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const numberInputs = screen.getAllByRole('spinbutton');
       expect(numberInputs.length).toBeGreaterThan(0);
     });
 
     it('should render text input for blood_group field', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const textInput = screen.getByRole('textbox');
       expect(textInput).toBeInTheDocument();
     });
 
     it('should allow step="any" for number inputs', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const numberInputs = screen.getAllByRole('spinbutton');
       numberInputs.forEach((input) => {
@@ -522,7 +523,7 @@ describe('Vitals Component', () => {
 
   describe('Form Registration', () => {
     it('should register all body measurement fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockRegister).toHaveBeenCalledWith('height_cm');
       expect(mockRegister).toHaveBeenCalledWith('weight_kg');
@@ -530,7 +531,7 @@ describe('Vitals Component', () => {
     });
 
     it('should register all vital fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockRegister).toHaveBeenCalledWith('bp_systolic');
       expect(mockRegister).toHaveBeenCalledWith('bp_diastolic');
@@ -538,7 +539,7 @@ describe('Vitals Component', () => {
     });
 
     it('should register all other fields', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockRegister).toHaveBeenCalledWith('blood_group');
       expect(mockRegister).toHaveBeenCalledWith('waist_to_hip_ratio');
@@ -547,7 +548,7 @@ describe('Vitals Component', () => {
 
   describe('Watch Function Calls', () => {
     it('should watch field values for each field', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       // Watch is called for each field to check for values
       expect(mockWatch).toHaveBeenCalled();
@@ -559,7 +560,7 @@ describe('Vitals Component', () => {
         return undefined;
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockWatch).toHaveBeenCalledWith('bmi');
     });
@@ -574,7 +575,7 @@ describe('Vitals Component', () => {
         otherFields: [],
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       // Should still render submit button
       expect(screen.getByRole('button')).toBeInTheDocument();
@@ -588,7 +589,7 @@ describe('Vitals Component', () => {
         },
       });
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       // Should not crash
       expect(screen.getByRole('button')).toBeInTheDocument();
@@ -596,11 +597,11 @@ describe('Vitals Component', () => {
 
     it('should handle questionIndex at boundary values', () => {
       const { rerender } = render(
-        <Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />
+        <Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />
       );
       expect(screen.getByText('Next')).toBeInTheDocument();
 
-      rerender(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} />);
+      rerender(<Vitals questionIndex={9} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
       expect(screen.getByText('Confirm')).toBeInTheDocument();
     });
 
@@ -620,7 +621,7 @@ describe('Vitals Component', () => {
       mockIsBPHigh.mockReturnValue(true);
       mockGetBMIStatus.mockReturnValue('Overweight');
 
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       // Should render all states simultaneously
       expect(screen.getByText('Height error')).toBeInTheDocument();
@@ -631,13 +632,13 @@ describe('Vitals Component', () => {
 
   describe('Props Integration', () => {
     it('should pass onNextQuestion to useVitals hook', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(mockUseVitals).toHaveBeenCalled();
     });
 
     it('should use questionIndex to determine button text', () => {
-      render(<Vitals questionIndex={5} onNextQuestion={mockOnNextQuestion} />);
+      render(<Vitals questionIndex={5} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Next')).toBeInTheDocument();
     });

@@ -1,8 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
+import iconVitals from '../../../assets/icons/vitals.svg';
+import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
-import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 import {
   calculateBMI,
   calculateWHR,
@@ -10,7 +11,7 @@ import {
   getBMIStatus,
   isBPHigh,
 } from '../components/start-visit/vitals.validation';
-
+import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 // Fallback vitals configuration if API data is not available
 const FALLBACK_VITALS_CONFIG: VitalField[] = [
   {
@@ -277,6 +278,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     mode: 'onChange',
   });
 
+  const { showVitalConfirmationModal } = useGlobalModal();
   // Watch values for auto-calculation
   const height = watch('height_cm');
   const weight = watch('weight_kg');
@@ -305,7 +307,65 @@ export const useVitals = (onNextQuestion: () => void) => {
   const onSubmit = () => {
     // TODO: Send vitals data to API
     // The form data will be available via getValues() when needed
-    onNextQuestion();
+    //onNextQuestion();
+    showVitalConfirmationModal({
+      icon: iconVitals,
+      title: '1/4. Vitals summary',
+      description: 'Details', //  Global Change button
+      onChange: () => {
+        // TODO: Implement navigation back to edit vitals
+      },
+      items: [
+        { label: 'Height (cm)', value: watch('height_cm') || null },
+        { label: 'Weight (kg)', value: watch('weight_kg') || null },
+        { label: 'BMI', value: watch('bmi')?.toString() || null },
+        {
+          label: 'BP',
+          value:
+            watch('bp_systolic') && watch('bp_diastolic')
+              ? `${watch('bp_systolic') || ''}/${watch('bp_diastolic') || ''}`
+              : null,
+        },
+        { label: 'Pulse (bpm)', value: watch('pulse_bpm') || null },
+        { label: 'Respiratory Rate', value: watch('respiratory_rate') || null },
+        { label: 'Temperature (F)', value: watch('temprature_f') || null },
+        { label: 'SpO2 (%)', value: watch('spo2') || null },
+        {
+          label: 'Fasting Blood Sugar (FBS) (mg/dl)',
+          value: watch('fbs_mg_per_dl') || null,
+        },
+        {
+          label: 'Post Prandial Blood Sugar (PPBS) (mg/dl)',
+          value: watch('ppbs_mg_per_dl') || null,
+        },
+        { label: 'RBS (mg/dl)', value: watch('rbs_mg_per_dl') || null },
+        {
+          label: 'Waist Circumference (cm)',
+          value: watch('waist_circumference_cm') || null,
+        },
+        {
+          label: 'Hip Circumference (cm)',
+          value: watch('hip_circumference_cm') || null,
+        },
+        {
+          label: 'Waist to Hip Ratio (WHR)',
+          value: watch('waist_to_hip_ratio')?.toString() || null,
+        },
+        {
+          label: '2 Hour Post Load Glucose Test (OGTT) (mg/dl)',
+          value: watch('ogtt_mg_per_dl') || null,
+        },
+        { label: 'HbA1c', value: watch('hba1c') || null },
+        { label: 'Blood Group', value: watch('blood_group') || null },
+      ],
+      confirmText: 'Confirm',
+      cancelText: 'Back',
+      open: false,
+      type: 'vitalConfirm',
+      onConfirm: () => {
+        onNextQuestion();
+      },
+    });
   };
 
   // Check if config is loaded - with fallback data, we should always have vitals

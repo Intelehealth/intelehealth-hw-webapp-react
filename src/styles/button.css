@@ -25,7 +25,7 @@
   color: var(--color-muted); /* text-[--color-muted] */
   cursor: not-allowed; /* cursor-not-allowed */
   pointer-events: none; /* pointer-events-none */
-  border-color: var(--color-muted); /* border-[--color-muted] */
+  border-color: var(--color-bg); /* border-[--color-muted] */
 }
 
 .btn-primary-variant {

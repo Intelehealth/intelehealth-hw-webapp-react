@@ -1,20 +1,19 @@
-import { useState } from 'react';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../types/ayu.types';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
-
 export function AyuSelectableOptionGroup({
   question,
   parent,
   previousSibling,
+  value,
+  onChange,
 }: AyuRendererBaseProps) {
-  const label = resolveLabel(question, parent, previousSibling);
-  const [selectedValue] = useState<string | undefined>(undefined);
+  const label = question
+    ? resolveLabel(question, parent, previousSibling)
+    : undefined;
 
-  // const handleSelect = (val: string) => {
-  //   setSelectedValue(val);
-  // };
   return (
     <div className="option-group-wrapper">
       {label && (
@@ -25,14 +24,23 @@ export function AyuSelectableOptionGroup({
       )}
 
       <div className="option-group">
-        {question?.answerOption?.map(opt => (
-          <AyuSelectableOption
-            key={opt.valueString || opt.valueCoding?.code}
-            label={opt?.valueString || opt?.valueCoding?.display}
-            value={opt?.valueString}
-            selected={selectedValue === opt?.valueString}
-          />
-        ))}
+        {question?.answerOption?.map((opt: AyuAnswerOption) => {
+          const optionValue = opt?.valueCoding?.code || opt?.valueString || '';
+
+          const isSelected = question?.repeats
+            ? Array.isArray(value) && value.includes(optionValue)
+            : value === optionValue;
+
+          return (
+            <AyuSelectableOption
+              key={optionValue}
+              label={opt?.valueString || opt?.valueCoding?.display}
+              value={optionValue}
+              selected={isSelected}
+              onClick={() => onChange?.(optionValue)}
+            />
+          );
+        })}
       </div>
     </div>
   );
