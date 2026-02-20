@@ -19,7 +19,7 @@
     "test:coverage:bypass": "echo '⚠️ Tests bypassed - skipping test execution' && exit 0",
     "test:watch": "vitest --watch",
     "type-check": "tsc --noEmit",
-    "pre-commit": "npx lint-staged && yarn type-check && yarn test:run && yarn build",
+    "pre-commit": "npx lint-staged && npx tsc --noEmit && npx vitest run && npx tsc -b && npx vite build",
     "prepare": "husky"
   },
   "dependencies": {

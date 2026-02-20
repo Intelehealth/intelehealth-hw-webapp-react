@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import DashboardComponent from '../../../modules/dashboard/dashboard.component';
 
@@ -56,7 +56,7 @@ describe('DashboardComponent', () => {
     const mainContainer = container.querySelector('.p-4.flex.flex-col.gap-4');
     expect(mainContainer).toBeInTheDocument();
 
-    const gridContainer = container.querySelector('.grid.grid-cols-1.md\\:grid-cols-3.gap-4');
+    const gridContainer = container.querySelector('[class*="grid-cols-1"]');
     expect(gridContainer).toBeInTheDocument();
   });
 
@@ -99,7 +99,63 @@ describe('DashboardComponent', () => {
   it('should have responsive grid layout classes', () => {
     const { container } = render(<DashboardComponent />);
 
-    const gridContainer = container.querySelector('.grid');
-    expect(gridContainer).toHaveClass('grid-cols-1', 'md:grid-cols-3');
+    const gridContainer = container.querySelector('[class*="grid-cols-1"]');
+    expect(gridContainer).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3');
+  });
+
+  describe('showPrescriptions toggle', () => {
+    it('does not show mobile back button initially', () => {
+      render(<DashboardComponent />);
+      expect(screen.queryByText('← Prescriptions')).not.toBeInTheDocument();
+    });
+
+    it('shows mobile back button after clicking Prescriptions card', () => {
+      render(<DashboardComponent />);
+      // Click the Prescriptions card wrapper to toggle showPrescriptions
+      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      fireEvent.click(prescriptionCard);
+      expect(screen.getByText('← Prescriptions')).toBeInTheDocument();
+    });
+
+    it('hides mobile back button after clicking it', () => {
+      render(<DashboardComponent />);
+      // Toggle on
+      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      fireEvent.click(prescriptionCard);
+      expect(screen.getByText('← Prescriptions')).toBeInTheDocument();
+
+      // Toggle off
+      fireEvent.click(screen.getByText('← Prescriptions'));
+      expect(screen.queryByText('← Prescriptions')).not.toBeInTheDocument();
+    });
+
+    it('renders Add Patients mobile button', () => {
+      render(<DashboardComponent />);
+      expect(screen.getAllByText('Add Patients').length).toBeGreaterThan(0);
+    });
+
+    it('renders pending prescriptions info', () => {
+      render(<DashboardComponent />);
+      expect(screen.getByText(/0 Patients/)).toBeInTheDocument();
+      expect(screen.getByText(/are waiting their Pending Prescriptions/)).toBeInTheDocument();
+    });
+
+    it('renders PrescriptionstRecivied table', () => {
+      render(<DashboardComponent />);
+      expect(screen.getByText('Prescription Received')).toBeInTheDocument();
+    });
+
+    it('hides mobile Add Patients button when showPrescriptions is true', () => {
+      const { container } = render(<DashboardComponent />);
+      // Click to toggle showPrescriptions on
+      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      fireEvent.click(prescriptionCard);
+      // The mobile Add Patients button should have 'hidden' class
+      const mobileAddBtn = container.querySelectorAll('button');
+      const mobileAddPatientsBtn = Array.from(mobileAddBtn).find(
+        btn => btn.textContent?.includes('Add Patients') && btn.classList.contains('md:hidden')
+      );
+      expect(mobileAddPatientsBtn).toHaveClass('hidden');
+    });
   });
 });

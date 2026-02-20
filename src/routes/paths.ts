@@ -13,6 +13,9 @@ const ROUTES = {
   ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',
   TEST_PROFILE_GUARD: '/test-profile-guard',
+  MY_APPOINTMENTS: '/my-appointments',
+  APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule',
+  APPOINTMENT_DETAILS: '/my-appointments/:id',
   NOT_FOUND: '*', // catch-all
   PATIENT: {
     BASE: '/patient',
