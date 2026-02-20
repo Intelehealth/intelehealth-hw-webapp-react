@@ -81,7 +81,6 @@ const QuestionCard = ({
     ? selectedOptions.includes(cameraOption.id)
     : false;
 
-
   return (
     <div ref={isActive ? activeRef : null}>
       <QuestionLoader questionIndex={index} totalQuestions={totalQuestions}>

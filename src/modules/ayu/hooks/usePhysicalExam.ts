@@ -25,15 +25,24 @@ export const usePhysicalExam = ({
   physicalExamFilter,
 }: SectionProps) => {
   const baseQuestions = useMemo(
-    () => filterPhysicalExamQuestions(PHYSICAL_EXAM_QUESTIONS, physicalExamFilter ?? ''),
+    () =>
+      filterPhysicalExamQuestions(
+        PHYSICAL_EXAM_QUESTIONS,
+        physicalExamFilter ?? ''
+      ),
     [physicalExamFilter]
   );
   const [internalIndex, setInternalIndex] = useState(0);
   const [answers, setAnswers] = useState<PhysicalExamAnswers>({});
   /** base64 data-URL images captured per question */
-  const [cameraImages, setCameraImages] = useState<Record<string, string[]>>({});
+  const [cameraImages, setCameraImages] = useState<Record<string, string[]>>(
+    {}
+  );
 
-  const visibleQuestions = useMemo(() => computeVisible(baseQuestions, answers), [baseQuestions, answers]);
+  const visibleQuestions = useMemo(
+    () => computeVisible(baseQuestions, answers),
+    [baseQuestions, answers]
+  );
   const totalQuestions = visibleQuestions.length;
   const currentQuestion = visibleQuestions[internalIndex] ?? null;
   const isLastQuestion = internalIndex >= totalQuestions - 1;
@@ -86,7 +95,10 @@ export const usePhysicalExam = ({
       });
 
       if (filtered.includes(optionId)) {
-        return { ...prev, [questionId]: filtered.filter(id => id !== optionId) };
+        return {
+          ...prev,
+          [questionId]: filtered.filter(id => id !== optionId),
+        };
       }
       return { ...prev, [questionId]: [...filtered, optionId] };
     });

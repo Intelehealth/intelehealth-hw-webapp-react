@@ -64,8 +64,10 @@ export const filterPhysicalExamQuestions = (
   return questions.filter(q => {
     const allowedQuestions = filter[q.sectionKey];
     if (allowedQuestions === undefined) return false; // section not in filter
-    if (allowedQuestions.length === 0) return true;   // all questions in section
-    return q.questionKey !== undefined && allowedQuestions.includes(q.questionKey);
+    if (allowedQuestions.length === 0) return true; // all questions in section
+    return (
+      q.questionKey !== undefined && allowedQuestions.includes(q.questionKey)
+    );
   });
 };
 
@@ -214,7 +216,10 @@ export const PHYSICAL_EXAM_QUESTIONS: PhysicalExamQuestion[] = [
     options: [
       { id: '46ggknqga16skrkurisdrkmlga', text: 'No injury' },
       { id: '2mtljhbu43q7fn4nj8rn6c1f00', text: 'Injury at side of head' },
-      { id: '3uukeqlno2pg63i0ftshkllst5', text: 'Injury in the middle of head' },
+      {
+        id: '3uukeqlno2pg63i0ftshkllst5',
+        text: 'Injury in the middle of head',
+      },
       {
         id: 'ID_1624337048',
         text: 'Take a picture',
