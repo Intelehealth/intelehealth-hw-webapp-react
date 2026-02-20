@@ -37,10 +37,17 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 
 // Profile Guard Components
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
+import AppointmentDetails from '../modules/appointmentVisit/appointmentdetails.component';
+import MyAppointments from '../modules/appointmentVisit/myappointments.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
 // 🟡Ayu Module
 const AyuModule = lazy(() => import('../modules/ayu'));
+
+// appointment module
+const AppointmentVisitPage = lazy(
+  () => import('../pages/appointment-visit/appointmentvisit.page')
+);
 
 const AppRoutes = () => (
   <HashRouter>
@@ -115,6 +122,30 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.MY_APPOINTMENTS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <MyAppointments />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.APPOINTMENT_DETAILS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AppointmentDetails />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.APPOINTMENT_VISIT_SHEDULE}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AppointmentVisitPage />
                 </Suspense>
               }
             />
