@@ -9,13 +9,26 @@ import { PhysicalExamination } from './physical-examination.component';
 import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals.component';
 
-const getPhysicalExamFilter = (questionnaire: typeof CoughQuestionnaire): string => {
-  const ext = (questionnaire as { extension?: Array<{ url: string; valueString?: string }> }).extension ?? [];
-  return ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')?.valueString ?? '';
+const getPhysicalExamFilter = (
+  questionnaire: typeof CoughQuestionnaire
+): string => {
+  const ext =
+    (
+      questionnaire as {
+        extension?: Array<{ url: string; valueString?: string }>;
+      }
+    ).extension ?? [];
+  return (
+    ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')
+      ?.valueString ?? ''
+  );
 };
 
 export const StartVisit = () => {
-  const physicalExamFilter = useMemo(() => getPhysicalExamFilter(CoughQuestionnaire), []);
+  const physicalExamFilter = useMemo(
+    () => getPhysicalExamFilter(CoughQuestionnaire),
+    []
+  );
   const [sections, setSections] = useState<SectionState[]>([
     {
       totalQuestions: 1,
