@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import iconSunset from '../../assets/icons/appiontment/icon-ApmSc-Sunset.svg';
+import iconSunset from '../../assets/icons/appiontment/icon-apmsc-sunset.svg';
 import iconAfternoon from '../../assets/icons/appiontment/icon-apmsc-afternoon.svg';
 import iconSunrise from '../../assets/icons/appiontment/icon-apmsc-sunrise.svg';
 import iconChevronLeft from '../../assets/icons/appiontment/icon-apm-chevron_1.svg';
