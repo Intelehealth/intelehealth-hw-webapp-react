@@ -7,7 +7,7 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
-import { PrescriptionstRecivied } from './prescriptionstRecivied.component';
+import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
 
 // Declare the functional component with the FC type and prop interface
 const DashboardComponent = () => {

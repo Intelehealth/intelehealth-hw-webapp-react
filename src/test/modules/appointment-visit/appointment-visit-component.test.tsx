@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import AppointmentVisitComponent from '../../../modules/appointmentVisit/appointmentVisit.component';
+import AppointmentVisitComponent from '../../../modules/appointment-visit/appointment-visit.component';
 
-vi.mock('../../../modules/appointmentVisit/scheduleAppointment.component', () => ({
+vi.mock('../../../modules/appointment-visit/schedule-appointment.component', () => ({
   default: () => (
     <div data-testid="schedule-appointment">Schedule Appointment</div>
   ),

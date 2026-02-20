@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AppointmentDetails from '../../../modules/appointmentVisit/appointmentdetails.component';
+import AppointmentDetails from '../../../modules/appointment-visit/appointment-details.component';
 
 const mockUseParams = vi.fn(() => ({ id: '1' }));
 const mockNavigate = vi.fn();

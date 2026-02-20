@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import AppointmentScheduleComponent from '../../../modules/appointmentVisit/scheduleAppointment.component';
+import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 
 const mockNavigate = vi.fn();
 

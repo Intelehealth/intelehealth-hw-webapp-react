@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PrescriptionstRecivied } from '../../../modules/dashboard/prescriptionstRecivied.component';
+import { PrescriptionstRecivied } from '../../../modules/dashboard/prescriptionst-recivied.component';
 
 const renderComponent = () => render(<PrescriptionstRecivied />);
 

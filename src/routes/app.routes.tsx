@@ -37,8 +37,8 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 
 // Profile Guard Components
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
-import AppointmentDetails from '../modules/appointmentVisit/appointmentdetails.component';
-import MyAppointments from '../modules/appointmentVisit/myappointments.component';
+import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
+import MyAppointments from '../modules/appointment-visit/my-appointments.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
 // 🟡Ayu Module
@@ -46,7 +46,7 @@ const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
 const AppointmentVisitPage = lazy(
-  () => import('../pages/appointment-visit/appointmentvisit.page')
+  () => import('../pages/appointment-visit/appointment-visit.page')
 );
 
 const AppRoutes = () => (

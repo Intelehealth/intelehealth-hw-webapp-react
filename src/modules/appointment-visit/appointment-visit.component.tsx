@@ -1,5 +1,5 @@
 import React from 'react';
-import AppointmentScheduleComponent from './scheduleAppointment.component';
+import AppointmentScheduleComponent from './schedule-appointment.component';
 
 const AppointmentVisitComponent: React.FC = () => {
   return (

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ReusableGirdTable } from '../../../components/common/reusableGirdTable.component';
+import { ReusableGirdTable } from '../../../components/common/reusable-gird-table.component';
 
 interface TestRow {
   name: string;
