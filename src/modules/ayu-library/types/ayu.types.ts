@@ -7,7 +7,8 @@ export type AyuQuestionType =
   | 'integer'
   | 'decimal'
   | 'date'
-  | 'choice';
+  | 'choice'
+  | 'quantity';
 
 export interface AyuAnswerOption {
   valueString?: string;

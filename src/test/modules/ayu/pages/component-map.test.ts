@@ -29,7 +29,8 @@ describe('componentMap', () => {
         'select',
         'selectableOptionGroup',
         'multi-select',
-        'radio',
+        'quantity',
+        'associatedSymptoms',
       ];
 
       expectedKeys.forEach(key => {
@@ -37,9 +38,9 @@ describe('componentMap', () => {
       });
     });
 
-    it('should have exactly 10 component mappings', () => {
+    it('should have exactly 11 component mappings', () => {
       const keys = Object.keys(componentMap);
-      expect(keys).toHaveLength(10);
+      expect(keys).toHaveLength(11);
     });
 
     it('should have group component mapping', () => {
@@ -87,9 +88,14 @@ describe('componentMap', () => {
       expect(componentMap['multi-select']).toBeDefined();
     });
 
-    it('should have radio component mapping', () => {
-      expect(componentMap).toHaveProperty('radio');
-      expect(componentMap.radio).toBeDefined();
+    it('should have quantity component mapping', () => {
+      expect(componentMap).toHaveProperty('quantity');
+      expect(componentMap.quantity).toBeDefined();
+    });
+
+    it('should have associatedSymptoms component mapping', () => {
+      expect(componentMap).toHaveProperty('associatedSymptoms');
+      expect(componentMap.associatedSymptoms).toBeDefined();
     });
   });
 
@@ -136,8 +142,12 @@ describe('componentMap', () => {
       expect(typeof componentMap['multi-select']).toBe('function');
     });
 
-    it('should have radio component as a function', () => {
-      expect(typeof componentMap.radio).toBe('function');
+    it('should have quantity component as a function', () => {
+      expect(typeof componentMap.quantity).toBe('function');
+    });
+
+    it('should have associatedSymptoms component as a function', () => {
+      expect(typeof componentMap.associatedSymptoms).toBe('function');
     });
   });
 
@@ -178,8 +188,12 @@ describe('componentMap', () => {
       expect(componentMap['multi-select'].name).toBe('AyuMultiSelect');
     });
 
-    it('should have AyuRadioGroup component for radio key', () => {
-      expect(componentMap.radio.name).toBe('AyuRadioGroup');
+    it('should have AyuDuration component for quantity key', () => {
+      expect(componentMap.quantity.name).toBe('AyuDuration');
+    });
+
+    it('should have AyuAssociatedSymptoms component for associatedSymptoms key', () => {
+      expect(componentMap.associatedSymptoms.name).toBe('AyuAssociatedSymptoms');
     });
   });
 
@@ -192,7 +206,8 @@ describe('componentMap', () => {
       expect(componentMap.date).toBeDefined();
       expect(componentMap.select).toBeDefined();
       expect(componentMap.selectableOptionGroup).toBeDefined();
-      expect(componentMap.radio).toBeDefined();
+      expect(componentMap.quantity).toBeDefined();
+      expect(componentMap.associatedSymptoms).toBeDefined();
     });
 
     it('should allow bracket notation access for hyphenated keys', () => {
@@ -208,7 +223,7 @@ describe('componentMap', () => {
       expect(componentMap['date']).toBeDefined();
       expect(componentMap['select']).toBeDefined();
       expect(componentMap['selectableOptionGroup']).toBeDefined();
-      expect(componentMap['radio']).toBeDefined();
+      expect(componentMap['quantity']).toBeDefined();
     });
   });
 
@@ -229,7 +244,8 @@ describe('componentMap', () => {
         'select',
         'selectableOptionGroup',
         'multi-select',
-        'radio',
+        'quantity',
+        'associatedSymptoms',
       ];
 
       const actualKeys = Object.keys(componentMap);
@@ -249,7 +265,7 @@ describe('componentMap', () => {
     it('should cover all selection types', () => {
       expect(componentMap.select).toBeDefined(); // dropdown select
       expect(componentMap['multi-select']).toBeDefined(); // multiple selection
-      expect(componentMap.radio).toBeDefined(); // radio buttons
+      expect(componentMap.quantity).toBeDefined(); // quantity/duration input
       expect(componentMap.selectableOptionGroup).toBeDefined(); // selectable options
     });
 
@@ -257,6 +273,7 @@ describe('componentMap', () => {
       expect(componentMap.group).toBeDefined(); // grouping
       expect(componentMap.display).toBeDefined(); // display only
       expect(componentMap['repeatable-text']).toBeDefined(); // repeatable input
+      expect(componentMap.associatedSymptoms).toBeDefined(); // associated symptoms
     });
   });
 
@@ -272,7 +289,8 @@ describe('componentMap', () => {
         select: 'AyuSelect',
         selectableOptionGroup: 'AyuSelectableOptionGroup',
         'multi-select': 'AyuMultiSelect',
-        radio: 'AyuRadioGroup',
+        quantity: 'AyuDuration',
+        associatedSymptoms: 'AyuAssociatedSymptoms',
       };
 
       Object.entries(mapping).forEach(([key, expectedName]) => {

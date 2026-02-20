@@ -1,27 +1,39 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import type { SectionState } from '../../types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
-import { MedicalHistory } from './medical-history.component';
+import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination.component';
-import { VisitReason } from './visit-reason.component';
+import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals.component';
 
 export const StartVisit = () => {
   const [sections, setSections] = useState<SectionState[]>([
     {
       totalQuestions: 1,
-      answeredQuestions: 0,
+      answeredQuestions: 1,
       name: 'Vitals',
+      currentStepIndex: 0,
     }, // Vitals
     {
-      totalQuestions: 6,
+      totalQuestions: 1,
       answeredQuestions: 0,
       name: 'Visit Reason',
+      currentStepIndex: 0,
     }, // Visit Reason
-    { totalQuestions: 8, answeredQuestions: 0, name: 'Physical Exam' }, // Physical Exam
-    { totalQuestions: 5, answeredQuestions: 0, name: 'Medical History' }, // Medical History
+    {
+      totalQuestions: 8,
+      answeredQuestions: 0,
+      name: 'Physical Exam',
+      currentStepIndex: 0,
+    }, // Physical Exam
+    {
+      totalQuestions: 5,
+      answeredQuestions: 0,
+      name: 'Medical History',
+      currentStepIndex: 0,
+    }, // Medical History
   ]);
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -44,10 +56,6 @@ export const StartVisit = () => {
         copy[currentSectionIndex].totalQuestions;
       return copy;
     });
-
-    if (sections[currentSectionIndex] === sections[sections.length - 1]) {
-      alert('Completed all sections!');
-    }
 
     goNextSection();
   };
@@ -75,6 +83,28 @@ export const StartVisit = () => {
     });
   };
 
+  const handleVisitReasonProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Visit Reason', total, answered);
+    },
+    []
+  );
+
+  const updateSectionProgress = useCallback(
+    (sectionName: string, total: number, answered: number) => {
+      setSections(prev =>
+        prev.map(section =>
+          section.name === sectionName
+            ? { ...section, totalQuestions: total, answeredQuestions: answered }
+            : section
+        )
+      );
+      // SYNC SIDE LOADER INDEX HERE
+      setCurrentQuestionIndex(answered);
+    },
+    []
+  );
+
   return (
     <div className="bg-white">
       <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
@@ -97,17 +127,19 @@ export const StartVisit = () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={currentSectionIndex}
-          currentQuestionIndex={currentQuestionIndex}
         />
       </div>
 
       {/* Side Loader */}
-      <div className="hidden md:block">
-        <SideLoader
-          totalQuestions={sections[currentSectionIndex].totalQuestions}
-          currentQuestionIndex={currentQuestionIndex}
-        />
-      </div>
+      {sections[currentSectionIndex]?.totalQuestions > 1 && (
+        <div className="hidden md:block">
+          <SideLoader
+            sections={sections}
+            currentSectionIndex={currentSectionIndex}
+            currentQuestionIndex={currentQuestionIndex}
+          />
+        </div>
+      )}
 
       {/* Active Section */}
       <div className="pt-4">
@@ -115,6 +147,7 @@ export const StartVisit = () => {
           <Vitals
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
+            onPrevQuestion={goPreviousQuestion}
           />
         )}
 
@@ -124,6 +157,7 @@ export const StartVisit = () => {
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}
             onPrevSection={goPreviousSection}
+            onProgressUpdate={handleVisitReasonProgress}
           />
         )}
 
@@ -136,14 +170,7 @@ export const StartVisit = () => {
           />
         )}
 
-        {currentSectionIndex === 3 && (
-          <MedicalHistory
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-            onPrevSection={goPreviousSection}
-          />
-        )}
+        {currentSectionIndex === 3 && <MedicalHistory />}
       </div>
     </div>
   );

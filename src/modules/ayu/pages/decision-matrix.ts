@@ -10,9 +10,23 @@ export type AyuComponentType =
   | 'select'
   | 'multi-select'
   | 'radio'
-  | 'selectableOptionGroup';
+  | 'selectableOptionGroup'
+  | 'quantity'
+  | 'associatedSymptoms';
 
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
+  const isAssociatedSymptoms =
+    q.type === 'choice' &&
+    q.extension?.some(
+      ext =>
+        ext.url === 'urn:intelehealth:original-question-text' &&
+        ext.valueString === 'Associated symptoms'
+    );
+
+  if (isAssociatedSymptoms) {
+    return 'associatedSymptoms';
+  }
+
   switch (q.type) {
     case 'group':
       return 'group';
@@ -31,9 +45,10 @@ export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
       return 'date';
 
     case 'choice':
-      // if (q.ui?.inputType === 'radio') return 'radio';
-      //return q.repeats ? 'multi-select' : 'select';
       return 'selectableOptionGroup';
+
+    case 'quantity':
+      return 'quantity';
 
     default:
       return 'text';

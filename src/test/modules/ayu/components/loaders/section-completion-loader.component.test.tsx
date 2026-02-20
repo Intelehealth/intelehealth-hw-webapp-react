@@ -17,7 +17,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const bars = container.querySelectorAll('.flex-1');
@@ -32,7 +31,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={singleSection}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const bars = container.querySelectorAll('.flex-1');
@@ -48,7 +46,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={manySections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const bars = container.querySelectorAll('.flex-1');
@@ -66,7 +63,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={completedSections}
           currentSectionIndex={1}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -83,7 +79,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={2}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -99,7 +94,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const progressBar = container.querySelector('.bg-emerald-400');
@@ -113,7 +107,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={4}
         />
       );
       const progressBar = container.querySelector('.bg-emerald-400');
@@ -122,13 +115,12 @@ describe('SectionCompletionLoader', () => {
 
     it('should show 10% progress for 1 out of 10 questions', () => {
       const sections: SectionProgress[] = [
-        { totalQuestions: 10, answeredQuestions: 0 },
+        { totalQuestions: 10, answeredQuestions: 1 },
       ];
       const { container } = render(
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const progressBar = container.querySelector('.bg-emerald-400');
@@ -137,13 +129,12 @@ describe('SectionCompletionLoader', () => {
 
     it('should show 100% when on last question of section', () => {
       const sections: SectionProgress[] = [
-        { totalQuestions: 5, answeredQuestions: 0 },
+        { totalQuestions: 5, answeredQuestions: 5 },
       ];
       const { container } = render(
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={4}
         />
       );
       const progressBar = container.querySelector('.bg-emerald-400');
@@ -152,13 +143,12 @@ describe('SectionCompletionLoader', () => {
 
     it('should not exceed 100% for current section', () => {
       const sections: SectionProgress[] = [
-        { totalQuestions: 5, answeredQuestions: 0 },
+        { totalQuestions: 5, answeredQuestions: 10 },
       ];
       const { container } = render(
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={10}
         />
       );
       const progressBar = container.querySelector('.bg-emerald-400');
@@ -172,7 +162,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -185,7 +174,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={1}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -200,7 +188,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const wrapper = container.firstChild as HTMLElement;
@@ -212,7 +199,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const bars = container.querySelectorAll('.flex-1');
@@ -226,7 +212,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -238,11 +223,19 @@ describe('SectionCompletionLoader', () => {
 
   describe('Progress Transitions', () => {
     it('should update progress when moving to next question', () => {
+      const initialSections: SectionProgress[] = [
+        { totalQuestions: 10, answeredQuestions: 1 },
+        { totalQuestions: 8, answeredQuestions: 0 },
+      ];
+      const updatedSections: SectionProgress[] = [
+        { totalQuestions: 10, answeredQuestions: 5 },
+        { totalQuestions: 8, answeredQuestions: 0 },
+      ];
+
       const { container, rerender } = render(
         <SectionCompletionLoader
-          sections={mockSections}
+          sections={initialSections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       let progressBar = container.querySelector('.bg-emerald-400');
@@ -250,9 +243,8 @@ describe('SectionCompletionLoader', () => {
 
       rerender(
         <SectionCompletionLoader
-          sections={mockSections}
+          sections={updatedSections}
           currentSectionIndex={0}
-          currentQuestionIndex={4}
         />
       );
       progressBar = container.querySelector('.bg-emerald-400');
@@ -262,13 +254,12 @@ describe('SectionCompletionLoader', () => {
     it('should update when moving to next section', () => {
       const sections: SectionProgress[] = [
         { totalQuestions: 5, answeredQuestions: 5 },
-        { totalQuestions: 5, answeredQuestions: 0 },
+        { totalQuestions: 5, answeredQuestions: 1 },
       ];
       const { container, rerender } = render(
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={4}
         />
       );
 
@@ -276,7 +267,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={1}
-          currentQuestionIndex={0}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
@@ -291,7 +281,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={[]}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       const bars = container.querySelectorAll('.flex-1');
@@ -306,7 +295,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={0}
-          currentQuestionIndex={0}
         />
       );
       expect(container.firstChild).toBeInTheDocument();
@@ -317,7 +305,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={-1}
-          currentQuestionIndex={0}
         />
       );
       expect(container.firstChild).toBeInTheDocument();
@@ -328,7 +315,6 @@ describe('SectionCompletionLoader', () => {
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={10}
-          currentQuestionIndex={0}
         />
       );
       expect(container.firstChild).toBeInTheDocument();

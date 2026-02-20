@@ -5,7 +5,29 @@ export interface AyuAnswerOption {
     code: string;
     display?: string;
   };
+  extension?: {
+    url: string;
+    valueBoolean?: boolean;
+  }[];
 }
+
+export interface DropdownValues {
+  number?: string | number | null;
+  days?: string | null;
+}
+
+export interface DurationAnswer {
+  dropdownValues: DropdownValues;
+}
+
+export type AyuAnswerValue =
+  | string
+  | number
+  | boolean
+  | DurationAnswer
+  | string[]
+  | null
+  | undefined;
 
 export interface FhirQuestionnaire {
   resourceType: string;
@@ -17,6 +39,7 @@ export interface AyuEnableWhen {
   operator: string;
   answerBoolean?: boolean;
   answerString?: string;
+  answerInteger?: number;
   answerCoding?: {
     system?: string;
     code: string;
@@ -65,4 +88,8 @@ export interface AyuQuestion {
     inputType?: 'radio' | 'select';
     placeholder?: string;
   };
+  extension?: {
+    url: string;
+    valueString?: string;
+  }[];
 }

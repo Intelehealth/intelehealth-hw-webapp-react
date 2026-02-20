@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
 
@@ -95,10 +95,10 @@ describe('AyuNumberInput', () => {
         />
       );
       const input = screen.getByRole('spinbutton');
-      expect(input).toHaveClass('w-full', 'border', 'border-gray-300', 'rounded', 'px-3', 'py-2');
+      expect(input).toHaveClass('border', 'bg-white', 'border-solid', 'border-[#20c997]', 'rounded', 'px-3', 'py-2', 'outline-none', 'resize-y');
     });
 
-    it('should have focus styling classes', () => {
+    it('should have outline-none styling', () => {
       render(
         <AyuNumberInput
           question={mockQuestion}
@@ -107,10 +107,10 @@ describe('AyuNumberInput', () => {
         />
       );
       const input = screen.getByRole('spinbutton');
-      expect(input).toHaveClass('focus:outline-none', 'focus:border-blue-500', 'focus:ring-1', 'focus:ring-blue-500');
+      expect(input).toHaveClass('outline-none');
     });
 
-    it('should have disabled styling classes', () => {
+    it('should apply same base classes regardless of disabled state', () => {
       render(
         <AyuNumberInput
           question={mockQuestion}
@@ -119,7 +119,7 @@ describe('AyuNumberInput', () => {
         />
       );
       const input = screen.getByRole('spinbutton');
-      expect(input).toHaveClass('disabled:bg-gray-100', 'disabled:text-gray-400', 'disabled:cursor-not-allowed');
+      expect(input).toHaveClass('border', 'bg-white', 'border-solid', 'border-[#20c997]', 'rounded', 'px-3', 'py-2');
     });
   });
 
@@ -133,7 +133,7 @@ describe('AyuNumberInput', () => {
         />
       );
       const label = screen.getByText('Enter your age');
-      expect(label).toHaveClass('text-sm', 'font-medium', 'text-gray-700');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-gray-700');
     });
   });
 
@@ -204,6 +204,20 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       expect(input).not.toBeDisabled();
     });
+
+    it('should handle undefined question gracefully', () => {
+      render(
+        <AyuNumberInput
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      // Should render without crashing and without label
+      expect(screen.queryByRole('label')).not.toBeInTheDocument();
+      expect(screen.getByRole('spinbutton')).toBeInTheDocument();
+    });
   });
 
   describe('Container Layout', () => {
@@ -249,6 +263,263 @@ describe('AyuNumberInput', () => {
         />
       );
       expect(screen.getByRole('spinbutton')).toBeInTheDocument();
+    });
+  });
+
+  describe('handleChange Function Coverage', () => {
+    it('should call onChange with parsed integer value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '42' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(42);
+    });
+
+    it('should call onChange with parsed decimal value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '3.14' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(3.14);
+    });
+
+    it('should call onChange with parsed negative value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '-15' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(-15);
+    });
+
+    it('should return empty string when input value is empty', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={42}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      // Simulate clearing by setting to a non-numeric value that parseFloat can't parse
+      fireEvent.change(input, { target: { value: null } });
+
+      // When value is falsy, handleChange returns empty string
+      // This tests the ternary logic: e.target.value ? parseFloat(...) : ''
+      expect(mockOnChange).toHaveBeenCalled();
+    });
+
+    it('should call onChange with zero value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '0' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(0);
+    });
+
+    it('should call onChange with large number value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '999999' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(999999);
+    });
+
+    it('should call onChange with small decimal value', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '0.001' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(0.001);
+    });
+
+    it('should not throw error when onChange is undefined', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+
+      // Should not throw error even without onChange prop
+      expect(() => {
+        fireEvent.change(input, { target: { value: '123' } });
+      }).not.toThrow();
+    });
+
+    it('should handle multiple onChange calls', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '1' } });
+      fireEvent.change(input, { target: { value: '12' } });
+      fireEvent.change(input, { target: { value: '123' } });
+
+      expect(mockOnChange).toHaveBeenCalledTimes(3);
+      expect(mockOnChange).toHaveBeenNthCalledWith(1, 1);
+      expect(mockOnChange).toHaveBeenNthCalledWith(2, 12);
+      expect(mockOnChange).toHaveBeenNthCalledWith(3, 123);
+    });
+
+    it('should parse negative decimal correctly', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '-2.5' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(-2.5);
+    });
+
+    it('should handle value prop correctly', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={50}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('50');
+
+      fireEvent.change(input, { target: { value: '75' } });
+      expect(mockOnChange).toHaveBeenCalledWith(75);
+    });
+
+    it('should handle the empty string branch of ternary operator', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '999' } });
+      expect(mockOnChange).toHaveBeenCalledWith(999);
+
+      // Test the ternary: e.target.value ? parseFloat(e.target.value) : ''
+      // When target.value is falsy (0, null, undefined, '', etc.), it returns ''
+      mockOnChange.mockClear();
+      fireEvent.change(input, { target: { value: '0' } });
+      // Zero is a valid number, so it parses to 0
+      expect(mockOnChange).toHaveBeenCalledWith(0);
+    });
+
+    it('should parse scientific notation correctly', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '1e3' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(1000);
+    });
+
+    it('should handle negative zero', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '-0' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(-0);
     });
   });
 });

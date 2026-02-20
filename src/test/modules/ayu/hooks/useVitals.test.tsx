@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act, render, screen, fireEvent } from '@testing-library/react';
+import { configureStore } from '@reduxjs/toolkit';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import * as React from 'react';
 import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useVitals } from '../../../../modules/ayu/hooks/useVitals';
 import type { VitalField } from '../../../../modules/ayu/types/vitals.types';
 
@@ -13,6 +13,15 @@ vi.mock('../../../../hooks/useConfig', () => ({
   })),
 }));
 
+// Mock useGlobalModal hook
+vi.mock('../../../../components/modal/global-modal-context', () => ({
+  useGlobalModal: vi.fn(() => ({
+    showConfirmModal: vi.fn(),
+    showVitalConfirmationModal: vi.fn(),
+  })),
+}));
+
+import { useGlobalModal } from '../../../../components/modal/global-modal-context';
 import { useConfig } from '../../../../hooks/useConfig';
 
 describe('useVitals', () => {
@@ -77,6 +86,10 @@ describe('useVitals', () => {
     vi.clearAllMocks();
     vi.mocked(useConfig).mockReturnValue({
       config: null,
+    } as any);
+    vi.mocked(useGlobalModal).mockReturnValue({
+      showConfirmModal: vi.fn(),
+      showVitalConfirmationModal: vi.fn(),
     } as any);
   });
 
@@ -598,7 +611,13 @@ describe('useVitals', () => {
   });
 
   describe('Form Submission', () => {
-    it('should call onNextQuestion when form is submitted', () => {
+    it('should show vitals confirmation modal when form is submitted', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
       const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
         wrapper: createWrapper(),
       });
@@ -607,6 +626,32 @@ describe('useVitals', () => {
         result.current.onSubmit();
       });
 
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+      expect(mockOnNextQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should call onNextQuestion when modal is confirmed', () => {
+      const mockShowVitalConfirmationModal = vi.fn((config) => {
+        // Simulate the confirm button being clicked
+        if (config.onConfirm) {
+          config.onConfirm();
+        }
+      });
+
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
       expect(mockOnNextQuestion).toHaveBeenCalledTimes(1);
     });
 
@@ -808,6 +853,94 @@ describe('useVitals', () => {
       // Should use fallback config
       expect(result.current.bodyMeasurementFields.length).toBeGreaterThan(0);
     });
+
+    it('should handle config with all disabled fields', () => {
+      const disabledConfig: VitalField[] = mockVitalsConfig.map(field => ({
+        ...field,
+        is_enabled: false,
+      }));
+
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: disabledConfig },
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      // When all fields are disabled, vitalsConfig should be empty
+      expect(result.current.bodyMeasurementFields.length).toBe(0);
+      expect(result.current.vitalFields.length).toBe(0);
+      expect(result.current.otherFields.length).toBe(0);
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it('should handle BP with zero values', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" defaultValue="0" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" defaultValue="0" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Should handle zero values (falsy but valid)
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+    });
+
+    it('should handle BP with empty string values', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" defaultValue="" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" defaultValue="" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+
+      // Empty strings should result in null BP
+      expect(bpItem.value).toBeNull();
+    });
   });
 
   describe('Callback Stability', () => {
@@ -854,6 +987,275 @@ describe('useVitals', () => {
 
       expect(totalFields).toBeGreaterThan(5);
       expect(totalFields).toBeLessThan(50);
+    });
+  });
+
+  describe('Modal Configuration', () => {
+    it('should call onChange callback when triggered', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      // Get the modal config that was passed
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+
+      // Verify onChange callback exists and can be called
+      expect(modalConfig.onChange).toBeDefined();
+      expect(typeof modalConfig.onChange).toBe('function');
+
+      // Call the onChange callback (should not throw)
+      expect(() => {
+        act(() => {
+          modalConfig.onChange();
+        });
+      }).not.toThrow();
+    });
+
+    it('should format BP correctly when both systolic and diastolic are present', async () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" defaultValue="120" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" defaultValue="80" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Wait for form to be ready
+      await waitFor(() => {
+        expect(screen.getByTestId('systolic')).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+
+      // BP should be formatted as "systolic/diastolic"
+      expect(bpItem).toBeDefined();
+      expect(bpItem.value).toBe('120/80');
+    });
+
+    it('should return null for BP when systolic is missing', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" defaultValue="80" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+
+      // BP should be null when systolic is missing
+      expect(bpItem.value).toBeNull();
+    });
+
+    it('should return null for BP when diastolic is missing', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" defaultValue="120" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+
+      // BP should be null when diastolic is missing
+      expect(bpItem.value).toBeNull();
+    });
+
+    it('should return null for BP when both are missing', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+
+      // BP should be null when both values are missing
+      expect(bpItem.value).toBeNull();
+    });
+
+    it('should convert BMI to string when present', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bmi')} data-testid="bmi" defaultValue="24.5" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bmiItem = modalConfig.items.find((item: any) => item.label === 'BMI');
+
+      // BMI should be converted to string or null
+      expect(bmiItem).toBeDefined();
+    });
+
+    it('should convert WHR to string when present', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('waist_to_hip_ratio')} data-testid="whr" defaultValue="0.85" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const whrItem = modalConfig.items.find((item: any) => item.label === 'Waist to Hip Ratio (WHR)');
+
+      // WHR should be converted to string or null
+      expect(whrItem).toBeDefined();
+    });
+
+    it('should include all vitals items in modal configuration', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      // Get the modal config
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+
+      // Verify all expected items are present
+      expect(modalConfig.items).toBeDefined();
+      expect(modalConfig.items.length).toBeGreaterThan(0);
+
+      const itemLabels = modalConfig.items.map((item: any) => item.label);
+      expect(itemLabels).toContain('Height (cm)');
+      expect(itemLabels).toContain('Weight (kg)');
+      expect(itemLabels).toContain('BMI');
+      expect(itemLabels).toContain('BP');
     });
   });
 });

@@ -34,7 +34,7 @@ export function useAyuJsonList(keyName: string) {
             name: item.name,
             keyName: item.keyName,
             isActive: item.isActive,
-            json: parsed as string, // safe boundary
+            json: parsed,
           };
         })
         .filter((item): item is AyuJsonItem => item !== null);
@@ -42,7 +42,7 @@ export function useAyuJsonList(keyName: string) {
     }
 
     load();
-  }, [keyName]);
+  }, [keyName, storedKey, list.length, dispatch]);
 
   return list;
 }

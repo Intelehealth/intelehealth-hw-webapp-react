@@ -50,14 +50,15 @@ describe('QuestionLoader', () => {
       expect(dots).toHaveLength(3);
     });
 
-    it('should show question text after loading timeout', async () => {
-      render(<QuestionLoader {...defaultProps} />);
+    it('should hide loading dots after loading timeout', async () => {
+      const { container } = render(<QuestionLoader {...defaultProps} />);
 
       await act(async () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText('What is your age?')).toBeInTheDocument();
+      const dots = container.querySelectorAll('.bg-emerald-500');
+      expect(dots).toHaveLength(0);
     });
 
     it('should not show loading dots after timeout', async () => {
@@ -78,59 +79,31 @@ describe('QuestionLoader', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText('What is your age?')).toBeInTheDocument();
+      // Loading should be complete
+      let dots = container.querySelectorAll('.bg-emerald-500');
+      expect(dots).toHaveLength(0);
 
       rerender(<QuestionLoader {...defaultProps} questionIndex={1} />);
 
-      const dots = container.querySelectorAll('.bg-emerald-500');
+      // Loading should restart
+      dots = container.querySelectorAll('.bg-emerald-500');
       expect(dots).toHaveLength(3);
     });
   });
 
   describe('Question Display', () => {
-    it('should display the question text after loading', async () => {
-      render(<QuestionLoader {...defaultProps} question="How old are you?" />);
+    it('should render children after loading completes', async () => {
+      render(
+        <QuestionLoader {...defaultProps}>
+          <div>Test child content</div>
+        </QuestionLoader>
+      );
 
       await act(async () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText('How old are you?')).toBeInTheDocument();
-    });
-
-    it('should display required asterisk when question is provided', async () => {
-      render(<QuestionLoader {...defaultProps} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(800);
-      });
-
-      const asterisk = screen.getByText('*');
-      expect(asterisk).toHaveClass('text-red-500');
-    });
-
-    it('should display "Select any one" hint after loading', async () => {
-      render(<QuestionLoader {...defaultProps} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(800);
-      });
-
-      expect(screen.getByText('Select any one')).toBeInTheDocument();
-    });
-
-    it('should use default question when not provided', async () => {
-      const propsWithoutQuestion = {
-        ...defaultProps,
-        question: undefined as any,
-      };
-      render(<QuestionLoader {...propsWithoutQuestion} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(800);
-      });
-
-      expect(screen.getByText('Since when have you had this symptom?')).toBeInTheDocument();
+      expect(screen.getByText('Test child content')).toBeInTheDocument();
     });
   });
 
@@ -173,7 +146,7 @@ describe('QuestionLoader', () => {
     it('should maintain max width of 760px', () => {
       const { container } = render(<QuestionLoader {...defaultProps} />);
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('max-w-[760px]');
+      expect(wrapper).toHaveClass('max-w-[950px]');
     });
   });
 });

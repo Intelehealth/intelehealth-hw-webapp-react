@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuTextInput } from '../../../../../modules/ayu/components/common/ayu-text-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
 
@@ -17,14 +17,18 @@ describe('AyuTextInput', () => {
 
   describe('Rendering', () => {
     it('should render text input with label', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
       render(
         <AyuTextInput
-          question={mockQuestion}
+          question={questionWithLabel}
           parent={undefined}
           previousSibling={undefined}
         />
       );
-      expect(screen.getByLabelText('What is your name?')).toBeInTheDocument();
+      expect(screen.getByLabelText('Additional information')).toBeInTheDocument();
       expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
@@ -72,7 +76,7 @@ describe('AyuTextInput', () => {
       expect(input).not.toBeDisabled();
     });
 
-    it('should have correct input type', () => {
+    it('should render as textarea element', () => {
       render(
         <AyuTextInput
           question={mockQuestion}
@@ -81,7 +85,45 @@ describe('AyuTextInput', () => {
         />
       );
       const input = screen.getByRole('textbox');
-      expect(input).toHaveAttribute('type', 'text');
+      expect(input.tagName).toBe('TEXTAREA');
+    });
+
+    it('should render label text only when label is "Additional information"', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByText('Additional information')).toBeInTheDocument();
+    });
+
+    it('should not render label text when label is not "Additional information"', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.queryByText('What is your name?')).not.toBeInTheDocument();
+    });
+
+    it('should have placeholder text "Describe..."', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Describe...');
     });
 
     it('should have correct CSS classes', () => {
@@ -93,21 +135,25 @@ describe('AyuTextInput', () => {
         />
       );
       const input = screen.getByRole('textbox');
-      expect(input).toHaveClass('border', 'rounded', 'px-3', 'py-2');
+      expect(input).toHaveClass('border', 'rounded-md', 'px-3', 'py-2');
     });
   });
 
   describe('Label Styling', () => {
     it('should render label with correct CSS classes', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information',
+      };
       render(
         <AyuTextInput
-          question={mockQuestion}
+          question={questionWithLabel}
           parent={undefined}
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('What is your name?');
-      expect(label).toHaveClass('text-sm', 'font-medium', 'text-gray-700');
+      const label = screen.getByText('Additional information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
   });
 
@@ -147,6 +193,18 @@ describe('AyuTextInput', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      render(
+        <AyuTextInput
+          question={undefined}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(screen.queryByRole('label')).not.toBeInTheDocument();
+    });
+
     it('should handle question with empty string text', () => {
       const emptyTextQuestion: AyuQuestion = {
         ...mockQuestion,
@@ -191,6 +249,322 @@ describe('AyuTextInput', () => {
       );
       const wrapper = container.firstChild as HTMLElement;
       expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-1');
+    });
+  });
+
+  describe('handleChange Function Coverage', () => {
+    it('should call onChange with text value when user types', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: 'Hello World' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith('Hello World');
+    });
+
+    it('should handle empty string value correctly', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="Some text"
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      // Verify initial value
+      expect(textarea.value).toBe('Some text');
+
+      // Test that handleChange function logic handles empty strings
+      // (the actual logic: const newValue = e.target.value; onChange?.(newValue);)
+      fireEvent.change(textarea, { target: { value: 'Updated' } });
+      expect(mockOnChange).toHaveBeenCalledWith('Updated');
+    });
+
+    it('should call onChange with multiline text', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      const multilineText = 'Line 1\nLine 2\nLine 3';
+      fireEvent.change(textarea, { target: { value: multilineText } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(multilineText);
+    });
+
+    it('should call onChange with special characters', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      const specialText = '!@#$%^&*()_+-=[]{}|;:",.<>?/~`';
+      fireEvent.change(textarea, { target: { value: specialText } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(specialText);
+    });
+
+    it('should call onChange with numeric strings', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '12345' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith('12345');
+    });
+
+    it('should call onChange with whitespace', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '   ' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith('   ');
+    });
+
+    it('should not throw error when onChange is undefined', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+
+      expect(() => {
+        fireEvent.change(textarea, { target: { value: 'Test' } });
+      }).not.toThrow();
+    });
+
+    it('should handle multiple onChange calls', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: 'First' } });
+      fireEvent.change(textarea, { target: { value: 'Second' } });
+      fireEvent.change(textarea, { target: { value: 'Third' } });
+
+      expect(mockOnChange).toHaveBeenCalledTimes(3);
+      expect(mockOnChange).toHaveBeenNthCalledWith(1, 'First');
+      expect(mockOnChange).toHaveBeenNthCalledWith(2, 'Second');
+      expect(mockOnChange).toHaveBeenNthCalledWith(3, 'Third');
+    });
+
+    it('should call onChange with unicode characters', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      const unicodeText = '你好世界 مرحبا بالعالم';
+      fireEvent.change(textarea, { target: { value: unicodeText } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(unicodeText);
+    });
+
+    it('should call onChange with emoji characters', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      const emojiText = '😀 😃 😄 😁';
+      fireEvent.change(textarea, { target: { value: emojiText } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(emojiText);
+    });
+
+    it('should call onChange with very long text', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox');
+      const longText = 'a'.repeat(1000);
+      fireEvent.change(textarea, { target: { value: longText } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(longText);
+    });
+  });
+
+  describe('inputValue Logic Coverage', () => {
+    it('should display value prop as string', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="Test Value"
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('Test Value');
+    });
+
+    it('should convert numeric value to string', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={42}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('42');
+    });
+
+    it('should display empty string when value is null', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={null}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('');
+    });
+
+    it('should display empty string when value is undefined', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('');
+    });
+
+    it('should display empty string when value is not provided', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('');
+    });
+
+    it('should convert boolean value to string', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={true}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('true');
+    });
+
+    it('should display zero as string', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={0}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('0');
+    });
+
+    it('should handle object value by converting to string', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={{ test: 'value' } as any}
+        />
+      );
+
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('[object Object]');
     });
   });
 });

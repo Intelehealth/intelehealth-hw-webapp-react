@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { AyuGroup } from '../../../../../modules/ayu/components/common/ayu-group.component';
 import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
 
-vi.mock('../../../../../modules/ayu/components/ayu-renderer.component', () => ({
+vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question }) => <div data-testid={`renderer-${question.linkId}`}>{question.text}</div>),
 }));
 
@@ -187,6 +187,14 @@ describe('AyuGroup', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      const { container } = render(<AyuGroup question={undefined} />);
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper).toBeInTheDocument();
+      expect(wrapper).toHaveClass('space-y-4', 'bg-gray-50');
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    });
+
     it('should handle question with only text, no items', () => {
       const textOnlyQuestion: AyuQuestion = {
         linkId: 'text-only',

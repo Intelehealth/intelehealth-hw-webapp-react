@@ -201,6 +201,158 @@ describe('decision-matrix', () => {
       });
     });
 
+    describe('Quantity Type Resolution', () => {
+      it('should return "quantity" for quantity type questions', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-a',
+          type: 'quantity',
+          text: 'Enter quantity',
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with required flag', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-b',
+          type: 'quantity',
+          text: 'Enter quantity',
+          required: true,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with repeats', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-c',
+          type: 'quantity',
+          text: 'Enter multiple quantities',
+          repeats: true,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type without text', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-d',
+          type: 'quantity',
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+
+      it('should return "quantity" for quantity type with all properties', () => {
+        const question: AyuQuestion = {
+          linkId: 'q12-e',
+          type: 'quantity',
+          text: 'Enter quantity with units',
+          required: true,
+          readOnly: false,
+          repeats: false,
+        };
+
+        const result = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
+    });
+
+    describe('Associated Symptoms Resolution', () => {
+      it('should return "associatedSymptoms" for choice type with associated symptoms extension', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('associatedSymptoms');
+      });
+
+      it('should return "associatedSymptoms" when extension present with repeats', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-assoc-repeat',
+          type: 'choice',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('associatedSymptoms');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension url does not match', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-wrong-url',
+          type: 'choice',
+          extension: [
+            {
+              url: 'urn:intelehealth:other-extension',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" when valueString does not match', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-wrong-value',
+          type: 'choice',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Chief complaint',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" for non-choice type even with the extension', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-string-ext',
+          type: 'string',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+        };
+        expect(resolveAyuComponent(question)).not.toBe('associatedSymptoms');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension array is empty', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-empty-ext',
+          type: 'choice',
+          extension: [],
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+
+      it('should NOT return "associatedSymptoms" when extension is absent', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-no-ext',
+          type: 'choice',
+        };
+        expect(resolveAyuComponent(question)).toBe('selectableOptionGroup');
+      });
+    });
+
     describe('Choice Type Resolution', () => {
       it('should return "selectableOptionGroup" for choice type questions', () => {
         const question: AyuQuestion = {
@@ -381,6 +533,16 @@ describe('decision-matrix', () => {
         const result: AyuComponentType = resolveAyuComponent(question);
         expect(result).toBe('selectableOptionGroup');
       });
+
+      it('should return valid AyuComponentType for quantity', () => {
+        const question: AyuQuestion = {
+          linkId: 'q26-a',
+          type: 'quantity',
+        };
+
+        const result: AyuComponentType = resolveAyuComponent(question);
+        expect(result).toBe('quantity');
+      });
     });
 
     describe('Edge Cases', () => {
@@ -515,7 +677,7 @@ describe('decision-matrix', () => {
       });
 
       it('should be deterministic for all question types', () => {
-        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice'];
+        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice', 'quantity'];
 
         types.forEach(type => {
           const question: AyuQuestion = {
@@ -541,6 +703,7 @@ describe('decision-matrix', () => {
           { type: 'decimal', expected: 'number' },
           { type: 'date', expected: 'date' },
           { type: 'choice', expected: 'selectableOptionGroup' },
+          { type: 'quantity', expected: 'quantity' },
         ];
 
         testCases.forEach(({ type, expected }) => {
@@ -584,6 +747,8 @@ describe('decision-matrix', () => {
         'multi-select',
         'radio',
         'selectableOptionGroup',
+        'quantity',
+        'associatedSymptoms',
       ];
 
       validTypes.forEach(type => {

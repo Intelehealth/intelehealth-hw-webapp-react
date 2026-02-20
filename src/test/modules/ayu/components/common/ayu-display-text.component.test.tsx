@@ -107,6 +107,13 @@ describe('AyuDisplayText', () => {
   });
 
   describe('Edge Cases', () => {
+    it('should handle undefined question gracefully', () => {
+      const { container } = render(<AyuDisplayText question={undefined} />);
+      const paragraph = container.querySelector('p');
+      expect(paragraph).toBeInTheDocument();
+      expect(paragraph?.textContent).toBe('');
+    });
+
     it('should handle text with only whitespace', () => {
       const whitespaceQuestion: AyuQuestion = {
         ...mockQuestion,

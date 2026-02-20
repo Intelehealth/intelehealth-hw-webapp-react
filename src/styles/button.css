@@ -25,7 +25,7 @@
   color: var(--color-muted); /* text-[--color-muted] */
   cursor: not-allowed; /* cursor-not-allowed */
   pointer-events: none; /* pointer-events-none */
-  border-color: var(--color-muted); /* border-[--color-muted] */
+  border-color: var(--color-bg); /* border-[--color-muted] */
 }
 
 .btn-primary-variant {
@@ -69,6 +69,17 @@
 .btn-secondary-variant:hover {
   background-color: var(--color-primary-light); /* bg-[--color-primary] */
   border: 1px solid var(--color-primary); /* border-[--color-primary-light] */
+}
+
+.btn-white-variant {
+  color: #374151; /* text-gray-700 */
+  background-color: #ffffff;
+  border: 1px solid #d1d5db; /* border-gray-300 */
+}
+
+.btn-white-variant:hover {
+  background-color: #f9fafb; /* bg-gray-50 */
+  border: 1px solid #9ca3af; /* border-gray-400 */
 }
 
 /* ------------------- */
