@@ -24,7 +24,7 @@ export const AyuSelectableOption: React.FC<SelectableOptionProps> = ({
       className={`selectable-option ${selected ? 'selected' : ''}`}
       onClick={onClick}
     >
-      {leftIcon && <span className={cn('flex-shrink-0')}>{leftIcon}</span>}
+      {leftIcon && <span className={cn('flex-shrink-0 option-icon')}>{leftIcon}</span>}
 
       {label && <span className="label">{label}</span>}
 

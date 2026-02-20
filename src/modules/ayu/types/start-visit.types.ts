@@ -4,6 +4,7 @@ export interface SectionProps {
   onPrevQuestion: () => void;
   onPrevSection?: () => void;
   onProgressUpdate?: (total: number, answered: number) => void;
+  physicalExamFilter?: string;
 }
 
 export interface SectionState {

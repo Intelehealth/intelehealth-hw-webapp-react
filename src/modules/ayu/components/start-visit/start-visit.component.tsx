@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
+import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import type { SectionState } from '../../types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
@@ -8,7 +9,13 @@ import { PhysicalExamination } from './physical-examination.component';
 import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals.component';
 
+const getPhysicalExamFilter = (questionnaire: typeof CoughQuestionnaire): string => {
+  const ext = (questionnaire as { extension?: Array<{ url: string; valueString?: string }> }).extension ?? [];
+  return ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')?.valueString ?? '';
+};
+
 export const StartVisit = () => {
+  const physicalExamFilter = useMemo(() => getPhysicalExamFilter(CoughQuestionnaire), []);
   const [sections, setSections] = useState<SectionState[]>([
     {
       totalQuestions: 1,
@@ -23,7 +30,7 @@ export const StartVisit = () => {
       currentStepIndex: 0,
     }, // Visit Reason
     {
-      totalQuestions: 8,
+      totalQuestions: 25, // updated by onProgressUpdate at runtime (conditional questions may change count)
       answeredQuestions: 0,
       name: 'Physical Exam',
       currentStepIndex: 0,
@@ -86,6 +93,13 @@ export const StartVisit = () => {
   const handleVisitReasonProgress = useCallback(
     (total: number, answered: number) => {
       updateSectionProgress('Visit Reason', total, answered);
+    },
+    []
+  );
+
+  const handlePhysicalExamProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Physical Exam', total, answered);
     },
     []
   );
@@ -167,6 +181,8 @@ export const StartVisit = () => {
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}
             onPrevSection={goPreviousSection}
+            onProgressUpdate={handlePhysicalExamProgress}
+            physicalExamFilter={physicalExamFilter}
           />
         )}
 
