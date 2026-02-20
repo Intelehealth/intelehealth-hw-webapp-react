@@ -8,65 +8,7 @@ import iconClock from '../../assets/icons/appiontment/icon-apm-clocktime.svg';
 import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
 import iconAngleSmallRight from '../../assets/icons/appiontment/icon-angle-small-right.svg';
 import iconsPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
-
-const appointmentsData = [
-  {
-    id: 1,
-    patientName: 'Bapu Mali',
-    gender: 'M',
-    age: '73y',
-    visitId: '987654JK',
-    symptom: 'Headache and body pain',
-    dateTime: '10 Oct 2025, at 10:00 am',
-    clinic: 'TM Clinic 1',
-    prescription: false,
-    status: 'PRIORITY',
-    speciality: 'General physician',
-    type: 'upcoming',
-    timeUntil: 'in 4 Hours 54 min at 10:00 am',
-  },
-  {
-    id: 2,
-    patientName: 'Vimla Jadhav',
-    gender: 'F',
-    age: '75y 2m',
-    visitId: '12345AB',
-    symptom: 'Cough',
-    dateTime: '24 May 2025, at 3:15 pm',
-    clinic: 'TM Clinic 2',
-    prescription: true,
-    status: 'Completed',
-    speciality: 'General physician',
-    type: 'past',
-    timeUntil: '',
-  },
-  {
-    id: 3,
-    patientName: 'Shantaram Rathod',
-    gender: 'M',
-    age: '76y 2m',
-    clinic: 'TM Clinic 2',
-    dateTime: '26 May, at 11:00 am',
-    prescription: false,
-    symptom: 'Fever',
-    status: 'Completed',
-    type: 'past',
-    timeUntil: '',
-  },
-  {
-    id: 4,
-    patientName: 'Ramesh Patil',
-    gender: 'M',
-    age: '55y',
-    clinic: 'TM Clinic 1',
-    dateTime: '28 May, at 10:30 am',
-    prescription: false,
-    symptom: 'Headache',
-    status: 'Scheduled',
-    type: 'upcoming',
-    timeUntil: 'in 2 Days at 10:30 am',
-  },
-];
+import { appointmentsListData } from '../../assets/data/appointments.data';
 
 export default function MyAppointments() {
   const [activeTab, setActiveTab] = useState('past');
@@ -75,7 +17,7 @@ export default function MyAppointments() {
   const navigate = useNavigate();
 
   const filteredAppointments = useMemo(() => {
-    return appointmentsData.filter(item => {
+    return appointmentsListData.filter(item => {
       const matchTab = item.type === activeTab;
       const matchSearch = item.patientName
         .toLowerCase()
@@ -88,7 +30,7 @@ export default function MyAppointments() {
 
   const upcomingCount = useMemo(
     () =>
-      appointmentsData.filter(a => {
+      appointmentsListData.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -101,7 +43,7 @@ export default function MyAppointments() {
 
   const pastCount = useMemo(
     () =>
-      appointmentsData.filter(a => {
+      appointmentsListData.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());

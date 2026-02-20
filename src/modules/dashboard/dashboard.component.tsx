@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import iconAddPatient from '../../assets/icons/appiontment/icon-add-patient.svg';
-import iconArrowright from '../../assets/icons/appiontment/icon-apm-arrow-right.svg';
+import iconArrowright from '../../assets/icons/appiontment/icon-arrow-right.svg';
 import iconOPatient from '../../assets/icons/appiontment/icon-o-patient.svg';
 import iconCalenderBlue from '../../assets/icons/icon-calendar-blue.svg';
 import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';

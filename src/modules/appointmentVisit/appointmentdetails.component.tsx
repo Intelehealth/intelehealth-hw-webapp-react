@@ -13,72 +13,14 @@ import iconEdit from '../../assets/icons/appiontment/icons-apm-edit.svg';
 import iconAngleSmallRight from '../../assets/icons/appiontment/icon-angle-small-right.svg';
 import iconsPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsApmArrowRight from '../../assets/icons/appiontment/icon-apm-arrow-right.svg';
+import { appointmentsDetailData } from '../../assets/data/appointments.data';
 
 export default function AppointmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const appointmentsData = [
-    {
-      id: 1,
-      patientName: 'Bapu Mali',
-      gender: 'M',
-      age: '73',
-      visitId: '987654JK',
-      symptom: 'Headache and body pain',
-      date: '10 Oct 2025',
-      time: '10:00 am',
-      status: 'PRIORITY',
-      speciality: 'General physician',
-      type: 'upcoming',
-    },
-    {
-      id: 2,
-      patientName: 'Vimla Jadhav',
-      gender: 'F',
-      age: '75y 2m',
-      visitId: '12345AB',
-      symptom: 'Cough',
-      date: '24 May 2025',
-      time: '3:15 pm',
-      status: 'COMPLETED',
-      speciality: 'General physician',
-      type: 'past',
-    },
-    {
-      id: 3,
-      patientName: 'Shantaram Rathod',
-      gender: 'M',
-      age: '76y 2m',
-      clinic: 'TM Clinic 2',
-      date: '26 May 2025',
-      time: '11:00 am',
-      visitId: 'RPT78901',
-      prescription: false,
-      symptom: 'Fever',
-      status: 'Completed',
-      speciality: 'General physician',
-      type: 'past',
-    },
-    {
-      id: 4,
-      patientName: 'Ramesh Patil',
-      gender: 'M',
-      age: '55y',
-      clinic: 'TM Clinic 1',
-      date: '28 May 2025',
-      time: '10:30 am',
-      visitId: 'RPT78902',
-      prescription: false,
-      symptom: 'Headache',
-      status: 'Scheduled',
-      speciality: 'General physician',
-      type: 'upcoming',
-    },
-  ];
-
-  const filteredAppointments = appointmentsData.filter(
+  const filteredAppointments = appointmentsDetailData.filter(
     item => item.type === activeTab
   );
 
@@ -135,7 +77,8 @@ export default function AppointmentDetails() {
                 className="inline w-4 mr-1"
               />
               Upcoming (
-              {appointmentsData.filter(a => a.type === 'upcoming').length})
+              {appointmentsDetailData.filter(a => a.type === 'upcoming').length}
+              )
             </button>
 
             <button
@@ -151,7 +94,8 @@ export default function AppointmentDetails() {
                 alt="received"
                 className="inline w-4 mr-1"
               />
-              Past ({appointmentsData.filter(a => a.type === 'past').length})
+              Past (
+              {appointmentsDetailData.filter(a => a.type === 'past').length})
             </button>
           </div>
         </div>
