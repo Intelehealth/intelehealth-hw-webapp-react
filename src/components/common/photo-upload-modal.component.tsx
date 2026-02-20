@@ -21,12 +21,14 @@ interface PhotoUploadModalProps {
   onClose: () => void;
   onTakePhoto: () => void;
   onUploadPhoto: (file: File) => void;
+  skipCrop?: boolean;
 }
 
 const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   isOpen,
   onClose,
   onUploadPhoto,
+  skipCrop = false,
 }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +80,14 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           fileInputRef.current.value = '';
         }
         console.groupEnd();
+        return;
+      }
+
+      if (skipCrop) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        console.groupEnd();
+        onClose();
+        onUploadPhoto(file);
         return;
       }
 
@@ -140,9 +150,17 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         base64.length
       );
 
-      // Close camera modal first before opening crop modal
+      // Close camera modal first
       console.info('[DEBUG]', 'Closing camera modal');
       setIsCameraModalOpen(false);
+
+      if (skipCrop) {
+        dispatch(stopLoading());
+        console.groupEnd();
+        onClose();
+        onUploadPhoto(file);
+        return;
+      }
 
       // Wait for camera modal to unmount, then open crop modal
       console.info('[DEBUG]', 'Waiting 150ms for camera modal to unmount');
