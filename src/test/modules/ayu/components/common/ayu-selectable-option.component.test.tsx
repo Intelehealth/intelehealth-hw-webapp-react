@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AyuSelectableOption } from '../../../../../modules/ayu/components/common/ayu-selectable-option.component';
@@ -51,14 +52,15 @@ describe('AyuSelectableOption', () => {
   });
 
   describe('Click Handling', () => {
-    it('should be clickable', async () => {
+    it('should call onClick when clicked', async () => {
+      const handleClick = vi.fn();
       const user = userEvent.setup();
-      render(<AyuSelectableOption label="Option 1" value="opt-1" selected={false} />);
-      const button = screen.getByRole('button');
-      await user.click(button);
+      render(<AyuSelectableOption label="Option 1" value="opt-1" selected={false} onClick={handleClick} />);
+      await user.click(screen.getByRole('button'));
+      expect(handleClick).toHaveBeenCalledTimes(1);
     });
 
-    it('should have empty onClick handler', async () => {
+    it('should handle no onClick prop without error', async () => {
       const user = userEvent.setup();
       render(<AyuSelectableOption label="Option 1" value="opt-1" selected={false} />);
       const button = screen.getByRole('button');
@@ -128,6 +130,72 @@ describe('AyuSelectableOption', () => {
       );
       const button = container.querySelector('.selectable-option');
       expect(button).toBeInTheDocument();
+    });
+
+    it('should apply selected class when selected is true', () => {
+      render(<AyuSelectableOption label="Option" value="opt" selected={true} />);
+      expect(screen.getByRole('button')).toHaveClass('selected');
+    });
+
+    it('should not apply selected class when selected is false', () => {
+      render(<AyuSelectableOption label="Option" value="opt" selected={false} />);
+      expect(screen.getByRole('button')).not.toHaveClass('selected');
+    });
+  });
+
+  describe('Icons', () => {
+    it('should render leftIcon when provided', () => {
+      render(
+        <AyuSelectableOption
+          label="Option"
+          value="opt"
+          selected={false}
+          leftIcon={<span data-testid="left-icon">L</span>}
+        />
+      );
+      expect(screen.getByTestId('left-icon')).toBeInTheDocument();
+      expect(screen.getByTestId('left-icon').parentElement).toHaveClass('option-icon');
+    });
+
+    it('should not render leftIcon wrapper when not provided', () => {
+      const { container } = render(
+        <AyuSelectableOption label="Option" value="opt" selected={false} />
+      );
+      expect(container.querySelector('.option-icon')).not.toBeInTheDocument();
+    });
+
+    it('should render rightIcon when provided', () => {
+      render(
+        <AyuSelectableOption
+          label="Option"
+          value="opt"
+          selected={false}
+          rightIcon={<span data-testid="right-icon">R</span>}
+        />
+      );
+      expect(screen.getByTestId('right-icon')).toBeInTheDocument();
+      expect(screen.getByTestId('right-icon').parentElement).toHaveClass('right-icon');
+    });
+
+    it('should not render rightIcon wrapper when not provided', () => {
+      const { container } = render(
+        <AyuSelectableOption label="Option" value="opt" selected={false} />
+      );
+      expect(container.querySelector('.right-icon')).not.toBeInTheDocument();
+    });
+
+    it('should render both icons together', () => {
+      render(
+        <AyuSelectableOption
+          label="Option"
+          value="opt"
+          selected={false}
+          leftIcon={<span data-testid="left">L</span>}
+          rightIcon={<span data-testid="right">R</span>}
+        />
+      );
+      expect(screen.getByTestId('left')).toBeInTheDocument();
+      expect(screen.getByTestId('right')).toBeInTheDocument();
     });
   });
 
