@@ -1,22 +1,61 @@
+import { useState } from 'react';
+import iconAddPatient from '../../assets/icons/appiontment/icon-add-patient.svg';
+import iconArrowright from '../../assets/icons/appiontment/icon-arrow-right.svg';
+import iconOPatient from '../../assets/icons/appiontment/icon-o-patient.svg';
 import iconCalenderBlue from '../../assets/icons/icon-calendar-blue.svg';
 import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
+import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
 
 // Declare the functional component with the FC type and prop interface
 const DashboardComponent = () => {
+  const [showPrescriptions, setShowPrescriptions] = useState(false);
+
   return (
     <div className="p-4 flex flex-col gap-4">
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
-        <DashboardCard
-          title="Prescriptions"
-          subtitle="<strong>5</strong> out of <strong>12</strong> received"
-          bg="bg-(--color-accent-light)"
-          iconBg="bg-green-300"
-          icon={iconRightArrow}
-          image={imgPrescriptionGreen}
-        />
+      {/* Mobile: back button shown when in prescriptions detail view */}
+      {showPrescriptions && (
+        <button
+          className="flex md:hidden items-center gap-2 text-[#2E1E91] font-semibold text-[16px]"
+          onClick={() => setShowPrescriptions(false)}
+        >
+          ← Prescriptions
+        </button>
+      )}
+
+      {/* Add Patients Button - mobile only (top), hidden in detail view */}
+      <button
+        className={`${showPrescriptions ? 'hidden' : 'flex'} md:hidden items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center rounded-full bg-white/20">
+            <img src={iconAddPatient} className="w-[34px] h-[34px]" />
+          </div>
+          <span className="font-semibold text-[18px]">Add Patients</span>
+        </div>
+        <img src={iconArrowright} className="w-[34px] h-[34px]" />
+      </button>
+
+      {/* Dashboard cards - hidden on mobile when in prescriptions detail view */}
+      <div
+        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`}
+      >
+        {/* Prescriptions card - clickable on mobile to open detail view */}
+        <div
+          className="md:cursor-default cursor-pointer"
+          onClick={() => setShowPrescriptions(true)}
+        >
+          <DashboardCard
+            title="Prescriptions"
+            subtitle="<strong>5</strong> out of <strong>12</strong> received"
+            bg="bg-(--color-accent-light)"
+            iconBg="bg-green-300"
+            icon={iconRightArrow}
+            image={imgPrescriptionGreen}
+          />
+        </div>
         <DashboardCard
           title="Close visits"
           subtitle="<strong>12</strong> Unclosed visits"
@@ -24,7 +63,7 @@ const DashboardComponent = () => {
           iconBg="bg-purple-300"
           icon={iconRightArrow}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
           <DashboardCard
             title="Appointments"
             subtitle="<strong>4</strong> Upcoming"
@@ -41,25 +80,42 @@ const DashboardComponent = () => {
           />
         </div>
       </div>
-      {/* <div className="flex">
-        <div
-          className={`bg-(--color-primary) rounded-2xl shadow-md flex border border-gray-200 min-h-[150px]`}
-        >
-          <div className="flex items-center gap-2 md:gap-3">
-            <div
-              className={`rounded-full flex items-center justify-center w-7 h-7 md:w-8 md:h-8`}
-              style={{ backgroundColor: '#2e1e91' }}
-            >
-              <i
-                className={`fa-solid fa-user-plus text-white text-xs md:text-sm`}
-              ></i>
+
+      {/* Add Patients + Pending Prescriptions row:
+          - Desktop/Tablet: always visible
+          - Mobile: only visible when showPrescriptions is true */}
+      <div
+        className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-col gap-4 md:flex-row`}
+      >
+        {/* Add Patients Button - desktop only */}
+        <button className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center rounded-full bg-white/20">
+              <img src={iconAddPatient} className="w-[34px] h-[34px]" />
             </div>
-            <span className="font-medium text-xs md:text-sm text-white">
-              Add Patients
-            </span>
+            <span className="font-semibold text-[14px]">Add Patients</span>
           </div>
+          <img src={iconArrowright} className="w-[34px] h-[34px]" />
+        </button>
+
+        {/* Pending Prescriptions Info */}
+        <div className="flex flex-1 items-center h-[46px] gap-4 rounded-lg bg-white px-4 py-1 border border-[#ECEEFF] shadow-[0px_1px_2px_0px_#1018280D] shadow-sm">
+          <div className="flex items-center justify-center rounded-full bg-orange-100">
+            <img className="w-[34px] h-[34px]" src={iconOPatient} />
+          </div>
+          <p className="text-[#595959] md:text-[14px] sm:text-[18px]">
+            <span className="font-semibold">0 Patients </span>
+            are waiting their Pending Prescriptions
+          </p>
         </div>
-      </div> */}
+      </div>
+
+      {/* Table:
+          - Desktop/Tablet: always visible
+          - Mobile: only visible when showPrescriptions is true */}
+      <div className={showPrescriptions ? '' : 'hidden md:block'}>
+        <PrescriptionstRecivied />
+      </div>
     </div>
   );
 };

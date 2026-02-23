@@ -6,14 +6,14 @@ npx lint-staged
 
 # Type checking
 echo "🔧 Running TypeScript type check..."
-yarn type-check
+npx tsc --noEmit
 
 # Run tests
 echo "🧪 Running tests..."
-yarn test:run
+npx vitest run
 
 # Build verification
 echo "🏗️ Verifying build..."
-yarn build
+npx tsc -b && npx vite build
 
 echo "✅ All pre-commit checks passed!"
