@@ -15,7 +15,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 8px;
   padding: 8px 16px 8px 16px;
   min-width: 120px;
   border-radius: 8px;
@@ -37,4 +37,12 @@
   color: #ffffff;
   border-color: #20c997;
   box-shadow: 0 4px 10px rgba(32, 201, 151, 0.3);
+}
+
+.selectable-option:not(.selected) .option-icon {
+  color: #20c997;
+}
+
+.selectable-option.selected .option-icon {
+  color: #ffffff;
 }
