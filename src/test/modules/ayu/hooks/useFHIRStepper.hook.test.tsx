@@ -182,14 +182,21 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(0); // Should NOT advance
     });
 
-    it('should NOT auto-advance for quantity type', () => {
+    it('should NOT auto-advance for quantity type with incomplete duration dropdowns', () => {
       const quantityQuestionnaire = {
         item: [
           {
             linkId: 'q1',
-            text: 'Weight',
-            type: 'quantity',
+            text: 'Duration',
+            type: 'choice',
             required: false,
+            item: [
+              {
+                linkId: 'duration',
+                text: 'How long?',
+                type: 'quantity',
+              },
+            ],
           },
           {
             linkId: 'q2',
@@ -204,14 +211,18 @@ describe('useFHIRStepper', () => {
       );
 
       act(() => {
-        result.current.setAnswer(result.current.currentQuestion!, { value: 70, unit: 'kg' } as any);
+        result.current.setAnswer(result.current.currentQuestion!, 'yes');
+        const durationQ = result.current.topLevelItems[0].item!.find(q => q.linkId === 'duration')!;
+        result.current.setAnswer(durationQ, {
+          dropdownValues: { number: 5, days: '' },
+        });
       });
 
       act(() => {
         vi.advanceTimersByTime(300);
       });
 
-      expect(result.current.currentIndex).toBe(0); // Should NOT advance
+      expect(result.current.currentIndex).toBe(0); // Should NOT advance (incomplete duration)
     });
 
     it('should NOT auto-advance for choice with dropdownValues', () => {
@@ -333,6 +344,59 @@ describe('useFHIRStepper', () => {
       });
 
       expect(result.current.currentIndex).toBe(0); // Should NOT advance
+    });
+
+    it('should NOT auto-advance when nested child has choice+repeats (hasNestedRepeats)', () => {
+      const nestedRepeatsQuestionnaire = {
+        item: [
+          {
+            linkId: 'parent',
+            text: 'Parent',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+              { valueCoding: { code: 'no', display: 'No' } },
+            ],
+            item: [
+              {
+                linkId: 'nested-multi',
+                text: 'Nested Multi Select',
+                type: 'choice',
+                repeats: true,
+                answerOption: [
+                  { valueCoding: { code: 'opt1', display: 'Option 1' } },
+                  { valueCoding: { code: 'opt2', display: 'Option 2' } },
+                ],
+              },
+            ],
+          },
+          {
+            linkId: 'next-q',
+            text: 'Next Question',
+            type: 'string',
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedRepeatsQuestionnaire })
+      );
+
+      act(() => {
+        const parentQ = result.current.topLevelItems[0];
+        result.current.setAnswer(parentQ, 'yes');
+        // Also answer the nested repeats child
+        const nestedQ = parentQ.item!.find(q => q.linkId === 'nested-multi')!;
+        result.current.setAnswer(nestedQ, 'opt1');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // Should NOT auto-advance because nested child is choice+repeats
+      expect(result.current.currentIndex).toBe(0);
     });
   });
 

@@ -128,11 +128,6 @@ export const useFHIRStepper = (
         return updated;
       }
 
-      // Disable autoNext for quantity type
-      if (currentQuestion.type === 'quantity') {
-        return updated;
-      }
-
       // If changed question is not current top-level, don't auto advance
       if (currentQuestion.linkId !== getTopLevelLinkId(linkId)) {
         return updated;
@@ -164,12 +159,17 @@ export const useFHIRStepper = (
 
       const isLastQuestion = currentIndex === structuralTotal - 1;
 
+      const hasNestedRepeats = currentQuestion.item?.some(
+        child => child.type === 'choice' && child.repeats
+      );
+
       if (
         shouldMoveNext &&
         !hasVisibleStringChild &&
         !isAdvancingRef.current &&
         !isLastQuestion &&
-        !(currentQuestion.type === 'choice' && currentQuestion.repeats)
+        !(currentQuestion.type === 'choice' && currentQuestion.repeats) &&
+        !hasNestedRepeats
       ) {
         isAdvancingRef.current = true;
 

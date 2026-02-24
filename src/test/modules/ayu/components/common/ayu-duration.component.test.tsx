@@ -4,11 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { AyuDuration } from '../../../../../modules/ayu/components/common/ayu-duration.component';
 
 // Mock the dependencies
-import { resolveLabel } from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
-vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
-  resolveLabel: vi.fn((question) => question?.text || null),
-}));
-
 vi.mock('../../../../../modules/ayu/components/common/ayu-dropdown.component', () => ({
   AyuDropdown: vi.fn(({ options, value, onChange, placeholder, className }) => (
     <select
@@ -57,12 +52,6 @@ describe('AyuDuration', () => {
   };
 
   describe('Rendering', () => {
-    it('should render label from resolveLabel', () => {
-      render(<AyuDuration question={mockQuestion} />);
-
-      expect(screen.getByText('How long?')).toBeInTheDocument();
-    });
-
     it('should render two dropdowns (number and duration type)', () => {
       render(<AyuDuration question={mockQuestion} />);
 
@@ -70,21 +59,21 @@ describe('AyuDuration', () => {
       expect(screen.getByTestId('dropdown-duration-type')).toBeInTheDocument();
     });
 
-    it('should render without label when label is null', () => {
+    it('should render without crashing when label is null', () => {
       const questionWithoutText = { linkId: 'duration-1', type: 'quantity' };
       render(<AyuDuration question={questionWithoutText} />);
 
-      const labels = screen.queryAllByRole('textbox');
-      expect(labels).toHaveLength(0);
+      expect(screen.getByTestId('dropdown-number')).toBeInTheDocument();
     });
 
     it('should use DURATION_DROPDOWN_CONFIGS', () => {
       render(<AyuDuration question={mockQuestion} />);
 
-      // Should have options from the config
+      // Should have options from the config (placeholders)
       expect(screen.getByText('Number')).toBeInTheDocument();
       expect(screen.getByText('Duration Type')).toBeInTheDocument();
     });
+
   });
 
   describe('Value Handling (Nested Structure)', () => {
@@ -268,33 +257,6 @@ describe('AyuDuration', () => {
     });
   });
 
-  describe('Props Handling', () => {
-    it('should handle parent and previousSibling in resolveLabel', () => {
-      const parent = { linkId: 'parent', text: 'Parent Question', type: 'group' as const };
-      const previousSibling = { linkId: 'sibling', text: 'Previous Question', type: 'quantity' as const };
-
-      render(
-        <AyuDuration
-          question={mockQuestion}
-          parent={parent}
-          previousSibling={previousSibling}
-        />
-      );
-
-      // resolveLabel should have been called with all three parameters
-      expect(resolveLabel).toHaveBeenCalledWith(mockQuestion, parent, previousSibling);
-      expect(screen.getByText('How long?')).toBeInTheDocument();
-    });
-
-    it('should pass question to resolveLabel', () => {
-      render(<AyuDuration question={mockQuestion} />);
-
-      // Verify resolveLabel was called with just the question (parent and previousSibling are undefined)
-      expect(resolveLabel).toHaveBeenCalledWith(mockQuestion, undefined, undefined);
-      expect(screen.getByText('How long?')).toBeInTheDocument();
-    });
-  });
-
   describe('Edge Cases', () => {
     it('should handle undefined question gracefully', () => {
       render(<AyuDuration question={undefined} />);
@@ -304,26 +266,23 @@ describe('AyuDuration', () => {
       expect(screen.getByTestId('dropdown-number')).toBeInTheDocument();
     });
 
-    it('should handle DURATION_DROPDOWN_CONFIGS undefined', () => {
-      vi.doMock('../../../../../modules/ayu/utils/constants', () => ({
-        DURATION_DROPDOWN_CONFIGS: undefined,
-      }));
+    it('should handle value with no dropdownValues key', () => {
+      const value = {} as any;
+      render(<AyuDuration question={mockQuestion} value={value} />);
 
-      render(<AyuDuration question={mockQuestion} />);
+      const numberDropdown = screen.getByTestId('dropdown-number') as HTMLSelectElement;
+      const durationDropdown = screen.getByTestId('dropdown-duration-type') as HTMLSelectElement;
 
-      // Should render label but no dropdowns
-      expect(screen.getByText('How long?')).toBeInTheDocument();
+      expect(numberDropdown.value).toBe('');
+      expect(durationDropdown.value).toBe('');
     });
 
-    it('should handle empty DURATION_DROPDOWN_CONFIGS array', () => {
-      vi.doMock('../../../../../modules/ayu/utils/constants', () => ({
-        DURATION_DROPDOWN_CONFIGS: [],
-      }));
+    it('should handle value as a number (non-object)', () => {
+      const value: any = 42;
+      render(<AyuDuration question={mockQuestion} value={value} />);
 
-      render(<AyuDuration question={mockQuestion} />);
-
-      // Should render label but no dropdowns
-      expect(screen.getByText('How long?')).toBeInTheDocument();
+      const numberDropdown = screen.getByTestId('dropdown-number') as HTMLSelectElement;
+      expect(numberDropdown.value).toBe('');
     });
 
     it('should handle partial dropdownValues (only number)', () => {

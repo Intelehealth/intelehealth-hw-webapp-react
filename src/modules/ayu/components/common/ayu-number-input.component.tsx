@@ -1,16 +1,10 @@
-import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
 
 export function AyuNumberInput({
   question,
-  parent,
-  previousSibling,
   value,
   onChange,
 }: AyuRendererBaseProps) {
-  const label = question
-    ? resolveLabel(question, parent, previousSibling)
-    : undefined;
   const inputId = `ayu-number-${question?.linkId}`;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,11 +16,6 @@ export function AyuNumberInput({
 
   return (
     <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={inputId} className="text-md font-medium text-gray-700">
-          {label}
-        </label>
-      )}
       <input
         id={inputId}
         type="number"

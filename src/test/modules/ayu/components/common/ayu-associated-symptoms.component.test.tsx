@@ -477,11 +477,22 @@ describe('AyuAssociatedSymptoms', () => {
   });
 
   describe('Nested Questions', () => {
-    it('should render AyuNestedRenderer when question has nested items', () => {
+    it('should render AyuNestedRenderer when question has matching nested items with enableWhen', () => {
       const questionWithNested: AyuQuestion = {
         ...baseQuestion,
         item: [
-          { linkId: 'nested-q1', text: 'Duration', type: 'string' },
+          {
+            linkId: 'nested-q1',
+            text: 'Duration',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'symptoms-q',
+                operator: '=',
+                answerCoding: { code: 'fever' },
+              },
+            ],
+          },
         ],
       };
       render(
@@ -509,12 +520,55 @@ describe('AyuAssociatedSymptoms', () => {
       expect(screen.queryByTestId('nested-renderer')).not.toBeInTheDocument();
     });
 
+    it('should not render AyuNestedRenderer when nested items have no matching enableWhen', () => {
+      const questionWithNested: AyuQuestion = {
+        ...baseQuestion,
+        item: [
+          {
+            linkId: 'nested-q1',
+            text: 'Duration',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'symptoms-q',
+                operator: '=',
+                answerCoding: { code: 'other-code' },
+              },
+            ],
+          },
+        ],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={questionWithNested}
+          value={['fever']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.queryByTestId('nested-renderer')).not.toBeInTheDocument();
+    });
+
     it('should pass yesValues as answers for nested renderer', () => {
       const MockedRenderer = vi.mocked(MockedAyuNestedRenderer);
 
       const questionWithNested: AyuQuestion = {
         ...baseQuestion,
-        item: [{ linkId: 'nested-q1', text: 'Duration', type: 'string' }],
+        item: [
+          {
+            linkId: 'nested-q1',
+            text: 'Duration',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'symptoms-q',
+                operator: '=',
+                answerCoding: { code: 'fever' },
+              },
+            ],
+          },
+        ],
       };
       render(
         <AyuAssociatedSymptoms
@@ -532,9 +586,54 @@ describe('AyuAssociatedSymptoms', () => {
             'symptoms-q': ['fever'],
           }),
           setAnswer: mockSetAnswer,
+          selectable: true,
         }),
         undefined
       );
+    });
+
+    it('should render nested items for each matching option', () => {
+      const questionWithNested: AyuQuestion = {
+        ...baseQuestion,
+        item: [
+          {
+            linkId: 'nested-fever',
+            text: 'Fever Duration',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'symptoms-q',
+                operator: '=',
+                answerCoding: { code: 'fever' },
+              },
+            ],
+          },
+          {
+            linkId: 'nested-cough',
+            text: 'Cough Duration',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'symptoms-q',
+                operator: '=',
+                answerCoding: { code: 'cough' },
+              },
+            ],
+          },
+        ],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={questionWithNested}
+          value={['fever', 'cough']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      // Both options have nested items rendered
+      const renderers = screen.getAllByTestId('nested-renderer');
+      expect(renderers.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -625,6 +724,26 @@ describe('AyuAssociatedSymptoms', () => {
       await user.click(noButton);
 
       expect(mockOnChange).toHaveBeenCalledWith(['NO_Nausea']);
+    });
+  });
+
+  describe('Edge Cases - Empty Code Fallback', () => {
+    it('should handle option with neither valueCoding.code nor valueString (empty string fallback)', () => {
+      const question: AyuQuestion = {
+        ...baseQuestion,
+        answerOption: [{ valueCoding: { display: 'Unknown Option' } } as any],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={question}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      // Should render with empty code fallback
+      expect(screen.getByText('1. Unknown Option')).toBeInTheDocument();
     });
   });
 
