@@ -13,6 +13,7 @@ import { Calendar, Dropdown, Input, Radio } from '../../components/common';
 import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
 import type { ProfileFormValues } from './profile.validation';
+import type { LocationOption } from '../../context/ProfileContext';
 
 interface ProfileFormFieldsProps {
   register: UseFormRegister<ProfileFormValues>;
@@ -27,6 +28,7 @@ interface ProfileFormFieldsProps {
     dial_code: string;
   }) => void;
   profileImage?: string;
+  locationOptions?: LocationOption[];
 }
 
 const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
@@ -38,266 +40,148 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
   onPhotoModalOpen,
   onCountryChange,
   profileImage,
+  locationOptions = [],
 }) => {
-  const locationOptions = [
-    { value: 'telemedicine-clinic1 ', label: 'Telemedicine Clinic 1' },
-    { value: 'telemedicine-clinic2', label: 'Telemedicine Clinic 2' },
-    { value: 'telemedicine-clinic3', label: 'Telemedicine Clinic 3' },
-  ];
-
-  // Watch form values for real-time updates
   const watchedDateOfBirth = watch('dateOfBirth');
 
-  // Calculate age when date of birth changes
   const calculatedAge = React.useMemo(() => {
     return calculateAge(watchedDateOfBirth || '');
   }, [watchedDateOfBirth]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Mobile: Single column layout */}
-      <div className="lg:hidden space-y-4">
-        {/* Profile Photo Section - Mobile */}
-        <div className="flex flex-col items-center gap-3">
+      {/* Column 1 */}
+      <div className="space-y-4">
+        {/* Profile Image */}
+        <div className="flex flex-col items-center lg:items-start gap-2">
           <div className="relative">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden">
-              {profileImage ? (
-                <img
-                  src={profileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover rounded-full"
-                  onError={e => {
-                    e.currentTarget.src = DefaultUserImage;
-                  }}
-                />
-              ) : (
-                <img
-                  src={DefaultUserImage}
-                  alt="Default Profile"
-                  className="w-full h-full object-cover rounded-full"
-                />
-              )}
+            <div className="w-24 h-24 lg:w-16 lg:h-16 bg-gray-100 lg:bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+              <img
+                src={profileImage || DefaultUserImage}
+                alt="Profile"
+                className="w-full h-full object-cover rounded-full"
+                onError={e => {
+                  e.currentTarget.src = DefaultUserImage;
+                }}
+              />
             </div>
-          </div>
-          <button
-            type="button"
-            className="text-gray-500 underline text-sm text-center cursor-pointer"
-            onClick={onPhotoModalOpen}
-          >
-            Change photo
-          </button>
-        </div>
 
-        {/* Mobile Form Fields */}
-        <div className="space-y-4">
-          <Input
-            label="User name"
-            {...register('username')}
-            placeholder="Username"
-            variant="default"
-            size="wide"
-            disabled={true}
-          />
-
-          <Dropdown
-            label="Setup location"
-            value={watch('setupLocation') || ''}
-            onChange={(value: string | string[]) => {
-              const locationValue = Array.isArray(value) ? value[0] : value;
-              setValue('setupLocation', locationValue);
-            }}
-            options={locationOptions}
-            placeholder="Select"
-            isRequired={false}
-            error={errors.setupLocation?.message}
-          />
-
-          <Input
-            label="First Name"
-            {...register('firstName')}
-            placeholder="Enter first name"
-            isRequired={true}
-            error={errors.firstName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          <Input
-            label="Middle Name"
-            {...register('middleName')}
-            placeholder="Enter middle name"
-            isRequired={true}
-            error={errors.middleName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          <Input
-            label="Last Name"
-            {...register('lastName')}
-            placeholder="Enter last name"
-            isRequired={true}
-            error={errors.lastName?.message}
-            variant="default"
-            size="wide"
-          />
-
-          {/* Gender Selection - Mobile */}
-          <div className="mb-4">
-            <label className="form-label block mb-3 text-base lg:text-sm">
-              Gender <span className="text-red-500 font-bold">*</span>
-            </label>
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <Radio {...register('gender')} value="male" label="Male" />
-                <img src={IconMale} alt="Male" className="w-4 h-4" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Radio {...register('gender')} value="female" label="Female" />
-                <img src={IconFemale} alt="Female" className="w-4 h-4" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Radio {...register('gender')} value="other" label="Other" />
-                <img src={IconGenderOther} alt="Other" className="w-4 h-4" />
-              </div>
-            </div>
-            {errors.gender && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.gender.message}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop: Column 1: Profile Image, First Name, Gender, Email */}
-      <div className="hidden lg:block space-y-2">
-        <div className="flex flex-col items-start gap-2">
-          <div className="relative">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-              {profileImage ? (
-                <img
-                  src={profileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover rounded-full"
-                  onError={e => {
-                    e.currentTarget.src = DefaultUserImage;
-                  }}
-                />
-              ) : (
-                <img
-                  src={DefaultUserImage}
-                  alt="Default Profile"
-                  className="w-full h-full object-cover rounded-full"
-                />
-              )}
-            </div>
             <button
               type="button"
-              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+              className="hidden lg:flex absolute -bottom-1 -right-1 w-5 h-5 rounded-full items-center justify-center cursor-pointer"
               style={{ backgroundColor: 'var(--color-primary)' }}
               onClick={onPhotoModalOpen}
             >
               <i className="fa-solid fa-camera text-white text-xs"></i>
             </button>
           </div>
+
           <button
             type="button"
-            className="text-card-head underline cursor-pointer"
-            style={{ color: '#8f8ca0' }}
+            className="text-gray-500 underline text-sm cursor-pointer"
             onClick={onPhotoModalOpen}
           >
             Change photo
           </button>
         </div>
 
+        {/* First Name */}
         <Input
           label="First Name"
           {...register('firstName')}
           placeholder="Enter first name"
-          isRequired={true}
+          isRequired
           error={errors.firstName?.message}
           variant="default"
           size="wide"
         />
 
+        {/* Gender */}
         <div>
-          <label className="form-label block mb-2">
+          <label className="form-label block mb-2 text-sm">
             Gender <span className="text-red-500">*</span>
           </label>
+
           <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <Radio {...register('gender')} value="male" label="Male" />
-              <img src={IconMale} alt="Male" className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Radio {...register('gender')} value="female" label="Female" />
-              <img src={IconFemale} alt="Female" className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Radio {...register('gender')} value="other" label="Other" />
-              <img src={IconGenderOther} alt="Other" className="w-4 h-4" />
-            </div>
+            {[
+              { value: 'male', label: 'Male', icon: IconMale },
+              { value: 'female', label: 'Female', icon: IconFemale },
+              { value: 'other', label: 'Other', icon: IconGenderOther },
+            ].map(gender => (
+              <div key={gender.value} className="flex items-center gap-2">
+                <Radio
+                  {...register('gender')}
+                  value={gender.value}
+                  label={gender.label}
+                />
+                <img src={gender.icon} alt={gender.label} className="w-4 h-4" />
+              </div>
+            ))}
           </div>
+
           {errors.gender && (
-            <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
+            <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>
           )}
         </div>
 
+        {/* Email */}
         <Input
           label="Email"
           type="email"
           {...register('email')}
           placeholder="devi@intelehealth.org"
-          isRequired={true}
+          isRequired
           error={errors.email?.message}
           variant="default"
           size="wide"
         />
       </div>
 
-      {/* Column 2: Username, Middle Name, Date of Birth, Age */}
-      <div className="space-y-2 ">
-        <div className="pb-4"> </div>
-        <Input
-          label="User name"
-          {...register('username')}
-          placeholder="Username"
-          variant="default"
-          size="wide"
-          disabled={true}
-        />
+      {/* Column 2 */}
+      <div className="space-y-4">
+        {/* Username - spacer to align with photo section on desktop */}
+        <div className="lg:pb-4 ">
+          <Input
+            label="User name"
+            {...register('username')}
+            placeholder="Username"
+            variant="default"
+            size="wide"
+            disabled
+          />
+        </div>
+
+        {/* Middle Name - aligned with First Name */}
         <Input
           label="Middle Name"
           {...register('middleName')}
           placeholder="Enter middle name"
-          isRequired={true}
+          isRequired
           error={errors.middleName?.message}
           variant="default"
           size="wide"
         />
 
+        {/* DOB + Age */}
         <div className="flex gap-4">
-          <div className="flex-1 fa-hand-pointer">
+          <div className="flex-1">
             <Calendar
               label="Date of Birth"
               value={watch('dateOfBirth') || ''}
               onChange={async (date: string) => {
                 setValue('dateOfBirth', date);
-                // Trigger validation to clear error
-                if (date) {
-                  await trigger('dateOfBirth');
-                }
+                if (date) await trigger('dateOfBirth');
               }}
-              isRequired={true}
+              isRequired
               error={errors.dateOfBirth?.message}
               placeholder="Select date of birth"
               dateFormat="dd-MMM-yy"
               maxDate={new Date()}
             />
           </div>
+
           <div className="w-24">
-            <label className="form-label block mb-2">
+            <label className="form-label block mb-3 text-sm">
               Age <span className="text-red-500">*</span>
             </label>
             <input
@@ -311,45 +195,45 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         </div>
       </div>
 
-      {/* Column 3: Setup Location, Last Name, Phone Number */}
-      <div className="space-y-2">
-        <div className="pb-4"> </div>
+      {/* Column 3 */}
+      <div className="space-y-4">
+        {/* Setup Location - spacer to align with photo section on desktop */}
+        <div className="lg:pb-4">
+          <Dropdown
+            label="Setup location"
+            value={watch('setupLocation') || ''}
+            onChange={(value: string | string[]) => {
+              const locationValue = Array.isArray(value) ? value[0] : value;
+              setValue('setupLocation', locationValue);
+            }}
+            options={locationOptions}
+            placeholder="Select"
+            error={errors.setupLocation?.message}
+          />
+        </div>
 
-        <Dropdown
-          label="Setup location"
-          value={watch('setupLocation') || ''}
-          onChange={(value: string | string[]) => {
-            const locationValue = Array.isArray(value) ? value[0] : value;
-            setValue('setupLocation', locationValue);
-          }}
-          options={locationOptions}
-          placeholder="Select"
-          isRequired={false}
-          error={errors.setupLocation?.message}
-        />
-
+        {/* Last Name - aligned with First Name */}
         <Input
           label="Last Name"
           {...register('lastName')}
           placeholder="Enter last name"
-          isRequired={true}
+          isRequired
           error={errors.lastName?.message}
           variant="default"
           size="wide"
         />
 
+        {/* Phone */}
         <div>
-          <label className="form-label block mb-2">
+          <label className="form-label block mb-2 text-sm">
             Phone Number <span className="text-red-500">*</span>
           </label>
+
           <div className="flex gap-2">
-            <div
-              className="w-1/3"
-              onClick={e => e.stopPropagation()}
-              onSubmit={e => e.preventDefault()}
-            >
+            <div className="w-1/3">
               <CountryCodeDropdown onChange={onCountryChange} />
             </div>
+
             <div className="w-2/3">
               <Input
                 type="tel"

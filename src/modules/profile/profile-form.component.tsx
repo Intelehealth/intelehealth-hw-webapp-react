@@ -4,12 +4,11 @@ import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
 import { Button, Loader, PhotoUploadModal } from '../../components/common';
 import Card from '../../components/common/card.component';
+import { useGlobalModal } from '../../components/modal/global-modal-context';
 import type { RootState } from '../../store/store';
-import type { PasswordChangeRequest } from '../../types/profile.types';
-import PasswordSection from './password-section.component';
 import ProfileFormFields from './profile-form-fields.component';
 import ProfileHeader from './profile-header.component';
-import { useProfile } from './profile.hooks';
+import { useProfileContext } from '../../context/ProfileContext';
 import { profileSchema, type ProfileFormValues } from './profile.validation';
 
 interface ProfileFormProps {
@@ -17,17 +16,19 @@ interface ProfileFormProps {
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
-  const { profile, updateProfile, uploadPhoto } = useProfile();
+  const { profile, updateProfile, uploadPhoto, locations } =
+    useProfileContext();
+  const { showConfirmModal } = useGlobalModal();
 
   const isSaving = useSelector(
     (state: RootState) => state.loader.sections['profile-save'] > 0
   );
 
-  const [passwordData, setPasswordData] = useState<PasswordChangeRequest>({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
+  // const [passwordData, setPasswordData] = useState<PasswordChangeRequest>({
+  //   currentPassword: '',
+  //   newPassword: '',
+  //   confirmPassword: '',
+  // });
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -44,9 +45,19 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     resolver: yupResolver(profileSchema),
   });
 
-  // Reset form ONLY when profile changes
+  // Reset form ONLY when profile or locations change
   useEffect(() => {
     if (!profile) return;
+
+    // Resolve setupLocation to location name
+    const locationName =
+      locations.find(
+        loc =>
+          loc.value === profile.setupLocation ||
+          loc.label === profile.setupLocation
+      )?.value ||
+      profile.setupLocation ||
+      '';
 
     reset({
       username: profile.username || '',
@@ -57,15 +68,15 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
       phone: profile.phone || '',
       dateOfBirth: profile.dateOfBirth || '',
       gender: (profile.gender as 'male' | 'female' | 'other') || 'male',
-      setupLocation: profile.setupLocation || '',
+      setupLocation: locationName,
     });
-  }, [profile, reset]);
+  }, [profile, locations, reset]);
 
   const profileImage = useMemo<string | undefined>(() => {
     return profile?.avatar || undefined;
   }, [profile?.avatar]);
 
-  const onSubmitForm = useCallback(
+  const saveProfile = useCallback(
     async (data: ProfileFormValues) => {
       try {
         await updateProfile(data);
@@ -76,14 +87,41 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     [updateProfile]
   );
 
-  const generatePassword = useCallback(() => {
-    const newPassword = 'GeneratedPassword123!';
-    setPasswordData(prev => ({
-      ...prev,
-      newPassword,
-      confirmPassword: newPassword,
-    }));
-  }, []);
+  const onSubmitForm = useCallback(
+    async (data: ProfileFormValues) => {
+      const locationChanged =
+        data.setupLocation &&
+        profile?.setupLocation &&
+        data.setupLocation !== profile.setupLocation;
+
+      if (locationChanged) {
+        showConfirmModal({
+          open: true,
+          type: 'confirm',
+          title: 'Change Location',
+          description: `Are you sure you want to change your location to ${data.setupLocation} ?`,
+          note: 'Changing the location will affect the visit data and patient upload location.',
+          confirmText: 'Confirm',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            saveProfile(data);
+          },
+        });
+      } else {
+        await saveProfile(data);
+      }
+    },
+    [profile?.setupLocation, locations, showConfirmModal, saveProfile]
+  );
+
+  // const generatePassword = useCallback(() => {
+  //   const newPassword = 'GeneratedPassword123!';
+  //   setPasswordData(prev => ({
+  //     ...prev,
+  //     newPassword,
+  //     confirmPassword: newPassword,
+  //   }));
+  // }, []);
 
   const handleUploadPhoto = useCallback(
     (file: File) => {
@@ -118,13 +156,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           onPhotoModalOpen={() => setIsPhotoModalOpen(true)}
           onCountryChange={() => {}}
           profileImage={profileImage}
+          locationOptions={locations}
         />
 
-        <PasswordSection
+        {/* <PasswordSection
           passwordData={passwordData}
           onPasswordChange={setPasswordData}
           onGeneratePassword={generatePassword}
-        />
+        /> */}
 
         <div className="flex justify-end gap-3 pt-4 lg:pt-6">
           <Button

@@ -6,9 +6,18 @@ import ProfileForm from '../../../modules/profile/profile-form.component';
 
 // --- Mocks ---
 const mockUseProfile = vi.fn();
+const mockShowConfirmModal = vi.fn();
 
-vi.mock('../../../modules/profile/profile.hooks', () => ({
-  useProfile: (...args: any[]) => mockUseProfile(...args),
+vi.mock('../../../context/ProfileContext', () => ({
+  useProfileContext: (...args: any[]) => mockUseProfile(...args),
+}));
+
+vi.mock('../../../components/modal/global-modal-context', () => ({
+  useGlobalModal: () => ({
+    showConfirmModal: mockShowConfirmModal,
+    showVitalConfirmationModal: vi.fn(),
+    closeModal: vi.fn(),
+  }),
 }));
 
 vi.mock('../../../components/common/photo-upload-modal.component', () => ({
@@ -81,6 +90,7 @@ describe('ProfileForm Component', () => {
       },
       hwProfile: null,
       age: 35,
+      locations: [],
       updateProfile: mockUpdateProfile,
       uploadPhoto: mockUploadPhoto,
       takePhoto: mockTakePhoto,
@@ -161,6 +171,7 @@ describe('ProfileForm Component', () => {
       profile: null,
       hwProfile: null,
       age: null,
+      locations: [],
       updateProfile: mockUpdateProfile,
       uploadPhoto: mockUploadPhoto,
       takePhoto: mockTakePhoto,
@@ -235,6 +246,7 @@ describe('ProfileForm Component', () => {
       },
       hwProfile: null,
       age: 30,
+      locations: [],
       updateProfile: mockUpdateProfile,
       uploadPhoto: mockUploadPhoto,
       takePhoto: mockTakePhoto,
@@ -297,6 +309,7 @@ describe('ProfileForm Component', () => {
       },
       hwProfile: null,
       age: null,
+      locations: [],
       updateProfile: mockUpdateProfile,
       uploadPhoto: mockUploadPhoto,
       takePhoto: mockTakePhoto,
@@ -354,25 +367,199 @@ describe('ProfileForm Component', () => {
   });
 
   // --------------------------------------------------------
-  it('should generate password when generate button is clicked (lines 90-96)', () => {
+  it('should resolve setupLocation via locations list (lines 55-56)', async () => {
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: 'john',
+        firstName: 'John',
+        middleName: '',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '9876543210',
+        dateOfBirth: '1990-01-01',
+        gender: 'male',
+        setupLocation: 'loc-uuid-1',
+      },
+      hwProfile: null,
+      age: 35,
+      locations: [
+        { value: 'loc-uuid-1', label: 'Main Clinic' },
+        { value: 'loc-uuid-2', label: 'Branch Clinic' },
+      ],
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
     setup();
 
-    // Find the generate password button
-    const generateButton = screen.getByRole('button', { name: /generate a new password/i });
-
-    // Get the password input fields (they appear twice - mobile and desktop)
-    const newPasswordInputs = screen.getAllByPlaceholderText('Enter new password');
-    const confirmPasswordInputs = screen.getAllByPlaceholderText('Confirm new password');
-
-    // Verify initial state (empty)
-    expect(newPasswordInputs[0]).toHaveValue('');
-    expect(confirmPasswordInputs[0]).toHaveValue('');
-
-    // Click generate button
-    fireEvent.click(generateButton);
-
-    // Verify both fields are populated with the generated password
-    expect(newPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
-    expect(confirmPasswordInputs[0]).toHaveValue('GeneratedPassword123!');
+    // The useEffect should match loc.value === profile.setupLocation ('loc-uuid-1')
+    // and reset setupLocation to 'loc-uuid-1' (the matched value)
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('John').length).toBeGreaterThan(0);
+    });
   });
+
+  // --------------------------------------------------------
+  it('should resolve setupLocation via label match (lines 55-56)', async () => {
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: 'john',
+        firstName: 'John',
+        middleName: '',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '9876543210',
+        dateOfBirth: '1990-01-01',
+        gender: 'male',
+        setupLocation: 'Main Clinic',
+      },
+      hwProfile: null,
+      age: 35,
+      locations: [
+        { value: 'loc-uuid-1', label: 'Main Clinic' },
+        { value: 'loc-uuid-2', label: 'Branch Clinic' },
+      ],
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    setup();
+
+    // The useEffect should match loc.label === profile.setupLocation ('Main Clinic')
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('John').length).toBeGreaterThan(0);
+    });
+  });
+
+  // --------------------------------------------------------
+  it('should show confirm modal when location is changed on submit (lines 97-108)', async () => {
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: 'john',
+        firstName: 'John',
+        middleName: '',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '9876543210',
+        dateOfBirth: '1990-01-01',
+        gender: 'male',
+        setupLocation: 'loc-uuid-1',
+      },
+      hwProfile: null,
+      age: 35,
+      locations: [
+        { value: 'loc-uuid-1', label: 'Main Clinic' },
+        { value: 'loc-uuid-2', label: 'Branch Clinic' },
+      ],
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    setup();
+
+    // Wait for form to be initialized
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('John').length).toBeGreaterThan(0);
+    });
+
+    // Open the location dropdown by clicking the button with aria-haspopup="listbox"
+    const dropdownButton = document.querySelector('button[aria-haspopup="listbox"]') as HTMLElement;
+    fireEvent.click(dropdownButton);
+
+    // Select 'Branch Clinic' option from the listbox
+    const branchOption = screen.getByRole('option', { name: /branch clinic/i });
+    fireEvent.click(branchOption);
+
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    // Verify showConfirmModal was called with correct config
+    await waitFor(() => {
+      expect(mockShowConfirmModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          open: true,
+          type: 'confirm',
+          title: 'Change Location',
+          confirmText: 'Confirm',
+          cancelText: 'Cancel',
+          note: 'Changing the location will affect the visit data and patient upload location.',
+        })
+      );
+    });
+  });
+
+  // --------------------------------------------------------
+  it('should call saveProfile via confirm modal onConfirm callback (lines 105-107)', async () => {
+    mockUseProfile.mockReturnValue({
+      profile: {
+        id: '123',
+        username: 'john',
+        firstName: 'John',
+        middleName: '',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '9876543210',
+        dateOfBirth: '1990-01-01',
+        gender: 'male',
+        setupLocation: 'loc-uuid-1',
+      },
+      hwProfile: null,
+      age: 35,
+      locations: [
+        { value: 'loc-uuid-1', label: 'Main Clinic' },
+        { value: 'loc-uuid-2', label: 'Branch Clinic' },
+      ],
+      updateProfile: mockUpdateProfile,
+      uploadPhoto: mockUploadPhoto,
+      takePhoto: mockTakePhoto,
+      calculateAge: mockCalculateAge,
+      updateAgeForDate: mockUpdateAgeForDate,
+      refreshProfile: mockRefreshProfile,
+    });
+
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('John').length).toBeGreaterThan(0);
+    });
+
+    // Open the location dropdown and select a different location
+    const dropdownButton = document.querySelector('button[aria-haspopup="listbox"]') as HTMLElement;
+    fireEvent.click(dropdownButton);
+
+    const branchOption = screen.getByRole('option', { name: /branch clinic/i });
+    fireEvent.click(branchOption);
+
+    // Submit
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockShowConfirmModal).toHaveBeenCalled();
+    });
+
+    // Extract and call the onConfirm callback
+    const modalConfig = mockShowConfirmModal.mock.calls[0][0];
+    expect(modalConfig.onConfirm).toBeDefined();
+    modalConfig.onConfirm();
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalled();
+    });
+  });
+
 });

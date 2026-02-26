@@ -8,7 +8,8 @@ import {
   type Mocked,
   type MockedFunction,
 } from 'vitest';
-import { useProfile } from '../../../modules/profile/profile.hooks';
+import React from 'react';
+import { useProfileContext as useProfile, ProfileProvider } from '../../../context/ProfileContext';
 import mockProfileService from '../../../modules/profile/profile.service';
 import { storage as mockStorage } from '../../../utils/storage';
 import * as helpers from '../../../modules/profile/profile.helpers';
@@ -96,6 +97,7 @@ vi.mock('../../../modules/profile/profile.service', () => ({
     createPersonName: vi.fn(),
     updateProfileImage: vi.fn(),
     getProviderAttributeTypes: vi.fn(),
+    getLocations: vi.fn().mockResolvedValue({ results: [] }),
   },
 }));
 
@@ -103,6 +105,8 @@ vi.mock('../../../modules/profile/profile.service', () => ({
 vi.mock('../../../utils/storage', () => ({
   storage: {
     getUser: vi.fn(),
+    setLocationName: vi.fn(),
+    getLocationName: vi.fn(),
   },
 }));
 
@@ -111,6 +115,9 @@ const mockedProfileService = mockProfileService as Mocked<
 >;
 
 const mockedHelpers = helpers as Mocked<typeof helpers>;
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(ProfileProvider, null, children);
 
 describe('useProfile', () => {
   beforeEach(() => {
@@ -167,7 +174,7 @@ describe('useProfile', () => {
       new Blob(['image'], { type: 'image/jpeg' })
     );
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(
       () => {
@@ -186,7 +193,7 @@ describe('useProfile', () => {
 
     mockGetUser.mockReturnValue(null);
 
-    renderHook(() => useProfile());
+    renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(toast.showToast).toHaveBeenCalledWith(
@@ -204,7 +211,7 @@ describe('useProfile', () => {
 
     mockGetUser.mockReturnValue(JSON.stringify({ uuid: '' }));
 
-    renderHook(() => useProfile());
+    renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(toast.showToast).toHaveBeenCalledWith(
@@ -231,7 +238,7 @@ describe('useProfile', () => {
       userProperties: {},
     } as any);
 
-    renderHook(() => useProfile());
+    renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(toast.showToast).toHaveBeenCalledWith(
@@ -270,7 +277,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -303,7 +310,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -339,7 +346,7 @@ describe('useProfile', () => {
       response: { status: 500 },
     });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -374,7 +381,7 @@ describe('useProfile', () => {
       new Blob([], { type: 'image/jpeg' })
     );
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -413,7 +420,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -471,7 +478,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -492,7 +499,7 @@ describe('useProfile', () => {
 
     mockGetUser.mockReturnValue(null);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await expect(result.current.updateProfile({})).rejects.toThrow(
       'Profile not loaded or provider not found'
@@ -527,7 +534,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -572,7 +579,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -636,7 +643,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -736,7 +743,7 @@ describe('useProfile', () => {
     } as any);
 
     // Create hook with empty personUuid from the start
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -795,7 +802,7 @@ describe('useProfile', () => {
       attributes: [],
     } as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -820,7 +827,7 @@ describe('useProfile', () => {
   // ========== UPDATE AGE FOR DATE TESTS ==========
 
   it('updates age for date', () => {
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     result.current.updateAgeForDate('1990-01-01');
 
@@ -828,7 +835,7 @@ describe('useProfile', () => {
   });
 
   it('sets age to null for empty date', () => {
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     result.current.updateAgeForDate('');
 
@@ -862,7 +869,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -897,7 +904,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -936,7 +943,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -986,7 +993,7 @@ describe('useProfile', () => {
       new Blob(['image-data'], { type: 'image/jpeg' })
     );
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     // Wait for profiles to be loaded and image to be processed
     await waitFor(
@@ -1034,7 +1041,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1084,7 +1091,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1163,7 +1170,7 @@ describe('useProfile', () => {
       userProperties: {},
     });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1221,7 +1228,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1283,7 +1290,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1349,7 +1356,7 @@ describe('useProfile', () => {
 
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1399,7 +1406,7 @@ describe('useProfile', () => {
       results: [],
     } as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1464,7 +1471,7 @@ describe('useProfile', () => {
       results: [],
     } as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1522,7 +1529,7 @@ describe('useProfile', () => {
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
     mockedProfileService.updateProfileImage.mockResolvedValue({} as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1589,7 +1596,7 @@ describe('useProfile', () => {
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
     mockedProfileService.updateProfileImage.mockResolvedValue({} as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1676,7 +1683,7 @@ describe('useProfile', () => {
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
     mockedProfileService.updatePersonName.mockResolvedValue({} as any);
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1731,7 +1738,7 @@ describe('useProfile', () => {
     mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
     mockedProfileService.updatePersonName.mockClear();
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.profile).not.toBeNull();
@@ -1779,7 +1786,7 @@ describe('useProfile', () => {
     // First time: getProfileImage returns 404
     mockedProfileService.getProfileImage.mockRejectedValueOnce({ status: 404 });
 
-    const { result } = renderHook(() => useProfile());
+    const { result } = renderHook(() => useProfile(), { wrapper });
 
     // Wait for initial profile load
     await waitFor(() => {
@@ -1845,6 +1852,139 @@ describe('useProfile', () => {
     // - prev exists (not null)
     // - prev.id === nextProfile.id (same ID)
     // - prev.avatar !== nextProfile.avatar (different avatar)
+  });
+
+  it('covers lines 69-70: maps location results to LocationOption[]', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    // Mock getLocations to return actual location data so .map() callback executes
+    mockedProfileService.getLocations.mockResolvedValueOnce({
+      results: [
+        { uuid: 'loc1', display: 'Main Clinic' },
+        { uuid: 'loc2', display: 'Branch Clinic' },
+      ],
+    });
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    const { result } = renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.locations).toHaveLength(2);
+      expect(result.current.locations[0]).toEqual({ value: 'Main Clinic', label: 'Main Clinic' });
+      expect(result.current.locations[1]).toEqual({ value: 'Branch Clinic', label: 'Branch Clinic' });
+    });
+  });
+
+  it('covers lines 196-197: throws error when useProfileContext is used outside ProfileProvider', () => {
+    expect(() => {
+      renderHook(() => useProfile());
+    }).toThrow('useProfileContext must be used within a ProfileProvider');
+  });
+
+  it('covers lines 71-73: handles getLocations failure gracefully', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    // Mock getLocations to reject to trigger the catch block
+    mockedProfileService.getLocations.mockRejectedValueOnce(new Error('Network error'));
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    const { result } = renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Locations should remain empty when getLocations fails
+    expect(result.current.locations).toEqual([]);
+  });
+
+  it('covers line 71: handles getLocations returning undefined results', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    // Mock getLocations to return undefined results to trigger || [] fallback
+    mockedProfileService.getLocations.mockResolvedValueOnce({ results: undefined });
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    const { result } = renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+    });
+
+    // Locations should be empty when results is undefined (|| [] fallback)
+    expect(result.current.locations).toEqual([]);
   });
 
 });
