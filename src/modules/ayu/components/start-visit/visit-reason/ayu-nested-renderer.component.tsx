@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
-import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../utils/constants';
+import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
+import '../../common/selectable-option.css';
 import { AyuRenderer } from './ayu-renderer.component';
 
 interface NestedProps {
@@ -7,6 +9,7 @@ interface NestedProps {
   parentQuestion?: AyuQuestion;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
+  selectable?: boolean;
 }
 
 export const AyuNestedRenderer = ({
@@ -14,7 +17,52 @@ export const AyuNestedRenderer = ({
   parentQuestion,
   answers,
   setAnswer,
+  selectable = false,
 }: NestedProps) => {
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+
+  // Check if a choice question has answerOption → item mapping
+  const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
+    q.type === 'choice' && !!q.answerOption?.length && !!q.item?.length;
+
+  // Render deeply nested items inline when their corresponding option is selected
+  const renderInlineNestedItems = (parentChild: AyuQuestion) => {
+    const parentAnswer = answers[parentChild.linkId];
+    const selectedCodes: string[] = Array.isArray(parentAnswer)
+      ? parentAnswer
+      : typeof parentAnswer === 'string'
+        ? [parentAnswer]
+        : [];
+
+    return parentChild
+      .item!.filter(nestedItem => {
+        const matchingOption = parentChild.answerOption?.find(opt =>
+          nestedItem.linkId.startsWith(opt.valueCoding?.code || '')
+        );
+        return (
+          matchingOption &&
+          selectedCodes.includes(matchingOption.valueCoding?.code || '')
+        );
+      })
+      .map(nestedItem => (
+        <div key={nestedItem.linkId} className="mt-2 ml-3">
+          <AyuRenderer
+            question={nestedItem}
+            value={answers[nestedItem.linkId]}
+            onChange={val => setAnswer(nestedItem, val)}
+          />
+          {nestedItem.item && (
+            <AyuNestedRenderer
+              items={nestedItem.item}
+              answers={answers}
+              setAnswer={setAnswer}
+              selectable={true}
+            />
+          )}
+        </div>
+      ));
+  };
+
   if (!items?.length) return null;
 
   const isEnabled = (item: AyuQuestion) => {
@@ -58,52 +106,130 @@ export const AyuNestedRenderer = ({
   const enabledItems = items.filter(isEnabled);
   if (!enabledItems.length) return null;
 
-  const firstItem = enabledItems[0];
-  const parentAnswerLabel = getParentAnswerLabel(firstItem);
-  const isStringType = firstItem?.type === 'string';
+  // Group enabled items by their parent answer label
+  const groups = new Map<string | null, AyuQuestion[]>();
+  for (const item of enabledItems) {
+    const label = getParentAnswerLabel(item);
+    if (!groups.has(label)) {
+      groups.set(label, []);
+    }
+    groups.get(label)!.push(item);
+  }
 
   return (
     <div className="space-y-4 px-3">
-      {!isStringType && parentAnswerLabel && (
-        <div className="flex items-center gap-2 text-emerald-600 font-semibold mt-4">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="flex-shrink-0"
-          >
-            <path d="M4 2 L14 8 L4 14 Z" />
-          </svg>
-          <span>{parentAnswerLabel}</span>
-        </div>
-      )}
-      {!isStringType && (
-        <div className="text-sm text-gray-500 -mt-4 ml-5">
-          {firstItem?.repeats ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
-        </div>
-      )}
+      {Array.from(groups.entries()).map(([label, children]) => (
+        <div key={label || 'default'}>
+          {selectable ? (
+            <>
+              {/* All items as selectable option pills */}
+              <div className="option-group mt-4 mb-3">
+                {children.map(
+                  item =>
+                    item?.type !== 'string' && (
+                      <AyuSelectableOption
+                        key={item.linkId}
+                        label={item.text}
+                        value={item.linkId}
+                        selected={selectedOption === item.linkId}
+                        onClick={() =>
+                          setSelectedOption(
+                            selectedOption === item.linkId ? null : item.linkId
+                          )
+                        }
+                      />
+                    )
+                )}
+              </div>
+              {/* Render string-type children directly without selection */}
+              {children
+                .filter(child => child.type === 'string')
+                .map(child => (
+                  <div key={child.linkId}>
+                    <AyuRenderer
+                      question={child}
+                      value={answers[child.linkId]}
+                      onChange={val => setAnswer(child, val)}
+                    />
+                  </div>
+                ))}
 
-      {enabledItems.map(child => {
-        return (
-          <div key={child.linkId}>
-            <AyuRenderer
-              question={child}
-              value={answers[child.linkId]}
-              onChange={val => setAnswer(child, val)}
-            />
-
-            {/* Recursively render deeper nesting */}
-            {child.item && (
-              <AyuNestedRenderer
-                items={child.item}
-                answers={answers}
-                setAnswer={setAnswer}
-              />
-            )}
-          </div>
-        );
-      })}
+              {/* Render input component for the selected non-string item */}
+              {children
+                .filter(
+                  child =>
+                    child.type !== 'string' && selectedOption === child.linkId
+                )
+                .map(child => (
+                  <div key={child.linkId} className="flex items-start gap-2">
+                    {child.type === 'choice' && (
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="#20c997"
+                        className="flex-shrink-0 mt-4"
+                      >
+                        <path d="M4 2 L14 8 L4 14 Z" />
+                      </svg>
+                    )}
+                    <div className="flex-1">
+                      <AyuRenderer
+                        question={child}
+                        value={answers[child.linkId]}
+                        onChange={val => setAnswer(child, val)}
+                      />
+                      {hasAnswerOptionItemMapping(child)
+                        ? renderInlineNestedItems(child)
+                        : child.item && (
+                            <AyuNestedRenderer
+                              items={child.item}
+                              answers={answers}
+                              setAnswer={setAnswer}
+                              selectable={selectable}
+                            />
+                          )}
+                    </div>
+                  </div>
+                ))}
+            </>
+          ) : (
+            /* Render all items directly via AyuRenderer */
+            children.map(child => (
+              <div key={child.linkId} className="flex items-start gap-2">
+                {child.type === 'choice' && (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="#20c997"
+                    className="flex-shrink-0 mt-4"
+                  >
+                    <path d="M4 2 L14 8 L4 14 Z" />
+                  </svg>
+                )}
+                <div className="flex-1">
+                  <AyuRenderer
+                    question={child}
+                    value={answers[child.linkId]}
+                    onChange={val => setAnswer(child, val)}
+                  />
+                  {hasAnswerOptionItemMapping(child)
+                    ? renderInlineNestedItems(child)
+                    : child.item && (
+                        <AyuNestedRenderer
+                          items={child.item}
+                          answers={answers}
+                          setAnswer={setAnswer}
+                          selectable={true}
+                        />
+                      )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ))}
     </div>
   );
 };

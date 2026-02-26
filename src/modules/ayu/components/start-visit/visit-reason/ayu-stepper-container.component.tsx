@@ -101,6 +101,23 @@ export const AyuStepperContainer = ({
           return !hasNumber || !hasDays;
         }
       }
+      // Check grandchildren for duration structure (deeply nested items)
+      for (const child of question.item) {
+        if (child.item) {
+          for (const grandchild of child.item) {
+            const grandchildAnswer = answers[grandchild.linkId];
+            if (
+              grandchildAnswer &&
+              typeof grandchildAnswer === 'object' &&
+              'dropdownValues' in grandchildAnswer
+            ) {
+              const hasNumber = !!grandchildAnswer.dropdownValues?.number;
+              const hasDays = !!grandchildAnswer.dropdownValues?.days;
+              if (!hasNumber || !hasDays) return true;
+            }
+          }
+        }
+      }
     }
 
     // Check top-level answer
@@ -177,6 +194,10 @@ export const AyuStepperContainer = ({
                             );
                           });
 
+                        const hasNestedRepeats = question.item?.some(
+                          child => child.repeats
+                        );
+
                         return (
                           (question.type === 'string' &&
                             answers[question.linkId] !== undefined) ||
@@ -185,9 +206,12 @@ export const AyuStepperContainer = ({
                           (question.type === 'choice' && question.repeats) ||
                           isDurationChoice ||
                           hasNestedDuration ||
+                          hasNestedRepeats ||
                           question.item?.some(
                             child =>
-                              child.type === 'string' &&
+                              (child.type === 'string' ||
+                                child.type === 'integer' ||
+                                child.type === 'quantity') &&
                               answers[child.linkId] !== undefined
                           )
                         );

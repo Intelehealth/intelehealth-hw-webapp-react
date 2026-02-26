@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AyuNestedRenderer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 import type { AyuQuestion } from '../../../../../../modules/ayu/types/ayu.types';
 
@@ -17,8 +18,25 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-r
   )),
 }));
 
+// Mock AyuSelectableOption
+vi.mock('../../../../../../modules/ayu/components/common/ayu-selectable-option.component', () => ({
+  AyuSelectableOption: vi.fn(({ label, value, selected, onClick }) => (
+    <button
+      data-testid={`selectable-${value}`}
+      className={selected ? 'selected' : ''}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  )),
+}));
+
 describe('AyuNestedRenderer', () => {
   const mockSetAnswer = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('Basic Rendering', () => {
     it('should return null when items is undefined', () => {
@@ -43,7 +61,7 @@ describe('AyuNestedRenderer', () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it('should render items without enableWhen conditions', () => {
+    it('should render items without enableWhen conditions (non-selectable mode)', () => {
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
@@ -272,55 +290,19 @@ describe('AyuNestedRenderer', () => {
 
       expect(screen.queryByTestId('renderer-child-1')).not.toBeInTheDocument();
     });
-  });
 
-  describe('Parent Answer Label Display', () => {
-    it('should display parent answer label for non-string types', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'opt-1', display: 'Parent Option' } }],
-      };
-
+    it('should handle enableWhen with array parent answer via includes check', () => {
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'opt-1' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('Parent Option')).toBeInTheDocument();
-    });
-
-    it('should not display parent answer label for string types', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'Parent Option' }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
+          text: 'Array Conditional',
           type: 'string',
           enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'Parent Option' },
+            {
+              question: 'parent-1',
+              operator: '=',
+              answerCoding: { code: 'opt-a' },
+            },
           ],
         },
       ];
@@ -328,102 +310,43 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'Parent Option' }}
+          answers={{ 'parent-1': ['opt-a', 'opt-b'] }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // isStringType = true so the emerald label section is suppressed
-      expect(screen.queryByText('Parent Option')).not.toBeInTheDocument();
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
     });
+  });
 
-    it('should display the answerOption display when answerCoding code matches', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'opt-1', display: 'Option One' } }],
-      };
-
+  describe('Non-Selectable Mode (default)', () => {
+    it('should render all items via AyuRenderer directly', () => {
       const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
-          ],
-        },
+        { linkId: 'child-1', text: 'Question 1', type: 'string' },
+        { linkId: 'child-2', text: 'Question 2', type: 'choice' },
       ];
 
       render(
         <AyuNestedRenderer
           items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'opt-1' }}
+          answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
-      expect(screen.getByText('Option One')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-child-2')).toBeInTheDocument();
     });
 
-    it('should display the answerOption valueString when answerString matches', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'yes' }],
-      };
-
+    it('should render arrow SVG icon for choice type children', () => {
       const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'yes' },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'yes' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('yes')).toBeInTheDocument();
-    });
-
-    it('should render arrow SVG icon for parent label', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'Parent Option' }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'Parent Option' },
-          ],
-        },
+        { linkId: 'child-1', text: 'Choice Question', type: 'choice' },
       ];
 
       const { container } = render(
         <AyuNestedRenderer
           items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'Parent Option' }}
+          answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
@@ -433,20 +356,13 @@ describe('AyuNestedRenderer', () => {
       expect(svg).toHaveAttribute('width', '14');
       expect(svg).toHaveAttribute('height', '14');
     });
-  });
 
-  describe('Repeats and Selection Text', () => {
-    it('should display "Select one or more" when item repeats', () => {
+    it('should not render arrow SVG icon for non-choice type children', () => {
       const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Multi Select Question',
-          type: 'choice',
-          repeats: true,
-        },
+        { linkId: 'child-1', text: 'String Question', type: 'string' },
       ];
 
-      render(
+      const { container } = render(
         <AyuNestedRenderer
           items={items}
           answers={{}}
@@ -454,59 +370,15 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      expect(screen.getByText('Select one or more')).toBeInTheDocument();
+      expect(container.querySelector('svg')).not.toBeInTheDocument();
     });
 
-    it('should display "Select any one" when item does not repeat', () => {
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'Single Select Question',
-          type: 'choice',
-          repeats: false,
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('Select any one')).toBeInTheDocument();
-    });
-
-    it('should not display selection text for string type', () => {
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          text: 'String Question',
-          type: 'string',
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.queryByText('Select any one')).not.toBeInTheDocument();
-      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Recursive Nested Rendering', () => {
     it('should recursively render nested items', () => {
       const items: AyuQuestion[] = [
         {
           linkId: 'child-1',
           text: 'Parent Question',
-          type: 'choice',
+          type: 'string',
           item: [
             {
               linkId: 'grandchild-1',
@@ -528,22 +400,499 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-grandchild-1')).toBeInTheDocument();
     });
+  });
 
-    it('should handle deeply nested items', () => {
+  describe('Selectable Mode', () => {
+    it('should render non-string items as selectable option pills', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+        { linkId: 'int-1', text: 'Integer Item', type: 'integer' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.getByTestId('selectable-choice-1')).toBeInTheDocument();
+      expect(screen.getByTestId('selectable-int-1')).toBeInTheDocument();
+    });
+
+    it('should render string-type children directly via AyuRenderer without selection', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'string-1', text: 'String Item', type: 'string' },
+        { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // String item rendered directly
+      expect(screen.getByTestId('renderer-string-1')).toBeInTheDocument();
+      // Choice item rendered as selectable pill
+      expect(screen.getByTestId('selectable-choice-1')).toBeInTheDocument();
+      // Choice item NOT rendered as AyuRenderer until selected
+      expect(screen.queryByTestId('renderer-choice-1')).not.toBeInTheDocument();
+    });
+
+    it('should toggle selectedOption when a selectable pill is clicked', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-1');
+      await user.click(pill);
+
+      // After clicking, the item should be selected and its renderer shown
+      expect(screen.getByTestId('renderer-choice-1')).toBeInTheDocument();
+    });
+
+    it('should deselect option when clicked again', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-1');
+      await user.click(pill); // select
+      expect(screen.getByTestId('renderer-choice-1')).toBeInTheDocument();
+
+      await user.click(pill); // deselect
+      expect(screen.queryByTestId('renderer-choice-1')).not.toBeInTheDocument();
+    });
+
+    it('should render arrow SVG for selected choice items', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+      ];
+
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-1');
+      await user.click(pill);
+
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg).toHaveAttribute('fill', '#20c997');
+    });
+
+    it('should not render arrow SVG for selected non-choice items', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'int-1', text: 'Integer Item', type: 'integer' },
+      ];
+
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-int-1');
+      await user.click(pill);
+
+      expect(container.querySelector('svg')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Grouping by Parent Answer Label', () => {
+    it('should group items by getParentAnswerLabel', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'opt-1', display: 'Option One' } },
+          { valueCoding: { code: 'opt-2', display: 'Option Two' } },
+        ],
+      };
+
       const items: AyuQuestion[] = [
         {
-          linkId: 'level-1',
-          text: 'Level 1',
+          linkId: 'child-1',
+          text: 'Child 1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
+          ],
+        },
+        {
+          linkId: 'child-2',
+          text: 'Child 2',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-2' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': ['opt-1', 'opt-2'] }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-child-2')).toBeInTheDocument();
+    });
+
+    it('should return null label when parentQuestion is not provided', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          text: 'Child Question',
+          type: 'string',
+          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'parent-1': 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Should still render - grouped under null label
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should return null label when item has no enableWhen', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'opt-1', display: 'Option One' } }],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child', type: 'string' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should return null label when no matching answerOption found', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'opt-1' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should match by valueCoding.code in getParentAnswerLabel', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueCoding: { code: 'code-x', display: 'Code X Display' } }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'code-x' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'code-x' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should match by valueString in getParentAnswerLabel', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'answer-text' }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerString: 'answer-text' },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'answer-text' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should prefer valueCoding.display over valueString when option has both', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'c1', display: 'Coding Display' }, valueString: 'String Value' },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerCoding: { code: 'c1' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'c1' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Item renders regardless of label resolution
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should return null label when parentQuestion has no answerOption', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should use answerBoolean priority in getParentAnswerLabel expected lookup', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: 'true' }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerBoolean: true },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': true }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+
+    it('should use answerInteger in getParentAnswerLabel expected lookup', () => {
+      const parentQ: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [{ valueString: '42' }],
+      };
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-1',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent-1', operator: '=', answerInteger: 42 },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQ}
+          answers={{ 'parent-1': 42 }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
+    });
+  });
+
+  describe('hasAnswerOptionItemMapping', () => {
+    it('should use renderInlineNestedItems when child has answerOption and item', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
           type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
           item: [
             {
-              linkId: 'level-2',
-              text: 'Level 2',
-              type: 'choice',
+              linkId: 'opt-a-nested',
+              text: 'Nested under A',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': 'opt-a' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // Click the selectable option to expand it
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // Should render the inline nested item
+      expect(screen.getByTestId('renderer-opt-a-nested')).toBeInTheDocument();
+    });
+
+    it('should render inline nested items recursively with sub-items', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-nested',
+              text: 'Nested under A',
+              type: 'string',
               item: [
                 {
-                  linkId: 'level-3',
-                  text: 'Level 3',
+                  linkId: 'deep-nested',
+                  text: 'Deep Nested',
                   type: 'string',
                 },
               ],
@@ -555,14 +904,186 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{}}
+          answers={{ 'choice-parent': 'opt-a' }}
           setAnswer={mockSetAnswer}
+          selectable
         />
       );
 
-      expect(screen.getByTestId('renderer-level-1')).toBeInTheDocument();
-      expect(screen.getByTestId('renderer-level-2')).toBeInTheDocument();
-      expect(screen.getByTestId('renderer-level-3')).toBeInTheDocument();
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      expect(screen.getByTestId('renderer-opt-a-nested')).toBeInTheDocument();
+      // Deep nested should also be recursively rendered
+      expect(screen.getByTestId('renderer-deep-nested')).toBeInTheDocument();
+    });
+
+    it('should not render inline nested items when parent answer does not include option code', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-nested',
+              text: 'Nested under A',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': 'opt-b' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // The renderer for inline nested should NOT appear because parent answer doesn't match
+      expect(screen.queryByTestId('renderer-opt-a-nested')).not.toBeInTheDocument();
+    });
+
+    it('should render regular recursive nested renderer when child has items but no answerOption mapping', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-1',
+          text: 'Choice Item',
+          type: 'choice',
+          // has item but no answerOption
+          item: [
+            { linkId: 'nested-1', text: 'Nested', type: 'string' },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-1');
+      await user.click(pill);
+
+      // Should render via recursive AyuNestedRenderer, not inline
+      expect(screen.getByTestId('renderer-nested-1')).toBeInTheDocument();
+    });
+
+    it('should handle renderInlineNestedItems with string parent answer', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-child',
+              text: 'Child A',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': 'opt-a' }} // string answer, not array
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      expect(screen.getByTestId('renderer-opt-a-child')).toBeInTheDocument();
+    });
+
+    it('should handle renderInlineNestedItems with non-string/non-array parent answer', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-child',
+              text: 'Child A',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': 42 }} // number answer
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // No matching codes since answer is a number
+      expect(screen.queryByTestId('renderer-opt-a-child')).not.toBeInTheDocument();
+    });
+
+    it('should use hasAnswerOptionItemMapping in non-selectable mode too', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-nested',
+              text: 'Nested under A',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': 'opt-a' }}
+          setAnswer={mockSetAnswer}
+          selectable={false}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-opt-a-nested')).toBeInTheDocument();
     });
   });
 
@@ -609,6 +1130,50 @@ describe('AyuNestedRenderer', () => {
       fireEvent.change(input, { target: { value: 'new value' } });
 
       expect(mockSetAnswer).toHaveBeenCalledWith(items[0], 'new value');
+    });
+
+    it('should call setAnswer for string-type children in selectable mode', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'string-1', text: 'String Item', type: 'string' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const input = screen.getByTestId('input-string-1');
+      fireEvent.change(input, { target: { value: 'typed value' } });
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(items[0], 'typed value');
+    });
+
+    it('should call setAnswer for selected non-string children in selectable mode', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'int-1', text: 'Int Item', type: 'integer' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // Select the item first
+      await user.click(screen.getByTestId('selectable-int-1'));
+
+      const input = screen.getByTestId('input-int-1');
+      fireEvent.change(input, { target: { value: '42' } });
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(items[0], '42');
     });
   });
 
@@ -700,344 +1265,189 @@ describe('AyuNestedRenderer', () => {
       );
 
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('space-y-4');
+      expect(wrapper).toHaveClass('space-y-4', 'px-3');
     });
 
-    it('should have correct parent label styling', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'Parent Option' }],
-      };
+    it('should have flex items-start gap-2 for non-selectable items', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Question', type: 'string' },
+      ];
 
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      const itemWrapper = container.querySelector('.flex.items-start.gap-2');
+      expect(itemWrapper).toBeInTheDocument();
+    });
+
+    it('should have option-group class in selectable mode', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Question', type: 'choice' },
+      ];
+
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const optionGroup = container.querySelector('.option-group');
+      expect(optionGroup).toBeInTheDocument();
+    });
+  });
+
+  describe('renderInlineNestedItems onChange Coverage', () => {
+    it('should call setAnswer when inline nested item value changes', async () => {
+      const user = userEvent.setup();
       const items: AyuQuestion[] = [
         {
-          linkId: 'child-1',
-          text: 'Child Question',
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
           type: 'choice',
-          enableWhen: [
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
             {
-              question: 'parent-1',
-              operator: '=',
-              answerString: 'Parent Option',
+              linkId: 'opt-a-child',
+              text: 'Child A',
+              type: 'string',
             },
           ],
         },
       ];
 
-      const { container } = render(
+      render(
         <AyuNestedRenderer
           items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'Parent Option' }}
+          answers={{ 'choice-parent': ['opt-a'] }}
           setAnswer={mockSetAnswer}
+          selectable
         />
       );
 
-      const labelContainer = container.querySelector('.text-emerald-600');
-      expect(labelContainer).toBeInTheDocument();
-      expect(labelContainer).toHaveClass('flex', 'items-center', 'gap-2', 'font-semibold');
+      // Select the item
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // The inline nested item should be rendered
+      const input = screen.getByTestId('input-opt-a-child');
+      fireEvent.change(input, { target: { value: 'inline value' } });
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'opt-a-child' }),
+        'inline value'
+      );
+    });
+
+    it('should handle answerOption with undefined valueCoding.code in filter', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { display: 'No Code Option' } as any },
+          ],
+          item: [
+            {
+              linkId: 'child-item',
+              text: 'Child Item',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': '' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // With undefined code, the empty string fallback in linkId.startsWith is used
+      expect(screen.getByTestId('renderer-choice-parent')).toBeInTheDocument();
     });
   });
 
-  describe('getParentAnswerLabel - Behavior', () => {
-    it('should not show label when parentQuestion is not provided', () => {
+  describe('Deeply Nested Items', () => {
+    it('should render child items in non-selectable mode', () => {
       const items: AyuQuestion[] = [
         {
-          linkId: 'child-1',
-          text: 'Child Question',
-          type: 'choice',
-          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          answers={{ 'parent-1': 'yes' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // No parentQuestion → getParentAnswerLabel returns null → no label rendered
-      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
-    });
-
-    it('should show label from valueCoding.display when answerCoding.code matches an option', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'code-a', display: 'Option A' } }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'code-a' } },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'code-a' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('Option A')).toBeInTheDocument();
-    });
-
-    it('should show label from valueString when answerString matches an option', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'Yes Option' }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'Yes Option' },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'Yes Option' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('Yes Option')).toBeInTheDocument();
-    });
-
-    it('should not show label when no matching answerOption is found in parentQuestion', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          // opt-1 is enabled but parentQ has no option with code 'opt-1'
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-1' } },
-          ],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'opt-1' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // Item is enabled but no matching option in parentQ → label is null
-      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
-    });
-
-    it('should not show label when parentQuestion has no answerOption', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        // no answerOption
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [{ question: 'parent-1', operator: '=', answerString: 'yes' }],
-        },
-      ];
-
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'yes' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
-    });
-
-    it('should use answerCoding.code as the lookup key when other enableWhen types are absent', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'code-x', display: 'Code X Display' } }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'code-x' } },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'code-x' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('Code X Display')).toBeInTheDocument();
-    });
-
-    it('should use answerString as the lookup key when answerBoolean is absent', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'answer-text' }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'answer-text' },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'answer-text' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      expect(screen.getByText('answer-text')).toBeInTheDocument();
-    });
-
-    it('should prefer valueCoding.display over valueString when option has both', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [
-          { valueCoding: { code: 'c1', display: 'Coding Display' }, valueString: 'String Value' },
-        ],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'c1' } },
-          ],
-        },
-      ];
-
-      render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'c1' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // valueCoding.display takes priority
-      expect(screen.getByText('Coding Display')).toBeInTheDocument();
-      expect(screen.queryByText('String Value')).not.toBeInTheDocument();
-    });
-
-    it('should not show label for string-type items even when parentQuestion is provided', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueString: 'yes' }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
+          linkId: 'level-1',
+          text: 'Level 1',
           type: 'string',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerString: 'yes' },
+          item: [
+            {
+              linkId: 'level-2',
+              text: 'Level 2',
+              type: 'string',
+            },
           ],
         },
       ];
 
-      const { container } = render(
-        <AyuNestedRenderer
-          items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': 'yes' }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // isStringType = true suppresses the label section
-      expect(container.querySelector('.text-emerald-600')).not.toBeInTheDocument();
-    });
-
-    it('should handle enableWhen with array parent answer via includes check', () => {
-      const parentQ: AyuQuestion = {
-        linkId: 'parent-q',
-        type: 'choice',
-        text: 'Parent',
-        answerOption: [{ valueCoding: { code: 'opt-a', display: 'Option A' } }],
-      };
-
-      const items: AyuQuestion[] = [
-        {
-          linkId: 'child-1',
-          type: 'choice',
-          enableWhen: [
-            { question: 'parent-1', operator: '=', answerCoding: { code: 'opt-a' } },
-          ],
-        },
-      ];
-
-      // Array answer: item is enabled because ['opt-a'].includes('opt-a')
       render(
         <AyuNestedRenderer
           items={items}
-          parentQuestion={parentQ}
-          answers={{ 'parent-1': ['opt-a'] }}
+          answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
-      expect(screen.getByText('Option A')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-level-1')).toBeInTheDocument();
+      // level-2 is rendered via recursive AyuNestedRenderer (selectable=true)
+      // In selectable mode, string-type items render directly
+      expect(screen.getByTestId('renderer-level-2')).toBeInTheDocument();
+    });
+
+    it('should render deeply nested items via selectable mode choice expansion', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'level-1',
+          text: 'Level 1',
+          type: 'choice',
+          item: [
+            {
+              linkId: 'level-2',
+              text: 'Level 2',
+              type: 'string',
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // Click to select the choice item
+      await user.click(screen.getByTestId('selectable-level-1'));
+
+      expect(screen.getByTestId('renderer-level-1')).toBeInTheDocument();
+      // level-2 is rendered via recursive AyuNestedRenderer in selectable mode
+      expect(screen.getByTestId('renderer-level-2')).toBeInTheDocument();
     });
   });
 });

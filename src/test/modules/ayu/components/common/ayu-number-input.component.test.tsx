@@ -3,10 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
 
-vi.mock('../../../../../ayu-library/utils/fhir-to-ayu.util', () => ({
-  resolveLabel: vi.fn((question) => question.text),
-}));
-
 describe('AyuNumberInput', () => {
   const mockQuestion: AyuQuestion = {
     linkId: 'num-1',
@@ -16,7 +12,7 @@ describe('AyuNumberInput', () => {
   };
 
   describe('Rendering', () => {
-    it('should render number input with label', () => {
+    it('should render number input', () => {
       render(
         <AyuNumberInput
           question={mockQuestion}
@@ -24,11 +20,10 @@ describe('AyuNumberInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.getByLabelText('Enter your age')).toBeInTheDocument();
       expect(screen.getByRole('spinbutton')).toBeInTheDocument();
     });
 
-    it('should render without label when text is not provided', () => {
+    it('should render without crashing when text is not provided', () => {
       const questionWithoutText: AyuQuestion = {
         ...mockQuestion,
         text: undefined,
@@ -40,7 +35,6 @@ describe('AyuNumberInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.queryByRole('label')).not.toBeInTheDocument();
       expect(screen.getByRole('spinbutton')).toBeInTheDocument();
     });
 
@@ -123,8 +117,8 @@ describe('AyuNumberInput', () => {
     });
   });
 
-  describe('Label Styling', () => {
-    it('should render label with correct CSS classes', () => {
+  describe('Input ID', () => {
+    it('should set correct id on the input element', () => {
       render(
         <AyuNumberInput
           question={mockQuestion}
@@ -132,8 +126,8 @@ describe('AyuNumberInput', () => {
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('Enter your age');
-      expect(label).toHaveClass('text-md', 'font-medium', 'text-gray-700');
+      const input = screen.getByRole('spinbutton');
+      expect(input).toHaveAttribute('id', 'ayu-number-num-1');
     });
   });
 
@@ -520,6 +514,48 @@ describe('AyuNumberInput', () => {
       fireEvent.change(input, { target: { value: '-0' } });
 
       expect(mockOnChange).toHaveBeenCalledWith(-0);
+    });
+
+    it('should display empty string when value is null', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={null}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+
+    it('should display empty string when value is undefined', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+
+    it('should display string representation of numeric value', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={0}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('0');
     });
   });
 });
