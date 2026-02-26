@@ -11,9 +11,17 @@ import DashboardCard from '../../components/common/dashboard-card.component';
 import ROUTES from '../../routes/paths';
 import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
 
-// Declare the functional component with the FC type and prop interface
-const DashboardComponent = () => {
-  const [showPrescriptions, setShowPrescriptions] = useState(false);
+// Declare the functional component with an optional prop to help testing
+type DashboardProps = {
+  initialShowPrescriptions?: boolean;
+};
+
+const DashboardComponent = ({
+  initialShowPrescriptions = false,
+}: DashboardProps) => {
+  const [showPrescriptions, setShowPrescriptions] = useState(
+    initialShowPrescriptions
+  );
   const navigate = useNavigate();
 
   return (
@@ -92,10 +100,12 @@ const DashboardComponent = () => {
       {/* Add Patients + Pending Prescriptions row:
           - Desktop/Tablet: always visible
           - Mobile: only visible when showPrescriptions is true */}
+
       <div
         className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-col gap-4 md:flex-row`}
       >
         {/* Add Patients Button - desktop only */}
+
         <button className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center rounded-full bg-white/20">
