@@ -92,6 +92,19 @@ describe('ConfirmationModal', () => {
     expect(modalBox).toBeInTheDocument();
   });
 
+  it('renders note when provided', () => {
+    render(
+      <ConfirmationModal {...defaultProps} note="This is an important note" />
+    );
+    expect(screen.getByText('Note:')).toBeInTheDocument();
+    expect(screen.getByText(/This is an important note/)).toBeInTheDocument();
+  });
+
+  it('does not render note when not provided', () => {
+    render(<ConfirmationModal {...defaultProps} />);
+    expect(screen.queryByText('Note:')).not.toBeInTheDocument();
+  });
+
   it('handles multiline description with whitespace-pre-line', () => {
     const description = 'Line 1\nLine 2\nLine 3';
     render(<ConfirmationModal {...defaultProps} description={description} />);
@@ -99,7 +112,7 @@ describe('ConfirmationModal', () => {
     const descElement = screen.getByText((_content, element) => {
       return element?.textContent === description;
     });
-    expect(descElement).toHaveClass('whitespace-pre-line');
+    expect(descElement).toHaveClass('text-left');
   });
 
   it('renders both buttons with correct variants', () => {

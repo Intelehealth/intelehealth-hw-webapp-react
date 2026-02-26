@@ -85,6 +85,54 @@ describe('storage utility', () => {
     });
   });
 
+  describe('Location management', () => {
+    it('gets location uuid', () => {
+      localStorageMock.getItem.mockReturnValue('uuid-123');
+
+      const result = storage.getLocationUuid();
+
+      expect(localStorageMock.getItem).toHaveBeenCalledWith('locationUuid');
+      expect(result).toBe('uuid-123');
+    });
+
+    it('returns null when location uuid does not exist', () => {
+      localStorageMock.getItem.mockReturnValue(null);
+
+      const result = storage.getLocationUuid();
+
+      expect(result).toBeNull();
+    });
+
+    it('sets location uuid', () => {
+      storage.setLocationUuid('uuid-456');
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('locationUuid', 'uuid-456');
+    });
+
+    it('gets location name', () => {
+      localStorageMock.getItem.mockReturnValue('Main Clinic');
+
+      const result = storage.getLocationName();
+
+      expect(localStorageMock.getItem).toHaveBeenCalledWith('locationName');
+      expect(result).toBe('Main Clinic');
+    });
+
+    it('returns null when location name does not exist', () => {
+      localStorageMock.getItem.mockReturnValue(null);
+
+      const result = storage.getLocationName();
+
+      expect(result).toBeNull();
+    });
+
+    it('sets location name', () => {
+      storage.setLocationName('New Clinic');
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('locationName', 'New Clinic');
+    });
+  });
+
   describe('Generic storage helpers', () => {
     it('gets generic value', () => {
       localStorageMock.getItem.mockReturnValue('generic-value');
