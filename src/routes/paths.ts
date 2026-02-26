@@ -9,6 +9,8 @@ const ROUTES = {
     RESET_PASSWORD: 'reset-password',
   },
   DASHBOARD: '/dashboard',
+  PRESCRIPTIONS: '/prescriptions',
+  OPEN_VISITS: '/open-visits',
   PROFILE: '/profile',
   ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',

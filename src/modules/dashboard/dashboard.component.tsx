@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconAddPatient from '../../assets/icons/appiontment/icon-add-patient.svg';
 import iconArrowright from '../../assets/icons/appiontment/icon-arrow-right.svg';
 import iconOPatient from '../../assets/icons/appiontment/icon-o-patient.svg';
@@ -7,11 +8,13 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
+import ROUTES from '../../routes/paths';
 import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
 
 // Declare the functional component with the FC type and prop interface
 const DashboardComponent = () => {
   const [showPrescriptions, setShowPrescriptions] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="p-4 flex flex-col gap-4">
@@ -42,10 +45,10 @@ const DashboardComponent = () => {
       <div
         className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`}
       >
-        {/* Prescriptions card - clickable on mobile to open detail view */}
+        {/* Prescriptions card - clickable to navigate to prescriptions page */}
         <div
-          className="md:cursor-default cursor-pointer"
-          onClick={() => setShowPrescriptions(true)}
+          className="cursor-pointer"
+          onClick={() => navigate(ROUTES.PRESCRIPTIONS)}
         >
           <DashboardCard
             title="Prescriptions"
@@ -56,13 +59,18 @@ const DashboardComponent = () => {
             image={imgPrescriptionGreen}
           />
         </div>
-        <DashboardCard
-          title="Close visits"
-          subtitle="<strong>12</strong> Unclosed visits"
-          bg="bg-(--color-primary-light)"
-          iconBg="bg-purple-300"
-          icon={iconRightArrow}
-        />
+        <div
+          className="cursor-pointer"
+          onClick={() => navigate(ROUTES.OPEN_VISITS)}
+        >
+          <DashboardCard
+            title="Open visits"
+            subtitle="<strong>12</strong> Unclosed visits"
+            bg="bg-(--color-primary-light)"
+            iconBg="bg-purple-300"
+            icon={iconRightArrow}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
           <DashboardCard
             title="Appointments"
