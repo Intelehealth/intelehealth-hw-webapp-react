@@ -173,8 +173,6 @@ describe('DashboardComponent', () => {
       fireEvent.click(prescriptionCard);
       // Look for the back button with the correct text
       const backButton = screen.queryByRole('button', { name: /← Prescriptions/i });
-      // Current behavior: clicking navigates instead of toggling the mobile detail view,
-      // so the back button should not be present.
       expect(backButton).not.toBeInTheDocument();
     });
 
