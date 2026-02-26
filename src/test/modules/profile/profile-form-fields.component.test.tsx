@@ -170,9 +170,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for mobile-specific elements
-    expect(screen.getAllByText('User name')).toHaveLength(2); // Mobile and desktop versions
-    expect(screen.getAllByText('Setup location')).toHaveLength(2); // Mobile and desktop versions
+    // Check for form elements (single unified layout)
+    expect(screen.getAllByText('User name')).toHaveLength(1);
+    expect(screen.getAllByText('Setup location')).toHaveLength(1);
   });
 
   it('should render desktop fields on desktop screens', () => {
@@ -207,7 +207,7 @@ describe('ProfileFormFields', () => {
     );
 
     const photoButtons = screen.getAllByText('Change photo');
-    expect(photoButtons).toHaveLength(2); // Mobile and desktop versions
+    expect(photoButtons).toHaveLength(1); // Single unified layout
     fireEvent.click(photoButtons[0]);
 
     expect(mockOnPhotoModalOpen).toHaveBeenCalledTimes(1);
@@ -223,11 +223,11 @@ describe('ProfileFormFields', () => {
         trigger={mockTrigger}
         onPhotoModalOpen={mockOnPhotoModalOpen}
         onCountryChange={mockOnCountryChange}
+        locationOptions={[{ value: 'telemedicine-clinic1 ', label: 'telemedicine-clinic1 ' }]}
       />
     );
 
-    const locationSelects = screen.getAllByRole('combobox');
-    const locationSelect = locationSelects[0];
+    const locationSelect = screen.getByRole('combobox');
     fireEvent.change(locationSelect, { target: { value: 'telemedicine-clinic1 ' } });
 
     expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic1 ');
@@ -250,43 +250,26 @@ describe('ProfileFormFields', () => {
     );
 
     // Test array value handling - call onChange with array directly
-    // This covers lines 84 and 272: Array.isArray(value) ? value[0] : value
+    // This covers: Array.isArray(value) ? value[0] : value
     const testOnChangeHandlers = (window as any).__testLocationOnChange;
     if (testOnChangeHandlers && testOnChangeHandlers.length > 0) {
-      // Test mobile dropdown (first handler) with array value (covers Array.isArray branch at line 84)
+      // Test with array value (covers Array.isArray branch)
       testOnChangeHandlers[0](['la-clinic']);
       expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'la-clinic');
-      
+
       // Clear previous calls
       mockSetValue.mockClear();
-      
+
       // Test with array containing multiple values
       testOnChangeHandlers[0](['ny-clinic', 'sf-clinic']);
       expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'ny-clinic');
-      
-      // Test desktop dropdown (second handler) with array value (covers Array.isArray branch at line 272)
-      if (testOnChangeHandlers.length > 1) {
-        mockSetValue.mockClear();
-        testOnChangeHandlers[1](['sf-clinic']);
-        expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'sf-clinic');
-        
-        mockSetValue.mockClear();
-        testOnChangeHandlers[1](['la-clinic', 'ny-clinic']);
-        expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'la-clinic');
-      }
     }
 
-    // Test string value (else branch) - covers the else path for both mobile and desktop
+    // Test string value (else branch) via direct handler call
     mockSetValue.mockClear();
-    const locationSelects = screen.getAllByRole('combobox');
-    fireEvent.change(locationSelects[0], { target: { value: 'telemedicine-clinic1 ' } });
-    expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic1 ');
-
-    // Test desktop dropdown with string value
-    mockSetValue.mockClear();
-    if (locationSelects.length > 1) {
-      fireEvent.change(locationSelects[1], { target: { value: 'telemedicine-clinic3' } });
-      expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic3');
+    if (testOnChangeHandlers && testOnChangeHandlers.length > 0) {
+      testOnChangeHandlers[0]('telemedicine-clinic1 ');
+      expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic1 ');
     }
   });
 
@@ -323,7 +306,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const grid = container.querySelector('div');
+    const grid = container.firstElementChild;
     expect(grid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3', 'gap-6');
   });
 
@@ -345,11 +328,11 @@ describe('ProfileFormFields', () => {
     );
 
     // Verify that the component renders without errors
-    expect(screen.getAllByText('First Name')).toHaveLength(2); // Mobile and desktop versions
-    expect(screen.getAllByText('First name is required')).toHaveLength(2); // Mobile and desktop versions
+    expect(screen.getAllByText('First Name')).toHaveLength(1);
+    expect(screen.getAllByText('First name is required')).toHaveLength(1);
   });
 
-  it('should render mobile profile photo section', () => {
+  it('should render profile photo section', () => {
     const { container } = render(
       <ProfileFormFields
         register={mockRegister}
@@ -362,11 +345,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for mobile section (lg:hidden)
-    const mobileSections = container.querySelectorAll('.lg\\:hidden');
-    expect(mobileSections.length).toBeGreaterThan(0);
-
-    // Check for camera icon in mobile section
+    // Check for camera icon in photo section
     const cameraIcons = container.querySelectorAll('.fa-camera');
     expect(cameraIcons.length).toBeGreaterThan(0);
   });
@@ -403,9 +382,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    expect(screen.getAllByText('Male')).toHaveLength(2); // Mobile and desktop
-    expect(screen.getAllByText('Female')).toHaveLength(2); // Mobile and desktop
-    expect(screen.getAllByText('Other')).toHaveLength(2); // Mobile and desktop
+    expect(screen.getAllByText('Male')).toHaveLength(1);
+    expect(screen.getAllByText('Female')).toHaveLength(1);
+    expect(screen.getAllByText('Other')).toHaveLength(1);
   });
 
   it('should render mobile gender icons', () => {
@@ -421,9 +400,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for gender radio buttons (3 for mobile: male, female, other)
+    // Check for gender radio buttons (male, female, other)
     const radioButtons = container.querySelectorAll('input[type="radio"]');
-    expect(radioButtons.length).toBeGreaterThanOrEqual(3);
+    expect(radioButtons.length).toBe(3);
   });
 
   it('should display mobile gender error message', () => {
@@ -447,7 +426,7 @@ describe('ProfileFormFields', () => {
     expect(errorMessages.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should render desktop profile photo section', () => {
+  it('should render profile image and camera button', () => {
     const { container } = render(
       <ProfileFormFields
         register={mockRegister}
@@ -460,8 +439,8 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for profile image (uses img tag with DefaultUserImage, not fa-user icon)
-    const profileImages = container.querySelectorAll('img[alt="Default Profile"]');
+    // Check for profile image
+    const profileImages = container.querySelectorAll('img[alt="Profile"]');
     expect(profileImages.length).toBeGreaterThan(0);
 
     // Check for camera button icon
@@ -469,7 +448,7 @@ describe('ProfileFormFields', () => {
     expect(cameraButton).toBeInTheDocument();
   });
 
-  it('should render desktop form fields', () => {
+  it('should render email and phone form fields', () => {
     render(
       <ProfileFormFields
         register={mockRegister}
@@ -651,6 +630,8 @@ describe('ProfileFormFields', () => {
   });
 
   it('should handle location onChange with string value', () => {
+    (window as any).__testLocationOnChange = [];
+
     render(
       <ProfileFormFields
         register={mockRegister}
@@ -663,10 +644,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const locationSelects = screen.getAllByRole('combobox');
-    // Test desktop location dropdown
-    const desktopLocation = locationSelects[1];
-    fireEvent.change(desktopLocation, { target: { value: 'telemedicine-clinic2' } });
+    const testOnChangeHandlers = (window as any).__testLocationOnChange;
+    expect(testOnChangeHandlers.length).toBeGreaterThan(0);
+    testOnChangeHandlers[0]('telemedicine-clinic2');
 
     expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic2');
   });
@@ -840,7 +820,7 @@ describe('ProfileFormFields', () => {
     );
 
     const genderRadios = screen.getAllByRole('radio');
-    expect(genderRadios.length).toBeGreaterThanOrEqual(6); // 3 for mobile, 3 for desktop
+    expect(genderRadios.length).toBe(3); // male, female, other
 
     fireEvent.change(genderRadios[0], { target: { value: 'male' } });
     expect(mockRegister).toHaveBeenCalledWith('gender');
@@ -859,20 +839,18 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Mobile section
-    const mobileSection = container.querySelector('.lg\\:hidden');
-    expect(mobileSection).toBeInTheDocument();
-
-    // Desktop sections
-    const desktopSection = container.querySelector('.hidden.lg\\:block');
-    expect(desktopSection).toBeInTheDocument();
+    // Grid layout with 3 columns
+    const grid = container.firstElementChild;
+    expect(grid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3', 'gap-6');
 
     // Column sections
-    const columns = container.querySelectorAll('.space-y-2');
-    expect(columns.length).toBeGreaterThanOrEqual(2);
+    const columns = container.querySelectorAll('.space-y-4');
+    expect(columns.length).toBe(3);
   });
 
-  it('should handle desktop location dropdown onChange', () => {
+  it('should handle location dropdown onChange with different value', () => {
+    (window as any).__testLocationOnChange = [];
+
     render(
       <ProfileFormFields
         register={mockRegister}
@@ -885,10 +863,9 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const locationSelects = screen.getAllByRole('combobox');
-    // Desktop location is the second one
-    const desktopLocation = locationSelects[1];
-    fireEvent.change(desktopLocation, { target: { value: 'telemedicine-clinic3' } });
+    const testOnChangeHandlers = (window as any).__testLocationOnChange;
+    expect(testOnChangeHandlers.length).toBeGreaterThan(0);
+    testOnChangeHandlers[0]('telemedicine-clinic3');
 
     expect(mockSetValue).toHaveBeenCalledWith('setupLocation', 'telemedicine-clinic3');
   });
@@ -918,7 +895,7 @@ describe('ProfileFormFields', () => {
     expect(actualProfileImage?.getAttribute('src')).toBe(mockProfileImage);
   });
 
-  it('covers lines 173-177: renders desktop profile image when profileImage prop is provided', () => {
+  it('renders profile image with correct src when profileImage prop is provided', () => {
     const mockProfileImage = 'https://example.com/profile.jpg';
     const { container } = render(
       <ProfileFormFields
@@ -933,14 +910,13 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check that the actual profile image is rendered in desktop view
+    // Check that the actual profile image is rendered
     const allProfileImages = container.querySelectorAll(`img[src="${mockProfileImage}"]`);
-    // Should have at least 2 (mobile and desktop)
-    expect(allProfileImages.length).toBeGreaterThanOrEqual(2);
+    expect(allProfileImages.length).toBe(1);
 
-    // Verify multiple instances with "Profile" alt text (mobile and desktop)
+    // Verify "Profile" alt text
     const profileImagesWithAlt = container.querySelectorAll('img[alt="Profile"]');
-    expect(profileImagesWithAlt.length).toBeGreaterThanOrEqual(2);
+    expect(profileImagesWithAlt.length).toBe(1);
   });
 
   it('renders default user image when profileImage is not provided', () => {
@@ -956,12 +932,12 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for default profile image
-    const defaultImages = container.querySelectorAll('img[alt="Default Profile"]');
-    expect(defaultImages.length).toBeGreaterThan(0);
+    // Check for profile image with "Profile" alt text (uses DefaultUserImage as src)
+    const profileImages = container.querySelectorAll('img[alt="Profile"]');
+    expect(profileImages.length).toBe(1);
   });
 
-  it('covers lines 70-71: handles mobile profile image error', () => {
+  it('handles profile image error by falling back to default', () => {
     const mockProfileImage = 'https://example.com/broken-image.jpg';
     const { container } = render(
       <ProfileFormFields
@@ -976,25 +952,22 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Find the mobile profile image (in the lg:hidden section)
-    const mobileSection = container.querySelector('.lg\\:hidden');
-    const mobileProfileImage = mobileSection?.querySelector('img[alt="Profile"]') as HTMLImageElement;
+    const profileImage = container.querySelector('img[alt="Profile"]') as HTMLImageElement;
 
-    expect(mobileProfileImage).toBeInTheDocument();
-    expect(mobileProfileImage.src).toContain('broken-image.jpg');
+    expect(profileImage).toBeInTheDocument();
+    expect(profileImage.src).toContain('broken-image.jpg');
 
     // Store original src before error
-    const originalSrc = mobileProfileImage.src;
+    const originalSrc = profileImage.src;
 
-    // Trigger error event to test lines 70-71
-    fireEvent.error(mobileProfileImage);
+    // Trigger error event
+    fireEvent.error(profileImage);
 
-    // After error, src should be changed (it will be set to DefaultUserImage)
-    // Since DefaultUserImage is imported as a module, we just verify it changed
-    expect(mobileProfileImage.src).not.toBe(originalSrc);
+    // After error, src should be changed to DefaultUserImage
+    expect(profileImage.src).not.toBe(originalSrc);
   });
 
-  it('covers lines 184-185: handles desktop profile image error', () => {
+  it('verifies profile image onError handler sets fallback src', () => {
     const mockProfileImage = 'https://example.com/broken-image.jpg';
     const { container } = render(
       <ProfileFormFields
@@ -1009,22 +982,15 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Find the desktop profile image (in the hidden.lg:block section)
-    const desktopSection = container.querySelector('.hidden.lg\\:block');
-    const desktopProfileImage = desktopSection?.querySelector('img[alt="Profile"]') as HTMLImageElement;
+    const profileImage = container.querySelector('img[alt="Profile"]') as HTMLImageElement;
 
-    expect(desktopProfileImage).toBeInTheDocument();
-    expect(desktopProfileImage.src).toContain('broken-image.jpg');
+    expect(profileImage).toBeInTheDocument();
 
-    // Store original src before error
-    const originalSrc = desktopProfileImage.src;
-
-    // Trigger error event to test lines 184-185
-    fireEvent.error(desktopProfileImage);
-
-    // After error, src should be changed (it will be set to DefaultUserImage)
-    // Since DefaultUserImage is imported as a module, we just verify it changed
-    expect(desktopProfileImage.src).not.toBe(originalSrc);
+    // Trigger error twice to ensure handler is idempotent
+    fireEvent.error(profileImage);
+    const fallbackSrc = profileImage.src;
+    fireEvent.error(profileImage);
+    expect(profileImage.src).toBe(fallbackSrc);
   });
 });
 

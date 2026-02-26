@@ -98,6 +98,18 @@ describe('Profile Helpers', () => {
         expect(age).toBe(24);
       }
     });
+
+    it('should subtract one when same month but birthday has not passed yet (fake timer)', () => {
+      // Fix "today" to Jan 10 2025 so the branch monthDiff===0 && day<birthDay is deterministic
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2025, 0, 10)); // Jan 10, 2025
+
+      // Birthday is Jan 20, 1995 → same month, later day → age should be 29 (not 30)
+      const age = calculateAge('1995-01-20');
+      expect(age).toBe(29);
+
+      vi.useRealTimers();
+    });
   });
 
   describe('getErrorMessage', () => {
@@ -1097,7 +1109,7 @@ describe('Profile Helpers', () => {
         results: [
           { uuid: 'type-email', display: 'emailId' },
           { uuid: 'type-phone', display: 'phoneNumber' },
-          { uuid: 'type-location', display: 'setupLocation' },
+          { uuid: 'type-location', display: 'address' },
         ],
       } as any);
 

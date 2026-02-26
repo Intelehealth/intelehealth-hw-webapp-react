@@ -103,7 +103,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <label
             htmlFor={inputId}
             className={cn(
-              'block text-base text-(--color-muted) mb-2',
+              'block text-base text-(--color-muted) mb-3',
               error && 'text-error-700',
               disabled && 'text-gray-400'
             )}

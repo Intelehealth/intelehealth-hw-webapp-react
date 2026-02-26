@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import Navbar from '../../../components/navbar/navbar.component';
+
+vi.mock('../../../context/ProfileContext', () => ({
+  useProfileContext: () => ({
+    profile: { setupLocation: 'Ranchi', avatar: '' },
+    locations: [],
+  }),
+}));
 
 // Helper function to render with router
 const renderWithRouter = (component: React.ReactElement) => {
@@ -28,11 +35,7 @@ describe('Navbar', () => {
     expect(screen.getByText('Ranchi')).toBeInTheDocument();
   });
 
-  it('should display the last sync time', () => {
-    renderWithRouter(<Navbar />);
-    
-    expect(screen.getByText('Last sync: 12:30 pm, 12 May 2022')).toBeInTheDocument();
-  });
+
 
   it('should render all required icons', () => {
     renderWithRouter(<Navbar />);
@@ -97,12 +100,7 @@ describe('Navbar', () => {
     expect(locationText).toHaveClass('text-(--color-muted)');
   });
 
-  it('should display sync time with correct styling', () => {
-    renderWithRouter(<Navbar />);
-    
-    const syncTime = screen.getByText('Last sync: 12:30 pm, 12 May 2022');
-    expect(syncTime).toHaveClass('text-(--color-muted)');
-  });
+
 
   it('should have proper layout structure with flex justify-between', () => {
     const { container } = renderWithRouter(<Navbar />);

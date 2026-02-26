@@ -29,6 +29,7 @@ export type ConfirmModalConfig = {
   type: 'confirm';
   title: string;
   description?: string;
+  note?: string;
   icon?: string;
   cancelText?: string;
   confirmText?: string;
@@ -112,6 +113,7 @@ export const GlobalModalProvider = ({
           open={modal.open}
           title={modal.title}
           description={modal.description}
+          note={'note' in modal ? modal.note : undefined}
           icon={modal.icon}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}
