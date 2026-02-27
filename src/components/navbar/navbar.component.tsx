@@ -4,12 +4,15 @@ import iconNotification from '../../assets/icons/icon-notification.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
-import { useProfile } from '../../modules/profile/profile.hooks';
+import { useProfileContext } from '../../context/ProfileContext';
 import ROUTES from '../../routes/paths';
+import { storage } from '../../utils/storage';
 import { Input } from '../common';
 
 const Navbar = () => {
-  const { profile } = useProfile();
+  const { profile } = useProfileContext();
+  const locationName =
+    storage.getLocationName() || profile?.setupLocation || '';
   return (
     <header className="bg-white shadow-md flex flex-col justify-between gap-4 items-center p-4 rounded-lg">
       {/* Desktop */}
@@ -25,11 +28,11 @@ const Navbar = () => {
         <div className="flex flex-col w-8/12 md:w-6/12 pl-12 md:pl-4">
           <div className="flex gap-2">
             <img src={iconLocation} alt="Location" className="w-6 h-6" />
-            <span className="text-(--color-muted)">Ranchi</span>
+            <span className="text-(--color-muted)">{locationName}</span>
           </div>
-          <span className="text-(--color-muted)">
+          {/* <span className="text-(--color-muted)">
             Last sync: 12:30 pm, 12 May 2022
-          </span>
+          </span> */}
         </div>
         <div className="flex items-center space-x-2 ml-auto gap-4">
           <img src={iconSync} alt="Sync" className="w-6 h-6" />

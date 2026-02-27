@@ -43,14 +43,19 @@ vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-re
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination.component', () => ({
-  PhysicalExamination: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection }) => (
-    <div data-testid="physical-exam-component">
-      <div>Physical Exam - Question {questionIndex}</div>
-      <button onClick={onPrevSection}>Prev Section</button>
-      <button onClick={onPrevQuestion}>Prev Question</button>
-      <button onClick={onNextQuestion}>Next Question</button>
-    </div>
-  )),
+  PhysicalExamination: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onProgressUpdate }: any) => {
+    React.useEffect(() => {
+      onProgressUpdate?.(8, questionIndex);
+    }, [questionIndex, onProgressUpdate]);
+    return (
+      <div data-testid="physical-exam-component">
+        <div>Physical Exam - Question {questionIndex}</div>
+        <button onClick={onPrevSection}>Prev Section</button>
+        <button onClick={onPrevQuestion}>Prev Question</button>
+        <button onClick={onNextQuestion}>Next Question</button>
+      </div>
+    );
+  }),
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/medical-history/medical-history.component', () => ({
@@ -546,7 +551,7 @@ describe('StartVisit', () => {
       expect(typeof callArgs.onProgressUpdate).toBe('function');
     });
 
-    it('should NOT pass onProgressUpdate prop to PhysicalExamination component', async () => {
+    it('should pass onProgressUpdate prop to PhysicalExamination component', async () => {
       const user = userEvent.setup();
       const PhysicalExamMock = vi.mocked(
         await import('../../../../../modules/ayu/components/start-visit/physical-examination.component')
@@ -556,10 +561,11 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
 
-      // PhysicalExamination does not receive onProgressUpdate in the actual component
+      // PhysicalExamination receives onProgressUpdate in the actual component
       expect(PhysicalExamMock).toHaveBeenCalled();
       const callArgs = PhysicalExamMock.mock.calls[0][0];
-      expect(callArgs).not.toHaveProperty('onProgressUpdate');
+      expect(callArgs).toHaveProperty('onProgressUpdate');
+      expect(typeof callArgs.onProgressUpdate).toBe('function');
     });
 
     it('should NOT pass onProgressUpdate prop to MedicalHistory component', async () => {

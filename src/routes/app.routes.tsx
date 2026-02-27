@@ -29,6 +29,12 @@ const VerifyOtpPage = lazy(
   () => import('../pages/auth/verify-otp/verify-otp.page')
 );
 const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
+const PrescriptionsPage = lazy(
+  () => import('../pages/prescriptions/prescriptions.page')
+);
+const OpenVisitsPage = lazy(
+  () => import('../pages/open-visits/open-visits.page')
+);
 const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
 const AddPatientPage = lazy(
   () => import('../pages/patient/add/add-patient.page')
@@ -122,6 +128,22 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.PRESCRIPTIONS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PrescriptionsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.OPEN_VISITS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <OpenVisitsPage />
                 </Suspense>
               }
             />

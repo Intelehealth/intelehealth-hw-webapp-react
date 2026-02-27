@@ -154,6 +154,7 @@ export const createProfile = (
     gender?: string;
     age?: number;
     birthdate?: string;
+    address?: string;
   },
   providerDetails: ProviderDetailResponse | null,
   attributes: { [key: string]: string },
@@ -190,7 +191,10 @@ export const createProfile = (
     username: userDetails.username || '',
     age: personDetails.age ?? undefined,
     setupLocation:
-      attributes['setupLocation'] || attributes['setup_location'] || '',
+      attributes['address'] ||
+      attributes['setupLocation'] ||
+      attributes['setup_location'] ||
+      '',
     preferences: {
       language: 'en',
       timezone: 'UTC',
@@ -255,7 +259,7 @@ export const updateProfileAttributes = async (
     attributeTypeMap[attrType.display] = attrType.uuid;
   });
   const attributeRequests: Promise<unknown>[] = [];
-  ['emailId', 'phoneNumber', 'setupLocation'].forEach(key => {
+  ['emailId', 'phoneNumber', 'address'].forEach(key => {
     const value =
       data[
         key === 'emailId'

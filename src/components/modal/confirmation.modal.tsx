@@ -4,6 +4,7 @@ type ConfirmModalConfig = {
   type: 'confirm';
   title: string;
   description?: string;
+  note?: string;
   icon?: string;
   cancelText?: string;
   confirmText?: string;
@@ -16,6 +17,7 @@ export const ConfirmationModal = ({
   open,
   title,
   description,
+  note,
   icon,
   cancelText = 'Back',
   confirmText = 'Confirm',
@@ -27,7 +29,7 @@ export const ConfirmationModal = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center">
-      <div className="bg-white w-[400px] max-sm:w-[350px] p-4 rounded-2xl flex flex-col">
+      <div className="bg-white w-[90vw] sm:w-[450px] lg:w-[560px] min-h-[240px] sm:min-h-[240px] p-5 sm:p-6 rounded-2xl flex flex-col">
         {/* Icon */}
         {icon && (
           <div className="flex justify-center mb-4">
@@ -39,9 +41,17 @@ export const ConfirmationModal = ({
         <h2 className="text-center font-semibold text-black-800">{title}</h2>
 
         {/* Description */}
-        <p className="mt-3 text-center text-gray-500 whitespace-pre-line break-words max-w-[280px] mx-auto">
-          {description}
-        </p>
+        {description && (
+          <p className="mt-3 text-left text-gray-500 break-words px-2">
+            {description}
+          </p>
+        )}
+        {note && (
+          <p className="mt-2 text-left text-gray-500 text-sm break-words px-2">
+            <span className="font-semibold">Note: </span>
+            {note}
+          </p>
+        )}
         {items && (
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {items.map(item => (

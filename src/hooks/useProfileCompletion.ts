@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { useProfile } from '../modules/profile/profile.hooks';
+import { useProfileContext } from '../context/ProfileContext';
 
 export const useProfileCompletion = () => {
-  const { profile } = useProfile();
+  const { profile } = useProfileContext();
 
   // Memoize profile completion check to avoid unnecessary recalculations
   const isProfileComplete = useMemo(() => {

@@ -1918,4 +1918,434 @@ describe('AyuStepperContainer', () => {
       expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
     });
   });
+
+  describe('Grandchildren Duration Validation', () => {
+    it('should disable submit for choice with grandchild invalid duration', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Choice Question',
+        type: 'choice',
+        repeats: true,
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Child Level',
+            type: 'choice',
+            item: [
+              {
+                linkId: 'q1.1.1',
+                text: 'Grandchild Duration',
+                type: 'quantity',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {
+          q1: ['some-option'],
+          'q1.1.1': {
+            dropdownValues: {
+              number: 5,
+              days: undefined, // Incomplete
+            },
+          },
+        },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeDisabled();
+    });
+
+    it('should enable submit for choice with valid grandchild duration', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Choice Question',
+        type: 'choice',
+        repeats: true,
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Child Level',
+            type: 'choice',
+            item: [
+              {
+                linkId: 'q1.1.1',
+                text: 'Grandchild Duration',
+                type: 'quantity',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {
+          q1: ['some-option'],
+          'q1.1.1': {
+            dropdownValues: {
+              number: 5,
+              days: 'weeks',
+            },
+          },
+        },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).not.toBeDisabled();
+    });
+  });
+
+  describe('hasNestedRepeats Submit Button', () => {
+    it('should show submit button when child has repeats', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent Question',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Repeating Child',
+            type: 'choice',
+            repeats: true,
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+  });
+
+  describe('Nested integer and quantity child with answer', () => {
+    it('should show submit for nested integer child with answer', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Integer Child',
+            type: 'integer',
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'q1.1': 42 },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should show submit for nested quantity child with answer', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Quantity Child',
+            type: 'quantity',
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'q1.1': { dropdownValues: { number: 3, days: 'days' } } },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+  });
+
+  describe('isEmpty Additional Coverage', () => {
+    it('should handle empty array as empty value in nested string check', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent Question',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Nested String',
+            type: 'string',
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'q1.1': [] }, // Empty array - isEmpty returns true
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Nested string with empty array is "empty", so submit is disabled
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeDisabled();
+    });
+
+    it('should handle non-string child type in hasVisibleRequiredNestedString', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent Question',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Choice Child',
+            type: 'choice', // Non-string type should be skipped
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'selected' },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Non-string child should not trigger the hasVisibleRequiredNestedString check
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+    });
+
+    it('should handle invisible nested string child (enableWhen not met)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent Question',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'q1.1',
+            text: 'Nested String',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'q1',
+                operator: '=',
+                answerString: 'no',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes' }, // enableWhen expects 'no', so child is invisible
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Invisible string child should not prevent skip
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+    });
+  });
+
+  describe('Progress Update Same Value', () => {
+    it('should not call onProgressUpdate when completedSteps has not changed', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(mockOnProgressUpdate).toHaveBeenCalledTimes(1);
+
+      // Rerender with same currentIndex - should NOT call onProgressUpdate again
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(mockOnProgressUpdate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('associatedSymptoms answerOption fallback', () => {
+    it('should handle associatedSymptoms when answerOption is undefined', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        // No answerOption
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: [] },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // answerOption?.length ?? 0 fallback - answers.length (0) < 0 is false, so not disabled
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).not.toBeDisabled();
+    });
+  });
 });

@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import type { Profile } from '../../types/profile.types';
 
-// Mock useProfile hook
+// Mock useProfileContext hook
 const mockUseProfile = vi.fn();
-vi.mock('../../modules/profile/profile.hooks', () => ({
-  useProfile: (...args: any[]) => mockUseProfile(...args),
+vi.mock('../../context/ProfileContext', () => ({
+  useProfileContext: (...args: any[]) => mockUseProfile(...args),
 }));
 
 describe('useProfileCompletion', () => {

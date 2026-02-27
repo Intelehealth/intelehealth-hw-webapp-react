@@ -26,6 +26,23 @@ export const storage = {
     localStorage.removeItem('user');
   },
 
+  // Location management
+  getLocationUuid: (): string | null => {
+    return localStorage.getItem('locationUuid');
+  },
+
+  setLocationUuid: (uuid: string): void => {
+    localStorage.setItem('locationUuid', uuid);
+  },
+
+  getLocationName: (): string | null => {
+    return localStorage.getItem('locationName');
+  },
+
+  setLocationName: (name: string): void => {
+    localStorage.setItem('locationName', name);
+  },
+
   // Generic storage helpers
   get: (key: string): string | null => {
     return localStorage.getItem(key);
