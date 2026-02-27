@@ -17,10 +17,10 @@ export default function DashboardCard({
 }: DashboardCardProps) {
   return (
     <div
-      className={`${bg} rounded-2xl shadow-md flex border border-gray-200 min-h-[150px]`}
+      className={`${bg} rounded-2xl shadow-md flex border border-gray-200 min-h-[120px] lg:min-h-[110px]`}
     >
       <div
-        className={`p-4 flex flex-col justify-between ${image ? 'w-4/5' : 'w-full'}`}
+        className={`p-4 lg:p-3 flex flex-col justify-between ${image ? 'w-4/5' : 'w-full'}`}
       >
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold text-(--color-dark) text-lg">{title}</h2>
@@ -42,7 +42,7 @@ export default function DashboardCard({
         <div className="w-1/5 flex mt-auto">
           <img
             src={image}
-            className="w-[140px] h-[120px] ml-[-50px] max-w-[150%]"
+            className="w-[140px] h-[120px] lg:h-[100px] ml-[-50px] max-w-[150%]"
           />
         </div>
       )}

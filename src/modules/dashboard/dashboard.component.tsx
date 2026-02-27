@@ -7,14 +7,14 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
-import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
+import { PrescriptionsReceived } from './prescriptions-received.component';
 
 // Declare the functional component with the FC type and prop interface
 const DashboardComponent = () => {
   const [showPrescriptions, setShowPrescriptions] = useState(false);
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 lg:p-3 flex flex-col gap-4 lg:gap-3 h-full">
       {/* Mobile: back button shown when in prescriptions detail view */}
       {showPrescriptions && (
         <button
@@ -40,7 +40,7 @@ const DashboardComponent = () => {
 
       {/* Dashboard cards - hidden on mobile when in prescriptions detail view */}
       <div
-        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`}
+        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3`}
       >
         {/* Prescriptions card - clickable on mobile to open detail view */}
         <div
@@ -63,7 +63,7 @@ const DashboardComponent = () => {
           iconBg="bg-purple-300"
           icon={iconRightArrow}
         />
-        <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
+        <div className="grid grid-cols-2 gap-4 lg:gap-3 md:col-span-2 lg:col-span-1">
           <DashboardCard
             title="Appointments"
             subtitle="<strong>4</strong> Upcoming"
@@ -113,8 +113,10 @@ const DashboardComponent = () => {
       {/* Table:
           - Desktop/Tablet: always visible
           - Mobile: only visible when showPrescriptions is true */}
-      <div className={showPrescriptions ? '' : 'hidden md:block'}>
-        <PrescriptionstRecivied />
+      <div
+        className={`${showPrescriptions ? '' : 'hidden md:block'} lg:flex-1 lg:min-h-0 lg:overflow-auto`}
+      >
+        <PrescriptionsReceived />
       </div>
     </div>
   );

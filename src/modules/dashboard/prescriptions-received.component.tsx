@@ -6,7 +6,7 @@ import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.
 import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
-import { ReusableGirdTable } from '../../components/common/reusable-gird-table.component';
+import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { type Patient, patientsData } from '../../assets/data/patients.data';
 
 interface Column {
@@ -14,7 +14,7 @@ interface Column {
   accessor: keyof Patient;
   render?: (row: Patient) => React.ReactNode;
 }
-export const PrescriptionstRecivied = () => {
+export const PrescriptionsReceived = () => {
   const [activeTab, setActiveTab] = useState('received');
   const columns: Column[] = [
     {
@@ -52,7 +52,7 @@ export const PrescriptionstRecivied = () => {
           {/* Main Card */}
           <div className="rounded-2xl bg-white shadow-sm">
             {/* Header */}
-            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:p-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex items-center">
                   <img
@@ -95,7 +95,7 @@ export const PrescriptionstRecivied = () => {
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
                   onClick={() => setActiveTab('Received')}
-                  className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
+                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
                     activeTab === 'Received'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
@@ -107,7 +107,7 @@ export const PrescriptionstRecivied = () => {
 
                 <button
                   onClick={() => setActiveTab('Pendings')}
-                  className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
+                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
                     activeTab === 'Pendings'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
@@ -119,7 +119,7 @@ export const PrescriptionstRecivied = () => {
               </div>
             </div>
 
-            <ReusableGirdTable columns={columns} data={patientsData} />
+            <ReusableGridTable columns={columns} data={patientsData} />
           </div>
         </div>
       </div>

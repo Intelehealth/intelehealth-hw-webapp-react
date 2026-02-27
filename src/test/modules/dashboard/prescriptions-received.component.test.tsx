@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PrescriptionstRecivied } from '../../../modules/dashboard/prescriptionst-recivied.component';
+import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
 
-const renderComponent = () => render(<PrescriptionstRecivied />);
+const renderComponent = () => render(<PrescriptionsReceived />);
 
-describe('PrescriptionstRecivied', () => {
+describe('PrescriptionsReceived', () => {
   describe('Initial render', () => {
     it('renders without crashing', () => {
       expect(() => renderComponent()).not.toThrow();

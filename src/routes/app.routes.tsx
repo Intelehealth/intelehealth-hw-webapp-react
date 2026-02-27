@@ -39,6 +39,7 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
+import VisitSummary from '../modules/visit-summary/visit-summary.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
 // 🟡Ayu Module
@@ -146,6 +147,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <AppointmentVisitPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.VISIT_SUMMARY}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <VisitSummary />
                 </Suspense>
               }
             />
