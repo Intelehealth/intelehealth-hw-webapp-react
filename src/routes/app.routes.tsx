@@ -42,7 +42,6 @@ import MyAppointments from '../modules/appointment-visit/my-appointments.compone
 import VisitSummary from '../modules/visit-summary/visit-summary.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
-// 🟡Ayu Module
 const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
