@@ -1,9 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import iconVitals from '../../../assets/icons/vitals.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
+import iconVitals from '../assets/vitals.svg';
 import {
   calculateBMI,
   calculateWHR,

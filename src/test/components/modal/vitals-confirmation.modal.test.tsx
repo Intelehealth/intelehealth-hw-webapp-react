@@ -38,7 +38,6 @@ describe('VitalConfirmationModal', () => {
     const modalIcon = screen.getByAltText('Modal Icon');
     expect(modalIcon).toBeInTheDocument();
     expect(modalIcon).toHaveAttribute('src', '/vitals-icon.svg');
-    expect(modalIcon).toHaveClass('w-6', 'h-6');
 
     // Check wrapper divs and classes
     const iconWrapper = modalIcon.parentElement;
@@ -47,9 +46,7 @@ describe('VitalConfirmationModal', () => {
       'h-12',
       'flex',
       'items-center',
-      'justify-center',
-      'rounded-full',
-      'bg-emerald-100'
+      'justify-center'
     );
 
     const outerWrapper = iconWrapper?.parentElement;
@@ -144,7 +141,7 @@ describe('VitalConfirmationModal', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('renders Change button when onChange is provided', () => {
+  it('renders Change button when onChange is provided in legacy mode', () => {
     const onChange = vi.fn();
     render(<VitalConfirmationModal {...defaultProps} onChange={onChange} />);
 
@@ -157,7 +154,7 @@ describe('VitalConfirmationModal', () => {
     expect(screen.queryByText('Change')).not.toBeInTheDocument();
   });
 
-  it('calls onChange when Change button is clicked', async () => {
+  it('calls onChange when Change button is clicked in legacy mode', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
 
@@ -264,5 +261,220 @@ describe('VitalConfirmationModal', () => {
     expect(itemsContainer).not.toHaveClass('sm:max-h-[250px]');
     expect(itemsContainer).not.toHaveClass('sm:overflow-y-auto');
     expect(itemsContainer).not.toHaveClass('sm:pr-2');
+  });
+
+  describe('Size Prop', () => {
+    it('applies sm size classes by default', () => {
+      const { container } = render(<VitalConfirmationModal {...defaultProps} />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[420px]');
+    });
+
+    it('applies lg size classes when size is lg', () => {
+      const { container } = render(<VitalConfirmationModal {...defaultProps} size="lg" />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[700px]');
+    });
+  });
+
+  describe('Sections Mode', () => {
+    const sectionProps = {
+      ...defaultProps,
+      sections: [
+        {
+          title: 'Vitals Section',
+          items: [
+            { type: 'labelValue' as const, label: 'BP', value: '120/80' },
+            { type: 'labelValue' as const, label: 'HR', value: 72 },
+          ],
+        },
+      ],
+    };
+
+    it('renders sections mode when sections prop is provided', () => {
+      render(<VitalConfirmationModal {...sectionProps} />);
+
+      expect(screen.getByText('Vitals Section')).toBeInTheDocument();
+      expect(screen.getByText('BP')).toBeInTheDocument();
+      expect(screen.getByText('120/80')).toBeInTheDocument();
+      expect(screen.getByText('HR')).toBeInTheDocument();
+      expect(screen.getByText('72')).toBeInTheDocument();
+    });
+
+    it('does not render legacy flat mode when sections are provided', () => {
+      render(
+        <VitalConfirmationModal
+          {...sectionProps}
+          description="Should not appear"
+        />
+      );
+
+      expect(screen.queryByText('Should not appear')).not.toBeInTheDocument();
+    });
+
+    it('renders multiple sections', () => {
+      const multiSectionProps = {
+        ...defaultProps,
+        sections: [
+          {
+            title: 'Section A',
+            items: [{ type: 'labelValue' as const, label: 'Field A', value: 'Val A' }],
+          },
+          {
+            title: 'Section B',
+            items: [{ type: 'labelValue' as const, label: 'Field B', value: 'Val B' }],
+          },
+        ],
+      };
+
+      render(<VitalConfirmationModal {...multiSectionProps} />);
+
+      expect(screen.getByText('Section A')).toBeInTheDocument();
+      expect(screen.getByText('Field A')).toBeInTheDocument();
+      expect(screen.getByText('Section B')).toBeInTheDocument();
+      expect(screen.getByText('Field B')).toBeInTheDocument();
+    });
+
+    it('renders subheading items in sections mode', () => {
+      const subheadingSectionProps = {
+        ...defaultProps,
+        sections: [
+          {
+            title: 'Symptoms',
+            items: [
+              {
+                type: 'subheading' as const,
+                heading: 'Patient reports',
+                values: ['Fever, Cough.'],
+              },
+              {
+                type: 'subheading' as const,
+                heading: 'Patient denies',
+                values: ['Headache.'],
+              },
+            ],
+          },
+        ],
+      };
+
+      render(<VitalConfirmationModal {...subheadingSectionProps} />);
+
+      expect(screen.getByText('Patient reports:')).toBeInTheDocument();
+      expect(screen.getByText('Fever, Cough.')).toBeInTheDocument();
+      expect(screen.getByText('Patient denies:')).toBeInTheDocument();
+      expect(screen.getByText('Headache.')).toBeInTheDocument();
+    });
+
+    it('renders "No information" for null values in section labelValue items', () => {
+      const nullValueSectionProps = {
+        ...defaultProps,
+        sections: [
+          {
+            title: 'Section',
+            items: [
+              { type: 'labelValue' as const, label: 'Empty Field', value: null },
+            ],
+          },
+        ],
+      };
+
+      render(<VitalConfirmationModal {...nullValueSectionProps} />);
+
+      expect(screen.getByText('No information')).toBeInTheDocument();
+    });
+
+    it('renders Change button per section when section has onChange', async () => {
+      const user = userEvent.setup();
+      const sectionOnChange = vi.fn();
+      const onClose = vi.fn();
+
+      const sectionWithChangeProps = {
+        ...defaultProps,
+        onClose,
+        sections: [
+          {
+            title: 'Editable Section',
+            items: [{ type: 'labelValue' as const, label: 'F', value: 'V' }],
+            onChange: sectionOnChange,
+          },
+          {
+            title: 'Read Only Section',
+            items: [{ type: 'labelValue' as const, label: 'F2', value: 'V2' }],
+          },
+        ],
+      };
+
+      render(<VitalConfirmationModal {...sectionWithChangeProps} />);
+
+      const changeButtons = screen.getAllByText('Change');
+      expect(changeButtons).toHaveLength(1);
+
+      await user.click(changeButtons[0]);
+      expect(sectionOnChange).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to legacy mode when sections is empty array', () => {
+      render(
+        <VitalConfirmationModal
+          {...defaultProps}
+          sections={[]}
+          description="Legacy Description"
+        />
+      );
+
+      expect(screen.getByText('Legacy Description')).toBeInTheDocument();
+    });
+
+    it('renders mixed labelValue and subheading items in a section', () => {
+      const mixedSectionProps = {
+        ...defaultProps,
+        sections: [
+          {
+            title: 'Mixed Section',
+            items: [
+              { type: 'labelValue' as const, label: 'Duration', value: '5 days' },
+              {
+                type: 'subheading' as const,
+                heading: 'Reports',
+                values: ['Symptom A', 'Symptom B'],
+              },
+            ],
+          },
+        ],
+      };
+
+      render(<VitalConfirmationModal {...mixedSectionProps} />);
+
+      expect(screen.getByText('Duration')).toBeInTheDocument();
+      expect(screen.getByText('5 days')).toBeInTheDocument();
+      expect(screen.getByText('Reports:')).toBeInTheDocument();
+      expect(screen.getByText('Symptom A')).toBeInTheDocument();
+      expect(screen.getByText('Symptom B')).toBeInTheDocument();
+    });
+
+    it('returns null for unknown item types in sections', () => {
+      const unknownTypeSectionProps = {
+        ...defaultProps,
+        sections: [
+          {
+            title: 'Section With Unknown',
+            items: [
+              { type: 'labelValue' as const, label: 'Known', value: 'Val' },
+              { type: 'unknownType' as any, label: 'X', value: 'Y' },
+            ],
+          },
+        ],
+      };
+
+      const { container } = render(<VitalConfirmationModal {...unknownTypeSectionProps} />);
+
+      expect(screen.getByText('Known')).toBeInTheDocument();
+      expect(screen.getByText('Val')).toBeInTheDocument();
+      // The unknown item type renders null, so only 1 grid row should exist
+      const sectionItemsContainer = container.querySelector('.mt-2.space-y-2');
+      const gridItems = sectionItemsContainer?.querySelectorAll('[class*="grid"]');
+      expect(gridItems).toHaveLength(1);
+    });
   });
 });

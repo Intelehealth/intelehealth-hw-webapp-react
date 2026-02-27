@@ -1,12 +1,16 @@
 import { useMemo, useRef, useState } from 'react';
+import { useGlobalModal } from '../../../components/modal/global-modal-context';
+import iconVisitReasonSummary from '../assets/visit-reason.svg';
 import type {
   AyuAnswerValue,
   AyuQuestion,
   DurationAnswer,
+  FhirQuestionnaire,
 } from '../types/ayu.types';
+import { buildVisitSummary } from '../utils/visit-summary.util';
 
 interface UseFHIRStepperProps {
-  questionnaire: AyuQuestion | { item?: AyuQuestion[] };
+  questionnaire: FhirQuestionnaire;
   autoNext?: boolean;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
 }
@@ -35,7 +39,7 @@ export const useFHIRStepper = (
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AyuAnswerValue>>({});
   const isAdvancingRef = useRef(false);
-
+  const { showVitalConfirmationModal } = useGlobalModal();
   const topLevelItems = useMemo(() => {
     const items = questionnaire?.item || [];
     return items.filter((item: AyuQuestion) => item.type !== 'group');
@@ -59,11 +63,32 @@ export const useFHIRStepper = (
   };
 
   const handleComplete = () => {
-    // TODO:
-    // - Submit QuestionnaireResponse
-    // - Navigate to summary screen
-    // - Call API
-    onComplete?.(answers);
+    const answersMap = new Map(Object.entries(answers));
+    const sections = buildVisitSummary(
+      topLevelItems,
+      answersMap,
+      questionnaire?.text || 'Visit reason'
+    );
+    // Add per-section onChange callbacks
+    sections.forEach(section => {
+      section.onChange = () => {
+        // TODO: Implement navigation back to specific question
+      };
+    });
+
+    showVitalConfirmationModal({
+      icon: iconVisitReasonSummary,
+      title: '2/4. Visit reason summary',
+      sections,
+      confirmText: 'Confirm',
+      cancelText: 'Back',
+      open: false,
+      type: 'vitalConfirm',
+      size: 'lg',
+      onConfirm: () => {
+        onComplete?.(answers);
+      },
+    });
   };
 
   const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {

@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import { resolveAyuComponent } from '../../../pages/decision-matrix';
-import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+  FhirQuestionnaire,
+} from '../../../types/ayu.types';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuNestedRenderer } from './ayu-nested-renderer.component';
 import { AyuRenderer } from './ayu-renderer.component';
 
 interface AyuStepperContainerProps {
-  questionnaire: AyuQuestion | { item?: AyuQuestion[] };
+  questionnaire: FhirQuestionnaire;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
 }

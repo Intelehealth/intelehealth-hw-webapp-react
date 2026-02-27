@@ -1,10 +1,32 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock useGlobalModal
+const mockShowVitalConfirmationModal = vi.fn();
+vi.mock('../../../../components/modal/global-modal-context', () => ({
+  useGlobalModal: () => ({
+    showConfirmModal: vi.fn(),
+    showVitalConfirmationModal: mockShowVitalConfirmationModal,
+    closeModal: vi.fn(),
+  }),
+}));
+
+// Mock buildVisitSummary
+vi.mock('../../../../modules/ayu/utils/visit-summary.util', () => ({
+  buildVisitSummary: vi.fn(() => []),
+}));
+
+// Mock SVG import
+vi.mock('../../../../modules/ayu/assets/visit-reason.svg', () => ({
+  default: 'mock-visit-reason-icon',
+}));
+
 import { useFHIRStepper } from '../../../../modules/ayu/hooks/useFHIRStepper.hook';
 
 describe('useFHIRStepper', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockShowVitalConfirmationModal.mockClear();
   });
 
   afterEach(() => {
@@ -120,7 +142,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(2);
     });
 
-    it('should call onComplete callback on last question', () => {
+    it('should show summary modal on last question and call onComplete via confirm', () => {
       const onComplete = vi.fn();
       const { result } = renderHook(() =>
         useFHIRStepper({
@@ -139,12 +161,70 @@ describe('useFHIRStepper', () => {
         result.current.goNext();
       });
 
-      // Try to go beyond last - should trigger onComplete
+      // Try to go beyond last - should trigger handleComplete which shows modal
       act(() => {
         result.current.goNext();
       });
 
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'vitalConfirm',
+          title: '2/4. Visit reason summary',
+          size: 'lg',
+        })
+      );
+
+      // Simulate user confirming the modal
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      act(() => {
+        modalConfig.onConfirm();
+      });
+
       expect(onComplete).toHaveBeenCalledWith({});
+    });
+
+    it('should assign onChange to each section returned by buildVisitSummary', async () => {
+      const { buildVisitSummary } = await import('../../../../modules/ayu/utils/visit-summary.util');
+      const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
+
+      // Return sections with items so sections.forEach runs
+      const mockSections = [
+        { title: 'Section 1', items: [{ type: 'labelValue' as const, label: 'Q', value: 'A' }] },
+        { title: 'Section 2', items: [{ type: 'labelValue' as const, label: 'Q2', value: 'A2' }] },
+      ];
+      mockBuildVisitSummary.mockReturnValueOnce(mockSections);
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          onComplete: vi.fn(),
+        })
+      );
+
+      // Navigate to last question and trigger handleComplete
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+
+      // Verify sections passed to modal have onChange assigned
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toHaveLength(2);
+      expect(typeof modalConfig.sections[0].onChange).toBe('function');
+      expect(typeof modalConfig.sections[1].onChange).toBe('function');
+
+      // Call onChange to ensure it's executable (covers the callback body)
+      modalConfig.sections[0].onChange();
+      modalConfig.sections[1].onChange();
+
+      // Reset mock to default
+      mockBuildVisitSummary.mockReturnValue([]);
     });
 
     it('should update isLast flag correctly', () => {
@@ -2162,7 +2242,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.answers.q1).toBe('answer');
     });
 
-    it('should call onComplete with all answers', () => {
+    it('should call onComplete with all answers via modal confirm', () => {
       const onComplete = vi.fn();
       const { result } = renderHook(() =>
         useFHIRStepper({
@@ -2189,9 +2269,17 @@ describe('useFHIRStepper', () => {
         result.current.goNext();
       });
 
-      // Go beyond last to trigger onComplete
+      // Go beyond last to trigger handleComplete (shows modal)
       act(() => {
         result.current.goNext();
+      });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+
+      // Simulate confirming the modal
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      act(() => {
+        modalConfig.onConfirm();
       });
 
       expect(onComplete).toHaveBeenCalledWith({

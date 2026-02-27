@@ -565,4 +565,119 @@ describe('GlobalModalProvider', () => {
       expect(screen.queryByText('No onChange')).not.toBeInTheDocument();
     });
   });
+
+  it('passes sections to VitalConfirmationModal correctly', async () => {
+    const user = userEvent.setup();
+
+    const TestWithSections = () => {
+      const { showVitalConfirmationModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showVitalConfirmationModal({
+              open: true,
+              type: 'vitalConfirm',
+              title: 'Sections Modal',
+              sections: [
+                {
+                  title: 'Test Section',
+                  items: [
+                    { type: 'labelValue', label: 'Field A', value: 'Value A' },
+                  ],
+                },
+              ],
+              size: 'lg',
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithSections />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sections Modal')).toBeInTheDocument();
+      expect(screen.getByText('Test Section')).toBeInTheDocument();
+      expect(screen.getByText('Field A')).toBeInTheDocument();
+      expect(screen.getByText('Value A')).toBeInTheDocument();
+    });
+  });
+
+  it('passes size to VitalConfirmationModal correctly', async () => {
+    const user = userEvent.setup();
+
+    const TestWithSize = () => {
+      const { showVitalConfirmationModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showVitalConfirmationModal({
+              open: true,
+              type: 'vitalConfirm',
+              title: 'Large Modal',
+              size: 'lg',
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    const { container } = render(
+      <GlobalModalProvider>
+        <TestWithSize />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Large Modal')).toBeInTheDocument();
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[700px]');
+    });
+  });
+
+  it('passes size to ConfirmationModal correctly', async () => {
+    const user = userEvent.setup();
+
+    const TestWithSize = () => {
+      const { showConfirmModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showConfirmModal({
+              open: true,
+              type: 'confirm',
+              title: 'Sized Confirm',
+              size: 'lg',
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithSize />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sized Confirm')).toBeInTheDocument();
+    });
+  });
 });
