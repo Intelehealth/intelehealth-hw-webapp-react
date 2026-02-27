@@ -1,9 +1,9 @@
-import { PrescriptionstRecivied } from '../../modules/dashboard/prescriptionst-recivied.component';
+import { PrescriptionsReceived } from '../../modules/dashboard/prescriptions-received.component';
 
 const PrescriptionsPage = () => {
   return (
     <div className="p-4">
-      <PrescriptionstRecivied />
+      <PrescriptionsReceived />
     </div>
   );
 };

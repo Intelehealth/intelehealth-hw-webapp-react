@@ -8,8 +8,8 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
+import { PrescriptionsReceived } from './prescriptions-received.component';
 import ROUTES from '../../routes/paths';
-import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
 
 // Declare the functional component with an optional prop to help testing
 type DashboardProps = {
@@ -25,7 +25,7 @@ const DashboardComponent = ({
   const navigate = useNavigate();
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 lg:p-3 flex flex-col gap-4 lg:gap-3 h-full">
       {/* Mobile: back button shown when in prescriptions detail view */}
       {showPrescriptions && (
         <button
@@ -51,7 +51,7 @@ const DashboardComponent = ({
 
       {/* Dashboard cards - hidden on mobile when in prescriptions detail view */}
       <div
-        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`}
+        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3`}
       >
         {/* Prescriptions card - clickable to navigate to prescriptions page */}
         <div
@@ -131,8 +131,10 @@ const DashboardComponent = ({
       {/* Table:
           - Desktop/Tablet: always visible
           - Mobile: only visible when showPrescriptions is true */}
-      <div className={showPrescriptions ? '' : 'hidden md:block'}>
-        <PrescriptionstRecivied />
+      <div
+        className={`${showPrescriptions ? '' : 'hidden md:block'} lg:flex-1 lg:min-h-0 lg:overflow-auto`}
+      >
+        <PrescriptionsReceived />
       </div>
     </div>
   );

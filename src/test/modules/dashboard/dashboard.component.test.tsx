@@ -210,7 +210,7 @@ describe('DashboardComponent', () => {
       expect(screen.getByText(/are waiting their Pending Prescriptions/)).toBeInTheDocument();
     });
 
-    it('renders PrescriptionstRecivied table', () => {
+    it('renders PrescriptionsReceived table', () => {
       render(
         <MemoryRouter>
           <DashboardComponent />

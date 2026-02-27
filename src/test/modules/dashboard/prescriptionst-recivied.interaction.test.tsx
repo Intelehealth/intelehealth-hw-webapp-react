@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PrescriptionstRecivied } from '../../../modules/dashboard/prescriptionst-recivied.component';
+import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
 
-describe('PrescriptionstRecivied interactions', () => {
+describe('PrescriptionsReceived interactions', () => {
   it('toggles Received and Pendings tabs and applies active classes', () => {
-    render(<PrescriptionstRecivied />);
+    render(<PrescriptionsReceived />);
 
     // Initially header is present
     expect(screen.getByText(/Prescription Received/i)).toBeInTheDocument();

@@ -7,7 +7,7 @@ import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.
 import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
-import { ReusableGirdTable } from '../../components/common/reusable-gird-table.component';
+import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 
 interface Column {
   header: string;
@@ -119,7 +119,7 @@ export const OpenVisitsComponent = () => {
               </div>
             </div>
 
-            <ReusableGirdTable columns={columns} data={patientsData} />
+            <ReusableGridTable columns={columns} data={patientsData} />
           </div>
         </div>
       </div>

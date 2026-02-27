@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ReusableGirdTable } from '../../../components/common/reusable-gird-table.component';
+import { ReusableGridTable } from '../../../components/common/reusable-grid-table.component';
 
 interface TestRow {
   name: string;
@@ -17,10 +17,10 @@ const data: TestRow[] = [
   { name: 'Bob', status: 'Inactive' },
 ];
 
-describe('ReusableGirdTable', () => {
+describe('ReusableGridTable', () => {
   describe('Column headers', () => {
     it('renders all column headers', () => {
-      render(<ReusableGirdTable columns={columns} data={data} />);
+      render(<ReusableGridTable columns={columns} data={data} />);
       expect(screen.getAllByText('Patient Name').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Status').length).toBeGreaterThan(0);
     });
@@ -28,7 +28,7 @@ describe('ReusableGirdTable', () => {
 
   describe('Data rows using accessor (no render fn)', () => {
     it('renders all row values via accessor', () => {
-      render(<ReusableGirdTable columns={columns} data={data} />);
+      render(<ReusableGridTable columns={columns} data={data} />);
       expect(screen.getAllByText('Alice').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Bob').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('ReusableGirdTable', () => {
     });
 
     it('renders header labels in each mobile row', () => {
-      render(<ReusableGirdTable columns={columns} data={data} />);
+      render(<ReusableGridTable columns={columns} data={data} />);
       // Mobile view renders col.header per cell - should appear multiple times
       const nameHeaders = screen.getAllByText('Patient Name');
       expect(nameHeaders.length).toBeGreaterThanOrEqual(data.length + 1); // desktop header + mobile rows
@@ -56,7 +56,7 @@ describe('ReusableGirdTable', () => {
         { header: 'Status', accessor: 'status' as keyof TestRow },
       ];
 
-      render(<ReusableGirdTable columns={columnsWithRender} data={data} />);
+      render(<ReusableGridTable columns={columnsWithRender} data={data} />);
       const customCells = screen.getAllByTestId('custom-cell');
       // Each row has mobile + desktop view = 2 custom cells per row
       expect(customCells.length).toBe(data.length * 2);
@@ -65,27 +65,27 @@ describe('ReusableGirdTable', () => {
     });
 
     it('falls back to accessor when render is not provided', () => {
-      render(<ReusableGirdTable columns={columns} data={data} />);
+      render(<ReusableGridTable columns={columns} data={data} />);
       expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
     });
   });
 
   describe('Footer', () => {
     it('renders Show all footer link', () => {
-      render(<ReusableGirdTable columns={columns} data={data} />);
+      render(<ReusableGridTable columns={columns} data={data} />);
       expect(screen.getByText('Show all →')).toBeInTheDocument();
     });
   });
 
   describe('Empty data', () => {
     it('renders no data rows when data is empty', () => {
-      render(<ReusableGirdTable columns={columns} data={[]} />);
+      render(<ReusableGridTable columns={columns} data={[]} />);
       expect(screen.queryByText('Alice')).not.toBeInTheDocument();
       expect(screen.queryByText('Bob')).not.toBeInTheDocument();
     });
 
     it('still renders headers and footer with empty data', () => {
-      render(<ReusableGirdTable columns={columns} data={[]} />);
+      render(<ReusableGridTable columns={columns} data={[]} />);
       expect(screen.getByText('Patient Name')).toBeInTheDocument();
       expect(screen.getByText('Show all →')).toBeInTheDocument();
     });
@@ -94,7 +94,7 @@ describe('ReusableGirdTable', () => {
   describe('Multiple rows', () => {
     it('renders the correct number of row containers', () => {
       const { container } = render(
-        <ReusableGirdTable columns={columns} data={data} />
+        <ReusableGridTable columns={columns} data={data} />
       );
       const rows = container.querySelectorAll(
         '.rounded-xl.border.border-\\[\\#ECEEFF\\]'
