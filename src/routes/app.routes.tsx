@@ -29,6 +29,12 @@ const VerifyOtpPage = lazy(
   () => import('../pages/auth/verify-otp/verify-otp.page')
 );
 const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
+const PrescriptionsPage = lazy(
+  () => import('../pages/prescriptions/prescriptions.page')
+);
+const OpenVisitsPage = lazy(
+  () => import('../pages/open-visits/open-visits.page')
+);
 const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
 const AddPatientPage = lazy(
   () => import('../pages/patient/add/add-patient.page')
@@ -39,9 +45,9 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
+import VisitSummary from '../modules/visit-summary/visit-summary.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 
-// 🟡Ayu Module
 const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
@@ -126,6 +132,22 @@ const AppRoutes = () => (
               }
             />
             <Route
+              path={ROUTES.PRESCRIPTIONS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PrescriptionsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.OPEN_VISITS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <OpenVisitsPage />
+                </Suspense>
+              }
+            />
+            <Route
               path={ROUTES.MY_APPOINTMENTS}
               element={
                 <Suspense fallback={<RouteLoader />}>
@@ -146,6 +168,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <AppointmentVisitPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.VISIT_SUMMARY}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <VisitSummary />
                 </Suspense>
               }
             />

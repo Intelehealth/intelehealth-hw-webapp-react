@@ -8,6 +8,7 @@ import iconChevronLeft from '../../assets/icons/appiontment/icon-apm-chevron_1.s
 import iconChevronRight from '../../assets/icons/appiontment/icon-apm-chevron_2.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
+import { useGlobalModal } from '../../components/modal/global-modal-context';
 
 type SlotPeriod = 'Morning' | 'Afternoon' | 'Evening';
 
@@ -75,13 +76,12 @@ const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
 export default function AppointmentScheduleComponent() {
   const navigate = useNavigate();
+  const { showConfirmModal } = useGlobalModal();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -110,16 +110,6 @@ export default function AppointmentScheduleComponent() {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, []);
-
-  /* ================= AUTO-DISMISS SUCCESS POPUP ================= */
-  useEffect(() => {
-    if (!showSuccessModal) return;
-    const timer = setTimeout(() => {
-      setShowSuccessModal(false);
-      navigate('/my-appointments');
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [showSuccessModal, navigate]);
 
   /* ================= MONTH NAVIGATION ================= */
 
@@ -162,19 +152,42 @@ export default function AppointmentScheduleComponent() {
   const isSlotBooked = (date: string, time: string) =>
     appointments.some(a => a.date === date && a.time === time);
 
-  const bookAppointment = () => {
-    /* c8 ignore next */
-    if (!selectedDate || !selectedTime) return;
-    setShowConfirmModal(true);
-  };
-
   const confirmBooking = () => {
     setAppointments(prev => [
       ...prev,
       { id: Date.now(), date: selectedDate, time: selectedTime! },
     ]);
-    setShowConfirmModal(false);
-    setShowSuccessModal(true);
+    // Delay to allow the confirm modal to close before opening the success modal
+    setTimeout(() => {
+      showConfirmModal({
+        icon: iconCalendar,
+        title: 'Appointment booked successfully!',
+        confirmText: 'Ok',
+        cancelText: 'Close',
+        type: 'confirm',
+        open: true,
+        onConfirm: () => {
+          navigate('/my-appointments');
+        },
+      });
+    }, 0);
+  };
+
+  const bookAppointment = () => {
+    /* c8 ignore next */
+    if (!selectedDate || !selectedTime) return;
+    showConfirmModal({
+      icon: iconCalendar,
+      title: 'Confirm appointment?',
+      description: `Are you sure, patient want to book the appointment on\n${formatConfirmDate(selectedDate)} at ${selectedTime}?`,
+      confirmText: 'Yes',
+      cancelText: 'No',
+      type: 'confirm',
+      open: true,
+      onConfirm: () => {
+        confirmBooking();
+      },
+    });
   };
 
   const formatConfirmDate = (dateStr: string) => {
@@ -336,70 +349,6 @@ export default function AppointmentScheduleComponent() {
           Book Appointment
         </button>
       </div>
-
-      {/* Confirm Booking Popup */}
-      {showConfirmModal && selectedDate && selectedTime && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowConfirmModal(false)}
-          />
-          <div className="relative bg-white w-[312px] pt-8 pr-6 pb-8 pl-6 rounded-[16px] z-10 flex flex-col items-center gap-6 text-center">
-            <div className="w-14 h-14 rounded-full bg-[#E6F9F1] flex items-center justify-center">
-              <img src={iconCalendar} alt="calendar" className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-[#1B163A] mb-2">
-                Confirm appointment?
-              </h3>
-              <p className="text-sm text-[#7F7B92]">
-                Are you sure, patient want to book the appointment on
-              </p>
-              <p className="text-sm font-bold text-[#1B163A]">
-                {formatConfirmDate(selectedDate)} at {selectedTime}?
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="px-6 h-10 rounded-lg text-sm font-semibold text-[#2F1E91] bg-[#E1DCFF] hover:bg-[#d3ccf7] transition"
-              >
-                No
-              </button>
-              <button
-                onClick={confirmBooking}
-                className="px-6 h-10 rounded-lg text-sm font-semibold bg-[#3F2E9C] text-white hover:bg-[#35258A] transition"
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success Popup */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setShowSuccessModal(false);
-              navigate('/my-appointments');
-            }}
-          />
-          <div className="relative bg-white w-[312px] h-[214px] pt-8 pr-6 pb-8 pl-6 rounded-[16px] flex flex-col items-center justify-center z-10">
-            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-5">
-              <img src={iconCalendar} alt="calendar" className="w-6 h-6" />
-            </div>
-            <p
-              className="font-bold text-[20px] leading-[150%] text-center text-gray-900"
-              style={{ fontFamily: 'DM Sans, sans-serif' }}
-            >
-              Appointment booked successfully!
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

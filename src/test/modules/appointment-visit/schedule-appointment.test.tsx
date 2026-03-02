@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
+import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
 
 const mockNavigate = vi.fn();
 
@@ -12,7 +13,12 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const renderComponent = () => render(<AppointmentScheduleComponent />);
+const renderComponent = () =>
+  render(
+    <GlobalModalProvider>
+      <AppointmentScheduleComponent />
+    </GlobalModalProvider>
+  );
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -172,7 +178,11 @@ describe('AppointmentScheduleComponent', () => {
       });
 
       // Unmount before debounce completes — should clear the timer
-      const { unmount } = render(<AppointmentScheduleComponent />);
+      const { unmount } = render(
+        <GlobalModalProvider>
+          <AppointmentScheduleComponent />
+        </GlobalModalProvider>
+      );
       act(() => {
         fireEvent(window, new Event('resize'));
       });
@@ -398,14 +408,14 @@ describe('AppointmentScheduleComponent', () => {
       expect(btn).toHaveClass('cursor-not-allowed');
     });
 
-    it('clicking Book shows confirm modal', () => {
+    it('clicking Book shows confirm modal via global modal', () => {
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       expect(screen.getByText('Confirm appointment?')).toBeInTheDocument();
     });
 
-    it('confirm modal shows formatted date and time', () => {
+    it('confirm modal shows formatted date and time in description', () => {
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -421,54 +431,64 @@ describe('AppointmentScheduleComponent', () => {
       expect(screen.queryByText('Confirm appointment?')).not.toBeInTheDocument();
     });
 
-    it('clicking confirm modal backdrop dismisses it', () => {
-      renderComponent();
-      fireEvent.click(screen.getByText('09:00 am'));
-      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
-      expect(screen.getByText('Confirm appointment?')).toBeInTheDocument();
-      const backdrop = document.querySelector('.bg-black\\/50');
-      fireEvent.click(backdrop!);
-      expect(screen.queryByText('Confirm appointment?')).not.toBeInTheDocument();
-    });
-
-    it('clicking Yes confirms booking and shows success modal', () => {
-      renderComponent();
-      fireEvent.click(screen.getByText('09:00 am'));
-      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
-    });
-
-    it('success modal auto-dismisses and navigates after 2 seconds', () => {
+    it('clicking Yes confirms booking and shows success modal', async () => {
       vi.useFakeTimers();
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
-      act(() => {
-        vi.advanceTimersByTime(2000);
+      act(() => { vi.advanceTimersByTime(1); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
       });
-      expect(mockNavigate).toHaveBeenCalledWith('/my-appointments');
     });
 
-    it('clicking success modal backdrop navigates to my-appointments', () => {
+    it('clicking Ok on success modal navigates to my-appointments', async () => {
+      vi.useFakeTimers();
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
-      const backdrops = document.querySelectorAll('.bg-black\\/50');
-      fireEvent.click(backdrops[0]);
+      act(() => { vi.advanceTimersByTime(1); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Ok' }));
       expect(mockNavigate).toHaveBeenCalledWith('/my-appointments');
     });
 
-    it('booked slot becomes disabled with gray styling', () => {
+    it('clicking Close on success modal dismisses it without navigating', async () => {
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      act(() => { vi.advanceTimersByTime(1); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByText('Appointment booked successfully!')).not.toBeInTheDocument();
+    });
+
+    it('booked slot becomes disabled with gray styling', async () => {
+      vi.useFakeTimers();
       renderComponent();
       const todayBtn = screen.getByText('Today').closest('button')!;
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      act(() => { vi.advanceTimersByTime(1); });
+      vi.useRealTimers();
+
+      // Dismiss the success modal
+      await waitFor(() => {
+        expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
       // Re-select today to check the slot
       fireEvent.click(todayBtn);

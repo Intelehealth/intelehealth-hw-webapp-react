@@ -9,6 +9,8 @@ const ROUTES = {
     RESET_PASSWORD: 'reset-password',
   },
   DASHBOARD: '/dashboard',
+  PRESCRIPTIONS: '/prescriptions',
+  OPEN_VISITS: '/open-visits',
   PROFILE: '/profile',
   ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',
@@ -16,6 +18,7 @@ const ROUTES = {
   MY_APPOINTMENTS: '/my-appointments',
   APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule',
   APPOINTMENT_DETAILS: '/my-appointments/:id',
+  VISIT_SUMMARY: '/visit-summary',
   NOT_FOUND: '*', // catch-all
   PATIENT: {
     BASE: '/patient',

@@ -2,20 +2,20 @@ import { useState } from 'react';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
+import { type Patient, patientsData } from '../../assets/data/patients.data';
 import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
-import { ReusableGirdTable } from '../../components/common/reusable-gird-table.component';
-import { type Patient, patientsData } from '../../assets/data/patients.data';
+import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 
 interface Column {
   header: string;
   accessor: keyof Patient;
   render?: (row: Patient) => React.ReactNode;
 }
-export const PrescriptionstRecivied = () => {
-  const [activeTab, setActiveTab] = useState('received');
+export const OpenVisitsComponent = () => {
+  const [activeTab, setActiveTab] = useState('unclosed');
   const columns: Column[] = [
     {
       header: 'Patient',
@@ -32,12 +32,12 @@ export const PrescriptionstRecivied = () => {
     { header: 'Clinic', accessor: 'clinic' },
     { header: 'Chief complaint', accessor: 'complaint' },
     {
-      header: 'Prescription',
+      header: 'Status',
       accessor: 'time',
       render: (row: Patient) => (
         <div className="flex items-center justify-center">
           <img src={iconSummaryList} className="w-[22px] h-[22px]" />
-          <p className="text-green-600 ml-1">{row.time}</p>
+          <p className="text-orange-600 ml-1">{row.time}</p>
         </div>
       ),
     },
@@ -61,7 +61,7 @@ export const PrescriptionstRecivied = () => {
                   />
                 </div>
                 <h2 className="font-semibold lg:text-[14px] sm:text-[18px]">
-                  Prescription Received
+                  Open Visits
                 </h2>
               </div>
 
@@ -94,32 +94,32 @@ export const PrescriptionstRecivied = () => {
             <div className="px-2 py-0.5">
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
-                  onClick={() => setActiveTab('Received')}
+                  onClick={() => setActiveTab('unclosed')}
                   className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'Received'
+                    activeTab === 'unclosed'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
                   }`}
                 >
                   <img src={iconPatientRecevied} />
-                  Received
+                  Unclosed
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('Pendings')}
+                  onClick={() => setActiveTab('closed')}
                   className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'Pendings'
+                    activeTab === 'closed'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
                   }`}
                 >
                   <img src={iconPatientRecevied} />
-                  Pendings
+                  Closed
                 </button>
               </div>
             </div>
 
-            <ReusableGirdTable columns={columns} data={patientsData} />
+            <ReusableGridTable columns={columns} data={patientsData} />
           </div>
         </div>
       </div>

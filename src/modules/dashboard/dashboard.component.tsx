@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconAddPatient from '../../assets/icons/appiontment/icon-add-patient.svg';
 import iconArrowright from '../../assets/icons/appiontment/icon-arrow-right.svg';
 import iconOPatient from '../../assets/icons/appiontment/icon-o-patient.svg';
@@ -7,14 +8,24 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
-import { PrescriptionstRecivied } from './prescriptionst-recivied.component';
+import { PrescriptionsReceived } from './prescriptions-received.component';
+import ROUTES from '../../routes/paths';
 
-// Declare the functional component with the FC type and prop interface
-const DashboardComponent = () => {
-  const [showPrescriptions, setShowPrescriptions] = useState(false);
+// Declare the functional component with an optional prop to help testing
+type DashboardProps = {
+  initialShowPrescriptions?: boolean;
+};
+
+const DashboardComponent = ({
+  initialShowPrescriptions = false,
+}: DashboardProps) => {
+  const [showPrescriptions, setShowPrescriptions] = useState(
+    initialShowPrescriptions
+  );
+  const navigate = useNavigate();
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 lg:p-3 flex flex-col gap-4 lg:gap-3 h-full">
       {/* Mobile: back button shown when in prescriptions detail view */}
       {showPrescriptions && (
         <button
@@ -40,12 +51,12 @@ const DashboardComponent = () => {
 
       {/* Dashboard cards - hidden on mobile when in prescriptions detail view */}
       <div
-        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`}
+        className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3`}
       >
-        {/* Prescriptions card - clickable on mobile to open detail view */}
+        {/* Prescriptions card - clickable to navigate to prescriptions page */}
         <div
-          className="md:cursor-default cursor-pointer"
-          onClick={() => setShowPrescriptions(true)}
+          className="cursor-pointer"
+          onClick={() => navigate(ROUTES.PRESCRIPTIONS)}
         >
           <DashboardCard
             title="Prescriptions"
@@ -56,13 +67,18 @@ const DashboardComponent = () => {
             image={imgPrescriptionGreen}
           />
         </div>
-        <DashboardCard
-          title="Close visits"
-          subtitle="<strong>12</strong> Unclosed visits"
-          bg="bg-(--color-primary-light)"
-          iconBg="bg-purple-300"
-          icon={iconRightArrow}
-        />
+        <div
+          className="cursor-pointer"
+          onClick={() => navigate(ROUTES.OPEN_VISITS)}
+        >
+          <DashboardCard
+            title="Open visits"
+            subtitle="<strong>12</strong> Unclosed visits"
+            bg="bg-(--color-primary-light)"
+            iconBg="bg-purple-300"
+            icon={iconRightArrow}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
           <DashboardCard
             title="Appointments"
@@ -84,10 +100,12 @@ const DashboardComponent = () => {
       {/* Add Patients + Pending Prescriptions row:
           - Desktop/Tablet: always visible
           - Mobile: only visible when showPrescriptions is true */}
+
       <div
         className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-col gap-4 md:flex-row`}
       >
         {/* Add Patients Button - desktop only */}
+
         <button className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center rounded-full bg-white/20">
@@ -113,8 +131,10 @@ const DashboardComponent = () => {
       {/* Table:
           - Desktop/Tablet: always visible
           - Mobile: only visible when showPrescriptions is true */}
-      <div className={showPrescriptions ? '' : 'hidden md:block'}>
-        <PrescriptionstRecivied />
+      <div
+        className={`${showPrescriptions ? '' : 'hidden md:block'} lg:flex-1 lg:min-h-0 lg:overflow-auto`}
+      >
+        <PrescriptionsReceived />
       </div>
     </div>
   );

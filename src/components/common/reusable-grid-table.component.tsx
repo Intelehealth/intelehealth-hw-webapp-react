@@ -11,21 +11,21 @@ interface ResponsiveTableProps<T> {
   data: T[];
 }
 
-export function ReusableGirdTable<T>({
+export function ReusableGridTable<T>({
   columns,
   data,
 }: ResponsiveTableProps<T>) {
   return (
     <div>
       {/* Desktop Header */}
-      <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 mt-1 text-sm font-medium text-gray-500">
+      <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500">
         {columns.map((col, index) => (
           <span key={index}>{col.header}</span>
         ))}
       </div>
 
       {/*  Rows */}
-      <div className="space-y-2 p-2">
+      <div className="space-y-1.5 p-2 lg:p-1.5">
         {data.map((row, rowIndex) => (
           <div
             key={rowIndex}
@@ -46,7 +46,7 @@ export function ReusableGirdTable<T>({
             </div>
 
             {/* DESKTOP VIEW */}
-            <div className="hidden lg:grid lg:grid-cols-6 lg:items-center gap-4 px-2 h-[56px] text-sm">
+            <div className="hidden lg:grid lg:grid-cols-6 lg:items-center gap-4 px-2 h-[46px] text-sm">
               {columns.map((col, colIndex) => (
                 <div key={colIndex} className="truncate">
                   {col.render
@@ -60,7 +60,7 @@ export function ReusableGirdTable<T>({
       </div>
 
       {/*  Footer */}
-      <div className="flex justify-end px-6 py-4 cursor-pointer">
+      <div className="flex justify-end px-6 lg:px-4 py-3 lg:py-2 cursor-pointer">
         <p className="text-sm text-indigo-600">Show all →</p>
       </div>
     </div>
