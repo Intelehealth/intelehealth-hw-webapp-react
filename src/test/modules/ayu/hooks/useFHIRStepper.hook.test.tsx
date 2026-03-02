@@ -3210,4 +3210,135 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(0);
     });
   });
+
+  describe('Review Mode (showAll)', () => {
+    it('should call handleComplete directly when goNext is called in showAll mode', async () => {
+      const { buildVisitSummary } = await import('../../../../modules/ayu/utils/visit-summary.util');
+      const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
+
+      // Return a section so sections.forEach runs and onChange gets assigned
+      const mockSections = [
+        { title: 'Main section', items: [{ type: 'labelValue' as const, label: 'Q', value: 'A' }] },
+      ];
+      mockBuildVisitSummary.mockReturnValue(mockSections);
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      // Navigate to last question and trigger handleComplete
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+
+      // Call section.onChange to set showAll = true
+      const modalConfig1 = mockShowVitalConfirmationModal.mock.calls[0][0];
+      act(() => {
+        modalConfig1.sections[0].onChange();
+      });
+
+      // Now showAll is true. Calling goNext should trigger handleComplete again
+      act(() => {
+        result.current.goNext();
+      });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(2);
+
+      // Reset mock
+      mockBuildVisitSummary.mockReturnValue([]);
+    });
+
+    it('should navigate to Associated symptoms question when section.onChange is called for Associated symptoms', async () => {
+      const { buildVisitSummary } = await import('../../../../modules/ayu/utils/visit-summary.util');
+      const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
+
+      const questionnaireWithAssociated = {
+        item: [
+          { linkId: 'q1', text: 'Main question', type: 'choice' },
+          {
+            linkId: 'q2',
+            text: 'Associated symptoms question',
+            type: 'choice',
+            extension: [
+              { url: 'urn:intelehealth:section', valueString: 'Associated symptoms' },
+            ],
+          },
+          { linkId: 'q3', text: 'Another question', type: 'string' },
+        ],
+      };
+
+      // Return a section titled 'Associated symptoms'
+      const mockSections = [
+        { title: 'Main', items: [{ type: 'labelValue' as const, label: 'Q1', value: 'A1' }] },
+        { title: 'Associated symptoms', items: [{ type: 'labelValue' as const, label: 'Q2', value: 'A2' }] },
+      ];
+      mockBuildVisitSummary.mockReturnValue(mockSections);
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionnaireWithAssociated })
+      );
+
+      // Navigate to last question and trigger handleComplete
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+
+      // Call onChange for 'Associated symptoms' section
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      act(() => {
+        modalConfig.sections[1].onChange();
+      });
+
+      // currentIndex should be 1 (the item with Associated symptoms extension)
+      expect(result.current.currentIndex).toBe(1);
+      expect(result.current.showAll).toBe(true);
+
+      // Reset mock
+      mockBuildVisitSummary.mockReturnValue([]);
+    });
+
+    it('should fallback to index 0 when Associated symptoms section has no matching item', async () => {
+      const { buildVisitSummary } = await import('../../../../modules/ayu/utils/visit-summary.util');
+      const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
+
+      // Questionnaire has NO items with 'Associated symptoms' extension
+      const questionnaireNoAssociated = {
+        item: [
+          { linkId: 'q1', text: 'Question 1', type: 'choice' },
+          { linkId: 'q2', text: 'Question 2', type: 'string' },
+        ],
+      };
+
+      // Return a section titled 'Associated symptoms' even though no item has that extension
+      const mockSections = [
+        { title: 'Associated symptoms', items: [{ type: 'labelValue' as const, label: 'Q', value: 'A' }] },
+      ];
+      mockBuildVisitSummary.mockReturnValue(mockSections);
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: questionnaireNoAssociated })
+      );
+
+      // Navigate to last question and trigger handleComplete
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+
+      // Call onChange for 'Associated symptoms' section - findIndex returns -1, fallback to 0
+      act(() => {
+        modalConfig.sections[0].onChange();
+      });
+
+      expect(result.current.currentIndex).toBe(0);
+      expect(result.current.showAll).toBe(true);
+
+      // Reset mock
+      mockBuildVisitSummary.mockReturnValue([]);
+    });
+  });
 });

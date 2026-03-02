@@ -30,6 +30,7 @@ interface UseFHIRStepperReturn {
   goNext: () => void;
   topLevelItems: AyuQuestion[];
   isLast: boolean;
+  showAll?: boolean;
 }
 
 export const useFHIRStepper = (
@@ -38,6 +39,7 @@ export const useFHIRStepper = (
   const { questionnaire, autoNext = true, onComplete } = props;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AyuAnswerValue>>({});
+  const [showAll, setShowAll] = useState(false);
   const isAdvancingRef = useRef(false);
   const { showVitalConfirmationModal } = useGlobalModal();
   const topLevelItems = useMemo(() => {
@@ -50,6 +52,10 @@ export const useFHIRStepper = (
   const currentQuestion = topLevelItems[currentIndex];
 
   const goNext = () => {
+    if (showAll) {
+      handleComplete();
+      return;
+    }
     if (currentIndex < structuralTotal - 1) {
       setCurrentIndex(prev => {
         if (prev < structuralTotal - 1) {
@@ -72,7 +78,16 @@ export const useFHIRStepper = (
     // Add per-section onChange callbacks
     sections.forEach(section => {
       section.onChange = () => {
-        // TODO: Implement navigation back to specific question
+        const targetIndex = topLevelItems.findIndex(item => {
+          if (section.title === 'Associated symptoms') {
+            return item.extension?.some(
+              ext => ext.valueString === 'Associated symptoms'
+            );
+          }
+          return true; // main section → first question
+        });
+        setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
+        setShowAll(true);
       };
     });
 
@@ -86,6 +101,7 @@ export const useFHIRStepper = (
       type: 'vitalConfirm',
       size: 'lg',
       onConfirm: () => {
+        setShowAll(true);
         onComplete?.(answers);
       },
     });
@@ -194,7 +210,8 @@ export const useFHIRStepper = (
         !isAdvancingRef.current &&
         !isLastQuestion &&
         !(currentQuestion.type === 'choice' && currentQuestion.repeats) &&
-        !hasNestedRepeats
+        !hasNestedRepeats &&
+        !showAll
       ) {
         isAdvancingRef.current = true;
 
@@ -315,5 +332,6 @@ export const useFHIRStepper = (
     goNext,
     topLevelItems,
     isLast: currentIndex === structuralTotal - 1,
+    showAll,
   };
 };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { EXCLUDED_JSON_NAMES } from '../utils/constants';
 import { useAyuJsonList } from './useAyuJson.hook';
 
 export const useVisitReasons = () => {
@@ -7,6 +8,7 @@ export const useVisitReasons = () => {
   const names = useMemo(() => {
     return ayuJsonList
       .map(item => item.name.replace(/\.json$/i, ''))
+      .filter(item => !EXCLUDED_JSON_NAMES.includes(item))
       .sort((a, b) => a.localeCompare(b));
   }, [ayuJsonList]);
 

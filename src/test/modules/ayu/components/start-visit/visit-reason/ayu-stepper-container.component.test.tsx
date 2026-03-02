@@ -2271,24 +2271,23 @@ describe('AyuStepperContainer', () => {
 
   describe('Progress Update Same Value', () => {
     it('should not call onProgressUpdate when completedSteps has not changed', () => {
-      const question: AyuQuestion = {
-        linkId: 'q1',
-        text: 'Question 1',
-        type: 'string',
-      };
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string' },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
 
       mockUseFHIRStepper.mockReturnValue({
-        currentQuestion: question,
+        currentQuestion: questions[0],
         currentIndex: 0,
-        total: 1,
+        total: 2,
         answers: {},
         setAnswer: mockSetAnswer,
         goNext: mockGoNext,
-        topLevelItems: [question],
-        isLast: true,
+        topLevelItems: questions,
+        isLast: false,
       });
 
-      const questionnaire = createMockQuestionnaire([question]);
+      const questionnaire = createMockQuestionnaire(questions);
       const { rerender } = render(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -2299,7 +2298,20 @@ describe('AyuStepperContainer', () => {
 
       expect(mockOnProgressUpdate).toHaveBeenCalledTimes(1);
 
-      // Rerender with same currentIndex - should NOT call onProgressUpdate again
+      // Change total (a dependency of the effect) but keep currentIndex the same.
+      // This forces the useEffect to re-run while completedSteps hasn't changed,
+      // hitting the early-return branch (prevCompletedRef.current === completedSteps).
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 3,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [...questions, { linkId: 'q3', text: 'Question 3', type: 'string' }],
+        isLast: false,
+      });
+
       rerender(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -2308,6 +2320,7 @@ describe('AyuStepperContainer', () => {
         />
       );
 
+      // onProgressUpdate should still only have been called once (the early return prevented a second call)
       expect(mockOnProgressUpdate).toHaveBeenCalledTimes(1);
     });
   });
@@ -2346,6 +2359,47 @@ describe('AyuStepperContainer', () => {
       // answerOption?.length ?? 0 fallback - answers.length (0) < 0 is false, so not disabled
       const submitButton = screen.getByTestId('button-submit');
       expect(submitButton).not.toBeDisabled();
+    });
+  });
+
+  describe('Review Mode (showAll)', () => {
+    it('should show Submit button in review mode when question has an answer', () => {
+      // A single-select choice question without repeats normally does NOT show Submit.
+      // But in review mode (showAll=true), Submit should appear if there is an answer.
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Choice Question',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes' },
+        setAnswer: mockSetAnswer,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Submit button should be visible because showAll=true and answer exists
+      const submitButton = screen.getByTestId('button-submit');
+      expect(submitButton).toBeInTheDocument();
     });
   });
 });
