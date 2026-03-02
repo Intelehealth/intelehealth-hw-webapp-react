@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
+import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
-import iconVisitReason from '../../../assets/visit-reason.svg';
 import { useVisitReasons } from '../../../hooks/useVisitReasons.hook';
 import type { AyuQuestion } from '../../../types/ayu.types';
 import type { SectionProps } from '../../../types/start-visit.types';

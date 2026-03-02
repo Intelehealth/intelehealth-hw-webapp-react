@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
+import iconVisitReasonSummary from '../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
-import iconVisitReasonSummary from '../assets/visit-reason.svg';
 import type {
   AyuAnswerValue,
   AyuQuestion,

@@ -17,7 +17,7 @@ vi.mock('../../../../modules/ayu/utils/visit-summary.util', () => ({
 }));
 
 // Mock SVG import
-vi.mock('../../../../modules/ayu/assets/visit-reason.svg', () => ({
+vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
   default: 'mock-visit-reason-icon',
 }));
 
