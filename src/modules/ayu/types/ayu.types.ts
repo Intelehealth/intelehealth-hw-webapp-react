@@ -20,18 +20,25 @@ export interface DurationAnswer {
   dropdownValues: DropdownValues;
 }
 
+export interface QuantityAnswer {
+  value?: number | string | null;
+  unit?: string;
+}
+
 export type AyuAnswerValue =
   | string
   | number
   | boolean
   | DurationAnswer
+  | QuantityAnswer
   | string[]
   | null
   | undefined;
 
 export interface FhirQuestionnaire {
-  resourceType: string;
+  resourceType?: string;
   item?: AyuQuestion[];
+  text?: string;
 }
 
 export interface AyuEnableWhen {

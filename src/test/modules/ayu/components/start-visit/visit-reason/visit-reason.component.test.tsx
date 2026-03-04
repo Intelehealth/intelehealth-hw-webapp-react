@@ -103,8 +103,8 @@ const createMockAyuJsonItem = (overrides = {}) => ({
   keyName: 'mock-complaint',
   isActive: true,
   json: {
-    resourceType: 'Questionnaire',
-    item: [],
+    resourceType: 'Questionnaire' as const,
+    item: [] as never[],
   },
   ...overrides,
 });

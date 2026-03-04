@@ -4,10 +4,8 @@ import {
   transformFhirToAyu,
   resolveLabel,
 } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
-import type {
-  AyuQuestion,
-  FhirQuestionnaire,
-} from '../../../../modules/ayu-library/types/ayu.types';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+import type { FhirQuestionnaire } from '../../../../modules/ayu-library/types/fhir-raw.types';
 
 describe('fhir-to-ayu.util', () => {
   describe('normalizeType', () => {
@@ -40,8 +38,12 @@ describe('fhir-to-ayu.util', () => {
         expect(normalizeType('choice')).toBe('choice');
       });
 
+      it('should accept quantity type', () => {
+        expect(normalizeType('quantity')).toBe('quantity');
+      });
+
       it('should return correct type for all valid types', () => {
-        const validTypes = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice'];
+        const validTypes = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice', 'quantity'];
         validTypes.forEach(type => {
           expect(normalizeType(type)).toBe(type);
         });
@@ -93,7 +95,7 @@ describe('fhir-to-ayu.util', () => {
   describe('transformFhirToAyu', () => {
     describe('Basic Transformation', () => {
       it('should transform single root item', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -104,7 +106,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).not.toBeNull();
         expect(result?.linkId).toBe('q1');
@@ -113,7 +115,7 @@ describe('fhir-to-ayu.util', () => {
       });
 
       it('should transform with all properties', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -127,7 +129,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).not.toBeNull();
         expect(result?.required).toBe(true);
@@ -136,7 +138,7 @@ describe('fhir-to-ayu.util', () => {
       });
 
       it('should preserve answerOption', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -151,14 +153,14 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.answerOption).toHaveLength(2);
         expect(result?.answerOption?.[0].valueString).toBe('Option 1');
       });
 
       it('should preserve extension data', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -170,7 +172,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.extension).toHaveLength(1);
         expect(result?.extension?.[0].url).toBe('test');
@@ -179,7 +181,7 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Multiple Root Items', () => {
       it('should wrap multiple root items in a group', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             { linkId: 'q1', text: 'Question 1', type: 'string' },
@@ -187,7 +189,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).not.toBeNull();
         expect(result?.linkId).toBe('root');
@@ -195,8 +197,23 @@ describe('fhir-to-ayu.util', () => {
         expect(result?.item).toHaveLength(2);
       });
 
-      it('should set resourceType as group text', () => {
-        const questionnaire: FhirQuestionnaire = {
+      it('should set title as group text', () => {
+        const questionnaire = {
+          resourceType: 'Questionnaire',
+          title: 'My Questionnaire Title',
+          item: [
+            { linkId: 'q1', text: 'Q1', type: 'string' },
+            { linkId: 'q2', text: 'Q2', type: 'string' },
+          ],
+        };
+
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
+
+        expect(result?.text).toBe('My Questionnaire Title');
+      });
+
+      it('should set undefined group text when title is not provided', () => {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             { linkId: 'q1', text: 'Q1', type: 'string' },
@@ -204,13 +221,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
-        expect(result?.text).toBe('Questionnaire');
+        expect(result?.text).toBeUndefined();
       });
 
       it('should transform all items in multiple root scenario', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             { linkId: 'q1', text: 'Q1', type: 'string' },
@@ -219,7 +236,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.item).toHaveLength(3);
         expect(result?.item?.[0].linkId).toBe('q1');
@@ -230,7 +247,7 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Nested Items', () => {
       it('should transform nested group items', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -245,7 +262,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.type).toBe('group');
         expect(result?.item).toHaveLength(2);
@@ -254,7 +271,7 @@ describe('fhir-to-ayu.util', () => {
       });
 
       it('should handle deeply nested structures', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -275,13 +292,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.item?.[0].item?.[0].linkId).toBe('q1');
       });
 
       it('should transform all nested items recursively', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -299,7 +316,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.item).toHaveLength(2);
         expect(result?.item?.[1].item).toHaveLength(1);
@@ -308,7 +325,7 @@ describe('fhir-to-ayu.util', () => {
 
     describe('EnableWhen Conditions', () => {
       it('should normalize enableWhen with = operator', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -325,7 +342,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen).toHaveLength(1);
         expect(result?.enableWhen?.[0].operator).toBe('=');
@@ -333,7 +350,7 @@ describe('fhir-to-ayu.util', () => {
       });
 
       it('should normalize enableWhen with != operator', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -350,13 +367,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen?.[0].operator).toBe('!=');
       });
 
       it('should normalize enableWhen with exists operator', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -373,14 +390,14 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen?.[0].operator).toBe('exists');
         expect(result?.enableWhen?.[0].answerBoolean).toBe(true);
       });
 
       it('should throw error for unsupported operator', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -397,13 +414,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        expect(() => transformFhirToAyu(questionnaire)).toThrow(
+        expect(() => transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire)).toThrow(
           'Unsupported enableWhen operator: >'
         );
       });
 
       it('should handle multiple enableWhen conditions', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -417,13 +434,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen).toHaveLength(2);
       });
 
       it('should handle undefined enableWhen', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -433,13 +450,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen).toBeUndefined();
       });
 
       it('should preserve answerCoding in enableWhen', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -456,7 +473,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.enableWhen?.[0].answerCoding).toEqual({
           system: 'test',
@@ -468,28 +485,28 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Empty and Null Cases', () => {
       it('should return null for empty item array', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).toBeNull();
       });
 
       it('should return null for undefined items', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).toBeNull();
       });
 
       it('should handle empty nested items', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -500,7 +517,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?.item).toEqual([]);
       });
@@ -508,7 +525,7 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Special Properties', () => {
       it('should preserve _text property', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -519,22 +536,22 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        const result = transformFhirToAyu(questionnaire);
+        const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result?._text).toBeDefined();
         expect(result?._text?.extension).toHaveLength(1);
       });
 
       it('should handle all question types', () => {
-        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice'];
+        const types = ['group', 'display', 'string', 'integer', 'decimal', 'date', 'choice', 'quantity'];
 
         types.forEach((type, index) => {
-          const questionnaire: FhirQuestionnaire = {
+          const questionnaire = {
             resourceType: 'Questionnaire',
-            item: [{ linkId: `q${index}`, type: type as any }],
+            item: [{ linkId: `q${index}`, type: type }],
           };
 
-          const result = transformFhirToAyu(questionnaire);
+          const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
           expect(result?.type).toBe(type);
         });
       });
@@ -542,18 +559,18 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Error Handling', () => {
       it('should throw error for invalid type in single root', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [{ linkId: 'q1', type: 'invalid' as any }],
         };
 
-        expect(() => transformFhirToAyu(questionnaire)).toThrow(
+        expect(() => transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire)).toThrow(
           'Unsupported FHIR item type: invalid'
         );
       });
 
       it('should throw error for invalid type in multiple roots', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             { linkId: 'q1', type: 'string' },
@@ -561,13 +578,13 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        expect(() => transformFhirToAyu(questionnaire)).toThrow(
+        expect(() => transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire)).toThrow(
           'Unsupported FHIR item type: invalid'
         );
       });
 
       it('should throw error for invalid type in nested items', () => {
-        const questionnaire: FhirQuestionnaire = {
+        const questionnaire = {
           resourceType: 'Questionnaire',
           item: [
             {
@@ -578,7 +595,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        expect(() => transformFhirToAyu(questionnaire)).toThrow(
+        expect(() => transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire)).toThrow(
           'Unsupported FHIR item type: invalid'
         );
       });
@@ -852,6 +869,7 @@ describe('fhir-to-ayu.util', () => {
           'choice',
           'display',
           'group',
+          'quantity',
         ];
 
         types.forEach(type => {

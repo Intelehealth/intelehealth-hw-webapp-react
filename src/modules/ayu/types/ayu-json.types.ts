@@ -1,4 +1,4 @@
-import type { FhirQuestionnaire } from '../../ayu-library/types/ayu.types';
+import type { FhirQuestionnaire } from '../../ayu-library/types/fhir-raw.types';
 
 // Raw response from API - json is a string
 export interface AyuJsonItemRaw {
