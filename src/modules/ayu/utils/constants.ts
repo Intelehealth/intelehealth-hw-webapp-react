@@ -4,6 +4,8 @@ import type { DropdownOption } from '../components/common/ayu-dropdown.component
 export const SELECT_ONE_OR_MORE = 'Select one or more';
 export const SELECT_ANY_ONE = 'Select any one';
 
+//JSON name list to exclude to display on visit reason selection
+export const EXCLUDED_JSON_NAMES = ['famHist', 'physExam', 'patHist'];
 export interface AyuDurationConfig {
   dropdowns?: {
     id: string;

@@ -92,6 +92,26 @@ describe('ConfirmationModal', () => {
     expect(modalBox).toBeInTheDocument();
   });
 
+  describe('Size Prop', () => {
+    it('applies sm size classes by default', () => {
+      const { container } = render(<ConfirmationModal {...defaultProps} />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[400px]');
+    });
+
+    it('applies lg size classes when size is lg', () => {
+      const { container } = render(<ConfirmationModal {...defaultProps} size="lg" />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[90vw]');
+    });
+
+    it('applies sm size classes when size is explicitly sm', () => {
+      const { container } = render(<ConfirmationModal {...defaultProps} size="sm" />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[400px]');
+    });
+  });
+
   it('renders note when provided', () => {
     render(
       <ConfirmationModal {...defaultProps} note="This is an important note" />
@@ -105,13 +125,17 @@ describe('ConfirmationModal', () => {
     expect(screen.queryByText('Note:')).not.toBeInTheDocument();
   });
 
-  it('handles multiline description with whitespace-pre-line', () => {
-    const description = 'Line 1\nLine 2\nLine 3';
-    render(<ConfirmationModal {...defaultProps} description={description} />);
+  it('applies text-center for description when size is sm (default)', () => {
+    render(<ConfirmationModal {...defaultProps} description="Test Description" />);
 
-    const descElement = screen.getByText((_content, element) => {
-      return element?.textContent === description;
-    });
+    const descElement = screen.getByText('Test Description');
+    expect(descElement).toHaveClass('text-center');
+  });
+
+  it('applies text-left for description when size is lg', () => {
+    render(<ConfirmationModal {...defaultProps} description="Test Description" size="lg" />);
+
+    const descElement = screen.getByText('Test Description');
     expect(descElement).toHaveClass('text-left');
   });
 

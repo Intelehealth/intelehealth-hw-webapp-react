@@ -4,6 +4,7 @@ type ConfirmModalConfig = {
   type: 'confirm';
   title: string;
   description?: string;
+  size?: 'sm' | 'lg';
   note?: string;
   icon?: string;
   cancelText?: string;
@@ -22,6 +23,7 @@ export const ConfirmationModal = ({
   icon,
   cancelText = 'Back',
   confirmText = 'Confirm',
+  size = 'sm',
   items,
   size = 'lg',
   onConfirm,
@@ -49,7 +51,9 @@ export const ConfirmationModal = ({
 
         {/* Description */}
         {description && (
-          <p className="mt-3 text-left text-gray-500 break-words px-2">
+          <p
+            className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 text-gray-500 break-words px-2`}
+          >
             {description}
           </p>
         )}

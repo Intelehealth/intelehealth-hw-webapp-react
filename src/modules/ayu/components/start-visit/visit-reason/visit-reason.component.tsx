@@ -64,7 +64,6 @@ export const VisitReason = ({
 
   const handleStepperComplete = useCallback(() => {
     onProgressUpdate?.(1, 1);
-    setShowStepper(false);
     onNextQuestion();
   }, [onProgressUpdate, onNextQuestion]);
 

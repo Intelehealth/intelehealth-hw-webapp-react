@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import { resolveAyuComponent } from '../../../pages/decision-matrix';
-import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+  FhirQuestionnaire,
+} from '../../../types/ayu.types';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuNestedRenderer } from './ayu-nested-renderer.component';
 import { AyuRenderer } from './ayu-renderer.component';
 
 interface AyuStepperContainerProps {
-  questionnaire: AyuQuestion | { item?: AyuQuestion[] };
+  questionnaire: FhirQuestionnaire;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
 }
@@ -27,6 +31,7 @@ export const AyuStepperContainer = ({
     goNext,
     topLevelItems,
     isLast,
+    showAll,
   } = useFHIRStepper({ questionnaire, onComplete });
 
   const totalSteps = topLevelItems.length;
@@ -35,13 +40,14 @@ export const AyuStepperContainer = ({
   const prevCompletedRef = useRef<number>(-1);
 
   useEffect(() => {
+    if (showAll) return; // Don't reset progress while in review mode
     const completedSteps = currentIndex;
 
     if (prevCompletedRef.current === completedSteps) return;
 
     prevCompletedRef.current = completedSteps;
     onProgressUpdate?.(totalSteps, completedSteps);
-  }, [currentIndex, totalSteps, onProgressUpdate]);
+  }, [currentIndex, totalSteps, onProgressUpdate, showAll]);
 
   useEffect(() => {
     lastQuestionRef.current?.scrollIntoView({
@@ -139,7 +145,7 @@ export const AyuStepperContainer = ({
   return (
     <div className="flex flex-col gap-6">
       {topLevelItems
-        .slice(0, currentIndex + 1)
+        .slice(0, showAll ? topLevelItems.length : currentIndex + 1)
         .map((question: AyuQuestion, index: number) => {
           const isActive = index === currentIndex;
 
@@ -169,7 +175,7 @@ export const AyuStepperContainer = ({
                       />
                     )}
                   {/* ACTION BUTTONS */}
-                  {isActive && (
+                  {(isActive || showAll) && (
                     <div className="mt-3 flex gap-3 md:justify-end">
                       {/* SUBMIT for required string and quantity types */}
                       {(() => {
@@ -197,6 +203,11 @@ export const AyuStepperContainer = ({
                         const hasNestedRepeats = question.item?.some(
                           child => child.repeats
                         );
+
+                        // In review mode, always show Submit when question has an answer
+                        if (showAll && answers[question.linkId] !== undefined) {
+                          return true;
+                        }
 
                         return (
                           (question.type === 'string' &&
