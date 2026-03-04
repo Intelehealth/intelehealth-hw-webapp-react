@@ -6,6 +6,12 @@ import {
   type PhysicalExamAnswers,
   type PhysicalExamOption,
 } from '../data/physical-exam.data';
+import {
+  clearPendingImages,
+  addPendingImage,
+  removePendingImage,
+} from '../services/obs.service';
+import type { CapturedImage } from '../types/obs.types';
 import type { SectionProps } from '../types/start-visit.types';
 
 /** Recompute visible questions for a given answer state (used for look-ahead in selectAndAdvance) */
@@ -34,10 +40,10 @@ export const usePhysicalExam = ({
   );
   const [internalIndex, setInternalIndex] = useState(0);
   const [answers, setAnswers] = useState<PhysicalExamAnswers>({});
-  /** base64 data-URL images captured per question */
-  const [cameraImages, setCameraImages] = useState<Record<string, string[]>>(
-    {}
-  );
+  /** Captured images per question — stores both File (for binary upload) and preview (for display) */
+  const [cameraImages, setCameraImages] = useState<
+    Record<string, CapturedImage[]>
+  >({});
 
   const visibleQuestions = useMemo(
     () => computeVisible(baseQuestions, answers),
@@ -117,7 +123,7 @@ export const usePhysicalExam = ({
   const goSkip = () => {
     if (currentQuestion) {
       setAnswers(prev => ({ ...prev, [currentQuestion.id]: [] }));
-      setCameraImages(prev => ({ ...prev, [currentQuestion.id]: [] }));
+      clearCameraImages(currentQuestion.id);
     }
     if (isLastRef.current) {
       onNextQuestion();
@@ -138,18 +144,34 @@ export const usePhysicalExam = ({
   const selectedOptionsFor = (questionId: string): string[] =>
     answers[questionId] ?? [];
 
+  /** Returns base64 preview strings for display in the UI */
   const cameraImagesFor = (questionId: string): string[] =>
-    cameraImages[questionId] ?? [];
+    (cameraImages[questionId] ?? []).map(img => img.preview);
 
+  /** Stores both the original File (binary) and base64 preview, and adds to pending upload array */
   const addCameraImage = async (questionId: string, file: File) => {
-    const base64 = await fileToBase64(file);
+    const preview = await fileToBase64(file);
+    const question = baseQuestions.find(q => q.id === questionId);
+    const comment =
+      question?.sectionLabel?.replace(/:$/, '') ?? 'General exams';
+    addPendingImage(file, comment);
     setCameraImages(prev => ({
       ...prev,
-      [questionId]: [...(prev[questionId] ?? []), base64],
+      [questionId]: [...(prev[questionId] ?? []), { file, preview }],
     }));
   };
 
   const removeCameraImage = (questionId: string, index: number) => {
+    // Find the flat index in pendingImages for this question's image
+    let flatIndex = 0;
+    for (const [qId, imgs] of Object.entries(cameraImages)) {
+      if (qId === questionId) {
+        flatIndex += index;
+        break;
+      }
+      flatIndex += imgs.length;
+    }
+    removePendingImage(flatIndex);
     setCameraImages(prev => ({
       ...prev,
       [questionId]: (prev[questionId] ?? []).filter((_, i) => i !== index),
@@ -157,6 +179,17 @@ export const usePhysicalExam = ({
   };
 
   const clearCameraImages = (questionId: string) => {
+    // Rebuild pending array without this question's images
+    clearPendingImages();
+    const remaining = { ...cameraImages, [questionId]: [] };
+    for (const [qId, imgs] of Object.entries(remaining)) {
+      const question = baseQuestions.find(q => q.id === qId);
+      const comment =
+        question?.sectionLabel?.replace(/:$/, '') ?? 'General exams';
+      for (const img of imgs) {
+        addPendingImage(img.file, comment);
+      }
+    }
     setCameraImages(prev => ({ ...prev, [questionId]: [] }));
   };
 

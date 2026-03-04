@@ -34,6 +34,7 @@ export type ConfirmModalConfig = {
   cancelText?: string;
   confirmText?: string;
   items?: string[];
+  size?: 'sm' | 'lg';
 
   onConfirm?: () => void;
 };
@@ -118,6 +119,7 @@ export const GlobalModalProvider = ({
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}
           items={modal.items || []}
+          size={'size' in modal ? modal.size : 'lg'}
           onClose={closeModal}
           onConfirm={() => {
             modal.onConfirm?.();

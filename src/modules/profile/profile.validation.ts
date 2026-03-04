@@ -32,7 +32,7 @@ export const profileSchema = yup.object({
     .mixed<'male' | 'female' | 'other'>()
     .oneOf(['male', 'female', 'other'])
     .required('Gender is required'),
-  setupLocation: yup.string().trim().defined(),
+  setupLocation: yup.string().trim().required('Location is required'),
 });
 
 export type ProfileFormValues = yup.InferType<typeof profileSchema>;

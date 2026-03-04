@@ -447,6 +447,28 @@ describe('usePhysicalExam', () => {
       act(() => result.current.removeCameraImage('q1', 0));
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });
+
+    it('should compute correct flat index when images exist across multiple questions', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+
+      // Add images to q1 first, then q2
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+      });
+      await act(async () => {
+        await result.current.addCameraImage('q2', file2);
+      });
+
+      expect(result.current.cameraImagesFor('q1')).toHaveLength(1);
+      expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
+
+      // Remove from q2 — should iterate past q1's images to compute flat index
+      act(() => result.current.removeCameraImage('q2', 0));
+      expect(result.current.cameraImagesFor('q2')).toEqual([]);
+      expect(result.current.cameraImagesFor('q1')).toHaveLength(1);
+    });
   });
 
   describe('clearCameraImages', () => {
@@ -460,6 +482,28 @@ describe('usePhysicalExam', () => {
 
       act(() => result.current.clearCameraImages('q1'));
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
+    });
+
+    it('should re-add pending images for other questions when clearing one', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+
+      // Add images to both q1 and q2
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+      });
+      await act(async () => {
+        await result.current.addCameraImage('q2', file2);
+      });
+
+      expect(result.current.cameraImagesFor('q1')).toHaveLength(1);
+      expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
+
+      // Clear q1 — q2 images should remain and be re-added to pending
+      act(() => result.current.clearCameraImages('q1'));
+      expect(result.current.cameraImagesFor('q1')).toEqual([]);
+      expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
     });
   });
 

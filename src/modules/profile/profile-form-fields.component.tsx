@@ -201,6 +201,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
         <div className="lg:pb-4">
           <Dropdown
             label="Setup location"
+            isRequired
             value={watch('setupLocation') || ''}
             onChange={(value: string | string[]) => {
               const locationValue = Array.isArray(value) ? value[0] : value;

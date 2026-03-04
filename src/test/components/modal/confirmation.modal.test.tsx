@@ -131,6 +131,22 @@ describe('ConfirmationModal', () => {
     expect(true).toBe(true);
   });
 
+  describe('Size Variants', () => {
+    it('applies small size classes when size is sm', () => {
+      const { container } = render(
+        <ConfirmationModal {...defaultProps} size="sm" />
+      );
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('w-[400px]', 'p-4');
+    });
+
+    it('applies large size classes when size is lg (default)', () => {
+      const { container } = render(<ConfirmationModal {...defaultProps} />);
+      const modalBox = container.querySelector('.bg-white');
+      expect(modalBox).toHaveClass('min-h-[240px]');
+    });
+  });
+
   describe('Items Rendering', () => {
     it('renders items when provided', () => {
       const items = ['Item 1', 'Item 2', 'Item 3'];

@@ -9,6 +9,7 @@ type ConfirmModalConfig = {
   cancelText?: string;
   confirmText?: string;
   items?: string[];
+  size?: 'sm' | 'lg';
   onConfirm?: () => void;
   onClose: () => void;
 };
@@ -22,14 +23,20 @@ export const ConfirmationModal = ({
   cancelText = 'Back',
   confirmText = 'Confirm',
   items,
+  size = 'lg',
   onConfirm,
   onClose,
 }: ConfirmModalConfig) => {
   if (!open) return null;
 
+  const sizeClass =
+    size === 'sm'
+      ? 'w-[400px] max-sm:w-[350px] p-4'
+      : 'w-[90vw] sm:w-[450px] lg:w-[560px] min-h-[240px] sm:min-h-[240px] p-5 sm:p-6';
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center">
-      <div className="bg-white w-[90vw] sm:w-[450px] lg:w-[560px] min-h-[240px] sm:min-h-[240px] p-5 sm:p-6 rounded-2xl flex flex-col">
+      <div className={`bg-white ${sizeClass} rounded-2xl flex flex-col`}>
         {/* Icon */}
         {icon && (
           <div className="flex justify-center mb-4">

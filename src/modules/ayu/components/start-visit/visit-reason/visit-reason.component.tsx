@@ -50,6 +50,7 @@ export const VisitReason = ({
       cancelText: 'No',
       type: 'confirm',
       items: selectedReasons,
+      size: 'sm',
       open: true,
       onConfirm: () => {
         const schema = transformFhirToAyu(selectedComplaints[0].json);

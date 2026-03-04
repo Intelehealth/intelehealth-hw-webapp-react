@@ -318,6 +318,7 @@ describe('VisitReason', () => {
         cancelText: 'No',
         type: 'confirm',
         items: selectedReasons,
+        size: 'sm',
         open: true,
         onConfirm: expect.any(Function),
       });

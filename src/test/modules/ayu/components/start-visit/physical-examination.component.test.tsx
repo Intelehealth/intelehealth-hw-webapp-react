@@ -142,6 +142,8 @@ function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
     addCameraImage: vi.fn(),
     removeCameraImage: vi.fn(),
     clearCameraImages: vi.fn(),
+    uploadImages: vi.fn(),
+    uploadingQuestions: new Set<string>(),
     selectAndAdvance: vi.fn(),
     toggleOption: vi.fn(),
     goNext: vi.fn(),
@@ -455,12 +457,12 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.removeCameraImage).toHaveBeenCalledWith('q1', 0);
     });
 
-    it('should handle onUploadImages (no-op TODO)', async () => {
+    it('should call goNext when upload clicked (images saved, upload deferred)', async () => {
       const user = userEvent.setup();
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Should not throw
       await user.click(screen.getByTestId('capture-upload'));
+      expect(mockHookReturn.goNext).toHaveBeenCalled();
     });
   });
 
