@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useVisitReasons } from '../../../../modules/ayu/hooks/useVisitReasons.hook';
 
 // Mock the useAyuJsonList hook
@@ -11,7 +11,19 @@ vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
   ]),
 }));
 
+import { useAyuJsonList } from '../../../../modules/ayu/hooks/useAyuJson.hook';
+const mockUseAyuJsonList = vi.mocked(useAyuJsonList);
+
 describe('useVisitReasons', () => {
+  beforeEach(() => {
+    // Reset to default mock
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'Fever.json' },
+      { name: 'Cough.json' },
+      { name: 'Headache.json' },
+    ] as any);
+  });
+
   it('should initialize with empty search and selectedReasons', () => {
     const { result } = renderHook(() => useVisitReasons());
 
@@ -83,5 +95,60 @@ describe('useVisitReasons', () => {
     const { result } = renderHook(() => useVisitReasons());
 
     expect(result.current.filteredNames).toEqual([]);
+  });
+
+  it('should exclude names in EXCLUDED_JSON_NAMES list', () => {
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'Fever.json' },
+      { name: 'famHist.json' },
+      { name: 'physExam.json' },
+      { name: 'patHist.json' },
+      { name: 'Cough.json' },
+    ] as any);
+
+    const { result } = renderHook(() => useVisitReasons());
+
+    // famHist, physExam, patHist should be excluded from grouped
+    const allGroupedNames = Object.values(result.current.grouped).flat();
+    expect(allGroupedNames).not.toContain('famHist');
+    expect(allGroupedNames).not.toContain('physExam');
+    expect(allGroupedNames).not.toContain('patHist');
+    expect(allGroupedNames).toContain('Fever');
+    expect(allGroupedNames).toContain('Cough');
+  });
+
+  it('should not include excluded names in filteredNames', () => {
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'Fever.json' },
+      { name: 'famHist.json' },
+    ] as any);
+
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.setSearch('f');
+    });
+
+    expect(result.current.filteredNames).toContain('Fever');
+    expect(result.current.filteredNames).not.toContain('famHist');
+  });
+
+  it('should return selectedComplaints matching selectedReasons', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.addReason('Fever');
+    });
+
+    expect(result.current.selectedComplaints).toHaveLength(1);
+    expect(result.current.selectedComplaints[0].name).toBe('Fever.json');
+  });
+
+  it('should group names alphabetically', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    expect(result.current.grouped['C']).toContain('Cough');
+    expect(result.current.grouped['F']).toContain('Fever');
+    expect(result.current.grouped['H']).toContain('Headache');
   });
 });

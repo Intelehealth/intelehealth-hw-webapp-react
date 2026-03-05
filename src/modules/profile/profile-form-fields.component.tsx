@@ -202,12 +202,14 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
           <Dropdown
             label="Setup location"
             value={watch('setupLocation') || ''}
-            onChange={(value: string | string[]) => {
+            onChange={async (value: string | string[]) => {
               const locationValue = Array.isArray(value) ? value[0] : value;
               setValue('setupLocation', locationValue);
+              await trigger('setupLocation');
             }}
             options={locationOptions}
             placeholder="Select"
+            isRequired
             error={errors.setupLocation?.message}
           />
         </div>

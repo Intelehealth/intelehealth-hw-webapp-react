@@ -1,12 +1,16 @@
 import { useMemo, useRef, useState } from 'react';
+import iconVisitReasonSummary from '../../../assets/icons/visit-reason.svg';
+import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import type {
   AyuAnswerValue,
   AyuQuestion,
   DurationAnswer,
+  FhirQuestionnaire,
 } from '../types/ayu.types';
+import { buildVisitSummary } from '../utils/visit-summary.util';
 
 interface UseFHIRStepperProps {
-  questionnaire: AyuQuestion | { item?: AyuQuestion[] };
+  questionnaire: FhirQuestionnaire;
   autoNext?: boolean;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
 }
@@ -26,6 +30,7 @@ interface UseFHIRStepperReturn {
   goNext: () => void;
   topLevelItems: AyuQuestion[];
   isLast: boolean;
+  showAll?: boolean;
 }
 
 export const useFHIRStepper = (
@@ -34,8 +39,9 @@ export const useFHIRStepper = (
   const { questionnaire, autoNext = true, onComplete } = props;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AyuAnswerValue>>({});
+  const [showAll, setShowAll] = useState(false);
   const isAdvancingRef = useRef(false);
-
+  const { showVitalConfirmationModal } = useGlobalModal();
   const topLevelItems = useMemo(() => {
     const items = questionnaire?.item || [];
     return items.filter((item: AyuQuestion) => item.type !== 'group');
@@ -46,6 +52,10 @@ export const useFHIRStepper = (
   const currentQuestion = topLevelItems[currentIndex];
 
   const goNext = () => {
+    if (showAll) {
+      handleComplete();
+      return;
+    }
     if (currentIndex < structuralTotal - 1) {
       setCurrentIndex(prev => {
         if (prev < structuralTotal - 1) {
@@ -59,11 +69,42 @@ export const useFHIRStepper = (
   };
 
   const handleComplete = () => {
-    // TODO:
-    // - Submit QuestionnaireResponse
-    // - Navigate to summary screen
-    // - Call API
-    onComplete?.(answers);
+    const answersMap = new Map(Object.entries(answers));
+    const sections = buildVisitSummary(
+      topLevelItems,
+      answersMap,
+      questionnaire?.text || 'Visit reason'
+    );
+    // Add per-section onChange callbacks
+    sections.forEach(section => {
+      section.onChange = () => {
+        const targetIndex = topLevelItems.findIndex(item => {
+          if (section.title === 'Associated symptoms') {
+            return item.extension?.some(
+              ext => ext.valueString === 'Associated symptoms'
+            );
+          }
+          return true; // main section → first question
+        });
+        setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
+        setShowAll(true);
+      };
+    });
+
+    showVitalConfirmationModal({
+      icon: iconVisitReasonSummary,
+      title: '2/4. Visit reason summary',
+      sections,
+      confirmText: 'Confirm',
+      cancelText: 'Back',
+      open: false,
+      type: 'vitalConfirm',
+      size: 'lg',
+      onConfirm: () => {
+        setShowAll(true);
+        onComplete?.(answers);
+      },
+    });
   };
 
   const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {
@@ -169,7 +210,8 @@ export const useFHIRStepper = (
         !isAdvancingRef.current &&
         !isLastQuestion &&
         !(currentQuestion.type === 'choice' && currentQuestion.repeats) &&
-        !hasNestedRepeats
+        !hasNestedRepeats &&
+        !showAll
       ) {
         isAdvancingRef.current = true;
 
@@ -290,5 +332,6 @@ export const useFHIRStepper = (
     goNext,
     topLevelItems,
     isLast: currentIndex === structuralTotal - 1,
+    showAll,
   };
 };

@@ -178,7 +178,7 @@ export const StartVisit = () => {
           />
         )}
 
-        {currentSectionIndex === 1 && (
+        <div style={{ display: currentSectionIndex === 1 ? 'block' : 'none' }}>
           <VisitReason
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
@@ -186,7 +186,7 @@ export const StartVisit = () => {
             onPrevSection={goPreviousSection}
             onProgressUpdate={handleVisitReasonProgress}
           />
-        )}
+        </div>
 
         {currentSectionIndex === 2 && (
           <PhysicalExamination

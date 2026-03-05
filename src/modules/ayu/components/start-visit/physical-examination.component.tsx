@@ -80,6 +80,8 @@ const QuestionCard = ({
   const isCameraSelected = cameraOption
     ? selectedOptions.includes(cameraOption.id)
     : false;
+  const hadCameraSelected = !isActive && isCameraSelected;
+  const showFullBody = isActive || hadCameraSelected;
 
   return (
     <div ref={isActive ? activeRef : null}>
@@ -102,8 +104,8 @@ const QuestionCard = ({
           )}
         </p>
 
-        {/* Answered summary (previous questions only) */}
-        {!isActive && selectedOptions.length > 0 && (
+        {/* Answered summary (previous questions WITHOUT camera) */}
+        {!isActive && !hadCameraSelected && selectedOptions.length > 0 && (
           <div className="flex flex-wrap gap-2 px-3 pb-3">
             {selectedOptions.map(optionId => {
               const opt = question.options.find(o => o.id === optionId);
@@ -119,8 +121,8 @@ const QuestionCard = ({
           </div>
         )}
 
-        {/* Active question body */}
-        {isActive && (
+        {/* Full question body — active OR previous with camera selected */}
+        {showFullBody && (
           <>
             {/* Reference images / video placeholder */}
             {question.jobAidFile && (
@@ -145,7 +147,7 @@ const QuestionCard = ({
               {question.isMultiChoice ? 'Select any' : 'Select any one'}
             </p>
 
-            {/* All option buttons in one row: regular options + Skip + camera */}
+            {/* Option buttons */}
             <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
               {regularOptions.map(option => {
                 const isSelected = selectedOptions.includes(option.id);
@@ -156,13 +158,19 @@ const QuestionCard = ({
                     value={option.id}
                     selected={isSelected}
                     leftIcon={getOptionIcon(option.text)}
-                    onClick={() => onSelectSingle(option.id)}
+                    onClick={() => {
+                      if (isActive) {
+                        onSelectSingle(option.id);
+                      } else if (hadCameraSelected) {
+                        onToggleMulti(option.id);
+                      }
+                    }}
                   />
                 );
               })}
 
-              {/* Skip — only for non-required questions */}
-              {!question.isRequired && (
+              {/* Skip — only for active non-required questions */}
+              {isActive && !question.isRequired && (
                 <AyuSelectableOption
                   label="Skip"
                   value="skip"
@@ -171,7 +179,7 @@ const QuestionCard = ({
                 />
               )}
 
-              {/* Take a picture — same style as option buttons */}
+              {/* Take a picture */}
               {cameraOption && (
                 <AyuSelectableOption
                   label="Take a picture"
@@ -189,7 +197,7 @@ const QuestionCard = ({
               )}
             </div>
 
-            {/* Image capture area — shown when camera option is selected */}
+            {/* Image capture area */}
             {isCameraSelected && (
               <div className="px-3 pb-3">
                 <PhysicalExamImageCapture
@@ -197,6 +205,7 @@ const QuestionCard = ({
                   onAdd={onAddCameraImage}
                   onRemove={onRemoveCameraImage}
                   onUpload={onUploadImages}
+                  showTick={hadCameraSelected}
                 />
               </div>
             )}
@@ -221,6 +230,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     clearCameraImages,
     selectAndAdvance,
     toggleOption,
+    goNext,
     goSkip,
     goBack,
   } = usePhysicalExam(props);
@@ -253,9 +263,7 @@ export const PhysicalExamination = (props: SectionProps) => {
             onAddCameraImage={file => addCameraImage(question.id, file)}
             onRemoveCameraImage={idx => removeCameraImage(question.id, idx)}
             onClearCameraImages={() => clearCameraImages(question.id)}
-            onUploadImages={() => {
-              // TODO: submit images to API
-            }}
+            onUploadImages={() => goNext()}
             activeRef={activeRef}
           />
         );

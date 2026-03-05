@@ -7,6 +7,16 @@ type ModalItem = {
   value: string | number | null;
 };
 
+export type ModalSectionItem =
+  | { type: 'labelValue'; label: string; value: string | number | null }
+  | { type: 'subheading'; heading: string; values: string[] };
+
+export type ModalSection = {
+  title: string;
+  items: ModalSectionItem[];
+  onChange?: () => void;
+};
+
 /* Vital Confirmation Modal Config */
 export type VitalConfirmModalConfig = {
   open: boolean;
@@ -15,6 +25,8 @@ export type VitalConfirmModalConfig = {
   description?: string;
   icon?: string;
   items?: ModalItem[];
+  sections?: ModalSection[];
+  size?: 'sm' | 'lg';
   highlightText?: string;
   cancelText?: string;
   confirmText?: string;
@@ -29,6 +41,7 @@ export type ConfirmModalConfig = {
   type: 'confirm';
   title: string;
   description?: string;
+  size?: 'sm' | 'lg';
   note?: string;
   icon?: string;
   cancelText?: string;
@@ -93,6 +106,8 @@ export const GlobalModalProvider = ({
           icon={modal.icon}
           description={modal.description}
           items={modal.items || []}
+          sections={modal.sections}
+          size={modal?.size}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}
           onClose={closeModal}
@@ -114,6 +129,7 @@ export const GlobalModalProvider = ({
           title={modal.title}
           description={modal.description}
           note={'note' in modal ? modal.note : undefined}
+          size={'size' in modal ? modal.size : undefined}
           icon={modal.icon}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}

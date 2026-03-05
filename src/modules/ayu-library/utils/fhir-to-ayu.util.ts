@@ -2,9 +2,11 @@ import type {
   AyuEnableWhen,
   AyuQuestion,
   AyuQuestionType,
-  FhirQuestionnaire,
 } from '../types/ayu.types';
-import type { FhirEnableWhen } from '../types/fhir-raw.types';
+import type {
+  FhirEnableWhen,
+  FhirQuestionnaire,
+} from '../types/fhir-raw.types';
 
 const ALLOWED_TYPES: AyuQuestionType[] = [
   'group',
@@ -75,7 +77,7 @@ export function transformFhirToAyu(
     return {
       linkId: 'root',
       type: 'group',
-      text: questionnaire.resourceType,
+      text: questionnaire.title,
       item: questionnaire.item.map(transformItem),
     };
   }

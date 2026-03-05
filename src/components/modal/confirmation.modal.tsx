@@ -4,6 +4,7 @@ type ConfirmModalConfig = {
   type: 'confirm';
   title: string;
   description?: string;
+  size?: 'sm' | 'lg';
   note?: string;
   icon?: string;
   cancelText?: string;
@@ -21,6 +22,7 @@ export const ConfirmationModal = ({
   icon,
   cancelText = 'Back',
   confirmText = 'Confirm',
+  size = 'sm',
   items,
   onConfirm,
   onClose,
@@ -29,7 +31,9 @@ export const ConfirmationModal = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center">
-      <div className="bg-white w-[90vw] sm:w-[450px] lg:w-[560px] min-h-[240px] sm:min-h-[240px] p-5 sm:p-6 rounded-2xl flex flex-col">
+      <div
+        className={`${size === 'lg' ? 'w-[90vw] sm:w-[550px] lg:w-[560px] min-h-[240px] sm:min-h-[240px]' : 'w-[400px] max-sm:w-[350px] p-4'} bg-white  p-5 sm:p-6 rounded-2xl flex flex-col`}
+      >
         {/* Icon */}
         {icon && (
           <div className="flex justify-center mb-4">
@@ -42,7 +46,9 @@ export const ConfirmationModal = ({
 
         {/* Description */}
         {description && (
-          <p className="mt-3 text-left text-gray-500 break-words px-2">
+          <p
+            className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 text-gray-500 break-words px-2`}
+          >
             {description}
           </p>
         )}
