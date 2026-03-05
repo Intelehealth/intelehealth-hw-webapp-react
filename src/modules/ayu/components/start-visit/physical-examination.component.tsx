@@ -221,6 +221,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     clearCameraImages,
     selectAndAdvance,
     toggleOption,
+    goNext,
     goSkip,
     goBack,
   } = usePhysicalExam(props);
@@ -253,9 +254,7 @@ export const PhysicalExamination = (props: SectionProps) => {
             onAddCameraImage={file => addCameraImage(question.id, file)}
             onRemoveCameraImage={idx => removeCameraImage(question.id, idx)}
             onClearCameraImages={() => clearCameraImages(question.id)}
-            onUploadImages={() => {
-              // TODO: submit images to API
-            }}
+            onUploadImages={() => goNext()}
             activeRef={activeRef}
           />
         );

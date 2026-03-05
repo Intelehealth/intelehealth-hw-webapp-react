@@ -455,12 +455,12 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.removeCameraImage).toHaveBeenCalledWith('q1', 0);
     });
 
-    it('should handle onUploadImages (no-op TODO)', async () => {
+    it('should call goNext when upload button is clicked', async () => {
       const user = userEvent.setup();
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Should not throw
       await user.click(screen.getByTestId('capture-upload'));
+      expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);
     });
   });
 

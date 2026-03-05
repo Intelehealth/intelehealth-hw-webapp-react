@@ -129,6 +129,7 @@ export const GlobalModalProvider = ({
           title={modal.title}
           description={modal.description}
           note={'note' in modal ? modal.note : undefined}
+          size={'size' in modal ? modal.size : undefined}
           icon={modal.icon}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}

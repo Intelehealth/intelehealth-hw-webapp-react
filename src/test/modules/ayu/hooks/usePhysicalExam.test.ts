@@ -78,6 +78,16 @@ vi.mock('../../../../modules/profile/profile.helpers', () => ({
   fileToBase64: vi.fn().mockResolvedValue('data:image/png;base64,AAAA'),
 }));
 
+const mockAddPendingImage = vi.fn();
+const mockRemovePendingImage = vi.fn();
+const mockClearPendingImages = vi.fn();
+
+vi.mock('../../../../modules/ayu/services/obs.service', () => ({
+  addPendingImage: (...args: unknown[]) => mockAddPendingImage(...args),
+  removePendingImage: (...args: unknown[]) => mockRemovePendingImage(...args),
+  clearPendingImages: (...args: unknown[]) => mockClearPendingImages(...args),
+}));
+
 import { usePhysicalExam } from '../../../../modules/ayu/hooks/usePhysicalExam';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -447,6 +457,33 @@ describe('usePhysicalExam', () => {
       act(() => result.current.removeCameraImage('q1', 0));
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });
+
+    it('should compute correct flat index when images exist in earlier questions', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+      const file3 = new File(['c'], 'c.png', { type: 'image/png' });
+
+      // Add 2 images to q1 (earlier question)
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+      });
+      await act(async () => {
+        await result.current.addCameraImage('q1', file2);
+      });
+      // Add 1 image to q2 (later question)
+      await act(async () => {
+        await result.current.addCameraImage('q2', file3);
+      });
+
+      mockRemovePendingImage.mockClear();
+
+      // Remove index 0 from q2 — flatIndex should be 2 (q1 has 2 images)
+      act(() => result.current.removeCameraImage('q2', 0));
+
+      expect(mockRemovePendingImage).toHaveBeenCalledWith(2);
+      expect(result.current.cameraImagesFor('q2')).toEqual([]);
+    });
   });
 
   describe('clearCameraImages', () => {
@@ -460,6 +497,34 @@ describe('usePhysicalExam', () => {
 
       act(() => result.current.clearCameraImages('q1'));
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
+    });
+
+    it('should re-add pending images for other questions when clearing one', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+
+      // Add image to q1
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+      });
+      // Add image to q2
+      await act(async () => {
+        await result.current.addCameraImage('q2', file2);
+      });
+
+      mockClearPendingImages.mockClear();
+      mockAddPendingImage.mockClear();
+
+      // Clear only q1 — q2's image should be re-added to pending queue
+      act(() => result.current.clearCameraImages('q1'));
+
+      expect(mockClearPendingImages).toHaveBeenCalledTimes(1);
+      // addPendingImage should be called for q2's remaining image
+      expect(mockAddPendingImage).toHaveBeenCalledWith(file2, 'Section 1');
+      // q1 images cleared, q2 images still there
+      expect(result.current.cameraImagesFor('q1')).toEqual([]);
+      expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
     });
   });
 
@@ -547,6 +612,87 @@ describe('usePhysicalExam', () => {
       // Skip q1 — should clear images
       act(() => result.current.goSkip());
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
+    });
+  });
+
+  // ── obs.service integration ─────────────────────────────────────────────
+
+  describe('obs.service pending image integration', () => {
+    it('should call addPendingImage when addCameraImage is called', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(mockAddPendingImage).toHaveBeenCalledWith(file, 'Section 1');
+    });
+
+    it('should use sectionLabel as comment with trailing colon stripped', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      // q3 has sectionLabel 'Section 2:'
+      act(() => result.current.goNext()); // q2
+      act(() => result.current.goNext()); // q3
+
+      await act(async () => {
+        await result.current.addCameraImage('q3', file);
+      });
+
+      expect(mockAddPendingImage).toHaveBeenCalledWith(file, 'Section 2');
+    });
+
+    it('should fall back to "General exams" when question not found', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      await act(async () => {
+        await result.current.addCameraImage('nonexistent', file);
+      });
+
+      expect(mockAddPendingImage).toHaveBeenCalledWith(file, 'General exams');
+    });
+
+    it('should call removePendingImage when removeCameraImage is called', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      act(() => result.current.removeCameraImage('q1', 0));
+
+      expect(mockRemovePendingImage).toHaveBeenCalled();
+    });
+
+    it('should call clearPendingImages when clearCameraImages is called', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      act(() => result.current.clearCameraImages('q1'));
+
+      expect(mockClearPendingImages).toHaveBeenCalled();
+    });
+
+    it('should call clearPendingImages when goSkip clears images', async () => {
+      const { result } = setup();
+      const file = new File(['test'], 'photo.png', { type: 'image/png' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      mockClearPendingImages.mockClear();
+      act(() => result.current.goSkip());
+
+      expect(mockClearPendingImages).toHaveBeenCalled();
     });
   });
 });
