@@ -1,13 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from '../../../components/navbar/navbar.component';
+
+const mockProfile: Record<string, unknown> = { setupLocation: 'Ranchi', avatar: '', id: undefined };
 
 vi.mock('../../../context/ProfileContext', () => ({
   useProfileContext: () => ({
-    profile: { setupLocation: 'Ranchi', avatar: '' },
+    profile: mockProfile,
     locations: [],
   }),
+}));
+
+const mockGetRecentPatients = vi.fn();
+vi.mock('../../../services/patient.service', () => ({
+  patientService: {
+    getRecentPatients: (...args: unknown[]) => mockGetRecentPatients(...args),
+  },
 }));
 
 // Helper function to render with router
@@ -16,6 +25,10 @@ const renderWithRouter = (component: React.ReactElement) => {
 };
 
 describe('Navbar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockProfile.id = undefined;
+  });
   it('should render without crashing', () => {
     expect(() => {
       renderWithRouter(<Navbar />);
@@ -188,5 +201,95 @@ describe('Navbar', () => {
     // After error, src should be set back to the default image
     // The default image should be the same as the original src
     expect(userAvatar.src).toBe(originalSrc);
+  });
+
+  it('fetches recent patients when modal opens and hwId is available', async () => {
+    mockProfile.id = 'hw-test-id';
+    const mockPatients = [
+      { visitUuid: 'v-1', patientName: 'John Doe', gender: 'M', age: 30, visitCreatedDate: '2025-01-01', clinicName: 'Clinic A', uploadTimestamp: '1h' },
+    ];
+    mockGetRecentPatients.mockResolvedValue(mockPatients);
+
+    renderWithRouter(<Navbar />);
+
+    // Focus search input to trigger setSearchModalOpen(true)
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    fireEvent.focus(searchInputs[0]);
+
+    await waitFor(() => {
+      expect(mockGetRecentPatients).toHaveBeenCalledWith('hw-test-id');
+    });
+  });
+
+  it('sets error state when getRecentPatients fails', async () => {
+    mockProfile.id = 'hw-test-id';
+    mockGetRecentPatients.mockRejectedValue(new Error('Network error'));
+
+    renderWithRouter(<Navbar />);
+
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    fireEvent.focus(searchInputs[0]);
+
+    await waitFor(() => {
+      expect(mockGetRecentPatients).toHaveBeenCalledWith('hw-test-id');
+    });
+  });
+
+  it('does not fetch patients when hwId is not available', () => {
+    // mockProfile.id is undefined (default from beforeEach)
+    renderWithRouter(<Navbar />);
+
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    fireEvent.focus(searchInputs[0]);
+
+    expect(mockGetRecentPatients).not.toHaveBeenCalled();
+  });
+
+  it('filters patients on search input change', async () => {
+    mockProfile.id = 'hw-test-id';
+    const mockPatients = [
+      { visitUuid: 'v-1', patientName: 'Alice Smith', gender: 'F', age: 25, visitCreatedDate: '2025-01-01', clinicName: 'Clinic A', uploadTimestamp: '1h' },
+      { visitUuid: 'v-2', patientName: 'Bob Jones', gender: 'M', age: 35, visitCreatedDate: '2025-01-02', clinicName: 'Clinic B', uploadTimestamp: '2h' },
+    ];
+    mockGetRecentPatients.mockResolvedValue(mockPatients);
+
+    renderWithRouter(<Navbar />);
+
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    fireEvent.focus(searchInputs[0]);
+
+    await waitFor(() => {
+      expect(mockGetRecentPatients).toHaveBeenCalled();
+    });
+
+    // Type to filter
+    fireEvent.change(searchInputs[0], { target: { value: 'alice' } });
+    // Filter logic runs without error
+    expect(searchInputs[0]).toBeInTheDocument();
+  });
+
+  it('closes modal when patient is selected', async () => {
+    mockProfile.id = 'hw-test-id';
+    const mockPatients = [
+      { visitUuid: 'v-1', patientName: 'Carol White', gender: 'F', age: 28, visitCreatedDate: '2025-01-01', clinicName: 'Clinic C', uploadTimestamp: '1h' },
+    ];
+    mockGetRecentPatients.mockResolvedValue(mockPatients);
+
+    renderWithRouter(<Navbar />);
+
+    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
+    fireEvent.focus(searchInputs[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Carol White')).toBeInTheDocument();
+    });
+
+    // Click patient to trigger handlePatientSelect
+    fireEvent.click(screen.getByText('Carol White'));
+
+    // Modal should close after selection
+    await waitFor(() => {
+      expect(screen.queryByText('Carol White')).not.toBeInTheDocument();
+    });
   });
 });

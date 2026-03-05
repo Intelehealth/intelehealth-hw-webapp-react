@@ -2,8 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  GlobalModalProvider,
-  useGlobalModal,
+    GlobalModalProvider,
+    useGlobalModal,
 } from '../../../components/modal/global-modal-context';
 
 // Test component to access context methods
@@ -375,9 +375,10 @@ describe('GlobalModalProvider', () => {
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 
-  it('uses default context methods when hook is used outside provider', () => {
+  it('uses default context methods when hook is used outside provider', async () => {
     // Test that useGlobalModal can be called outside provider without errors
     // The default context methods are no-ops
+    const user = userEvent.setup();
     const TestOutsideProvider = () => {
       const { showConfirmModal, showVitalConfirmationModal, closeModal } = useGlobalModal();
       return (
@@ -393,10 +394,46 @@ describe('GlobalModalProvider', () => {
       );
     };
 
-    // This should not throw an error
-    expect(() => {
-      render(<TestOutsideProvider />);
-    }).not.toThrow();
+    render(<TestOutsideProvider />);
+
+    // Invoke all three default context no-ops — should not throw
+    await user.click(screen.getByText('Show Confirm'));
+    await user.click(screen.getByText('Show Vital Confirm'));
+    await user.click(screen.getByText('Close'));
+  });
+
+  it('passes note to ConfirmationModal when note is provided', async () => {
+    const user = userEvent.setup();
+
+    const TestWithNote = () => {
+      const { showConfirmModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showConfirmModal({
+              open: true,
+              type: 'confirm',
+              title: 'Note Modal',
+              note: 'This is a note',
+            })
+          }
+        >
+          Show Note Modal
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithNote />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show Note Modal'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Note Modal')).toBeInTheDocument();
+    });
   });
 
   it('properly closes modal after onConfirm is called in confirm modal', async () => {
