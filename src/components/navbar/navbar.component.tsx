@@ -8,6 +8,7 @@ import { useProfileContext } from '../../context/ProfileContext';
 import ROUTES from '../../routes/paths';
 import { storage } from '../../utils/storage';
 import { Input } from '../common';
+import PatientSearch from './patient-search/patient-search.component';
 
 const Navbar = () => {
   const { profile } = useProfileContext();
@@ -18,12 +19,7 @@ const Navbar = () => {
       {/* Desktop */}
       <div className="flex justify-between items-center w-full gap-4">
         <div className="items-center space-x-2 w-4/12 hidden md:flex">
-          <Input
-            placeholder="Patient Search"
-            size="lg"
-            className="w-full"
-            leftIcon={<img src={iconSearch} alt="search" className="w-6 h-6" />}
-          />
+          <PatientSearch />
         </div>
         <div className="flex flex-col w-8/12 md:w-6/12 pl-12 md:pl-4">
           <div className="flex gap-2">
