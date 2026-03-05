@@ -140,7 +140,8 @@ describe('patientService', () => {
     });
 
     it('interceptor adds Authorization header when basic auth header exists', () => {
-      h.mockGetBasicAuthHeader.mockReturnValue('Basic dXNlcjpwYXNz');
+    
+      h.mockGetBasicAuthHeader.mockReturnValue(btoa('Basic dXNlcjpwYXNz'));
 
       const config: Record<string, unknown> = { headers: {} };
       const result = registeredInterceptorFn(config) as Record<string, Record<string, string>>;

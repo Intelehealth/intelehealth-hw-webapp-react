@@ -9,7 +9,7 @@ class EmrMiddlewareService extends HttpService {
     this.axiosInstance.interceptors.request.use(config => {
       const authHeader = storage.getBasicAuthHeader();
       if (authHeader) {
-        config.headers.Authorization = authHeader;
+        config.headers.Authorization = atob(authHeader);
       }
       return config;
     });

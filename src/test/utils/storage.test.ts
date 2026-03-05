@@ -139,7 +139,7 @@ describe('storage utility', () => {
 
       const result = storage.getBasicAuthHeader();
 
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('basic_auth_header');
+      expect(localStorageMock.getItem).toHaveBeenCalledWith('ui_pref_hdr');
       expect(result).toBe('Basic dXNlcjpwYXNz');
     });
 
@@ -154,13 +154,13 @@ describe('storage utility', () => {
     it('sets basic auth header', () => {
       storage.setBasicAuthHeader('Basic dXNlcjpwYXNz');
 
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('basic_auth_header', 'Basic dXNlcjpwYXNz');
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('ui_pref_hdr', 'Basic dXNlcjpwYXNz');
     });
 
     it('clears basic auth header', () => {
       storage.clearBasicAuthHeader();
 
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('basic_auth_header');
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('ui_pref_hdr');
     });
   });
 

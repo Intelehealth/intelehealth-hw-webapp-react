@@ -29,13 +29,14 @@ export const useLogin = (): UseLoginReturn => {
       const cred = `${credentials.username}:${credentials.password}`;
       const base64cred = btoa(cred);
       const basicAuthHeader = `Basic ${base64cred}`;
+      const xAuthSig = btoa(basicAuthHeader);
       const axiosConfig = {
         headers: {
           Authorization: basicAuthHeader,
         },
       };
-      // Store basic auth header for use in other API calls (e.g. EMR Middleware)
-      storage.setBasicAuthHeader(basicAuthHeader);
+      // Store encoded basic auth header for use in other API calls (e.g. EMR Middleware)
+      storage.setBasicAuthHeader(xAuthSig);
 
       // First call OpenMRS Logout to clear any existing session
       await loginService.openMRSLogout(axiosConfig);
