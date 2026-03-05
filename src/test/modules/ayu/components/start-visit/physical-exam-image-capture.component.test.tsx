@@ -132,9 +132,9 @@ describe('PhysicalExamImageCapture', () => {
       expect(await screen.findByTestId('photo-upload-modal')).toBeInTheDocument();
     });
 
-    it('should show upload button with image count', () => {
+    it('should show upload button', () => {
       render(<PhysicalExamImageCapture {...propsWithImages} />);
-      expect(screen.getByText('Upload (2)')).toBeInTheDocument();
+      expect(screen.getByText('Upload')).toBeInTheDocument();
     });
 
     it('should call onUpload when upload button is clicked', async () => {
@@ -144,8 +144,17 @@ describe('PhysicalExamImageCapture', () => {
         <PhysicalExamImageCapture {...propsWithImages} onUpload={onUpload} />
       );
 
-      await user.click(screen.getByText('Upload (2)'));
+      await user.click(screen.getByText('Upload'));
       expect(onUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it('should show tick icon on upload button when showTick is true', () => {
+      render(
+        <PhysicalExamImageCapture {...propsWithImages} showTick />
+      );
+      const uploadBtn = screen.getByText('Upload');
+      const svg = uploadBtn.querySelector('svg');
+      expect(svg).toBeInTheDocument();
     });
   });
 
