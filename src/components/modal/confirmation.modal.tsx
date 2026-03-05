@@ -32,7 +32,7 @@ export const ConfirmationModal = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center">
       <div
-        className={`${size === 'lg' ? 'w-[90vw] sm:w-[450px] lg:w-[560px] min-h-[240px] sm:min-h-[240px]' : 'w-[400px] max-sm:w-[350px] p-4'} bg-white  p-5 sm:p-6 rounded-2xl flex flex-col`}
+        className={`${size === 'lg' ? 'w-[90vw] sm:w-[550px] lg:w-[560px] min-h-[240px] sm:min-h-[240px]' : 'w-[400px] max-sm:w-[350px] p-4'} bg-white  p-5 sm:p-6 rounded-2xl flex flex-col`}
       >
         {/* Icon */}
         {icon && (

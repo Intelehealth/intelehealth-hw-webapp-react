@@ -98,6 +98,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
         showConfirmModal({
           open: true,
           type: 'confirm',
+          size: 'lg',
           title: 'Change Location',
           description: `Are you sure you want to change your location to ${data.setupLocation} ?`,
           note: 'Changing the location will affect the visit data and patient upload location.',
