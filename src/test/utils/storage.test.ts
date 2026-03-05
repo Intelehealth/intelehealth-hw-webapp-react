@@ -133,6 +133,37 @@ describe('storage utility', () => {
     });
   });
 
+  describe('Basic Auth Header management', () => {
+    it('gets basic auth header', () => {
+      localStorageMock.getItem.mockReturnValue('Basic dXNlcjpwYXNz');
+
+      const result = storage.getBasicAuthHeader();
+
+      expect(localStorageMock.getItem).toHaveBeenCalledWith('basic_auth_header');
+      expect(result).toBe('Basic dXNlcjpwYXNz');
+    });
+
+    it('returns null when basic auth header does not exist', () => {
+      localStorageMock.getItem.mockReturnValue(null);
+
+      const result = storage.getBasicAuthHeader();
+
+      expect(result).toBeNull();
+    });
+
+    it('sets basic auth header', () => {
+      storage.setBasicAuthHeader('Basic dXNlcjpwYXNz');
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('basic_auth_header', 'Basic dXNlcjpwYXNz');
+    });
+
+    it('clears basic auth header', () => {
+      storage.clearBasicAuthHeader();
+
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('basic_auth_header');
+    });
+  });
+
   describe('Generic storage helpers', () => {
     it('gets generic value', () => {
       localStorageMock.getItem.mockReturnValue('generic-value');

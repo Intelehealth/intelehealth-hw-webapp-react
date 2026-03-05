@@ -7,6 +7,7 @@ import SideMenu from '../../../components/side-menu/side-menu.component';
 vi.mock('../../../utils/storage', () => ({
   storage: {
     clearAuthToken: vi.fn(),
+    clearBasicAuthHeader: vi.fn(),
   },
 }));
 

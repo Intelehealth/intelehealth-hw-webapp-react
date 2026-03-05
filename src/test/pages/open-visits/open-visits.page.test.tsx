@@ -1,6 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../../hooks/useOpenVisits', () => ({
+  useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
+
 import OpenVisitsPage from '../../../pages/open-visits/open-visits.page';
 
 describe('OpenVisitsPage', () => {
@@ -11,6 +16,6 @@ describe('OpenVisitsPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Open Visits/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Open Visits/i).length).toBeGreaterThan(0);
   });
 });

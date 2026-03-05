@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
   mockSetUser: vi.fn(),
   mockClearAuthToken: vi.fn(),
   mockClearUser: vi.fn(),
+  mockSetBasicAuthHeader: vi.fn(),
+  mockClearBasicAuthHeader: vi.fn(),
   mockNavigate: vi.fn(),
 }));
 
@@ -51,6 +53,8 @@ vi.mock('../../../../utils/storage', () => ({
     setUser: (...args: unknown[]) => h.mockSetUser(...args),
     clearAuthToken: (...args: unknown[]) => h.mockClearAuthToken(...args),
     clearUser: (...args: unknown[]) => h.mockClearUser(...args),
+    setBasicAuthHeader: (...args: unknown[]) => h.mockSetBasicAuthHeader(...args),
+    clearBasicAuthHeader: (...args: unknown[]) => h.mockClearBasicAuthHeader(...args),
   },
 }));
 

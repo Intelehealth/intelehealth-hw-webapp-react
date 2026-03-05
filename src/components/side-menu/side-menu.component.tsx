@@ -220,6 +220,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
                 onClick={() => {
                   setIsMobileOpen(false);
                   storage.clearAuthToken();
+                  storage.clearBasicAuthHeader();
                   cookie.removeJSessionId();
                   navigate('/auth/login');
                 }}

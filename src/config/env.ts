@@ -17,6 +17,7 @@ interface ImportMetaEnv {
   readonly FIREBASE_MESSAGING_SENDER_ID?: string;
   readonly FIREBASE_APP_ID?: string;
   readonly FIREBASE_VAPID_KEY?: string;
+  readonly EMR_MIDDLEWARE_API_URL: string;
   // add more as needed
 }
 
@@ -40,4 +41,5 @@ export const env: ImportMetaEnv = {
     .VITE_FIREBASE_MESSAGING_SENDER_ID,
   FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
   FIREBASE_VAPID_KEY: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+  EMR_MIDDLEWARE_API_URL: import.meta.env.VITE_EMR_MIDDLEWARE_API_URL,
 } as const;
