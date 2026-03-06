@@ -66,6 +66,7 @@ jobs:
           export VITE_API_TIMEOUT="${{ secrets.VITE_API_TIMEOUT }}"
           export VITE_SENTRY_DSN="${{ secrets.VITE_SENTRY_DSN }}"
           export VITE_CONFIG_API_URL="${{ secrets.VITE_CONFIG_API_URL }}"
+          export VITE_EMR_MIDDLEWARE_API_URL="${{ secrets.VITE_EMR_MIDDLEWARE_API_URL }}"
           yarn build
 
       - name: 🔐 Setup SSH Key

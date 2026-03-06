@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
@@ -7,41 +7,120 @@ import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.sv
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
-import { type Patient, patientsData } from '../../assets/data/patients.data';
+import { useOpenVisits } from '../../hooks/useOpenVisits';
+import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
+import type {
+  OpenVisit,
+  PrescriptionReceivedVisit,
+} from '../../services/patient.service';
 
-interface Column {
-  header: string;
-  accessor: keyof Patient;
-  render?: (row: Patient) => React.ReactNode;
+interface PrescriptionsReceivedProps {
+  onCountLoaded?: (count: number) => void;
 }
-export const PrescriptionsReceived = () => {
-  const [activeTab, setActiveTab] = useState('received');
-  const columns: Column[] = [
+
+export const PrescriptionsReceived = ({
+  onCountLoaded,
+}: PrescriptionsReceivedProps = {}) => {
+  const [activeTab, setActiveTab] = useState('Received');
+  const [search, setSearch] = useState('');
+
+  const {
+    data: receivedData,
+    loading: receivedLoading,
+    error: receivedError,
+    totalCount: receivedCount,
+  } = usePrescriptionsReceived();
+
+  const {
+    data: openVisitsData,
+    loading: openVisitsLoading,
+    error: openVisitsError,
+  } = useOpenVisits();
+
+  useEffect(() => {
+    if (onCountLoaded) onCountLoaded(receivedCount);
+  }, [receivedCount, onCountLoaded]);
+
+  const filteredReceived = receivedData.filter(p =>
+    p.patientName.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredOpenVisits = openVisitsData.filter(p =>
+    p.patientName.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const receivedColumns: {
+    header: string;
+    accessor: keyof PrescriptionReceivedVisit;
+    render?: (row: PrescriptionReceivedVisit) => React.ReactNode;
+  }[] = [
     {
       header: 'Patient',
-      accessor: 'name',
-      render: (row: Patient) => (
+      accessor: 'patientName',
+      render: (row: PrescriptionReceivedVisit) => (
         <div className="flex items-center gap-3">
           <img src={iconPatientImage} className="w-[32px] h-[32px]" />
-          <p className="font-semibold text-gray-800">{row.name}</p>
+          <p className="font-semibold text-gray-800">{row.patientName}</p>
         </div>
       ),
     },
     { header: 'Age', accessor: 'age' },
-    { header: 'Visit created', accessor: 'date' },
-    { header: 'Clinic', accessor: 'clinic' },
-    { header: 'Chief complaint', accessor: 'complaint' },
+    { header: 'Visit created', accessor: 'visitCreatedDate' },
+    { header: 'Clinic', accessor: 'clinicName' },
+    { header: 'Gender', accessor: 'gender' },
     {
       header: 'Prescription',
-      accessor: 'time',
-      render: (row: Patient) => (
+      accessor: 'prescriptionReceivedTimestamp',
+      render: (row: PrescriptionReceivedVisit) => (
         <div className="flex items-center justify-center">
           <img src={iconSummaryList} className="w-[22px] h-[22px]" />
-          <p className="text-green-600 ml-1">{row.time}</p>
+          <p className="text-green-600 ml-1 text-xs truncate">
+            {row.prescriptionReceivedTimestamp}
+          </p>
         </div>
       ),
     },
   ];
+
+  const openVisitsColumns: {
+    header: string;
+    accessor: keyof OpenVisit;
+    render?: (row: OpenVisit) => React.ReactNode;
+  }[] = [
+    {
+      header: 'Patient',
+      accessor: 'patientName',
+      render: (row: OpenVisit) => (
+        <div className="flex items-center gap-3">
+          <img src={iconPatientImage} className="w-[32px] h-[32px]" />
+          <p className="font-semibold text-gray-800">{row.patientName}</p>
+        </div>
+      ),
+    },
+    { header: 'Age', accessor: 'age' },
+    { header: 'Visit created', accessor: 'visitCreatedDate' },
+    { header: 'Clinic', accessor: 'clinicName' },
+    { header: 'Gender', accessor: 'gender' },
+    {
+      header: 'Uploaded',
+      accessor: 'uploadTimestamp',
+      render: (row: OpenVisit) => (
+        <div className="flex items-center justify-center">
+          <img src={iconSummaryList} className="w-[22px] h-[22px]" />
+          <p className="text-orange-500 ml-1 text-xs truncate">
+            {row.uploadTimestamp}
+          </p>
+        </div>
+      ),
+    },
+  ];
+
+  const isReceived = activeTab === 'Received';
+  const loading = isReceived ? receivedLoading : openVisitsLoading;
+  const error = isReceived ? receivedError : openVisitsError;
+  const emptyMessage = isReceived
+    ? 'No prescriptions found.'
+    : 'No open visits found.';
 
   return (
     <div>
@@ -82,8 +161,8 @@ export const PrescriptionsReceived = () => {
                   <input
                     type="text"
                     placeholder="Find patient"
-                    // value={search}
-                    //onChange={e => setSearch(e.target.value)}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
                     className="w-full sm:w-[247px] h-[37px] border border-gray-300 rounded-lg pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                   />
                 </div>
@@ -119,7 +198,29 @@ export const PrescriptionsReceived = () => {
               </div>
             </div>
 
-            <ReusableGridTable columns={columns} data={patientsData} />
+            {isReceived ? (
+              <ReusableGridTable
+                columns={receivedColumns}
+                data={loading ? [] : filteredReceived}
+              />
+            ) : (
+              <ReusableGridTable
+                columns={openVisitsColumns}
+                data={loading ? [] : filteredOpenVisits}
+              />
+            )}
+            {loading && (
+              <p className="text-center text-gray-400 py-4">Loading...</p>
+            )}
+            {!loading && error && (
+              <p className="text-center text-red-500 py-4">{error}</p>
+            )}
+            {!loading &&
+              !error &&
+              (isReceived ? filteredReceived : filteredOpenVisits).length ===
+                0 && (
+                <p className="text-center text-gray-400 py-4">{emptyMessage}</p>
+              )}
           </div>
         </div>
       </div>

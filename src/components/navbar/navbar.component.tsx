@@ -1,19 +1,18 @@
 import { Link } from 'react-router-dom';
 import iconLocation from '../../assets/icons/icon-location.svg';
 import iconNotification from '../../assets/icons/icon-notification.svg';
-import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import { useProfileContext } from '../../context/ProfileContext';
 import ROUTES from '../../routes/paths';
 import { storage } from '../../utils/storage';
-import { Input } from '../common';
 import PatientSearch from './patient-search/patient-search.component';
 
 const Navbar = () => {
   const { profile } = useProfileContext();
   const locationName =
     storage.getLocationName() || profile?.setupLocation || '';
+
   return (
     <header className="bg-white shadow-md flex flex-col justify-between gap-4 items-center p-4 rounded-lg">
       {/* Desktop */}
@@ -50,10 +49,7 @@ const Navbar = () => {
       </div>
 
       <div className="w-full md:hidden">
-        <Input
-          placeholder="Patient Search"
-          leftIcon={<img src={iconSearch} alt="search" className="w-6 h-6" />}
-        />
+        <PatientSearch />
       </div>
     </header>
   );
