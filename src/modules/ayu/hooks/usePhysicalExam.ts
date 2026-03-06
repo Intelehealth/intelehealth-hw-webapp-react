@@ -6,6 +6,11 @@ import {
   type PhysicalExamAnswers,
   type PhysicalExamOption,
 } from '../data/physical-exam.data';
+import { useAyuJsonList } from './useAyuJson.hook';
+import {
+  parsePhysExamJson,
+  type PhysExamRawRoot,
+} from '../utils/parsePhysExamJson';
 import {
   clearPendingImages,
   addPendingImage,
@@ -30,13 +35,20 @@ export const usePhysicalExam = ({
   onProgressUpdate,
   physicalExamFilter,
 }: SectionProps) => {
+  const ayuList = useAyuJsonList('IDA6');
+  const serverQuestions = useMemo(() => {
+    const item = ayuList.find(i => i.name === 'physExam.json');
+    if (!item) return null;
+    return parsePhysExamJson(item.json as unknown as PhysExamRawRoot);
+  }, [ayuList]);
+
   const baseQuestions = useMemo(
     () =>
       filterPhysicalExamQuestions(
-        PHYSICAL_EXAM_QUESTIONS,
+        serverQuestions ?? PHYSICAL_EXAM_QUESTIONS,
         physicalExamFilter ?? ''
       ),
-    [physicalExamFilter]
+    [physicalExamFilter, serverQuestions]
   );
   const [internalIndex, setInternalIndex] = useState(0);
   const [answers, setAnswers] = useState<PhysicalExamAnswers>({});

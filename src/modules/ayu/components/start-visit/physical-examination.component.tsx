@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import iconCamera from '../../../../assets/icons/icon-camera.svg';
+import { getJobAidUrl } from '../../utils/physExamAssets';
 import type { PhysicalExamQuestion } from '../../data/physical-exam.data';
 import { usePhysicalExam } from '../../hooks/usePhysicalExam';
 import type { SectionProps } from '../../types/start-visit.types';
@@ -81,7 +82,6 @@ const QuestionCard = ({
     ? selectedOptions.includes(cameraOption.id)
     : false;
   const hadCameraSelected = !isActive && isCameraSelected;
-  const showFullBody = isActive || hadCameraSelected;
 
   return (
     <div ref={isActive ? activeRef : null}>
@@ -104,112 +104,93 @@ const QuestionCard = ({
           )}
         </p>
 
-        {/* Answered summary (previous questions WITHOUT camera) */}
-        {!isActive && !hadCameraSelected && selectedOptions.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-3 pb-3">
-            {selectedOptions.map(optionId => {
-              const opt = question.options.find(o => o.id === optionId);
-              return (
-                <span
-                  key={optionId}
-                  className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
-                >
-                  {opt?.text ?? optionId}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Full question body — active OR previous with camera selected */}
-        {showFullBody && (
-          <>
-            {/* Reference images / video placeholder */}
-            {question.jobAidFile && (
+        {question.jobAidFile &&
+          (() => {
+            const assetUrl = getJobAidUrl(question.jobAidFile);
+            if (!assetUrl) return null;
+            return (
               <div className="px-3 pb-2">
                 <p className="text-xs text-gray-500 mb-1">References:</p>
-                <div className="flex gap-2">
-                  {[1, 2, 3].map(i => (
-                    <div
-                      key={i}
-                      className="w-16 h-16 rounded-md bg-gray-200 flex items-center justify-center text-[10px] text-gray-400 text-center leading-tight p-1"
-                    >
-                      {question.jobAidType === 'video' ? '▶ video' : 'img'}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <hr className="mx-3 border-gray-200" />
-
-            <p className="px-3 pt-2 text-xs text-gray-500">
-              {question.isMultiChoice ? 'Select any' : 'Select any one'}
-            </p>
-
-            {/* Option buttons */}
-            <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
-              {regularOptions.map(option => {
-                const isSelected = selectedOptions.includes(option.id);
-                return (
-                  <AyuSelectableOption
-                    key={option.id}
-                    label={option.text}
-                    value={option.id}
-                    selected={isSelected}
-                    leftIcon={getOptionIcon(option.text)}
-                    onClick={() => {
-                      if (isActive) {
-                        onSelectSingle(option.id);
-                      } else if (hadCameraSelected) {
-                        onToggleMulti(option.id);
-                      }
-                    }}
+                {question.jobAidType === 'video' ? (
+                  <video src={assetUrl} controls className="rounded-md" />
+                ) : (
+                  <img
+                    src={assetUrl}
+                    alt={question.categoryLabel}
+                    className="rounded-md"
                   />
-                );
-              })}
-
-              {/* Skip — only for active non-required questions */}
-              {isActive && !question.isRequired && (
-                <AyuSelectableOption
-                  label="Skip"
-                  value="skip"
-                  selected={false}
-                  onClick={onSkip}
-                />
-              )}
-
-              {/* Take a picture */}
-              {cameraOption && (
-                <AyuSelectableOption
-                  label="Take a picture"
-                  value={cameraOption.id}
-                  selected={isCameraSelected}
-                  leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
-                  onClick={() => {
-                    if (isCameraSelected) {
-                      onClearCameraImages();
-                    } else {
-                      onToggleMulti(cameraOption.id);
-                    }
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Image capture area */}
-            {isCameraSelected && (
-              <div className="px-3 pb-3">
-                <PhysicalExamImageCapture
-                  images={cameraImages}
-                  onAdd={onAddCameraImage}
-                  onRemove={onRemoveCameraImage}
-                  onUpload={onUploadImages}
-                  showTick={hadCameraSelected}
-                />
+                )}
               </div>
-            )}
-          </>
+            );
+          })()}
+
+        <hr className="mx-3 border-gray-200" />
+
+        <p className="px-3 pt-2 text-xs text-gray-500">
+          {question.isMultiChoice ? 'Select any' : 'Select any one'}
+        </p>
+
+        {/* Option buttons — always visible */}
+        <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
+          {regularOptions.map(option => {
+            const isSelected = selectedOptions.includes(option.id);
+            return (
+              <AyuSelectableOption
+                key={option.id}
+                label={option.text}
+                value={option.id}
+                selected={isSelected}
+                leftIcon={getOptionIcon(option.text)}
+                onClick={() => {
+                  if (isActive) {
+                    onSelectSingle(option.id);
+                  } else if (hadCameraSelected) {
+                    onToggleMulti(option.id);
+                  }
+                }}
+              />
+            );
+          })}
+
+          {/* Skip — only for active non-required questions */}
+          {isActive && !question.isRequired && (
+            <AyuSelectableOption
+              label="Skip"
+              value="skip"
+              selected={false}
+              onClick={onSkip}
+            />
+          )}
+
+          {/* Take a picture */}
+          {cameraOption && (
+            <AyuSelectableOption
+              label="Take a picture"
+              value={cameraOption.id}
+              selected={isCameraSelected}
+              leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
+              onClick={() => {
+                if (isCameraSelected) {
+                  onClearCameraImages();
+                } else {
+                  onToggleMulti(cameraOption.id);
+                }
+              }}
+            />
+          )}
+        </div>
+
+        {/* Image capture area */}
+        {isCameraSelected && (
+          <div className="px-3 pb-3">
+            <PhysicalExamImageCapture
+              images={cameraImages}
+              onAdd={onAddCameraImage}
+              onRemove={onRemoveCameraImage}
+              onUpload={onUploadImages}
+              showTick={hadCameraSelected}
+            />
+          </div>
         )}
       </QuestionLoader>
     </div>

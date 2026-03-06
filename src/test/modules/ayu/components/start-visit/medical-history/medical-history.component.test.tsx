@@ -16,20 +16,23 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../../../../../../modules/ayu/components/common/ayu-button.component', () => ({
-  default: vi.fn(({ children, onClick, ...props }) => (
+  default: vi.fn(({ children, onClick, leftIcon, ...props }) => (
     <button onClick={onClick} {...props}>
+      {leftIcon}
       {children}
     </button>
   )),
 }));
 
-vi.mock('../../../../../../modules/ayu/components/common/ayu-yes-no-button.component', () => ({
-  AyuYesNoButton: vi.fn(({ value, onChange }) => (
-    <div data-testid="yes-no-button">
-      <button onClick={() => onChange('Yes')}>Yes</button>
-      <button onClick={() => onChange('No')}>No</button>
-      <span data-testid="current-value">{value || 'null'}</span>
-    </div>
+vi.mock('../../../../../../modules/ayu/components/common/ayu-selectable-option.component', () => ({
+  AyuSelectableOption: vi.fn(({ label, value, selected, onClick }) => (
+    <button
+      data-testid={`selectable-${value}`}
+      data-selected={selected}
+      onClick={onClick}
+    >
+      {label}
+    </button>
   )),
 }));
 
@@ -45,8 +48,9 @@ describe('MedicalHistory', () => {
   describe('Rendering', () => {
     it('should render the component with header', () => {
       renderWithRouter(<MedicalHistory />);
-      expect(screen.getByText('8 questions')).toBeInTheDocument();
       expect(screen.getByText("Please provide the patient's family's medical history")).toBeInTheDocument();
+      expect(screen.getByText('Select yes or no')).toBeInTheDocument();
+      expect(screen.getByText('8 questions')).toBeInTheDocument();
     });
 
     it('should render all 8 medical conditions', () => {
@@ -66,40 +70,37 @@ describe('MedicalHistory', () => {
       expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();
     });
 
-    it('should render Yes/No buttons for each condition', () => {
+    it('should render Yes and No buttons for each condition', () => {
       renderWithRouter(<MedicalHistory />);
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      expect(yesNoButtons).toHaveLength(8);
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      const noButtons = screen.getAllByRole('button', { name: /No/i });
+      expect(yesButtons).toHaveLength(8);
+      expect(noButtons).toHaveLength(8);
     });
   });
 
   describe('Yes/No Button Interactions', () => {
-    it('should update condition when Yes is clicked', async () => {
+    it('should show relation options when Yes is clicked on Stroke', async () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const firstYesButton = yesNoButtons[0].querySelector('button:first-child');
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      // Stroke is index 2
+      await user.click(yesButtons[2]);
 
-      if (firstYesButton) {
-        await user.click(firstYesButton);
-      }
-
-      expect(yesNoButtons[0].querySelector('[data-testid="current-value"]')).toHaveTextContent('Yes');
+      expect(screen.getByTestId('selectable-Mother')).toBeInTheDocument();
+      expect(screen.getByTestId('selectable-Father')).toBeInTheDocument();
     });
 
-    it('should update condition when No is clicked', async () => {
+    it('should not show relation fields when No is clicked', async () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const firstNoButton = yesNoButtons[0].querySelectorAll('button')[1];
+      const noButtons = screen.getAllByRole('button', { name: /No/i });
+      // Click No on Stroke
+      await user.click(noButtons[2]);
 
-      if (firstNoButton) {
-        await user.click(firstNoButton);
-      }
-
-      expect(yesNoButtons[0].querySelector('[data-testid="current-value"]')).toHaveTextContent('No');
+      expect(screen.queryByTestId('selectable-Mother')).not.toBeInTheDocument();
     });
   });
 
@@ -108,12 +109,8 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const strokeYesButton = yesNoButtons[2].querySelector('button:first-child');
-
-      if (strokeYesButton) {
-        await user.click(strokeYesButton);
-      }
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[2]);
 
       expect(screen.getByText('Mother')).toBeInTheDocument();
       expect(screen.getByText('Father')).toBeInTheDocument();
@@ -124,12 +121,8 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const cancerYesButton = yesNoButtons[5].querySelector('button:first-child');
-
-      if (cancerYesButton) {
-        await user.click(cancerYesButton);
-      }
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[5]);
 
       expect(screen.getByText('Mother')).toBeInTheDocument();
       expect(screen.getByText('Father')).toBeInTheDocument();
@@ -139,12 +132,8 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const otherYesButton = yesNoButtons[7].querySelector('button:first-child');
-
-      if (otherYesButton) {
-        await user.click(otherYesButton);
-      }
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[7]);
 
       expect(screen.getByText('Mother')).toBeInTheDocument();
       expect(screen.getByText('Father')).toBeInTheDocument();
@@ -154,12 +143,9 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const highBpYesButton = yesNoButtons[0].querySelector('button:first-child');
-
-      if (highBpYesButton) {
-        await user.click(highBpYesButton);
-      }
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      // High blood pressure (index 0) does not need relation
+      await user.click(yesButtons[0]);
 
       const motherButtons = screen.queryAllByText('Mother');
       expect(motherButtons).toHaveLength(0);
@@ -171,11 +157,10 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const strokeYesButton = yesNoButtons[2].querySelector('button:first-child') as HTMLElement;
-      await user.click(strokeYesButton);
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[2]);
 
-      await user.click(screen.getByRole('button', { name: 'Other' }));
+      await user.click(screen.getByTestId('selectable-Other'));
 
       expect(screen.getByText('Describe relation')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Grandfather')).toBeInTheDocument();
@@ -185,11 +170,10 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const strokeYesButton = yesNoButtons[2].querySelector('button:first-child') as HTMLElement;
-      await user.click(strokeYesButton);
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[2]);
 
-      await user.click(screen.getByRole('button', { name: 'Other' }));
+      await user.click(screen.getByTestId('selectable-Other'));
 
       const input = screen.getByPlaceholderText('Grandfather');
       await user.type(input, 'Uncle');
@@ -201,11 +185,10 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const strokeYesButton = yesNoButtons[2].querySelector('button:first-child') as HTMLElement;
-      await user.click(strokeYesButton);
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[2]);
 
-      await user.click(screen.getByRole('button', { name: 'Mother' }));
+      await user.click(screen.getByTestId('selectable-Mother'));
 
       expect(screen.queryByText('Describe relation')).not.toBeInTheDocument();
     });
@@ -216,12 +199,8 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const otherYesButton = yesNoButtons[7].querySelector('button:first-child');
-
-      if (otherYesButton) {
-        await user.click(otherYesButton);
-      }
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[7]);
 
       expect(screen.getByText('Describe illness')).toBeInTheDocument();
     });
@@ -230,11 +209,10 @@ describe('MedicalHistory', () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
-      const yesNoButtons = screen.getAllByTestId('yes-no-button');
-      const otherYesButton = yesNoButtons[7].querySelector('button:first-child') as HTMLElement;
-      await user.click(otherYesButton);
+      const yesButtons = screen.getAllByRole('button', { name: /Yes/i });
+      await user.click(yesButtons[7]);
 
-      await user.click(screen.getByRole('button', { name: 'Other' }));
+      await user.click(screen.getByTestId('selectable-Other'));
 
       const inputs = screen.getAllByPlaceholderText('Grandfather');
       const describeIllnessInput = inputs[1];
@@ -257,24 +235,16 @@ describe('MedicalHistory', () => {
   });
 
   describe('UI Elements', () => {
-    it('should render diamond icon with document SVG', () => {
-      const { container } = renderWithRouter(<MedicalHistory />);
-      const svgElement = container.querySelector('svg');
-      expect(svgElement).toBeInTheDocument();
-      expect(svgElement).toHaveClass('w-4', 'h-4', 'text-white', '-rotate-45');
-    });
-
-    it('should have scrollable container with hidden scrollbar', () => {
-      const { container } = renderWithRouter(<MedicalHistory />);
-      const scrollContainer = container.querySelector('.hide-scrollbar');
-      expect(scrollContainer).toBeInTheDocument();
-      expect(scrollContainer).toHaveClass('overflow-y-auto');
-    });
-
-    it('should render with emerald background for question cards', () => {
+    it('should have emerald background container', () => {
       const { container } = renderWithRouter(<MedicalHistory />);
       const emeraldBg = container.querySelector('.bg-emerald-50');
       expect(emeraldBg).toBeInTheDocument();
+    });
+
+    it('should have rounded-xl container matching associated symptoms style', () => {
+      const { container } = renderWithRouter(<MedicalHistory />);
+      const roundedContainer = container.querySelector('.rounded-xl');
+      expect(roundedContainer).toBeInTheDocument();
     });
   });
 
