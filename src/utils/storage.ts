@@ -43,6 +43,19 @@ export const storage = {
     localStorage.setItem('locationName', name);
   },
 
+  // Basic Auth header management (for EMR Middleware API)
+  getBasicAuthHeader: (): string | null => {
+    return localStorage.getItem('ui_pref_hdr');
+  },
+
+  setBasicAuthHeader: (header: string): void => {
+    localStorage.setItem('ui_pref_hdr', header);
+  },
+
+  clearBasicAuthHeader: (): void => {
+    localStorage.removeItem('ui_pref_hdr');
+  },
+
   // Generic storage helpers
   get: (key: string): string | null => {
     return localStorage.getItem(key);

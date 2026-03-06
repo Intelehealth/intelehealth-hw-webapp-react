@@ -8,8 +8,8 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
-import { PrescriptionsReceived } from './prescriptions-received.component';
 import ROUTES from '../../routes/paths';
+import { PrescriptionsReceived } from './prescriptions-received.component';
 
 // Declare the functional component with an optional prop to help testing
 type DashboardProps = {
@@ -22,6 +22,7 @@ const DashboardComponent = ({
   const [showPrescriptions, setShowPrescriptions] = useState(
     initialShowPrescriptions
   );
+  const [prescriptionCount, setPrescriptionCount] = useState(0);
   const navigate = useNavigate();
 
   return (
@@ -122,7 +123,7 @@ const DashboardComponent = ({
             <img className="w-[34px] h-[34px]" src={iconOPatient} />
           </div>
           <p className="text-[#595959] md:text-[14px] sm:text-[18px]">
-            <span className="font-semibold">0 Patients </span>
+            <span className="font-semibold">{prescriptionCount} Patients </span>
             are waiting their Pending Prescriptions
           </p>
         </div>
@@ -134,7 +135,7 @@ const DashboardComponent = ({
       <div
         className={`${showPrescriptions ? '' : 'hidden md:block'} lg:flex-1 lg:min-h-0 lg:overflow-auto`}
       >
-        <PrescriptionsReceived />
+        <PrescriptionsReceived onCountLoaded={setPrescriptionCount} />
       </div>
     </div>
   );

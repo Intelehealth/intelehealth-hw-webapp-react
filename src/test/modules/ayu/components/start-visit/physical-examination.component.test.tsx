@@ -410,6 +410,25 @@ describe('PhysicalExamination', () => {
       await user.click(screen.getByTestId('option-q1-yes'));
       expect(mockHookReturn.selectAndAdvance).toHaveBeenCalledWith('q1-yes');
     });
+
+    it('should call toggleOption when regular option clicked on previous question with camera', async () => {
+      const user = userEvent.setup();
+      // q1 is previous (index 0), q2 is active (index 1)
+      // q1 has camera selected so full body shows
+      resetHookReturn({
+        internalIndex: 1,
+        currentQuestion: MOCK_QUESTIONS[1],
+        selectedOptionsFor: vi.fn((qId: string) => {
+          if (qId === 'q1') return ['q1-cam'];
+          return [];
+        }),
+      });
+      render(<PhysicalExamination {...defaultProps} />);
+
+      // Click q1's "Yes" option (on the previous/inactive card)
+      await user.click(screen.getByTestId('option-q1-yes'));
+      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q1-yes');
+    });
   });
 
   // ── Back button ────────────────────────────────────────────────────────
@@ -455,12 +474,12 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.removeCameraImage).toHaveBeenCalledWith('q1', 0);
     });
 
-    it('should handle onUploadImages (no-op TODO)', async () => {
+    it('should call goNext when upload button is clicked', async () => {
       const user = userEvent.setup();
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Should not throw
       await user.click(screen.getByTestId('capture-upload'));
+      expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);
     });
   });
 

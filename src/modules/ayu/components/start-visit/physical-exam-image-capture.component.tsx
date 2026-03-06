@@ -10,6 +10,7 @@ interface PhysicalExamImageCaptureProps {
   onAdd: (file: File) => void;
   onRemove: (index: number) => void;
   onUpload: () => void;
+  showTick?: boolean;
 }
 
 export const PhysicalExamImageCapture = ({
@@ -17,6 +18,7 @@ export const PhysicalExamImageCapture = ({
   onAdd,
   onRemove,
   onUpload,
+  showTick = false,
 }: PhysicalExamImageCaptureProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -73,9 +75,26 @@ export const PhysicalExamImageCapture = ({
           </div>
 
           {/* Upload button */}
-          <div className="flex justify-end">
+          <div className="flex justify-center">
             <AyuButton variant="primary" size="sm" onClick={onUpload}>
-              Upload ({images.length})
+              Upload
+              {showTick && (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  className="ml-1 inline"
+                >
+                  <path
+                    d="M2 7l3.5 3.5L12 3.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </AyuButton>
           </div>
         </div>

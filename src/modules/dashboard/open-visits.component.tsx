@@ -2,42 +2,51 @@ import { useState } from 'react';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
-import { type Patient, patientsData } from '../../assets/data/patients.data';
 import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
-import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import { useOpenVisits } from '../../hooks/useOpenVisits';
+import type { OpenVisit } from '../../services/patient.service';
 
 interface Column {
   header: string;
-  accessor: keyof Patient;
-  render?: (row: Patient) => React.ReactNode;
+  accessor: keyof OpenVisit;
+  render?: (row: OpenVisit) => React.ReactNode;
 }
+
 export const OpenVisitsComponent = () => {
-  const [activeTab, setActiveTab] = useState('unclosed');
+  const [search, setSearch] = useState('');
+  const { data, loading, error } = useOpenVisits();
+
+  const filtered = data.filter(p =>
+    p.patientName.toLowerCase().includes(search.toLowerCase())
+  );
+
   const columns: Column[] = [
     {
       header: 'Patient',
-      accessor: 'name',
-      render: (row: Patient) => (
+      accessor: 'patientName',
+      render: (row: OpenVisit) => (
         <div className="flex items-center gap-3">
-          <img src={iconPatientImage} className="w-[32px] h-[32px]" />
-          <p className="font-semibold text-gray-800">{row.name}</p>
+          <img src={iconPatientImage} alt="" className="w-[32px] h-[32px]" />
+          <p className="font-semibold text-gray-800">{row.patientName}</p>
         </div>
       ),
     },
     { header: 'Age', accessor: 'age' },
-    { header: 'Visit created', accessor: 'date' },
-    { header: 'Clinic', accessor: 'clinic' },
-    { header: 'Chief complaint', accessor: 'complaint' },
+    { header: 'Visit created', accessor: 'visitCreatedDate' },
+    { header: 'Clinic', accessor: 'clinicName' },
+    { header: 'Gender', accessor: 'gender' },
     {
-      header: 'Status',
-      accessor: 'time',
-      render: (row: Patient) => (
+      header: 'Uploaded',
+      accessor: 'uploadTimestamp',
+      render: (row: OpenVisit) => (
         <div className="flex items-center justify-center">
-          <img src={iconSummaryList} className="w-[22px] h-[22px]" />
-          <p className="text-orange-600 ml-1">{row.time}</p>
+          <img src={iconSummaryList} alt="" className="w-[22px] h-[22px]" />
+          <p className="text-orange-500 ml-1 text-xs truncate">
+            {row.uploadTimestamp}
+          </p>
         </div>
       ),
     },
@@ -58,6 +67,7 @@ export const OpenVisitsComponent = () => {
                   <img
                     className="w-[34px] h-[34px]"
                     src={iconsvioletFieldAppiontmentDetails}
+                    alt=""
                   />
                 </div>
                 <h2 className="font-semibold lg:text-[14px] sm:text-[18px]">
@@ -82,44 +92,29 @@ export const OpenVisitsComponent = () => {
                   <input
                     type="text"
                     placeholder="Find patient"
-                    // value={search}
-                    //onChange={e => setSearch(e.target.value)}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
                     className="w-full sm:w-[247px] h-[37px] border border-gray-300 rounded-lg pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="px-2 py-0.5">
-              <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
-                <button
-                  onClick={() => setActiveTab('unclosed')}
-                  className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'unclosed'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
-                  }`}
-                >
-                  <img src={iconPatientRecevied} />
-                  Unclosed
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('closed')}
-                  className={`p-3 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'closed'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
-                  }`}
-                >
-                  <img src={iconPatientRecevied} />
-                  Closed
-                </button>
-              </div>
-            </div>
-
-            <ReusableGridTable columns={columns} data={patientsData} />
+            <ReusableGridTable
+              columns={columns}
+              data={loading ? [] : filtered}
+            />
+            {loading && (
+              <p className="text-center text-gray-400 py-4">Loading...</p>
+            )}
+            {!loading && error && (
+              <p className="text-center text-red-500 py-4">{error}</p>
+            )}
+            {!loading && !error && filtered.length === 0 && (
+              <p className="text-center text-gray-400 py-4">
+                No open visits found.
+              </p>
+            )}
           </div>
         </div>
       </div>

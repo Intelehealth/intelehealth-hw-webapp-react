@@ -60,6 +60,7 @@ class MindmapService extends HttpService {
         // Auto logout on 401
         if (error.response?.status === 401) {
           storage.clearAuthToken();
+          storage.clearBasicAuthHeader();
           window.location.href = '/auth/login';
         }
         return Promise.reject(error);

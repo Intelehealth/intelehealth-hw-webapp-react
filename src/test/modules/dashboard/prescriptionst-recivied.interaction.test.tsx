@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+
+vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
+  usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
+
+vi.mock('../../../hooks/useOpenVisits', () => ({
+  useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
 
 describe('PrescriptionsReceived interactions', () => {
   it('toggles Received and Pendings tabs and applies active classes', () => {
