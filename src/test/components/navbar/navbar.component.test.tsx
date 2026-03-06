@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from '../../../components/navbar/navbar.component';
@@ -10,13 +10,6 @@ vi.mock('../../../context/ProfileContext', () => ({
     profile: mockProfile,
     locations: [],
   }),
-}));
-
-const mockGetRecentPatients = vi.fn();
-vi.mock('../../../services/patient.service', () => ({
-  patientService: {
-    getRecentPatients: (...args: unknown[]) => mockGetRecentPatients(...args),
-  },
 }));
 
 // Helper function to render with router
@@ -203,93 +196,40 @@ describe('Navbar', () => {
     expect(userAvatar.src).toBe(originalSrc);
   });
 
-  it('fetches recent patients when modal opens and hwId is available', async () => {
-    mockProfile.id = 'hw-test-id';
-    const mockPatients = [
-      { visitUuid: 'v-1', patientName: 'John Doe', gender: 'M', age: 30, visitCreatedDate: '2025-01-01', clinicName: 'Clinic A', uploadTimestamp: '1h' },
-    ];
-    mockGetRecentPatients.mockResolvedValue(mockPatients);
-
+  it('sets aria-expanded true on search input focus', () => {
     renderWithRouter(<Navbar />);
 
-    // Focus search input to trigger setSearchModalOpen(true)
     const searchInputs = screen.getAllByPlaceholderText('Patient Search');
     fireEvent.focus(searchInputs[0]);
 
-    await waitFor(() => {
-      expect(mockGetRecentPatients).toHaveBeenCalledWith('hw-test-id');
-    });
+    expect(searchInputs[0]).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('sets error state when getRecentPatients fails', async () => {
-    mockProfile.id = 'hw-test-id';
-    mockGetRecentPatients.mockRejectedValue(new Error('Network error'));
-
+  it('does not show dropdown when search term is empty', () => {
     renderWithRouter(<Navbar />);
 
     const searchInputs = screen.getAllByPlaceholderText('Patient Search');
     fireEvent.focus(searchInputs[0]);
 
-    await waitFor(() => {
-      expect(mockGetRecentPatients).toHaveBeenCalledWith('hw-test-id');
-    });
+    // No dropdown (listbox) should appear without a search term
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
-  it('does not fetch patients when hwId is not available', () => {
-    // mockProfile.id is undefined (default from beforeEach)
+  it('allows typing in the search input', () => {
     renderWithRouter(<Navbar />);
 
     const searchInputs = screen.getAllByPlaceholderText('Patient Search');
-    fireEvent.focus(searchInputs[0]);
-
-    expect(mockGetRecentPatients).not.toHaveBeenCalled();
-  });
-
-  it('filters patients on search input change', async () => {
-    mockProfile.id = 'hw-test-id';
-    const mockPatients = [
-      { visitUuid: 'v-1', patientName: 'Alice Smith', gender: 'F', age: 25, visitCreatedDate: '2025-01-01', clinicName: 'Clinic A', uploadTimestamp: '1h' },
-      { visitUuid: 'v-2', patientName: 'Bob Jones', gender: 'M', age: 35, visitCreatedDate: '2025-01-02', clinicName: 'Clinic B', uploadTimestamp: '2h' },
-    ];
-    mockGetRecentPatients.mockResolvedValue(mockPatients);
-
-    renderWithRouter(<Navbar />);
-
-    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
-    fireEvent.focus(searchInputs[0]);
-
-    await waitFor(() => {
-      expect(mockGetRecentPatients).toHaveBeenCalled();
-    });
-
-    // Type to filter
     fireEvent.change(searchInputs[0], { target: { value: 'alice' } });
-    // Filter logic runs without error
-    expect(searchInputs[0]).toBeInTheDocument();
+
+    expect(searchInputs[0]).toHaveValue('alice');
   });
 
-  it('closes modal when patient is selected', async () => {
-    mockProfile.id = 'hw-test-id';
-    const mockPatients = [
-      { visitUuid: 'v-1', patientName: 'Carol White', gender: 'F', age: 28, visitCreatedDate: '2025-01-01', clinicName: 'Clinic C', uploadTimestamp: '1h' },
-    ];
-    mockGetRecentPatients.mockResolvedValue(mockPatients);
-
+  it('renders search input with combobox role and ARIA attributes', () => {
     renderWithRouter(<Navbar />);
 
-    const searchInputs = screen.getAllByPlaceholderText('Patient Search');
-    fireEvent.focus(searchInputs[0]);
-
-    await waitFor(() => {
-      expect(screen.getByText('Carol White')).toBeInTheDocument();
-    });
-
-    // Click patient to trigger handlePatientSelect
-    fireEvent.click(screen.getByText('Carol White'));
-
-    // Modal should close after selection
-    await waitFor(() => {
-      expect(screen.queryByText('Carol White')).not.toBeInTheDocument();
-    });
+    const comboboxes = screen.getAllByRole('combobox');
+    expect(comboboxes.length).toBeGreaterThanOrEqual(1);
+    expect(comboboxes[0]).toHaveAttribute('aria-autocomplete', 'list');
+    expect(comboboxes[0]).toHaveAttribute('aria-controls', 'patient-search-list');
   });
 });

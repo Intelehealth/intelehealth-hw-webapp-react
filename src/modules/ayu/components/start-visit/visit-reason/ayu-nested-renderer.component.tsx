@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
+import { collectDescendantLinkIds } from '../../../utils/question.utils';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import '../../common/selectable-option.css';
 import { AyuRenderer } from './ayu-renderer.component';
@@ -9,6 +10,7 @@ interface NestedProps {
   parentQuestion?: AyuQuestion;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
+  clearAnswers?: (linkIds: string[]) => void;
   selectable?: boolean;
 }
 
@@ -17,9 +19,28 @@ export const AyuNestedRenderer = ({
   parentQuestion,
   answers,
   setAnswer,
+  clearAnswers,
   selectable = false,
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+
+  // Reset selected option when the parent answer changes (different children become visible)
+  const parentAnswer = parentQuestion
+    ? answers[parentQuestion.linkId]
+    : undefined;
+  useEffect(() => {
+    setSelectedOption(null);
+  }, [parentAnswer]);
+
+  // Clear answers for a selectable option and all its nested descendants
+  const clearNestedAnswers = (item: AyuQuestion) => {
+    const linkIds = [item.linkId, ...collectDescendantLinkIds(item)].filter(
+      id => answers[id] !== undefined
+    );
+    if (linkIds.length && clearAnswers) {
+      clearAnswers(linkIds);
+    }
+  };
 
   // Check if a choice question has answerOption → item mapping
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
@@ -56,6 +77,7 @@ export const AyuNestedRenderer = ({
               items={nestedItem.item}
               answers={answers}
               setAnswer={setAnswer}
+              clearAnswers={clearAnswers}
               selectable={true}
             />
           )}
@@ -132,11 +154,22 @@ export const AyuNestedRenderer = ({
                         label={item.text}
                         value={item.linkId}
                         selected={selectedOption === item.linkId}
-                        onClick={() =>
-                          setSelectedOption(
-                            selectedOption === item.linkId ? null : item.linkId
-                          )
-                        }
+                        onClick={() => {
+                          if (selectedOption === item.linkId) {
+                            // Deselecting current option — clear its nested answers
+                            clearNestedAnswers(item);
+                            setSelectedOption(null);
+                          } else {
+                            // Switching to a new option — clear previous option's nested answers
+                            if (selectedOption) {
+                              const prevItem = children.find(
+                                c => c.linkId === selectedOption
+                              );
+                              if (prevItem) clearNestedAnswers(prevItem);
+                            }
+                            setSelectedOption(item.linkId);
+                          }
+                        }}
                       />
                     )
                 )}
@@ -186,6 +219,7 @@ export const AyuNestedRenderer = ({
                               items={child.item}
                               answers={answers}
                               setAnswer={setAnswer}
+                              clearAnswers={clearAnswers}
                               selectable={selectable}
                             />
                           )}
@@ -221,6 +255,7 @@ export const AyuNestedRenderer = ({
                           items={child.item}
                           answers={answers}
                           setAnswer={setAnswer}
+                          clearAnswers={clearAnswers}
                           selectable={true}
                         />
                       )}

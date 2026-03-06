@@ -7,6 +7,7 @@ import type {
   DurationAnswer,
   FhirQuestionnaire,
 } from '../types/ayu.types';
+import { clearHiddenDescendantAnswers } from '../utils/question.utils';
 import { buildVisitSummary } from '../utils/visit-summary.util';
 
 interface UseFHIRStepperProps {
@@ -27,6 +28,7 @@ interface UseFHIRStepperReturn {
   total: number;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
+  clearAnswers: (linkIds: string[]) => void;
   goNext: () => void;
   topLevelItems: AyuQuestion[];
   isLast: boolean;
@@ -107,6 +109,16 @@ export const useFHIRStepper = (
     });
   };
 
+  const clearAnswers = (linkIds: string[]) => {
+    setAnswers(prev => {
+      const updated = { ...prev };
+      for (const id of linkIds) {
+        delete updated[id];
+      }
+      return updated;
+    });
+  };
+
   const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {
     const linkId = question.linkId;
 
@@ -161,6 +173,11 @@ export const useFHIRStepper = (
         ...prev,
         [linkId]: finalValue,
       };
+
+      // When a parent answer changes, clear answers for children that are no longer visible
+      if (question.item?.length) {
+        clearHiddenDescendantAnswers(question.item, updated);
+      }
 
       if (!autoNext || !currentQuestion) return updated;
 
@@ -329,6 +346,7 @@ export const useFHIRStepper = (
     total: structuralTotal,
     answers,
     setAnswer,
+    clearAnswers,
     goNext,
     topLevelItems,
     isLast: currentIndex === structuralTotal - 1,

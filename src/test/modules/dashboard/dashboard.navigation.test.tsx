@@ -42,4 +42,24 @@ describe('DashboardComponent navigation', () => {
     if (openVisitsCard) fireEvent.click(openVisitsCard);
     expect(navigateMock).toHaveBeenCalledWith(ROUTES.OPEN_VISITS);
   });
+
+  it('navigates to add patient when desktop Add Patients button is clicked', () => {
+    render(<DashboardComponent />);
+    const desktopAddBtn = screen.getAllByText('Add Patients')
+      .map(el => el.closest('button'))
+      .find(btn => btn?.classList.contains('md:flex'));
+    expect(desktopAddBtn).toBeTruthy();
+    if (desktopAddBtn) fireEvent.click(desktopAddBtn);
+    expect(navigateMock).toHaveBeenCalledWith(
+      ROUTES.PATIENT.BASE + '/' + ROUTES.PATIENT.ADD_PATIENT
+    );
+  });
+
+  it('hides mobile back button and shows it when showPrescriptions is true', () => {
+    render(<DashboardComponent initialShowPrescriptions={true} />);
+    const backButton = screen.getByText('← Prescriptions');
+    expect(backButton).toBeInTheDocument();
+    fireEvent.click(backButton);
+    expect(screen.queryByText('← Prescriptions')).not.toBeInTheDocument();
+  });
 });

@@ -33,6 +33,7 @@ vi.mock('../../../../../../modules/ayu/components/common/ayu-selectable-option.c
 
 describe('AyuNestedRenderer', () => {
   const mockSetAnswer = vi.fn();
+  const mockClearAnswers = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1382,6 +1383,146 @@ describe('AyuNestedRenderer', () => {
 
       // With undefined code, the empty string fallback in linkId.startsWith is used
       expect(screen.getByTestId('renderer-choice-parent')).toBeInTheDocument();
+    });
+  });
+
+  describe('Clearing Nested Answers on Option Switch', () => {
+    it('should call clearAnswers when switching between selectable options', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'option-a',
+          text: 'Option A',
+          type: 'choice',
+          item: [
+            { linkId: 'a-child', text: 'A Child', type: 'string' },
+          ],
+        },
+        {
+          linkId: 'option-b',
+          text: 'Option B',
+          type: 'choice',
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'option-a': 'val', 'a-child': 'some value' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      // Select option A first
+      await user.click(screen.getByTestId('selectable-option-a'));
+      // Now switch to option B — should clear option A's answers
+      await user.click(screen.getByTestId('selectable-option-b'));
+
+      expect(mockClearAnswers).toHaveBeenCalledWith(
+        expect.arrayContaining(['option-a', 'a-child'])
+      );
+    });
+
+    it('should call clearAnswers when deselecting current option', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'option-a',
+          text: 'Option A',
+          type: 'choice',
+          item: [
+            { linkId: 'a-child', text: 'A Child', type: 'string' },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'option-a': 'val', 'a-child': 'some value' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      // Select then deselect
+      await user.click(screen.getByTestId('selectable-option-a'));
+      await user.click(screen.getByTestId('selectable-option-a'));
+
+      expect(mockClearAnswers).toHaveBeenCalledWith(
+        expect.arrayContaining(['option-a', 'a-child'])
+      );
+    });
+
+    it('should not call clearAnswers when no previous option was selected', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'option-a', text: 'Option A', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      await user.click(screen.getByTestId('selectable-option-a'));
+      // clearAnswers should not be called since no previous option had answers
+      expect(mockClearAnswers).not.toHaveBeenCalled();
+    });
+
+    it('should reset selectedOption when parent answer changes', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'child-yes',
+          text: 'Yes Child',
+          type: 'choice',
+          enableWhen: [{ question: 'parent', operator: '=', answerString: 'yes' }],
+        },
+      ];
+
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent',
+        text: 'Parent',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+      };
+
+      const { rerender } = render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      // Rerender with different parent answer
+      rerender(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ parent: 'no' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      // The child should not be rendered since enableWhen doesn't match
+      expect(screen.queryByTestId('selectable-child-yes')).not.toBeInTheDocument();
     });
   });
 

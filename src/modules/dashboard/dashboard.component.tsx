@@ -83,14 +83,14 @@ const DashboardComponent = ({
         <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
           <DashboardCard
             title="Appointments"
-            subtitle="<strong>4</strong> Upcoming"
+            subtitle="<strong>0</strong> Upcoming"
             bg="bg-white"
             iconBg="bg-purple-200"
             icon={iconCalenderBlue}
           />
           <DashboardCard
             title="Follow-up visits"
-            subtitle="<strong>12</strong> Pending"
+            subtitle="<strong>0</strong> Pending"
             bg="bg-white"
             iconBg="bg-purple-200"
             icon={iconSummeryList}
@@ -107,7 +107,12 @@ const DashboardComponent = ({
       >
         {/* Add Patients Button - desktop only */}
 
-        <button className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96">
+        <button
+          className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96 cursor-pointer"
+          onClick={() =>
+            navigate(ROUTES.PATIENT.BASE + '/' + ROUTES.PATIENT.ADD_PATIENT)
+          }
+        >
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center rounded-full bg-white/20">
               <img src={iconAddPatient} className="w-[34px] h-[34px]" />
