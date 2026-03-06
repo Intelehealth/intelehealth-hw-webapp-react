@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { HashRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Patient } from '../../../../components/navbar/patient-search/patient-search.hook';
 import PatientSearch from '../../../../components/navbar/patient-search/patient-search.component';
 
 const mockNavigate = vi.fn();
@@ -13,55 +13,40 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock ProfileContext so component renders without a real provider
-vi.mock('../../../../context/ProfileContext', () => ({
-  useProfileContext: () => ({
-    profile: { id: 'hw-001' },
-  }),
-}));
-
-const mockGetRecentPatients = vi.fn();
-
-vi.mock('../../../../services/patient.service', () => ({
-  patientService: {
-    getRecentPatients: (...args: unknown[]) => mockGetRecentPatients(...args),
-  },
-}));
-
-const mockRecentPatients = [
+const mockPatients: Patient[] = [
   {
-    visitUuid: 'v-1',
-    patientName: 'Alice Smith',
-    gender: 'F',
-    age: 30,
-    visitCreatedDate: '2025-01-01',
-    clinicName: 'Clinic A',
-    uploadTimestamp: '1h',
+    uuid: 'p-1',
+    identifiers: [{ identifier: 'OP-001', identifierType: { name: 'OpenMRS ID' } }],
+    person: { display: 'Alice Smith', gender: 'F', age: 30, attributes: [] },
+  },
+  {
+    uuid: 'p-2',
+    identifiers: [{ identifier: 'OP-002', identifierType: { name: 'OpenMRS ID' } }],
+    person: { display: 'Bob Jones', gender: 'M', age: 45, attributes: [] },
   },
 ];
+
+const mockUsePatientSearch = vi.fn((_searchTerm: string) => ({
+  patients: [] as Patient[],
+  loading: false,
+}));
 
 vi.mock(
   '../../../../components/navbar/patient-search/patient-search.hook',
   () => ({
-    usePatientSearch: () => ({
-      patients: [],
-      loading: false,
-    }),
+    usePatientSearch: (searchTerm: string) => mockUsePatientSearch(searchTerm),
   })
 );
 
 const renderComponent = () =>
   render(
-    <HashRouter>
-      <PatientSearch />
-    </HashRouter>
+    <PatientSearch />
   );
 
 describe('PatientSearch', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    mockGetRecentPatients.mockClear();
-    mockGetRecentPatients.mockResolvedValue([]);
+    mockUsePatientSearch.mockReturnValue({ patients: [], loading: false });
   });
 
   it('should render search input with placeholder', () => {
@@ -86,70 +71,161 @@ describe('PatientSearch', () => {
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('should not show modal initially', () => {
-    renderComponent();
-    expect(screen.queryByText('Patient Search')).not.toBeInTheDocument();
-  });
-
-  it('should open modal on input focus', () => {
-    renderComponent();
-    fireEvent.focus(screen.getByRole('combobox'));
-    expect(screen.getByText('Patient Search')).toBeInTheDocument();
-  });
-
-  it('should have aria-expanded true when modal is open', () => {
+  it('should set aria-expanded true on focus', () => {
     renderComponent();
     const input = screen.getByRole('combobox');
     fireEvent.focus(input);
     expect(input).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('should fetch recent patients when modal opens with a hwId', async () => {
-    mockGetRecentPatients.mockResolvedValue(mockRecentPatients);
+  it('should not show dropdown when search term is empty', () => {
     renderComponent();
     fireEvent.focus(screen.getByRole('combobox'));
-    await waitFor(() => {
-      expect(mockGetRecentPatients).toHaveBeenCalledWith('hw-001');
-    });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
-  it('should display recent patients inside the modal', async () => {
-    mockGetRecentPatients.mockResolvedValue(mockRecentPatients);
+  it('should show dropdown when typing a search term', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: [], loading: false });
     renderComponent();
-    fireEvent.focus(screen.getByRole('combobox'));
-    await waitFor(() => {
-      expect(screen.getByText('Alice Smith')).toBeInTheDocument();
-    });
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 
-  it('should close modal when close button is clicked', () => {
+  it('should display "No results found" when no patients match', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: [], loading: false });
     renderComponent();
-    fireEvent.focus(screen.getByRole('combobox'));
-    expect(screen.getByText('Patient Search')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('✕'));
-    expect(screen.queryByText('Patient Search')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'xyz' } });
+    expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 
-  it('should navigate and close modal when a patient is selected', async () => {
-    mockGetRecentPatients.mockResolvedValue(mockRecentPatients);
+  it('should display "Searching..." when loading', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: [], loading: true });
     renderComponent();
-    fireEvent.focus(screen.getByRole('combobox'));
-    await waitFor(() => screen.getByText('Alice Smith'));
-    fireEvent.click(screen.getByText('Alice Smith'));
-    expect(mockNavigate).toHaveBeenCalledWith('/visit/v-1');
-    expect(screen.queryByText('Patient Search')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ali' } });
+    expect(screen.getByText('Searching...')).toBeInTheDocument();
   });
 
-  it('should not fetch recent patients again if already fetched', async () => {
-    mockGetRecentPatients.mockResolvedValue(mockRecentPatients);
+  it('should display patient results in dropdown', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
     renderComponent();
-    // Open modal
-    fireEvent.focus(screen.getByRole('combobox'));
-    await waitFor(() => expect(mockGetRecentPatients).toHaveBeenCalledTimes(1));
-    // Close and reopen
-    fireEvent.click(screen.getByText('✕'));
-    fireEvent.focus(screen.getByRole('combobox'));
-    // Should not fetch again since recentPatients.length > 0
-    expect(mockGetRecentPatients).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ali' } });
+    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/Bob Jones/)).toBeInTheDocument();
+  });
+
+  it('should show result count in dropdown', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ali' } });
+    expect(screen.getByText('Patients (2 results)')).toBeInTheDocument();
+  });
+
+  it('should navigate to patient page on selection', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ali' } });
+    fireEvent.click(screen.getByText(/Alice Smith/));
+    expect(mockNavigate).toHaveBeenCalledWith('/patient/p-1');
+  });
+
+  it('should clear search term and hide dropdown after selection', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    fireEvent.click(screen.getByText(/Alice Smith/));
+    expect(input).toHaveValue('');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('should close dropdown on Escape key', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('should navigate active index with ArrowDown and ArrowUp', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+
+    // ArrowDown selects first item
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    const options = screen.getAllByRole('option');
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+
+    // ArrowDown again selects second item
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+    expect(options[0]).toHaveAttribute('aria-selected', 'false');
+
+    // ArrowUp goes back to first
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('should select patient on Enter when active index is set', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockNavigate).toHaveBeenCalledWith('/patient/p-1');
+  });
+
+  it('should not navigate on Enter when no active index', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should close dropdown when clicking outside', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    // Simulate clicking outside
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('should wrap around when ArrowDown at last item', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+
+    // Go to last item then press ArrowDown
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // index 0
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // index 1
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // wraps to 0
+
+    const options = screen.getAllByRole('option');
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('should wrap around when ArrowUp at first item', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ali' } });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // index 0
+    fireEvent.keyDown(input, { key: 'ArrowUp' });    // wraps to last
+
+    const options = screen.getAllByRole('option');
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
   });
 });

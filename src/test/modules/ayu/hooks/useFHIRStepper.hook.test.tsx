@@ -3341,4 +3341,236 @@ describe('useFHIRStepper', () => {
       mockBuildVisitSummary.mockReturnValue([]);
     });
   });
+
+  describe('clearAnswers', () => {
+    it('should delete specified linkIds from answers', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      // First set some answers
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+
+      expect(result.current.answers.q1).toBe('answer1');
+
+      act(() => {
+        result.current.clearAnswers(['q1']);
+      });
+
+      expect(result.current.answers.q1).toBeUndefined();
+    });
+
+    it('should delete multiple linkIds at once', () => {
+      const multiQuestionnaire = {
+        item: [
+          { linkId: 'q1', text: 'Q1', type: 'string' },
+          { linkId: 'q2', text: 'Q2', type: 'string' },
+          { linkId: 'q3', text: 'Q3', type: 'string' },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: multiQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'a');
+        result.current.setAnswer(result.current.topLevelItems[1], 'b');
+        result.current.setAnswer(result.current.topLevelItems[2], 'c');
+      });
+
+      act(() => {
+        result.current.clearAnswers(['q1', 'q3']);
+      });
+
+      expect(result.current.answers.q1).toBeUndefined();
+      expect(result.current.answers.q2).toBe('b');
+      expect(result.current.answers.q3).toBeUndefined();
+    });
+
+    it('should handle clearing non-existent linkIds gracefully', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      act(() => {
+        result.current.clearAnswers(['nonexistent']);
+      });
+
+      expect(result.current.answers.nonexistent).toBeUndefined();
+    });
+  });
+
+  describe('clearHiddenDescendantAnswers on parent answer change', () => {
+    it('should clear hidden child answers when parent answer changes', () => {
+      const questionnaire = {
+        item: [
+          {
+            linkId: 'smoke',
+            text: 'Do you smoke?',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+              { valueCoding: { code: 'no', display: 'No' } },
+              { valueCoding: { code: 'ex', display: 'Ex-smoker' } },
+            ],
+            item: [
+              {
+                linkId: 'how-many',
+                text: 'How many per day?',
+                type: 'string',
+                enableWhen: [{ question: 'smoke', operator: '=', answerCoding: { code: 'yes' } }],
+              },
+              {
+                linkId: 'since-when',
+                text: 'Since when?',
+                type: 'quantity',
+                enableWhen: [{ question: 'smoke', operator: '=', answerCoding: { code: 'yes' } }],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire, autoNext: false })
+      );
+
+      const smokeQ = result.current.topLevelItems[0];
+
+      // Select "yes" and fill in child answers
+      act(() => {
+        result.current.setAnswer(smokeQ, 'yes');
+      });
+
+      // Manually set child answers
+      act(() => {
+        result.current.setAnswer(
+          { linkId: 'how-many', text: 'How many per day?', type: 'string' },
+          '5'
+        );
+      });
+      act(() => {
+        result.current.setAnswer(
+          { linkId: 'since-when', text: 'Since when?', type: 'quantity' },
+          { dropdownValues: { number: '10', days: 'Years' } }
+        );
+      });
+
+      expect(result.current.answers['how-many']).toBe('5');
+      expect(result.current.answers['since-when']).toEqual({ dropdownValues: { number: '10', days: 'Years' } });
+
+      // Now switch to "ex-smoker"
+      act(() => {
+        result.current.setAnswer(smokeQ, 'ex');
+      });
+
+      // Child answers should be cleared
+      expect(result.current.answers['how-many']).toBeUndefined();
+      expect(result.current.answers['since-when']).toBeUndefined();
+      expect(result.current.answers.smoke).toBe('ex');
+    });
+
+    it('should clear deeply nested descendants when parent becomes hidden', () => {
+      const questionnaire = {
+        item: [
+          {
+            linkId: 'parent',
+            text: 'Parent',
+            type: 'choice',
+            item: [
+              {
+                linkId: 'child',
+                text: 'Child',
+                type: 'choice',
+                enableWhen: [{ question: 'parent', operator: '=', answerString: 'yes' }],
+                item: [
+                  { linkId: 'grandchild', text: 'Grandchild', type: 'string' },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire, autoNext: false })
+      );
+
+      const parentQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(parentQ, 'yes');
+      });
+      act(() => {
+        result.current.setAnswer({ linkId: 'child', text: 'Child', type: 'choice' }, 'val');
+      });
+      act(() => {
+        result.current.setAnswer({ linkId: 'grandchild', text: 'Grandchild', type: 'string' }, 'deep val');
+      });
+
+      expect(result.current.answers.child).toBe('val');
+      expect(result.current.answers.grandchild).toBe('deep val');
+
+      // Change parent answer
+      act(() => {
+        result.current.setAnswer(parentQ, 'no');
+      });
+
+      expect(result.current.answers.child).toBeUndefined();
+      expect(result.current.answers.grandchild).toBeUndefined();
+    });
+
+    it('should preserve visible sibling answers when only one child becomes hidden', () => {
+      const questionnaire = {
+        item: [
+          {
+            linkId: 'parent',
+            text: 'Parent',
+            type: 'choice',
+            item: [
+              {
+                linkId: 'yes-child',
+                text: 'Yes Child',
+                type: 'string',
+                enableWhen: [{ question: 'parent', operator: '=', answerCoding: { code: 'yes' } }],
+              },
+              {
+                linkId: 'always-child',
+                text: 'Always Visible',
+                type: 'string',
+                // No enableWhen — always visible
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire, autoNext: false })
+      );
+
+      const parentQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(parentQ, 'yes');
+      });
+      act(() => {
+        result.current.setAnswer({ linkId: 'yes-child', text: 'Yes Child', type: 'string' }, 'val1');
+      });
+      act(() => {
+        result.current.setAnswer({ linkId: 'always-child', text: 'Always Visible', type: 'string' }, 'val2');
+      });
+
+      // Switch parent to 'no'
+      act(() => {
+        result.current.setAnswer(parentQ, 'no');
+      });
+
+      expect(result.current.answers['yes-child']).toBeUndefined();
+      expect(result.current.answers['always-child']).toBe('val2');
+    });
+  });
 });

@@ -28,6 +28,7 @@ export const AyuStepperContainer = ({
     total,
     answers,
     setAnswer,
+    clearAnswers,
     goNext,
     topLevelItems,
     isLast,
@@ -172,6 +173,7 @@ export const AyuStepperContainer = ({
                         parentQuestion={question}
                         answers={answers}
                         setAnswer={setAnswer}
+                        clearAnswers={clearAnswers}
                       />
                     )}
                   {/* ACTION BUTTONS */}
