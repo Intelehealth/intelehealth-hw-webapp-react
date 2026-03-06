@@ -145,7 +145,8 @@ describe('PhysicalExamImageCapture', () => {
       );
 
       await user.click(screen.getByText('Upload'));
-      expect(onUpload).toHaveBeenCalledTimes(1);
+      // handleUpload uses setTimeout(800) before calling onUpload
+      await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1), { timeout: 2000 });
     });
 
     it('should show tick icon on upload button when showTick is true', () => {
