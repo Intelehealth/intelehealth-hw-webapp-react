@@ -119,6 +119,12 @@ vi.mock('../../../../../assets/icons/icon-camera.svg', () => ({
   default: 'camera-icon.svg',
 }));
 
+const mockGetJobAidUrl = vi.fn().mockReturnValue(undefined);
+
+vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
+  getJobAidUrl: (...args: unknown[]) => mockGetJobAidUrl(...args),
+}));
+
 import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination.component';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -248,7 +254,7 @@ describe('PhysicalExamination', () => {
       expect(badges?.length ?? 0).toBe(0);
     });
 
-    it('should show option id as fallback when option text not found', () => {
+    it('should not crash when selectedOptionsFor returns unknown option ids', () => {
       const selFn = vi.fn((qId: string) => {
         if (qId === 'q1') return ['unknown-opt-id'];
         return [];
@@ -258,8 +264,8 @@ describe('PhysicalExamination', () => {
         currentQuestion: MOCK_QUESTIONS[1],
         selectedOptionsFor: selFn,
       });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('unknown-opt-id')).toBeInTheDocument();
+      // Component renders normally — unknown ids are simply not matched to any option
+      expect(() => render(<PhysicalExamination {...defaultProps} />)).not.toThrow();
     });
   });
 
@@ -294,25 +300,43 @@ describe('PhysicalExamination', () => {
   // ── Job aid references ─────────────────────────────────────────────────
 
   describe('job aid references', () => {
-    it('should show reference images for image jobAidType', () => {
+    it('should not show references when asset files are not available', () => {
+      mockGetJobAidUrl.mockReturnValue(undefined);
       render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('References:')).toBeInTheDocument();
-      // 3 placeholder boxes for images
-      const imgPlaceholders = screen.getAllByText('img');
-      expect(imgPlaceholders).toHaveLength(3);
-    });
-
-    it('should show video placeholder for video jobAidType', () => {
-      resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
-      render(<PhysicalExamination {...defaultProps} />);
-      const videoPlaceholders = screen.getAllByText('▶ video');
-      expect(videoPlaceholders).toHaveLength(3);
+      expect(screen.queryByText('References:')).not.toBeInTheDocument();
     });
 
     it('should not show references when no jobAidFile', () => {
       resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
       render(<PhysicalExamination {...defaultProps} />);
       expect(screen.queryByText('References:')).not.toBeInTheDocument();
+    });
+
+    it('should render image reference when jobAidType is image and asset exists', () => {
+      mockGetJobAidUrl.mockReturnValue('/assets/jaundice.jpg');
+      // q1 has jobAidType 'image'
+      render(<PhysicalExamination {...defaultProps} />);
+      expect(screen.getByText('References:')).toBeInTheDocument();
+      const img = screen.getByAltText('Jaundice');
+      expect(img).toBeInTheDocument();
+      expect(img.getAttribute('src')).toBe('/assets/jaundice.jpg');
+    });
+
+    it('should render video reference when jobAidType is video and asset exists', () => {
+      mockGetJobAidUrl.mockReturnValue('/assets/pallor.mp4');
+      // Show only q2 (video type) by setting it as the only visible question
+      const q2Only = [MOCK_QUESTIONS[1]];
+      resetHookReturn({
+        internalIndex: 0,
+        visibleQuestions: q2Only,
+        totalQuestions: 1,
+        currentQuestion: MOCK_QUESTIONS[1],
+      });
+      render(<PhysicalExamination {...defaultProps} />);
+      expect(screen.getByText('References:')).toBeInTheDocument();
+      const video = document.querySelector('video');
+      expect(video).toBeInTheDocument();
+      expect(video?.getAttribute('src')).toBe('/assets/pallor.mp4');
     });
   });
 

@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import AyuButton from '../common/ayu-button.component';
 
 const PhotoUploadModal = React.lazy(
@@ -21,6 +21,20 @@ export const PhysicalExamImageCapture = ({
   showTick = false,
 }: PhysicalExamImageCaptureProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Reset uploading state when showTick changes (new question)
+  useEffect(() => {
+    setIsUploading(false);
+  }, [showTick]);
+
+  const handleUpload = () => {
+    setIsUploading(true);
+    setTimeout(() => {
+      setIsUploading(false);
+      onUpload();
+    }, 800);
+  };
 
   const handleUploadPhoto = (file: File) => {
     setIsModalOpen(false);
@@ -76,26 +90,47 @@ export const PhysicalExamImageCapture = ({
 
           {/* Upload button */}
           <div className="flex justify-center">
-            <AyuButton variant="primary" size="sm" onClick={onUpload}>
-              Upload
-              {showTick && (
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  fill="none"
-                  className="ml-1 inline"
-                >
-                  <path
-                    d="M2 7l3.5 3.5L12 3.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+            {isUploading ? (
+              <div className="flex gap-2 items-center px-5 py-2">
+                {[0, 1, 2].map(i => (
+                  <span
+                    key={i}
+                    className="w-2.5 h-2.5 rounded-full bg-emerald-500"
+                    style={{
+                      animation: 'dotBounce 1.4s infinite ease-in-out both',
+                      animationDelay: `${i * 0.2}s`,
+                    }}
                   />
-                </svg>
-              )}
-            </AyuButton>
+                ))}
+                <style>{`
+                  @keyframes dotBounce {
+                    0%, 80%, 100% { transform: scale(0); }
+                    40% { transform: scale(1); }
+                  }
+                `}</style>
+              </div>
+            ) : (
+              <AyuButton variant="primary" size="sm" onClick={handleUpload}>
+                Upload
+                {showTick && (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    className="ml-1 inline"
+                  >
+                    <path
+                      d="M2 7l3.5 3.5L12 3.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </AyuButton>
+            )}
           </div>
         </div>
       )}

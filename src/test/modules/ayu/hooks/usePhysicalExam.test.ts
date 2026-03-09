@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/data/physical-exam.data';
 
 // ── Mock data ───────────────────────────────────────────────────────────────
@@ -88,6 +88,12 @@ vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   clearPendingImages: (...args: unknown[]) => mockClearPendingImages(...args),
 }));
 
+const mockUseAyuJsonList = vi.fn().mockReturnValue([]);
+
+vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
+  useAyuJsonList: (...args: unknown[]) => mockUseAyuJsonList(...args),
+}));
+
 import { usePhysicalExam } from '../../../../modules/ayu/hooks/usePhysicalExam';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -159,6 +165,136 @@ describe('usePhysicalExam', () => {
     it('should default to empty string when physicalExamFilter is undefined', () => {
       setup({ physicalExamFilter: undefined } as any);
       expect(mockFilterFn).toHaveBeenCalledWith(mockQuestions, '');
+    });
+  });
+
+  // ── serverQuestions (useAyuJsonList) ──────────────────────────────────
+
+  describe('serverQuestions via useAyuJsonList', () => {
+    afterEach(() => {
+      mockUseAyuJsonList.mockReturnValue([]);
+    });
+
+    it('should use parsePhysExamJson result when physExam.json is found', () => {
+      const rawPhysExam = {
+        id: 'root',
+        text: 'Physical Exam',
+        options: [
+          {
+            id: 'sec1',
+            text: 'general exams',
+            language: 'General Exams:',
+            options: [
+              {
+                id: 'cat1',
+                text: 'Pallor',
+                options: [
+                  {
+                    id: 'server-q1',
+                    text: 'Check pallor*',
+                    isRequired: 'true',
+                    'multi-choice': false,
+                    options: [
+                      { id: 'sq1-a', text: 'Yes' },
+                      { id: 'sq1-b', text: 'No' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseAyuJsonList.mockReturnValue([
+        { name: 'physExam.json', json: rawPhysExam },
+      ]);
+      mockFilterFn.mockImplementation((q: PhysicalExamQuestion[]) => q);
+
+      const { result } = setup();
+
+      expect(result.current.totalQuestions).toBe(1);
+      expect(result.current.currentQuestion?.id).toBe('server-q1');
+      expect(result.current.currentQuestion?.sectionLabel).toBe('General Exams:');
+      expect(result.current.currentQuestion?.isRequired).toBe(true);
+    });
+
+    it('should handle camera, exclusive, and excludeFromMulti options from server', () => {
+      const rawPhysExam = {
+        id: 'root',
+        text: 'Physical Exam',
+        options: [
+          {
+            id: 'sec1',
+            text: 'hands',
+            options: [
+              {
+                id: 'cat1',
+                text: 'Nails',
+                options: [
+                  {
+                    id: 'sq2',
+                    text: 'Check nails',
+                    isRequired: true,
+                    'multi-choice': true,
+                    'job-aid-type': 'image' as const,
+                    'job-aid-file': 'nails.png',
+                    options: [
+                      { id: 'sq2-n', text: 'Normal', 'exclude-from-multi-choice': true },
+                      { id: 'sq2-a', text: 'Cyanosis' },
+                      { id: 'sq2-cam', text: 'Camera', 'input-type': 'camera', 'is-exclusive-option': 'true' },
+                      { id: 'sq2-exc', text: 'Exclusive bool', 'is-exclusive-option': true },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseAyuJsonList.mockReturnValue([
+        { name: 'physExam.json', json: rawPhysExam },
+      ]);
+      mockFilterFn.mockImplementation((q: PhysicalExamQuestion[]) => q);
+
+      const { result } = setup();
+
+      const q = result.current.currentQuestion!;
+      expect(q.id).toBe('sq2');
+      expect(q.isMultiChoice).toBe(true);
+      expect(q.jobAidType).toBe('image');
+      expect(q.jobAidFile).toBe('nails.png');
+      expect(q.sectionLabel).toBe('Hands:');
+      expect(q.options.find(o => o.id === 'sq2-cam')?.isCamera).toBe(true);
+      expect(q.options.find(o => o.id === 'sq2-cam')?.isExclusiveOption).toBe(true);
+      expect(q.options.find(o => o.id === 'sq2-exc')?.isExclusiveOption).toBe(true);
+      expect(q.options.find(o => o.id === 'sq2-n')?.excludeFromMulti).toBe(true);
+    });
+
+    it('should handle section with language set to "%"', () => {
+      const rawPhysExam = {
+        id: 'root',
+        text: 'Physical Exam',
+        options: [
+          {
+            id: 'sec1',
+            text: 'feet',
+            language: '%',
+            options: [],
+          },
+        ],
+      };
+
+      mockUseAyuJsonList.mockReturnValue([
+        { name: 'physExam.json', json: rawPhysExam },
+      ]);
+      mockFilterFn.mockImplementation((q: PhysicalExamQuestion[]) => q);
+
+      const { result } = setup();
+
+      // language is '%' so sectionLabel falls back to sectionKey + ':'
+      expect(result.current.totalQuestions).toBe(0);
     });
   });
 

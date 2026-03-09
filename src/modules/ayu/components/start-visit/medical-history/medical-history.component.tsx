@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import iconAyu from '../../../../ayu/assets/icon-ayu.svg';
+import iconNo from '../../../assets/no.svg';
+import iconYes from '../../../assets/yes.svg';
 import AyuButton from '../../common/ayu-button.component';
-import { AyuYesNoButton } from '../../common/ayu-yes-no-button.component';
-import './medical-history.styles.css';
+import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 
 interface MedicalCondition {
   id: number;
@@ -27,7 +29,6 @@ const MEDICAL_CONDITIONS: MedicalCondition[] = [
 const RELATION_OPTIONS = ['Mother', 'Father', 'Sister', 'Brother', 'Other'];
 const NEEDS_RELATION = ['Stroke', 'Cancer/Tumour', 'Other'];
 const TOTAL_QUESTIONS = 8;
-const PRIMARY_COLOR = '#0fd197';
 
 export const MedicalHistory = () => {
   const navigate = useNavigate();
@@ -42,88 +43,98 @@ export const MedicalHistory = () => {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 bg-primary-500 transform rotate-45 flex items-center justify-center">
+      {/* Diamond icon + question count */}
+      <div className="flex items-start gap-3">
+        <div className="flex flex-col items-center">
+          <img src={iconAyu} className="w-10 h-10" alt="Question Icon" />
           <svg
-            className="w-4 h-4 text-white -rotate-45"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+            width="18"
+            height="9"
+            viewBox="0 0 20 10"
+            className="mt-1 text-emerald-50"
           >
             <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              d="M0 10 C5 10 7.5 0 10 0 C12.5 0 15 10 20 10 Z"
+              fill="currentColor"
             />
           </svg>
         </div>
-        <span className="text-base font-semibold text-gray-700">
+        <p className="pt-2 text-sm font-medium text-[#2e1e91]">
           {TOTAL_QUESTIONS} questions
-        </span>
+        </p>
       </div>
 
-      <div className="mb-4">
-        <h2 className="text-base font-medium text-gray-900 mb-1">
+      <div className="space-y-4 bg-emerald-50 p-4 rounded-xl">
+        <div className="text-lg font-medium">
           Please provide the patient's family's medical history
-        </h2>
-        <p className="text-sm text-gray-500">Select yes or no</p>
-      </div>
+        </div>
+        <div className="text-sm text-gray-500">Select yes or no</div>
 
-      <div className="space-y-0 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar mb-4">
-        {conditions.map(condition => {
+        {conditions.map((condition, index) => {
           const needsRelation = NEEDS_RELATION.includes(condition.name);
           const isYes = condition.hasCondition === 'Yes';
+          const isNo = condition.hasCondition === 'No';
 
           return (
-            <div
-              key={condition.id}
-              className="bg-emerald-50 rounded-none p-4 border-b border-emerald-100 last:border-b-0 last:rounded-b-lg first:rounded-t-lg space-y-3"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-base text-gray-900 flex-1">
-                  {condition.id + 1}. {condition.name}
-                </p>
+            <div key={condition.id} className="border-b border-b-gray-200 pb-3">
+              <div className="flex items-center justify-between">
+                <span>
+                  {index + 1}. {condition.name}
+                </span>
 
-                <AyuYesNoButton
-                  value={condition.hasCondition as 'Yes' | 'No' | null}
-                  onChange={value =>
-                    updateCondition(condition.id, { hasCondition: value })
-                  }
-                  activeColor={PRIMARY_COLOR}
-                />
+                <div className="flex gap-3">
+                  <AyuButton
+                    variant="white"
+                    leftIcon={
+                      <img src={iconYes} alt="yes" className="w-6 h-6" />
+                    }
+                    size="md"
+                    type="button"
+                    className={`px-4 py-1 rounded-lg border-none! ${
+                      isYes ? 'bg-emerald-500! text-white!' : ''
+                    }`}
+                    onClick={() =>
+                      updateCondition(condition.id, { hasCondition: 'Yes' })
+                    }
+                  >
+                    Yes
+                  </AyuButton>
+
+                  <AyuButton
+                    variant="white"
+                    leftIcon={<img src={iconNo} alt="no" className="w-6 h-6" />}
+                    size="md"
+                    type="button"
+                    className={`px-4 py-1 rounded-lg border-none! ${
+                      isNo ? 'bg-emerald-500! text-white!' : ''
+                    }`}
+                    onClick={() =>
+                      updateCondition(condition.id, { hasCondition: 'No' })
+                    }
+                  >
+                    No
+                  </AyuButton>
+                </div>
               </div>
 
               {isYes && needsRelation && (
-                <div className="space-y-3">
+                <div className="space-y-3 mt-3">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-base text-gray-700">
-                      <span className="text-[#0fd197]">▶</span>
+                      <span className="text-emerald-500">&#9654;</span>
                       Relation
                     </label>
-                    <div className="grid grid-cols-3 gap-2 max-w-xs">
+                    <div className="flex flex-wrap gap-3">
                       {RELATION_OPTIONS.map(option => (
-                        <AyuButton
+                        <AyuSelectableOption
                           key={option}
-                          type="button"
+                          label={option}
+                          value={option}
+                          selected={condition.relation === option}
                           onClick={() =>
                             updateCondition(condition.id, { relation: option })
                           }
-                          variant={
-                            condition.relation === option
-                              ? 'primary'
-                              : 'secondary'
-                          }
-                          size="sm"
-                          className={`${condition.relation === option ? 'text-white border-0' : 'bg-white text-gray-700 border-0'} px-3 py-1.5 text-sm`}
-                          style={
-                            condition.relation === option
-                              ? { backgroundColor: PRIMARY_COLOR }
-                              : {}
-                          }
-                        >
-                          {option}
-                        </AyuButton>
+                        />
                       ))}
                     </div>
                   </div>
@@ -131,7 +142,7 @@ export const MedicalHistory = () => {
                   {condition.relation === 'Other' && (
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-base text-gray-700">
-                        <span className="text-[#0fd197]">▶</span>
+                        <span className="text-emerald-500">&#9654;</span>
                         Describe relation
                       </label>
                       <input
@@ -143,7 +154,7 @@ export const MedicalHistory = () => {
                           })
                         }
                         placeholder="Grandfather"
-                        className="w-/full px-3 py-2 text-base border border-[#0fd197] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0fd197] bg-white"
+                        className="w-full px-3 py-2 text-base border border-[#20c997] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#20c997] bg-white"
                       />
                     </div>
                   )}
@@ -151,7 +162,7 @@ export const MedicalHistory = () => {
                   {condition.name === 'Other' && (
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-base text-gray-700">
-                        <span className="text-[#0fd197]">▶</span>
+                        <span className="text-emerald-500">&#9654;</span>
                         Describe illness
                       </label>
                       <input
@@ -163,7 +174,7 @@ export const MedicalHistory = () => {
                           })
                         }
                         placeholder="Grandfather"
-                        className="w-full px-3 py-2 text-base border border-[#0fd197] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0fd197] bg-white"
+                        className="w-full px-3 py-2 text-base border border-[#20c997] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#20c997] bg-white"
                       />
                     </div>
                   )}
@@ -172,21 +183,19 @@ export const MedicalHistory = () => {
             </div>
           );
         })}
+      </div>
 
-        <div className="flex justify-end mt-6 px-4 pb-2">
-          <AyuButton
-            type="submit"
-            onClick={() => {
-              navigate('/ayu/renders');
-            }}
-            variant="primary"
-            size="sm"
-            className="text-white border-0"
-            style={{ backgroundColor: PRIMARY_COLOR }}
-          >
-            Submit
-          </AyuButton>
-        </div>
+      <div className="flex justify-end mt-6 px-4 pb-2">
+        <AyuButton
+          type="submit"
+          onClick={() => {
+            navigate('/ayu/renders');
+          }}
+          variant="primary"
+          size="sm"
+        >
+          Submit
+        </AyuButton>
       </div>
     </div>
   );
