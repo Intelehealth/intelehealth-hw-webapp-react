@@ -90,4 +90,30 @@ describe('toggleAssociatedSymptom', () => {
     const result = toggleAssociatedSymptom([], ['CODE_A'], 'CODE_A', false);
     expect(result.filter(v => v === 'NO_CODE_A')).toHaveLength(1);
   });
+
+  it('should handle multiple codes toggled simultaneously', () => {
+    let result = toggleAssociatedSymptom([], [], 'CODE_A', true);
+    result = toggleAssociatedSymptom(
+      result.filter(v => !v.startsWith('NO_')),
+      result.filter(v => v.startsWith('NO_')).map(v => v.slice(3)),
+      'CODE_B',
+      false
+    );
+    expect(result).toContain('CODE_A');
+    expect(result).toContain('NO_CODE_B');
+  });
+
+  it('should return empty array when all codes are removed', () => {
+    const result = toggleAssociatedSymptom(['CODE_A'], [], 'CODE_A', false);
+    // CODE_A moves from yes to no
+    expect(result).toEqual(['NO_CODE_A']);
+  });
+
+  it('should handle toggling the same code yes then no', () => {
+    const firstToggle = toggleAssociatedSymptom([], [], 'CODE_A', true);
+    expect(firstToggle).toEqual(['CODE_A']);
+
+    const secondToggle = toggleAssociatedSymptom(['CODE_A'], [], 'CODE_A', false);
+    expect(secondToggle).toEqual(['NO_CODE_A']);
+  });
 });

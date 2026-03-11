@@ -1,4 +1,8 @@
 import type { AyuQuestion } from '../types/ayu.types';
+import {
+  EXT_URL_ORIGINAL_QUESTION_TEXT,
+  ASSOCIATED_SYMPTOMS_TEXT,
+} from '../utils/constants';
 
 export type AyuComponentType =
   | 'group'
@@ -19,8 +23,8 @@ export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
     q.type === 'choice' &&
     q.extension?.some(
       ext =>
-        ext.url === 'urn:intelehealth:original-question-text' &&
-        ext.valueString === 'Associated symptoms'
+        ext.url === EXT_URL_ORIGINAL_QUESTION_TEXT &&
+        ext.valueString === ASSOCIATED_SYMPTOMS_TEXT
     );
 
   if (isAssociatedSymptoms) {

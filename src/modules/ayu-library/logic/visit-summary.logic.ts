@@ -1,4 +1,12 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
+import {
+  EXT_URL_ORIGINAL_QUESTION_TEXT,
+  ASSOCIATED_SYMPTOMS_TEXT,
+  NEGATED_ID_PREFIX,
+  NEGATED_PREFIX,
+  PATIENT_REPORTS_LABEL,
+  PATIENT_DENIES_LABEL,
+} from '../utils/constants';
 
 /** Portable summary item — platform-agnostic equivalent of ModalSectionItem */
 export type SummaryItem =
@@ -23,7 +31,7 @@ export function buildVisitSummary(
 
   function getExtensionLabel(item: AyuQuestion): string {
     const ext = item.extension?.find(
-      e => e.url === 'urn:intelehealth:original-question-text'
+      e => e.url === EXT_URL_ORIGINAL_QUESTION_TEXT
     );
     return ext?.valueString || item.text || '';
   }
@@ -104,8 +112,8 @@ export function buildVisitSummary(
         item.type === 'choice' &&
         item.extension?.some(
           ext =>
-            ext.url === 'urn:intelehealth:original-question-text' &&
-            ext.valueString === 'Associated symptoms'
+            ext.url === EXT_URL_ORIGINAL_QUESTION_TEXT &&
+            ext.valueString === ASSOCIATED_SYMPTOMS_TEXT
         );
 
       if (isAssociatedSymptoms) {
@@ -114,8 +122,10 @@ export function buildVisitSummary(
           const denies: string[] = [];
 
           answerValue.forEach(code => {
-            const isNegated = code.startsWith('NO_ID_');
-            const lookupCode = isNegated ? code.replace('NO_', '') : code;
+            const isNegated = code.startsWith(NEGATED_ID_PREFIX);
+            const lookupCode = isNegated
+              ? code.replace(NEGATED_PREFIX, '')
+              : code;
             const display = getDisplay(item, lookupCode);
             if (!display) return;
 
@@ -157,7 +167,7 @@ export function buildVisitSummary(
           if (reports.length) {
             associatedItems.push({
               type: 'subheading',
-              heading: 'Patient reports',
+              heading: PATIENT_REPORTS_LABEL,
               values: [reports.join(', ') + '.'],
             });
           }
@@ -165,7 +175,7 @@ export function buildVisitSummary(
           if (denies.length) {
             associatedItems.push({
               type: 'subheading',
-              heading: 'Patient denies',
+              heading: PATIENT_DENIES_LABEL,
               values: [denies.join(', ') + '.'],
             });
           }
@@ -328,7 +338,7 @@ export function buildVisitSummary(
   }
 
   if (associatedItems.length > 0) {
-    sections.push({ title: 'Associated symptoms', items: associatedItems });
+    sections.push({ title: ASSOCIATED_SYMPTOMS_TEXT, items: associatedItems });
   }
 
   return sections;

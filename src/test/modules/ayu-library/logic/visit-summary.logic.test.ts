@@ -421,4 +421,168 @@ describe('buildVisitSummary', () => {
       });
     });
   });
+
+  describe('quantity with value and unit', () => {
+    it('should format quantity with value only (no unit)', () => {
+      const questions = [
+        makeQuestion({
+          linkId: 'q1',
+          type: 'quantity',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Temperature',
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { value: 98.6 }],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Temperature',
+        value: '98.6',
+      });
+    });
+
+    it('should format duration with number only (no days)', () => {
+      const questions = [
+        makeQuestion({
+          linkId: 'q1',
+          type: 'quantity',
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Duration',
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { dropdownValues: { number: 3 } }],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Duration',
+        value: '3',
+      });
+    });
+  });
+
+  describe('multi-select with nested children', () => {
+    it('should process nested children for multi-select options', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.nested',
+              type: 'string',
+              text: 'Details for A',
+              extension: [
+                {
+                  url: 'urn:intelehealth:original-question-text',
+                  valueString: 'Details for A',
+                },
+              ],
+              enableWhen: [
+                {
+                  question: 'q1',
+                  operator: '=',
+                  answerCoding: { code: 'CODE_A' },
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A']],
+        ['q1.nested', 'nested answer'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('nested answer');
+      }
+    });
+  });
+
+  describe('associated symptoms with nested children', () => {
+    it('should include nested values in associated symptoms reports', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'assoc',
+          type: 'choice',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'ID_1', display: 'Headache' } },
+          ],
+          item: [
+            {
+              linkId: 'assoc.child',
+              type: 'string',
+              text: 'Severity',
+              extension: [
+                {
+                  url: 'urn:intelehealth:original-question-text',
+                  valueString: 'Severity',
+                },
+              ],
+              enableWhen: [
+                {
+                  question: 'assoc',
+                  operator: '=',
+                  answerCoding: { code: 'ID_1' },
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        ['assoc.child', 'Severe'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Headache');
+        expect(reports.values[0]).toContain('Severe');
+      }
+    });
+  });
+
+  describe('null and edge cases for formatAnswerByType', () => {
+    it('should return empty result for null answer', () => {
+      const questions = [makeQuestion({ type: 'string' })];
+      const answers = new Map<string, AyuAnswerValue>([['q1', null]]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result).toEqual([]);
+    });
+
+    it('should handle choice answer with no matching display', () => {
+      const questions = [makeChoiceQuestion()];
+      const answers = new Map<string, AyuAnswerValue>([['q1', 'UNKNOWN_CODE']]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      // No display found for unknown code, should not add item
+      expect(result).toEqual([]);
+    });
+  });
 });

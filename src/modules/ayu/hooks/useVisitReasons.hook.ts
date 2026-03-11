@@ -6,9 +6,10 @@ import {
   groupByFirstLetter,
 } from '../../ayu-library/logic/visit-reasons.logic';
 import { useAyuJsonList } from './useAyuJson.hook';
+import { AYU_JSON_KEY_NAME } from '../utils/ayu.constants';
 
 export const useVisitReasons = () => {
-  const ayuJsonList = useAyuJsonList('IDA6');
+  const ayuJsonList = useAyuJsonList(AYU_JSON_KEY_NAME);
 
   const names = useMemo(() => {
     return extractVisitReasonNames(ayuJsonList, EXCLUDED_JSON_NAMES);

@@ -1,3 +1,11 @@
+import {
+  RECENTLY_SEARCHED_LABEL,
+  MOST_COMMON_REASONS_LABEL,
+  ALL_REASONS_LABEL,
+  RECENTLY_SEARCHED_ITEMS,
+  MOST_COMMON_REASONS_ITEMS,
+} from '../../../utils/ayu.constants';
+
 interface Props {
   addReason: (reason: string) => void;
 }
@@ -5,9 +13,9 @@ interface Props {
 export const ReasonCategoryList = ({ addReason }: Props) => {
   return (
     <>
-      <h3 className="text-sm text-gray-500 mb-2">Recently searched</h3>
+      <h3 className="text-sm text-gray-500 mb-2">{RECENTLY_SEARCHED_LABEL}</h3>
       <div className="flex flex-wrap gap-2 mb-5">
-        {['Headache', 'Fever', 'Diarrhea'].map(item => (
+        {RECENTLY_SEARCHED_ITEMS.map(item => (
           <button
             key={item}
             onClick={() => addReason(item)}
@@ -18,9 +26,11 @@ export const ReasonCategoryList = ({ addReason }: Props) => {
         ))}
       </div>
 
-      <h3 className="text-sm text-gray-500 mb-2">Most common reasons</h3>
+      <h3 className="text-sm text-gray-500 mb-2">
+        {MOST_COMMON_REASONS_LABEL}
+      </h3>
       <div className="flex flex-wrap gap-2 mb-5">
-        {['Dizziness', 'Leg pain', 'Cough'].map(item => (
+        {MOST_COMMON_REASONS_ITEMS.map(item => (
           <button
             key={item}
             onClick={() => addReason(item)}
@@ -31,7 +41,9 @@ export const ReasonCategoryList = ({ addReason }: Props) => {
         ))}
       </div>
 
-      <h3 className="text-sm font-medium text-gray-500 mb-2">All reasons</h3>
+      <h3 className="text-sm font-medium text-gray-500 mb-2">
+        {ALL_REASONS_LABEL}
+      </h3>
     </>
   );
 };

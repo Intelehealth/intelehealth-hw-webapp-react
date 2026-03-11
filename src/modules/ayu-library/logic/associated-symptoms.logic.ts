@@ -1,4 +1,5 @@
 import type { AyuAnswerValue } from '../types/ayu.types';
+import { NEGATED_PREFIX } from '../utils/constants';
 
 /**
  * Parse the stored associated symptoms value array into yes/no code lists.
@@ -13,8 +14,8 @@ export function parseYesNoValues(value: AyuAnswerValue): {
 
   if (Array.isArray(value)) {
     for (const v of value) {
-      if (typeof v === 'string' && v.startsWith('NO_')) {
-        noValues.push(v.slice(3));
+      if (typeof v === 'string' && v.startsWith(NEGATED_PREFIX)) {
+        noValues.push(v.slice(NEGATED_PREFIX.length));
       } else if (typeof v === 'string') {
         yesValues.push(v);
       }
@@ -40,5 +41,5 @@ export function toggleAssociatedSymptom(
     ? noValues.filter(c => c !== code)
     : [...noValues.filter(c => c !== code), code];
 
-  return [...newYes, ...newNo.map(c => `NO_${c}`)];
+  return [...newYes, ...newNo.map(c => `${NEGATED_PREFIX}${c}`)];
 }

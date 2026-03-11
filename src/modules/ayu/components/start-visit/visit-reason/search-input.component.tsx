@@ -1,4 +1,11 @@
 import searchIcon from '../../../assets/icon-search.svg';
+import {
+  VISIT_REASON_QUESTION,
+  VISIT_REASON_HINT,
+  SEARCH_PLACEHOLDER,
+  NO_MATCHING_COMPLAINTS,
+  MAX_FILTERED_RESULTS,
+} from '../../../utils/ayu.constants';
 interface Props {
   search: string;
   setSearch: (v: string) => void;
@@ -29,8 +36,8 @@ export const ReasonSearchInput = ({
 }: Props) => {
   return (
     <div className="mt-2">
-      What is the reason for this visit?
-      <p className="text-sm text-gray-500">Select one or multiple reasons</p>
+      {VISIT_REASON_QUESTION}
+      <p className="text-sm text-gray-500">{VISIT_REASON_HINT}</p>
       <div className="mt-2 relative">
         {/* ICON */}
         {search.length === 0 && (
@@ -45,7 +52,7 @@ export const ReasonSearchInput = ({
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Type or select reason eg. Fever"
+          placeholder={SEARCH_PLACEHOLDER}
           className={`w-full border border-emerald-400 bg-white rounded-lg px-4 py-2 ${search.length > 0 ? 'pl-4' : 'pl-10'} focus:outline-none placeholder:text-gray-400`}
         />
       </div>
@@ -55,7 +62,7 @@ export const ReasonSearchInput = ({
           style={{ scrollbarWidth: 'none' }}
         >
           {filteredNames.length > 0 ? (
-            filteredNames.slice(0, 8).map(reason => (
+            filteredNames.slice(0, MAX_FILTERED_RESULTS).map(reason => (
               <div
                 key={reason}
                 onClick={() => addReason(reason)}
@@ -66,7 +73,7 @@ export const ReasonSearchInput = ({
             ))
           ) : (
             <p className="px-4 py-3 text-sm text-gray-400">
-              No matching complaints found
+              {NO_MATCHING_COMPLAINTS}
             </p>
           )}
         </div>

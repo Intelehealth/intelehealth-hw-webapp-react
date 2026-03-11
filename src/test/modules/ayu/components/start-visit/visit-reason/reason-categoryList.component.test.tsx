@@ -57,4 +57,34 @@ describe('ReasonCategoryList', () => {
 
     expect(mockAddReason).toHaveBeenCalledWith('Dizziness');
   });
+
+  it('should render all recently searched items as clickable buttons', () => {
+    render(<ReasonCategoryList addReason={mockAddReason} />);
+
+    const buttons = screen.getAllByRole('button');
+    // 3 recently searched + 3 most common = 6 total
+    expect(buttons).toHaveLength(6);
+  });
+
+  it('should call addReason for each recently searched item when clicked', async () => {
+    const user = userEvent.setup();
+    render(<ReasonCategoryList addReason={mockAddReason} />);
+
+    await user.click(screen.getByText('Fever'));
+    expect(mockAddReason).toHaveBeenCalledWith('Fever');
+
+    await user.click(screen.getByText('Diarrhea'));
+    expect(mockAddReason).toHaveBeenCalledWith('Diarrhea');
+  });
+
+  it('should call addReason for each most common reason when clicked', async () => {
+    const user = userEvent.setup();
+    render(<ReasonCategoryList addReason={mockAddReason} />);
+
+    await user.click(screen.getByText('Leg pain'));
+    expect(mockAddReason).toHaveBeenCalledWith('Leg pain');
+
+    await user.click(screen.getByText('Cough'));
+    expect(mockAddReason).toHaveBeenCalledWith('Cough');
+  });
 });

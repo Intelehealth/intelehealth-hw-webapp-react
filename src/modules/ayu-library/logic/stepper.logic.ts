@@ -3,6 +3,7 @@ import type {
   AyuQuestion,
   DurationAnswer,
 } from '../types/ayu.types';
+import { EXT_URL_MUTUALLY_EXCLUSIVE } from '../utils/constants';
 import { evaluateEnableWhen } from './enable-when.logic';
 
 export const isDurationAnswer = (value: unknown): value is DurationAnswer => {
@@ -23,9 +24,7 @@ export const isMutuallyExclusiveOption = (
   );
 
   return !!option?.extension?.some(
-    ext =>
-      ext.url === 'urn:intelehealth:mutually-exclusive' &&
-      ext.valueBoolean === true
+    ext => ext.url === EXT_URL_MUTUALLY_EXCLUSIVE && ext.valueBoolean === true
   );
 };
 

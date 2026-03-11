@@ -13,6 +13,13 @@ import {
 } from '../../ayu-library/logic/stepper.logic';
 import { clearHiddenDescendantAnswers } from '../../ayu-library/utils/question.utils';
 import { buildVisitSummary } from '../utils/visit-summary.util';
+import {
+  DEFAULT_VISIT_REASON_TEXT,
+  ASSOCIATED_SYMPTOMS_LABEL,
+  VISIT_REASON_SUMMARY_TITLE,
+  SUMMARY_CONFIRM_TEXT,
+  SUMMARY_CANCEL_TEXT,
+} from '../utils/ayu.constants';
 
 interface UseFHIRStepperProps {
   questionnaire: FhirQuestionnaire;
@@ -73,15 +80,15 @@ export const useFHIRStepper = (
     const sections = buildVisitSummary(
       topLevelItems,
       answersMap,
-      questionnaire?.text || 'Visit reason'
+      questionnaire?.text || DEFAULT_VISIT_REASON_TEXT
     );
     // Add per-section onChange callbacks
     sections.forEach(section => {
       section.onChange = () => {
         const targetIndex = topLevelItems.findIndex(item => {
-          if (section.title === 'Associated symptoms') {
+          if (section.title === ASSOCIATED_SYMPTOMS_LABEL) {
             return item.extension?.some(
-              ext => ext.valueString === 'Associated symptoms'
+              ext => ext.valueString === ASSOCIATED_SYMPTOMS_LABEL
             );
           }
           return true; // main section → first question
@@ -93,10 +100,10 @@ export const useFHIRStepper = (
 
     showVitalConfirmationModal({
       icon: iconVisitReasonSummary,
-      title: '2/4. Visit reason summary',
+      title: VISIT_REASON_SUMMARY_TITLE,
       sections,
-      confirmText: 'Confirm',
-      cancelText: 'Back',
+      confirmText: SUMMARY_CONFIRM_TEXT,
+      cancelText: SUMMARY_CANCEL_TEXT,
       open: false,
       type: 'vitalConfirm',
       size: 'lg',

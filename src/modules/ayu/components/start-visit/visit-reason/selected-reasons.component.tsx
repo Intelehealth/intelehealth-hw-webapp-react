@@ -1,3 +1,5 @@
+import { SELECTED_REASONS_LABEL } from '../../../utils/ayu.constants';
+
 interface Props {
   selectedReasons: string[];
   removeReason: (reason: string) => void;
@@ -8,7 +10,7 @@ export const SelectedReasons = ({ selectedReasons, removeReason }: Props) => {
 
   return (
     <div className="mt-6">
-      <h3 className="text-sm text-gray-500">Selected reasons</h3>
+      <h3 className="text-sm text-gray-500">{SELECTED_REASONS_LABEL}</h3>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {selectedReasons.map(reason => (

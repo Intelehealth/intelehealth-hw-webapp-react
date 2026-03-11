@@ -15,6 +15,13 @@ import type {
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import { resolveAyuComponent } from '../../../pages/decision-matrix';
+import {
+  BUTTON_SKIP,
+  BUTTON_SUBMIT,
+  VALIDATION_ALL_COMPULSORY,
+  VALIDATION_ENTER_VALUE,
+  VALIDATION_SELECT_OPTION,
+} from '../../../utils/ayu.constants';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuNestedRenderer } from './ayu-nested-renderer.component';
@@ -217,7 +224,7 @@ export const AyuStepperContainer = ({
                                     (question.answerOption?.length ?? 0));
 
                               const message = isAssociatedSymptomsIncomplete
-                                ? 'All questions are compulsory, please answer'
+                                ? VALIDATION_ALL_COMPULSORY
                                 : hasVisibleRequiredNestedString(
                                       question,
                                       answers
@@ -227,8 +234,8 @@ export const AyuStepperContainer = ({
                                       answers
                                     ) ||
                                     isQuantityInvalid(question, answers)
-                                  ? 'Please enter a value'
-                                  : 'Please select any one option';
+                                  ? VALIDATION_ENTER_VALUE
+                                  : VALIDATION_SELECT_OPTION;
                               showToast(message, undefined, 'warning');
                               return;
                             }
@@ -249,7 +256,7 @@ export const AyuStepperContainer = ({
                             }
                           }}
                         >
-                          Submit
+                          {BUTTON_SUBMIT}
                         </AyuButton>
                       )}
 
@@ -268,7 +275,7 @@ export const AyuStepperContainer = ({
                             }
                             rightIcon={
                               skippedQuestions.has(question.linkId) &&
-                              answers[question.linkId] === undefined ? (
+                              !(question.linkId in answers) ? (
                                 <img src={iconYes} alt="yes" />
                               ) : undefined
                             }
@@ -284,7 +291,7 @@ export const AyuStepperContainer = ({
                               }
                             }}
                           >
-                            Skip
+                            {BUTTON_SKIP}
                           </AyuButton>
                         )}
                     </div>

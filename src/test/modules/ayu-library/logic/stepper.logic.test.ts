@@ -223,4 +223,66 @@ describe('isTopLevelComplete', () => {
       })
     ).toBe(false);
   });
+
+  it('should return true for top-level complete duration', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(
+      isTopLevelComplete(q, {
+        q1: { dropdownValues: { number: 5, days: 'days' } },
+      })
+    ).toBe(true);
+  });
+
+  it('should return false when top-level duration has only days', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(
+      isTopLevelComplete(q, {
+        q1: { dropdownValues: { days: 'days' } },
+      })
+    ).toBe(false);
+  });
+
+  it('should return true when non-choice type has simple answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(
+      isTopLevelComplete(q, { q1: 'some answer' })
+    ).toBe(true);
+  });
+
+  it('should return false when parent answer is falsy for non-repeats', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(isTopLevelComplete(q, { q1: '' })).toBe(false);
+  });
+
+  it('should handle multiple visible nested children', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'q1.1',
+          type: 'string',
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+        {
+          linkId: 'q1.2',
+          type: 'integer',
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ],
+    };
+    // Both children visible but only one answered
+    expect(isTopLevelComplete(q, { q1: 'yes', 'q1.1': 'text' })).toBe(false);
+    // Both answered
+    expect(isTopLevelComplete(q, { q1: 'yes', 'q1.1': 'text', 'q1.2': 42 })).toBe(true);
+  });
+
+  it('should return false for repeats with non-array answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice', repeats: true };
+    expect(isTopLevelComplete(q, { q1: 'not-array' })).toBe(false);
+  });
 });

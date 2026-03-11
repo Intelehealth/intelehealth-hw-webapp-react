@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EXT_URL_ORIGINAL_QUESTION_TEXT,
+  EXT_URL_MUTUALLY_EXCLUSIVE,
+  ASSOCIATED_SYMPTOMS_TEXT,
+  NEGATED_PREFIX,
+  NEGATED_ID_PREFIX,
+  PATIENT_REPORTS_LABEL,
+  PATIENT_DENIES_LABEL,
   SELECT_ONE_OR_MORE,
   SELECT_ANY_ONE,
   EXCLUDED_JSON_NAMES,
@@ -7,6 +14,40 @@ import {
 } from '../../../../modules/ayu-library/utils/constants';
 
 describe('Constants', () => {
+  describe('FHIR Extension URLs', () => {
+    it('should export EXT_URL_ORIGINAL_QUESTION_TEXT', () => {
+      expect(EXT_URL_ORIGINAL_QUESTION_TEXT).toBe('urn:intelehealth:original-question-text');
+    });
+
+    it('should export EXT_URL_MUTUALLY_EXCLUSIVE', () => {
+      expect(EXT_URL_MUTUALLY_EXCLUSIVE).toBe('urn:intelehealth:mutually-exclusive');
+    });
+  });
+
+  describe('Associated Symptoms Constants', () => {
+    it('should export ASSOCIATED_SYMPTOMS_TEXT', () => {
+      expect(ASSOCIATED_SYMPTOMS_TEXT).toBe('Associated symptoms');
+    });
+
+    it('should export NEGATED_PREFIX', () => {
+      expect(NEGATED_PREFIX).toBe('NO_');
+    });
+
+    it('should export NEGATED_ID_PREFIX', () => {
+      expect(NEGATED_ID_PREFIX).toBe('NO_ID_');
+    });
+  });
+
+  describe('Visit Summary Labels', () => {
+    it('should export PATIENT_REPORTS_LABEL', () => {
+      expect(PATIENT_REPORTS_LABEL).toBe('Patient reports');
+    });
+
+    it('should export PATIENT_DENIES_LABEL', () => {
+      expect(PATIENT_DENIES_LABEL).toBe('Patient denies');
+    });
+  });
+
   describe('Nested Question Helper Text', () => {
     it('should export SELECT_ONE_OR_MORE constant', () => {
       expect(SELECT_ONE_OR_MORE).toBe('Select one or more');

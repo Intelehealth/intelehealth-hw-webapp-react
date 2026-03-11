@@ -63,4 +63,43 @@ describe('SelectedReasons', () => {
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(3);
   });
+
+  it('should call removeReason with correct reason for each button', async () => {
+    const user = userEvent.setup();
+    render(
+      <SelectedReasons
+        selectedReasons={['Fever', 'Cough']}
+        removeReason={mockRemoveReason}
+      />
+    );
+
+    const buttons = screen.getAllByRole('button');
+    await user.click(buttons[1]);
+
+    expect(mockRemoveReason).toHaveBeenCalledWith('Cough');
+  });
+
+  it('should render remove button with ✕ character', () => {
+    render(
+      <SelectedReasons
+        selectedReasons={['Fever']}
+        removeReason={mockRemoveReason}
+      />
+    );
+
+    const button = screen.getByRole('button');
+    expect(button.textContent).toBe('✕');
+  });
+
+  it('should render reasons with correct styling classes', () => {
+    const { container } = render(
+      <SelectedReasons
+        selectedReasons={['Fever']}
+        removeReason={mockRemoveReason}
+      />
+    );
+
+    const reasonChip = container.querySelector('.bg-\\[\\#2E1E91\\]');
+    expect(reasonChip).toBeInTheDocument();
+  });
 });

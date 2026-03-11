@@ -151,4 +151,72 @@ describe('useVisitReasons', () => {
     expect(result.current.grouped['F']).toContain('Fever');
     expect(result.current.grouped['H']).toContain('Headache');
   });
+
+  it('should return multiple selectedComplaints matching multiple selectedReasons', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.addReason('Fever');
+      result.current.addReason('Cough');
+    });
+
+    expect(result.current.selectedComplaints).toHaveLength(2);
+    const names = result.current.selectedComplaints.map(c => c.name);
+    expect(names).toContain('Fever.json');
+    expect(names).toContain('Cough.json');
+  });
+
+  it('should return empty selectedComplaints when no reasons selected', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    expect(result.current.selectedComplaints).toHaveLength(0);
+  });
+
+  it('should filter names case-insensitively', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.setSearch('fever');
+    });
+
+    expect(result.current.filteredNames).toContain('Fever');
+  });
+
+  it('should handle removing a reason that does not exist', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.addReason('Fever');
+      result.current.removeReason('NonExistent');
+    });
+
+    expect(result.current.selectedReasons).toEqual(['Fever']);
+  });
+
+  it('should handle empty ayuJsonList', () => {
+    mockUseAyuJsonList.mockReturnValue([] as any);
+
+    const { result } = renderHook(() => useVisitReasons());
+
+    expect(result.current.grouped).toEqual({});
+    expect(result.current.filteredNames).toEqual([]);
+  });
+
+  it('should update filteredNames reactively when search changes', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.setSearch('Co');
+    });
+
+    expect(result.current.filteredNames).toContain('Cough');
+    expect(result.current.filteredNames).not.toContain('Fever');
+
+    act(() => {
+      result.current.setSearch('Fe');
+    });
+
+    expect(result.current.filteredNames).toContain('Fever');
+    expect(result.current.filteredNames).not.toContain('Cough');
+  });
 });
