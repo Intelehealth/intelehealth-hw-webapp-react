@@ -244,7 +244,7 @@ describe('useFHIRStepper', () => {
   });
 
   describe('Auto-Advance Logic', () => {
-    it('should NOT auto-advance for required string type', () => {
+    it('should NOT auto-advance for string type questions', () => {
       const { result } = renderHook(() =>
         useFHIRStepper({ questionnaire: mockQuestionnaire })
       );
@@ -260,6 +260,43 @@ describe('useFHIRStepper', () => {
       });
 
       expect(result.current.currentIndex).toBe(0); // Should NOT advance
+    });
+
+    it('should NOT auto-advance for non-required string type questions', () => {
+      const nonRequiredStringQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Optional text',
+            type: 'string',
+            required: false,
+          },
+          {
+            linkId: 'q2',
+            text: 'Next question',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nonRequiredStringQuestionnaire })
+      );
+
+      expect(result.current.currentQuestion?.type).toBe('string');
+
+      act(() => {
+        result.current.setAnswer(result.current.currentQuestion!, 'some text');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(result.current.currentIndex).toBe(0); // Should NOT advance even though not required
     });
 
     it('should NOT auto-advance for quantity type with incomplete duration dropdowns', () => {
@@ -1718,12 +1755,20 @@ describe('useFHIRStepper', () => {
             {
               linkId: 'q1',
               text: 'Question 1',
-              type: 'string',
+              type: 'choice',
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+                { valueCoding: { code: 'no', display: 'No' } },
+              ],
             },
             {
               linkId: 'q2',
               text: 'Question 2',
-              type: 'string',
+              type: 'choice',
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+                { valueCoding: { code: 'no', display: 'No' } },
+              ],
             },
             {
               linkId: 'parent',
@@ -2142,7 +2187,11 @@ describe('useFHIRStepper', () => {
             {
               linkId: 'q1',
               text: 'Question 1',
-              type: 'string',
+              type: 'choice',
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+                { valueCoding: { code: 'no', display: 'No' } },
+              ],
             },
             {
               linkId: 'parent',

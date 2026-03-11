@@ -1,4 +1,24 @@
-import type { DropdownOption } from '../components/common/ayu-dropdown.component';
+import type { DropdownOption } from '../types/dropdown.types';
+
+// ========================
+// FHIR Extension URLs
+// ========================
+export const EXT_URL_ORIGINAL_QUESTION_TEXT =
+  'urn:intelehealth:original-question-text';
+export const EXT_URL_MUTUALLY_EXCLUSIVE = 'urn:intelehealth:mutually-exclusive';
+
+// ========================
+// Associated Symptoms
+// ========================
+export const ASSOCIATED_SYMPTOMS_TEXT = 'Associated symptoms';
+export const NEGATED_PREFIX = 'NO_';
+export const NEGATED_ID_PREFIX = 'NO_ID_';
+
+// ========================
+// Visit Summary Labels
+// ========================
+export const PATIENT_REPORTS_LABEL = 'Patient reports';
+export const PATIENT_DENIES_LABEL = 'Patient denies';
 
 // Nested question helper text
 export const SELECT_ONE_OR_MORE = 'Select one or more';

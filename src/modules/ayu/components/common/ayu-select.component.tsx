@@ -1,6 +1,6 @@
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
-import type { AyuAnswerOption } from '../../types/ayu.types';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
 
 export function AyuSelect({
   question,

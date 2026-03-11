@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AyuGroup } from '../../../../../modules/ayu/components/common/ayu-group.component';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 
 vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question }) => <div data-testid={`renderer-${question.linkId}`}>{question.text}</div>),

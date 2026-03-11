@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { AyuAnswerValue, AyuQuestion } from '../../../types/ayu.types';
-import { collectDescendantLinkIds } from '../../../utils/question.utils';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../../ayu-library/types/ayu.types';
+import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
+import { collectDescendantLinkIds } from '../../../../ayu-library/utils/question.utils';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import '../../common/selectable-option.css';
 import { AyuRenderer } from './ayu-renderer.component';
@@ -87,25 +91,8 @@ export const AyuNestedRenderer = ({
 
   if (!items?.length) return null;
 
-  const isEnabled = (item: AyuQuestion) => {
-    if (!item.enableWhen) return true;
-
-    return item.enableWhen.every(rule => {
-      const expected =
-        rule.answerBoolean ??
-        rule.answerString ??
-        rule.answerInteger ??
-        rule.answerCoding?.code;
-
-      const parentAnswer = answers[rule.question];
-
-      if (Array.isArray(parentAnswer)) {
-        return parentAnswer.includes(expected as string);
-      }
-
-      return parentAnswer === expected;
-    });
-  };
+  const isEnabled = (item: AyuQuestion) =>
+    evaluateEnableWhen(item.enableWhen, answers);
 
   const getParentAnswerLabel = (item: AyuQuestion): string | null => {
     if (!item.enableWhen?.length || !parentQuestion) return null;

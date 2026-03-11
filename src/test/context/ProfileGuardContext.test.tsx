@@ -106,6 +106,16 @@ describe('ProfileGuardContext', () => {
     vi.clearAllMocks();
     (storage.getUser as any).mockReturnValue(JSON.stringify(mockUser));
 
+    // Ensure VITE_SKIP_TEST_MODE is always restored (may be deleted by Test Mode Coverage tests)
+    if (!import.meta.env.VITE_SKIP_TEST_MODE) {
+      Object.defineProperty(import.meta.env, 'VITE_SKIP_TEST_MODE', {
+        value: 'true',
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+
     // Mock console methods to suppress test output
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});

@@ -1,4 +1,4 @@
-import type { AyuQuestion } from '../../types/ayu.types';
+import type { AyuQuestion } from '../../../ayu-library/types/ayu.types';
 import { AyuRenderer } from '../start-visit/visit-reason/ayu-renderer.component';
 
 export function AyuGroup({ question }: { question?: AyuQuestion }) {

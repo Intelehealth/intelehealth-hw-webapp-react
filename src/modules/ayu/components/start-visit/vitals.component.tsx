@@ -1,5 +1,5 @@
 import { useVitals } from '../../hooks/useVitals';
-import type { SectionProps } from '../../types/start-visit.types';
+import type { SectionProps } from '../../../ayu-library/types/start-visit.types';
 import type { VitalField, VitalsFormValues } from '../../types/vitals.types';
 import AyuButton from '../common/ayu-button.component';
 

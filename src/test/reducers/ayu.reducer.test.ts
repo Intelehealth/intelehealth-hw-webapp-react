@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ayuReducer, setAyuJsonList, type AuthAction } from '../../reducers/ayu.reducer';
-import type { AyuJsonItem } from '../../modules/ayu/types/ayu-json.types';
+import type { AyuJsonItem } from '../../modules/ayu-library/types/ayu-json.types';
 
 describe('ayuReducer', () => {
   const mockAyuJsonItem1: AyuJsonItem = {

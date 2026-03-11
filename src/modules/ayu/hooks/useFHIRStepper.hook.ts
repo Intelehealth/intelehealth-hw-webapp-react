@@ -4,23 +4,28 @@ import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import type {
   AyuAnswerValue,
   AyuQuestion,
-  DurationAnswer,
   FhirQuestionnaire,
-} from '../types/ayu.types';
-import { clearHiddenDescendantAnswers } from '../utils/question.utils';
+} from '../../ayu-library/types/ayu.types';
+import { evaluateEnableWhen } from '../../ayu-library/logic/enable-when.logic';
+import {
+  computeMultiSelectToggle,
+  isTopLevelComplete,
+} from '../../ayu-library/logic/stepper.logic';
+import { clearHiddenDescendantAnswers } from '../../ayu-library/utils/question.utils';
 import { buildVisitSummary } from '../utils/visit-summary.util';
+import {
+  DEFAULT_VISIT_REASON_TEXT,
+  ASSOCIATED_SYMPTOMS_LABEL,
+  VISIT_REASON_SUMMARY_TITLE,
+  SUMMARY_CONFIRM_TEXT,
+  SUMMARY_CANCEL_TEXT,
+} from '../utils/ayu.constants';
 
 interface UseFHIRStepperProps {
   questionnaire: FhirQuestionnaire;
   autoNext?: boolean;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
 }
-
-const isDurationAnswer = (value: unknown): value is DurationAnswer => {
-  return (
-    typeof value === 'object' && value !== null && 'dropdownValues' in value
-  );
-};
 
 interface UseFHIRStepperReturn {
   currentQuestion: AyuQuestion | undefined;
@@ -75,15 +80,15 @@ export const useFHIRStepper = (
     const sections = buildVisitSummary(
       topLevelItems,
       answersMap,
-      questionnaire?.text || 'Visit reason'
+      questionnaire?.text || DEFAULT_VISIT_REASON_TEXT
     );
     // Add per-section onChange callbacks
     sections.forEach(section => {
       section.onChange = () => {
         const targetIndex = topLevelItems.findIndex(item => {
-          if (section.title === 'Associated symptoms') {
+          if (section.title === ASSOCIATED_SYMPTOMS_LABEL) {
             return item.extension?.some(
-              ext => ext.valueString === 'Associated symptoms'
+              ext => ext.valueString === ASSOCIATED_SYMPTOMS_LABEL
             );
           }
           return true; // main section → first question
@@ -95,10 +100,10 @@ export const useFHIRStepper = (
 
     showVitalConfirmationModal({
       icon: iconVisitReasonSummary,
-      title: '2/4. Visit reason summary',
+      title: VISIT_REASON_SUMMARY_TITLE,
       sections,
-      confirmText: 'Confirm',
-      cancelText: 'Back',
+      confirmText: SUMMARY_CONFIRM_TEXT,
+      cancelText: SUMMARY_CANCEL_TEXT,
       open: false,
       type: 'vitalConfirm',
       size: 'lg',
@@ -136,36 +141,11 @@ export const useFHIRStepper = (
             ? currentValue
             : [];
 
-          const selectedValue = value as string;
-
-          const isExclusive = isMutuallyExclusiveOption(
+          finalValue = computeMultiSelectToggle(
             question,
-            selectedValue
+            currentArray,
+            value as string
           );
-
-          // If clicked option is mutually exclusive
-          if (isExclusive) {
-            // If already selected → unselect
-            if (currentArray.includes(selectedValue)) {
-              finalValue = [];
-            } else {
-              // Replace all with only this option
-              finalValue = [selectedValue];
-            }
-          } else {
-            // Normal option clicked
-
-            // Remove any mutually exclusive option from array
-            const filtered = currentArray.filter(code => {
-              return !isMutuallyExclusiveOption(question, code);
-            });
-
-            if (filtered.includes(selectedValue)) {
-              finalValue = filtered.filter(v => v !== selectedValue);
-            } else {
-              finalValue = [...filtered, selectedValue];
-            }
-          }
         }
       }
 
@@ -181,8 +161,8 @@ export const useFHIRStepper = (
 
       if (!autoNext || !currentQuestion) return updated;
 
-      // Disable autoNext for required string
-      if (currentQuestion.type === 'string' && currentQuestion.required) {
+      // Disable autoNext for string (text input) questions — user must explicitly submit
+      if (currentQuestion.type === 'string') {
         return updated;
       }
 
@@ -194,31 +174,19 @@ export const useFHIRStepper = (
       const shouldMoveNext = isTopLevelComplete(currentQuestion, updated);
 
       const hasVisibleStringChild = currentQuestion.item?.some(child => {
-        const isVisible =
-          !child.enableWhen ||
-          child.enableWhen.every(rule => {
-            const expected =
-              rule.answerBoolean ??
-              rule.answerString ??
-              rule.answerInteger ??
-              rule.answerCoding?.code;
-
-            const parentAnswer = updated[rule.question];
-
-            if (Array.isArray(parentAnswer)) {
-              return parentAnswer.includes(expected as string);
-            }
-
-            return parentAnswer === expected;
-          });
-
-        return isVisible && child.type === 'string';
+        return (
+          evaluateEnableWhen(child.enableWhen, updated) &&
+          child.type === 'string'
+        );
       });
 
       const isLastQuestion = currentIndex === structuralTotal - 1;
 
       const hasNestedRepeats = currentQuestion.item?.some(
-        child => child.type === 'choice' && child.repeats
+        child =>
+          child.type === 'choice' &&
+          child.repeats &&
+          evaluateEnableWhen(child.enableWhen, updated)
       );
 
       if (
@@ -252,92 +220,6 @@ export const useFHIRStepper = (
     );
 
     return isChild ? currentQuestion.linkId : linkId;
-  };
-
-  const isTopLevelComplete = (
-    question: AyuQuestion,
-    updatedAnswers: Record<string, unknown>
-  ) => {
-    // Parent must be answered
-    const parentAnswer = updatedAnswers[question.linkId];
-
-    if (
-      question.repeats
-        ? !Array.isArray(parentAnswer) || parentAnswer.length === 0
-        : !parentAnswer
-    ) {
-      return false;
-    }
-
-    // For choice questions, check if any nested child has duration structure
-    if (question.type === 'choice' && question.item?.length) {
-      for (const child of question.item) {
-        const childAnswer = updatedAnswers[child.linkId];
-        if (isDurationAnswer(childAnswer)) {
-          // Must have both number and days filled
-          const hasNumber = !!childAnswer.dropdownValues?.number;
-          const hasDays = !!childAnswer.dropdownValues?.days;
-          if (!hasNumber || !hasDays) {
-            return false;
-          }
-        }
-      }
-    }
-
-    // Also check top-level for duration structure
-    const answer = updatedAnswers[question.linkId];
-    if (question.type === 'choice' && isDurationAnswer(answer)) {
-      // Must have both number and days filled
-      const hasNumber = !!answer.dropdownValues?.number;
-      const hasDays = !!answer.dropdownValues?.days;
-      if (!hasNumber || !hasDays) return false;
-    }
-
-    if (!question.item?.length) return true;
-
-    // Check visible nested
-    for (const child of question.item) {
-      const isVisible =
-        !child.enableWhen ||
-        child.enableWhen.every(rule => {
-          const expected =
-            rule.answerBoolean ??
-            rule.answerString ??
-            rule.answerInteger ??
-            rule.answerCoding?.code;
-
-          const parentAnswer = updatedAnswers[rule.question];
-
-          if (Array.isArray(parentAnswer)) {
-            return parentAnswer.includes(expected as string);
-          }
-
-          return parentAnswer === expected;
-        });
-
-      if (!isVisible) continue;
-
-      if (!updatedAnswers[child.linkId]) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  const isMutuallyExclusiveOption = (
-    question: AyuQuestion,
-    optionCode: string
-  ) => {
-    const option = question.answerOption?.find(
-      opt => opt.valueCoding?.code === optionCode
-    );
-
-    return option?.extension?.some(
-      ext =>
-        ext.url === 'urn:intelehealth:mutually-exclusive' &&
-        ext.valueBoolean === true
-    );
   };
 
   return {

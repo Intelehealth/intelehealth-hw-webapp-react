@@ -1,5 +1,5 @@
 import { MindmapPortalApi } from '../../../services/mindmap';
-import type { AyuApiResponse } from '../types/ayu-json.types';
+import type { AyuApiResponse } from '../../ayu-library/types/ayu-json.types';
 
 // Basic API endpoints
 export const API_ENDPOINTS = Object.freeze({

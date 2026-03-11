@@ -1,4 +1,9 @@
 import AyuButton from '../../common/ayu-button.component';
+import {
+  BUTTON_BACK,
+  BUTTON_CONFIRM,
+  BUTTON_NEXT,
+} from '../../../utils/ayu.constants';
 
 interface Props {
   questionIndex: number;
@@ -27,7 +32,7 @@ export const VisitReasonFooter = ({
         onClick={isFirst ? onPrevSection : onPrevQuestion}
         className="w-[120px]"
       >
-        Back
+        {BUTTON_BACK}
       </AyuButton>
 
       <AyuButton
@@ -36,7 +41,7 @@ export const VisitReasonFooter = ({
         onClick={onNextQuestion}
         className="w-[120px] border-0"
       >
-        {isLast ? 'Confirm' : 'Next'}
+        {isLast ? BUTTON_CONFIRM : BUTTON_NEXT}
       </AyuButton>
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 
 describe('AyuNumberInput', () => {
   const mockQuestion: AyuQuestion = {

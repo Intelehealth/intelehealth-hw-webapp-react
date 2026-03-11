@@ -17,7 +17,7 @@ import {
   removePendingImage,
 } from '../services/obs.service';
 import type { CapturedImage } from '../types/obs.types';
-import type { SectionProps } from '../types/start-visit.types';
+import type { SectionProps } from '../../ayu-library/types/start-visit.types';
 
 /** Recompute visible questions for a given answer state (used for look-ahead in selectAndAdvance) */
 const computeVisible = (

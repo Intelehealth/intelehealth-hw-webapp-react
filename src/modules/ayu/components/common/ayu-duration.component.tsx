@@ -1,5 +1,5 @@
-import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
-import { DURATION_DROPDOWN_CONFIGS } from '../../utils/constants';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import { DURATION_DROPDOWN_CONFIGS } from '../../../ayu-library/utils/constants';
 import { AyuDropdown } from './ayu-dropdown.component';
 
 export function AyuDuration({ value, onChange }: AyuRendererBaseProps) {

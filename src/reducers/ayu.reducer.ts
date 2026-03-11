@@ -1,4 +1,4 @@
-import type { AyuJsonItem } from '../modules/ayu/types/ayu-json.types';
+import type { AyuJsonItem } from '../modules/ayu-library/types/ayu-json.types';
 
 interface AyuState {
   keyName: string | null;

@@ -41,7 +41,21 @@ export default function PatientPreviewComponent({
   const navigate = useNavigate();
 
   const handleStartVisit = () => {
-    navigate('/ayu');
+    const patientName = [
+      data.personalInfo.firstName,
+      data.personalInfo.middleName,
+      data.personalInfo.lastName,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    navigate('/ayu', {
+      state: {
+        patientName,
+        patientAge: data.personalInfo.age || data.personalInfo.dateOfBirth,
+        patientGender: data.personalInfo.gender,
+      },
+    });
   };
 
   return (

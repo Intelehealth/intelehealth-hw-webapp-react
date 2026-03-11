@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { AyuAnswerValue, AyuQuestion } from '../../../../modules/ayu/types/ayu.types';
+import type { AyuAnswerValue, AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import {
   collectDescendantLinkIds,
   clearHiddenDescendantAnswers,
-} from '../../../../modules/ayu/utils/question.utils';
+} from '../../../../modules/ayu-library/utils/question.utils';
 
 describe('question.utils', () => {
   describe('collectDescendantLinkIds', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { safeJsonParse } from '../../../../modules/ayu/utils/json.utils';
+import { safeJsonParse } from '../../../../modules/ayu-library/utils/json.utils';
 
 describe('safeJsonParse', () => {
   let consoleErrorSpy: any;

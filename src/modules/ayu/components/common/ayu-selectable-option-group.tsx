@@ -1,7 +1,10 @@
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
-import type { AyuAnswerOption } from '../../types/ayu.types';
-import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../utils/constants';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
+import {
+  SELECT_ANY_ONE,
+  SELECT_ONE_OR_MORE,
+} from '../../../ayu-library/utils/constants';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
 export function AyuSelectableOptionGroup({

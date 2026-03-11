@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AyuSelectableOptionGroup } from '../../../../../modules/ayu/components/common/ayu-selectable-option-group';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 
 vi.mock('../../../../../ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),

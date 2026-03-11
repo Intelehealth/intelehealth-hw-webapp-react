@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
-import type { SectionState } from '../../types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
@@ -25,6 +26,14 @@ const getPhysicalExamFilter = (
 };
 
 export const StartVisit = () => {
+  const location = useLocation();
+  const { patientName, patientAge, patientGender } =
+    (location.state as {
+      patientName?: string;
+      patientAge?: string;
+      patientGender?: string;
+    }) || {};
+
   const physicalExamFilter = useMemo(
     () => getPhysicalExamFilter(CoughQuestionnaire),
     []
@@ -142,12 +151,23 @@ export const StartVisit = () => {
         />
         Start Visit
       </div>
-      <div
-        className="mt-2 font-medium text-xs md:text-sm"
-        style={{ color: '#2e1e91' }}
-      >
-        {currentSectionIndex + 1}/{sections.length}{' '}
-        {sections[currentSectionIndex].name}
+      <div className="mt-2">
+        {patientName && (
+          <span className="text-gray-700 font-semibold">
+            {patientName}
+            <span className="text-gray-700 text-sm font-normal">
+              {patientAge ? ` (${patientAge}` : ''}
+              {patientGender ? ` | ${patientGender})` : ''}
+            </span>
+          </span>
+        )}
+        <div
+          className="font-medium text-xs md:text-sm"
+          style={{ color: '#2e1e91' }}
+        >
+          {currentSectionIndex + 1}/{sections.length}{' '}
+          {sections[currentSectionIndex].name}
+        </div>
       </div>
       {/* Top Loader */}
       <div className="pt-3">

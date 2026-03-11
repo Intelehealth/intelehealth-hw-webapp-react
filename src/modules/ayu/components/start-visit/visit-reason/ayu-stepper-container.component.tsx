@@ -1,11 +1,30 @@
-import { useEffect, useRef } from 'react';
-import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
-import { resolveAyuComponent } from '../../../pages/decision-matrix';
+import { useEffect, useRef, useState } from 'react';
+import { showToast } from '../../../../../services/toast';
+import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
+import {
+  hasUnansweredRequiredNestedChild,
+  hasVisibleRequiredNestedString,
+  isNestedInputValueMissing,
+  isQuantityInvalid,
+} from '../../../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
   FhirQuestionnaire,
-} from '../../../types/ayu.types';
+} from '../../../../ayu-library/types/ayu.types';
+import iconYes from '../../../assets/yes.svg';
+import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
+import {
+  resolveAyuComponent,
+  ASSOCIATED_SYMPTOMS_COMPONENT,
+} from '../../../pages/decision-matrix';
+import {
+  BUTTON_SKIP,
+  BUTTON_SUBMIT,
+  VALIDATION_ALL_COMPULSORY,
+  VALIDATION_ENTER_VALUE,
+  VALIDATION_SELECT_OPTION,
+} from '../../../utils/ayu.constants';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuNestedRenderer } from './ayu-nested-renderer.component';
@@ -37,6 +56,12 @@ export const AyuStepperContainer = ({
 
   const totalSteps = topLevelItems.length;
   const lastQuestionRef = useRef<HTMLDivElement | null>(null);
+  const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(
+    new Set()
+  );
+  const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(
+    new Set()
+  );
 
   const prevCompletedRef = useRef<number>(-1);
 
@@ -58,90 +83,6 @@ export const AyuStepperContainer = ({
   }, [currentIndex]);
 
   if (!currentQuestion) return null;
-
-  const isEmpty = (val: unknown) =>
-    val === undefined ||
-    val === null ||
-    (typeof val === 'string' && val.trim() === '') ||
-    (Array.isArray(val) && val.length === 0);
-
-  const hasVisibleRequiredNestedString = currentQuestion.item?.some(
-    (child: AyuQuestion) => {
-      if (child.type !== 'string') return false;
-
-      // check visibility
-      const isVisible =
-        !child.enableWhen ||
-        child.enableWhen.every(rule => {
-          const expected =
-            rule.answerBoolean ??
-            rule.answerString ??
-            rule.answerInteger ??
-            rule.answerCoding?.code;
-
-          return answers[rule.question] === expected;
-        });
-
-      if (!isVisible) return false;
-
-      return isEmpty(answers[child.linkId]);
-    }
-  );
-
-  // Check if quantity/duration field is properly filled
-  const isQuantityInvalid = (question: AyuQuestion) => {
-    if (question.type !== 'quantity' && question.type !== 'choice')
-      return false;
-
-    // Check nested children for duration structure
-    if (question.type === 'choice' && question.item) {
-      for (const child of question.item) {
-        const childAnswer = answers[child.linkId];
-        if (
-          childAnswer &&
-          typeof childAnswer === 'object' &&
-          'dropdownValues' in childAnswer
-        ) {
-          // Check if both dropdown values are filled
-          const hasNumber = !!childAnswer.dropdownValues?.number;
-          const hasDays = !!childAnswer.dropdownValues?.days;
-          return !hasNumber || !hasDays;
-        }
-      }
-      // Check grandchildren for duration structure (deeply nested items)
-      for (const child of question.item) {
-        if (child.item) {
-          for (const grandchild of child.item) {
-            const grandchildAnswer = answers[grandchild.linkId];
-            if (
-              grandchildAnswer &&
-              typeof grandchildAnswer === 'object' &&
-              'dropdownValues' in grandchildAnswer
-            ) {
-              const hasNumber = !!grandchildAnswer.dropdownValues?.number;
-              const hasDays = !!grandchildAnswer.dropdownValues?.days;
-              if (!hasNumber || !hasDays) return true;
-            }
-          }
-        }
-      }
-    }
-
-    // Check top-level answer
-    const value = answers[question.linkId];
-    if (!value) return true;
-
-    // Only validate if it's an object with dropdownValues structure (duration component)
-    if (typeof value === 'object' && 'dropdownValues' in value) {
-      // Check if both dropdown values are filled
-      const hasNumber = !!value.dropdownValues?.number;
-      const hasDays = !!value.dropdownValues?.days;
-      return !hasNumber || !hasDays;
-    }
-
-    // For regular choice questions (string values), not invalid
-    return false;
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,7 +108,8 @@ export const AyuStepperContainer = ({
                     setAnswer={setAnswer}
                   />
                   {question.item &&
-                    resolveAyuComponent(question) !== 'associatedSymptoms' && (
+                    resolveAyuComponent(question) !==
+                      ASSOCIATED_SYMPTOMS_COMPONENT && (
                       <AyuNestedRenderer
                         items={question.item}
                         parentQuestion={question}
@@ -177,7 +119,7 @@ export const AyuStepperContainer = ({
                       />
                     )}
                   {/* ACTION BUTTONS */}
-                  {(isActive || showAll) && (
+                  {(isActive || showAll || index < currentIndex) && (
                     <div className="mt-3 flex gap-3 md:justify-end">
                       {/* SUBMIT for required string and quantity types */}
                       {(() => {
@@ -203,12 +145,31 @@ export const AyuStepperContainer = ({
                           });
 
                         const hasNestedRepeats = question.item?.some(
-                          child => child.repeats
+                          child =>
+                            child.repeats &&
+                            evaluateEnableWhen(child.enableWhen, answers)
                         );
 
-                        // In review mode, always show Submit when question has an answer
+                        // Check for visible nested input-type children with answers
+                        const hasVisibleNestedInput = question.item?.some(
+                          child =>
+                            (child.type === 'string' ||
+                              child.type === 'integer' ||
+                              child.type === 'quantity') &&
+                            evaluateEnableWhen(child.enableWhen, answers) &&
+                            answers[child.linkId] !== undefined
+                        );
+
+                        // In review mode, show Submit for answered questions except pure single-choice
                         if (showAll && answers[question.linkId] !== undefined) {
-                          return true;
+                          const isSingleChoiceWithoutNestedSubmit =
+                            question.type === 'choice' &&
+                            !question.repeats &&
+                            !hasNestedRepeats &&
+                            !hasVisibleNestedInput &&
+                            !isDurationChoice &&
+                            !hasNestedDuration;
+                          if (!isSingleChoiceWithoutNestedSubmit) return true;
                         }
 
                         return (
@@ -220,60 +181,123 @@ export const AyuStepperContainer = ({
                           isDurationChoice ||
                           hasNestedDuration ||
                           hasNestedRepeats ||
-                          question.item?.some(
-                            child =>
-                              (child.type === 'string' ||
-                                child.type === 'integer' ||
-                                child.type === 'quantity') &&
-                              answers[child.linkId] !== undefined
-                          )
+                          hasVisibleNestedInput
                         );
                       })() && (
                         <AyuButton
                           variant="primary"
                           className="w-full md:w-[10%]"
-                          disabled={
-                            hasVisibleRequiredNestedString ||
-                            isQuantityInvalid(question) ||
-                            (question.type === 'choice' &&
-                              question.repeats &&
-                              resolveAyuComponent(question) !==
-                                'associatedSymptoms' &&
-                              (!Array.isArray(answers[question.linkId]) ||
-                                (answers[question.linkId] as string[])
-                                  .length === 0)) ||
-                            (resolveAyuComponent(question) ===
-                              'associatedSymptoms' &&
-                              (!Array.isArray(answers[question.linkId]) ||
-                                (answers[question.linkId] as string[]).length <
-                                  (question.answerOption?.length ?? 0)))
+                          size="sm"
+                          rightIcon={
+                            submittedQuestions.has(question.linkId) ? (
+                              <img src={iconYes} alt="yes" />
+                            ) : undefined
                           }
                           onClick={() => {
-                            if (isLast) {
-                              onProgressUpdate?.(totalSteps, totalSteps);
+                            const isInvalid =
+                              hasVisibleRequiredNestedString(
+                                question,
+                                answers
+                              ) ||
+                              hasUnansweredRequiredNestedChild(
+                                question,
+                                answers
+                              ) ||
+                              isQuantityInvalid(question, answers) ||
+                              (question.type === 'choice' &&
+                                question.repeats &&
+                                resolveAyuComponent(question) !==
+                                  ASSOCIATED_SYMPTOMS_COMPONENT &&
+                                (!Array.isArray(answers[question.linkId]) ||
+                                  (answers[question.linkId] as string[])
+                                    .length === 0)) ||
+                              (resolveAyuComponent(question) ===
+                                ASSOCIATED_SYMPTOMS_COMPONENT &&
+                                (!Array.isArray(answers[question.linkId]) ||
+                                  (answers[question.linkId] as string[])
+                                    .length <
+                                    (question.answerOption?.length ?? 0)));
+
+                            if (isInvalid) {
+                              const isAssociatedSymptomsIncomplete =
+                                resolveAyuComponent(question) ===
+                                  ASSOCIATED_SYMPTOMS_COMPONENT &&
+                                (!Array.isArray(answers[question.linkId]) ||
+                                  (answers[question.linkId] as string[])
+                                    .length <
+                                    (question.answerOption?.length ?? 0));
+
+                              const message = isAssociatedSymptomsIncomplete
+                                ? VALIDATION_ALL_COMPULSORY
+                                : hasVisibleRequiredNestedString(
+                                      question,
+                                      answers
+                                    ) ||
+                                    isNestedInputValueMissing(
+                                      question,
+                                      answers
+                                    ) ||
+                                    isQuantityInvalid(question, answers)
+                                  ? VALIDATION_ENTER_VALUE
+                                  : VALIDATION_SELECT_OPTION;
+                              showToast(message, undefined, 'warning');
+                              return;
                             }
-                            goNext();
+
+                            setSubmittedQuestions(prev =>
+                              new Set(prev).add(question.linkId)
+                            );
+
+                            const isAssociatedSymptoms =
+                              resolveAyuComponent(question) ===
+                              ASSOCIATED_SYMPTOMS_COMPONENT;
+
+                            if (isActive || isAssociatedSymptoms) {
+                              if (isLast || isAssociatedSymptoms) {
+                                onProgressUpdate?.(totalSteps, totalSteps);
+                              }
+                              goNext();
+                            }
                           }}
                         >
-                          Submit
+                          {BUTTON_SUBMIT}
                         </AyuButton>
                       )}
 
                       {/* SKIP for non-required */}
-                      {!question.required && (
-                        <AyuButton
-                          variant="primary"
-                          className="w-full md:w-[10%]"
-                          onClick={() => {
-                            if (isLast) {
-                              onProgressUpdate?.(totalSteps, totalSteps);
+                      {!question.required &&
+                        (isActive ||
+                          index < currentIndex ||
+                          skippedQuestions.has(question.linkId)) && (
+                          <AyuButton
+                            variant="primary"
+                            className="w-full md:w-[10%]"
+                            size="sm"
+                            disabled={
+                              answers[question.linkId] !== undefined &&
+                              !isActive
                             }
-                            goNext();
-                          }}
-                        >
-                          Skip
-                        </AyuButton>
-                      )}
+                            rightIcon={
+                              skippedQuestions.has(question.linkId) &&
+                              !(question.linkId in answers) ? (
+                                <img src={iconYes} alt="yes" />
+                              ) : undefined
+                            }
+                            onClick={() => {
+                              setSkippedQuestions(prev =>
+                                new Set(prev).add(question.linkId)
+                              );
+                              if (isActive) {
+                                if (isLast) {
+                                  onProgressUpdate?.(totalSteps, totalSteps);
+                                }
+                                goNext();
+                              }
+                            }}
+                          >
+                            {BUTTON_SKIP}
+                          </AyuButton>
+                        )}
                     </div>
                   )}
                 </>

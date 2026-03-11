@@ -3,8 +3,8 @@ import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useVisitReasons } from '../../../hooks/useVisitReasons.hook';
-import type { AyuQuestion } from '../../../types/ayu.types';
-import type { SectionProps } from '../../../types/start-visit.types';
+import type { AyuQuestion } from '../../../../ayu-library/types/ayu.types';
+import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
@@ -12,6 +12,12 @@ import { ReasonAlphabetList } from './reason-alphabetList.component';
 import { ReasonCategoryList } from './reason-categoryList.component';
 import { ReasonSearchInput } from './search-input.component';
 import { SelectedReasons } from './selected-reasons.component';
+import {
+  CONFIRM_MODAL_TITLE,
+  CONFIRM_MODAL_DESCRIPTION,
+  CONFIRM_MODAL_YES,
+  CONFIRM_MODAL_NO,
+} from '../../../utils/ayu.constants';
 
 export const VisitReason = ({
   questionIndex,
@@ -43,11 +49,10 @@ export const VisitReason = ({
 
     showConfirmModal({
       icon: iconVisitReason,
-      title: 'Confirm visit reason?',
-      description:
-        'Are you sure the patient has the following reasons for a visit?',
-      confirmText: 'Yes',
-      cancelText: 'No',
+      title: CONFIRM_MODAL_TITLE,
+      description: CONFIRM_MODAL_DESCRIPTION,
+      confirmText: CONFIRM_MODAL_YES,
+      cancelText: CONFIRM_MODAL_NO,
       type: 'confirm',
       items: selectedReasons,
       open: true,

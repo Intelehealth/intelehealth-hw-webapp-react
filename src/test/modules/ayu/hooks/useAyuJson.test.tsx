@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAyuJsonList } from '../../../../modules/ayu/hooks/useAyuJson.hook';
-import type { AyuApiResponse } from '../../../../modules/ayu/types/ayu-json.types';
+import type { AyuApiResponse } from '../../../../modules/ayu-library/types/ayu-json.types';
 import { ayuReducer } from '../../../../reducers/ayu.reducer';
 
 // Mock the service

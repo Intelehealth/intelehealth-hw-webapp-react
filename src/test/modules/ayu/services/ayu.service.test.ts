@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fetchAyuJsonList, API_ENDPOINTS } from '../../../../modules/ayu/services/ayu.service';
-import type { AyuApiResponse } from '../../../../modules/ayu/types/ayu-json.types';
+import type { AyuApiResponse } from '../../../../modules/ayu-library/types/ayu-json.types';
 
 // Mock the MindmapPortalApi
 vi.mock('../../../../services/mindmap', () => ({

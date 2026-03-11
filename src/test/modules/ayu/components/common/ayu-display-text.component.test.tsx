@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AyuDisplayText } from '../../../../../modules/ayu/components/common/ayu-display-text.component';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 
 describe('AyuDisplayText', () => {
   const mockQuestion: AyuQuestion = {
