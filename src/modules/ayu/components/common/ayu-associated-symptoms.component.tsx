@@ -1,6 +1,13 @@
 import iconNo from '../../assets/no.svg';
 import iconYes from '../../assets/yes.svg';
-import type { AyuAnswerValue, AyuQuestion } from '../../types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../ayu-library/types/ayu.types';
+import {
+  parseYesNoValues,
+  toggleAssociatedSymptom,
+} from '../../../ayu-library/logic/associated-symptoms.logic';
 import { AyuNestedRenderer } from '../start-visit/visit-reason/ayu-nested-renderer.component';
 import AyuButton from './ayu-button.component';
 
@@ -19,30 +26,10 @@ export const AyuAssociatedSymptoms = ({
   answers,
   setAnswer,
 }: Props) => {
-  // Parse yes/no answers from the stored value array.
-  // Yes codes are stored as-is; No codes are stored with a "NO_" prefix.
-  const yesValues: string[] = [];
-  const noValues: string[] = [];
-
-  if (Array.isArray(value)) {
-    for (const v of value) {
-      if (typeof v === 'string' && v.startsWith('NO_')) {
-        noValues.push(v.slice(3));
-      } else if (typeof v === 'string') {
-        yesValues.push(v);
-      }
-    }
-  }
+  const { yesValues, noValues } = parseYesNoValues(value);
 
   const toggleValue = (code: string, isYes: boolean) => {
-    const newYes = isYes
-      ? [...yesValues.filter(c => c !== code), code]
-      : yesValues.filter(c => c !== code);
-    const newNo = isYes
-      ? noValues.filter(c => c !== code)
-      : [...noValues.filter(c => c !== code), code];
-
-    onChange?.([...newYes, ...newNo.map(c => `NO_${c}`)]);
+    onChange?.(toggleAssociatedSymptom(yesValues, noValues, code, isYes));
   };
 
   return (

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   type AyuComponentType,
   resolveAyuComponent,
-} from '../../../../modules/ayu/pages/decision-matrix';
-import type { AyuQuestion } from '../../../../modules/ayu/types/ayu.types';
+} from '../../../../modules/ayu-library/logic/decision-matrix';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 
 describe('decision-matrix', () => {
   describe('resolveAyuComponent', () => {

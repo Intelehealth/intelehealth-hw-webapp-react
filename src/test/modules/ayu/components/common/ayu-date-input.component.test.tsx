@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AyuDateInput } from '../../../../../modules/ayu/components/common/ayu-date-input.component';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import * as fhirUtils from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 
 vi.spyOn(fhirUtils, 'resolveLabel').mockImplementation((question) => question.text);

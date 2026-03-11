@@ -3,7 +3,7 @@ import iconCamera from '../../../../assets/icons/icon-camera.svg';
 import { getJobAidUrl } from '../../utils/physExamAssets';
 import type { PhysicalExamQuestion } from '../../data/physical-exam.data';
 import { usePhysicalExam } from '../../hooks/usePhysicalExam';
-import type { SectionProps } from '../../types/start-visit.types';
+import type { SectionProps } from '../../../ayu-library/types/start-visit.types';
 import AyuButton from '../common/ayu-button.component';
 import { AyuSelectableOption } from '../common/ayu-selectable-option.component';
 import { QuestionLoader } from '../loaders/question-loader.component';

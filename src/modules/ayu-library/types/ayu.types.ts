@@ -22,9 +22,34 @@ export interface AyuAnswerOption {
   extension?: FhirExtension[];
 }
 
+export interface DropdownValues {
+  number?: string | number | null;
+  days?: string | null;
+}
+
+export interface DurationAnswer {
+  dropdownValues: DropdownValues;
+}
+
+export interface QuantityAnswer {
+  value?: number | string | null;
+  unit?: string;
+}
+
+export type AyuAnswerValue =
+  | string
+  | number
+  | boolean
+  | DurationAnswer
+  | QuantityAnswer
+  | string[]
+  | null
+  | undefined;
+
 export interface FhirQuestionnaire {
-  resourceType: string;
+  resourceType?: string;
   item?: AyuQuestion[];
+  text?: string;
 }
 
 export interface AyuEnableWhen {
@@ -32,6 +57,7 @@ export interface AyuEnableWhen {
   operator: string;
   answerBoolean?: boolean;
   answerString?: string;
+  answerInteger?: number;
   answerCoding?: {
     system?: string;
     code: string;
@@ -50,13 +76,6 @@ export interface AyuQuestion {
 
   /** FHIR: item.type */
   type: string;
-  // | 'group'
-  // | 'display'
-  // | 'string'
-  // | 'integer'
-  // | 'decimal'
-  // | 'date'
-  // | 'choice';
 
   /** FHIR: item.required */
   required?: boolean;
@@ -68,8 +87,6 @@ export interface AyuQuestion {
   repeats?: boolean;
 
   enableWhen?: AyuEnableWhen[];
-
-  // enableBehavior?: 'all' | 'any';
 
   extension?: FhirExtension[];
 

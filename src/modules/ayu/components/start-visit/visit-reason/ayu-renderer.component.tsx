@@ -1,6 +1,6 @@
 import { componentMap } from '../../../pages/component-map';
 import { resolveAyuComponent } from '../../../pages/decision-matrix';
-import type { AyuRendererBaseProps } from '../../../types/ayu-renderer-props.types';
+import type { AyuRendererBaseProps } from '../../../../ayu-library/types/ayu-renderer-props.types';
 export const AyuRenderer = ({
   question,
   parent,

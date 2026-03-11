@@ -1,5 +1,5 @@
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
-import type { AyuRendererBaseProps } from '../../types/ayu-renderer-props.types';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 
 export function AyuTextInput({
   question,

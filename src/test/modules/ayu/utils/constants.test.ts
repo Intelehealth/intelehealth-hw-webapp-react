@@ -3,7 +3,7 @@ import {
   DURATION_DROPDOWN_CONFIGS,
   SELECT_ANY_ONE,
   SELECT_ONE_OR_MORE,
-} from '../../../../modules/ayu/utils/constants';
+} from '../../../../modules/ayu-library/utils/constants';
 
 describe('Constants', () => {
   describe('Nested Question Helper Text', () => {

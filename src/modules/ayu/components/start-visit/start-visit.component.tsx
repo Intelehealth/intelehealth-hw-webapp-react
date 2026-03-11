@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
-import type { SectionState } from '../../types/start-visit.types';
+import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';

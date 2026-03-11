@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ModalSectionItem } from '../../../../components/modal/global-modal-context';
 import { buildVisitSummary } from '../../../../modules/ayu/utils/visit-summary.util';
-import type { AyuAnswerValue } from '../../../../modules/ayu/types/ayu.types';
+import type { AyuAnswerValue } from '../../../../modules/ayu-library/types/ayu.types';
 
 /** Type-safe accessor for labelValue items in test assertions */
 function getLabelValue(item: ModalSectionItem): string | number | null {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AyuAssociatedSymptoms } from '../../../../../modules/ayu/components/common/ayu-associated-symptoms.component';
-import type { AyuQuestion } from '../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import { AyuNestedRenderer as MockedAyuNestedRenderer } from '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 
 // Mock SVG imports

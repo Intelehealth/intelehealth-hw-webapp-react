@@ -18,7 +18,10 @@ export const SelectedReasons = ({ selectedReasons, removeReason }: Props) => {
           >
             {reason}
 
-            <button onClick={() => removeReason(reason)} className="font-bold">
+            <button
+              onClick={() => removeReason(reason)}
+              className="font-bold cursor-pointer"
+            >
               ✕
             </button>
           </div>

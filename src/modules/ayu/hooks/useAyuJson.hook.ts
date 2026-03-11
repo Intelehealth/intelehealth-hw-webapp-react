@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setAyuJsonList } from '../../../reducers/ayu.reducer';
 import type { RootState } from '../../../store/store';
 import { fetchAyuJsonList } from '../services/ayu.service';
-import type { AyuJsonItem } from '../types/ayu-json.types';
-import { safeJsonParse } from '../utils/json.utils';
+import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
+import { safeJsonParse } from '../../ayu-library/utils/json.utils';
 
 export function useAyuJsonList(keyName: string) {
   const dispatch = useDispatch();

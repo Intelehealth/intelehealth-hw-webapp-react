@@ -1,23 +1,24 @@
 import { useMemo, useState } from 'react';
-import { EXCLUDED_JSON_NAMES } from '../utils/constants';
+import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
+import {
+  extractVisitReasonNames,
+  filterNamesBySearch,
+  groupByFirstLetter,
+} from '../../ayu-library/logic/visit-reasons.logic';
 import { useAyuJsonList } from './useAyuJson.hook';
 
 export const useVisitReasons = () => {
   const ayuJsonList = useAyuJsonList('IDA6');
 
   const names = useMemo(() => {
-    return ayuJsonList
-      .map(item => item.name.replace(/\.json$/i, ''))
-      .filter(item => !EXCLUDED_JSON_NAMES.includes(item))
-      .sort((a, b) => a.localeCompare(b));
+    return extractVisitReasonNames(ayuJsonList, EXCLUDED_JSON_NAMES);
   }, [ayuJsonList]);
 
   const [search, setSearch] = useState('');
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
 
   const filteredNames = useMemo(() => {
-    if (!search) return [];
-    return names.filter(n => n.toLowerCase().includes(search.toLowerCase()));
+    return filterNamesBySearch(names, search);
   }, [search, names]);
 
   const addReason = (reason: string) => {
@@ -33,19 +34,7 @@ export const useVisitReasons = () => {
   };
 
   const grouped = useMemo(() => {
-    const map: Record<string, string[]> = {};
-
-    names.forEach(name => {
-      const clean = name?.replace(/\s+/g, ' ').trim();
-      const letter = clean.charAt(0).toUpperCase();
-
-      if (!map[letter]) map[letter] = [];
-      map[letter].push(clean);
-    });
-
-    Object.keys(map).forEach(letter => map[letter].sort());
-
-    return map;
+    return groupByFirstLetter(names);
   }, [names]);
 
   const selectedComplaints = useMemo(() => {

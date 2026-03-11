@@ -1,4 +1,4 @@
-import type { AyuQuestion } from '../../types/ayu.types';
+import type { AyuQuestion } from '../../../ayu-library/types/ayu.types';
 
 export function AyuDisplayText({ question }: { question?: AyuQuestion }) {
   return (

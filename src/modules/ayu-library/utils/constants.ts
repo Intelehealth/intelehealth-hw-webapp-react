@@ -1,4 +1,4 @@
-import type { DropdownOption } from '../components/common/ayu-dropdown.component';
+import type { DropdownOption } from '../types/dropdown.types';
 
 // Nested question helper text
 export const SELECT_ONE_OR_MORE = 'Select one or more';

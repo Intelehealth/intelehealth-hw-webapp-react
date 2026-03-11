@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuRenderer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component';
-import type { AyuQuestion } from '../../../../../../modules/ayu/types/ayu.types';
+import type { AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
 
 // Mock the component map and decision matrix
 vi.mock('../../../../../../modules/ayu/pages/component-map', () => {
@@ -45,11 +45,11 @@ vi.mock('../../../../../../modules/ayu/pages/component-map', () => {
   };
 });
 
-vi.mock('../../../../../../modules/ayu/pages/decision-matrix', () => ({
+vi.mock('../../../../../../modules/ayu-library/logic/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(),
 }));
 
-import { resolveAyuComponent } from '../../../../../../modules/ayu/pages/decision-matrix';
+import { resolveAyuComponent } from '../../../../../../modules/ayu-library/logic/decision-matrix';
 import { componentMap } from '../../../../../../modules/ayu/pages/component-map';
 
 const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
