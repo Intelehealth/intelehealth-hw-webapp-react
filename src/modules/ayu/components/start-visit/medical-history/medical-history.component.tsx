@@ -189,7 +189,7 @@ export const MedicalHistory = () => {
         <AyuButton
           type="submit"
           onClick={() => {
-            navigate('/ayu/renders');
+            navigate('/visit-summary');
           }}
           variant="primary"
           size="sm"

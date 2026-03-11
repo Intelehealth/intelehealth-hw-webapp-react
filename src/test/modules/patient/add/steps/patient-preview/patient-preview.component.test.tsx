@@ -346,15 +346,37 @@ describe('PatientPreviewComponent', () => {
       expect(startVisitButton).toBeInTheDocument();
     });
 
-    it('should navigate to /ayu when clicked', async () => {
+    it('should navigate to /ayu with patient state when clicked', async () => {
       const user = userEvent.setup();
       render(<PatientPreviewComponent data={completeData} />);
       const startVisitButton = screen.getByRole('button', { name: /Start Visit/i });
 
       await user.click(startVisitButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu', {
+        state: {
+          patientName: 'John Michael Doe',
+          patientAge: '34',
+          patientGender: 'M',
+        },
+      });
       expect(mockNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should pass patientName without empty segments when middleName is missing', async () => {
+      const user = userEvent.setup();
+      render(<PatientPreviewComponent data={minimalData} />);
+      const startVisitButton = screen.getByRole('button', { name: /Start Visit/i });
+
+      await user.click(startVisitButton);
+
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu', {
+        state: {
+          patientName: 'John Doe',
+          patientAge: '1990-01-01',
+          patientGender: 'M',
+        },
+      });
     });
   });
 

@@ -223,14 +223,14 @@ describe('MedicalHistory', () => {
   });
 
   describe('Submit Button', () => {
-    it('should navigate to /ayu/renders when Submit is clicked', async () => {
+    it('should navigate to /visit-summary when Submit is clicked', async () => {
       const user = userEvent.setup();
       renderWithRouter(<MedicalHistory />);
 
       const submitButton = screen.getByRole('button', { name: /Submit/i });
       await user.click(submitButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/ayu/renders');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary');
     });
   });
 

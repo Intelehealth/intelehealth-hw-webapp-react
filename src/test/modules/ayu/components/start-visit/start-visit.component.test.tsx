@@ -67,9 +67,16 @@ vi.mock('../../../../../modules/ayu/components/start-visit/medical-history/medic
   )),
 }));
 
-// Helper function to render with Router
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(<MemoryRouter>{component}</MemoryRouter>);
+// Helper function to render with Router and optional location state
+const renderWithRouter = (
+  component: React.ReactElement,
+  { state }: { state?: Record<string, unknown> } = {}
+) => {
+  return render(
+    <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
+      {component}
+    </MemoryRouter>
+  );
 };
 
 describe('StartVisit', () => {
@@ -101,7 +108,7 @@ describe('StartVisit', () => {
     });
 
     it('should not render SideLoader for sections with single question', () => {
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       // Vitals section has only 1 question, so SideLoader should not render
       expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
     });
@@ -118,6 +125,33 @@ describe('StartVisit', () => {
     it('should start at question index 0', () => {
       renderWithRouter(<StartVisit />);
       expect(screen.getByText(/Vitals - Question 0/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Patient Info Display', () => {
+    it('should display patient name, age, and gender when provided via location state', () => {
+      renderWithRouter(<StartVisit />, {
+        state: {
+          patientName: 'John Doe',
+          patientAge: '34',
+          patientGender: 'M',
+        },
+      });
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+      expect(screen.getByText(/\(34/)).toBeInTheDocument();
+      expect(screen.getByText(/\| M\)/)).toBeInTheDocument();
+    });
+
+    it('should not render patient info when location state is empty', () => {
+      renderWithRouter(<StartVisit />);
+      expect(screen.queryByText(/\|/)).not.toBeInTheDocument();
+    });
+
+    it('should handle partial patient info (name only)', () => {
+      renderWithRouter(<StartVisit />, {
+        state: { patientName: 'Jane' },
+      });
+      expect(screen.getByText('Jane')).toBeInTheDocument();
     });
   });
 
@@ -409,7 +443,7 @@ describe('StartVisit', () => {
 
     it('should pass correct props to SideLoader', async () => {
       const user = userEvent.setup();
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
 
       // Navigate to Physical Exam which has 8 questions (SideLoader will render)
       await user.click(screen.getByText('Next Vitals'));
@@ -555,7 +589,7 @@ describe('StartVisit', () => {
         await import('../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component')
       ).VisitReason;
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
 
       // Check that VisitReason was called and received onProgressUpdate prop
@@ -571,7 +605,7 @@ describe('StartVisit', () => {
         await import('../../../../../modules/ayu/components/start-visit/physical-examination.component')
       ).PhysicalExamination;
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
 
@@ -588,7 +622,7 @@ describe('StartVisit', () => {
         await import('../../../../../modules/ayu/components/start-visit/medical-history/medical-history.component')
       ).MedicalHistory;
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
       for (let i = 0; i < 8; i++) {
@@ -615,7 +649,7 @@ describe('StartVisit', () => {
         return <div data-testid="visit-reason-component">Visit Reason</div>;
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
 
       // Call the onProgressUpdate callback
@@ -641,7 +675,7 @@ describe('StartVisit', () => {
         return <div data-testid="physical-exam-component">Physical Exam</div>;
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
 
@@ -668,7 +702,7 @@ describe('StartVisit', () => {
         return <div data-testid="medical-history-component">Medical History</div>;
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
       for (let i = 0; i < 8; i++) {
@@ -699,7 +733,7 @@ describe('StartVisit', () => {
         );
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
 
       const updateButton = screen.getByText('Update Progress');
@@ -724,7 +758,7 @@ describe('StartVisit', () => {
         );
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
 
       await user.click(screen.getByText('Update 1'));
@@ -748,7 +782,7 @@ describe('StartVisit', () => {
         );
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
 
@@ -772,7 +806,7 @@ describe('StartVisit', () => {
         );
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
       await user.click(screen.getByText('Next Vitals'));
       await user.click(screen.getByText('Next Question'));
       for (let i = 0; i < 8; i++) {
@@ -800,7 +834,7 @@ describe('StartVisit', () => {
         );
       });
 
-      render(<StartVisit />);
+      renderWithRouter(<StartVisit />);
 
       // Complete Vitals
       await user.click(screen.getByText('Next Vitals'));

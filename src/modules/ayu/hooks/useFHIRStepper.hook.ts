@@ -154,8 +154,8 @@ export const useFHIRStepper = (
 
       if (!autoNext || !currentQuestion) return updated;
 
-      // Disable autoNext for required string
-      if (currentQuestion.type === 'string' && currentQuestion.required) {
+      // Disable autoNext for string (text input) questions — user must explicitly submit
+      if (currentQuestion.type === 'string') {
         return updated;
       }
 
