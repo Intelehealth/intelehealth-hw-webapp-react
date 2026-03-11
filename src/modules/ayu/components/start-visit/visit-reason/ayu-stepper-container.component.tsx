@@ -14,7 +14,10 @@ import type {
 } from '../../../../ayu-library/types/ayu.types';
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
-import { resolveAyuComponent } from '../../../pages/decision-matrix';
+import {
+  resolveAyuComponent,
+  ASSOCIATED_SYMPTOMS_COMPONENT,
+} from '../../../pages/decision-matrix';
 import {
   BUTTON_SKIP,
   BUTTON_SUBMIT,
@@ -105,7 +108,8 @@ export const AyuStepperContainer = ({
                     setAnswer={setAnswer}
                   />
                   {question.item &&
-                    resolveAyuComponent(question) !== 'associatedSymptoms' && (
+                    resolveAyuComponent(question) !==
+                      ASSOCIATED_SYMPTOMS_COMPONENT && (
                       <AyuNestedRenderer
                         items={question.item}
                         parentQuestion={question}
@@ -203,12 +207,12 @@ export const AyuStepperContainer = ({
                               (question.type === 'choice' &&
                                 question.repeats &&
                                 resolveAyuComponent(question) !==
-                                  'associatedSymptoms' &&
+                                  ASSOCIATED_SYMPTOMS_COMPONENT &&
                                 (!Array.isArray(answers[question.linkId]) ||
                                   (answers[question.linkId] as string[])
                                     .length === 0)) ||
                               (resolveAyuComponent(question) ===
-                                'associatedSymptoms' &&
+                                ASSOCIATED_SYMPTOMS_COMPONENT &&
                                 (!Array.isArray(answers[question.linkId]) ||
                                   (answers[question.linkId] as string[])
                                     .length <
@@ -217,7 +221,7 @@ export const AyuStepperContainer = ({
                             if (isInvalid) {
                               const isAssociatedSymptomsIncomplete =
                                 resolveAyuComponent(question) ===
-                                  'associatedSymptoms' &&
+                                  ASSOCIATED_SYMPTOMS_COMPONENT &&
                                 (!Array.isArray(answers[question.linkId]) ||
                                   (answers[question.linkId] as string[])
                                     .length <
@@ -246,7 +250,7 @@ export const AyuStepperContainer = ({
 
                             const isAssociatedSymptoms =
                               resolveAyuComponent(question) ===
-                              'associatedSymptoms';
+                              ASSOCIATED_SYMPTOMS_COMPONENT;
 
                             if (isActive || isAssociatedSymptoms) {
                               if (isLast || isAssociatedSymptoms) {

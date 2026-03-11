@@ -66,6 +66,7 @@ vi.mock('../../../../../../modules/ayu/hooks/useFHIRStepper.hook', () => ({
 // Mock resolveAyuComponent so we can control associatedSymptoms detection
 vi.mock('../../../../../../modules/ayu-library/logic/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(),
+  ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
 }));
 
 // Mock showToast

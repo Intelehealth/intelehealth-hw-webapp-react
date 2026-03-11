@@ -18,6 +18,11 @@ export type AyuComponentType =
   | 'quantity'
   | 'associatedSymptoms';
 
+export const ASSOCIATED_SYMPTOMS_COMPONENT: Extract<
+  AyuComponentType,
+  'associatedSymptoms'
+> = 'associatedSymptoms';
+
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
   const isAssociatedSymptoms =
     q.type === 'choice' &&
