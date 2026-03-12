@@ -88,7 +88,7 @@ const NotificationList = ({ onClose }: { onClose?: () => void }) => {
 
             {/* Time */}
             <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">
-              {formatTime(n.createdAt)}
+              {n.createdAt ? formatTime(n.createdAt) : ''}
             </span>
           </div>
         ))}

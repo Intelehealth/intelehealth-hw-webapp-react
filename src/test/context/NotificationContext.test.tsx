@@ -40,12 +40,14 @@ vi.mock('../../utils/storage', () => ({
 }));
 
 // Mock toast
-const mockToast = vi.fn().mockReturnValue('toast-id-1');
-mockToast.dismiss = vi.fn();
+const { mockToast, mockDismiss } = vi.hoisted(() => ({
+  mockToast: vi.fn().mockReturnValue('toast-id-1'),
+  mockDismiss: vi.fn(),
+}));
 vi.mock('react-toastify', () => ({
   toast: Object.assign(
     (...args: any[]) => mockToast(...args),
-    { dismiss: vi.fn() }
+    { dismiss: mockDismiss }
   ),
 }));
 
