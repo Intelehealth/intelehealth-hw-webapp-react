@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from '../../../components/navbar/navbar.component';
+import { NotificationProvider } from '../../../context/NotificationContext';
 
 const mockProfile: Record<string, unknown> = { setupLocation: 'Ranchi', avatar: '', id: undefined };
 
@@ -12,9 +13,20 @@ vi.mock('../../../context/ProfileContext', () => ({
   }),
 }));
 
-// Helper function to render with router
+vi.mock('../../../services/fcm.service', () => ({
+  fcmService: {
+    initialize: vi.fn().mockResolvedValue(false),
+    requestPermission: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+// Helper function to render with router and notification provider
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(<HashRouter>{component}</HashRouter>);
+  return render(
+    <HashRouter>
+      <NotificationProvider>{component}</NotificationProvider>
+    </HashRouter>
+  );
 };
 
 describe('Navbar', () => {
@@ -231,5 +243,139 @@ describe('Navbar', () => {
     expect(comboboxes.length).toBeGreaterThanOrEqual(1);
     expect(comboboxes[0]).toHaveAttribute('aria-autocomplete', 'list');
     expect(comboboxes[0]).toHaveAttribute('aria-controls', 'patient-search-list');
+  });
+
+  it('should show unread notification badge when unreadCount > 0 (covers lines 18-20)', async () => {
+    vi.doMock('../../../context/NotificationContext', () => ({
+      useNotificationContext: () => ({
+        notifications: [],
+        unreadCount: 5,
+        token: 'test-token',
+        isEnabled: true,
+        requestPermission: vi.fn(),
+        toggleNotifications: vi.fn(),
+      }),
+      NotificationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    }));
+
+    vi.resetModules();
+
+    vi.doMock('../../../context/ProfileContext', () => ({
+      useProfileContext: () => ({
+        profile: mockProfile,
+        locations: [],
+      }),
+    }));
+
+    vi.doMock('../../../services/fcm.service', () => ({
+      fcmService: {
+        initialize: vi.fn().mockResolvedValue(false),
+        requestPermission: vi.fn().mockResolvedValue(null),
+      },
+    }));
+
+    const { default: NavbarWithBadge } = await import('../../../components/navbar/navbar.component');
+
+    render(
+      <HashRouter>
+        <NavbarWithBadge />
+      </HashRouter>
+    );
+
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('should show 99+ when unreadCount exceeds 99', async () => {
+    vi.doMock('../../../context/NotificationContext', () => ({
+      useNotificationContext: () => ({
+        notifications: [],
+        unreadCount: 150,
+        token: 'test-token',
+        isEnabled: true,
+        requestPermission: vi.fn(),
+        toggleNotifications: vi.fn(),
+      }),
+      NotificationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    }));
+
+    vi.resetModules();
+
+    vi.doMock('../../../context/ProfileContext', () => ({
+      useProfileContext: () => ({
+        profile: mockProfile,
+        locations: [],
+      }),
+    }));
+
+    vi.doMock('../../../services/fcm.service', () => ({
+      fcmService: {
+        initialize: vi.fn().mockResolvedValue(false),
+        requestPermission: vi.fn().mockResolvedValue(null),
+      },
+    }));
+
+    const { default: NavbarWith99Plus } = await import('../../../components/navbar/navbar.component');
+
+    render(
+      <HashRouter>
+        <NavbarWith99Plus />
+      </HashRouter>
+    );
+
+    expect(screen.getByText('99+')).toBeInTheDocument();
+  });
+
+  it('should fall back to empty string when no location is available', () => {
+    const originalSetupLocation = mockProfile.setupLocation;
+    mockProfile.setupLocation = '';
+
+    renderWithRouter(<Navbar />);
+
+    // Location text should be empty
+    const locationSection = document.querySelector('.text-\\(--color-muted\\)');
+    expect(locationSection?.textContent).toBe('');
+
+    mockProfile.setupLocation = originalSetupLocation;
+  });
+
+  it('should show opacity-40 on notification icon when disabled', async () => {
+    vi.doMock('../../../context/NotificationContext', () => ({
+      useNotificationContext: () => ({
+        notifications: [],
+        unreadCount: 0,
+        token: '',
+        isEnabled: false,
+        requestPermission: vi.fn(),
+        toggleNotifications: vi.fn(),
+      }),
+      NotificationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    }));
+
+    vi.resetModules();
+
+    vi.doMock('../../../context/ProfileContext', () => ({
+      useProfileContext: () => ({
+        profile: mockProfile,
+        locations: [],
+      }),
+    }));
+
+    vi.doMock('../../../services/fcm.service', () => ({
+      fcmService: {
+        initialize: vi.fn().mockResolvedValue(false),
+        requestPermission: vi.fn().mockResolvedValue(null),
+      },
+    }));
+
+    const { default: NavbarDisabled } = await import('../../../components/navbar/navbar.component');
+
+    render(
+      <HashRouter>
+        <NavbarDisabled />
+      </HashRouter>
+    );
+
+    const notifIcon = screen.getByAltText('Notification');
+    expect(notifIcon).toHaveClass('opacity-40');
   });
 });

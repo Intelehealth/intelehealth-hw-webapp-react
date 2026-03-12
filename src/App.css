@@ -24,6 +24,18 @@
   clip-path: polygon(0 0, 100% 100%, 100% 100%, 0% 100%);
 }
 
+/* Custom notification toast — reduce gap between stacked toasts */
+.custom-notification-toast.Toastify__toast {
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+  padding: 8px 12px !important;
+  min-height: auto !important;
+}
+/* Only the first custom toast gets the top offset */
+.custom-notification-toast.Toastify__toast:first-child {
+  margin-top: 10px !important;
+}
+
 /* Responsive text sizes */
 @media (max-width: 768px) {
   .text-base {

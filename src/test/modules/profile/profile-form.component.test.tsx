@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
+import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileForm from '../../../modules/profile/profile-form.component';
 
@@ -10,6 +11,24 @@ const mockShowConfirmModal = vi.fn();
 
 vi.mock('../../../context/ProfileContext', () => ({
   useProfileContext: (...args: any[]) => mockUseProfile(...args),
+}));
+
+vi.mock('../../../context/NotificationContext', () => ({
+  useNotificationContext: () => ({
+    isEnabled: true,
+    toggleNotifications: vi.fn(),
+    token: '',
+    notifications: [],
+    unreadCount: 0,
+    requestPermission: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../services/fcm.service', () => ({
+  fcmService: {
+    initialize: vi.fn().mockResolvedValue(false),
+    requestPermission: vi.fn().mockResolvedValue(null),
+  },
 }));
 
 vi.mock('../../../components/modal/global-modal-context', () => ({
@@ -102,9 +121,11 @@ describe('ProfileForm Component', () => {
 
   const setup = (loaderValue = 0) =>
     render(
-      <Provider store={mockStore(loaderValue)}>
-        <ProfileForm />
-      </Provider>
+      <HashRouter>
+        <Provider store={mockStore(loaderValue)}>
+          <ProfileForm />
+        </Provider>
+      </HashRouter>
     );
 
   // --------------------------------------------------------
@@ -181,9 +202,11 @@ describe('ProfileForm Component', () => {
     });
 
     const { container } = render(
-      <Provider store={mockStore()}>
-        <ProfileForm />
-      </Provider>
+      <HashRouter>
+        <Provider store={mockStore()}>
+          <ProfileForm />
+        </Provider>
+      </HashRouter>
     );
 
     // Verify the loading state - when profile is null, form returns null
@@ -257,9 +280,11 @@ describe('ProfileForm Component', () => {
 
     // Rerender with new profile to trigger useEffect
     rerender(
-      <Provider store={mockStore()}>
-        <ProfileForm />
-      </Provider>
+      <HashRouter>
+        <Provider store={mockStore()}>
+          <ProfileForm />
+        </Provider>
+      </HashRouter>
     );
 
     // Wait for form to be reset with new values (use getAllByDisplayValue for duplicates)

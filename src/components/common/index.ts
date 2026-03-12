@@ -28,5 +28,8 @@ export type { CalendarProps } from './calendar.component';
 export { Loader } from './loader.component';
 export type { LoaderProps } from './loader.component';
 
+export { default as CustomToast } from './custom-toast.component';
+export type { CustomToastProps } from './custom-toast.component';
+
 // Re-export utility function
 export { cn } from '../../utils/cn';

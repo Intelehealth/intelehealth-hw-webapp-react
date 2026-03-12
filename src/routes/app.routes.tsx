@@ -132,6 +132,14 @@ const AppRoutes = () => (
               }
             />
             <Route
+              path={ROUTES.NOTIFICATIONS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
               path={ROUTES.PRESCRIPTIONS}
               element={
                 <Suspense fallback={<RouteLoader />}>

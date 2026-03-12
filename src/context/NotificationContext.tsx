@@ -1,0 +1,244 @@
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from 'react';
+import { toast } from 'react-toastify';
+import CustomToast from '../components/common/custom-toast.component';
+import { fcmService } from '../services/fcm.service';
+import notificationService from '../services/notification.service';
+import profileService from '../modules/profile/profile.service';
+import { storage } from '../utils/storage';
+
+type NotificationPayload = Record<string, string | undefined>;
+
+interface ProviderSearchResult {
+  results?: { uuid: string }[];
+}
+
+interface ToggleResult {
+  data?: { notification_status: boolean };
+}
+
+interface NotificationContextType {
+  token: string;
+  notifications: NotificationPayload[];
+  unreadCount: number;
+  isEnabled: boolean;
+  requestPermission: () => Promise<void>;
+  toggleNotifications: () => Promise<void>;
+}
+
+const NotificationContext = createContext<NotificationContextType | null>(null);
+
+const TOAST_CONFIG: Record<
+  string,
+  { title: string; primaryLabel: string; route: string; borderColor: string }
+> = {
+  prescription: {
+    title: 'Prescription Ready',
+    primaryLabel: 'Review Prescription',
+    route: '#/prescriptions',
+    borderColor: '#22c55e',
+  },
+  followup: {
+    title: 'Follow-up Scheduled',
+    primaryLabel: 'View Follow-ups',
+    route: '#/dashboard',
+    borderColor: '#3b82f6',
+  },
+  appointment: {
+    title: 'Appointment Update',
+    primaryLabel: 'View Appointments',
+    route: '#/my-appointments',
+    borderColor: '#f59e0b',
+  },
+};
+
+const getUUID = () => JSON.parse(storage.getUser() || '{}')?.uuid;
+
+export const NotificationProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [token, setToken] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isEnabled, setIsEnabled] = useState(true);
+  const lastPushId = useRef('');
+
+  const registerToken = async (uuid: string, token: string) => {
+    await notificationService.registerFCMToken(uuid, token);
+
+    try {
+      const prov = (await profileService.getProvider(
+        uuid
+      )) as ProviderSearchResult;
+      const providerUuid = prov?.results?.[0]?.uuid;
+
+      if (providerUuid && providerUuid !== uuid) {
+        await notificationService.registerFCMToken(providerUuid, token);
+      }
+    } catch {
+      /* silent */
+    }
+  };
+
+  const requestPermission = useCallback(async () => {
+    const fcmToken = await fcmService.requestPermission();
+    const uuid = getUUID();
+
+    if (!fcmToken || !uuid) return;
+
+    setToken(fcmToken);
+    await registerToken(uuid, fcmToken);
+  }, []);
+
+  const toggleNotifications = useCallback(async () => {
+    const uuid = getUUID();
+    if (!uuid) return;
+
+    try {
+      const res = (await notificationService.toggleNotificationStatus(
+        uuid
+      )) as ToggleResult;
+      const enabled = !!res?.data?.notification_status;
+
+      setIsEnabled(enabled);
+
+      if (enabled) {
+        await requestPermission();
+      } else {
+        await notificationService.clearFCMToken(uuid);
+        setToken('');
+      }
+    } catch {
+      /* silent */
+    }
+  }, [requestPermission]);
+
+  const showToast = useCallback(
+    (pushData: NotificationPayload & { data?: NotificationPayload }) => {
+      const data = pushData?.data || pushData || {};
+      const type = data.type || 'prescription';
+      const config = TOAST_CONFIG[type] || TOAST_CONFIG.prescription;
+
+      const patientName =
+        [data.patientFirstName, data.patientMiddleName, data.patientLastName]
+          .filter(Boolean)
+          .join(' ') ||
+        data.patientName ||
+        '';
+
+      const openMrsId =
+        data.patientOpenMrsId || data.openMrsId || data.openMRSId || '';
+      const doctorName = data.drName || data.doctorName || 'Doctor';
+
+      let message = patientName;
+      if (openMrsId) message += ` (${openMrsId})`;
+      if (message) message += ' – ';
+      message +=
+        type === 'followup' ? 'Follow-up scheduled' : 'Prescription received';
+      message += ` from ${doctorName}`;
+
+      const toastId = toast(
+        <CustomToast
+          title={config.title}
+          message={message}
+          secondaryLabel="Dismiss"
+          primaryLabel={config.primaryLabel}
+          onSecondary={() => toast.dismiss(toastId)}
+          onPrimary={() => {
+            toast.dismiss(toastId);
+            window.location.hash = config.route;
+          }}
+        />,
+        {
+          autoClose: false,
+          position: 'top-right',
+          className: 'custom-notification-toast',
+          style: {
+            minHeight: '100px',
+            marginRight: '60px',
+            borderRadius: '12px',
+            borderLeft: `4px solid ${config.borderColor}`,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          },
+        }
+      );
+    },
+    []
+  );
+
+  const handlePush = useCallback(
+    (pushData?: NotificationPayload & { data?: NotificationPayload }) => {
+      const pushId = JSON.stringify(pushData || '');
+
+      if (pushId === lastPushId.current) return;
+
+      lastPushId.current = pushId;
+      setTimeout(() => (lastPushId.current = ''), 3000);
+
+      if (pushData) showToast(pushData);
+
+      setUnreadCount(prev => prev + 1);
+    },
+    [showToast]
+  );
+
+  useEffect(() => {
+    const init = async () => {
+      const initialized = await fcmService.initialize({
+        onMessageReceived: payload => handlePush(payload?.data),
+      });
+
+      if (!initialized) return;
+
+      if (Notification.permission !== 'denied') {
+        await requestPermission();
+      }
+    };
+
+    const swMessageHandler = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_RECEIVED') {
+        handlePush(event.data.data);
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', swMessageHandler);
+
+    init();
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', swMessageHandler);
+    };
+  }, [requestPermission, handlePush]);
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        token,
+        notifications: [],
+        unreadCount,
+        isEnabled,
+        requestPermission,
+        toggleNotifications,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
+};
+
+export const useNotificationContext = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error(
+      'useNotificationContext must be used inside NotificationProvider'
+    );
+  }
+  return context;
+};

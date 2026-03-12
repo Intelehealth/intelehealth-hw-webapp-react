@@ -98,8 +98,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         setLocations(
           res?.results?.map(loc => ({
-            value: loc.display,
-            label: loc.display,
+            value: loc.display?.trim(),
+            label: loc.display?.trim(),
           })) || []
         );
       } catch (e) {
@@ -163,6 +163,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
       nextProfile.avatar = avatar;
       setHwProfile(nextHw);
       setProfile(nextProfile);
+
+      // Sync localStorage location with profile so navbar stays current
+      if (nextProfile.setupLocation) {
+        storage.setLocationName(nextProfile.setupLocation);
+      }
     } catch (error) {
       showToast('Error', 'Failed to load profile data', 'error');
       console.error('Profile loading error:', error);
