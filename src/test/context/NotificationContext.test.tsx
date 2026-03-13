@@ -467,7 +467,7 @@ describe('NotificationContext', () => {
     expect(mockToast).toHaveBeenCalled();
     const toastEl = mockToast.mock.calls[0][0];
     expect(toastEl.props.title).toBe('Follow-up Scheduled');
-    expect(toastEl.props.primaryLabel).toBe('View Follow-ups');
+    expect(toastEl.props.primaryLabel).toBe('Start Consulation');
 
     const msg = toastEl.props.message;
     expect(msg).toContain('Alice (OP-200)');

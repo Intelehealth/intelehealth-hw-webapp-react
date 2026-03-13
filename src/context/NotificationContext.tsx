@@ -34,10 +34,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
-const TOAST_CONFIG: Record<
-  string,
-  { title: string; primaryLabel: string; route: string; borderColor: string }
-> = {
+const TOAST_CONFIG = {
   prescription: {
     title: 'Prescription Ready',
     primaryLabel: 'Review Prescription',
@@ -46,7 +43,7 @@ const TOAST_CONFIG: Record<
   },
   followup: {
     title: 'Follow-up Scheduled',
-    primaryLabel: 'View Follow-ups',
+    primaryLabel: 'Start Consulation',
     route: '#/dashboard',
     borderColor: '#3b82f6',
   },
@@ -56,9 +53,17 @@ const TOAST_CONFIG: Record<
     route: '#/my-appointments',
     borderColor: '#f59e0b',
   },
-};
+} as const;
 
 const getUUID = () => JSON.parse(storage.getUser() || '{}')?.uuid;
+
+const detectType = (data: NotificationPayload) => {
+  if (data.type) return data.type;
+  const title = (data.title || '').toLowerCase();
+  if (title.includes('follow')) return 'followup';
+  if (title.includes('appointment')) return 'appointment';
+  return 'prescription';
+};
 
 export const NotificationProvider = ({
   children,
@@ -123,8 +128,10 @@ export const NotificationProvider = ({
   const showToast = useCallback(
     (pushData: NotificationPayload & { data?: NotificationPayload }) => {
       const data = pushData?.data || pushData || {};
-      const type = data.type || 'prescription';
-      const config = TOAST_CONFIG[type] || TOAST_CONFIG.prescription;
+      const type = detectType(data);
+      const config =
+        TOAST_CONFIG[type as keyof typeof TOAST_CONFIG] ||
+        TOAST_CONFIG.prescription;
 
       const patientName =
         [data.patientFirstName, data.patientMiddleName, data.patientLastName]
@@ -162,7 +169,7 @@ export const NotificationProvider = ({
           className: 'custom-notification-toast',
           style: {
             minHeight: '100px',
-            marginRight: '60px',
+            marginRight: '80px',
             borderRadius: '12px',
             borderLeft: `4px solid ${config.borderColor}`,
             boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
