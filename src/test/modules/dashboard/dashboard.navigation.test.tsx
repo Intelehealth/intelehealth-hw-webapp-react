@@ -5,8 +5,8 @@ vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
-vi.mock('../../../hooks/useOpenVisits', () => ({
-  useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+vi.mock('../../../hooks/usePrescriptionsPending', () => ({
+  usePrescriptionsPending: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
 // We'll mock useNavigate to assert it's called with correct routes

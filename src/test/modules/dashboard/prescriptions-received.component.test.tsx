@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
 
 const mockUsePrescriptionsReceived = vi.fn();
-const mockUseOpenVisits = vi.fn();
+const mockUsePrescriptionsPending = vi.fn();
 
 vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => mockUsePrescriptionsReceived(),
 }));
 
-vi.mock('../../../hooks/useOpenVisits', () => ({
-  useOpenVisits: () => mockUseOpenVisits(),
+vi.mock('../../../hooks/usePrescriptionsPending', () => ({
+  usePrescriptionsPending: () => mockUsePrescriptionsPending(),
 }));
 
 const mockReceivedData = [
@@ -43,9 +43,9 @@ const mockReceivedData = [
   },
 ];
 
-const mockOpenVisitsData = [
+const mockPendingData = [
   {
-    visitUuid: 'ov-1',
+    visitUuid: 'p-1',
     patientName: 'Ravi Kumar',
     gender: 'M',
     age: 35,
@@ -62,8 +62,8 @@ const defaultReceivedState = {
   totalCount: 3,
 };
 
-const defaultOpenVisitsState = {
-  data: mockOpenVisitsData,
+const defaultPendingState = {
+  data: mockPendingData,
   loading: false,
   error: null,
   totalCount: 1,
@@ -72,7 +72,7 @@ const defaultOpenVisitsState = {
 describe('PrescriptionsReceived', () => {
   beforeEach(() => {
     mockUsePrescriptionsReceived.mockReturnValue(defaultReceivedState);
-    mockUseOpenVisits.mockReturnValue(defaultOpenVisitsState);
+    mockUsePrescriptionsPending.mockReturnValue(defaultPendingState);
   });
 
   describe('Initial render', () => {
@@ -174,7 +174,7 @@ describe('PrescriptionsReceived', () => {
       expect(receivedTab).toHaveClass('border-transparent');
     });
 
-    it('shows Pendings (open visits) data when Pendings tab is active', () => {
+    it('shows pending prescriptions data when Pendings tab is active', () => {
       render(<PrescriptionsReceived />);
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
@@ -237,10 +237,17 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('shows loading indicator for Pendings tab', () => {
-      mockUseOpenVisits.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
+      mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
       render(<PrescriptionsReceived />);
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+
+    it('shows error for Pendings tab', () => {
+      mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: 'Failed to fetch pending prescriptions', totalCount: 0 });
+      render(<PrescriptionsReceived />);
+      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      expect(screen.getByText('Failed to fetch pending prescriptions')).toBeInTheDocument();
     });
 
     it('shows empty message when no received prescriptions', () => {
@@ -249,11 +256,11 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('No prescriptions found.')).toBeInTheDocument();
     });
 
-    it('shows empty message when no open visits in Pendings tab', () => {
-      mockUseOpenVisits.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
+    it('shows empty message when no pending prescriptions in Pendings tab', () => {
+      mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
       render(<PrescriptionsReceived />);
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
-      expect(screen.getByText('No open visits found.')).toBeInTheDocument();
+      expect(screen.getByText('No pending prescriptions found.')).toBeInTheDocument();
     });
   });
 

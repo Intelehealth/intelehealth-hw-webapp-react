@@ -133,6 +133,34 @@ describe('patientService', () => {
     });
   });
 
+  describe('getPrescriptionsPending', () => {
+    it('calls the correct URL and returns visits', async () => {
+      const mockVisits = [
+        { visitUuid: 'pp-1', patientName: 'Ravi Kumar', gender: 'M', visitCreatedDate: '2025-04-21', clinicName: 'TC 1', uploadTimestamp: '30 min ago' },
+      ];
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: mockVisits, totalCount: 1, pageNo: 0, pageSize: 50 } } });
+
+      const result = await patientService.getPrescriptionsPending('hw-123');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=prescription-pending&page=0&limit=50', undefined);
+      expect(result).toEqual(mockVisits);
+    });
+
+    it('passes custom page and limit', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 2, pageSize: 15 } } });
+
+      await patientService.getPrescriptionsPending('hw-555', 2, 15);
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-555?type=prescription-pending&page=2&limit=15', undefined);
+    });
+
+    it('propagates errors from the API', async () => {
+      h.mockGet.mockRejectedValue(new Error('Service unavailable'));
+
+      await expect(patientService.getPrescriptionsPending('hw-123')).rejects.toThrow('Service unavailable');
+    });
+  });
+
   describe('request interceptor', () => {
     it('registers a request interceptor on construction', () => {
       // registeredInterceptorFn was captured before vi.clearAllMocks() ever ran
