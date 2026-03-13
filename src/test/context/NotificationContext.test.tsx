@@ -666,6 +666,24 @@ describe('NotificationContext', () => {
     expect(mockToast).toHaveBeenCalled();
   });
 
+  it('should fallback to prescription config for unknown type', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({ data: { type: 'unknown_type' } });
+    });
+
+    expect(mockToast.mock.calls[0][0].props.title).toBe('Prescription Ready');
+  });
+
   it('should handle toggle OFF with provider lookup failure silently', async () => {
     mockToggleNotificationStatus.mockResolvedValue({ data: { notification_status: false } });
     mockGetProvider.mockRejectedValue(new Error('Provider error'));

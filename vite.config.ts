@@ -16,18 +16,46 @@ function firebaseSWEnvPlugin(): Plugin {
   return {
     name: 'firebase-sw-env',
     configResolved(config) {
-      envVars = loadEnv(
-        config.mode,
-        config.envDir || process.cwd(),
-        'VITE_FIREBASE_'
-      );
+      const envFile = loadEnv(config.mode, config.envDir || process.cwd(), '');
+      envVars = {
+        VITE_FIREBASE_API_KEY:
+          envFile.VITE_FIREBASE_API_KEY ||
+          process.env.VITE_FIREBASE_API_KEY ||
+          '',
+        VITE_FIREBASE_AUTH_DOMAIN:
+          envFile.VITE_FIREBASE_AUTH_DOMAIN ||
+          process.env.VITE_FIREBASE_AUTH_DOMAIN ||
+          '',
+        VITE_FIREBASE_PROJECT_ID:
+          envFile.VITE_FIREBASE_PROJECT_ID ||
+          process.env.VITE_FIREBASE_PROJECT_ID ||
+          '',
+        VITE_FIREBASE_STORAGE_BUCKET:
+          envFile.VITE_FIREBASE_STORAGE_BUCKET ||
+          process.env.VITE_FIREBASE_STORAGE_BUCKET ||
+          '',
+        VITE_FIREBASE_MESSAGING_SENDER_ID:
+          envFile.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+          process.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+          '',
+        VITE_FIREBASE_APP_ID:
+          envFile.VITE_FIREBASE_APP_ID ||
+          process.env.VITE_FIREBASE_APP_ID ||
+          '',
+        VITE_FIREBASE_VAPID_KEY:
+          envFile.VITE_FIREBASE_VAPID_KEY ||
+          process.env.VITE_FIREBASE_VAPID_KEY ||
+          '',
+      };
     },
     // Dev: serve the SW file with placeholders replaced on-the-fly
     configureServer(server) {
       server.middlewares.use('/firebase-messaging-sw.js', (_req, res) => {
         const swPath = path.resolve('public/firebase-messaging-sw.js');
         let content = fs.readFileSync(swPath, 'utf-8');
-        content = replacePlaceholders(content, envVars);
+        for (const [key, value] of Object.entries(envVars)) {
+          content = content.replaceAll(`__${key}__`, value);
+        }
         res.setHeader('Content-Type', 'application/javascript');
         res.end(content);
       });
@@ -38,36 +66,13 @@ function firebaseSWEnvPlugin(): Plugin {
       const swPath = path.resolve(outDir, 'firebase-messaging-sw.js');
       if (fs.existsSync(swPath)) {
         let content = fs.readFileSync(swPath, 'utf-8');
-        content = replacePlaceholders(content, envVars);
+        for (const [key, value] of Object.entries(envVars)) {
+          content = content.replaceAll(`__${key}__`, value);
+        }
         fs.writeFileSync(swPath, content);
       }
     },
   };
-}
-
-function replacePlaceholders(
-  content: string,
-  envVars: Record<string, string>
-): string {
-  return content
-    .replace('__VITE_FIREBASE_API_KEY__', envVars.VITE_FIREBASE_API_KEY || '')
-    .replace(
-      '__VITE_FIREBASE_AUTH_DOMAIN__',
-      envVars.VITE_FIREBASE_AUTH_DOMAIN || ''
-    )
-    .replace(
-      '__VITE_FIREBASE_PROJECT_ID__',
-      envVars.VITE_FIREBASE_PROJECT_ID || ''
-    )
-    .replace(
-      '__VITE_FIREBASE_STORAGE_BUCKET__',
-      envVars.VITE_FIREBASE_STORAGE_BUCKET || ''
-    )
-    .replace(
-      '__VITE_FIREBASE_MESSAGING_SENDER_ID__',
-      envVars.VITE_FIREBASE_MESSAGING_SENDER_ID || ''
-    )
-    .replace('__VITE_FIREBASE_APP_ID__', envVars.VITE_FIREBASE_APP_ID || '');
 }
 
 // https://vite.dev/config/
