@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetPrescriptionsPending = vi.fn();
-const mockProfile = { id: 'hw-uuid-789' };
+const MOCK_LOCATION_UUID = 'loc-uuid-789';
 const mockUseProfileContext = vi.fn();
 
 vi.mock('../../context/ProfileContext', () => ({
@@ -41,7 +41,7 @@ const mockPendingVisits = [
 describe('usePrescriptionsPending', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseProfileContext.mockReturnValue({ profile: mockProfile });
+    mockUseProfileContext.mockReturnValue({ locationUuid: MOCK_LOCATION_UUID });
   });
 
   it('initialises with empty data, loading false, no error', () => {
@@ -75,12 +75,12 @@ describe('usePrescriptionsPending', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getPrescriptionsPending with the profile id', async () => {
+  it('calls getPrescriptionsPending with the location uuid', async () => {
     mockGetPrescriptionsPending.mockResolvedValue([]);
     renderHook(() => usePrescriptionsPending());
 
     await waitFor(() => {
-      expect(mockGetPrescriptionsPending).toHaveBeenCalledWith('hw-uuid-789');
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
     });
   });
 
@@ -96,15 +96,15 @@ describe('usePrescriptionsPending', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('does not fetch when profile is null', () => {
-    mockUseProfileContext.mockReturnValue({ profile: null });
+  it('does not fetch when locationUuid is null', () => {
+    mockUseProfileContext.mockReturnValue({ locationUuid: null });
     renderHook(() => usePrescriptionsPending());
 
     expect(mockGetPrescriptionsPending).not.toHaveBeenCalled();
   });
 
-  it('does not fetch when profile has no id', () => {
-    mockUseProfileContext.mockReturnValue({ profile: {} });
+  it('does not fetch when locationUuid is undefined', () => {
+    mockUseProfileContext.mockReturnValue({ locationUuid: undefined });
     renderHook(() => usePrescriptionsPending());
 
     expect(mockGetPrescriptionsPending).not.toHaveBeenCalled();
@@ -116,6 +116,26 @@ describe('usePrescriptionsPending', () => {
 
     await waitFor(() => {
       expect(result.current.totalCount).toBe(mockPendingVisits.length);
+    });
+  });
+
+  it('re-fetches when locationUuid changes', async () => {
+    mockGetPrescriptionsPending.mockResolvedValue(mockPendingVisits);
+    let locationUuid = MOCK_LOCATION_UUID;
+    mockUseProfileContext.mockImplementation(() => ({ locationUuid }));
+
+    const { rerender } = renderHook(() => usePrescriptionsPending());
+    await waitFor(() => {
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledTimes(1);
+    });
+
+    locationUuid = 'loc-uuid-new';
+    mockGetPrescriptionsPending.mockResolvedValue([]);
+    rerender();
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledTimes(2);
+      expect(mockGetPrescriptionsPending).toHaveBeenLastCalledWith('loc-uuid-new');
     });
   });
 });

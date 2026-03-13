@@ -223,7 +223,7 @@ describe('ProfileFormFields', () => {
         trigger={mockTrigger}
         onPhotoModalOpen={mockOnPhotoModalOpen}
         onCountryChange={mockOnCountryChange}
-        locationOptions={[{ value: 'telemedicine-clinic1 ', label: 'telemedicine-clinic1 ' }]}
+        locationOptions={[{ value: 'telemedicine-clinic1 ', label: 'telemedicine-clinic1 ', uuid: 'loc-uuid-1' }]}
       />
     );
 

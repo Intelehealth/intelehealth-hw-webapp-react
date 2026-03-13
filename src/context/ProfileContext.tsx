@@ -6,14 +6,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { showToast } from '../services/toast';
-import type { Profile } from '../types/profile.types';
-import type {
-  HealthWorkerProfile,
-  ProviderDetailResponse,
-  UserDetailResponse,
-} from '../types/provider.types';
-import { storage } from '../utils/storage';
 import {
   calculateAge,
   createHealthWorkerProfile,
@@ -27,10 +19,19 @@ import {
   type PersonDetailsType,
 } from '../modules/profile/profile.helpers';
 import profileService from '../modules/profile/profile.service';
+import { showToast } from '../services/toast';
+import type { Profile } from '../types/profile.types';
+import type {
+  HealthWorkerProfile,
+  ProviderDetailResponse,
+  UserDetailResponse,
+} from '../types/provider.types';
+import { storage } from '../utils/storage';
 
 export interface LocationOption {
   value: string;
   label: string;
+  uuid: string;
 }
 
 type ProfileUpdateData = {
@@ -49,6 +50,7 @@ interface ProfileContextType {
   hwProfile: HealthWorkerProfile | null;
   age: number | null;
   locations: LocationOption[];
+  locationUuid: string | null;
   uploadPhoto: (file: File) => Promise<void>;
   calculateAge: (dob: string) => number;
   updateAgeForDate: (dob: string) => void;
@@ -72,6 +74,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
   const [hwProfile, setHwProfile] = useState<HealthWorkerProfile | null>(null);
   const [age, setAge] = useState<number | null>(null);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [locationUuid, setLocationUuid] = useState<string | null>(() =>
+    storage.getLocationUuid()
+  );
   const providerRef = useRef<ProviderDetailResponse | null>(null);
   const avatarTsRef = useRef(Date.now());
 
@@ -100,6 +105,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
           res?.results?.map(loc => ({
             value: loc.display?.trim(),
             label: loc.display?.trim(),
+            uuid: loc.uuid,
           })) || []
         );
       } catch (e) {
@@ -107,6 +113,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (profile?.setupLocation && locations.length > 0) {
+      const match = locations.find(loc => loc.value === profile.setupLocation);
+      if (match) {
+        storage.setLocationUuid(match.uuid);
+        setLocationUuid(match.uuid);
+      }
+    }
+  }, [profile?.setupLocation, locations]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -297,6 +313,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({
     hwProfile,
     age,
     locations,
+    locationUuid,
     uploadPhoto,
     calculateAge,
     updateAgeForDate,
