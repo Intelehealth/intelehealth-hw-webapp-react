@@ -1,19 +1,19 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type Mocked,
-  type MockedFunction,
-} from 'vitest';
 import React from 'react';
-import { useProfileContext as useProfile, ProfileProvider } from '../../../context/ProfileContext';
-import mockProfileService from '../../../modules/profile/profile.service';
-import { storage as mockStorage } from '../../../utils/storage';
+import {
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type Mocked,
+    type MockedFunction,
+} from 'vitest';
+import { ProfileProvider, useProfileContext as useProfile } from '../../../context/ProfileContext';
 import * as helpers from '../../../modules/profile/profile.helpers';
+import mockProfileService from '../../../modules/profile/profile.service';
 import * as toast from '../../../services/toast';
+import { storage as mockStorage } from '../../../utils/storage';
 
 // ---------- MOCK TOAST ----------
 vi.mock('../../../services/toast', () => ({
@@ -107,6 +107,8 @@ vi.mock('../../../utils/storage', () => ({
     getUser: vi.fn(),
     setLocationName: vi.fn(),
     getLocationName: vi.fn(),
+    getLocationUuid: vi.fn(() => null),
+    setLocationUuid: vi.fn(),
   },
 }));
 
@@ -1894,8 +1896,8 @@ describe('useProfile', () => {
 
     await waitFor(() => {
       expect(result.current.locations).toHaveLength(2);
-      expect(result.current.locations[0]).toEqual({ value: 'Main Clinic', label: 'Main Clinic' });
-      expect(result.current.locations[1]).toEqual({ value: 'Branch Clinic', label: 'Branch Clinic' });
+      expect(result.current.locations[0]).toEqual({ value: 'Main Clinic', label: 'Main Clinic', uuid: 'loc1' });
+      expect(result.current.locations[1]).toEqual({ value: 'Branch Clinic', label: 'Branch Clinic', uuid: 'loc2' });
     });
   });
 

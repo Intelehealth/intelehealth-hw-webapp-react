@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetOpenVisits = vi.fn();
-const mockProfile = { id: 'hw-uuid-123' };
+const MOCK_LOCATION_UUID = 'loc-uuid-123';
 const mockUseProfileContext = vi.fn();
 
 vi.mock('../../context/ProfileContext', () => ({
@@ -41,7 +41,7 @@ const mockVisits = [
 describe('useOpenVisits', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseProfileContext.mockReturnValue({ profile: mockProfile });
+    mockUseProfileContext.mockReturnValue({ locationUuid: MOCK_LOCATION_UUID });
   });
 
   it('initialises with empty data, loading false, no error', () => {
@@ -75,12 +75,12 @@ describe('useOpenVisits', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getOpenVisits with the profile id', async () => {
+  it('calls getOpenVisits with the location uuid', async () => {
     mockGetOpenVisits.mockResolvedValue([]);
     renderHook(() => useOpenVisits());
 
     await waitFor(() => {
-      expect(mockGetOpenVisits).toHaveBeenCalledWith('hw-uuid-123');
+      expect(mockGetOpenVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
     });
   });
 
@@ -96,17 +96,46 @@ describe('useOpenVisits', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('does not fetch when profile id is not available', () => {
-    mockUseProfileContext.mockReturnValue({ profile: null });
+  it('does not fetch when locationUuid is null', () => {
+    mockUseProfileContext.mockReturnValue({ locationUuid: null });
     renderHook(() => useOpenVisits());
 
     expect(mockGetOpenVisits).not.toHaveBeenCalled();
   });
 
-  it('does not fetch when profile has no id', () => {
-    mockUseProfileContext.mockReturnValue({ profile: {} });
+  it('does not fetch when locationUuid is undefined', () => {
+    mockUseProfileContext.mockReturnValue({ locationUuid: undefined });
     renderHook(() => useOpenVisits());
 
     expect(mockGetOpenVisits).not.toHaveBeenCalled();
+  });
+
+  it('totalCount reflects length of data array', async () => {
+    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    const { result } = renderHook(() => useOpenVisits());
+
+    await waitFor(() => {
+      expect(result.current.totalCount).toBe(mockVisits.length);
+    });
+  });
+
+  it('re-fetches when locationUuid changes', async () => {
+    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    let locationUuid = MOCK_LOCATION_UUID;
+    mockUseProfileContext.mockImplementation(() => ({ locationUuid }));
+
+    const { rerender } = renderHook(() => useOpenVisits());
+    await waitFor(() => {
+      expect(mockGetOpenVisits).toHaveBeenCalledTimes(1);
+    });
+
+    locationUuid = 'loc-uuid-new';
+    mockGetOpenVisits.mockResolvedValue([]);
+    rerender();
+
+    await waitFor(() => {
+      expect(mockGetOpenVisits).toHaveBeenCalledTimes(2);
+      expect(mockGetOpenVisits).toHaveBeenLastCalledWith('loc-uuid-new');
+    });
   });
 });
