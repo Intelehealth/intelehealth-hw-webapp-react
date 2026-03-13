@@ -50,8 +50,9 @@ class FCMService {
         : initializeApp(FIREBASE_CONFIG);
 
       // Register SW, then wait for the *active* registration
-      await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/',
+      const swUrl = `${import.meta.env.BASE_URL}firebase-messaging-sw.js`;
+      await navigator.serviceWorker.register(swUrl, {
+        scope: import.meta.env.BASE_URL,
       });
       this.swRegistration = await navigator.serviceWorker.ready;
 
@@ -74,7 +75,6 @@ class FCMService {
     }
   }
 
-  // ✅ New: explicitly render notification when app is foregrounded
   private showForegroundNotification(payload: MessagePayload): void {
     if (!this.swRegistration) return;
 
