@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import DownMenu from '../components/down-menu/down-menu.component';
 import Navbar from '../components/navbar/navbar.component';
+import NotificationManager from '../components/notifications/notification-manager.component';
 import SideMenu from '../components/side-menu/side-menu.component';
 import { NotificationProvider } from '../context/NotificationContext';
 import { ProfileProvider } from '../context/ProfileContext';
@@ -13,6 +14,7 @@ const MainContainer = () => {
   return (
     <ProfileProvider>
       <NotificationProvider>
+        <NotificationManager autoRequest={true} requestDelay={300} />
         <div
           className="flex flex-col h-full bg-(--color-maint-bg)"
           data-testid="main-container"

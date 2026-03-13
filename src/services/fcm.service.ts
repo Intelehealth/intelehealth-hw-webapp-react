@@ -45,16 +45,31 @@ class FCMService {
         return false;
       }
 
+      console.warn(
+        'FCM config: apiKey=',
+        FIREBASE_CONFIG.apiKey
+          ? FIREBASE_CONFIG.apiKey.slice(0, 8) + '...'
+          : 'MISSING',
+        'projectId=',
+        FIREBASE_CONFIG.projectId || 'MISSING',
+        'vapidKey=',
+        env.FIREBASE_VAPID_KEY
+          ? env.FIREBASE_VAPID_KEY.slice(0, 8) + '...'
+          : 'MISSING'
+      );
+
       this.app = getApps().length
         ? getApps()[0]
         : initializeApp(FIREBASE_CONFIG);
 
       // Register SW, then wait for the *active* registration
       const swUrl = `${import.meta.env.BASE_URL}firebase-messaging-sw.js`;
+      console.warn('Registering SW at:', swUrl);
       await navigator.serviceWorker.register(swUrl, {
         scope: import.meta.env.BASE_URL,
       });
       this.swRegistration = await navigator.serviceWorker.ready;
+      console.warn('SW ready, scope:', this.swRegistration.scope);
 
       this.messaging = getMessaging(this.app);
       this.config = config;
@@ -64,6 +79,7 @@ class FCMService {
       this.onMessageUnsub = onMessage(
         this.messaging,
         (payload: MessagePayload) => {
+          console.warn('Foreground message received:', JSON.stringify(payload));
           this.showForegroundNotification(payload);
           this.config.onMessageReceived?.(payload);
         }
@@ -105,12 +121,17 @@ class FCMService {
       }
 
       const permission = await Notification.requestPermission();
+      console.warn('Permission result:', permission);
       if (permission !== 'granted') return null;
 
       this._token = await fcmGetToken(this.messaging, {
         vapidKey: env.FIREBASE_VAPID_KEY,
         serviceWorkerRegistration: this.swRegistration ?? undefined,
       });
+      console.warn(
+        'Token received:',
+        this._token ? this._token.slice(0, 20) + '...' : 'NULL'
+      );
 
       if (!this._token) {
         console.error('[FCM] No token received');
