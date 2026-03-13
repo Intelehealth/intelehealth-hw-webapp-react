@@ -6,8 +6,8 @@ vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
-vi.mock('../../../hooks/useOpenVisits', () => ({
-  useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+vi.mock('../../../hooks/usePrescriptionsPending', () => ({
+  usePrescriptionsPending: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
 import DashboardComponent from '../../../modules/dashboard/dashboard.component';
