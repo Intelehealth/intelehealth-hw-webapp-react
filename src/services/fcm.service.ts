@@ -47,15 +47,11 @@ class FCMService {
 
       console.warn(
         'FCM config: apiKey=',
-        FIREBASE_CONFIG.apiKey
-          ? FIREBASE_CONFIG.apiKey.slice(0, 8) + '...'
-          : 'MISSING',
+        FIREBASE_CONFIG.apiKey?.slice(0, 8),
         'projectId=',
-        FIREBASE_CONFIG.projectId || 'MISSING',
+        FIREBASE_CONFIG.projectId,
         'vapidKey=',
-        env.FIREBASE_VAPID_KEY
-          ? env.FIREBASE_VAPID_KEY.slice(0, 8) + '...'
-          : 'MISSING'
+        env.FIREBASE_VAPID_KEY?.slice(0, 8)
       );
 
       this.app = getApps().length
