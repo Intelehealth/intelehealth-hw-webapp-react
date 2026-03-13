@@ -58,14 +58,13 @@ class FCMService {
         ? getApps()[0]
         : initializeApp(FIREBASE_CONFIG);
 
-      // Register SW, then wait for the *active* registration
+      // Register SW and use the registration directly (avoids scope mismatch with .ready)
       const swUrl = `${import.meta.env.BASE_URL}firebase-messaging-sw.js`;
       console.warn('Registering SW at:', swUrl);
-      await navigator.serviceWorker.register(swUrl, {
+      this.swRegistration = await navigator.serviceWorker.register(swUrl, {
         scope: import.meta.env.BASE_URL,
       });
-      this.swRegistration = await navigator.serviceWorker.ready;
-      console.warn('SW ready, scope:', this.swRegistration.scope);
+      console.warn('SW registered, scope:', this.swRegistration.scope);
 
       this.messaging = getMessaging(this.app);
       this.config = config;
