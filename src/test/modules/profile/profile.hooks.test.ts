@@ -1987,4 +1987,76 @@ describe('useProfile', () => {
     expect(result.current.locations).toEqual([]);
   });
 
+  it('syncs localStorage location when profile has setupLocation', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [{ name: 'Doctor', uuid: 'role1', display: 'Doctor' }],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+      username: 'johndoe',
+      systemId: 'admin',
+      display: 'John Doe',
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      person: { uuid: 'person123', display: 'John Doe', gender: 'M' },
+      display: 'John Doe - EMP001',
+      identifier: 'EMP001',
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    // Override createProfile to return a profile with setupLocation
+    mockedHelpers.createProfile.mockReturnValueOnce({
+      id: 'person123',
+      firstName: 'John',
+      middleName: '',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      phone: '1234567890',
+      dateOfBirth: '1990-01-01',
+      gender: 'male' as const,
+      age: 30,
+      avatar: '',
+      setupLocation: 'Test Location',
+      address: { street: '', city: '', state: '', country: '', zipCode: '' },
+      role: 'Doctor',
+      department: '',
+      employeeId: '',
+      joinDate: '',
+      lastLogin: '',
+      isActive: true,
+      username: 'johndoe',
+      preferences: {
+        language: 'en',
+        timezone: 'UTC',
+        notifications: { email: false, sms: false, push: false },
+      },
+    } as any);
+
+    renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockStorage.setLocationName).toHaveBeenCalledWith('Test Location');
+    });
+  });
+
 });

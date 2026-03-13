@@ -1,7 +1,74 @@
+import fs from 'fs';
+import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+
+/**
+ * Vite plugin that injects VITE_FIREBASE_* env variables into
+ * public/firebase-messaging-sw.js at build time.
+ * Replaces __VITE_FIREBASE_*__ placeholders with actual values.
+ */
+function firebaseSWEnvPlugin(): Plugin {
+  let envVars: Record<string, string>;
+
+  return {
+    name: 'firebase-sw-env',
+    configResolved(config) {
+      envVars = loadEnv(
+        config.mode,
+        config.envDir || process.cwd(),
+        'VITE_FIREBASE_'
+      );
+    },
+    // Dev: serve the SW file with placeholders replaced on-the-fly
+    configureServer(server) {
+      server.middlewares.use('/firebase-messaging-sw.js', (_req, res) => {
+        const swPath = path.resolve('public/firebase-messaging-sw.js');
+        let content = fs.readFileSync(swPath, 'utf-8');
+        content = replacePlaceholders(content, envVars);
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end(content);
+      });
+    },
+    // Build: replace placeholders in the output
+    writeBundle(options) {
+      const outDir = options.dir || 'dist';
+      const swPath = path.resolve(outDir, 'firebase-messaging-sw.js');
+      if (fs.existsSync(swPath)) {
+        let content = fs.readFileSync(swPath, 'utf-8');
+        content = replacePlaceholders(content, envVars);
+        fs.writeFileSync(swPath, content);
+      }
+    },
+  };
+}
+
+function replacePlaceholders(
+  content: string,
+  envVars: Record<string, string>
+): string {
+  return content
+    .replace('__VITE_FIREBASE_API_KEY__', envVars.VITE_FIREBASE_API_KEY || '')
+    .replace(
+      '__VITE_FIREBASE_AUTH_DOMAIN__',
+      envVars.VITE_FIREBASE_AUTH_DOMAIN || ''
+    )
+    .replace(
+      '__VITE_FIREBASE_PROJECT_ID__',
+      envVars.VITE_FIREBASE_PROJECT_ID || ''
+    )
+    .replace(
+      '__VITE_FIREBASE_STORAGE_BUCKET__',
+      envVars.VITE_FIREBASE_STORAGE_BUCKET || ''
+    )
+    .replace(
+      '__VITE_FIREBASE_MESSAGING_SENDER_ID__',
+      envVars.VITE_FIREBASE_MESSAGING_SENDER_ID || ''
+    )
+    .replace('__VITE_FIREBASE_APP_ID__', envVars.VITE_FIREBASE_APP_ID || '');
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -9,6 +76,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    firebaseSWEnvPlugin(),
     // Bundle analyzer for production builds
     mode === 'analyze' &&
       visualizer({

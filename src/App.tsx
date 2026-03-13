@@ -4,7 +4,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { fetchConfig } from './actions/config.actions';
 import './App.css';
 import { GlobalModalProvider } from './components/modal/global-modal-context';
-import NotificationManager from './components/notifications/notification-manager.component';
 import './i18n';
 import AppRoutes from './routes/app.routes';
 import { useAppDispatch } from './store/hooks';
@@ -22,8 +21,6 @@ function App() {
       <GlobalModalProvider>
         <AppRoutes />
       </GlobalModalProvider>
-      <NotificationManager autoRequest={true} requestDelay={2000} />
-
       <ToastContainer
         position="bottom-right"
         autoClose={3000}

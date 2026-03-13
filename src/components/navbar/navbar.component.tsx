@@ -1,12 +1,31 @@
 import { Link } from 'react-router-dom';
 import iconLocation from '../../assets/icons/icon-location.svg';
-import iconNotification from '../../assets/icons/icon-notification.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
+import iconNotification from '../../assets/icons/icon-notification.svg';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
+import { useNotificationContext } from '../../context/NotificationContext';
 import { useProfileContext } from '../../context/ProfileContext';
 import ROUTES from '../../routes/paths';
 import { storage } from '../../utils/storage';
 import PatientSearch from './patient-search/patient-search.component';
+
+const CountReadNotification = () => {
+  const { unreadCount, isEnabled } = useNotificationContext();
+  return (
+    <Link to={ROUTES.NOTIFICATIONS} className="relative cursor-pointer">
+      <img
+        src={iconNotification}
+        alt="Notification"
+        className={`w-6 h-6 ${!isEnabled ? 'opacity-40' : ''}`}
+      />
+      {isEnabled && unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </Link>
+  );
+};
 
 const Navbar = () => {
   const { profile } = useProfileContext();
@@ -25,13 +44,10 @@ const Navbar = () => {
             <img src={iconLocation} alt="Location" className="w-6 h-6" />
             <span className="text-(--color-muted)">{locationName}</span>
           </div>
-          {/* <span className="text-(--color-muted)">
-            Last sync: 12:30 pm, 12 May 2022
-          </span> */}
         </div>
         <div className="flex items-center space-x-2 ml-auto gap-4">
           <img src={iconSync} alt="Sync" className="w-6 h-6" />
-          <img src={iconNotification} alt="Notification" className="w-6 h-6" />
+          <CountReadNotification />
           <Link
             to={ROUTES.PROFILE}
             className="cursor-pointer hover:opacity-80 transition-opacity"

@@ -76,13 +76,15 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
 
     // Use internal value if no external value is provided
     const currentValue = value !== undefined ? value : internalValue;
-    const selectedValues = Array.isArray(currentValue)
-      ? currentValue
-      : currentValue
-        ? [currentValue]
-        : [];
+    const selectedValues = (
+      Array.isArray(currentValue)
+        ? currentValue
+        : currentValue
+          ? [currentValue]
+          : []
+    ).map(v => (typeof v === 'string' ? v.trim() : v));
     const selectedOptions = options.filter(option =>
-      selectedValues.includes(option.value)
+      selectedValues.includes(option.value?.trim())
     );
 
     const sizeClasses = {
