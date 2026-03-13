@@ -467,7 +467,7 @@ describe('NotificationContext', () => {
     expect(mockToast).toHaveBeenCalled();
     const toastEl = mockToast.mock.calls[0][0];
     expect(toastEl.props.title).toBe('Follow-up Scheduled');
-    expect(toastEl.props.primaryLabel).toBe('View Follow-ups');
+    expect(toastEl.props.primaryLabel).toBe('Start Consulation');
 
     const msg = toastEl.props.message;
     expect(msg).toContain('Alice (OP-200)');
@@ -664,6 +664,24 @@ describe('NotificationContext', () => {
     });
 
     expect(mockToast).toHaveBeenCalled();
+  });
+
+  it('should fallback to prescription config for unknown type', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({ data: { type: 'unknown_type' } });
+    });
+
+    expect(mockToast.mock.calls[0][0].props.title).toBe('Prescription Ready');
   });
 
   it('should handle toggle OFF with provider lookup failure silently', async () => {
