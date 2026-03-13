@@ -5,20 +5,30 @@ importScripts(
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js'
 );
 
-firebase.initializeApp({
+const firebaseConfig = {
   apiKey: '__VITE_FIREBASE_API_KEY__',
   authDomain: '__VITE_FIREBASE_AUTH_DOMAIN__',
   projectId: '__VITE_FIREBASE_PROJECT_ID__',
   storageBucket: '__VITE_FIREBASE_STORAGE_BUCKET__',
   messagingSenderId: '__VITE_FIREBASE_MESSAGING_SENDER_ID__',
   appId: '__VITE_FIREBASE_APP_ID__',
-});
+};
+
+console.warn(
+  'Firebase config loaded: apiKey=',
+  firebaseConfig.apiKey ? firebaseConfig.apiKey.slice(0, 8) + '...' : 'MISSING',
+  'projectId=',
+  firebaseConfig.projectId || 'MISSING'
+);
+
+firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
 // Fires for DATA-ONLY payloads when app is backgrounded
 // If server sends { notification: {...} }, FCM auto-displays — this won't fire
 messaging.onBackgroundMessage(payload => {
+  console.warn('onBackgroundMessage received:', JSON.stringify(payload));
   const data = payload.data || {};
   const notif = payload.notification || {};
 

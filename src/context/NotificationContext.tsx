@@ -95,11 +95,18 @@ export const NotificationProvider = ({
   const requestPermission = useCallback(async () => {
     const fcmToken = await fcmService.requestPermission();
     const uuid = getUUID();
+    console.warn(
+      'requestPermission: token=',
+      fcmToken ? fcmToken.slice(0, 20) + '...' : null,
+      'uuid=',
+      uuid
+    );
 
     if (!fcmToken || !uuid) return;
 
     setToken(fcmToken);
     await registerToken(uuid, fcmToken);
+    console.warn('registerToken done');
   }, []);
 
   const toggleNotifications = useCallback(async () => {
@@ -201,6 +208,14 @@ export const NotificationProvider = ({
       const initialized = await fcmService.initialize({
         onMessageReceived: payload => handlePush(payload?.data),
       });
+      console.warn(
+        'FCM init:',
+        initialized,
+        'permission:',
+        typeof Notification !== 'undefined'
+          ? Notification.permission
+          : 'unsupported'
+      );
 
       if (!initialized) return;
 
