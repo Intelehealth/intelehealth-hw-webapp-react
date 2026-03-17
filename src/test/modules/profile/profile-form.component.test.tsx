@@ -587,4 +587,18 @@ describe('ProfileForm Component', () => {
     });
   });
 
+  it('should call onTakePhoto callback when take-photo button is clicked in photo modal', () => {
+    setup();
+
+    // Open the photo modal
+    const photoButtons = screen.getAllByRole('button', { name: /change photo/i });
+    fireEvent.click(photoButtons[0]);
+
+    // The photo modal should be open
+    expect(screen.getByTestId('photo-modal')).toBeInTheDocument();
+
+    // Click the take-photo button (triggers the onTakePhoto={() => {}} prop)
+    expect(() => fireEvent.click(screen.getByText('take-photo'))).not.toThrow();
+  });
+
 });

@@ -24,6 +24,7 @@ const ROUTES = {
   PATIENT: {
     BASE: '/patient',
     ADD_PATIENT: 'add',
+    DETAIL: ':uuid',
   },
   AYU: '/ayu/*',
 };

@@ -102,6 +102,58 @@ describe('patientService', () => {
     });
   });
 
+  describe('getPatient', () => {
+    it('should call getPatient with the correct endpoint', async () => {
+      const patientUuid = 'patient-uuid-123';
+      const response = { uuid: patientUuid, display: 'John Doe' };
+
+      mockOpenMRSGet.mockResolvedValue(response);
+
+      const result = await patientService.getPatient(patientUuid);
+
+      expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
+      expect(mockOpenMRSGet).toHaveBeenCalledWith(
+        `${API_ENDPOINTS.PATIENT}/${patientUuid}?v=full`
+      );
+      expect(result).toEqual(response);
+    });
+
+    it('should propagate errors from getPatient', async () => {
+      const error = new Error('Patient not found');
+      mockOpenMRSGet.mockRejectedValue(error);
+
+      await expect(patientService.getPatient('unknown-uuid')).rejects.toThrow(
+        'Patient not found'
+      );
+    });
+  });
+
+  describe('getPatientVisits', () => {
+    it('should call getPatientVisits with the correct endpoint', async () => {
+      const patientUuid = 'patient-uuid-456';
+      const response = { results: [] };
+
+      mockOpenMRSGet.mockResolvedValue(response);
+
+      const result = await patientService.getPatientVisits(patientUuid);
+
+      expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
+      expect(mockOpenMRSGet).toHaveBeenCalledWith(
+        `/visit?patient=${patientUuid}&includeInactive=false&v=custom:(uuid,startDatetime,visitType:(display),encounters:(encounterType:(display)))`
+      );
+      expect(result).toEqual(response);
+    });
+
+    it('should propagate errors from getPatientVisits', async () => {
+      const error = new Error('Visits fetch failed');
+      mockOpenMRSGet.mockRejectedValue(error);
+
+      await expect(
+        patientService.getPatientVisits('patient-uuid-456')
+      ).rejects.toThrow('Visits fetch failed');
+    });
+  });
+
   describe('genratePatientIdentifier', () => {
     it('should call the identifier generation endpoint with correct parameters', async () => {
       const response = {

@@ -115,7 +115,7 @@ describe('patientService', () => {
       const result = await patientService.getOpenVisits('hw-123');
 
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=open-visits&page=0&limit=50', undefined);
-      expect(result).toEqual(mockVisits);
+      expect(result).toEqual({ visits: mockVisits, totalCount: 1 });
     });
 
     it('passes custom page and limit', async () => {

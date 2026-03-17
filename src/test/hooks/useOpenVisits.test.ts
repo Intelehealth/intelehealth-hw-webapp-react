@@ -45,7 +45,7 @@ describe('useOpenVisits', () => {
   });
 
   it('initialises with empty data, loading false, no error', () => {
-    mockGetOpenVisits.mockResolvedValue([]);
+    mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
     const { result } = renderHook(() => useOpenVisits());
 
     expect(result.current.data).toEqual([]);
@@ -54,7 +54,7 @@ describe('useOpenVisits', () => {
   });
 
   it('sets loading true while fetching and false after', async () => {
-    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    mockGetOpenVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
     const { result } = renderHook(() => useOpenVisits());
 
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe('useOpenVisits', () => {
   });
 
   it('fetches open visits and populates data', async () => {
-    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    mockGetOpenVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
     const { result } = renderHook(() => useOpenVisits());
 
     await waitFor(() => {
@@ -76,7 +76,7 @@ describe('useOpenVisits', () => {
   });
 
   it('calls getOpenVisits with the location uuid', async () => {
-    mockGetOpenVisits.mockResolvedValue([]);
+    mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
     renderHook(() => useOpenVisits());
 
     await waitFor(() => {
@@ -111,7 +111,7 @@ describe('useOpenVisits', () => {
   });
 
   it('totalCount reflects length of data array', async () => {
-    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    mockGetOpenVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
     const { result } = renderHook(() => useOpenVisits());
 
     await waitFor(() => {
@@ -130,7 +130,7 @@ describe('useOpenVisits', () => {
     });
 
     locationUuid = 'loc-uuid-new';
-    mockGetOpenVisits.mockResolvedValue([]);
+    mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
     rerender();
 
     await waitFor(() => {
