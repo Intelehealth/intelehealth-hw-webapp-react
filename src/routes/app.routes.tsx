@@ -51,6 +51,9 @@ import MyAppointments from '../modules/appointment-visit/my-appointments.compone
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 import VisitSummary from '../modules/visit-summary/visit-summary.component';
 
+const PrescriptionPreviewPage = lazy(
+  () => import('../pages/prescriptions/prescription-preview.page')
+);
 const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
@@ -179,6 +182,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <AppointmentVisitPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.PRESCRIPTION_PREVIEW}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PrescriptionPreviewPage />
                 </Suspense>
               }
             />

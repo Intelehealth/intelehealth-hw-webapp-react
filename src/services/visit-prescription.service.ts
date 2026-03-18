@@ -1,4 +1,10 @@
 import { OpenMRSApi } from './openmrs';
+import {
+  PRESCRIPTION_CONCEPT_IDS,
+  IDENTIFIER_TYPES,
+  PERSON_ATTRIBUTES,
+  PROVIDER_ATTRIBUTES,
+} from './prescription.constant';
 
 interface ObsValue {
   display?: string;
@@ -57,15 +63,6 @@ interface VisitResponse {
   };
   encounters?: Encounter[];
 }
-
-const CONCEPT_IDS = {
-  diagnosis: '537bb20d-d09d-4f88-930b-cc45c7d662df',
-  medication: 'c38c0c50-2fd2-4ae3-b7ba-7dd25adca4ca',
-  advice: '67a050c1-35e5-451c-a4ab-fff9d57b0db1',
-  test: '23601d71-50e6-483f-968d-aeef3031346d',
-  referral: '605b6f15-8f7a-4c45-b06d-14165f6974be',
-  followUp: 'e8caffd6-5d22-41c4-8d6a-bc31a44d0c86',
-};
 
 export interface DiagnosisItem {
   diagnosisName: string;
@@ -253,7 +250,7 @@ export async function getVisitPrescriptionData(
     : person?.display || '';
   const patientId =
     patient?.identifiers?.find(
-      id => id.identifierType?.display === 'OpenMRS ID'
+      id => id.identifierType?.display === IDENTIFIER_TYPES.OPENMRS_ID
     )?.identifier ||
     patient?.identifiers?.[0]?.identifier ||
     '';
@@ -297,11 +294,20 @@ export async function getVisitPrescriptionData(
       doctorName = doctorName || prov.display || '';
       for (const attr of prov.attributes || []) {
         const d = (attr.attributeType?.display || '').toLowerCase();
-        if (d === 'signature' || d === 'qualificationcertificate')
+        if (
+          d === PROVIDER_ATTRIBUTES.SIGNATURE ||
+          d === PROVIDER_ATTRIBUTES.QUALIFICATION_CERTIFICATE
+        )
           doctorSignatureUrl = doctorSignatureUrl || attr.value || null;
-        if (d === 'qualification' || d === 'typeofprofession')
+        if (
+          d === PROVIDER_ATTRIBUTES.QUALIFICATION ||
+          d === PROVIDER_ATTRIBUTES.TYPE_OF_PROFESSION
+        )
           doctorQualification = doctorQualification || attr.value || '';
-        if (d === 'registrationnumber' || d === 'registration number')
+        if (
+          d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER ||
+          d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER_ALT
+        )
           doctorRegNumber = doctorRegNumber || attr.value || '';
       }
     }
@@ -310,7 +316,7 @@ export async function getVisitPrescriptionData(
   const allObs: Obs[] = encounters.flatMap(enc => enc.obs || []);
   const byConceptId = (id: string) =>
     allObs.filter(o => o.concept?.uuid === id);
-  const followUpObs = byConceptId(CONCEPT_IDS.followUp);
+  const followUpObs = byConceptId(PRESCRIPTION_CONCEPT_IDS.FOLLOW_UP);
 
   return {
     visitUuid,
@@ -319,17 +325,17 @@ export async function getVisitPrescriptionData(
     patientId,
     gender,
     age,
-    phone: getPersonAttribute(person, 'Telephone Number'),
+    phone: getPersonAttribute(person, PERSON_ATTRIBUTES.TELEPHONE_NUMBER),
     address,
-    nationalId: getPersonAttribute(person, 'National ID'),
-    occupation: getPersonAttribute(person, 'Occupation'),
+    nationalId: getPersonAttribute(person, PERSON_ATTRIBUTES.NATIONAL_ID),
+    occupation: getPersonAttribute(person, PERSON_ATTRIBUTES.OCCUPATION),
     consultationDate,
     location: visit.location?.display || '',
     doctorName,
     doctorQualification,
     doctorRegNumber,
     doctorSignatureUrl,
-    diagnoses: byConceptId(CONCEPT_IDS.diagnosis).map(o => {
+    diagnoses: byConceptId(PRESCRIPTION_CONCEPT_IDS.DIAGNOSIS).map(o => {
       const v = o.value;
       const val =
         typeof v === 'object' && v !== null
@@ -337,12 +343,12 @@ export async function getVisitPrescriptionData(
           : v || o.display || '';
       return parseDiagnosis(val);
     }),
-    medicines: byConceptId(CONCEPT_IDS.medication).map(o =>
+    medicines: byConceptId(PRESCRIPTION_CONCEPT_IDS.MEDICATION).map(o =>
       parseMedicine(obsStr(o))
     ),
-    advices: byConceptId(CONCEPT_IDS.advice).map(o => obsStr(o)),
-    tests: byConceptId(CONCEPT_IDS.test).map(o => obsStr(o)),
-    referrals: byConceptId(CONCEPT_IDS.referral).map(o =>
+    advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o => obsStr(o)),
+    tests: byConceptId(PRESCRIPTION_CONCEPT_IDS.TEST).map(o => obsStr(o)),
+    referrals: byConceptId(PRESCRIPTION_CONCEPT_IDS.REFERRAL).map(o =>
       parseReferral(obsStr(o))
     ),
     followUp: followUpObs.length ? parseFollowUp(followUpObs[0]) : null,

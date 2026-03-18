@@ -11,22 +11,23 @@ import {
   getVisitPrescriptionData,
   type PrescriptionData,
 } from '../../services/visit-prescription.service';
+import { COLORS } from '../../utils/colors.constant';
 
 const thStyle = {
   textAlign: 'left' as const,
   padding: '5px 8px',
   fontWeight: 'bold',
   fontSize: 9,
-  color: '#444',
-  borderBottom: '1px solid #EBEBEB',
+  color: COLORS.TEXT_DARK_GRAY,
+  borderBottom: `1px solid ${COLORS.BORDER_LIGHT}`,
   whiteSpace: 'nowrap' as const,
 };
 const tdStyle = {
   padding: '5px 8px',
   fontSize: 9,
-  color: '#1A1A2E',
+  color: COLORS.TEXT_PRIMARY,
   verticalAlign: 'top' as const,
-  borderBottom: '1px solid #F0F0F0',
+  borderBottom: `1px solid ${COLORS.BORDER_LIGHTER}`,
   whiteSpace: 'pre-line' as const,
 };
 
@@ -40,9 +41,11 @@ const InfoCell = ({
   phone?: boolean;
 }) => (
   <div style={{ marginBottom: 7 }}>
-    <div style={{ fontSize: 8, color: '#888', marginBottom: 2 }}>{label}</div>
-    <div style={{ fontSize: 9, color: '#1A1A2E' }}>
-      {phone && value ? `📞 ${value}` : value || '-'}
+    <div style={{ fontSize: 8, color: COLORS.TEXT_MUTED, marginBottom: 2 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 9, color: COLORS.TEXT_PRIMARY }}>
+      {phone && value ? ` ${value}` : value || '-'}
     </div>
   </div>
 );
@@ -65,11 +68,13 @@ const Section = ({
         marginTop: 16,
         marginBottom: 6,
         paddingBottom: 6,
-        borderBottom: '1px solid #EBEBEB',
+        borderBottom: `1px solid ${COLORS.BORDER_LIGHT}`,
       }}
     >
       <img src={icon} style={{ width: 28, height: 28, flexShrink: 0 }} />
-      <span style={{ fontWeight: 700, fontSize: 12, color: '#1A1A2E' }}>
+      <span
+        style={{ fontWeight: 700, fontSize: 12, color: COLORS.TEXT_PRIMARY }}
+      >
         {title}
       </span>
     </div>
@@ -85,10 +90,10 @@ const BulletRow = ({
   value: string | null | undefined;
 }) => (
   <div style={{ display: 'flex', gap: 8, marginBottom: 5, fontSize: 9 }}>
-    <span style={{ color: '#7B7FA6', width: 150, flexShrink: 0 }}>
+    <span style={{ color: COLORS.TEXT_SECONDARY, width: 150, flexShrink: 0 }}>
       • {label}
     </span>
-    <span style={{ color: '#1A237E' }}>{value || 'NA'}</span>
+    <span style={{ color: COLORS.TEXT_INDIGO }}>{value || 'NA'}</span>
   </div>
 );
 
@@ -108,7 +113,7 @@ const DataTable = ({
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9 }}>
       <thead>
-        <tr style={{ background: '#F5F7FA' }}>
+        <tr style={{ background: COLORS.BG_TABLE_HEADER }}>
           {headers.map((h, i) => (
             <th key={i} style={thStyle}>
               {h}
@@ -125,7 +130,7 @@ const DataTable = ({
               colSpan={colSpan}
               style={{
                 textAlign: 'center',
-                color: '#888',
+                color: COLORS.TEXT_MUTED,
                 padding: 8,
                 fontSize: 9,
               }}
@@ -156,13 +161,13 @@ const PatientAvatar = ({ uuid, name }: { uuid: string; name: string }) => {
     <div
       style={{
         ...circle,
-        background: '#C5CAE9',
+        background: COLORS.BG_AVATAR_FALLBACK,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 'bold',
         fontSize: 14,
-        color: '#fff',
+        color: COLORS.WHITE,
       }}
     >
       {name?.[0] || 'P'}
@@ -228,27 +233,29 @@ const PrescriptionPreviewPage = () => {
     return <div className="p-8 text-red-500">{error || 'No data'}</div>;
 
   return (
-    <div style={{ background: '#f3f4f6', minHeight: '100vh', padding: 24 }}>
+    <div
+      style={{ background: COLORS.BG_PAGE, minHeight: '100vh', padding: 24 }}
+    >
       <div
         style={{
           width: 794,
           margin: '0 auto',
-          background: '#fff',
+          background: COLORS.BG_WHITE,
           boxShadow: '0 2px 16px rgba(0,0,0,0.10)',
           fontFamily: 'Arial, sans-serif',
           fontSize: 10,
-          color: '#1A1A2E',
+          color: COLORS.TEXT_PRIMARY,
           overflow: 'hidden',
         }}
       >
         <div
           style={{
-            background: '#E6FFF3',
+            background: COLORS.BG_PRESCRIPTION_HEADER,
             textAlign: 'center',
             fontWeight: 'bold',
             fontSize: 14,
             padding: '14px 36px',
-            color: '#1A1A2E',
+            color: COLORS.TEXT_PRIMARY,
           }}
         >
           Intelehealth e-Prescription
@@ -261,7 +268,7 @@ const PrescriptionPreviewPage = () => {
               gridTemplateColumns: '1.4fr 0.8fr 1fr 1fr',
               gap: 10,
               paddingBottom: 12,
-              borderBottom: '1px solid #EFEFEF',
+              borderBottom: `1px solid ${COLORS.BORDER_FAINT}`,
               marginBottom: 4,
               alignItems: 'start',
             }}
@@ -274,7 +281,7 @@ const PrescriptionPreviewPage = () => {
                 >
                   {data.patientName}
                 </div>
-                <div style={{ fontSize: 9, color: '#7B7FA6' }}>
+                <div style={{ fontSize: 9, color: COLORS.TEXT_SECONDARY }}>
                   {data.patientId}
                 </div>
               </div>
@@ -397,17 +404,17 @@ const PrescriptionPreviewPage = () => {
               />
             )}
             {data.doctorName && (
-              <div style={{ fontSize: 10, color: '#1A1A2E' }}>
+              <div style={{ fontSize: 10, color: COLORS.TEXT_PRIMARY }}>
                 {data.doctorName}
               </div>
             )}
             {data.doctorQualification && (
-              <div style={{ fontSize: 9, color: '#555' }}>
+              <div style={{ fontSize: 9, color: COLORS.TEXT_GRAY }}>
                 {data.doctorQualification}
               </div>
             )}
             {data.doctorRegNumber && (
-              <div style={{ fontSize: 9, color: '#555' }}>
+              <div style={{ fontSize: 9, color: COLORS.TEXT_GRAY }}>
                 Registration No: {data.doctorRegNumber}
               </div>
             )}
@@ -418,9 +425,9 @@ const PrescriptionPreviewPage = () => {
             style={{
               marginTop: 24,
               paddingTop: 10,
-              borderTop: '1px solid #eee',
+              borderTop: `1px solid ${COLORS.BORDER_SUBTLE}`,
               fontSize: 7,
-              color: '#888',
+              color: COLORS.TEXT_MUTED,
             }}
           >
             *The diagnosis and prescription is through telemedicine consultation
@@ -437,7 +444,7 @@ const PrescriptionPreviewPage = () => {
           style={{
             cursor: 'pointer',
             fontSize: 11,
-            color: '#aaa',
+            color: COLORS.TEXT_LIGHT,
             marginBottom: 4,
           }}
         >
@@ -446,8 +453,8 @@ const PrescriptionPreviewPage = () => {
         <pre
           style={{
             fontSize: 11,
-            background: '#1e1e2e',
-            color: '#a6e3a1',
+            background: COLORS.BG_DEBUG,
+            color: COLORS.TEXT_DEBUG,
             padding: 16,
             borderRadius: 8,
             overflow: 'auto',
