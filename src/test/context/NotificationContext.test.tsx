@@ -684,6 +684,123 @@ describe('NotificationContext', () => {
     expect(mockToast.mock.calls[0][0].props.title).toBe('Prescription Ready');
   });
 
+  it('should include formatted date and time in follow-up toast when followupDatetime is provided', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: {
+          type: 'followup',
+          patientFirstName: 'Test',
+          patientLastName: 'Patient',
+          drName: 'Dr. Smith',
+          followupDatetime: 'Sat Mar 28 2026 00:00:00 GMT+0530 (India Standard Time),Time:12:00 PM',
+        },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const msg: string = mockToast.mock.calls[0][0].props.message;
+    expect(msg).toContain('Follow-up scheduled');
+    expect(msg).toContain('12:00 PM');
+    // Should contain a formatted date (newline-separated)
+    expect(msg).toContain('\n');
+  });
+
+  it('should include date without time in follow-up toast when Time: is absent', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: {
+          type: 'followup',
+          patientFirstName: 'Jane',
+          drName: 'Dr. Patel',
+          followupDatetime: 'Mon Apr 05 2026 00:00:00 GMT+0530',
+        },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const msg: string = mockToast.mock.calls[0][0].props.message;
+    expect(msg).toContain('\n');
+    // No ", " before time since there's no time
+    expect(msg).not.toContain('PM');
+    expect(msg).not.toContain('AM');
+  });
+
+  it('should keep raw date string when Date parsing fails in follow-up toast', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: {
+          type: 'followup',
+          patientFirstName: 'Bob',
+          drName: 'Dr. Lee',
+          followupDatetime: 'not-a-date,Time:3:00 PM',
+        },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const msg: string = mockToast.mock.calls[0][0].props.message;
+    expect(msg).toContain('not-a-date');
+    expect(msg).toContain('3:00 PM');
+  });
+
+  it('should log "unsupported" when Notification global is undefined (line 234)', async () => {
+    const savedNotification = window.Notification;
+    // @ts-ignore
+    delete window.Notification;
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderHook(() => useNotificationContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockInitialize).toHaveBeenCalled();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'FCM init:',
+      expect.anything(),
+      'permission:',
+      'unsupported'
+    );
+
+    warnSpy.mockRestore();
+    Object.defineProperty(window, 'Notification', {
+      writable: true,
+      configurable: true,
+      value: savedNotification,
+    });
+  });
+
   it('should handle toggle OFF with provider lookup failure silently', async () => {
     mockToggleNotificationStatus.mockResolvedValue({ data: { notification_status: false } });
     mockGetProvider.mockRejectedValue(new Error('Provider error'));
