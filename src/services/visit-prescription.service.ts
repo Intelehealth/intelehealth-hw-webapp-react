@@ -9,7 +9,7 @@ interface Obs {
   uuid?: string;
   display?: string;
   value?: string | ObsValue;
-  concept?: { uuid: string; display?: string };
+  concept?: { uuid?: string; display?: string };
   groupMembers?: Obs[];
 }
 interface EncProvider {
