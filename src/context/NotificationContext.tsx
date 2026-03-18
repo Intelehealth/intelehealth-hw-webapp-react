@@ -14,15 +14,12 @@ import profileService from '../modules/profile/profile.service';
 import { storage } from '../utils/storage';
 
 type NotificationPayload = Record<string, string | undefined>;
-
 interface ProviderSearchResult {
   results?: { uuid: string }[];
 }
-
 interface ToggleResult {
   data?: { notification_status: boolean };
 }
-
 interface NotificationContextType {
   token: string;
   notifications: NotificationPayload[];
@@ -75,18 +72,15 @@ export const NotificationProvider = ({
   const [isEnabled, setIsEnabled] = useState(true);
   const lastPushId = useRef('');
 
-  const registerToken = async (uuid: string, token: string) => {
-    await notificationService.registerFCMToken(uuid, token);
-
+  const registerToken = async (uuid: string, fcmToken: string) => {
+    await notificationService.registerFCMToken(uuid, fcmToken);
     try {
       const prov = (await profileService.getProvider(
         uuid
       )) as ProviderSearchResult;
       const providerUuid = prov?.results?.[0]?.uuid;
-
-      if (providerUuid && providerUuid !== uuid) {
-        await notificationService.registerFCMToken(providerUuid, token);
-      }
+      if (providerUuid && providerUuid !== uuid)
+        await notificationService.registerFCMToken(providerUuid, fcmToken);
     } catch {
       /* silent */
     }
@@ -101,9 +95,7 @@ export const NotificationProvider = ({
       'uuid=',
       uuid
     );
-
     if (!fcmToken || !uuid) return;
-
     setToken(fcmToken);
     await registerToken(uuid, fcmToken);
     console.warn('registerToken done');
@@ -112,15 +104,12 @@ export const NotificationProvider = ({
   const toggleNotifications = useCallback(async () => {
     const uuid = getUUID();
     if (!uuid) return;
-
     try {
       const res = (await notificationService.toggleNotificationStatus(
         uuid
       )) as ToggleResult;
       const enabled = !!res?.data?.notification_status;
-
       setIsEnabled(enabled);
-
       if (enabled) {
         await requestPermission();
       } else {
@@ -146,7 +135,6 @@ export const NotificationProvider = ({
           .join(' ') ||
         data.patientName ||
         '';
-
       const openMrsId =
         data.patientOpenMrsId || data.openMrsId || data.openMRSId || '';
       const doctorName = data.drName || data.doctorName || 'Doctor';
@@ -157,6 +145,27 @@ export const NotificationProvider = ({
       message +=
         type === 'followup' ? 'Follow-up scheduled' : 'Prescription received';
       message += ` from ${doctorName}`;
+
+      if (type === 'followup' && data.followupDatetime) {
+        const raw = data.followupDatetime;
+        const time = raw.match(/Time:\s*(.+)/i)?.[1]?.trim();
+        const datePart = raw.split(',')[0]?.trim();
+        let formattedDate = datePart || '';
+        try {
+          const d = new Date(datePart);
+          if (!isNaN(d.getTime()))
+            formattedDate = d.toLocaleDateString('en-IN', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            });
+        } catch {
+          /* keep raw */
+        }
+        if (formattedDate || time)
+          message += `\n${formattedDate}${time ? `, ${time}` : ''}`;
+      }
 
       const toastId = toast(
         <CustomToast
@@ -190,14 +199,10 @@ export const NotificationProvider = ({
   const handlePush = useCallback(
     (pushData?: NotificationPayload & { data?: NotificationPayload }) => {
       const pushId = JSON.stringify(pushData || '');
-
       if (pushId === lastPushId.current) return;
-
       lastPushId.current = pushId;
       setTimeout(() => (lastPushId.current = ''), 3000);
-
       if (pushData) showToast(pushData);
-
       setUnreadCount(prev => prev + 1);
     },
     [showToast]
@@ -216,26 +221,20 @@ export const NotificationProvider = ({
           ? Notification.permission
           : 'unsupported'
       );
-
       if (!initialized) return;
-
-      if (Notification.permission !== 'denied') {
+      if (
+        typeof Notification !== 'undefined' &&
+        Notification.permission !== 'denied'
+      )
         await requestPermission();
-      }
     };
-
-    const swMessageHandler = (event: MessageEvent) => {
-      if (event.data?.type === 'PUSH_RECEIVED') {
-        handlePush(event.data.data);
-      }
+    const swHandler = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_RECEIVED') handlePush(event.data.data);
     };
-
-    navigator.serviceWorker?.addEventListener('message', swMessageHandler);
-
+    navigator.serviceWorker?.addEventListener('message', swHandler);
     init();
-
     return () => {
-      navigator.serviceWorker?.removeEventListener('message', swMessageHandler);
+      navigator.serviceWorker?.removeEventListener('message', swHandler);
     };
   }, [requestPermission, handlePush]);
 
@@ -257,10 +256,9 @@ export const NotificationProvider = ({
 
 export const useNotificationContext = () => {
   const context = useContext(NotificationContext);
-  if (!context) {
+  if (!context)
     throw new Error(
       'useNotificationContext must be used inside NotificationProvider'
     );
-  }
   return context;
 };

@@ -36,7 +36,12 @@ const CustomToast: React.FC<CustomToastProps> = ({
         </span>
       )}
     </div>
-    <p className="text-[12px] text-gray-600 leading-snug mt-0.5">{message}</p>
+    <p
+      className="text-[12px] text-gray-600 leading-snug mt-0.5"
+      style={{ whiteSpace: 'pre-line' }}
+    >
+      {message}
+    </p>
     <div className="flex items-center gap-5 mt-2">
       {secondaryLabel && (
         <span
