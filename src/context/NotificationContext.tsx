@@ -151,18 +151,14 @@ export const NotificationProvider = ({
         const time = raw.match(/Time:\s*(.+)/i)?.[1]?.trim();
         const datePart = raw.split(',')[0]?.trim();
         let formattedDate = datePart || '';
-        try {
-          const d = new Date(datePart);
-          if (!isNaN(d.getTime()))
-            formattedDate = d.toLocaleDateString('en-IN', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            });
-        } catch {
-          /* keep raw */
-        }
+        const d = new Date(datePart);
+        if (!isNaN(d.getTime()))
+          formattedDate = d.toLocaleDateString('en-IN', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          });
         if (formattedDate || time)
           message += `\n${formattedDate}${time ? `, ${time}` : ''}`;
       }
