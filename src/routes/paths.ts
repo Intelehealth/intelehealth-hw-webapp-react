@@ -18,13 +18,19 @@ const ROUTES = {
   MY_APPOINTMENTS: '/my-appointments',
   APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule',
   APPOINTMENT_DETAILS: '/my-appointments/:id',
+  NOTIFICATIONS: '/notifications',
+  PRESCRIPTION_PREVIEW: '/prescription-preview',
   VISIT_SUMMARY: '/visit-summary',
   NOT_FOUND: '*', // catch-all
   PATIENT: {
     BASE: '/patient',
     ADD_PATIENT: 'add',
+    DETAIL: ':uuid',
   },
   AYU: '/ayu/*',
 };
+
+/* Routes where mobile nav (top navbar, bottom menu) should be hidden */
+export const HIDE_MOBILE_NAV_ROUTES: string[] = [ROUTES.PROFILE];
 
 export default ROUTES;

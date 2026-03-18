@@ -1,19 +1,19 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type Mocked,
-  type MockedFunction,
-} from 'vitest';
 import React from 'react';
-import { useProfileContext as useProfile, ProfileProvider } from '../../../context/ProfileContext';
-import mockProfileService from '../../../modules/profile/profile.service';
-import { storage as mockStorage } from '../../../utils/storage';
+import {
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type Mocked,
+    type MockedFunction,
+} from 'vitest';
+import { ProfileProvider, useProfileContext as useProfile } from '../../../context/ProfileContext';
 import * as helpers from '../../../modules/profile/profile.helpers';
+import mockProfileService from '../../../modules/profile/profile.service';
 import * as toast from '../../../services/toast';
+import { storage as mockStorage } from '../../../utils/storage';
 
 // ---------- MOCK TOAST ----------
 vi.mock('../../../services/toast', () => ({
@@ -107,6 +107,8 @@ vi.mock('../../../utils/storage', () => ({
     getUser: vi.fn(),
     setLocationName: vi.fn(),
     getLocationName: vi.fn(),
+    getLocationUuid: vi.fn(() => null),
+    setLocationUuid: vi.fn(),
   },
 }));
 
@@ -1894,8 +1896,8 @@ describe('useProfile', () => {
 
     await waitFor(() => {
       expect(result.current.locations).toHaveLength(2);
-      expect(result.current.locations[0]).toEqual({ value: 'Main Clinic', label: 'Main Clinic' });
-      expect(result.current.locations[1]).toEqual({ value: 'Branch Clinic', label: 'Branch Clinic' });
+      expect(result.current.locations[0]).toEqual({ value: 'Main Clinic', label: 'Main Clinic', uuid: 'loc1' });
+      expect(result.current.locations[1]).toEqual({ value: 'Branch Clinic', label: 'Branch Clinic', uuid: 'loc2' });
     });
   });
 
@@ -1985,6 +1987,188 @@ describe('useProfile', () => {
 
     // Locations should be empty when results is undefined (|| [] fallback)
     expect(result.current.locations).toEqual([]);
+  });
+
+  it('syncs localStorage location when profile has setupLocation', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [{ name: 'Doctor', uuid: 'role1', display: 'Doctor' }],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+      username: 'johndoe',
+      systemId: 'admin',
+      display: 'John Doe',
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({
+      results: [{ uuid: 'provider123' }],
+    } as any);
+
+    mockedProfileService.getProviderByUuid.mockResolvedValue({
+      uuid: 'provider123',
+      person: { uuid: 'person123', display: 'John Doe', gender: 'M' },
+      display: 'John Doe - EMP001',
+      identifier: 'EMP001',
+    } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    // Override createProfile to return a profile with setupLocation
+    mockedHelpers.createProfile.mockReturnValueOnce({
+      id: 'person123',
+      firstName: 'John',
+      middleName: '',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      phone: '1234567890',
+      dateOfBirth: '1990-01-01',
+      gender: 'male' as const,
+      age: 30,
+      avatar: '',
+      setupLocation: 'Test Location',
+      address: { street: '', city: '', state: '', country: '', zipCode: '' },
+      role: 'Doctor',
+      department: '',
+      employeeId: '',
+      joinDate: '',
+      lastLogin: '',
+      isActive: true,
+      username: 'johndoe',
+      preferences: {
+        language: 'en',
+        timezone: 'UTC',
+        notifications: { email: false, sms: false, push: false },
+      },
+    } as any);
+
+    renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockStorage.setLocationName).toHaveBeenCalledWith('Test Location');
+    });
+  });
+
+  it('resolves and stores locationUuid when setupLocation matches a loaded location', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    // Return real locations so locations.length > 0
+    mockedProfileService.getLocations.mockResolvedValueOnce({
+      results: [
+        { uuid: 'loc-uuid-match', display: 'Health Clinic' },
+        { uuid: 'loc-uuid-other', display: 'Branch Clinic' },
+      ],
+    } as any);
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    // Profile whose setupLocation matches the first location
+    mockedHelpers.createProfile.mockReturnValueOnce({
+      id: 'person123',
+      firstName: 'John',
+      lastName: 'Doe',
+      gender: 'male' as const,
+      setupLocation: 'Health Clinic',
+      address: { street: '', city: '', state: '', country: '', zipCode: '' },
+      preferences: { language: 'en', timezone: 'UTC', notifications: { email: false, sms: false, push: false } },
+    } as any);
+
+    const { result } = renderHook(() => useProfile(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockStorage.setLocationUuid).toHaveBeenCalledWith('loc-uuid-match');
+    });
+
+    expect(result.current.locationUuid).toBe('loc-uuid-match');
+  });
+
+  it('does not call setLocationUuid when setupLocation does not match any location', async () => {
+    const mockGetUser = mockStorage.getUser as MockedFunction<
+      typeof mockStorage.getUser
+    >;
+    mockGetUser.mockReturnValue(
+      JSON.stringify({ uuid: 'user123', person: { uuid: 'person123' } })
+    );
+
+    // Return locations that do NOT include the profile's setupLocation
+    mockedProfileService.getLocations.mockResolvedValueOnce({
+      results: [
+        { uuid: 'loc-uuid-other', display: 'Other Clinic' },
+      ],
+    } as any);
+
+    mockedProfileService.getUserByUuid.mockResolvedValue({
+      uuid: 'user123',
+      person: { uuid: 'person123' },
+      roles: [],
+      privileges: [],
+      retired: false,
+      userProperties: {},
+    } as any);
+
+    mockedProfileService.getProvider.mockResolvedValue({ results: [] } as any);
+
+    mockedProfileService.getPersonByUuid.mockResolvedValue({
+      uuid: 'person123',
+      display: 'John Doe',
+      attributes: [],
+    } as any);
+
+    mockedProfileService.getProfileImage.mockRejectedValue({ status: 404 });
+
+    mockedHelpers.createProfile.mockReturnValueOnce({
+      id: 'person123',
+      firstName: 'John',
+      lastName: 'Doe',
+      gender: 'male' as const,
+      setupLocation: 'Non-Existent Clinic',
+      address: { street: '', city: '', state: '', country: '', zipCode: '' },
+      preferences: { language: 'en', timezone: 'UTC', notifications: { email: false, sms: false, push: false } },
+    } as any);
+
+    const { result } = renderHook(() => useProfile(), { wrapper });
+
+    // Wait until both profile and locations are loaded so the useEffect runs
+    await waitFor(() => {
+      expect(result.current.profile).not.toBeNull();
+      expect(result.current.locations.length).toBeGreaterThan(0);
+    });
+
+    expect(mockStorage.setLocationUuid).not.toHaveBeenCalled();
   });
 
 });

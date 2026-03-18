@@ -7,10 +7,10 @@ import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.sv
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
-import { useOpenVisits } from '../../hooks/useOpenVisits';
+import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
 import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
 import type {
-  OpenVisit,
+  PrescriptionPendingVisit,
   PrescriptionReceivedVisit,
 } from '../../services/patient.service';
 
@@ -32,10 +32,10 @@ export const PrescriptionsReceived = ({
   } = usePrescriptionsReceived();
 
   const {
-    data: openVisitsData,
-    loading: openVisitsLoading,
-    error: openVisitsError,
-  } = useOpenVisits();
+    data: pendingData,
+    loading: pendingLoading,
+    error: pendingError,
+  } = usePrescriptionsPending();
 
   useEffect(() => {
     if (onCountLoaded) onCountLoaded(receivedCount);
@@ -45,7 +45,7 @@ export const PrescriptionsReceived = ({
     p.patientName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredOpenVisits = openVisitsData.filter(p =>
+  const filteredPending = pendingData.filter(p =>
     p.patientName.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -82,15 +82,15 @@ export const PrescriptionsReceived = ({
     },
   ];
 
-  const openVisitsColumns: {
+  const pendingColumns: {
     header: string;
-    accessor: keyof OpenVisit;
-    render?: (row: OpenVisit) => React.ReactNode;
+    accessor: keyof PrescriptionPendingVisit;
+    render?: (row: PrescriptionPendingVisit) => React.ReactNode;
   }[] = [
     {
       header: 'Patient',
       accessor: 'patientName',
-      render: (row: OpenVisit) => (
+      render: (row: PrescriptionPendingVisit) => (
         <div className="flex items-center gap-3">
           <img src={iconPatientImage} className="w-[32px] h-[32px]" />
           <p className="font-semibold text-gray-800">{row.patientName}</p>
@@ -104,7 +104,7 @@ export const PrescriptionsReceived = ({
     {
       header: 'Uploaded',
       accessor: 'uploadTimestamp',
-      render: (row: OpenVisit) => (
+      render: (row: PrescriptionPendingVisit) => (
         <div className="flex items-center justify-center">
           <img src={iconSummaryList} className="w-[22px] h-[22px]" />
           <p className="text-orange-500 ml-1 text-xs truncate">
@@ -116,11 +116,11 @@ export const PrescriptionsReceived = ({
   ];
 
   const isReceived = activeTab === 'Received';
-  const loading = isReceived ? receivedLoading : openVisitsLoading;
-  const error = isReceived ? receivedError : openVisitsError;
+  const loading = isReceived ? receivedLoading : pendingLoading;
+  const error = isReceived ? receivedError : pendingError;
   const emptyMessage = isReceived
     ? 'No prescriptions found.'
-    : 'No open visits found.';
+    : 'No pending prescriptions found.';
 
   return (
     <div>
@@ -205,8 +205,8 @@ export const PrescriptionsReceived = ({
               />
             ) : (
               <ReusableGridTable
-                columns={openVisitsColumns}
-                data={loading ? [] : filteredOpenVisits}
+                columns={pendingColumns}
+                data={loading ? [] : filteredPending}
               />
             )}
             {loading && (
@@ -217,7 +217,7 @@ export const PrescriptionsReceived = ({
             )}
             {!loading &&
               !error &&
-              (isReceived ? filteredReceived : filteredOpenVisits).length ===
+              (isReceived ? filteredReceived : filteredPending).length ===
                 0 && (
                 <p className="text-center text-gray-400 py-4">{emptyMessage}</p>
               )}

@@ -190,11 +190,12 @@ export const createProfile = (
     isActive: !userDetails.retired,
     username: userDetails.username || '',
     age: personDetails.age ?? undefined,
-    setupLocation:
+    setupLocation: (
       attributes['address'] ||
       attributes['setupLocation'] ||
       attributes['setup_location'] ||
-      '',
+      ''
+    ).trim(),
     preferences: {
       language: 'en',
       timezone: 'UTC',

@@ -1,7 +1,79 @@
+import fs from 'fs';
+import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+
+/**
+ * Vite plugin that injects VITE_FIREBASE_* env variables into
+ * public/firebase-messaging-sw.js at build time.
+ * Replaces __VITE_FIREBASE_*__ placeholders with actual values.
+ */
+function firebaseSWEnvPlugin(): Plugin {
+  let envVars: Record<string, string>;
+
+  return {
+    name: 'firebase-sw-env',
+    configResolved(config) {
+      const envFile = loadEnv(config.mode, config.envDir || process.cwd(), '');
+      envVars = {
+        VITE_FIREBASE_API_KEY:
+          envFile.VITE_FIREBASE_API_KEY ||
+          process.env.VITE_FIREBASE_API_KEY ||
+          '',
+        VITE_FIREBASE_AUTH_DOMAIN:
+          envFile.VITE_FIREBASE_AUTH_DOMAIN ||
+          process.env.VITE_FIREBASE_AUTH_DOMAIN ||
+          '',
+        VITE_FIREBASE_PROJECT_ID:
+          envFile.VITE_FIREBASE_PROJECT_ID ||
+          process.env.VITE_FIREBASE_PROJECT_ID ||
+          '',
+        VITE_FIREBASE_STORAGE_BUCKET:
+          envFile.VITE_FIREBASE_STORAGE_BUCKET ||
+          process.env.VITE_FIREBASE_STORAGE_BUCKET ||
+          '',
+        VITE_FIREBASE_MESSAGING_SENDER_ID:
+          envFile.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+          process.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+          '',
+        VITE_FIREBASE_APP_ID:
+          envFile.VITE_FIREBASE_APP_ID ||
+          process.env.VITE_FIREBASE_APP_ID ||
+          '',
+        VITE_FIREBASE_VAPID_KEY:
+          envFile.VITE_FIREBASE_VAPID_KEY ||
+          process.env.VITE_FIREBASE_VAPID_KEY ||
+          '',
+      };
+    },
+    // Dev: serve the SW file with placeholders replaced on-the-fly
+    configureServer(server) {
+      server.middlewares.use('/firebase-messaging-sw.js', (_req, res) => {
+        const swPath = path.resolve('public/firebase-messaging-sw.js');
+        let content = fs.readFileSync(swPath, 'utf-8');
+        for (const [key, value] of Object.entries(envVars)) {
+          content = content.replaceAll(`__${key}__`, value);
+        }
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end(content);
+      });
+    },
+    // Build: replace placeholders in the output
+    writeBundle(options) {
+      const outDir = options.dir || 'dist';
+      const swPath = path.resolve(outDir, 'firebase-messaging-sw.js');
+      if (fs.existsSync(swPath)) {
+        let content = fs.readFileSync(swPath, 'utf-8');
+        for (const [key, value] of Object.entries(envVars)) {
+          content = content.replaceAll(`__${key}__`, value);
+        }
+        fs.writeFileSync(swPath, content);
+      }
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -9,6 +81,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    firebaseSWEnvPlugin(),
     // Bundle analyzer for production builds
     mode === 'analyze' &&
       visualizer({

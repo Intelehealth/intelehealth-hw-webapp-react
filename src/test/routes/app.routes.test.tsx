@@ -12,6 +12,8 @@ vi.mock('../../utils/storage', () => ({
     setAuthToken: vi.fn(),
     clearAuthToken: vi.fn(),
     getUser: vi.fn(() => null),
+    getLocationUuid: vi.fn(() => null),
+    setLocationUuid: vi.fn(),
   },
 }));
 

@@ -1,7 +1,6 @@
 import { type MessagePayload } from 'firebase/messaging';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import fcmService from '../services/fcm.service';
-import { storage } from '../utils/storage';
 
 interface UseFCMReturn {
   isInitialized: boolean;
@@ -12,6 +11,9 @@ interface UseFCMReturn {
   requestPermission: () => Promise<void>;
   error: Error | null;
 }
+
+const getPermission = (): NotificationPermission =>
+  typeof Notification !== 'undefined' ? Notification.permission : 'default';
 
 /**
  * React hook for Firebase Cloud Messaging
@@ -26,124 +28,61 @@ export const useFCM = (
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
-  // Track if we're currently requesting permission to avoid duplicate token retrieval
   const isRequestingPermissionRef = useRef(false);
-
-  // Helper function to handle token retrieval and validation
-  const handleTokenRetrieval = useCallback(
-    async (permissionStatus: NotificationPermission) => {
-      // Skip token retrieval if we're currently requesting permission
-      // (token will be set by requestPermission function)
-      if (isRequestingPermissionRef.current) {
-        return;
-      }
-
-      if (permissionStatus === 'granted') {
-        // Check if token exists in storage first
-        const storedToken = fcmService.getToken();
-
-        if (storedToken) {
-          // Token exists, validate and refresh if needed
-          const validToken = await fcmService.validateAndRefreshToken();
-          setToken(validToken);
-        } else {
-          // No stored token, get a new one directly from Firebase
-          const newToken = await fcmService.getTokenFromFirebase();
-          setToken(newToken);
-        }
-      } else {
-        // Permission not granted, use stored token if available
-        const storedToken = fcmService.getToken();
-        setToken(storedToken);
-      }
-    },
-    []
-  );
+  const onMessageRef = useRef(onMessageReceived);
+  onMessageRef.current = onMessageReceived;
 
   // Initialize FCM on mount
   useEffect(() => {
     const initializeFCM = async () => {
       try {
-        // Check if user is logged in - only initialize for logged-in users
-        const authToken = storage.getAuthToken();
-        if (!authToken) {
-          // User not logged in, skip FCM initialization
-          // return;
-        }
-
-        // Check if already initialized
         if (fcmService.isInitialized()) {
           setIsInitialized(true);
-
-          // Update config to ensure message handler uses latest callback
-          fcmService.updateConfig({
-            onMessageReceived: payload => {
-              onMessageReceived?.(payload);
-            },
-          });
-
-          const currentPermission = await fcmService.checkPermission();
-          setPermission(currentPermission);
-          await handleTokenRetrieval(currentPermission);
+          setPermission(getPermission());
+          setToken(fcmService.getToken());
           return;
         }
 
-        // Initialize FCM service
         const initialized = await fcmService.initialize({
-          onTokenReceived: newToken => {
-            setToken(newToken);
-            setError(null);
-          },
-          onMessageReceived: payload => {
-            onMessageReceived?.(payload);
-          },
-          onError: err => {
-            setError(err);
-
-            console.error('FCM error:', err);
+          onMessageReceived: (payload: MessagePayload) => {
+            onMessageRef.current?.(payload);
           },
         });
 
         setIsInitialized(initialized);
 
         if (initialized) {
-          const currentPermission = await fcmService.checkPermission();
-          setPermission(currentPermission);
-          await handleTokenRetrieval(currentPermission);
+          setPermission(getPermission());
+          const existing = fcmService.getToken();
+          if (existing) {
+            setToken(existing);
+          } else if (getPermission() === 'granted') {
+            const newToken = await fcmService.requestPermission();
+            setToken(newToken);
+          }
         }
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
-
-        console.error('FCM initialization error:', error);
       }
     };
 
     initializeFCM();
-  }, [onMessageReceived, handleTokenRetrieval]);
+  }, []);
 
-  // Update permission status when it changes
+  // Periodically sync permission status
   useEffect(() => {
     if (!isInitialized) return;
 
-    const checkPermission = async () => {
-      // Skip if we're currently requesting permission
-      if (isRequestingPermissionRef.current) {
-        return;
-      }
+    const interval = setInterval(() => {
+      if (isRequestingPermissionRef.current) return;
 
-      const currentPermission = await fcmService.checkPermission();
-      // Only update if permission actually changed
-      if (currentPermission !== permission) {
-        setPermission(currentPermission);
-      }
-    };
-
-    // Check permission periodically (in case user changes it in browser settings)
-    const interval = setInterval(checkPermission, 5000);
+      const current = getPermission();
+      setPermission(prev => (prev !== current ? current : prev));
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [isInitialized, permission]);
+  }, [isInitialized]);
 
   // Request notification permission
   const requestPermission = useCallback(async () => {
@@ -152,23 +91,16 @@ export const useFCM = (
       isRequestingPermissionRef.current = true;
 
       const newToken = await fcmService.requestPermission();
-      const currentPermission = await fcmService.checkPermission();
-
-      // Update permission state and ref
-      setPermission(currentPermission);
+      setPermission(getPermission());
 
       if (newToken) {
-        // Token already retrieved by requestPermission, just set it
         setToken(newToken);
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
-      const currentPermission = await fcmService.checkPermission();
-      setPermission(currentPermission);
+      setPermission(getPermission());
     } finally {
-      // Reset flag after a delay to allow permission state to settle
-      // This ensures any permission change effects won't trigger handleTokenRetrieval
       setTimeout(() => {
         isRequestingPermissionRef.current = false;
       }, 5000);

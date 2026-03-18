@@ -1,4 +1,3 @@
-// Import Firebase scripts
 importScripts(
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 );
@@ -6,176 +5,102 @@ importScripts(
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js'
 );
 
-// Default Firebase configuration (will be overridden by message from main thread)
-let firebaseConfig = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
+const firebaseConfig = {
+  apiKey: '__VITE_FIREBASE_API_KEY__',
+  authDomain: '__VITE_FIREBASE_AUTH_DOMAIN__',
+  projectId: '__VITE_FIREBASE_PROJECT_ID__',
+  storageBucket: '__VITE_FIREBASE_STORAGE_BUCKET__',
+  messagingSenderId: '__VITE_FIREBASE_MESSAGING_SENDER_ID__',
+  appId: '__VITE_FIREBASE_APP_ID__',
 };
 
-let messaging = null;
-let isFirebaseInitialized = false;
+console.warn(
+  'Firebase config loaded: apiKey=',
+  firebaseConfig.apiKey ? firebaseConfig.apiKey.slice(0, 8) + '...' : 'MISSING',
+  'projectId=',
+  firebaseConfig.projectId || 'MISSING'
+);
 
-// Setup background message handler
-function setupBackgroundMessageHandler() {
-  if (!messaging) {
-    console.warn(
-      '[firebase-messaging-sw.js] Cannot setup background handler: messaging not initialized'
-    );
-    return;
-  }
+firebase.initializeApp(firebaseConfig);
 
-  try {
-    messaging.onBackgroundMessage(payload => {
-      console.log(
-        '[firebase-messaging-sw.js] Received background message ',
-        payload
-      );
+const messaging = firebase.messaging();
 
-      const notificationTitle =
-        payload.notification?.title || 'New Notification';
-      const notificationOptions = {
-        body: payload.notification?.body || '',
-        icon: payload.notification?.icon || '/favicon.ico',
-        badge: payload.notification?.badge || '/favicon.ico',
-        image: payload.notification?.image,
-        tag: payload.notification?.tag,
-        data: payload.data,
-        requireInteraction: false,
-        silent: false,
-      };
+// Fires for DATA-ONLY payloads when app is backgrounded
+// If server sends { notification: {...} }, FCM auto-displays — this won't fire
+messaging.onBackgroundMessage(payload => {
+  console.warn('onBackgroundMessage received:', JSON.stringify(payload));
+  const data = payload.data || {};
+  const notif = payload.notification || {};
 
-      return self.registration.showNotification(
-        notificationTitle,
-        notificationOptions
-      );
+  const title = data.title || notif.title || 'New Notification';
+  const body = data.body || notif.body || '';
+  const icon = data.icon || notif.icon || '/favicon.ico';
+  const tag = data.tag || notif.tag || 'default-tag';
+
+  // Forward push data to all open app tabs for toast/badge update
+  self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then(clientList => {
+      clientList.forEach(client => {
+        client.postMessage({ type: 'PUSH_RECEIVED', data });
+      });
     });
 
-    console.log(
-      '[firebase-messaging-sw.js] Background message handler set up successfully'
-    );
-  } catch (error) {
-    console.error(
-      '[firebase-messaging-sw.js] Error setting up background message handler:',
-      error
-    );
-  }
-}
-
-// Initialize Firebase and messaging
-function initializeFirebase(config) {
-  if (isFirebaseInitialized) {
-    console.log(
-      '[firebase-messaging-sw.js] Firebase already initialized, skipping...'
-    );
-    // Ensure background handler is set up even if already initialized
-    if (messaging) {
-      setupBackgroundMessageHandler();
-    }
-    return;
-  }
-
-  // Check if config is valid (has required fields)
-  if (
-    !config.apiKey ||
-    !config.projectId ||
-    !config.messagingSenderId ||
-    !config.appId
-  ) {
-    console.warn(
-      '[firebase-messaging-sw.js] Firebase config is incomplete, waiting for valid config...'
-    );
-    return;
-  }
-
-  try {
-    console.log('[firebase-messaging-sw.js] Initializing Firebase...');
-
-    // Initialize Firebase with received config
-    if (!firebase.apps.length) {
-      firebase.initializeApp(config);
-      console.log('[firebase-messaging-sw.js] Firebase app initialized');
-    } else {
-      console.log('[firebase-messaging-sw.js] Firebase app already exists');
-    }
-
-    // Retrieve an instance of Firebase Messaging after initialization
-    messaging = firebase.messaging();
-    isFirebaseInitialized = true;
-
-    console.log(
-      '[firebase-messaging-sw.js] Firebase messaging initialized, setting up background handler...'
-    );
-
-    // Setup background message handler after messaging is initialized
-    setupBackgroundMessageHandler();
-
-    console.log('[firebase-messaging-sw.js] Firebase initialized successfully');
-  } catch (error) {
-    console.error(
-      '[firebase-messaging-sw.js] Firebase initialization error:',
-      error
-    );
-  }
-}
-
-// Listen for Firebase config from main thread
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'FIREBASE_CONFIG') {
-    console.log(
-      '[firebase-messaging-sw.js] Received Firebase config from main thread'
-    );
-    firebaseConfig = event.data.config;
-    initializeFirebase(firebaseConfig);
-  }
+  return self.registration.showNotification(title, {
+    body,
+    icon,
+    badge: '/favicon.ico',
+    tag,
+    renotify: true,
+    data: { ...data, click_action: data.click_action || notif.click_action },
+  });
 });
 
-// Log when service worker is installed/activated
-self.addEventListener('install', event => {
-  console.log('[firebase-messaging-sw.js] Service worker installed');
-});
-
-self.addEventListener('activate', event => {
-  console.log('[firebase-messaging-sw.js] Service worker activated');
-});
-
-// Try to initialize with default config (in case config is already available)
-// This handles the case where the service worker is installed before the message is sent
-if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-  initializeFirebase(firebaseConfig);
-}
-
-// Handle notification clicks
+// Notification click
 self.addEventListener('notificationclick', event => {
-  console.log('[firebase-messaging-sw.js] Notification click received.');
-
   event.notification.close();
 
-  // Handle custom click action if provided in payload
   const clickAction = event.notification.data?.click_action;
-  if (clickAction) {
-    event.waitUntil(clients.openWindow(clickAction));
-  } else {
-    // Focus or open the app
-    event.waitUntil(
-      clients
-        .matchAll({ type: 'window', includeUncontrolled: true })
-        .then(clientList => {
-          // Check if there's already a window/tab open with the target URL
-          for (let i = 0; i < clientList.length; i++) {
-            const client = clientList[i];
-            if (client.url === '/' && 'focus' in client) {
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // If target URL already open, focus it
+        if (clickAction) {
+          for (const client of clientList) {
+            if (client.url === clickAction && 'focus' in client) {
               return client.focus();
             }
           }
-          // If not, open a new window/tab
-          if (clients.openWindow) {
-            return clients.openWindow('/');
-          }
-        })
-    );
-  }
+          return clients.openWindow(clickAction);
+        }
+
+        // Otherwise focus any existing window
+        for (const client of clientList) {
+          if ('focus' in client) return client.focus();
+        }
+        return clients.openWindow('/');
+      })
+  );
+});
+
+// Re-subscribe if push subscription expires
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true })
+      .then(() => {
+        // Token will be re-fetched by the app on next load
+      })
+      .catch(err => console.error('[SW] Resubscribe failed:', err))
+  );
+});
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
 });

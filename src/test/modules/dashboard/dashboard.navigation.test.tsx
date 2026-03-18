@@ -5,6 +5,10 @@ vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
+vi.mock('../../../hooks/usePrescriptionsPending', () => ({
+  usePrescriptionsPending: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
+
 vi.mock('../../../hooks/useOpenVisits', () => ({
   useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
@@ -16,6 +20,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
+    useLocation: () => ({ pathname: '/', search: '', hash: '', state: null, key: 'default' }),
   };
 });
 

@@ -78,6 +78,26 @@ export interface OpenVisitsResponse {
   };
 }
 
+export interface PrescriptionPendingVisit {
+  visitUuid: string;
+  patientName: string;
+  gender: string;
+  age?: number;
+  visitCreatedDate: string;
+  clinicName: string;
+  uploadTimestamp: string;
+}
+
+export interface PrescriptionPendingResponse {
+  status: string;
+  data: {
+    visits: PrescriptionPendingVisit[];
+    totalCount: number;
+    pageNo: number;
+    pageSize: number;
+  };
+}
+
 export const patientService = {
   async getRecentPatients(
     hwId: string,
@@ -103,9 +123,19 @@ export const patientService = {
     hwId: string,
     page = 0,
     limit = 50
-  ): Promise<OpenVisit[]> {
+  ): Promise<{ visits: OpenVisit[]; totalCount: number }> {
     const url = `/pull/hw-visits/${hwId}?type=open-visits&page=${page}&limit=${limit}`;
     const res = await EmrMiddlewareApi.get<OpenVisitsResponse>(url);
+    return { visits: res.data.visits, totalCount: res.data.totalCount };
+  },
+
+  async getPrescriptionsPending(
+    hwId: string,
+    page = 0,
+    limit = 50
+  ): Promise<PrescriptionPendingVisit[]> {
+    const url = `/pull/hw-visits/${hwId}?type=prescription-pending&page=${page}&limit=${limit}`;
+    const res = await EmrMiddlewareApi.get<PrescriptionPendingResponse>(url);
     return res.data.visits;
   },
 };

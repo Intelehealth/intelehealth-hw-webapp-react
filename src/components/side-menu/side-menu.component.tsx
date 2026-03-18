@@ -24,9 +24,13 @@ const menuItems = [
 
 interface SideMenuProps {
   children?: React.ReactNode;
+  hideNavbarOnMobile?: boolean;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
+const SideMenu: React.FC<SideMenuProps> = ({
+  children,
+  hideNavbarOnMobile,
+}) => {
   const navigate = useNavigate();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -70,7 +74,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ children }) => {
   return (
     <div className="flex h-screen w-full bg-gray-100">
       {/* Mobile Toggle Button */}
-      {!isMobileOpen && (
+      {!isMobileOpen && !hideNavbarOnMobile && (
         <button
           onClick={() => setIsMobileOpen(true)}
           className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center"

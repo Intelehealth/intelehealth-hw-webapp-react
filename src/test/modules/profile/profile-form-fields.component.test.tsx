@@ -189,8 +189,8 @@ describe('ProfileFormFields', () => {
     );
 
     // Check for desktop-specific elements
-    expect(screen.getByText('Email')).toBeInTheDocument();
     expect(screen.getByText('Phone Number')).toBeInTheDocument();
+    expect(screen.getByText('First Name')).toBeInTheDocument();
   });
 
   it('should call onPhotoModalOpen when photo button is clicked', () => {
@@ -223,7 +223,7 @@ describe('ProfileFormFields', () => {
         trigger={mockTrigger}
         onPhotoModalOpen={mockOnPhotoModalOpen}
         onCountryChange={mockOnCountryChange}
-        locationOptions={[{ value: 'telemedicine-clinic1 ', label: 'telemedicine-clinic1 ' }]}
+        locationOptions={[{ value: 'telemedicine-clinic1 ', label: 'telemedicine-clinic1 ', uuid: 'loc-uuid-1' }]}
       />
     );
 
@@ -307,7 +307,7 @@ describe('ProfileFormFields', () => {
     );
 
     const grid = container.firstElementChild;
-    expect(grid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3', 'gap-6');
+    expect(grid).toHaveClass('flex', 'flex-col', 'gap-2', 'md:grid', 'md:grid-cols-3', 'md:gap-6');
   });
 
   it('should pass all required props to child components', () => {
@@ -448,7 +448,7 @@ describe('ProfileFormFields', () => {
     expect(cameraButton).toBeInTheDocument();
   });
 
-  it('should render email and phone form fields', () => {
+  it('should render phone form field', () => {
     render(
       <ProfileFormFields
         register={mockRegister}
@@ -461,7 +461,6 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    expect(screen.getByPlaceholderText('devi@intelehealth.org')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('9876543210')).toBeInTheDocument();
   });
 
@@ -607,8 +606,6 @@ describe('ProfileFormFields', () => {
     expect(firstNames.length).toBeGreaterThanOrEqual(1);
     const genders = screen.getAllByText('Gender');
     expect(genders.length).toBeGreaterThanOrEqual(1);
-    const emails = screen.getAllByText('Email');
-    expect(emails.length).toBeGreaterThanOrEqual(1);
 
     // Column 2
     const userNames = screen.getAllByText('User name');
@@ -672,7 +669,6 @@ describe('ProfileFormFields', () => {
     const errors = {
       firstName: { message: 'First name is required' },
       lastName: { message: 'Last name is required' },
-      email: { message: 'Email is required' },
       phone: { message: 'Phone is required' },
       dateOfBirth: { message: 'Date of birth is required' },
       setupLocation: { message: 'Location is required' },
@@ -694,7 +690,6 @@ describe('ProfileFormFields', () => {
 
     expect(screen.getAllByText('First name is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Last name is required').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Email is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Phone is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Date of birth is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Location is required').length).toBeGreaterThan(0);
@@ -795,11 +790,6 @@ describe('ProfileFormFields', () => {
     fireEvent.change(lastNameInput, { target: { value: 'Doe' } });
     expect(mockRegister).toHaveBeenCalledWith('lastName');
 
-    const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement;
-    expect(emailInput).toBeInTheDocument();
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    expect(mockRegister).toHaveBeenCalledWith('email');
-
     const phoneInput = container.querySelector('input[name="phone"]') as HTMLInputElement;
     expect(phoneInput).toBeInTheDocument();
     fireEvent.change(phoneInput, { target: { value: '1234567890' } });
@@ -839,13 +829,13 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Grid layout with 3 columns
+    // Responsive layout: flex on mobile, grid on desktop
     const grid = container.firstElementChild;
-    expect(grid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3', 'gap-6');
+    expect(grid).toHaveClass('flex', 'flex-col', 'gap-2', 'md:grid', 'md:grid-cols-3', 'md:gap-6');
 
-    // Column sections
-    const columns = container.querySelectorAll('.space-y-4');
-    expect(columns.length).toBe(3);
+    // Fields section uses md:contents for grid flow
+    const fieldsContainer = container.querySelector('.md\\:contents');
+    expect(fieldsContainer).toBeInTheDocument();
   });
 
   it('should handle location dropdown onChange with different value', () => {

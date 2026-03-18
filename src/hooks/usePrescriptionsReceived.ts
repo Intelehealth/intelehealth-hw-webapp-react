@@ -6,21 +6,21 @@ import {
 } from '../services/patient.service';
 
 export const usePrescriptionsReceived = () => {
-  const { profile } = useProfileContext();
+  const { locationUuid } = useProfileContext();
   const [data, setData] = useState<PrescriptionReceivedVisit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!locationUuid) return;
     setLoading(true);
     setError(null);
     patientService
-      .getPrescriptionsReceived(profile.id)
+      .getPrescriptionsReceived(locationUuid)
       .then(setData)
       .catch(() => setError('Failed to fetch prescriptions'))
       .finally(() => setLoading(false));
-  }, [profile?.id]);
+  }, [locationUuid]);
 
   return { data, loading, error, totalCount: data.length };
 };

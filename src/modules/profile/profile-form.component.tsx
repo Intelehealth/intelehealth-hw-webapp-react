@@ -30,7 +30,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   //   confirmPassword: '',
   // });
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   const {
@@ -136,17 +135,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
 
   return (
     <Card
-      className={`w-full bg-white lg:bg-inherit min-h-screen lg:min-h-0 p-0 lg:p-inherit ${className}`}
-      contentClassName="p-4 md:p-4 lg:p-6"
+      className={`w-full bg-white md:bg-inherit min-h-0 p-0 md:p-inherit border-0 md:border shadow-none md:shadow-md rounded-none md:rounded-xl ${className}`}
+      contentClassName="p-2 md:p-6"
     >
-      <ProfileHeader
-        notificationsEnabled={notificationsEnabled}
-        onNotificationsChange={setNotificationsEnabled}
-      />
+      <ProfileHeader />
 
       <form
         onSubmit={handleSubmit(onSubmitForm)}
-        className="space-y-4 lg:space-y-6"
+        className="space-y-2 md:space-y-6"
       >
         <ProfileFormFields
           register={register}
@@ -166,13 +162,13 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
           onGeneratePassword={generatePassword}
         /> */}
 
-        <div className="flex justify-end gap-3 pt-4 lg:pt-6">
+        <div className="flex justify-end gap-3 pt-2 md:pt-6">
           <Button
             type="submit"
             variant="primary"
             size="md"
             disabled={isSubmitting || isSaving}
-            className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-4 lg:py-2 text-base lg:text-sm font-semibold cursor-pointer mt-6 lg:mt-0 disabled:bg-gray-400 disabled:cursor-not-allowed lg:!px-6"
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-4 md:py-2 text-base md:text-sm font-semibold cursor-pointer mt-6 md:mt-0 disabled:bg-gray-400 disabled:cursor-not-allowed md:!px-6"
           >
             {isSaving ? (
               <span className="flex items-center gap-2">
