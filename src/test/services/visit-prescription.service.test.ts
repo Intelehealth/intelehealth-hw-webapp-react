@@ -346,6 +346,26 @@ describe('getVisitPrescriptionData', () => {
     expect(result.patientId).toBe('ALT-999');
   });
 
+  it('returns empty patientId when patient has no identifiers (line 259)', async () => {
+    const visit = makeVisit();
+    visit.patient.identifiers = [];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.patientId).toBe('');
+  });
+
+  it('sorts multiple encounters by date for consultationDate (lines 279-280)', async () => {
+    const visit = makeVisit();
+    visit.encounters = [
+      { encounterDatetime: '2026-03-10T08:00:00', encounterType: { display: 'Visit Note' }, obs: [], encounterProviders: [] },
+      { encounterDatetime: '2026-03-15T10:00:00', encounterType: { display: 'Visit Note' }, obs: [], encounterProviders: [] },
+      { encounterDatetime: '2026-03-12T09:00:00', encounterType: { display: 'Visit Note' }, obs: [], encounterProviders: [] },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.consultationDate).toContain('15');
+  });
+
   it('maps unknown gender as-is', async () => {
     const visit = makeVisit();
     visit.patient.person.gender = 'O';

@@ -103,9 +103,8 @@ const DataTable = ({
   empty: string;
   colSpan: number;
 }) => {
-  const hasRows = Array.isArray(children)
-    ? (children as React.ReactNode[]).filter(Boolean).length > 0
-    : !!children;
+  const arr = Array.isArray(children) ? children : [children];
+  const hasRows = arr.filter(Boolean).length > 0;
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9 }}>
       <thead>
