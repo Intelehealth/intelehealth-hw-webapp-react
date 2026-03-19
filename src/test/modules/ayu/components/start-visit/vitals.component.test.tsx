@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Vitals } from '../../../../../modules/ayu/components/start-visit/vitals.component';
+import { Vitals } from '../../../../../modules/ayu/components/start-visit/vitals/vitals.component';
 import type { VitalField } from '../../../../../modules/ayu/types/vitals.types';
 
 // Mock the useVitals hook

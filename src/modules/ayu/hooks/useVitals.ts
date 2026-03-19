@@ -4,13 +4,14 @@ import { useForm } from 'react-hook-form';
 import iconVitals from '../../../assets/icons/vitals.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
+import { useStartVisitData } from '../context/start-visit.context';
 import {
   calculateBMI,
   calculateWHR,
   createVitalsValidationSchema,
   getBMIStatus,
   isBPHigh,
-} from '../components/start-visit/vitals.validation';
+} from '../components/start-visit/vitals/vitals.validation';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 // Fallback vitals configuration if API data is not available
 const FALLBACK_VITALS_CONFIG: VitalField[] = [
@@ -234,6 +235,7 @@ const VITAL_KEYS = [
 export const useVitals = (onNextQuestion: () => void) => {
   // Get vitals configuration from Redux store (populated by getPublishedConfig API)
   const { config } = useConfig();
+  const { setVitalsData } = useStartVisitData();
 
   // Use patient_vitals from API config, fallback to hardcoded config if API data is not available
   const vitalsConfig = useMemo(() => {
@@ -359,6 +361,8 @@ export const useVitals = (onNextQuestion: () => void) => {
       open: false,
       type: 'vitalConfirm',
       onConfirm: () => {
+        const formValues = watch() as VitalsFormValues;
+        setVitalsData(formValues, vitalsConfig);
         onNextQuestion();
       },
     });

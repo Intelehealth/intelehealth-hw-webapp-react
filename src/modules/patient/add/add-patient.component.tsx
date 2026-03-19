@@ -22,6 +22,7 @@ export default function AddPatientComponent() {
   const { handleAddPatient } = useAddPatient();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [patientUuid, setPatientUuid] = useState<string | null>(null);
   const [formData, setFormData] = useState<PatientFormData>({
     personalInfo: {
       firstName: '',
@@ -123,6 +124,7 @@ export default function AddPatientComponent() {
     const mergedData = { ...formData, ...data };
     const result = await handleAddPatient(mergedData);
     if (result) {
+      setPatientUuid(result);
       setStep(s => s + 1);
     }
   };
@@ -201,7 +203,7 @@ export default function AddPatientComponent() {
           onPrev={prevStep}
         />
       )}
-      {step === 5 && <Preview data={formData} />}
+      {step === 5 && <Preview data={formData} patientUuid={patientUuid} />}
     </div>
   );
 }

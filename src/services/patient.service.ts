@@ -16,7 +16,7 @@ class EmrMiddlewareService extends HttpService {
   }
 }
 
-const EmrMiddlewareApi = new EmrMiddlewareService(env.EMR_MIDDLEWARE_API_URL);
+export const EmrMiddlewareApi = new EmrMiddlewareService(env.EMR_MIDDLEWARE_API_URL);
 
 export interface RecentPatient {
   visitUuid: string;

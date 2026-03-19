@@ -26,6 +26,7 @@ const ROUTES = {
     ADD_PATIENT: 'add',
   },
   AYU: '/ayu/*',
+  AYU_WITH_PATIENT: '/ayu/:patientUuid/*',
 };
 
 /* Routes where mobile nav (top navbar, bottom menu) should be hidden */

@@ -32,7 +32,7 @@ vi.mock('../../../../../components/common/photo-upload-modal.component', () => (
     ) : null,
 }));
 
-import { PhysicalExamImageCapture } from '../../../../../modules/ayu/components/start-visit/physical-exam-image-capture.component';
+import { PhysicalExamImageCapture } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-image-capture.component';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

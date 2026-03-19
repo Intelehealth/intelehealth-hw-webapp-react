@@ -8,15 +8,16 @@ import type {
   AddPatientData,
   PatientFormData,
 } from '../../../types/patient/add/add-patient.types';
+import { storage } from '../../../utils/storage';
 import { profileService } from '../../profile/profile.service';
 import { patientService } from './add-patient.service';
 
 interface UseAddPatientReturn {
-  handleAddPatient: (patientData: PatientFormData) => Promise<boolean>;
+  handleAddPatient: (patientData: PatientFormData) => Promise<string | false>;
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
-  const handleAddPatient = async (patientData: PatientFormData) => {
+  const handleAddPatient = async (patientData: PatientFormData): Promise<string | false> => {
     try {
       // Encode OpenMRS basic auth
       const formattedPatientData = mapPatientFormData(patientData);
@@ -33,13 +34,16 @@ export const useAddPatient = (): UseAddPatientReturn => {
         });
       }
 
+      // Store patient UUID for visit upload
+      storage.set('patientUuid', patient.uuid);
+
       //show toast message
       showToast(
         'Patient Added Successfully',
         `Patient has been added successfully`,
         'success'
       );
-      return true;
+      return patient.uuid;
     } catch (error: unknown) {
       //show toast message
       showToast(

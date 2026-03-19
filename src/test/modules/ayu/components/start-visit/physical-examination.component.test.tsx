@@ -125,7 +125,7 @@ vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   getJobAidUrl: (...args: unknown[]) => mockGetJobAidUrl(...args),
 }));
 
-import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination.component';
+import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

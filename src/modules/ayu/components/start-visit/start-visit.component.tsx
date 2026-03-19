@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
-import { PhysicalExamination } from './physical-examination.component';
+import { PhysicalExamination } from './physical-examination/physical-examination.component';
 import { VisitReason } from './visit-reason/visit-reason.component';
-import { Vitals } from './vitals.component';
+import { Vitals } from './vitals/vitals.component';
 
 const getPhysicalExamFilter = (
   questionnaire: typeof CoughQuestionnaire
@@ -26,6 +26,7 @@ const getPhysicalExamFilter = (
 };
 
 export const StartVisit = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const { patientName, patientAge, patientGender } =
     (location.state as {
@@ -219,7 +220,9 @@ export const StartVisit = () => {
           />
         )}
 
-        {currentSectionIndex === 3 && <MedicalHistory />}
+        {currentSectionIndex === 3 && (
+          <MedicalHistory onSubmit={() => navigate('/ayu/visit-summary')} />
+        )}
       </div>
     </div>
   );

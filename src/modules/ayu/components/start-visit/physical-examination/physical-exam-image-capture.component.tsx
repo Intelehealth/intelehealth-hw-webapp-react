@@ -1,8 +1,8 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import AyuButton from '../common/ayu-button.component';
+import AyuButton from '../../common/ayu-button.component';
 
 const PhotoUploadModal = React.lazy(
-  () => import('../../../../components/common/photo-upload-modal.component')
+  () => import('../../../../../components/common/photo-upload-modal.component')
 );
 
 interface PhysicalExamImageCaptureProps {

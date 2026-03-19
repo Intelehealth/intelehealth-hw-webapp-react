@@ -22,7 +22,7 @@ vi.mock('../../../../../modules/ayu/components/loaders/side-loader.component', (
   )),
 }));
 
-vi.mock('../../../../../modules/ayu/components/start-visit/vitals.component', () => ({
+vi.mock('../../../../../modules/ayu/components/start-visit/vitals/vitals.component', () => ({
   Vitals: vi.fn(({ questionIndex, onNextQuestion }) => (
     <div data-testid="vitals-component">
       <div>Vitals - Question {questionIndex}</div>
@@ -42,7 +42,7 @@ vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-re
   )),
 }));
 
-vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination.component', () => ({
+vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component', () => ({
   PhysicalExamination: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onProgressUpdate }: any) => {
     React.useEffect(() => {
       onProgressUpdate?.(8, questionIndex);
@@ -602,7 +602,7 @@ describe('StartVisit', () => {
     it('should pass onProgressUpdate prop to PhysicalExamination component', async () => {
       const user = userEvent.setup();
       const PhysicalExamMock = vi.mocked(
-        await import('../../../../../modules/ayu/components/start-visit/physical-examination.component')
+        await import('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component')
       ).PhysicalExamination;
 
       renderWithRouter(<StartVisit />);
@@ -667,7 +667,7 @@ describe('StartVisit', () => {
       let capturedOnProgressUpdate: ((total: number, answered: number) => void) | null = null;
 
       vi.mocked(
-        await import('../../../../../modules/ayu/components/start-visit/physical-examination.component')
+        await import('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component')
       ).PhysicalExamination.mockImplementation(({ onProgressUpdate }) => {
         if (onProgressUpdate) {
           capturedOnProgressUpdate = onProgressUpdate;
@@ -773,7 +773,7 @@ describe('StartVisit', () => {
       const user = userEvent.setup();
 
       vi.mocked(
-        await import('../../../../../modules/ayu/components/start-visit/physical-examination.component')
+        await import('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component')
       ).PhysicalExamination.mockImplementation(({ onProgressUpdate }) => {
         return (
           <div data-testid="physical-exam-component">

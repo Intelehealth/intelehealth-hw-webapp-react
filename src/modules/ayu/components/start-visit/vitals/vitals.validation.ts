@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import type { VitalField, VitalsFormValues } from '../../types/vitals.types';
+import type { VitalField, VitalsFormValues } from '../../../types/vitals.types';
 
 // Normal ranges for validation
 export const VITAL_RANGES = {

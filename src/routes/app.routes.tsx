@@ -210,6 +210,14 @@ const AppRoutes = () => (
               ></Route>
             </Route>
             <Route
+              path={ROUTES.AYU_WITH_PATIENT}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AyuModule />
+                </Suspense>
+              }
+            />
+            <Route
               path={ROUTES.AYU}
               element={
                 <Suspense fallback={<RouteLoader />}>

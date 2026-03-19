@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import iconAyu from '../../../../ayu/assets/icon-ayu.svg';
 import iconNo from '../../../assets/no.svg';
 import iconYes from '../../../assets/yes.svg';
+import { useStartVisitData } from '../../../context/start-visit.context';
 import AyuButton from '../../common/ayu-button.component';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 
@@ -30,8 +30,8 @@ const RELATION_OPTIONS = ['Mother', 'Father', 'Sister', 'Brother', 'Other'];
 const NEEDS_RELATION = ['Stroke', 'Cancer/Tumour', 'Other'];
 const TOTAL_QUESTIONS = 8;
 
-export const MedicalHistory = () => {
-  const navigate = useNavigate();
+export const MedicalHistory = ({ onSubmit }: { onSubmit: () => void }) => {
+  const { setMedicalHistoryData } = useStartVisitData();
   const [conditions, setConditions] =
     useState<MedicalCondition[]>(MEDICAL_CONDITIONS);
 
@@ -186,14 +186,7 @@ export const MedicalHistory = () => {
       </div>
 
       <div className="flex justify-end mt-6 px-4 pb-2">
-        <AyuButton
-          type="submit"
-          onClick={() => {
-            navigate('/visit-summary');
-          }}
-          variant="primary"
-          size="sm"
-        >
+        <AyuButton type="submit" onClick={() => { setMedicalHistoryData(conditions); onSubmit(); }} variant="primary" size="sm">
           Submit
         </AyuButton>
       </div>
