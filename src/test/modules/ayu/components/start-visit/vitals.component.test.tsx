@@ -225,7 +225,7 @@ describe('Vitals Component', () => {
 
       expect(screen.getByPlaceholderText('E.g., 172 cm')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('E.g., 63 kg')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('E.g., 270')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('E.g., 120 mmHg')).toBeInTheDocument();
     });
   });
 
@@ -504,11 +504,15 @@ describe('Vitals Component', () => {
       expect(numberInputs.length).toBeGreaterThan(0);
     });
 
-    it('should render text input for blood_group field', () => {
+    it('should render dropdown for blood_group field', () => {
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
-      const textInput = screen.getByRole('textbox');
-      expect(textInput).toBeInTheDocument();
+      const select = screen.getByRole('combobox');
+      expect(select).toBeInTheDocument();
+      expect(select).toHaveAttribute('name', 'blood_group');
+      expect(screen.getByText('Select Blood Group')).toBeInTheDocument();
+      expect(screen.getByText('A+')).toBeInTheDocument();
+      expect(screen.getByText('O-')).toBeInTheDocument();
     });
 
     it('should allow step="any" for number inputs', () => {
