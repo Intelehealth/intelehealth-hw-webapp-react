@@ -90,15 +90,11 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
             </select>
           ) : (
             <input
-              type="number"
-              step="any"
-              maxLength={6}
-              onInput={e => {
-                const t = e.target as HTMLInputElement;
-                if (t.value.length > 6) t.value = t.value.slice(0, 6);
-              }}
+              type="text"
+              inputMode="decimal"
               readOnly={isReadOnly}
               {...register(field.key as keyof VitalsFormValues)}
+              maxLength={10}
               className={`form-input-base w-full px-3 py-2 ${
                 error ? 'border-red-500' : ''
               } ${isReadOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`}

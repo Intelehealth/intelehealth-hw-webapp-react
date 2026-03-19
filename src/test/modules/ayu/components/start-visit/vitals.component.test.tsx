@@ -497,11 +497,15 @@ describe('Vitals Component', () => {
   });
 
   describe('Field Types', () => {
-    it('should render number input for numeric fields', () => {
+    it('should render text inputs with decimal inputMode for numeric fields', () => {
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
-      const numberInputs = screen.getAllByRole('spinbutton');
-      expect(numberInputs.length).toBeGreaterThan(0);
+      const textInputs = screen.getAllByRole('textbox');
+      expect(textInputs.length).toBeGreaterThan(0);
+      textInputs.forEach((input) => {
+        expect(input).toHaveAttribute('inputmode', 'decimal');
+        expect(input).toHaveAttribute('maxlength', '10');
+      });
     });
 
     it('should render dropdown for blood_group field', () => {
@@ -513,15 +517,6 @@ describe('Vitals Component', () => {
       expect(screen.getByText('Select Blood Group')).toBeInTheDocument();
       expect(screen.getByText('A+')).toBeInTheDocument();
       expect(screen.getByText('O-')).toBeInTheDocument();
-    });
-
-    it('should allow step="any" for number inputs', () => {
-      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
-
-      const numberInputs = screen.getAllByRole('spinbutton');
-      numberInputs.forEach((input) => {
-        expect(input).toHaveAttribute('step', 'any');
-      });
     });
   });
 
