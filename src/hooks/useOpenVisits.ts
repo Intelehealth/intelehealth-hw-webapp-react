@@ -5,6 +5,7 @@ import { patientService, type OpenVisit } from '../services/patient.service';
 export const useOpenVisits = () => {
   const { locationUuid } = useProfileContext();
   const [data, setData] = useState<OpenVisit[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,10 +15,13 @@ export const useOpenVisits = () => {
     setError(null);
     patientService
       .getOpenVisits(locationUuid)
-      .then(setData)
+      .then(({ visits, totalCount: count }) => {
+        setData(visits);
+        setTotalCount(count);
+      })
       .catch(() => setError('Failed to fetch open visits'))
       .finally(() => setLoading(false));
   }, [locationUuid]);
 
-  return { data, loading, error, totalCount: data.length };
+  return { data, loading, error, totalCount };
 };

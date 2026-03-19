@@ -39,15 +39,21 @@ const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
 const AddPatientPage = lazy(
   () => import('../pages/patient/add/add-patient.page')
 );
+const PatientProfilePage = lazy(
+  () => import('../pages/patient/profile/patient-profile.page')
+);
 const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 
 // Profile Guard Components
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
-import VisitSummary from '../modules/visit-summary/visit-summary.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
+import VisitSummary from '../modules/visit-summary/visit-summary.component';
 
+const PrescriptionPreviewPage = lazy(
+  () => import('../pages/prescriptions/prescription-preview.page')
+);
 const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
@@ -180,6 +186,14 @@ const AppRoutes = () => (
               }
             />
             <Route
+              path={ROUTES.PRESCRIPTION_PREVIEW}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PrescriptionPreviewPage />
+                </Suspense>
+              }
+            />
+            <Route
               path={ROUTES.VISIT_SUMMARY}
               element={
                 <Suspense fallback={<RouteLoader />}>
@@ -207,7 +221,15 @@ const AppRoutes = () => (
                     </ProfileGuardProvider>
                   </Suspense>
                 }
-              ></Route>
+              />
+              <Route
+                path={ROUTES.PATIENT.DETAIL}
+                element={
+                  <Suspense fallback={<RouteLoader />}>
+                    <PatientProfilePage />
+                  </Suspense>
+                }
+              />
             </Route>
             <Route
               path={ROUTES.AYU_WITH_PATIENT}

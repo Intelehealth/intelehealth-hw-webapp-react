@@ -123,10 +123,10 @@ export const patientService = {
     hwId: string,
     page = 0,
     limit = 50
-  ): Promise<OpenVisit[]> {
+  ): Promise<{ visits: OpenVisit[]; totalCount: number }> {
     const url = `/pull/hw-visits/${hwId}?type=open-visits&page=${page}&limit=${limit}`;
     const res = await EmrMiddlewareApi.get<OpenVisitsResponse>(url);
-    return res.data.visits;
+    return { visits: res.data.visits, totalCount: res.data.totalCount };
   },
 
   async getPrescriptionsPending(

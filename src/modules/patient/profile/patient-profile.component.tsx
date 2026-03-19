@@ -1,0 +1,220 @@
+import React from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import iconClose from '../../../assets/icons/close.svg';
+import iconAddress from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
+import iconRight from '../../../assets/icons/icon-right-arrow.svg';
+import iconVisit from '../../../assets/icons/icon-summary-list.svg';
+import iconSync from '../../../assets/icons/icon-sync.svg';
+import iconOther from '../../../assets/icons/icon-three-dot-green-rounded-bordered.svg';
+import iconPersonal from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
+import defaultUserImg from '../../../assets/images/default-user-img.svg';
+import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
+import {
+  getVisitTitle,
+  maskVisitId,
+  usePatientProfile,
+} from './patient-profile.hooks';
+
+const na = 'Not provided';
+const fmt = (v: string | null | undefined, fallback = na) =>
+  v?.trim() ? v.trim() : fallback;
+
+const Row = ({ label, value }: { label: string; value: string }) => (
+  <li className="flex py-1">
+    <span className="w-44 shrink-0 text-gray-400 text-sm">{label}</span>
+    <span className="text-sm font-medium text-gray-800">{value}</span>
+  </li>
+);
+
+const PatientProfileComponent: React.FC = () => {
+  const { uuid } = useParams<{ uuid: string }>();
+  const navigate = useNavigate();
+
+  const { patientData, visits, loading, refreshing, error, refresh } =
+    usePatientProfile(uuid);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (error || !patientData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-red-500">{error ?? 'Patient not found.'}</p>
+      </div>
+    );
+  }
+
+  const {
+    fullName,
+    patientId,
+    gender,
+    dob,
+    age,
+    phone,
+    contactType,
+    emergencyName,
+    emergencyNumber,
+    occupation,
+    caste,
+    education,
+    economicStatus,
+    address,
+  } = patientData;
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shrink-0">
+        <h1 className="text-lg font-bold text-gray-900">Patient Details</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={refresh}
+            className="p-1.5 rounded-full hover:bg-gray-100"
+            disabled={refreshing}
+          >
+            <img
+              src={iconSync}
+              alt="Refresh"
+              className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`}
+            />
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 rounded-full hover:bg-gray-100"
+          >
+            <img src={iconClose} alt="Close" className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-4">
+          <img
+            src={defaultUserImg}
+            alt={fullName}
+            className="w-14 h-14 rounded-full object-cover border border-gray-200"
+          />
+          <div>
+            <p className="font-bold text-gray-900 text-base">{fullName}</p>
+            <p className="text-sm text-gray-500">{patientId}</p>
+          </div>
+        </div>
+
+        <CollapsedComponent
+          icon={iconPersonal}
+          title="Personal"
+          contentLabel="Details"
+        >
+          <ul className="space-y-0.5">
+            <Row label="Name" value={fmt(fullName)} />
+            <Row label="Gender" value={fmt(gender)} />
+            <Row label="Date of birth" value={fmt(dob)} />
+            <Row label="Age" value={fmt(age)} />
+            <Row label="Phone number" value={fmt(phone)} />
+            <Row label="Contact Type" value={fmt(contactType)} />
+            <Row label="Emergency Contact Name" value={fmt(emergencyName)} />
+            <Row
+              label="Emergency Contact number"
+              value={fmt(emergencyNumber)}
+            />
+          </ul>
+        </CollapsedComponent>
+
+        <CollapsedComponent
+          icon={iconAddress}
+          title="Address"
+          contentLabel="Details"
+        >
+          <ul className="space-y-0.5">
+            <Row
+              label="Postal code"
+              value={fmt(address?.postalCode, 'No postal code added')}
+            />
+            <Row
+              label="Country"
+              value={fmt(address?.country, 'No country added')}
+            />
+            <Row
+              label="State"
+              value={fmt(address?.stateProvince, 'No state added')}
+            />
+            <Row label="District" value={fmt(address?.countyDistrict, 'NA')} />
+            <Row
+              label="Village/Town/City"
+              value={fmt(address?.cityVillage, 'No city added')}
+            />
+            <Row
+              label="Corresponding Address 1"
+              value={fmt(address?.address1, 'No address added')}
+            />
+            <Row
+              label="Corresponding Address 2"
+              value={fmt(address?.address2, 'No address added')}
+            />
+          </ul>
+        </CollapsedComponent>
+
+        <CollapsedComponent
+          icon={iconOther}
+          title="Other details"
+          contentLabel="Details"
+        >
+          <ul className="space-y-0.5">
+            <Row label="Occupation" value={fmt(occupation)} />
+            <Row label="Social Category" value={fmt(caste)} />
+            <Row label="Education" value={fmt(education)} />
+            <Row label="Economic Category" value={fmt(economicStatus)} />
+          </ul>
+        </CollapsedComponent>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            <img src={iconVisit} alt="" className="w-9 h-9" />
+            <span className="font-semibold text-gray-800 text-base">
+              Open Visit
+            </span>
+          </div>
+          <div className="px-4 pb-3 pt-2 space-y-2">
+            {visits.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">No open visits</p>
+            ) : (
+              visits.map(visit => (
+                <button
+                  key={visit.uuid}
+                  className="w-full flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3 hover:bg-gray-100 text-left"
+                  onClick={() => navigate('/visit-summary')}
+                >
+                  <div>
+                    {getVisitTitle(visit) && (
+                      <p className="font-semibold text-gray-800 text-sm">
+                        {getVisitTitle(visit)}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Visit ID: {maskVisitId(visit.uuid)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Visit Date:{' '}
+                      {visit.startDatetime
+                        ? new Date(visit.startDatetime)
+                            .toISOString()
+                            .split('T')[0]
+                        : ''}
+                    </p>
+                  </div>
+                  <img src={iconRight} alt="" className="w-4 h-4 shrink-0" />
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PatientProfileComponent;
