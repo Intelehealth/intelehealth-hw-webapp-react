@@ -9,11 +9,13 @@ interface Column<T> {
 interface ResponsiveTableProps<T> {
   columns: Column<T>[];
   data: T[];
+  onRowClick?: (row: T) => void;
 }
 
 export function ReusableGridTable<T>({
   columns,
   data,
+  onRowClick,
 }: ResponsiveTableProps<T>) {
   return (
     <div>
@@ -29,7 +31,8 @@ export function ReusableGridTable<T>({
         {data.map((row, rowIndex) => (
           <div
             key={rowIndex}
-            className="rounded-xl border border-[#ECEEFF] bg-white shadow-[0px_1px_2px_0px_#1018280D]"
+            className={`rounded-xl border border-[#ECEEFF] bg-white shadow-[0px_1px_2px_0px_#1018280D]${onRowClick ? ' cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+            onClick={() => onRowClick?.(row)}
           >
             {/* MOBILE VIEW */}
             <div className="block lg:hidden p-4 space-y-2">
