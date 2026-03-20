@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 const mockUsePrescriptionsReceived = vi.fn();
 const mockUsePrescriptionsPending = vi.fn();
@@ -69,58 +77,66 @@ const defaultPendingState = {
   totalCount: 1,
 };
 
+const renderComponent = (props = {}) =>
+  render(
+    <MemoryRouter>
+      <PrescriptionsReceived {...props} />
+    </MemoryRouter>
+  );
+
 describe('PrescriptionsReceived', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockUsePrescriptionsReceived.mockReturnValue(defaultReceivedState);
     mockUsePrescriptionsPending.mockReturnValue(defaultPendingState);
   });
 
   describe('Initial render', () => {
     it('renders without crashing', () => {
-      expect(() => render(<PrescriptionsReceived />)).not.toThrow();
+      expect(() => renderComponent()).not.toThrow();
     });
 
     it('renders header title', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('Prescription Received')).toBeInTheDocument();
     });
 
     it('renders filter icon', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByAltText('filter')).toBeInTheDocument();
     });
 
     it('renders search input with placeholder', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByPlaceholderText('Find patient')).toBeInTheDocument();
     });
 
     it('renders search icon', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByAltText('search')).toBeInTheDocument();
     });
 
     it('renders Received and Pendings tab buttons', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('Received')).toBeInTheDocument();
       expect(screen.getByText('Pendings')).toBeInTheDocument();
     });
 
     it('renders patient data in the Received table', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Nikita Agrawal').length).toBeGreaterThan(0);
     });
 
     it('renders all received patients', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Nikita Agrawal').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Suresh Deshmukh').length).toBeGreaterThan(0);
     });
 
     it('renders Received tab column headers', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('Patient').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Age').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Visit created').length).toBeGreaterThan(0);
@@ -130,14 +146,14 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('renders Show all footer link', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('Show all →')).toBeInTheDocument();
     });
   });
 
   describe('Tab switching', () => {
     it('clicking Received tab sets it as active', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       const receivedTab = screen.getByText('Received').closest('button')!;
       fireEvent.click(receivedTab);
       expect(receivedTab).toHaveClass('border-indigo-600');
@@ -145,7 +161,7 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('clicking Pendings tab sets it as active', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       const pendingsTab = screen.getByText('Pendings').closest('button')!;
       fireEvent.click(pendingsTab);
       expect(pendingsTab).toHaveClass('border-indigo-600');
@@ -153,7 +169,7 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('inactive tab has transparent border', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       const receivedTab = screen.getByText('Received').closest('button')!;
       const pendingsTab = screen.getByText('Pendings').closest('button')!;
       fireEvent.click(pendingsTab);
@@ -161,7 +177,7 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('switching tabs toggles active styling', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       const receivedTab = screen.getByText('Received').closest('button')!;
       const pendingsTab = screen.getByText('Pendings').closest('button')!;
 
@@ -175,38 +191,44 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('shows pending prescriptions data when Pendings tab is active', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
     });
 
     it('shows Uploaded column header in Pendings tab', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getAllByText('Uploaded').length).toBeGreaterThan(0);
+    });
+
+    it('renders pending upload timestamp with custom render', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      expect(screen.getAllByText('30 min ago').length).toBeGreaterThan(0);
     });
   });
 
   describe('Patient data display', () => {
     it('renders patient ages', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('41').length).toBeGreaterThan(0);
       expect(screen.getAllByText('32').length).toBeGreaterThan(0);
     });
 
     it('renders visit dates', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('2025-04-21').length).toBeGreaterThan(0);
       expect(screen.getAllByText('2025-04-20').length).toBeGreaterThan(0);
     });
 
     it('renders clinic names', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('TM Clinic 2').length).toBeGreaterThan(0);
     });
 
     it('renders prescription timestamps', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getAllByText('1 hr ago').length).toBeGreaterThan(0);
       expect(screen.getAllByText('2 hr ago').length).toBeGreaterThan(0);
       expect(screen.getAllByText('4 hr ago').length).toBeGreaterThan(0);
@@ -215,7 +237,7 @@ describe('PrescriptionsReceived', () => {
 
   describe('Search filtering', () => {
     it('filters Received tab by patient name', () => {
-      render(<PrescriptionsReceived />);
+      renderComponent();
       const input = screen.getByPlaceholderText('Find patient');
       fireEvent.change(input, { target: { value: 'Sarrah' } });
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
@@ -226,39 +248,39 @@ describe('PrescriptionsReceived', () => {
   describe('Loading and error states', () => {
     it('shows loading indicator for Received tab', () => {
       mockUsePrescriptionsReceived.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     it('shows error for Received tab', () => {
       mockUsePrescriptionsReceived.mockReturnValue({ data: [], loading: false, error: 'Failed to fetch prescriptions', totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('Failed to fetch prescriptions')).toBeInTheDocument();
     });
 
     it('shows loading indicator for Pendings tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     it('shows error for Pendings tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: 'Failed to fetch pending prescriptions', totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getByText('Failed to fetch pending prescriptions')).toBeInTheDocument();
     });
 
     it('shows empty message when no received prescriptions', () => {
       mockUsePrescriptionsReceived.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       expect(screen.getByText('No prescriptions found.')).toBeInTheDocument();
     });
 
     it('shows empty message when no pending prescriptions in Pendings tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
-      render(<PrescriptionsReceived />);
+      renderComponent();
       fireEvent.click(screen.getByText('Pendings').closest('button')!);
       expect(screen.getByText('No pending prescriptions found.')).toBeInTheDocument();
     });
@@ -267,8 +289,27 @@ describe('PrescriptionsReceived', () => {
   describe('onCountLoaded callback', () => {
     it('calls onCountLoaded with total received count', () => {
       const onCountLoaded = vi.fn();
-      render(<PrescriptionsReceived onCountLoaded={onCountLoaded} />);
+      renderComponent({ onCountLoaded });
       expect(onCountLoaded).toHaveBeenCalledWith(3);
+    });
+  });
+
+  describe('Row click navigation', () => {
+    it('navigates to visit-details on received row click', () => {
+      renderComponent();
+      const patientNames = screen.getAllByText('Sarrah Paul');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1');
+    });
+
+    it('navigates to visit-details on pending row click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1');
     });
   });
 });

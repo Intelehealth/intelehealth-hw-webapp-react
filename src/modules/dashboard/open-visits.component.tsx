@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
@@ -16,6 +17,7 @@ interface Column {
 }
 
 export const OpenVisitsComponent = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data, loading, error } = useOpenVisits();
 
@@ -103,6 +105,7 @@ export const OpenVisitsComponent = () => {
             <ReusableGridTable
               columns={columns}
               data={loading ? [] : filtered}
+              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
             />
             {loading && (
               <p className="text-center text-gray-400 py-4">Loading...</p>
