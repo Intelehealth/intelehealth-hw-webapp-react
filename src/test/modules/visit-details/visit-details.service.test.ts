@@ -88,7 +88,9 @@ describe('visit-details service', () => {
     it('should call OpenMRSApi.get with correct URL', async () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse());
       await visitDetailsService.getVisitDetails('abc-123');
-      expect(OpenMRSApi.get).toHaveBeenCalledWith('/visit/abc-123?v=full');
+      expect(OpenMRSApi.get).toHaveBeenCalledWith(
+        expect.stringContaining('/visit/abc-123?v=custom:')
+      );
     });
 
     it('should return transformed visit details', async () => {
@@ -349,6 +351,46 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('');
+    });
+
+    it('should parse JSON value and extract bold complaint name', async () => {
+      const jsonValue = JSON.stringify({ en: '►<b>Abdominal Pain</b>: <br/>• Site - All over.' });
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('Abdominal Pain');
+    });
+
+    it('should fall back to l-en when en is missing in JSON', async () => {
+      const jsonValue = JSON.stringify({ 'l-en': '►<b>Fever</b>: details' });
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('Fever');
+    });
+
+    it('should strip HTML when no bold tag in JSON value', async () => {
+      const jsonValue = JSON.stringify({ en: '►Headache: some details' });
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('►Headache: some details');
+    });
+
+    it('should return original value when JSON has no en or l-en keys', async () => {
+      const jsonValue = JSON.stringify({ other: 'data' });
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe(jsonValue);
     });
   });
 

@@ -47,20 +47,36 @@ function getPhoneNumber(patient: VisitDetailsResponse['patient']): string {
   return phoneAttr?.value ?? '';
 }
 
+function parseChiefComplaintValue(value: string): string {
+  try {
+    const parsed = JSON.parse(value);
+    const html = parsed.en || parsed['l-en'] || '';
+    // Extract the bold complaint name: ►<b>Abdominal Pain</b>
+    const match = html.match(/<b>([^<]+)<\/b>/);
+    return match ? match[1] : html.replace(/<[^>]*>/g, '').trim() || value;
+  } catch {
+    return value;
+  }
+}
+
 function getChiefComplaint(
   encounters: VisitDetailsResponse['encounters']
 ): string {
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
       if (obs.concept?.uuid === CONCEPT_UUIDS.CHIEF_COMPLAINT) {
-        return typeof obs.value === 'string'
-          ? obs.value
-          : (obs.value?.display ?? '');
+        const raw =
+          typeof obs.value === 'string'
+            ? obs.value
+            : (obs.value?.display ?? '');
+        return parseChiefComplaintValue(raw);
       }
       if (obs.concept?.display?.toLowerCase().includes('chief complaint')) {
-        return typeof obs.value === 'string'
-          ? obs.value
-          : (obs.value?.display ?? '');
+        const raw =
+          typeof obs.value === 'string'
+            ? obs.value
+            : (obs.value?.display ?? '');
+        return parseChiefComplaintValue(raw);
       }
     }
   }
@@ -154,7 +170,7 @@ export const visitDetailsService = {
     visitUuid: string
   ): Promise<TransformedVisitDetails> => {
     const response = await OpenMRSApi.get<VisitDetailsResponse>(
-      `${API_ENDPOINTS.VISIT}/${visitUuid}?v=full`
+      `${API_ENDPOINTS.VISIT}/${visitUuid}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,concept:(uuid,display)),encounterProviders:(display,provider:(uuid,attributes,person:(uuid,display,gender,age)))),patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`
     );
     return transformVisitResponse(response);
   },

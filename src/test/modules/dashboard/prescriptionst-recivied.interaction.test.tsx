@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => vi.fn() };
+});
 
 vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
@@ -12,7 +18,11 @@ vi.mock('../../../hooks/usePrescriptionsPending', () => ({
 
 describe('PrescriptionsReceived interactions', () => {
   it('toggles Received and Pendings tabs and applies active classes', () => {
-    render(<PrescriptionsReceived />);
+    render(
+      <MemoryRouter>
+        <PrescriptionsReceived />
+      </MemoryRouter>
+    );
 
     // Initially header is present
     expect(screen.getByText(/Prescription Received/i)).toBeInTheDocument();

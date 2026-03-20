@@ -1,10 +1,10 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import type {
   Medication,
   PrescriptionData,
 } from '../../assets/data/prescription-detail.data';
-import { DUMMY_PRESCRIPTION } from '../../assets/data/prescription-detail.data';
+import { prescriptionDetailService } from './prescription-detail.service';
 import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
 import iconAdvice from '../../assets/icons/icon-advice.svg';
 import iconDownload from '../../assets/icons/icon-download.svg';
@@ -246,10 +246,42 @@ const FollowUpSection: React.FC<{ followUpDate: string | null }> = ({
 /* ── Main Component ── */
 
 const PrescriptionDetail: React.FC = () => {
+  const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
+  const [data, setData] = useState<PrescriptionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Replace with API call using visitId from useParams
-  const data = DUMMY_PRESCRIPTION;
+  useEffect(() => {
+    /* c8 ignore next */
+    if (!visitId) return;
+
+    setLoading(true);
+    setError(null);
+
+    prescriptionDetailService
+      .getPrescriptionData(visitId)
+      .then(setData)
+      .catch(() => setError('Failed to load prescription details'))
+      .finally(() => setLoading(false));
+  }, [visitId]);
+
+  if (loading) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading prescription details...
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        {/* c8 ignore next */}
+        {error ?? 'Prescription not found'}
+      </div>
+    );
+  }
 
   const hasSections =
     data.diagnosis ||
@@ -260,7 +292,7 @@ const PrescriptionDetail: React.FC = () => {
     data.followUpDate;
 
   return (
-    <div className="bg-[#F5F5FA] p-4 md:p-5">
+    <div className="bg-[#F5F5FA] min-h-screen p-4 md:p-5">
       {/* Back navigation – in gray area outside the card */}
       <button
         className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors mb-4"
