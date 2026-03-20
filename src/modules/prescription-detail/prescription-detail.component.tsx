@@ -68,7 +68,6 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
         <Button
           variant="primary"
           size="sm"
-          className="hover:!bg-[#2b1a92] hover:!text-white hover:!border-[#2b1a92] [&:hover_span_img]:!filter-none"
           leftIcon={<img src={iconPrintWhite} alt="" className="w-4 h-4" />}
           onClick={() => {
             /* TODO: Implement print */
@@ -79,7 +78,6 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
         <Button
           variant="primary"
           size="sm"
-          className="hover:!bg-[#2b1a92] hover:!text-white hover:!border-[#2b1a92] [&:hover_span_img]:!filter-none"
           leftIcon={<img src={iconShareWhite} alt="" className="w-4 h-4" />}
           onClick={() => {
             /* TODO: Implement share */
@@ -90,7 +88,7 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
         <Button
           variant="secondary"
           size="sm"
-          className="!border-[var(--color-primary)] hover:!bg-[#FAFAFF] hover:!border-[var(--color-primary)]"
+          className="!border-[var(--color-primary)]"
           leftIcon={<img src={iconDownload} alt="" className="w-4 h-4" />}
           onClick={() => {
             /* TODO: Implement PDF download */

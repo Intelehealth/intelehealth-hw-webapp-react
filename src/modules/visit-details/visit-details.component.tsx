@@ -141,13 +141,7 @@ const FollowUpSection: React.FC<{
         </>
       )}
       <div className={data.followUpDate ? 'mt-4' : ''}>
-        <Button
-          variant="primary"
-          size="sm"
-          fullWidth
-          onClick={onEndVisit}
-          className="hover:!bg-[#2b1a92] hover:!text-white hover:!border-[#2b1a92]"
-        >
+        <Button variant="primary" size="sm" fullWidth onClick={onEndVisit}>
           End visit
         </Button>
       </div>
@@ -187,7 +181,6 @@ const QuickActionsCard: React.FC = () => (
         variant="secondary"
         size="sm"
         fullWidth
-        className="hover:!bg-[#FAFAFF] hover:!border-[var(--color-primary-light)]"
         leftIcon={
           <img src={iconPrescriptionPlain} alt="" className="w-4 h-4" />
         }
@@ -201,7 +194,6 @@ const QuickActionsCard: React.FC = () => (
         variant="secondary"
         size="sm"
         fullWidth
-        className="hover:!bg-[#FAFAFF] hover:!border-[var(--color-primary-light)]"
         leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
         onClick={() => {
           /* TODO: Implement print */
@@ -213,7 +205,6 @@ const QuickActionsCard: React.FC = () => (
         variant="secondary"
         size="sm"
         fullWidth
-        className="hover:!bg-[#FAFAFF] hover:!border-[var(--color-primary-light)]"
         leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
         onClick={() => {
           /* TODO: Implement share */
