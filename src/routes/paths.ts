@@ -20,6 +20,8 @@ const ROUTES = {
   APPOINTMENT_DETAILS: '/my-appointments/:id',
   NOTIFICATIONS: '/notifications',
   VISIT_SUMMARY: '/visit-summary',
+  VISIT_DETAILS: '/visit-details/:visitId',
+  PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',
   NOT_FOUND: '*', // catch-all
   PATIENT: {
     BASE: '/patient',

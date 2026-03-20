@@ -47,6 +47,8 @@ import AppointmentDetails from '../modules/appointment-visit/appointment-details
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
 import VisitSummary from '../modules/visit-summary/visit-summary.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
+import VisitDetails from '../modules/visit-details/visit-details.component';
+import PrescriptionDetail from '../modules/prescription-detail/prescription-detail.component';
 
 const AyuModule = lazy(() => import('../modules/ayu'));
 
@@ -184,6 +186,22 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <VisitSummary />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.VISIT_DETAILS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <VisitDetails />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.PRESCRIPTION_DETAIL}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PrescriptionDetail />
                 </Suspense>
               }
             />
