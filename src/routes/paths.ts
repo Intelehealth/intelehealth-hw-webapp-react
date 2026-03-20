@@ -19,6 +19,7 @@ const ROUTES = {
   APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule',
   APPOINTMENT_DETAILS: '/my-appointments/:id',
   NOTIFICATIONS: '/notifications',
+  PRESCRIPTION_PREVIEW: '/prescription-preview',
   VISIT_SUMMARY: '/visit-summary',
   VISIT_DETAILS: '/visit-details/:visitId',
   PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',
@@ -26,6 +27,7 @@ const ROUTES = {
   PATIENT: {
     BASE: '/patient',
     ADD_PATIENT: 'add',
+    DETAIL: ':uuid',
   },
   AYU: '/ayu/*',
 };
