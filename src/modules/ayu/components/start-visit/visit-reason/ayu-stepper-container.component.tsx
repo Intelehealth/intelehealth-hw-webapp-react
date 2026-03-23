@@ -11,7 +11,6 @@ import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.lo
 import {
   hasUnansweredRequiredNestedChild,
   hasVisibleRequiredNestedString,
-  isEmpty,
   isNestedInputValueMissing,
   isQuantityInvalid,
 } from '../../../../ayu-library/logic/validation.logic';
