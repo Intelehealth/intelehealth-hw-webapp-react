@@ -62,7 +62,7 @@ describe('AyuSelectableOptionGroup', () => {
       expect(screen.getByRole('button', { name: 'Option C' })).toBeInTheDocument();
     });
 
-    it('should render required asterisk when question is required', () => {
+    it('should not render required asterisk (asterisk is disabled)', () => {
       const requiredQuestion: AyuQuestion = {
         ...mockQuestion,
         required: true,
@@ -70,18 +70,6 @@ describe('AyuSelectableOptionGroup', () => {
       render(
         <AyuSelectableOptionGroup
           question={requiredQuestion}
-          parent={undefined}
-          previousSibling={undefined}
-        />
-      );
-      const asterisk = screen.getByText('*');
-      expect(asterisk).toHaveClass('text-error-500', 'ml-1');
-    });
-
-    it('should not render asterisk when question is not required', () => {
-      render(
-        <AyuSelectableOptionGroup
-          question={mockQuestion}
           parent={undefined}
           previousSibling={undefined}
         />

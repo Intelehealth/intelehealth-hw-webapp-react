@@ -1,5 +1,6 @@
-import type { AyuAnswerValue } from '../types/ayu.types';
+import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { NEGATED_PREFIX } from '../utils/constants';
+import { isMutuallyExclusiveOption } from './stepper.logic';
 
 /**
  * Parse the stored associated symptoms value array into yes/no code lists.
@@ -26,14 +27,50 @@ export function parseYesNoValues(value: AyuAnswerValue): {
 }
 
 /**
+ * Check if any of the given codes corresponds to a mutually exclusive option.
+ */
+export function hasExclusiveSelected(
+  question: AyuQuestion,
+  codes: string[]
+): boolean {
+  return codes.some(code => isMutuallyExclusiveOption(question, code));
+}
+
+/**
  * Toggle an associated symptom answer and return the new combined value array.
+ * Respects mutually exclusive options: selecting "None" clears all others,
+ * selecting any other option clears "None".
  */
 export function toggleAssociatedSymptom(
   yesValues: string[],
   noValues: string[],
   code: string,
-  isYes: boolean
+  isYes: boolean,
+  question?: AyuQuestion
 ): string[] {
+  // If a question is provided, handle mutually exclusive logic
+  if (question && isYes) {
+    const clickedIsExclusive = isMutuallyExclusiveOption(question, code);
+
+    if (clickedIsExclusive) {
+      // "None" clicked Yes → clear all other yes/no, only keep this as Yes
+      return [code];
+    }
+
+    // Normal option clicked Yes → remove any exclusive options from yes values
+    const filteredYes = yesValues.filter(
+      c => !isMutuallyExclusiveOption(question, c)
+    );
+    const filteredNo = noValues.filter(
+      c => !isMutuallyExclusiveOption(question, c)
+    );
+
+    const newYes = [...filteredYes.filter(c => c !== code), code];
+    const newNo = filteredNo.filter(c => c !== code);
+
+    return [...newYes, ...newNo.map(c => `${NEGATED_PREFIX}${c}`)];
+  }
+
   const newYes = isYes
     ? [...yesValues.filter(c => c !== code), code]
     : yesValues.filter(c => c !== code);

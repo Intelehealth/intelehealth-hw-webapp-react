@@ -110,25 +110,11 @@ describe('AyuAssociatedSymptoms', () => {
       expect(noButtons).toHaveLength(3);
     });
 
-    it('should render required asterisk when question is required', () => {
+    it('should not render required asterisk (asterisk is disabled)', () => {
       const requiredQuestion = { ...baseQuestion, required: true };
       render(
         <AyuAssociatedSymptoms
           question={requiredQuestion}
-          value={[]}
-          onChange={mockOnChange}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-        />
-      );
-      expect(screen.getByText('*')).toBeInTheDocument();
-    });
-
-    it('should not render required asterisk when question is not required', () => {
-      const optionalQuestion = { ...baseQuestion, required: false };
-      render(
-        <AyuAssociatedSymptoms
-          question={optionalQuestion}
           value={[]}
           onChange={mockOnChange}
           answers={{}}
@@ -586,7 +572,7 @@ describe('AyuAssociatedSymptoms', () => {
             'symptoms-q': ['fever'],
           }),
           setAnswer: mockSetAnswer,
-          selectable: true,
+          showAllTriangles: true,
         }),
         undefined
       );

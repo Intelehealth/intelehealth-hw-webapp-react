@@ -47,8 +47,8 @@ describe('isMutuallyExclusiveOption', () => {
         valueCoding: { code: 'normal', display: 'Normal' },
         extension: [
           {
-            url: 'urn:intelehealth:mutually-exclusive',
-            valueBoolean: true,
+            url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+            valueString: 'True',
           },
         ],
       },
@@ -89,7 +89,7 @@ describe('computeMultiSelectToggle', () => {
       {
         valueCoding: { code: 'none', display: 'None' },
         extension: [
-          { url: 'urn:intelehealth:mutually-exclusive', valueBoolean: true },
+          { url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice', valueString: 'True' },
         ],
       },
       { valueCoding: { code: 'a', display: 'A' } },

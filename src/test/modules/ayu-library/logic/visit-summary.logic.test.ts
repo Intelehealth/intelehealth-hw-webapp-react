@@ -102,6 +102,7 @@ describe('buildVisitSummary', () => {
         makeQuestion({
           linkId: 'q1',
           type: 'quantity',
+          text: 'Duration',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -126,6 +127,7 @@ describe('buildVisitSummary', () => {
         makeQuestion({
           linkId: 'q1',
           type: 'quantity',
+          text: 'Weight',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -305,6 +307,7 @@ describe('buildVisitSummary', () => {
         makeQuestion({
           linkId: 'q1',
           type: 'string',
+          text: 'Complaint',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -314,6 +317,7 @@ describe('buildVisitSummary', () => {
         }),
         makeChoiceQuestion({
           linkId: 'q2',
+          text: 'Severity',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -362,6 +366,7 @@ describe('buildVisitSummary', () => {
         {
           linkId: 'assoc',
           type: 'choice',
+          text: 'Associated symptoms',
           repeats: true,
           extension: [
             {
@@ -397,7 +402,7 @@ describe('buildVisitSummary', () => {
             {
               linkId: 'child1',
               type: 'string',
-              text: 'Child',
+              text: 'Child Question',
               extension: [
                 {
                   url: 'urn:intelehealth:original-question-text',
@@ -428,6 +433,7 @@ describe('buildVisitSummary', () => {
         makeQuestion({
           linkId: 'q1',
           type: 'quantity',
+          text: 'Temperature',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -452,6 +458,7 @@ describe('buildVisitSummary', () => {
         makeQuestion({
           linkId: 'q1',
           type: 'quantity',
+          text: 'Duration',
           extension: [
             {
               url: 'urn:intelehealth:original-question-text',
@@ -518,6 +525,7 @@ describe('buildVisitSummary', () => {
         {
           linkId: 'assoc',
           type: 'choice',
+          text: 'Associated symptoms',
           repeats: true,
           extension: [
             {

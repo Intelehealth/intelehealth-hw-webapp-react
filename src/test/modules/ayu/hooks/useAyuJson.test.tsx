@@ -483,4 +483,25 @@ describe('useAyuJsonList', () => {
       expect(result2.current).toEqual(result1.current);
     });
   });
+
+  describe('Edge Cases', () => {
+    it('should return empty array when ayu state has no list', () => {
+      // Create store with ayu reducer that returns state without list
+      const store = configureStore({
+        reducer: {
+          ayu: () => ({ keyName: null, list: null }),
+        },
+      });
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <Provider store={store}>{children}</Provider>
+      );
+
+      const { result } = renderHook(() => useAyuJsonList('test_Protocols'), {
+        wrapper,
+      });
+
+      expect(result.current).toEqual([]);
+    });
+  });
 });

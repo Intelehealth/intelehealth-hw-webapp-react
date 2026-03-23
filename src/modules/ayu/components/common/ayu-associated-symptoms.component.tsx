@@ -1,13 +1,14 @@
-import iconNo from '../../assets/no.svg';
-import iconYes from '../../assets/yes.svg';
-import type {
-  AyuAnswerValue,
-  AyuQuestion,
-} from '../../../ayu-library/types/ayu.types';
 import {
   parseYesNoValues,
   toggleAssociatedSymptom,
 } from '../../../ayu-library/logic/associated-symptoms.logic';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../ayu-library/types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from '../../../ayu-library/utils/constants';
+import iconNo from '../../assets/no.svg';
+import iconYes from '../../assets/yes.svg';
 import { AyuNestedRenderer } from '../start-visit/visit-reason/ayu-nested-renderer.component';
 import AyuButton from './ayu-button.component';
 
@@ -29,14 +30,21 @@ export const AyuAssociatedSymptoms = ({
   const { yesValues, noValues } = parseYesNoValues(value);
 
   const toggleValue = (code: string, isYes: boolean) => {
-    onChange?.(toggleAssociatedSymptom(yesValues, noValues, code, isYes));
+    onChange?.(
+      toggleAssociatedSymptom(yesValues, noValues, code, isYes, question)
+    );
   };
 
   return (
     <div className="space-y-4 bg-emerald-50 p-4 rounded-xl">
       <div className="text-lg font-medium">
-        {question.text}
-        {question?.required && <span className="text-error-500 ml-1">*</span>}
+        {question?.extension &&
+        question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
+          ?.valueString
+          ? question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
+              ?.valueString
+          : question.text}
+        {/* {question?.required && <span className="text-error-500 ml-1">*</span>} */}
       </div>
       <div className="text-sm text-gray-500">
         Select yes or no for each option
@@ -93,14 +101,14 @@ export const AyuAssociatedSymptoms = ({
               </div>
             </div>
 
-            {/* Render nested children directly below their parent option */}
-            {childItems && childItems.length > 0 && (
+            {/* Render nested children only when "Yes" is selected */}
+            {isSelected && childItems && childItems.length > 0 && (
               <AyuNestedRenderer
                 items={childItems}
                 parentQuestion={question}
                 answers={{ ...answers, [question.linkId]: yesValues }}
                 setAnswer={setAnswer}
-                selectable
+                showAllTriangles
               />
             )}
           </div>

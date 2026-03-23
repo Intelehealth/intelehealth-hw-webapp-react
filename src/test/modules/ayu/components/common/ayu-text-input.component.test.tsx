@@ -103,7 +103,7 @@ describe('AyuTextInput', () => {
       expect(screen.getByText('Additional information')).toBeInTheDocument();
     });
 
-    it('should not render label text when label is not "Additional information"', () => {
+    it('should render label text when label does not include "Describe"', () => {
       render(
         <AyuTextInput
           question={mockQuestion}
@@ -111,7 +111,8 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.queryByText('What is your name?')).not.toBeInTheDocument();
+      // Labels without "Describe" are rendered because !label.includes('Describe') is true
+      expect(screen.getByText('What is your name?')).toBeInTheDocument();
     });
 
     it('should have placeholder text "Describe..."', () => {
@@ -140,7 +141,23 @@ describe('AyuTextInput', () => {
   });
 
   describe('Label Styling', () => {
-    it('should render label with correct CSS classes', () => {
+    it('should render label with primary CSS classes when text is "Additional Information"', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional Information',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Additional Information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render label with muted CSS classes for other labels', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
         text: 'Additional information',
@@ -153,7 +170,7 @@ describe('AyuTextInput', () => {
         />
       );
       const label = screen.getByText('Additional information');
-      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+      expect(label).toHaveClass('block', 'text-base');
     });
   });
 

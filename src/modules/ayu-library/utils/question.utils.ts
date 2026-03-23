@@ -1,6 +1,50 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 
 /**
+ * Find which parent answerOption code a child item maps to.
+ * Tries linkId prefix match first, then falls back to enableWhen reference.
+ */
+export const findMatchingOptionCode = (
+  child: AyuQuestion,
+  parent: AyuQuestion
+): string | undefined => {
+  // Strategy 1: linkId prefix match (existing convention)
+  const prefixMatch = parent.answerOption?.find(opt =>
+    child.linkId.startsWith(opt.valueCoding?.code || '\0')
+  );
+  if (prefixMatch) return prefixMatch.valueCoding?.code;
+
+  // Strategy 2: enableWhen references parent question with a specific answer code
+  const ewMatch = child.enableWhen?.find(
+    ew => ew.question === parent.linkId && ew.answerCoding?.code
+  );
+  if (ewMatch) {
+    const code = ewMatch.answerCoding!.code!;
+    const optionExists = parent.answerOption?.some(
+      opt => opt.valueCoding?.code === code
+    );
+    if (optionExists) return code;
+  }
+
+  return undefined;
+};
+
+/**
+ * Check whether a linkId belongs to any descendant of the given question (recursive).
+ */
+export const isDescendantLinkId = (
+  question: AyuQuestion,
+  linkId: string
+): boolean => {
+  if (!question.item) return false;
+  for (const child of question.item) {
+    if (child.linkId === linkId) return true;
+    if (isDescendantLinkId(child, linkId)) return true;
+  }
+  return false;
+};
+
+/**
  * Recursively collect all descendant linkIds from a question's nested items.
  */
 export const collectDescendantLinkIds = (item: AyuQuestion): string[] => {

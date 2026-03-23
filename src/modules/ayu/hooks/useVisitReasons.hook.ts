@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
-import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
 import {
   extractVisitReasonNames,
   filterNamesBySearch,
   groupByFirstLetter,
 } from '../../ayu-library/logic/visit-reasons.logic';
-import { useAyuJsonList } from './useAyuJson.hook';
+import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
 import { AYU_JSON_KEY_NAME } from '../utils/ayu.constants';
+import { useAyuJsonList } from './useAyuJson.hook';
+
+export type VisitReasonsResult = ReturnType<typeof useVisitReasons>;
 
 export const useVisitReasons = () => {
   const ayuJsonList = useAyuJsonList(AYU_JSON_KEY_NAME);
@@ -45,6 +47,13 @@ export const useVisitReasons = () => {
     );
   }, [ayuJsonList, selectedReasons]);
 
+  const ayuConfigFiles = useMemo(() => {
+    const excludedSet = new Set(EXCLUDED_JSON_NAMES);
+    return ayuJsonList.filter(item =>
+      excludedSet.has(item.name.replace(/\.json$/i, ''))
+    );
+  }, [ayuJsonList]);
+
   return {
     search,
     setSearch,
@@ -54,5 +63,6 @@ export const useVisitReasons = () => {
     removeReason,
     grouped,
     selectedComplaints,
+    ayuConfigFiles,
   };
 };

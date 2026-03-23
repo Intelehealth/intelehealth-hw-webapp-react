@@ -1,29 +1,34 @@
 import { useMemo, useRef, useState } from 'react';
 import iconVisitReasonSummary from '../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
-import type {
-  AyuAnswerValue,
-  AyuQuestion,
-  FhirQuestionnaire,
-} from '../../ayu-library/types/ayu.types';
 import { evaluateEnableWhen } from '../../ayu-library/logic/enable-when.logic';
 import {
   computeMultiSelectToggle,
   isTopLevelComplete,
 } from '../../ayu-library/logic/stepper.logic';
-import { clearHiddenDescendantAnswers } from '../../ayu-library/utils/question.utils';
-import { buildVisitSummary } from '../utils/visit-summary.util';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+  FhirQuestionnaire,
+} from '../../ayu-library/types/ayu.types';
 import {
-  DEFAULT_VISIT_REASON_TEXT,
+  clearHiddenDescendantAnswers,
+  isDescendantLinkId,
+} from '../../ayu-library/utils/question.utils';
+import {
   ASSOCIATED_SYMPTOMS_LABEL,
-  VISIT_REASON_SUMMARY_TITLE,
-  SUMMARY_CONFIRM_TEXT,
+  DEFAULT_VISIT_REASON_TEXT,
   SUMMARY_CANCEL_TEXT,
+  SUMMARY_CONFIRM_TEXT,
 } from '../utils/ayu.constants';
+import { buildVisitSummary } from '../utils/visit-summary.util';
 
 interface UseFHIRStepperProps {
   questionnaire: FhirQuestionnaire;
   autoNext?: boolean;
+  summaryTitle?: string;
+  skipSummary?: boolean;
+  initialAnswers?: Record<string, AyuAnswerValue>;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
 }
 
@@ -43,11 +48,25 @@ interface UseFHIRStepperReturn {
 export const useFHIRStepper = (
   props: UseFHIRStepperProps
 ): UseFHIRStepperReturn => {
-  const { questionnaire, autoNext = true, onComplete } = props;
+  const {
+    questionnaire,
+    autoNext = true,
+    summaryTitle,
+    skipSummary,
+    initialAnswers,
+    onComplete,
+  } = props;
+  const hasInitialAnswers =
+    initialAnswers && Object.keys(initialAnswers).length > 0;
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, AyuAnswerValue>>({});
-  const [showAll, setShowAll] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, AyuAnswerValue>>(
+    initialAnswers ?? {}
+  );
+  const [showAll, setShowAll] = useState(!!hasInitialAnswers);
   const isAdvancingRef = useRef(false);
+  // Ref to always access latest answers (avoids stale closure in setTimeout auto-advance)
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
   const { showVitalConfirmationModal } = useGlobalModal();
   const topLevelItems = useMemo(() => {
     const items = questionnaire?.item || [];
@@ -76,12 +95,20 @@ export const useFHIRStepper = (
   };
 
   const handleComplete = () => {
-    const answersMap = new Map(Object.entries(answers));
+    const latestAnswers = answersRef.current;
+
+    if (skipSummary) {
+      onComplete?.(latestAnswers);
+      return;
+    }
+
+    const answersMap = new Map(Object.entries(latestAnswers));
     const sections = buildVisitSummary(
       topLevelItems,
       answersMap,
       questionnaire?.text || DEFAULT_VISIT_REASON_TEXT
     );
+
     // Add per-section onChange callbacks
     sections.forEach(section => {
       section.onChange = () => {
@@ -100,7 +127,7 @@ export const useFHIRStepper = (
 
     showVitalConfirmationModal({
       icon: iconVisitReasonSummary,
-      title: VISIT_REASON_SUMMARY_TITLE,
+      title: summaryTitle || sections[0]?.title,
       sections,
       confirmText: SUMMARY_CONFIRM_TEXT,
       cancelText: SUMMARY_CANCEL_TEXT,
@@ -109,7 +136,7 @@ export const useFHIRStepper = (
       size: 'lg',
       onConfirm: () => {
         setShowAll(true);
-        onComplete?.(answers);
+        onComplete?.(answersRef.current);
       },
     });
   };
@@ -161,8 +188,13 @@ export const useFHIRStepper = (
 
       if (!autoNext || !currentQuestion) return updated;
 
-      // Disable autoNext for string (text input) questions — user must explicitly submit
-      if (currentQuestion.type === 'string') {
+      // Disable autoNext for input-based questions — user must explicitly submit
+      if (
+        currentQuestion.type === 'string' ||
+        currentQuestion.type === 'date' ||
+        currentQuestion.type === 'integer' ||
+        currentQuestion.type === 'quantity'
+      ) {
         return updated;
       }
 
@@ -173,27 +205,43 @@ export const useFHIRStepper = (
 
       const shouldMoveNext = isTopLevelComplete(currentQuestion, updated);
 
-      const hasVisibleStringChild = currentQuestion.item?.some(child => {
-        return (
-          evaluateEnableWhen(child.enableWhen, updated) &&
-          child.type === 'string'
-        );
-      });
+      const hasVisibleStringOrRepeatsDeep = (
+        items: AyuQuestion[] | undefined,
+        answers: Record<string, AyuAnswerValue>
+      ): { hasString: boolean; hasRepeats: boolean } => {
+        if (!items) return { hasString: false, hasRepeats: false };
+        for (const child of items) {
+          if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+          if (
+            child.type === 'string' ||
+            child.type === 'date' ||
+            child.type === 'integer' ||
+            child.type === 'quantity'
+          )
+            return { hasString: true, hasRepeats: false };
+          if (child.type === 'choice' && child.repeats)
+            return { hasString: false, hasRepeats: true };
+          const deep = hasVisibleStringOrRepeatsDeep(child.item, answers);
+          if (deep.hasString || deep.hasRepeats) return deep;
+        }
+        return { hasString: false, hasRepeats: false };
+      };
+
+      const deepCheck = hasVisibleStringOrRepeatsDeep(
+        currentQuestion.item,
+        updated
+      );
+      const hasVisibleStringChild = deepCheck.hasString;
 
       const isLastQuestion = currentIndex === structuralTotal - 1;
 
-      const hasNestedRepeats = currentQuestion.item?.some(
-        child =>
-          child.type === 'choice' &&
-          child.repeats &&
-          evaluateEnableWhen(child.enableWhen, updated)
-      );
+      const hasNestedRepeats = deepCheck.hasRepeats;
 
       if (
         shouldMoveNext &&
         !hasVisibleStringChild &&
         !isAdvancingRef.current &&
-        !isLastQuestion &&
+        (!isLastQuestion || skipSummary) &&
         !(currentQuestion.type === 'choice' && currentQuestion.repeats) &&
         !hasNestedRepeats &&
         !showAll
@@ -215,11 +263,12 @@ export const useFHIRStepper = (
 
     if (currentQuestion.linkId === linkId) return linkId;
 
-    const isChild = currentQuestion.item?.some(
-      child => child.linkId === linkId
-    );
+    // Recursively check all descendants, not just immediate children
+    if (isDescendantLinkId(currentQuestion, linkId)) {
+      return currentQuestion.linkId;
+    }
 
-    return isChild ? currentQuestion.linkId : linkId;
+    return linkId;
   };
 
   return {
