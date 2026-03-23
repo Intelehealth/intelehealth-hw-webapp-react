@@ -7,6 +7,7 @@ import type {
   FhirEnableWhen,
   FhirQuestionnaire,
 } from '../types/fhir-raw.types';
+import { EXT_URL_DISPLAY_TEXT } from './constants';
 
 const ALLOWED_TYPES: AyuQuestionType[] = [
   'group',
@@ -72,17 +73,13 @@ export function transformFhirToAyu(
     return null;
   }
 
-  // Wrap multiple root items into a single AYU root group
-  if (questionnaire.item.length > 1) {
-    return {
-      linkId: 'root',
-      type: 'group',
-      text: questionnaire.title,
-      item: questionnaire.item.map(transformItem),
-    };
-  }
-
-  return transformItem(questionnaire.item[0]);
+  // Wrap root items into a single AYU root group
+  return {
+    linkId: 'root',
+    type: 'group',
+    text: questionnaire.title,
+    item: questionnaire.item.map(transformItem),
+  };
 }
 
 //resolve-label.ts
@@ -92,20 +89,29 @@ export function resolveLabel(
   previousSibling?: AyuQuestion
 ): string | undefined {
   // Question text itself
-  if (question.text !== undefined) return question.text;
+  if (question?.extension !== undefined) {
+    return getLabel(question);
+  }
 
   // Previous display item
   if (
     previousSibling?.type === 'display' &&
-    previousSibling.text !== undefined
+    previousSibling.extension !== undefined
   ) {
-    return previousSibling.text;
+    return getLabel(question);
   }
 
   // Parent group text
-  if (parent?.type === 'group' && parent.text !== undefined) {
-    return parent.text;
+  if (parent?.type === 'group' && parent.extension !== undefined) {
+    return getLabel(question);
   }
 
-  return undefined;
+  return question?.text;
+}
+
+function getLabel(question: AyuQuestion) {
+  const valueString = question?.extension?.find(
+    ext => ext.url === EXT_URL_DISPLAY_TEXT
+  )?.valueString;
+  return valueString ? valueString : question.text;
 }

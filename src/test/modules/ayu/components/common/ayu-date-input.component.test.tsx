@@ -4,7 +4,24 @@ import { AyuDateInput } from '../../../../../modules/ayu/components/common/ayu-d
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import * as fhirUtils from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 
-vi.spyOn(fhirUtils, 'resolveLabel').mockImplementation((question) => question.text);
+vi.spyOn(fhirUtils, 'resolveLabel').mockImplementation((question) => question?.text);
+
+// Mock the Calendar component for simpler testing
+vi.mock('../../../../../components/common/calendar.component', () => ({
+  default: vi.fn(({ label, value, onChange, disabled }: any) => (
+    <div data-testid="calendar-component">
+      {label && <label data-testid="calendar-label">{label}</label>}
+      <input
+        data-testid="calendar-input"
+        type="text"
+        value={value || ''}
+        onChange={e => onChange?.(e.target.value)}
+        disabled={disabled}
+        aria-label={label}
+      />
+    </div>
+  )),
+}));
 
 describe('AyuDateInput', () => {
   const mockQuestion: AyuQuestion = {
@@ -15,7 +32,7 @@ describe('AyuDateInput', () => {
   };
 
   describe('Rendering', () => {
-    it('should render date input with label', () => {
+    it('should render Calendar component with label', () => {
       render(
         <AyuDateInput
           question={mockQuestion}
@@ -23,8 +40,8 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.getByLabelText('Select a date')).toBeInTheDocument();
-      expect(screen.getByLabelText('Select a date')).toHaveAttribute('type', 'date');
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
+      expect(screen.getByTestId('calendar-label')).toHaveTextContent('Select a date');
     });
 
     it('should render without label when text is not provided', () => {
@@ -39,12 +56,11 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.queryByRole('label')).not.toBeInTheDocument();
-      const input = document.querySelector('input[type="date"]');
-      expect(input).toBeInTheDocument();
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-label')).not.toBeInTheDocument();
     });
 
-    it('should have correct input type', () => {
+    it('should render the Calendar input', () => {
       render(
         <AyuDateInput
           question={mockQuestion}
@@ -52,8 +68,8 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = screen.getByLabelText('Select a date');
-      expect(input).toHaveAttribute('type', 'date');
+      const input = screen.getByTestId('calendar-input');
+      expect(input).toBeInTheDocument();
     });
 
     it('should render disabled input when readOnly is true', () => {
@@ -68,7 +84,7 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = screen.getByLabelText('Select a date');
+      const input = screen.getByTestId('calendar-input');
       expect(input).toBeDisabled();
     });
 
@@ -80,36 +96,8 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = screen.getByLabelText('Select a date');
+      const input = screen.getByTestId('calendar-input');
       expect(input).not.toBeDisabled();
-    });
-  });
-
-  describe('CSS Classes', () => {
-    it('should have correct CSS classes', () => {
-      render(
-        <AyuDateInput
-          question={mockQuestion}
-          parent={undefined}
-          previousSibling={undefined}
-        />
-      );
-      const input = screen.getByLabelText('Select a date');
-      expect(input).toHaveClass('w-full', 'border', 'rounded', 'px-3', 'py-2');
-    });
-  });
-
-  describe('Label Styling', () => {
-    it('should render label with correct CSS classes', () => {
-      render(
-        <AyuDateInput
-          question={mockQuestion}
-          parent={undefined}
-          previousSibling={undefined}
-        />
-      );
-      const label = screen.getByText('Select a date');
-      expect(label).toHaveClass('text-sm', 'font-medium', 'text-gray-700');
     });
   });
 
@@ -128,7 +116,7 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.getByLabelText('Select a date')).toBeInTheDocument();
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
     });
 
     it('should handle previousSibling prop', () => {
@@ -144,7 +132,7 @@ describe('AyuDateInput', () => {
           previousSibling={previousSibling}
         />
       );
-      expect(screen.getByLabelText('Select a date')).toBeInTheDocument();
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
     });
   });
 
@@ -157,9 +145,8 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = document.querySelector('input[type="date"]');
-      expect(input).toBeInTheDocument();
-      expect(screen.queryByRole('label')).not.toBeInTheDocument();
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-label')).not.toBeInTheDocument();
     });
 
     it('should handle question with empty string text', () => {
@@ -174,8 +161,7 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = document.querySelector('input[type="date"]');
-      expect(input).toBeInTheDocument();
+      expect(screen.getByTestId('calendar-component')).toBeInTheDocument();
     });
 
     it('should handle undefined readOnly', () => {
@@ -191,13 +177,41 @@ describe('AyuDateInput', () => {
           previousSibling={undefined}
         />
       );
-      const input = screen.getByLabelText('Select a date');
+      const input = screen.getByTestId('calendar-input');
       expect(input).not.toBeDisabled();
     });
   });
 
+  describe('Value Handling', () => {
+    it('should pass empty string to Calendar when value is not a string (e.g. number)', () => {
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={42}
+        />
+      );
+      const input = screen.getByTestId('calendar-input') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+
+    it('should pass the string value to Calendar when value is a string', () => {
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="01 Jan,2025"
+        />
+      );
+      const input = screen.getByTestId('calendar-input') as HTMLInputElement;
+      expect(input.value).toBe('01 Jan,2025');
+    });
+  });
+
   describe('Container Layout', () => {
-    it('should render with flex container classes', () => {
+    it('should render with a div wrapper', () => {
       const { container } = render(
         <AyuDateInput
           question={mockQuestion}
@@ -206,7 +220,7 @@ describe('AyuDateInput', () => {
         />
       );
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-1');
+      expect(wrapper.tagName).toBe('DIV');
     });
   });
 });

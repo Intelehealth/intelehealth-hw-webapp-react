@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
-import { resolveAyuComponent } from '../../../../modules/ayu-library/logic/decision-matrix';
+import { resolveAyuComponent, isStrictAssociatedSymptoms } from '../../../../modules/ayu-library/logic/decision-matrix';
 import type { AyuComponentType } from '../../../../modules/ayu-library/logic/decision-matrix';
 
 const makeQuestion = (overrides: Partial<AyuQuestion> = {}): AyuQuestion => ({
@@ -57,41 +57,34 @@ describe('resolveAyuComponent', () => {
   });
 
   describe('associated symptoms detection', () => {
-    it('should return "associatedSymptoms" when extension matches', () => {
+    it('should return "associatedSymptoms" when text matches "Associated symptoms"', () => {
       const q = makeQuestion({
         type: 'choice',
-        extension: [
-          {
-            url: 'urn:intelehealth:original-question-text',
-            valueString: 'Associated symptoms',
-          },
-        ],
+        text: 'Associated symptoms',
       });
       expect(resolveAyuComponent(q)).toBe('associatedSymptoms');
     });
 
-    it('should not return "associatedSymptoms" for wrong extension URL', () => {
+    it('should return "associatedSymptoms" for family history text', () => {
       const q = makeQuestion({
         type: 'choice',
-        extension: [
-          {
-            url: 'urn:other:extension',
-            valueString: 'Associated symptoms',
-          },
-        ],
+        text: 'Do you have a family history of any of the following?*',
       });
-      expect(resolveAyuComponent(q)).toBe('selectableOptionGroup');
+      expect(resolveAyuComponent(q)).toBe('associatedSymptoms');
     });
 
-    it('should not return "associatedSymptoms" for wrong valueString', () => {
+    it('should return "associatedSymptoms" for patient history text', () => {
       const q = makeQuestion({
         type: 'choice',
-        extension: [
-          {
-            url: 'urn:intelehealth:original-question-text',
-            valueString: 'Other text',
-          },
-        ],
+        text: 'Do you have a history of any of the following?*',
+      });
+      expect(resolveAyuComponent(q)).toBe('associatedSymptoms');
+    });
+
+    it('should not return "associatedSymptoms" for non-matching text', () => {
+      const q = makeQuestion({
+        type: 'choice',
+        text: 'Other text',
       });
       expect(resolveAyuComponent(q)).toBe('selectableOptionGroup');
     });
@@ -99,19 +92,47 @@ describe('resolveAyuComponent', () => {
     it('should not return "associatedSymptoms" for non-choice type', () => {
       const q = makeQuestion({
         type: 'string',
-        extension: [
-          {
-            url: 'urn:intelehealth:original-question-text',
-            valueString: 'Associated symptoms',
-          },
-        ],
+        text: 'Associated symptoms',
       });
       expect(resolveAyuComponent(q)).toBe('text');
     });
 
-    it('should not return "associatedSymptoms" when no extensions', () => {
+    it('should not return "associatedSymptoms" when no text', () => {
       const q = makeQuestion({ type: 'choice' });
       expect(resolveAyuComponent(q)).toBe('selectableOptionGroup');
+    });
+  });
+
+  describe('isStrictAssociatedSymptoms', () => {
+    it('should return true for choice type with "Associated symptoms" text', () => {
+      const q = makeQuestion({ type: 'choice', text: 'Associated symptoms' });
+      expect(isStrictAssociatedSymptoms(q)).toBe(true);
+    });
+
+    it('should return false for family history text', () => {
+      const q = makeQuestion({
+        type: 'choice',
+        text: 'Do you have a family history of any of the following?*',
+      });
+      expect(isStrictAssociatedSymptoms(q)).toBe(false);
+    });
+
+    it('should return false for patient history text', () => {
+      const q = makeQuestion({
+        type: 'choice',
+        text: 'Do you have a history of any of the following?*',
+      });
+      expect(isStrictAssociatedSymptoms(q)).toBe(false);
+    });
+
+    it('should return false for non-choice type', () => {
+      const q = makeQuestion({ type: 'string', text: 'Associated symptoms' });
+      expect(isStrictAssociatedSymptoms(q)).toBe(false);
+    });
+
+    it('should return false for choice without matching text', () => {
+      const q = makeQuestion({ type: 'choice', text: 'Other question' });
+      expect(isStrictAssociatedSymptoms(q)).toBe(false);
     });
   });
 

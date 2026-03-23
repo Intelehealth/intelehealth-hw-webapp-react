@@ -1,10 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
-import { useVisitReasons } from '../../../hooks/useVisitReasons.hook';
 import type { AyuQuestion } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
+import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  CONFIRM_MODAL_DESCRIPTION,
+  CONFIRM_MODAL_NO,
+  CONFIRM_MODAL_TITLE,
+  CONFIRM_MODAL_YES,
+  VISIT_REASON_SUMMARY_TITLE,
+} from '../../../utils/ayu.constants';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
@@ -12,12 +18,6 @@ import { ReasonAlphabetList } from './reason-alphabetList.component';
 import { ReasonCategoryList } from './reason-categoryList.component';
 import { ReasonSearchInput } from './search-input.component';
 import { SelectedReasons } from './selected-reasons.component';
-import {
-  CONFIRM_MODAL_TITLE,
-  CONFIRM_MODAL_DESCRIPTION,
-  CONFIRM_MODAL_YES,
-  CONFIRM_MODAL_NO,
-} from '../../../utils/ayu.constants';
 
 export const VisitReason = ({
   questionIndex,
@@ -25,6 +25,8 @@ export const VisitReason = ({
   onPrevQuestion,
   onPrevSection,
   onProgressUpdate,
+  visitReasons,
+  onReasonsConfirmed,
 }: SectionProps) => {
   const [showStepper, setShowStepper] = useState(false);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(null);
@@ -38,7 +40,7 @@ export const VisitReason = ({
     removeReason,
     grouped,
     selectedComplaints,
-  } = useVisitReasons();
+  } = visitReasons!;
 
   const { showConfirmModal } = useGlobalModal();
 
@@ -57,6 +59,7 @@ export const VisitReason = ({
       items: selectedReasons,
       open: true,
       onConfirm: () => {
+        onReasonsConfirmed?.(selectedReasons);
         const schema = transformFhirToAyu(selectedComplaints[0].json);
         setAyuSchema(schema);
         setShowStepper(true); //Switch UI
@@ -84,6 +87,7 @@ export const VisitReason = ({
       <div className="w-full flex flex-col h-full">
         <AyuStepperContainer
           questionnaire={stableSchema}
+          summaryTitle={VISIT_REASON_SUMMARY_TITLE}
           onComplete={handleStepperComplete}
           onProgressUpdate={handleStepperProgress}
         />

@@ -20,7 +20,7 @@ describe('Constants', () => {
     });
 
     it('should export EXT_URL_MUTUALLY_EXCLUSIVE', () => {
-      expect(EXT_URL_MUTUALLY_EXCLUSIVE).toBe('urn:intelehealth:mutually-exclusive');
+      expect(EXT_URL_MUTUALLY_EXCLUSIVE).toBe('https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice');
     });
   });
 

@@ -66,6 +66,29 @@ describe('AyuAssociatedSymptoms', () => {
       expect(screen.getByText('Associated Symptoms')).toBeInTheDocument();
     });
 
+    it('should render extension display text instead of question.text when EXT_URL_DISPLAY_TEXT extension is present', () => {
+      const questionWithDisplayExt: AyuQuestion = {
+        ...baseQuestion,
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/display',
+            valueString: 'Custom Display Label',
+          },
+        ],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={questionWithDisplayExt}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.getByText('Custom Display Label')).toBeInTheDocument();
+      expect(screen.queryByText('Associated Symptoms')).not.toBeInTheDocument();
+    });
+
     it('should render instruction text', () => {
       render(
         <AyuAssociatedSymptoms
@@ -110,25 +133,11 @@ describe('AyuAssociatedSymptoms', () => {
       expect(noButtons).toHaveLength(3);
     });
 
-    it('should render required asterisk when question is required', () => {
+    it('should not render required asterisk (asterisk is disabled)', () => {
       const requiredQuestion = { ...baseQuestion, required: true };
       render(
         <AyuAssociatedSymptoms
           question={requiredQuestion}
-          value={[]}
-          onChange={mockOnChange}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-        />
-      );
-      expect(screen.getByText('*')).toBeInTheDocument();
-    });
-
-    it('should not render required asterisk when question is not required', () => {
-      const optionalQuestion = { ...baseQuestion, required: false };
-      render(
-        <AyuAssociatedSymptoms
-          question={optionalQuestion}
           value={[]}
           onChange={mockOnChange}
           answers={{}}
@@ -586,7 +595,7 @@ describe('AyuAssociatedSymptoms', () => {
             'symptoms-q': ['fever'],
           }),
           setAnswer: mockSetAnswer,
-          selectable: true,
+          showAllTriangles: true,
         }),
         undefined
       );

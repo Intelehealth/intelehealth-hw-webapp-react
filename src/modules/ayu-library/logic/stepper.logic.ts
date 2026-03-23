@@ -4,6 +4,7 @@ import type {
   DurationAnswer,
 } from '../types/ayu.types';
 import { EXT_URL_MUTUALLY_EXCLUSIVE } from '../utils/constants';
+import { findMatchingOptionCode } from '../utils/question.utils';
 import { evaluateEnableWhen } from './enable-when.logic';
 
 export const isDurationAnswer = (value: unknown): value is DurationAnswer => {
@@ -24,7 +25,7 @@ export const isMutuallyExclusiveOption = (
   );
 
   return !!option?.extension?.some(
-    ext => ext.url === EXT_URL_MUTUALLY_EXCLUSIVE && ext.valueBoolean === true
+    ext => ext.url === EXT_URL_MUTUALLY_EXCLUSIVE && ext.valueString === 'True'
   );
 };
 
@@ -77,18 +78,23 @@ export const isTopLevelComplete = (
     return false;
   }
 
-  // For choice questions, check if any nested child has duration structure
+  // Recursively check all nested children for incomplete duration structure
   if (question.type === 'choice' && question.item?.length) {
-    for (const child of question.item) {
-      const childAnswer = updatedAnswers[child.linkId];
-      if (isDurationAnswer(childAnswer)) {
-        const hasNumber = !!childAnswer.dropdownValues?.number;
-        const hasDays = !!childAnswer.dropdownValues?.days;
-        if (!hasNumber || !hasDays) {
-          return false;
+    const hasIncompleteDuration = (items: AyuQuestion[]): boolean => {
+      for (const child of items) {
+        if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) continue;
+        const childAnswer = updatedAnswers[child.linkId];
+        if (isDurationAnswer(childAnswer)) {
+          const hasNumber = !!childAnswer.dropdownValues?.number;
+          const hasDays = !!childAnswer.dropdownValues?.days;
+          if (!hasNumber || !hasDays) return true;
         }
+        if (child.item?.length && hasIncompleteDuration(child.item))
+          return true;
       }
-    }
+      return false;
+    };
+    if (hasIncompleteDuration(question.item)) return false;
   }
 
   // Also check top-level for duration structure
@@ -101,14 +107,48 @@ export const isTopLevelComplete = (
 
   if (!question.item?.length) return true;
 
-  // Check visible nested
-  for (const child of question.item) {
-    if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) continue;
+  // Recursively check visible nested children at all depths
+  const areNestedComplete = (
+    items: AyuQuestion[],
+    parent: AyuQuestion
+  ): boolean => {
+    for (const child of items) {
+      if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) continue;
 
-    if (!updatedAnswers[child.linkId]) {
-      return false;
+      // If child maps to a parent answerOption, only validate if that option is selected
+      const matchedCode = findMatchingOptionCode(child, parent);
+      if (matchedCode) {
+        const parentAnswer = updatedAnswers[parent.linkId];
+        const selectedCodes: string[] = Array.isArray(parentAnswer)
+          ? parentAnswer
+          : typeof parentAnswer === 'string'
+            ? [parentAnswer]
+            : [];
+        if (!selectedCodes.includes(matchedCode)) continue;
+      }
+
+      // Input-type children must have a value
+      if (
+        (child.type === 'string' ||
+          child.type === 'integer' ||
+          child.type === 'quantity') &&
+        !updatedAnswers[child.linkId]
+      ) {
+        return false;
+      }
+
+      // Choice children must have a selection
+      if (child.type === 'choice' && !updatedAnswers[child.linkId]) {
+        return false;
+      }
+
+      // Recurse into deeper levels
+      if (child.item?.length) {
+        if (!areNestedComplete(child.item, child)) return false;
+      }
     }
-  }
+    return true;
+  };
 
-  return true;
+  return areNestedComplete(question.item, question);
 };

@@ -278,10 +278,11 @@ describe('decision-matrix', () => {
         expect(resolveAyuComponent(question)).toBe('associatedSymptoms');
       });
 
-      it('should return "associatedSymptoms" when extension present with repeats', () => {
+      it('should return "associatedSymptoms" when text matches with repeats', () => {
         const question: AyuQuestion = {
           linkId: 'q-assoc-repeat',
           type: 'choice',
+          text: 'Associated symptoms',
           repeats: true,
           extension: [
             {

@@ -20,7 +20,7 @@ describe('buildVisitSummary', () => {
       const items = [
         {
           linkId: 'q1',
-          text: 'Symptom',
+          text: 'What symptom?',
           type: 'string',
           extension: [
             {
@@ -45,7 +45,7 @@ describe('buildVisitSummary', () => {
       const items = [
         {
           linkId: 'q1',
-          text: 'Age',
+          text: 'Patient age',
           type: 'integer',
           extension: [
             {
@@ -344,7 +344,7 @@ describe('buildVisitSummary', () => {
       const items = [
         {
           linkId: 'q1',
-          text: 'Main',
+          text: 'Main Q',
           type: 'choice',
           extension: [
             {
@@ -379,7 +379,7 @@ describe('buildVisitSummary', () => {
               item: [
                 {
                   linkId: 'deep1',
-                  text: 'Deep Child',
+                  text: 'Deep Label',
                   type: 'string',
                   extension: [
                     {
@@ -402,8 +402,8 @@ describe('buildVisitSummary', () => {
       const result = buildVisitSummary(items, answers, 'Section');
 
       expect(result[0].items).toHaveLength(1);
-      // hasOptionItemMapping is true so deep child label is prepended
-      expect(getLabelValue(result[0].items[0])).toContain('Deep Label');
+      // Nested values are collected and joined inline
+      expect(getLabelValue(result[0].items[0])).toContain('Sub 1');
       expect(getLabelValue(result[0].items[0])).toContain('deep value');
     });
 
@@ -612,7 +612,8 @@ describe('buildVisitSummary', () => {
       const result = buildVisitSummary(items, answers, 'Section');
 
       expect(result[0].items).toHaveLength(1);
-      expect(getLabelValue(result[0].items[0])).toContain('Fever Details');
+      // Multi-select combines display with nested values inline using dash separator
+      expect(getLabelValue(result[0].items[0])).toContain('Fever');
       expect(getLabelValue(result[0].items[0])).toContain('High grade');
       expect(getLabelValue(result[0].items[0])).toContain('Cough');
     });
@@ -722,7 +723,8 @@ describe('buildVisitSummary', () => {
       const result = buildVisitSummary(items, answers, 'Section');
 
       expect(result[0].items).toHaveLength(1);
-      expect(getLabelValue(result[0].items[0])).toBe('Fever Info');
+      // When nested has no answer, only the display value is shown
+      expect(getLabelValue(result[0].items[0])).toBe('Fever');
     });
   });
 
@@ -1018,7 +1020,7 @@ describe('buildVisitSummary', () => {
       // Child should be processed via recursive descent
       const allItems = result.flatMap(s => s.items);
       const childItem = allItems.find(
-        i => i.type === 'labelValue' && i.label === 'Child Q'
+        i => i.type === 'labelValue' && i.label === 'Child'
       );
       expect(childItem).toBeDefined();
     });
@@ -1079,7 +1081,7 @@ describe('buildVisitSummary', () => {
       const items = [
         {
           linkId: 'q1',
-          text: 'Date',
+          text: 'Date Q',
           type: 'date',
           extension: [
             {
@@ -1353,7 +1355,11 @@ describe('buildVisitSummary', () => {
           type: 'string',
           extension: [
             {
-              url: 'urn:intelehealth:original-question-text',
+              url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+              valueString: '%',
+            },
+            {
+              url: 'https://intelehealth.org/fhir/StructureDefinition/display',
               valueString: 'Display Label',
             },
           ],

@@ -3,6 +3,7 @@ import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../ayu-library/types/ayu.types';
+import type { BuildSummaryOptions } from '../../ayu-library/logic/visit-summary.logic';
 import { buildVisitSummary as buildVisitSummaryCore } from '../../ayu-library/logic/visit-summary.logic';
 
 /**
@@ -12,12 +13,14 @@ import { buildVisitSummary as buildVisitSummaryCore } from '../../ayu-library/lo
 export function buildVisitSummary(
   questionnaire: AyuQuestion[],
   answersMap: Map<string, AyuAnswerValue>,
-  sectionTitle: string
+  sectionTitle: string,
+  options?: BuildSummaryOptions
 ): ModalSection[] {
   const sections = buildVisitSummaryCore(
     questionnaire,
     answersMap,
-    sectionTitle
+    sectionTitle,
+    options
   );
 
   // SummarySection is structurally compatible with ModalSection

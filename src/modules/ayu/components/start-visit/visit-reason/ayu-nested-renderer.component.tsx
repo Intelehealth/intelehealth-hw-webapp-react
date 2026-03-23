@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
-import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
-import { collectDescendantLinkIds } from '../../../../ayu-library/utils/question.utils';
+import {
+  collectDescendantLinkIds,
+  findMatchingOptionCode,
+} from '../../../../ayu-library/utils/question.utils';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import '../../common/selectable-option.css';
 import { AyuRenderer } from './ayu-renderer.component';
@@ -16,6 +19,8 @@ interface NestedProps {
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
   clearAnswers?: (linkIds: string[]) => void;
   selectable?: boolean;
+  /** When true, shows the triangle indicator for all item types including string/text inputs. */
+  showAllTriangles?: boolean;
 }
 
 export const AyuNestedRenderer = ({
@@ -25,6 +30,7 @@ export const AyuNestedRenderer = ({
   setAnswer,
   clearAnswers,
   selectable = false,
+  showAllTriangles = false,
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
@@ -61,13 +67,8 @@ export const AyuNestedRenderer = ({
 
     return parentChild
       .item!.filter(nestedItem => {
-        const matchingOption = parentChild.answerOption?.find(opt =>
-          nestedItem.linkId.startsWith(opt.valueCoding?.code || '')
-        );
-        return (
-          matchingOption &&
-          selectedCodes.includes(matchingOption.valueCoding?.code || '')
-        );
+        const matchedCode = findMatchingOptionCode(nestedItem, parentChild);
+        return matchedCode && selectedCodes.includes(matchedCode);
       })
       .map(nestedItem => (
         <div key={nestedItem.linkId} className="mt-2 ml-3">
@@ -181,7 +182,10 @@ export const AyuNestedRenderer = ({
                     child.type !== 'string' && selectedOption === child.linkId
                 )
                 .map(child => (
-                  <div key={child.linkId} className="flex items-start gap-2">
+                  <div
+                    key={child.linkId}
+                    className="flex items-start gap-2 mt-2"
+                  >
                     {child.type === 'choice' && (
                       <svg
                         width="14"
@@ -216,39 +220,49 @@ export const AyuNestedRenderer = ({
             </>
           ) : (
             /* Render all items directly via AyuRenderer */
-            children.map(child => (
-              <div key={child.linkId} className="flex items-start gap-2">
-                {child.type === 'choice' && (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 16 16"
-                    fill="#20c997"
-                    className="flex-shrink-0 mt-4"
-                  >
-                    <path d="M4 2 L14 8 L4 14 Z" />
-                  </svg>
-                )}
-                <div className="flex-1">
-                  <AyuRenderer
-                    question={child}
-                    value={answers[child.linkId]}
-                    onChange={val => setAnswer(child, val)}
-                  />
-                  {hasAnswerOptionItemMapping(child)
-                    ? renderInlineNestedItems(child)
-                    : child.item && (
-                        <AyuNestedRenderer
-                          items={child.item}
-                          answers={answers}
-                          setAnswer={setAnswer}
-                          clearAnswers={clearAnswers}
-                          selectable={true}
-                        />
-                      )}
+            children.map(child => {
+              // Show triangle for string items only when the group has multiple children
+              // (standalone question like "How often...?"), not when it's the sole child
+              // of an option (describe field like "Describe..." under a "Describe" option)
+              const isDescribeField =
+                child.type === 'string' && children.length === 1;
+              const showTriangle = isDescribeField
+                ? false
+                : showAllTriangles || child.type !== 'string';
+
+              return (
+                <div key={child.linkId} className="flex items-start gap-2 mt-2">
+                  {showTriangle && (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="#20c997"
+                      className="flex-shrink-0 mt-1"
+                    >
+                      <path d="M4 2 L14 8 L4 14 Z" />
+                    </svg>
+                  )}
+                  <div className="flex-1">
+                    <AyuRenderer
+                      question={child}
+                      parent={parentQuestion}
+                      value={answers[child.linkId]}
+                      onChange={val => setAnswer(child, val)}
+                    />
+                    {child.item && (
+                      <AyuNestedRenderer
+                        items={child.item}
+                        parentQuestion={child}
+                        answers={answers}
+                        setAnswer={setAnswer}
+                        clearAnswers={clearAnswers}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       ))}

@@ -7,6 +7,10 @@ vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
 }));
 
+vi.mock('../../../../../modules/ayu-library/logic/decision-matrix', () => ({
+  resolveAyuComponent: vi.fn(() => 'text'),
+}));
+
 describe('AyuTextInput', () => {
   const mockQuestion: AyuQuestion = {
     linkId: 'test-1',
@@ -103,7 +107,33 @@ describe('AyuTextInput', () => {
       expect(screen.getByText('Additional information')).toBeInTheDocument();
     });
 
-    it('should not render label text when label is not "Additional information"', () => {
+    it('should not render label text when label includes "Describe" but not "Other [Describe]" and parent is not associatedSymptoms', () => {
+      const questionWithDescribe: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Please Describe your symptoms',
+      };
+      const parent: AyuQuestion = {
+        linkId: 'parent-1',
+        text: 'Parent Question',
+        type: 'group',
+        item: [],
+      };
+      render(
+        <AyuTextInput
+          question={questionWithDescribe}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      // The label element is rendered (because label is truthy), but its text content is null
+      // since all three conditions are false:
+      // 1. label !== 'Additional information'
+      // 2. isAssociatedSymptomsParent is false (parent resolves to 'text', not 'associatedSymptoms')
+      // 3. label.includes('Describe') is true, so !label.includes('Describe') is false
+      expect(screen.queryByText('Please Describe your symptoms')).not.toBeInTheDocument();
+    });
+
+    it('should render label text when label does not include "Describe"', () => {
       render(
         <AyuTextInput
           question={mockQuestion}
@@ -111,7 +141,8 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      expect(screen.queryByText('What is your name?')).not.toBeInTheDocument();
+      // Labels without "Describe" are rendered because !label.includes('Describe') is true
+      expect(screen.getByText('What is your name?')).toBeInTheDocument();
     });
 
     it('should have placeholder text "Describe..."', () => {
@@ -140,7 +171,23 @@ describe('AyuTextInput', () => {
   });
 
   describe('Label Styling', () => {
-    it('should render label with correct CSS classes', () => {
+    it('should render label with primary CSS classes when text is "Additional Information"', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional Information',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Additional Information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render label with muted CSS classes for other labels', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
         text: 'Additional information',
@@ -153,7 +200,7 @@ describe('AyuTextInput', () => {
         />
       );
       const label = screen.getByText('Additional information');
-      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+      expect(label).toHaveClass('block', 'text-base');
     });
   });
 

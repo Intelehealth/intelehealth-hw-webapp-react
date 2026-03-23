@@ -1,201 +1,215 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconAyu from '../../../../ayu/assets/icon-ayu.svg';
-import iconNo from '../../../assets/no.svg';
-import iconYes from '../../../assets/yes.svg';
+import iconVisitReasonSummary from '../../../../../assets/icons/visit-reason.svg';
+import type { ModalSection } from '../../../../../components/modal/global-modal-context';
+import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
+import type { AyuAnswerValue } from '../../../../ayu-library/types/ayu.types';
+import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
+import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  BUTTON_BACK,
+  BUTTON_CONFIRM,
+  MEDICAL_HISTORY_SUMMARY_TITLE,
+  SUMMARY_CANCEL_TEXT,
+  SUMMARY_CONFIRM_TEXT,
+} from '../../../utils/ayu.constants';
+import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import AyuButton from '../../common/ayu-button.component';
-import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
+import type { AyuStepperContainerHandle } from '../visit-reason/ayu-stepper-container.component';
+import { AyuStepperContainer } from '../visit-reason/ayu-stepper-container.component';
 
-interface MedicalCondition {
-  id: number;
-  name: string;
-  hasCondition: string | null;
-  relation?: string;
-  describeRelation?: string;
-  describeIllness?: string;
+const HISTORY_JSON_NAMES = ['patHist', 'famHist'];
+
+interface FileResult {
+  title: string;
+  sections: ModalSection[];
 }
 
-const MEDICAL_CONDITIONS: MedicalCondition[] = [
-  { id: 0, name: 'High blood pressure', hasCondition: null },
-  { id: 1, name: 'Heart problems', hasCondition: null },
-  { id: 2, name: 'Stroke', hasCondition: null },
-  { id: 3, name: 'Diabetes', hasCondition: null },
-  { id: 4, name: 'Asthama', hasCondition: null },
-  { id: 5, name: 'Cancer/Tumour', hasCondition: null },
-  { id: 6, name: 'Operation', hasCondition: null },
-  { id: 7, name: 'Other', hasCondition: null },
-];
-
-const RELATION_OPTIONS = ['Mother', 'Father', 'Sister', 'Brother', 'Other'];
-const NEEDS_RELATION = ['Stroke', 'Cancer/Tumour', 'Other'];
-const TOTAL_QUESTIONS = 8;
-
-export const MedicalHistory = () => {
+export const MedicalHistory = ({
+  onPrevSection,
+  onProgressUpdate,
+  onSubtitleChange,
+  ayuConfigFiles,
+}: SectionProps) => {
   const navigate = useNavigate();
-  const [conditions, setConditions] =
-    useState<MedicalCondition[]>(MEDICAL_CONDITIONS);
+  const [currentStep, setCurrentStep] = useState(0);
+  const fileResultsRef = useRef<FileResult[]>([]);
+  const fileAnswersRef = useRef<Record<string, Record<string, AyuAnswerValue>>>(
+    {}
+  );
+  const stepperRef = useRef<AyuStepperContainerHandle>(null);
+  const { showVitalConfirmationModal } = useGlobalModal();
 
-  const updateCondition = (id: number, updates: Partial<MedicalCondition>) => {
-    setConditions(prev =>
-      prev.map(c => (c.id === id ? { ...c, ...updates } : c))
+  const historyFiles = useMemo(() => {
+    if (!ayuConfigFiles) return [];
+    return HISTORY_JSON_NAMES.map(name =>
+      ayuConfigFiles.find(f => f.name.replace(/\.json$/i, '') === name)
+    ).filter(Boolean);
+  }, [ayuConfigFiles]);
+
+  const schemas = useMemo(() => {
+    return historyFiles.map(file => ({
+      name: file!.name.replace(/\.json$/i, ''),
+      title: file!.json?.title ?? file!.name,
+      schema: transformFhirToAyu(file!.json),
+    }));
+  }, [historyFiles]);
+
+  const currentSchema = schemas[currentStep];
+
+  // Review mode: true when returning from "Change" in the summary modal
+  const isReviewMode = !!fileAnswersRef.current[currentSchema?.name];
+
+  useEffect(() => {
+    if (currentSchema?.title) {
+      onSubtitleChange?.(currentSchema.title);
+    }
+  }, [currentSchema?.title, onSubtitleChange]);
+
+  const showCombinedSummary = useCallback(() => {
+    const combinedSections = fileResultsRef.current.flatMap((r, fileIndex) =>
+      r.sections.map(section => ({
+        ...section,
+        onChange: () => {
+          setCurrentStep(fileIndex);
+        },
+      }))
     );
-  };
+
+    showVitalConfirmationModal({
+      icon: iconVisitReasonSummary,
+      title: MEDICAL_HISTORY_SUMMARY_TITLE,
+      sections: combinedSections,
+      confirmText: SUMMARY_CONFIRM_TEXT,
+      cancelText: SUMMARY_CANCEL_TEXT,
+      open: false,
+      type: 'vitalConfirm',
+      size: 'lg',
+      onConfirm: () => {
+        navigate('/visit-summary');
+      },
+    });
+  }, [showVitalConfirmationModal, navigate]);
+
+  const handleComplete = useCallback(
+    (answers: Record<string, AyuAnswerValue>) => {
+      const schema = schemas[currentStep];
+      if (!schema?.schema) return;
+
+      // Store answers for this file so they can be restored on "Change"
+      fileAnswersRef.current[schema.name] = answers;
+
+      const topLevelItems = (schema.schema.item || []).filter(
+        item => item.type !== 'group'
+      );
+      const answersMap = new Map(Object.entries(answers));
+      const rawSections = buildVisitSummary(
+        topLevelItems,
+        answersMap,
+        schema.schema.text || schema.title,
+        { useLabeledFormat: true }
+      );
+
+      // Merge all sections (main items + associated symptoms) into one section per file
+      const mergedItems = rawSections.flatMap(s => s.items);
+      const sections: ModalSection[] =
+        mergedItems.length > 0
+          ? [{ title: schema.schema.text || schema.title, items: mergedItems }]
+          : [];
+
+      fileResultsRef.current = [
+        ...fileResultsRef.current.slice(0, currentStep),
+        { title: schema.title, sections },
+      ];
+
+      if (currentStep < schemas.length - 1) {
+        setCurrentStep(prev => prev + 1);
+      } else {
+        showCombinedSummary();
+      }
+    },
+    [currentStep, schemas, showCombinedSummary]
+  );
+
+  // Track per-file totals so progress accumulates across patHist + famHist
+  const fileProgressRef = useRef<{ total: number; answered: number }[]>(
+    schemas.map(() => ({ total: 0, answered: 0 }))
+  );
+
+  const handleProgressUpdate = useCallback(
+    (total: number, answered: number) => {
+      fileProgressRef.current[currentStep] = { total, answered };
+
+      const combinedTotal = fileProgressRef.current.reduce(
+        (sum, f) => sum + f.total,
+        0
+      );
+      const combinedAnswered = fileProgressRef.current.reduce(
+        (sum, f) => sum + f.answered,
+        0
+      );
+
+      onProgressUpdate?.(combinedTotal, combinedAnswered);
+    },
+    [onProgressUpdate, currentStep]
+  );
+
+  // Compute question index offset (sum of previous files' totals) for QuestionLoader display
+  const questionIndexOffset = fileProgressRef.current
+    .slice(0, currentStep)
+    .reduce((sum, f) => sum + f.total, 0);
+
+  const combinedTotal = fileProgressRef.current.reduce(
+    (sum, f) => sum + f.total,
+    0
+  );
+
+  if (!currentSchema?.schema) {
+    return <div>Loading medical history...</div>;
+  }
 
   return (
-    <div className="max-w-3xl">
-      {/* Diamond icon + question count */}
-      <div className="flex items-start gap-3">
-        <div className="flex flex-col items-center">
-          <img src={iconAyu} className="w-10 h-10" alt="Question Icon" />
-          <svg
-            width="18"
-            height="9"
-            viewBox="0 0 20 10"
-            className="mt-1 text-emerald-50"
-          >
-            <path
-              d="M0 10 C5 10 7.5 0 10 0 C12.5 0 15 10 20 10 Z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
-        <p className="pt-2 text-sm font-medium text-[#2e1e91]">
-          {TOTAL_QUESTIONS} questions
-        </p>
-      </div>
-
-      <div className="space-y-4 bg-emerald-50 p-4 rounded-xl">
-        <div className="text-lg font-medium">
-          Please provide the patient's family's medical history
-        </div>
-        <div className="text-sm text-gray-500">Select yes or no</div>
-
-        {conditions.map((condition, index) => {
-          const needsRelation = NEEDS_RELATION.includes(condition.name);
-          const isYes = condition.hasCondition === 'Yes';
-          const isNo = condition.hasCondition === 'No';
-
-          return (
-            <div key={condition.id} className="border-b border-b-gray-200 pb-3">
-              <div className="flex items-center justify-between">
-                <span>
-                  {index + 1}. {condition.name}
-                </span>
-
-                <div className="flex gap-3">
-                  <AyuButton
-                    variant="white"
-                    leftIcon={
-                      <img src={iconYes} alt="yes" className="w-6 h-6" />
-                    }
-                    size="md"
-                    type="button"
-                    className={`px-4 py-1 rounded-lg border-none! ${
-                      isYes ? 'bg-emerald-500! text-white!' : ''
-                    }`}
-                    onClick={() =>
-                      updateCondition(condition.id, { hasCondition: 'Yes' })
-                    }
-                  >
-                    Yes
-                  </AyuButton>
-
-                  <AyuButton
-                    variant="white"
-                    leftIcon={<img src={iconNo} alt="no" className="w-6 h-6" />}
-                    size="md"
-                    type="button"
-                    className={`px-4 py-1 rounded-lg border-none! ${
-                      isNo ? 'bg-emerald-500! text-white!' : ''
-                    }`}
-                    onClick={() =>
-                      updateCondition(condition.id, { hasCondition: 'No' })
-                    }
-                  >
-                    No
-                  </AyuButton>
-                </div>
-              </div>
-
-              {isYes && needsRelation && (
-                <div className="space-y-3 mt-3">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-base text-gray-700">
-                      <span className="text-emerald-500">&#9654;</span>
-                      Relation
-                    </label>
-                    <div className="flex flex-wrap gap-3">
-                      {RELATION_OPTIONS.map(option => (
-                        <AyuSelectableOption
-                          key={option}
-                          label={option}
-                          value={option}
-                          selected={condition.relation === option}
-                          onClick={() =>
-                            updateCondition(condition.id, { relation: option })
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {condition.relation === 'Other' && (
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-base text-gray-700">
-                        <span className="text-emerald-500">&#9654;</span>
-                        Describe relation
-                      </label>
-                      <input
-                        type="text"
-                        value={condition.describeRelation || ''}
-                        onChange={e =>
-                          updateCondition(condition.id, {
-                            describeRelation: e.target.value,
-                          })
-                        }
-                        placeholder="Grandfather"
-                        className="w-full px-3 py-2 text-base border border-[#20c997] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#20c997] bg-white"
-                      />
-                    </div>
-                  )}
-
-                  {condition.name === 'Other' && (
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-base text-gray-700">
-                        <span className="text-emerald-500">&#9654;</span>
-                        Describe illness
-                      </label>
-                      <input
-                        type="text"
-                        value={condition.describeIllness || ''}
-                        onChange={e =>
-                          updateCondition(condition.id, {
-                            describeIllness: e.target.value,
-                          })
-                        }
-                        placeholder="Grandfather"
-                        className="w-full px-3 py-2 text-base border border-[#20c997] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#20c997] bg-white"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex justify-end mt-6 px-4 pb-2">
+    <div className="w-full flex flex-col h-full">
+      <AyuStepperContainer
+        ref={stepperRef}
+        key={currentSchema.name}
+        questionnaire={currentSchema.schema}
+        summaryTitle={MEDICAL_HISTORY_SUMMARY_TITLE}
+        skipSummary
+        initialAnswers={fileAnswersRef.current[currentSchema.name]}
+        questionIndexOffset={questionIndexOffset}
+        totalQuestionsOverride={combinedTotal > 0 ? combinedTotal : undefined}
+        onComplete={handleComplete}
+        onProgressUpdate={handleProgressUpdate}
+      />
+      {/* Navigation buttons — pinned to bottom */}
+      <div className="sticky bottom-0 bg-white pt-2 pb-4 flex gap-3 md:justify-end">
         <AyuButton
-          type="submit"
+          type="button"
+          variant="secondary"
           onClick={() => {
-            navigate('/visit-summary');
+            if (currentStep > 0) {
+              setCurrentStep(prev => prev - 1);
+            } else {
+              onPrevSection?.();
+            }
           }}
-          variant="primary"
-          size="sm"
+          className="w-full md:w-[10%]"
         >
-          Submit
+          <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
         </AyuButton>
+        {isReviewMode && (
+          <AyuButton
+            type="button"
+            variant="primary"
+            onClick={() => {
+              stepperRef.current?.confirm();
+            }}
+            className="w-full md:w-[10%]"
+          >
+            <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
+          </AyuButton>
+        )}
       </div>
     </div>
   );

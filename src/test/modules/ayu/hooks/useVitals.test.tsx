@@ -1257,5 +1257,44 @@ describe('useVitals', () => {
       expect(itemLabels).toContain('BMI');
       expect(itemLabels).toContain('BP');
     });
+
+    it('should format BP value as systolic/diastolic when both are present', async () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      let hookResult: any;
+      const TestComp = () => {
+        hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="bp-sys" />
+            <input {...register('bp_diastolic')} data-testid="bp-dia" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<Wrapper><TestComp /></Wrapper>);
+
+      // Set BP values via input
+      await act(async () => {
+        fireEvent.change(screen.getByTestId('bp-sys'), { target: { value: '120' } });
+        fireEvent.change(screen.getByTestId('bp-dia'), { target: { value: '80' } });
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('submit'));
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+      expect(bpItem).toBeDefined();
+      expect(bpItem.value).toBe('120/80');
+    });
   });
 });

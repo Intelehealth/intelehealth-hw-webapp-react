@@ -1,4 +1,5 @@
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 
 export function AyuNumberInput({
   question,
@@ -12,10 +13,16 @@ export function AyuNumberInput({
     onChange?.(newValue as number);
   };
 
+  const label = question
+    ? resolveLabel(question, question, question)
+    : undefined;
   const inputValue = value !== null && value !== undefined ? String(value) : '';
 
   return (
     <div className="flex flex-col gap-1">
+      {label && (
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+      )}
       <input
         id={inputId}
         type="number"

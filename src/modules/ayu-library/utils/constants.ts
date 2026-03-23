@@ -5,7 +5,14 @@ import type { DropdownOption } from '../types/dropdown.types';
 // ========================
 export const EXT_URL_ORIGINAL_QUESTION_TEXT =
   'urn:intelehealth:original-question-text';
-export const EXT_URL_MUTUALLY_EXCLUSIVE = 'urn:intelehealth:mutually-exclusive';
+export const EXT_URL_MUTUALLY_EXCLUSIVE =
+  'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice';
+
+export const EXT_URL_DISPLAY_TEXT =
+  'https://intelehealth.org/fhir/StructureDefinition/display';
+
+export const EXT_URL_LANGUGAE_TEXT =
+  'https://intelehealth.org/fhir/StructureDefinition/language';
 
 // ========================
 // Associated Symptoms
