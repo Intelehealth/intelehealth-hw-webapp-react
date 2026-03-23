@@ -795,6 +795,47 @@ describe('VisitReason', () => {
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 5);
     });
 
+    it('should not throw when onProgressUpdate is undefined and stepper reports progress', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      // Click the progress button (not complete) without onProgressUpdate prop
+      const progressButton = screen.getByTestId('stepper-progress-button');
+      await user.click(progressButton);
+
+      // Should not throw — handleStepperProgress uses optional chaining
+      expect(mockOnNextQuestion).not.toHaveBeenCalled();
+    });
+
     it('should handle onProgressUpdate being undefined', async () => {
       const user = userEvent.setup();
       const mockSchema = {

@@ -285,4 +285,215 @@ describe('isTopLevelComplete', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice', repeats: true };
     expect(isTopLevelComplete(q, { q1: 'not-array' })).toBe(false);
   });
+
+  describe('areNestedComplete with findMatchingOptionCode', () => {
+    const makeParentWithChild = (childType: string = 'string'): AyuQuestion => ({
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'optA', display: 'Option A' } },
+        { valueCoding: { code: 'optB', display: 'Option B' } },
+      ],
+      item: [
+        {
+          linkId: 'q1.child',
+          type: childType,
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'optA' } },
+          ],
+        },
+      ],
+    });
+
+    it('should validate child when parent answer is a string matching the option code', () => {
+      const q = makeParentWithChild('string');
+      // Parent answer is string 'optA' which matches the child's enableWhen code
+      // Child is visible (enableWhen matches) and is unanswered → incomplete
+      expect(isTopLevelComplete(q, { q1: 'optA' })).toBe(false);
+      // Child answered → complete
+      expect(isTopLevelComplete(q, { q1: 'optA', 'q1.child': 'some text' })).toBe(true);
+    });
+
+    it('should skip child when parent answer is a string not matching the option code', () => {
+      const q = makeParentWithChild('string');
+      // Parent answer is 'optB', child's enableWhen code is 'optA'
+      // enableWhen still passes (operator '=' with 'optA' vs answer 'optB')
+      // but matchedCode is 'optA' and selectedCodes is ['optB'], so child is skipped via continue
+      expect(isTopLevelComplete(q, { q1: 'optB' })).toBe(true);
+    });
+
+    it('should skip child when parent answer is neither string nor array', () => {
+      // Use linkId prefix strategy for findMatchingOptionCode so enableWhen
+      // doesn't need to reference the parent (avoiding evaluateEnableWhen filtering)
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'optA', display: 'Option A' } },
+        ],
+        item: [
+          {
+            // linkId starts with 'optA' → findMatchingOptionCode matches via prefix
+            linkId: 'optA.child',
+            type: 'string',
+            // No enableWhen → evaluateEnableWhen returns true (always visible)
+          },
+        ],
+      };
+      // Parent answer is a number — selectedCodes becomes [] so matchedCode is not included → continue
+      expect(isTopLevelComplete(q, { q1: 42 as unknown as string })).toBe(true);
+    });
+
+    it('should validate child when parent answer is an array containing the option code', () => {
+      const q = makeParentWithChild('string');
+      q.repeats = true;
+      // Parent answer is array containing 'optA' → child should be validated
+      expect(isTopLevelComplete(q, { q1: ['optA', 'optB'] })).toBe(false);
+      expect(isTopLevelComplete(q, { q1: ['optA', 'optB'], 'q1.child': 'text' })).toBe(true);
+    });
+
+    it('should skip child when parent answer is an array not containing the option code', () => {
+      const q = makeParentWithChild('string');
+      q.repeats = true;
+      // Parent answer is array with only 'optB', child maps to 'optA' → skipped
+      expect(isTopLevelComplete(q, { q1: ['optB'] })).toBe(true);
+    });
+  });
+
+  describe('hasIncompleteDuration (nested recursive)', () => {
+    it('should return false when nested child has incomplete duration', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'optA', display: 'Option A' } },
+        ],
+        item: [
+          {
+            linkId: 'q1.dur',
+            type: 'quantity',
+            enableWhen: [
+              { question: 'q1', operator: '=', answerCoding: { code: 'optA' } },
+            ],
+          },
+        ],
+      };
+      // Nested duration with only number, no days → incomplete
+      expect(
+        isTopLevelComplete(q, {
+          q1: ['optA'],
+          'q1.dur': { dropdownValues: { number: 5 } },
+        })
+      ).toBe(false);
+    });
+
+    it('should return false when deeply nested child has incomplete duration', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'optA', display: 'Option A' } },
+        ],
+        item: [
+          {
+            linkId: 'q1.group',
+            type: 'group',
+            enableWhen: [
+              { question: 'q1', operator: '=', answerCoding: { code: 'optA' } },
+            ],
+            item: [
+              {
+                linkId: 'q1.group.dur',
+                type: 'quantity',
+              },
+            ],
+          },
+        ],
+      };
+      // Deeply nested incomplete duration
+      expect(
+        isTopLevelComplete(q, {
+          q1: ['optA'],
+          'q1.group.dur': { dropdownValues: { number: 3 } },
+        })
+      ).toBe(false);
+    });
+  });
+
+  describe('areNestedComplete - choice children and recursion', () => {
+    it('should return false when nested choice child has no answer', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'optA', display: 'Option A' } },
+        ],
+        item: [
+          {
+            linkId: 'q1.choice',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'sub1', display: 'Sub 1' } },
+            ],
+            enableWhen: [
+              { question: 'q1', operator: '=', answerCoding: { code: 'optA' } },
+            ],
+          },
+        ],
+      };
+      // Nested choice child with no answer → incomplete
+      expect(isTopLevelComplete(q, { q1: 'optA' })).toBe(false);
+      // With answer → complete
+      expect(
+        isTopLevelComplete(q, { q1: 'optA', 'q1.choice': 'sub1' })
+      ).toBe(true);
+    });
+
+    it('should recurse into deeper nested levels and detect incomplete', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'optA', display: 'Option A' } },
+        ],
+        item: [
+          {
+            linkId: 'q1.child',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'c1', display: 'Child 1' } },
+            ],
+            enableWhen: [
+              { question: 'q1', operator: '=', answerCoding: { code: 'optA' } },
+            ],
+            item: [
+              {
+                linkId: 'q1.child.deep',
+                type: 'string',
+                enableWhen: [
+                  {
+                    question: 'q1.child',
+                    operator: '=',
+                    answerCoding: { code: 'c1' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      // Child answered but deep child unanswered → incomplete
+      expect(
+        isTopLevelComplete(q, { q1: 'optA', 'q1.child': 'c1' })
+      ).toBe(false);
+      // All answered → complete
+      expect(
+        isTopLevelComplete(q, {
+          q1: 'optA',
+          'q1.child': 'c1',
+          'q1.child.deep': 'text',
+        })
+      ).toBe(true);
+    });
+  });
 });

@@ -66,6 +66,29 @@ describe('AyuAssociatedSymptoms', () => {
       expect(screen.getByText('Associated Symptoms')).toBeInTheDocument();
     });
 
+    it('should render extension display text instead of question.text when EXT_URL_DISPLAY_TEXT extension is present', () => {
+      const questionWithDisplayExt: AyuQuestion = {
+        ...baseQuestion,
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/display',
+            valueString: 'Custom Display Label',
+          },
+        ],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={questionWithDisplayExt}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.getByText('Custom Display Label')).toBeInTheDocument();
+      expect(screen.queryByText('Associated Symptoms')).not.toBeInTheDocument();
+    });
+
     it('should render instruction text', () => {
       render(
         <AyuAssociatedSymptoms

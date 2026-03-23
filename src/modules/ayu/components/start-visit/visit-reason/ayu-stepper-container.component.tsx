@@ -310,6 +310,12 @@ export const AyuStepperContainer = forwardRef<
                               ) : undefined
                             }
                             onClick={() => {
+                              const rawAnswer = answers[question.linkId];
+                              const answerCodes: string[] = Array.isArray(
+                                rawAnswer
+                              )
+                                ? (rawAnswer as string[])
+                                : [];
                               const isInvalid =
                                 hasVisibleRequiredNestedString(
                                   question,
@@ -324,40 +330,22 @@ export const AyuStepperContainer = forwardRef<
                                   question.repeats &&
                                   resolveAyuComponent(question) !==
                                     ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                  (!Array.isArray(answers[question.linkId]) ||
-                                    (answers[question.linkId] as string[])
-                                      .length === 0)) ||
+                                  answerCodes.length === 0) ||
                                 (resolveAyuComponent(question) ===
                                   ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                  (!Array.isArray(answers[question.linkId]) ||
-                                    (answers[question.linkId] as string[])
-                                      .length === 0)) ||
+                                  answerCodes.length === 0) ||
                                 (isStrictAssociatedSymptoms(question) &&
-                                  (!Array.isArray(answers[question.linkId]) ||
-                                    (answers[question.linkId] as string[])
-                                      .length <
-                                      (question.answerOption?.length ?? 0)) &&
-                                  !hasExclusiveSelected(
-                                    question,
-                                    Array.isArray(answers[question.linkId])
-                                      ? (answers[question.linkId] as string[])
-                                      : []
-                                  ));
+                                  answerCodes.length <
+                                    (question.answerOption?.length ?? 0) &&
+                                  !hasExclusiveSelected(question, answerCodes));
 
                               if (isInvalid) {
                                 const isAssociatedSymptomsIncomplete =
                                   resolveAyuComponent(question) ===
                                     ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                  (!Array.isArray(answers[question.linkId]) ||
-                                    (answers[question.linkId] as string[])
-                                      .length <
-                                      (question.answerOption?.length ?? 0)) &&
-                                  !hasExclusiveSelected(
-                                    question,
-                                    Array.isArray(answers[question.linkId])
-                                      ? (answers[question.linkId] as string[])
-                                      : []
-                                  );
+                                  answerCodes.length <
+                                    (question.answerOption?.length ?? 0) &&
+                                  !hasExclusiveSelected(question, answerCodes);
 
                                 const message = isAssociatedSymptomsIncomplete
                                   ? VALIDATION_ALL_COMPULSORY

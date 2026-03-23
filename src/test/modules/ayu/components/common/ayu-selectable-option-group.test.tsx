@@ -114,6 +114,23 @@ describe('AyuSelectableOptionGroup', () => {
       const label = screen.getByText('Select an option');
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
+
+    it('should have muted label classes when parent is an associated symptoms component', () => {
+      const associatedSymptomsParent: AyuQuestion = {
+        linkId: 'assoc-symptoms-parent',
+        text: 'Associated symptoms',
+        type: 'choice',
+      };
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={associatedSymptomsParent}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Select an option');
+      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+    });
   });
 
   describe('Answer Options Handling', () => {

@@ -35,7 +35,7 @@ export function AyuTextInput({
               : 'block text-base text-(--color-muted)'
           }
         >
-          {label === 'Additional information' ||
+          {label === 'Additional Information' ||
           (isAssociatedSymptomsParent && !label.includes('Other [Describe]')) ||
           !label.includes('Describe')
             ? label

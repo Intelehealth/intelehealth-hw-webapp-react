@@ -82,8 +82,6 @@ export function transformFhirToAyu(
       item: questionnaire.item.map(transformItem),
     };
   }
-
-  return transformItem(questionnaire.item[0]);
 }
 
 //resolve-label.ts

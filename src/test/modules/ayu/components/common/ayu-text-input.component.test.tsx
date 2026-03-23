@@ -7,6 +7,10 @@ vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
 }));
 
+vi.mock('../../../../../modules/ayu-library/logic/decision-matrix', () => ({
+  resolveAyuComponent: vi.fn(() => 'text'),
+}));
+
 describe('AyuTextInput', () => {
   const mockQuestion: AyuQuestion = {
     linkId: 'test-1',
@@ -101,6 +105,32 @@ describe('AyuTextInput', () => {
         />
       );
       expect(screen.getByText('Additional information')).toBeInTheDocument();
+    });
+
+    it('should not render label text when label includes "Describe" but not "Other [Describe]" and parent is not associatedSymptoms', () => {
+      const questionWithDescribe: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Please Describe your symptoms',
+      };
+      const parent: AyuQuestion = {
+        linkId: 'parent-1',
+        text: 'Parent Question',
+        type: 'group',
+        item: [],
+      };
+      render(
+        <AyuTextInput
+          question={questionWithDescribe}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      // The label element is rendered (because label is truthy), but its text content is null
+      // since all three conditions are false:
+      // 1. label !== 'Additional information'
+      // 2. isAssociatedSymptomsParent is false (parent resolves to 'text', not 'associatedSymptoms')
+      // 3. label.includes('Describe') is true, so !label.includes('Describe') is false
+      expect(screen.queryByText('Please Describe your symptoms')).not.toBeInTheDocument();
     });
 
     it('should render label text when label does not include "Describe"', () => {
