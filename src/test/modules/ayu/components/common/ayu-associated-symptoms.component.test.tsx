@@ -99,7 +99,7 @@ describe('AyuAssociatedSymptoms', () => {
           setAnswer={mockSetAnswer}
         />
       );
-      expect(screen.getByText('Select yes or no for each option')).toBeInTheDocument();
+      expect(screen.getByText('Select yes or no')).toBeInTheDocument();
     });
 
     it('should render all answer options', () => {
@@ -658,7 +658,7 @@ describe('AyuAssociatedSymptoms', () => {
         />
       );
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('space-y-4', 'bg-emerald-50', 'p-4', 'rounded-xl');
+      expect(wrapper).toHaveClass('bg-emerald-50', 'p-4', 'rounded-xl');
     });
 
     it('should apply selected class to Yes button when option is selected yes', () => {

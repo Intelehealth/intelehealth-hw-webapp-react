@@ -30,6 +30,7 @@ export const PATIENT_DENIES_LABEL = 'Patient denies';
 // Nested question helper text
 export const SELECT_ONE_OR_MORE = 'Select one or more';
 export const SELECT_ANY_ONE = 'Select any one';
+export const SELECT_YES_OR_NO = 'Select yes or no';
 
 //JSON name list to exclude to display on visit reason selection
 export const EXCLUDED_JSON_NAMES = ['famHist', 'physExam', 'patHist'];

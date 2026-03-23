@@ -11,7 +11,6 @@ import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.lo
 import {
   hasUnansweredRequiredNestedChild,
   hasVisibleRequiredNestedString,
-  isEmpty,
   isNestedInputValueMissing,
   isQuantityInvalid,
 } from '../../../../ayu-library/logic/validation.logic';
@@ -139,6 +138,23 @@ export const AyuStepperContainer = forwardRef<
           .map((question: AyuQuestion, index: number) => {
             const isActive = index === currentIndex;
 
+            // Wrapper that clears submitted/skipped icons when the user changes an answer
+            const handleSetAnswer = (q: AyuQuestion, val: AyuAnswerValue) => {
+              setAnswer(q, val);
+              setSubmittedQuestions(prev => {
+                if (!prev.has(question.linkId)) return prev;
+                const next = new Set(prev);
+                next.delete(question.linkId);
+                return next;
+              });
+              setSkippedQuestions(prev => {
+                if (!prev.has(question.linkId)) return prev;
+                const next = new Set(prev);
+                next.delete(question.linkId);
+                return next;
+              });
+            };
+
             return (
               <div
                 key={question.linkId}
@@ -154,9 +170,9 @@ export const AyuStepperContainer = forwardRef<
                     <AyuRenderer
                       question={question}
                       value={answers[question.linkId]}
-                      onChange={val => setAnswer(question, val)}
+                      onChange={val => handleSetAnswer(question, val)}
                       answers={answers}
-                      setAnswer={setAnswer}
+                      setAnswer={handleSetAnswer}
                     />
                     {question.item &&
                       resolveAyuComponent(question) !==
@@ -165,7 +181,7 @@ export const AyuStepperContainer = forwardRef<
                           items={question.item}
                           parentQuestion={question}
                           answers={answers}
-                          setAnswer={setAnswer}
+                          setAnswer={handleSetAnswer}
                           clearAnswers={clearAnswers}
                           showAllTriangles
                         />
@@ -294,16 +310,7 @@ export const AyuStepperContainer = forwardRef<
                             variant="primary"
                             className="w-full md:w-[10%]"
                             size="sm"
-                            disabled={
-                              ((question.type === 'date' ||
-                                question.type === 'integer' ||
-                                question.type === 'quantity') &&
-                                isEmpty(answers[question.linkId])) ||
-                              hasUnansweredRequiredNestedChild(
-                                question,
-                                answers
-                              )
-                            }
+                            disabled={skippedQuestions.has(question.linkId)}
                             rightIcon={
                               submittedQuestions.has(question.linkId) ? (
                                 <img src={iconYes} alt="yes" />
@@ -347,19 +354,21 @@ export const AyuStepperContainer = forwardRef<
                                     (question.answerOption?.length ?? 0) &&
                                   !hasExclusiveSelected(question, answerCodes);
 
-                                const message = isAssociatedSymptomsIncomplete
-                                  ? VALIDATION_ALL_COMPULSORY
-                                  : hasVisibleRequiredNestedString(
-                                        question,
-                                        answers
-                                      ) ||
-                                      isNestedInputValueMissing(
-                                        question,
-                                        answers
-                                      ) ||
-                                      isQuantityInvalid(question, answers)
-                                    ? VALIDATION_ENTER_VALUE
-                                    : VALIDATION_SELECT_OPTION;
+                                const message =
+                                  isAssociatedSymptomsIncomplete &&
+                                  isStrictAssociatedSymptoms(question)
+                                    ? VALIDATION_ALL_COMPULSORY
+                                    : hasVisibleRequiredNestedString(
+                                          question,
+                                          answers
+                                        ) ||
+                                        isNestedInputValueMissing(
+                                          question,
+                                          answers
+                                        ) ||
+                                        isQuantityInvalid(question, answers)
+                                      ? VALIDATION_ENTER_VALUE
+                                      : VALIDATION_SELECT_OPTION;
                                 showToast(message, undefined, 'warning');
                                 return;
                               }
@@ -389,13 +398,9 @@ export const AyuStepperContainer = forwardRef<
                               variant="primary"
                               className="w-full md:w-[10%]"
                               size="sm"
-                              disabled={
-                                answers[question.linkId] !== undefined &&
-                                !isActive
-                              }
+                              disabled={submittedQuestions.has(question.linkId)}
                               rightIcon={
-                                skippedQuestions.has(question.linkId) &&
-                                !(question.linkId in answers) ? (
+                                skippedQuestions.has(question.linkId) ? (
                                   <img src={iconYes} alt="yes" />
                                 ) : undefined
                               }
