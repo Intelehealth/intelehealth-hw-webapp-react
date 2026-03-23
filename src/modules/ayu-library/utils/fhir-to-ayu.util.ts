@@ -73,15 +73,13 @@ export function transformFhirToAyu(
     return null;
   }
 
-  // Wrap multiple root items into a single AYU root group
-  if (questionnaire.item.length >= 1) {
-    return {
-      linkId: 'root',
-      type: 'group',
-      text: questionnaire.title,
-      item: questionnaire.item.map(transformItem),
-    };
-  }
+  // Wrap root items into a single AYU root group
+  return {
+    linkId: 'root',
+    type: 'group',
+    text: questionnaire.title,
+    item: questionnaire.item.map(transformItem),
+  };
 }
 
 //resolve-label.ts
