@@ -1,3 +1,4 @@
+import { yupResolver } from '@hookform/resolvers/yup';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import iconVitals from '../../../assets/icons/vitals.svg';
@@ -270,7 +271,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     trigger,
     formState: { errors },
   } = useForm<VitalsFormValues>({
-    //    resolver: validationSchema ? yupResolver(validationSchema) : undefined,
+    resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     mode: 'onChange',
   });
 
