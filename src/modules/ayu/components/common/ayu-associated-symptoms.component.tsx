@@ -6,7 +6,10 @@ import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../ayu-library/types/ayu.types';
-import { EXT_URL_DISPLAY_TEXT } from '../../../ayu-library/utils/constants';
+import {
+  EXT_URL_DISPLAY_TEXT,
+  SELECT_YES_OR_NO,
+} from '../../../ayu-library/utils/constants';
 import iconNo from '../../assets/no.svg';
 import iconYes from '../../assets/yes.svg';
 import { AyuNestedRenderer } from '../start-visit/visit-reason/ayu-nested-renderer.component';
@@ -36,7 +39,7 @@ export const AyuAssociatedSymptoms = ({
   };
 
   return (
-    <div className="space-y-4 bg-emerald-50 p-4 rounded-xl">
+    <div className="bg-emerald-50 p-4 rounded-xl">
       <div className="text-lg font-medium">
         {question?.extension &&
         question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
@@ -46,9 +49,7 @@ export const AyuAssociatedSymptoms = ({
           : question.text}
         {/* {question?.required && <span className="text-error-500 ml-1">*</span>} */}
       </div>
-      <div className="text-sm text-gray-500">
-        Select yes or no for each option
-      </div>
+      <span className="text-sm text-gray-500">{SELECT_YES_OR_NO}</span>
 
       {question.answerOption?.map((opt, index) => {
         const code = opt.valueCoding?.code || opt.valueString || '';
@@ -66,7 +67,7 @@ export const AyuAssociatedSymptoms = ({
         );
 
         return (
-          <div key={code} className="border-b border-b-gray-200 pb-3">
+          <div key={code} className="border-b border-b-gray-200 pt-3 pb-3">
             <div className="flex items-center justify-between">
               <span>
                 {index + 1}. {opt.valueCoding?.display || opt.valueString}

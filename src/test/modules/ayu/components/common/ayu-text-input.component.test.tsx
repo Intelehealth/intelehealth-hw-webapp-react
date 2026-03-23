@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuTextInput } from '../../../../../modules/ayu/components/common/ayu-text-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { resolveAyuComponent } from '../../../../../modules/ayu-library/logic/decision-matrix';
 
 vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
@@ -10,6 +11,8 @@ vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
 vi.mock('../../../../../modules/ayu-library/logic/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(() => 'text'),
 }));
+
+const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
 
 describe('AyuTextInput', () => {
   const mockQuestion: AyuQuestion = {
@@ -612,6 +615,83 @@ describe('AyuTextInput', () => {
 
       const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
       expect(textarea.value).toBe('[object Object]');
+    });
+  });
+
+  describe('Associated Symptoms Parent Label Hiding', () => {
+    const associatedSymptomsParent: AyuQuestion = {
+      linkId: 'assoc-parent',
+      text: 'Associated symptoms',
+      type: 'choice',
+    };
+
+    it('should hide label containing "Other" when parent is associatedSymptoms', () => {
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      const questionWithOther: AyuQuestion = {
+        ...mockQuestion,
+        text: '[Other]',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithOther}
+          parent={associatedSymptomsParent}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.queryByText('[Other]')).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      mockResolveAyuComponent.mockReturnValue('text');
+    });
+
+    it('should hide label containing "Other [describe]" (lowercase) when parent is associatedSymptoms', () => {
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      const questionWithDescribe: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Other [describe]',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithDescribe}
+          parent={associatedSymptomsParent}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.queryByText('Other [describe]')).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      mockResolveAyuComponent.mockReturnValue('text');
+    });
+
+    it('should show label without "Other" or "describe" when parent is associatedSymptoms', () => {
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      const regularQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Duration of fever',
+      };
+      render(
+        <AyuTextInput
+          question={regularQuestion}
+          parent={associatedSymptomsParent}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByText('Duration of fever')).toBeInTheDocument();
+      mockResolveAyuComponent.mockReturnValue('text');
+    });
+
+    it('should hide label with "describe" (case-insensitive) when parent is not associatedSymptoms', () => {
+      mockResolveAyuComponent.mockReturnValue('text');
+      const questionWithDescribe: AyuQuestion = {
+        ...mockQuestion,
+        text: 'please describe symptoms',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithDescribe}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.queryByText('please describe symptoms')).not.toBeInTheDocument();
     });
   });
 });
