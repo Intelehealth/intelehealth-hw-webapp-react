@@ -154,6 +154,15 @@ describe('NotificationList', () => {
     expect(screen.getByText('3d ago')).toBeInTheDocument();
   });
 
+  it('should render empty string when createdAt is missing', () => {
+    mockNotifications = [
+      { id: 1, title: 'No time', isRead: false, createdAt: '' },
+    ];
+    render(<NotificationList />);
+    expect(screen.getByText('No time')).toBeInTheDocument();
+    expect(screen.queryByText('Just now')).not.toBeInTheDocument();
+  });
+
   it('should render multiple notifications', () => {
     mockNotifications = [
       { id: 1, title: 'First', description: 'Desc 1', isRead: false, createdAt: new Date().toISOString() },

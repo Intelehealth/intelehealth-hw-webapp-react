@@ -66,6 +66,29 @@ describe('AyuAssociatedSymptoms', () => {
       expect(screen.getByText('Associated Symptoms')).toBeInTheDocument();
     });
 
+    it('should render extension display text instead of question.text when EXT_URL_DISPLAY_TEXT extension is present', () => {
+      const questionWithDisplayExt: AyuQuestion = {
+        ...baseQuestion,
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/display',
+            valueString: 'Custom Display Label',
+          },
+        ],
+      };
+      render(
+        <AyuAssociatedSymptoms
+          question={questionWithDisplayExt}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.getByText('Custom Display Label')).toBeInTheDocument();
+      expect(screen.queryByText('Associated Symptoms')).not.toBeInTheDocument();
+    });
+
     it('should render instruction text', () => {
       render(
         <AyuAssociatedSymptoms
@@ -76,7 +99,7 @@ describe('AyuAssociatedSymptoms', () => {
           setAnswer={mockSetAnswer}
         />
       );
-      expect(screen.getByText('Select yes or no for each option')).toBeInTheDocument();
+      expect(screen.getByText('Select yes or no')).toBeInTheDocument();
     });
 
     it('should render all answer options', () => {
@@ -110,25 +133,11 @@ describe('AyuAssociatedSymptoms', () => {
       expect(noButtons).toHaveLength(3);
     });
 
-    it('should render required asterisk when question is required', () => {
+    it('should not render required asterisk (asterisk is disabled)', () => {
       const requiredQuestion = { ...baseQuestion, required: true };
       render(
         <AyuAssociatedSymptoms
           question={requiredQuestion}
-          value={[]}
-          onChange={mockOnChange}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-        />
-      );
-      expect(screen.getByText('*')).toBeInTheDocument();
-    });
-
-    it('should not render required asterisk when question is not required', () => {
-      const optionalQuestion = { ...baseQuestion, required: false };
-      render(
-        <AyuAssociatedSymptoms
-          question={optionalQuestion}
           value={[]}
           onChange={mockOnChange}
           answers={{}}
@@ -586,7 +595,7 @@ describe('AyuAssociatedSymptoms', () => {
             'symptoms-q': ['fever'],
           }),
           setAnswer: mockSetAnswer,
-          selectable: true,
+          showAllTriangles: true,
         }),
         undefined
       );
@@ -649,7 +658,7 @@ describe('AyuAssociatedSymptoms', () => {
         />
       );
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('space-y-4', 'bg-emerald-50', 'p-4', 'rounded-xl');
+      expect(wrapper).toHaveClass('bg-emerald-50', 'p-4', 'rounded-xl');
     });
 
     it('should apply selected class to Yes button when option is selected yes', () => {

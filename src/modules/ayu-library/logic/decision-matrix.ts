@@ -1,8 +1,5 @@
 import type { AyuQuestion } from '../types/ayu.types';
-import {
-  EXT_URL_ORIGINAL_QUESTION_TEXT,
-  ASSOCIATED_SYMPTOMS_TEXT,
-} from '../utils/constants';
+import { ASSOCIATED_SYMPTOMS_TEXT } from '../utils/constants';
 
 export type AyuComponentType =
   | 'group'
@@ -23,14 +20,26 @@ export const ASSOCIATED_SYMPTOMS_COMPONENT: Extract<
   'associatedSymptoms'
 > = 'associatedSymptoms';
 
+/**
+ * Returns true only for the actual "Associated symptoms" question,
+ * which requires ALL options to be answered (yes/no for each).
+ * Family history and patient history allow partial answers.
+ */
+export function isStrictAssociatedSymptoms(q: AyuQuestion): boolean {
+  return q.type === 'choice' && q.text === ASSOCIATED_SYMPTOMS_TEXT;
+}
+
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
   const isAssociatedSymptoms =
     q.type === 'choice' &&
-    q.extension?.some(
-      ext =>
-        ext.url === EXT_URL_ORIGINAL_QUESTION_TEXT &&
-        ext.valueString === ASSOCIATED_SYMPTOMS_TEXT
-    );
+    (q.text === ASSOCIATED_SYMPTOMS_TEXT ||
+      q.text === 'Do you have a family history of any of the following?*' ||
+      q.text === 'Do you have a history of any of the following?*');
+  // q.extension?.some(
+  //   ext =>
+  //     ext.url === EXT_URL_ORIGINAL_QUESTION_TEXT &&
+  //     ext.valueString === ASSOCIATED_SYMPTOMS_TEXT
+  // );
 
   if (isAssociatedSymptoms) {
     return 'associatedSymptoms';

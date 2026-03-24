@@ -1,5 +1,6 @@
-import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import { resolveAyuComponent } from '../../../ayu-library/logic/decision-matrix';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 
 export function AyuTextInput({
   question,
@@ -11,6 +12,9 @@ export function AyuTextInput({
   const label = question
     ? resolveLabel(question, parent, previousSibling)
     : undefined;
+  const isAssociatedSymptomsParent = parent
+    ? resolveAyuComponent(parent) === 'associatedSymptoms'
+    : false;
   const inputId = `ayu-input-${question?.linkId}`;
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -23,8 +27,24 @@ export function AyuTextInput({
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} className="text-md font-medium text-black-500">
-          {label === 'Additional information' ? label : null}
+        <label
+          htmlFor={inputId}
+          className={
+            label === 'Additional Information'
+              ? 'text-md font-medium text-black-500'
+              : 'block text-base text-(--color-muted)'
+          }
+        >
+          {isAssociatedSymptomsParent
+            ? label === 'Additional Information' ||
+              (!label.toLowerCase().includes('other') &&
+                !label.toLowerCase().includes('describe'))
+              ? label
+              : null
+            : label === 'Additional Information' ||
+                !label.toLowerCase().includes('describe')
+              ? label
+              : null}
         </label>
       )}
       <textarea

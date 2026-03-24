@@ -5,16 +5,28 @@ import AyuButton from '../../common/ayu-button.component';
 
 const TOTAL_QUESTIONS = 10;
 
+const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
 const getPlaceholder = (key: string): string => {
   const placeholders: Record<string, string> = {
     height_cm: '172 cm',
     weight_kg: '63 kg',
-    bp_systolic: '270',
-    bp_diastolic: '160',
+    bmi: '22.5',
+    bp_systolic: '120 mmHg',
+    bp_diastolic: '80 mmHg',
     pulse_bpm: '72 bpm',
-    respiratory_rate: '24 breath/min',
-    temprature_f: '98F',
+    respiratory_rate: '18 breaths/min',
+    temprature_f: '98.6 °F',
     spo2: '98%',
+    fbs_mg_per_dl: '90 mg/dL',
+    ppbs_mg_per_dl: '140 mg/dL',
+    rbs_mg_per_dl: '110 mg/dL',
+    waist_circumference_cm: '80 cm',
+    hip_circumference_cm: '95 cm',
+    waist_to_hip_ratio: '0.85',
+    ogtt_mg_per_dl: '140 mg/dL',
+    hba1c: '5.7%',
+    blood_group: 'A+, B-, O+, AB+',
   };
   return placeholders[key] || '';
 };
@@ -64,16 +76,31 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           {field.is_mandatory && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="relative">
-          <input
-            type={field.key === 'blood_group' ? 'text' : 'number'}
-            step="any"
-            readOnly={isReadOnly}
-            {...register(field.key as keyof VitalsFormValues)}
-            className={`form-input-base w-full px-3 py-2 ${
-              error ? 'border-red-500' : ''
-            } ${isReadOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`}
-            placeholder={`E.g., ${getPlaceholder(field.key)}`}
-          />
+          {field.key === 'blood_group' ? (
+            <select
+              {...register(field.key as keyof VitalsFormValues)}
+              className={`form-input-base w-full px-3 py-2 ${error ? 'border-red-500' : ''}`}
+            >
+              <option value="">Select Blood Group</option>
+              {BLOOD_GROUP_OPTIONS.map(bg => (
+                <option key={bg} value={bg}>
+                  {bg}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              inputMode="decimal"
+              readOnly={isReadOnly}
+              {...register(field.key as keyof VitalsFormValues)}
+              maxLength={10}
+              className={`form-input-base w-full px-3 py-2 ${
+                error ? 'border-red-500' : ''
+              } ${isReadOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+              placeholder={`E.g., ${getPlaceholder(field.key)}`}
+            />
+          )}
           {showBMIStatus && (
             <span
               className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium ${

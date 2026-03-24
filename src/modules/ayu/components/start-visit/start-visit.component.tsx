@@ -4,6 +4,7 @@ import type { SectionState } from '../../../ayu-library/types/start-visit.types'
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
+import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
@@ -34,6 +35,32 @@ export const StartVisit = () => {
       patientAge?: string;
       patientGender?: string;
     }) || {};
+
+  const visitReasons = useVisitReasons();
+  const { ayuConfigFiles } = visitReasons;
+  const [confirmedReasons, setConfirmedReasons] = useState<string[]>([]);
+  const [medicalHistorySubtitle, setMedicalHistorySubtitle] = useState('');
+
+  const handleReasonsConfirmed = useCallback((reasons: string[]) => {
+    setConfirmedReasons(reasons);
+  }, []);
+
+  const getSectionSubtitle = (sectionName: string): string => {
+    switch (sectionName) {
+      case 'Visit Reason':
+        return confirmedReasons.length > 0 ? confirmedReasons.join(', ') : '';
+      case 'Physical Exam': {
+        const physExam = ayuConfigFiles.find(
+          f => f.name.replace(/\.json$/i, '') === 'physExam'
+        );
+        return physExam?.json?.title ?? '';
+      }
+      case 'Medical History':
+        return medicalHistorySubtitle;
+      default:
+        return '';
+    }
+  };
 
   const physicalExamFilter = useMemo(
     () => getPhysicalExamFilter(CoughQuestionnaire),
@@ -113,20 +140,6 @@ export const StartVisit = () => {
     });
   };
 
-  const handleVisitReasonProgress = useCallback(
-    (total: number, answered: number) => {
-      updateSectionProgress('Visit Reason', total, answered);
-    },
-    []
-  );
-
-  const handlePhysicalExamProgress = useCallback(
-    (total: number, answered: number) => {
-      updateSectionProgress('Physical Exam', total, answered);
-    },
-    []
-  );
-
   const updateSectionProgress = useCallback(
     (sectionName: string, total: number, answered: number) => {
       setSections(prev =>
@@ -141,6 +154,31 @@ export const StartVisit = () => {
     },
     []
   );
+
+  const handleVisitReasonProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Visit Reason', total, answered);
+    },
+    [updateSectionProgress]
+  );
+
+  const handlePhysicalExamProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Physical Exam', total, answered);
+    },
+    [updateSectionProgress]
+  );
+
+  const handleMedicalHistoryProgress = useCallback(
+    (total: number, answered: number) => {
+      updateSectionProgress('Medical History', total, answered);
+    },
+    [updateSectionProgress]
+  );
+
+  const handleMedicalHistorySubtitleChange = useCallback((subtitle: string) => {
+    setMedicalHistorySubtitle(subtitle);
+  }, []);
 
   return (
     <div className="bg-white">
@@ -168,6 +206,9 @@ export const StartVisit = () => {
         >
           {currentSectionIndex + 1}/{sections.length}{' '}
           {sections[currentSectionIndex].name}
+          {getSectionSubtitle(sections[currentSectionIndex].name) && (
+            <> : {getSectionSubtitle(sections[currentSectionIndex].name)}</>
+          )}
         </div>
       </div>
       {/* Top Loader */}
@@ -206,10 +247,12 @@ export const StartVisit = () => {
             onPrevQuestion={goPreviousQuestion}
             onPrevSection={goPreviousSection}
             onProgressUpdate={handleVisitReasonProgress}
+            visitReasons={visitReasons}
+            onReasonsConfirmed={handleReasonsConfirmed}
           />
         </div>
 
-        {currentSectionIndex === 2 && (
+        <div style={{ display: currentSectionIndex === 2 ? 'block' : 'none' }}>
           <PhysicalExamination
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
@@ -217,12 +260,21 @@ export const StartVisit = () => {
             onPrevSection={goPreviousSection}
             onProgressUpdate={handlePhysicalExamProgress}
             physicalExamFilter={physicalExamFilter}
+            ayuConfigFiles={ayuConfigFiles}
           />
-        )}
+        </div>
 
-        {currentSectionIndex === 3 && (
-          <MedicalHistory onSubmit={() => navigate('/ayu/visit-summary')} />
-        )}
+        <div style={{ display: currentSectionIndex === 3 ? 'block' : 'none' }}>
+          <MedicalHistory
+            questionIndex={currentQuestionIndex}
+            onNextQuestion={goNextQuestion}
+            onPrevQuestion={goPreviousQuestion}
+            onPrevSection={goPreviousSection}
+            onProgressUpdate={handleMedicalHistoryProgress}
+            onSubtitleChange={handleMedicalHistorySubtitleChange}
+            ayuConfigFiles={ayuConfigFiles}
+          />
+        </div>
       </div>
     </div>
   );

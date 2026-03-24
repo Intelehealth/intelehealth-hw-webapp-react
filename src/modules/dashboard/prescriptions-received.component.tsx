@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
@@ -21,6 +22,7 @@ interface PrescriptionsReceivedProps {
 export const PrescriptionsReceived = ({
   onCountLoaded,
 }: PrescriptionsReceivedProps = {}) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Received');
   const [search, setSearch] = useState('');
 
@@ -202,11 +204,13 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={receivedColumns}
                 data={loading ? [] : filteredReceived}
+                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
               />
             ) : (
               <ReusableGridTable
                 columns={pendingColumns}
                 data={loading ? [] : filteredPending}
+                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
               />
             )}
             {loading && (

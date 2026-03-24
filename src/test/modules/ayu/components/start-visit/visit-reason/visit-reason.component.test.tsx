@@ -75,10 +75,6 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-s
   )),
 }));
 
-vi.mock('../../../../../../modules/ayu/hooks/useVisitReasons.hook', () => ({
-  useVisitReasons: vi.fn(),
-}));
-
 vi.mock('../../../../../../components/modal/global-modal-context', () => ({
   useGlobalModal: vi.fn(),
 }));
@@ -87,11 +83,19 @@ vi.mock('../../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: vi.fn(),
 }));
 
+vi.mock('../../../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: vi.fn(() => ({
+    setVisitReasonData: vi.fn(),
+  })),
+}));
+
+vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', () => ({
+  buildVisitSummary: vi.fn(() => []),
+}));
+
 // Import mocked functions after mocks are set up
-import { useVisitReasons } from '../../../../../../modules/ayu/hooks/useVisitReasons.hook';
 import { useGlobalModal } from '../../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
-const mockUseVisitReasons = vi.mocked(useVisitReasons);
 const mockUseGlobalModal = vi.mocked(useGlobalModal);
 const mockTransformFhirToAyu = vi.mocked(transformFhirToAyu);
 const mockShowConfirmModal = vi.fn();
@@ -109,26 +113,30 @@ const createMockAyuJsonItem = (overrides = {}) => ({
   ...overrides,
 });
 
+const createDefaultVisitReasons = (overrides: any = {}) => ({
+  search: '',
+  setSearch: vi.fn(),
+  filteredNames: [],
+  selectedReasons: [] as string[],
+  addReason: vi.fn(),
+  removeReason: vi.fn(),
+  grouped: {},
+  selectedComplaints: [] as any[],
+  ...overrides,
+});
+
 describe('VisitReason', () => {
   const mockOnNextQuestion = vi.fn();
   const mockOnPrevQuestion = vi.fn();
   const mockOnPrevSection = vi.fn();
   const mockOnProgressUpdate = vi.fn();
 
+  let defaultVisitReasons: ReturnType<typeof createDefaultVisitReasons>;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default mock setup
-    mockUseVisitReasons.mockReturnValue({
-      search: '',
-      setSearch: vi.fn(),
-      filteredNames: [],
-      selectedReasons: [],
-      addReason: vi.fn(),
-      removeReason: vi.fn(),
-      grouped: {},
-      selectedComplaints: [],
-    });
+    defaultVisitReasons = createDefaultVisitReasons();
 
     mockUseGlobalModal.mockReturnValue({
       showConfirmModal: mockShowConfirmModal,
@@ -144,6 +152,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -156,6 +165,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -173,6 +183,7 @@ describe('VisitReason', () => {
           questionIndex={2}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -186,6 +197,7 @@ describe('VisitReason', () => {
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
           onPrevSection={mockOnPrevSection}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -198,6 +210,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -207,7 +220,7 @@ describe('VisitReason', () => {
 
   describe('canSubmit Logic', () => {
     it('should disable next button when no reasons are selected', () => {
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -223,6 +236,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -231,7 +245,7 @@ describe('VisitReason', () => {
     });
 
     it('should enable next button when reasons are selected', () => {
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -247,6 +261,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -258,7 +273,7 @@ describe('VisitReason', () => {
   describe('handleNext Function', () => {
     it('should not show confirmation modal when canSubmit is false', async () => {
       const user = userEvent.setup();
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -274,6 +289,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -288,7 +304,7 @@ describe('VisitReason', () => {
       const selectedReasons = ['Fever', 'Headache'];
       const selectedComplaints = [createMockAyuJsonItem()];
 
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -304,6 +320,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -327,7 +344,7 @@ describe('VisitReason', () => {
       const user = userEvent.setup();
       const selectedReasons = ['Fever', 'Cough', 'Sore Throat'];
 
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -343,6 +360,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -366,7 +384,7 @@ describe('VisitReason', () => {
       const selectedComplaint = createMockAyuJsonItem();
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -382,6 +400,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -404,7 +423,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -420,6 +439,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -437,7 +457,7 @@ describe('VisitReason', () => {
 
     it('should pass icon to confirmation modal', async () => {
       const user = userEvent.setup();
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -453,6 +473,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -477,7 +498,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -493,6 +514,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -518,7 +540,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -534,6 +556,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -563,7 +586,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -579,6 +602,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -605,7 +629,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -622,6 +646,7 @@ describe('VisitReason', () => {
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
           onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -650,7 +675,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -666,6 +691,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -694,7 +720,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -711,6 +737,7 @@ describe('VisitReason', () => {
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
           onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -740,7 +767,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -757,6 +784,7 @@ describe('VisitReason', () => {
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
           onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -777,6 +805,47 @@ describe('VisitReason', () => {
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 5);
     });
 
+    it('should not throw when onProgressUpdate is undefined and stepper reports progress', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      // Click the progress button (not complete) without onProgressUpdate prop
+      const progressButton = screen.getByTestId('stepper-progress-button');
+      await user.click(progressButton);
+
+      // Should not throw — handleStepperProgress uses optional chaining
+      expect(mockOnNextQuestion).not.toHaveBeenCalled();
+    });
+
     it('should handle onProgressUpdate being undefined', async () => {
       const user = userEvent.setup();
       const mockSchema = {
@@ -786,7 +855,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -802,6 +871,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -829,7 +899,7 @@ describe('VisitReason', () => {
       };
 
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -845,6 +915,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -873,6 +944,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -886,6 +958,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -897,7 +970,7 @@ describe('VisitReason', () => {
   describe('Edge Cases', () => {
     it('should handle empty selectedComplaints array', async () => {
       const user = userEvent.setup();
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -913,6 +986,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -924,7 +998,7 @@ describe('VisitReason', () => {
 
     it('should handle single selected reason', async () => {
       const user = userEvent.setup();
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -940,6 +1014,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -957,7 +1032,7 @@ describe('VisitReason', () => {
     it('should handle multiple selected reasons', async () => {
       const user = userEvent.setup();
       const selectedReasons = ['Fever', 'Cough', 'Headache', 'Nausea'];
-      mockUseVisitReasons.mockReturnValue({
+      defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
         filteredNames: [],
@@ -973,6 +1048,7 @@ describe('VisitReason', () => {
           questionIndex={0}
           onNextQuestion={mockOnNextQuestion}
           onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
         />
       );
 
@@ -984,6 +1060,40 @@ describe('VisitReason', () => {
           items: selectedReasons,
         })
       );
+    });
+
+    it('should call onReasonsConfirmed with selected reasons when modal is confirmed', async () => {
+      const user = userEvent.setup();
+      const mockOnReasonsConfirmed = vi.fn();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [{ linkId: 'q1', text: 'Question 1', type: 'string' as const }],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onReasonsConfirmed={mockOnReasonsConfirmed}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      expect(mockOnReasonsConfirmed).toHaveBeenCalledWith(['Fever']);
     });
   });
 });

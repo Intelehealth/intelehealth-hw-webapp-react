@@ -3,6 +3,8 @@ import type { AyuAnswerValue, AyuQuestion } from '../../../../modules/ayu-librar
 import {
   collectDescendantLinkIds,
   clearHiddenDescendantAnswers,
+  findMatchingOptionCode,
+  isDescendantLinkId,
 } from '../../../../modules/ayu-library/utils/question.utils';
 
 describe('question.utils', () => {
@@ -79,6 +81,115 @@ describe('question.utils', () => {
       expect(collectDescendantLinkIds(item)).toEqual([
         'branch-a', 'a-child', 'branch-b', 'b-child',
       ]);
+    });
+  });
+
+  describe('findMatchingOptionCode', () => {
+    it('should return code via linkId prefix match', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'A' } }],
+      };
+      const child: AyuQuestion = { linkId: 'opt-a-detail', type: 'string' };
+      expect(findMatchingOptionCode(child, parent)).toBe('opt-a');
+    });
+
+    it('should return code via enableWhen fallback when option exists on parent', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'A' } }],
+      };
+      const child: AyuQuestion = {
+        linkId: 'child-1',
+        type: 'string',
+        enableWhen: [{ question: 'p1', operator: '=', answerCoding: { code: 'opt-a' } }],
+      };
+      expect(findMatchingOptionCode(child, parent)).toBe('opt-a');
+    });
+
+    it('should return undefined via enableWhen fallback when option does NOT exist on parent', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'opt-b', display: 'B' } }],
+      };
+      const child: AyuQuestion = {
+        linkId: 'child-1',
+        type: 'string',
+        enableWhen: [{ question: 'p1', operator: '=', answerCoding: { code: 'opt-a' } }],
+      };
+      expect(findMatchingOptionCode(child, parent)).toBeUndefined();
+    });
+
+    it('should return undefined when no match found', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'A' } }],
+      };
+      const child: AyuQuestion = { linkId: 'unrelated', type: 'string' };
+      expect(findMatchingOptionCode(child, parent)).toBeUndefined();
+    });
+
+    it('should skip answerOption with no valueCoding code during prefix match', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { display: 'No Code' } } as any,
+          { valueCoding: { code: 'opt-a', display: 'A' } },
+        ],
+      };
+      const child: AyuQuestion = { linkId: 'opt-a-detail', type: 'string' };
+      expect(findMatchingOptionCode(child, parent)).toBe('opt-a');
+    });
+
+    it('should return undefined when parent has no answerOption', () => {
+      const parent: AyuQuestion = { linkId: 'p1', type: 'choice' };
+      const child: AyuQuestion = { linkId: 'child-1', type: 'string' };
+      expect(findMatchingOptionCode(child, parent)).toBeUndefined();
+    });
+  });
+
+  describe('isDescendantLinkId', () => {
+    it('should return false when question has no items', () => {
+      const q: AyuQuestion = { linkId: 'root', type: 'choice' };
+      expect(isDescendantLinkId(q, 'child')).toBe(false);
+    });
+
+    it('should return true for direct child', () => {
+      const q: AyuQuestion = {
+        linkId: 'root',
+        type: 'choice',
+        item: [{ linkId: 'child', type: 'string' }],
+      };
+      expect(isDescendantLinkId(q, 'child')).toBe(true);
+    });
+
+    it('should return true for grandchild (recursive)', () => {
+      const q: AyuQuestion = {
+        linkId: 'root',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'child',
+            type: 'choice',
+            item: [{ linkId: 'grandchild', type: 'string' }],
+          },
+        ],
+      };
+      expect(isDescendantLinkId(q, 'grandchild')).toBe(true);
+    });
+
+    it('should return false when linkId not found', () => {
+      const q: AyuQuestion = {
+        linkId: 'root',
+        type: 'choice',
+        item: [{ linkId: 'child', type: 'string' }],
+      };
+      expect(isDescendantLinkId(q, 'nonexistent')).toBe(false);
     });
   });
 

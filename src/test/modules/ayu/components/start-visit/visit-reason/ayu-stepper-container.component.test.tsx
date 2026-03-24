@@ -1,6 +1,8 @@
+import { createRef } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AyuStepperContainer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
+import type { AyuStepperContainerHandle } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
 import type { AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
 
 // Mock child components
@@ -66,6 +68,14 @@ vi.mock('../../../../../../modules/ayu/hooks/useFHIRStepper.hook', () => ({
 // Mock resolveAyuComponent so we can control associatedSymptoms detection
 vi.mock('../../../../../../modules/ayu-library/logic/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(),
+  isStrictAssociatedSymptoms: vi.fn(),
+  ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
+}));
+
+// Mock the re-export module used by the component
+vi.mock('../../../../../../modules/ayu/pages/decision-matrix', () => ({
+  resolveAyuComponent: vi.fn(),
+  isStrictAssociatedSymptoms: vi.fn(),
   ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
 }));
 
@@ -81,10 +91,11 @@ vi.mock('../../../../../../modules/ayu/assets/yes.svg', () => ({
 
 // Import the mocked functions after mocks are set up
 import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
-import { resolveAyuComponent } from '../../../../../../modules/ayu-library/logic/decision-matrix';
+import { resolveAyuComponent, isStrictAssociatedSymptoms } from '../../../../../../modules/ayu/pages/decision-matrix';
 import { showToast } from '../../../../../../services/toast';
 const mockUseFHIRStepper = vi.mocked(useFHIRStepper);
 const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
+const mockIsStrictAssociatedSymptoms = vi.mocked(isStrictAssociatedSymptoms);
 const mockShowToast = vi.mocked(showToast);
 
 describe('AyuStepperContainer', () => {
@@ -104,6 +115,7 @@ describe('AyuStepperContainer', () => {
     Element.prototype.scrollIntoView = vi.fn();
     // Default: resolveAyuComponent returns 'selectableOptionGroup' (not associatedSymptoms)
     mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
+    mockIsStrictAssociatedSymptoms.mockReturnValue(false);
   });
 
   describe('Basic Rendering', () => {
@@ -498,8 +510,8 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Choice question with string answer doesn't show submit button, shows skip button instead
-      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
+      // Choice question with visible nested string input shows submit button (may be disabled)
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
       expect(screen.getByTestId('button-skip')).toBeInTheDocument();
     });
 
@@ -771,7 +783,7 @@ describe('AyuStepperContainer', () => {
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
     });
 
-    it('should disable skip button for past questions with answers', () => {
+    it('should disable skip button for past questions that have been submitted', () => {
       const questions: AyuQuestion[] = [
         { linkId: 'q1', text: 'Question 1', type: 'string', required: false },
         { linkId: 'q2', text: 'Question 2', type: 'string' },
@@ -798,8 +810,12 @@ describe('AyuStepperContainer', () => {
         />
       );
 
+      // Submit the first question to mark it as submitted
+      const submitButtons = screen.getAllByTestId('button-submit');
+      fireEvent.click(submitButtons[0]);
+
       const skipButtons = screen.getAllByTestId('button-skip');
-      // First skip button (past question with answer) should be disabled
+      // First skip button (past question that was submitted) should be disabled
       expect(skipButtons[0]).toBeDisabled();
     });
   });
@@ -1415,8 +1431,8 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Submit button should not show because visible nested string has no answer
-      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
+      // Submit button shows because visible nested string input triggers hasInput
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
       expect(screen.getByTestId('button-skip')).toBeInTheDocument();
     });
   });
@@ -1497,7 +1513,7 @@ describe('AyuStepperContainer', () => {
     it('should show "All questions are compulsory" toast for incomplete associated symptoms', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
-        text: 'Associated Symptoms',
+        text: 'Associated symptoms',
         type: 'choice',
         repeats: true,
         answerOption: [
@@ -1507,6 +1523,7 @@ describe('AyuStepperContainer', () => {
       };
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2040,7 +2057,7 @@ describe('AyuStepperContainer', () => {
     it('should show toast when not all associatedSymptoms options answered', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
-        text: 'Associated Symptoms',
+        text: 'Associated symptoms',
         type: 'choice',
         repeats: true,
         answerOption: [
@@ -2050,6 +2067,7 @@ describe('AyuStepperContainer', () => {
       };
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2086,7 +2104,7 @@ describe('AyuStepperContainer', () => {
     it('should call goNext when all associatedSymptoms options are answered', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
-        text: 'Associated Symptoms',
+        text: 'Associated symptoms',
         type: 'choice',
         repeats: true,
         answerOption: [
@@ -2096,6 +2114,7 @@ describe('AyuStepperContainer', () => {
       };
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2160,7 +2179,7 @@ describe('AyuStepperContainer', () => {
       expect(screen.queryByTestId('nested-renderer')).not.toBeInTheDocument();
     });
 
-    it('should show toast for associatedSymptoms when answer is not an array', () => {
+    it('should show toast for associatedSymptoms when answer is not an array (non-strict)', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
         text: 'Associated Symptoms',
@@ -2172,6 +2191,52 @@ describe('AyuStepperContainer', () => {
       };
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'not-an-array' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const submitButton = screen.getByTestId('button-submit');
+      fireEvent.click(submitButton);
+
+      // Non-strict associated symptoms shows generic select option message
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please select any one option',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should show compulsory toast for strict associatedSymptoms when answer is not an array', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2203,11 +2268,11 @@ describe('AyuStepperContainer', () => {
       );
     });
 
-    it('should always call goNext for associatedSymptoms even when not active', () => {
+    it('should not call goNext for associatedSymptoms when not active', () => {
       const questions: AyuQuestion[] = [
         {
           linkId: 'q1',
-          text: 'Associated Symptoms',
+          text: 'Associated symptoms',
           type: 'choice',
           repeats: true,
           answerOption: [
@@ -2243,8 +2308,8 @@ describe('AyuStepperContainer', () => {
       const submitButtons = screen.getAllByTestId('button-submit');
       fireEvent.click(submitButtons[0]);
 
-      // Should still call goNext even though it's not the active question
-      expect(mockGoNext).toHaveBeenCalled();
+      // Should not call goNext because it's not the active question
+      expect(mockGoNext).not.toHaveBeenCalled();
     });
   });
 
@@ -2712,11 +2777,10 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // hasVisibleNestedInput checks answers[child.linkId] !== undefined
-      // [] !== undefined is true, so submit shows. But validation via toast will catch it.
+      // hasVisibleNestedInput is true so submit shows. The submit button disabled
+      // state is now driven by skippedQuestions, not by isEmpty on nested answers.
       const submitButton = screen.getByTestId('button-submit');
-      fireEvent.click(submitButton);
-      expect(mockShowToast).toHaveBeenCalled();
+      expect(submitButton).not.toBeDisabled();
     });
 
     it('should handle non-string child type in hasVisibleRequiredNestedString', () => {
@@ -2864,10 +2928,10 @@ describe('AyuStepperContainer', () => {
   });
 
   describe('associatedSymptoms answerOption fallback', () => {
-    it('should handle associatedSymptoms when answerOption is undefined', () => {
+    it('should show toast for associatedSymptoms when answerOption is undefined and array is empty', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
-        text: 'Associated Symptoms',
+        text: 'Associated symptoms',
         type: 'choice',
         repeats: true,
         // No answerOption
@@ -2895,11 +2959,11 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // answerOption?.length ?? 0 fallback - answers.length (0) < 0 is false, so valid
       const submitButton = screen.getByTestId('button-submit');
       fireEvent.click(submitButton);
-      expect(mockShowToast).not.toHaveBeenCalled();
-      expect(mockGoNext).toHaveBeenCalled();
+      // Empty array triggers validation for associatedSymptoms
+      expect(mockShowToast).toHaveBeenCalled();
+      expect(mockGoNext).not.toHaveBeenCalled();
     });
   });
 
@@ -3080,6 +3144,200 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('question-loader-0')).toBeInTheDocument();
       expect(screen.getByTestId('question-loader-1')).toBeInTheDocument();
       expect(screen.getByTestId('question-loader-2')).toBeInTheDocument();
+    });
+  });
+
+  describe('useImperativeHandle confirm', () => {
+    it('should call onComplete with current answers when confirm is invoked via ref', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Invoke the imperative confirm method
+      ref.current!.confirm();
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'hello' });
+    });
+
+    it('should not throw when onComplete is undefined and confirm is called', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(() => ref.current!.confirm()).not.toThrow();
+    });
+  });
+
+  describe('Strict associated symptoms with non-array answer', () => {
+    it('should use empty array fallback when answer is not an array for strict associated symptoms', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated Symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt1', display: 'Option 1' } },
+          { valueCoding: { code: 'opt2', display: 'Option 2' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'not-an-array' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      // Make it a strict associated symptoms component
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Click Submit — should show validation toast because the non-array answer
+      // falls through to the [] fallback
+      const submitButton = screen.getByTestId('button-submit');
+      fireEvent.click(submitButton);
+
+      expect(mockShowToast).toHaveBeenCalled();
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleSetAnswer clears submitted/skipped state', () => {
+    it('should clear submitted icon when answer is changed after submit', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Submit the question — should show the right icon
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(screen.getByTestId('right-icon-submit')).toBeInTheDocument();
+
+      // Change the answer via the input — handleSetAnswer should clear submittedQuestions
+      fireEvent.change(screen.getByTestId('input-q1'), { target: { value: 'new answer' } });
+      expect(screen.queryByTestId('right-icon-submit')).not.toBeInTheDocument();
+    });
+
+    it('should clear skipped icon when answer is changed after skip', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question',
+        type: 'string',
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Skip the question — should show the right icon on skip button
+      fireEvent.click(screen.getByTestId('button-skip'));
+      expect(screen.getByTestId('right-icon-skip')).toBeInTheDocument();
+
+      // Change the answer via the input — handleSetAnswer should clear skippedQuestions
+      fireEvent.change(screen.getByTestId('input-q1'), { target: { value: 'new answer' } });
+      expect(screen.queryByTestId('right-icon-skip')).not.toBeInTheDocument();
     });
   });
 });

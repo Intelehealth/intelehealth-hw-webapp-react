@@ -1,9 +1,6 @@
+import iconRightArrow from '../../../assets/arrow-right.svg';
+import { BUTTON_BACK, BUTTON_NEXT } from '../../../utils/ayu.constants';
 import AyuButton from '../../common/ayu-button.component';
-import {
-  BUTTON_BACK,
-  BUTTON_CONFIRM,
-  BUTTON_NEXT,
-} from '../../../utils/ayu.constants';
 
 interface Props {
   questionIndex: number;
@@ -16,32 +13,31 @@ interface Props {
 
 export const VisitReasonFooter = ({
   questionIndex,
-  totalQuestions,
+
   onNextQuestion,
   onPrevQuestion,
   onPrevSection,
   isNextDisabled = false,
 }: Props) => {
   const isFirst = questionIndex === 0;
-  const isLast = questionIndex === totalQuestions - 1;
 
   return (
     <div className="flex gap-3 md:justify-end">
       <AyuButton
         variant="primarylight"
         onClick={isFirst ? onPrevSection : onPrevQuestion}
-        className="w-[120px]"
       >
         {BUTTON_BACK}
       </AyuButton>
 
       <AyuButton
         variant="primary"
+        size="sm"
+        rightIcon={<img src={iconRightArrow} alt="yes" />}
         disabled={isNextDisabled}
         onClick={onNextQuestion}
-        className="w-[120px] border-0"
       >
-        {isLast ? BUTTON_CONFIRM : BUTTON_NEXT}
+        {BUTTON_NEXT}
       </AyuButton>
     </div>
   );

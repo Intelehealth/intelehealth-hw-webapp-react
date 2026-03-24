@@ -156,12 +156,14 @@ describe('AyuDropdown', () => {
       expect(select.style.maxHeight).toBe('');
     });
 
-    it('should handle undefined onChange gracefully', () => {
+    it('should handle undefined onChange gracefully', async () => {
+      const user = userEvent.setup();
       render(<AyuDropdown options={mockOptions} />);
 
       const select = screen.getByRole('combobox');
+      // Trigger a change event when onChange is not provided — should not throw
+      await user.selectOptions(select, 'opt1');
       expect(select).toBeInTheDocument();
-      // Should not throw error when onChange is not provided
     });
 
     it('should handle empty options array', () => {

@@ -1,12 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import { buildVisitSummary } from '../../../../ayu-library/logic/visit-summary.logic';
-import type { AyuAnswerValue, AyuQuestion } from '../../../../ayu-library/types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
-import { useVisitReasons } from '../../../hooks/useVisitReasons.hook';
+import {
+  CONFIRM_MODAL_DESCRIPTION,
+  CONFIRM_MODAL_NO,
+  CONFIRM_MODAL_TITLE,
+  CONFIRM_MODAL_YES,
+  VISIT_REASON_SUMMARY_TITLE,
+} from '../../../utils/ayu.constants';
+import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
@@ -14,12 +23,6 @@ import { ReasonAlphabetList } from './reason-alphabetList.component';
 import { ReasonCategoryList } from './reason-categoryList.component';
 import { ReasonSearchInput } from './search-input.component';
 import { SelectedReasons } from './selected-reasons.component';
-import {
-  CONFIRM_MODAL_TITLE,
-  CONFIRM_MODAL_DESCRIPTION,
-  CONFIRM_MODAL_YES,
-  CONFIRM_MODAL_NO,
-} from '../../../utils/ayu.constants';
 
 export const VisitReason = ({
   questionIndex,
@@ -27,6 +30,8 @@ export const VisitReason = ({
   onPrevQuestion,
   onPrevSection,
   onProgressUpdate,
+  visitReasons,
+  onReasonsConfirmed,
 }: SectionProps) => {
   const [showStepper, setShowStepper] = useState(false);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(null);
@@ -40,7 +45,7 @@ export const VisitReason = ({
     removeReason,
     grouped,
     selectedComplaints,
-  } = useVisitReasons();
+  } = visitReasons!;
 
   const { setVisitReasonData } = useStartVisitData();
   const { showConfirmModal } = useGlobalModal();
@@ -60,6 +65,7 @@ export const VisitReason = ({
       items: selectedReasons,
       open: true,
       onConfirm: () => {
+        onReasonsConfirmed?.(selectedReasons);
         const schema = transformFhirToAyu(selectedComplaints[0].json);
         setAyuSchema(schema);
         setShowStepper(true); //Switch UI
@@ -69,26 +75,43 @@ export const VisitReason = ({
 
   const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
 
-  const handleStepperComplete = useCallback((answers: Record<string, AyuAnswerValue>) => {
-    // Use buildVisitSummary to properly resolve answer codes to display text
-    const topLevelItems = (stableSchema?.item ?? []).filter(q => q.type !== 'group');
-    const answersMap = new Map(Object.entries(answers));
-    const sections = buildVisitSummary(topLevelItems, answersMap, '');
-    const details: Array<{ label: string; value: string }> = [];
-    for (const section of sections) {
-      for (const item of section.items) {
-        if (item.type === 'labelValue') {
-          details.push({ label: item.label, value: String(item.value ?? '') });
-        } else if (item.type === 'subheading') {
-          details.push({ label: item.heading, value: item.values.join(', ') });
+  const handleStepperComplete = useCallback(
+    (answers: Record<string, AyuAnswerValue>) => {
+      // Use buildVisitSummary to properly resolve answer codes to display text
+      const topLevelItems = (stableSchema?.item ?? []).filter(
+        q => q.type !== 'group'
+      );
+      const answersMap = new Map(Object.entries(answers));
+      const sections = buildVisitSummary(topLevelItems, answersMap, '');
+      const details: Array<{ label: string; value: string }> = [];
+      for (const section of sections) {
+        for (const item of section.items) {
+          if (item.type === 'labelValue') {
+            details.push({
+              label: item.label,
+              value: String(item.value ?? ''),
+            });
+          } else if (item.type === 'subheading') {
+            details.push({
+              label: item.heading,
+              value: item.values.join(', '),
+            });
+          }
         }
       }
-    }
 
-    setVisitReasonData(answers, selectedReasons, details);
-    onProgressUpdate?.(1, 1);
-    onNextQuestion();
-  }, [onProgressUpdate, onNextQuestion, stableSchema, selectedReasons, setVisitReasonData]);
+      setVisitReasonData(answers, selectedReasons, details);
+      onProgressUpdate?.(1, 1);
+      onNextQuestion();
+    },
+    [
+      onProgressUpdate,
+      onNextQuestion,
+      stableSchema,
+      selectedReasons,
+      setVisitReasonData,
+    ]
+  );
 
   const handleStepperProgress = useCallback(
     (total: number, answered: number) => {
@@ -103,6 +126,7 @@ export const VisitReason = ({
       <div className="w-full flex flex-col h-full">
         <AyuStepperContainer
           questionnaire={stableSchema}
+          summaryTitle={VISIT_REASON_SUMMARY_TITLE}
           onComplete={handleStepperComplete}
           onProgressUpdate={handleStepperProgress}
         />
