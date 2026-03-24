@@ -28,7 +28,7 @@ const mockUseStartVisitData = vi.fn(() => ({
 }));
 
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
-  useStartVisitData: (...args: any[]) => mockUseStartVisitData(...args),
+  useStartVisitData: () => mockUseStartVisitData(),
 }));
 
 /* ── Mock ProfileContext ─────────────────────────────────────────────────── */
@@ -48,14 +48,14 @@ vi.mock('../../../../context/ProfileContext', () => ({
 
 /* ── Mock storage ────────────────────────────────────────────────────────── */
 
-const mockStorageGet = vi.fn<(key: string) => string | null>(() => null);
+const mockStorageGet = vi.fn((_key: string): string | null => null);
 const mockStorageGetLocationUuid = vi.fn(() => 'location-uuid-5678');
 
 vi.mock('../../../../utils/storage', () => ({
   storage: {
-    get: (...args: any[]) => mockStorageGet(...args),
+    get: (key: string) => mockStorageGet(key),
     set: vi.fn(),
-    getLocationUuid: (...args: any[]) => mockStorageGetLocationUuid(...args),
+    getLocationUuid: () => mockStorageGetLocationUuid(),
   },
 }));
 
@@ -98,22 +98,19 @@ vi.mock('../../../../modules/visit-summary/visit-summary-collapsed.component', (
 
 /* ── Mock visit-upload service functions ──────────────────────────────────── */
 
-const mockBuildVisitReasonHtml = vi.fn(() => '<p>visit reason</p>');
-const mockBuildPhysicalExamData = vi.fn(() => 'physical-exam-data');
-const mockBuildMedicalHistoryData = vi.fn(() => 'medical-history-data');
-const mockBuildFamilyHistoryData = vi.fn(() => 'family-history-data');
-const mockBuildVisitUploadPayload = vi.fn(() => ({ payload: true }));
-const mockUploadVisit = vi.fn(() => Promise.resolve());
+const mockBuildVisitReasonHtml = vi.fn((_a?: any, _b?: any) => '<p>visit reason</p>');
+const mockBuildPhysicalExamData = vi.fn((_a?: any, _b?: any) => 'physical-exam-data');
+const mockBuildMedicalHistoryData = vi.fn((_a?: any) => 'medical-history-data');
+const mockBuildFamilyHistoryData = vi.fn((_a?: any) => 'family-history-data');
+const mockBuildVisitUploadPayload = vi.fn((_a?: any) => ({ payload: true }));
+const mockUploadVisit = vi.fn((_a?: any) => Promise.resolve());
 
 vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
   buildVisitReasonHtml: (...args: any[]) => mockBuildVisitReasonHtml(...args),
   buildPhysicalExamData: (...args: any[]) => mockBuildPhysicalExamData(...args),
-  buildMedicalHistoryData: (...args: any[]) =>
-    mockBuildMedicalHistoryData(...args),
-  buildFamilyHistoryData: (...args: any[]) =>
-    mockBuildFamilyHistoryData(...args),
-  buildVisitUploadPayload: (...args: any[]) =>
-    mockBuildVisitUploadPayload(...args),
+  buildMedicalHistoryData: (...args: any[]) => mockBuildMedicalHistoryData(...args),
+  buildFamilyHistoryData: (...args: any[]) => mockBuildFamilyHistoryData(...args),
+  buildVisitUploadPayload: (...args: any[]) => mockBuildVisitUploadPayload(...args),
   uploadVisit: (...args: any[]) => mockUploadVisit(...args),
 }));
 

@@ -3,7 +3,7 @@ import type { ModalSectionItem } from '../../../components/modal/global-modal-co
 import type { PhysicalExamAnswers } from '../data/physical-exam.data';
 import type { VitalsFormValues } from '../types/vitals.types';
 import type { VitalField } from '../types/vitals.types';
-import type { AyuAnswerValue } from '../types/ayu.types';
+import type { AyuAnswerValue } from '../../ayu-library/types/ayu.types';
 
 export interface MedicalHistorySummary {
   title: string;

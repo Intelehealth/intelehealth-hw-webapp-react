@@ -83,12 +83,12 @@ vi.mock('../../../../modules/ayu/pages/visit-summary.page', () => ({
 }));
 
 // Mock storage utility
-const mockStorageGet = vi.fn<(key: string) => string | null>(() => null);
-const mockStorageSet = vi.fn();
+const mockStorageGet = vi.fn((_key?: string): string | null => null);
+const mockStorageSet = vi.fn((_key?: string, _val?: string) => {});
 vi.mock('../../../../utils/storage', () => ({
   storage: {
-    get: (...args: any[]) => mockStorageGet(...args),
-    set: (...args: any[]) => mockStorageSet(...args),
+    get: (key: string) => mockStorageGet(key),
+    set: (key: string, val: string) => mockStorageSet(key, val),
     getLocationUuid: vi.fn(),
   },
 }));

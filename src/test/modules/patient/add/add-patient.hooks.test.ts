@@ -110,7 +110,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(mockPatientFormData);
       });
@@ -149,7 +149,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(patientDataWithPhoto);
       });
@@ -366,7 +366,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(mockPatientFormData);
       });
@@ -387,7 +387,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(mockPatientFormData);
       });
@@ -406,7 +406,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(mockPatientFormData);
       });
@@ -439,7 +439,7 @@ describe('useAddPatient hook', () => {
 
       const { result } = renderHook(() => useAddPatient());
 
-      let success: boolean | undefined;
+      let success: string | boolean | undefined;
       await waitFor(async () => {
         success = await result.current.handleAddPatient(patientDataWithPhoto);
       });

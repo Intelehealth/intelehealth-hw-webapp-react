@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   StartVisitProvider,
   useStartVisitData,
@@ -8,7 +8,7 @@ import type { VitalsFormValues } from '../../../../modules/ayu/types/vitals.type
 import type { VitalField } from '../../../../modules/ayu/types/vitals.types';
 import type { PhysicalExamAnswers } from '../../../../modules/ayu/data/physical-exam.data';
 import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
-import type { AyuAnswerValue } from '../../../../modules/ayu/types/ayu.types';
+import type { AyuAnswerValue } from '../../../../modules/ayu-library/types/ayu.types';
 
 // Helper component that renders context values
 function ContextConsumer({

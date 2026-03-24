@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Route, Routes, useParams, useLocation } from 'react-router-dom';
 import { storage } from '../../../utils/storage';
 import { transformFhirToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';

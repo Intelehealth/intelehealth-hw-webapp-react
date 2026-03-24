@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
@@ -27,7 +27,6 @@ const getPhysicalExamFilter = (
 };
 
 export const StartVisit = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { patientName, patientAge, patientGender } =
     (location.state as {
