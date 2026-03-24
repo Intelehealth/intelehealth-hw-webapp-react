@@ -38,9 +38,11 @@ export const createVitalsValidationSchema = (
         })
         .typeError(`${field.name} must be a valid number`);
 
-      // Add range validation if available
+      // Add range validation if available (skip for auto-calculated fields)
+      const isAutoCalculated =
+        field.key === 'bmi' || field.key === 'waist_to_hip_ratio';
       const range = VITAL_RANGES[field.key as keyof typeof VITAL_RANGES];
-      if (range) {
+      if (range && !isAutoCalculated) {
         fieldSchema = fieldSchema
           .min(range.min, `${field.name} must be at least ${range.min}`)
           .max(range.max, `${field.name} must be at most ${range.max}`);
@@ -86,11 +88,18 @@ export const getBMIStatus = (bmi?: number): string => {
   return 'Obese';
 };
 
-// Check if BP is high
-export const isBPHigh = (systolic?: number, diastolic?: number): boolean => {
-  const ranges = VITAL_RANGES;
+// Check if a specific BP field is high
+export const isBPSystolicHigh = (systolic?: number): boolean => {
+  const val = Number(systolic);
+  return !isNaN(val) && val > 0 && val >= VITAL_RANGES.bp_systolic.warning_high;
+};
+
+export const isBPDiastolicHigh = (diastolic?: number): boolean => {
+  const val = Number(diastolic);
   return (
-    (systolic !== undefined && systolic >= ranges.bp_systolic.warning_high) ||
-    (diastolic !== undefined && diastolic >= ranges.bp_diastolic.warning_high)
+    !isNaN(val) && val > 0 && val >= VITAL_RANGES.bp_diastolic.warning_high
   );
 };
+
+export const isBPHigh = (systolic?: number, diastolic?: number): boolean =>
+  isBPSystolicHigh(systolic) || isBPDiastolicHigh(diastolic);

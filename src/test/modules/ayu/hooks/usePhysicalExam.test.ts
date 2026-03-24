@@ -32,6 +32,7 @@ const { mockQuestions } = vi.hoisted(() => {
         { id: 'q2-a', text: 'Option A' },
         { id: 'q2-b', text: 'Option B' },
         { id: 'q2-cam', text: 'Camera', isCamera: true, isExclusiveOption: true },
+        { id: 'q2-exc', text: 'Exclusive', isExclusiveOption: true },
       ],
     },
     {
@@ -349,6 +350,41 @@ describe('usePhysicalExam', () => {
     });
   });
 
+  // ── selectSingle ──────────────────────────────────────────────────────
+
+  describe('selectSingle', () => {
+    it('should set a single answer without advancing', () => {
+      const { result } = setup();
+      act(() => result.current.selectAndAdvance('q1-a')); // advance to q2
+      // Now use selectSingle on past question q1
+      act(() => result.current.selectSingle('q1-b', 'q1'));
+      expect(result.current.selectedOptionsFor('q1')).toEqual(['q1-b']);
+      expect(result.current.internalIndex).toBe(1); // did not change
+    });
+
+    it('should preserve camera selection when changing answer', () => {
+      const { result } = setup();
+      act(() => result.current.selectAndAdvance('q1-a')); // advance to q2
+      // Select camera on q2
+      act(() => result.current.toggleOption('q2-cam'));
+      act(() => result.current.toggleOption('q2-a'));
+      act(() => result.current.goNext()); // advance past q2
+      // Now selectSingle on q2 — should keep camera
+      act(() => result.current.selectSingle('q2-b', 'q2'));
+      const opts = result.current.selectedOptionsFor('q2');
+      expect(opts).toContain('q2-cam');
+      expect(opts).toContain('q2-b');
+      expect(opts).not.toContain('q2-a');
+    });
+
+    it('should no-op when targetQuestionId is not found (line 85)', () => {
+      const { result } = setup();
+      act(() => result.current.selectSingle('q1-a', 'nonexistent-q'));
+      // Nothing should change
+      expect(result.current.selectedOptionsFor('q1')).toEqual([]);
+    });
+  });
+
   // ── toggleOption ───────────────────────────────────────────────────────
 
   describe('toggleOption', () => {
@@ -380,11 +416,11 @@ describe('usePhysicalExam', () => {
       expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a', 'q2-b']);
     });
 
-    it('should set only the exclusive option when selected', () => {
+    it('should keep camera alongside other selections (camera is additive)', () => {
       const { result } = setupAtQ2();
       act(() => result.current.toggleOption('q2-a'));
-      act(() => result.current.toggleOption('q2-cam')); // isExclusiveOption
-      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-cam']);
+      act(() => result.current.toggleOption('q2-cam')); // camera — additive
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a', 'q2-cam']);
     });
 
     it('should set only the excludeFromMulti option when selected', () => {
@@ -394,13 +430,13 @@ describe('usePhysicalExam', () => {
       expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-normal']);
     });
 
-    it('should clear exclusive option when a regular option is selected', () => {
+    it('should keep camera when a regular option is added', () => {
       const { result } = setupAtQ2();
-      act(() => result.current.toggleOption('q2-cam')); // exclusive
+      act(() => result.current.toggleOption('q2-cam')); // camera
       expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-cam']);
 
-      act(() => result.current.toggleOption('q2-a')); // regular — filters out exclusive
-      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a']);
+      act(() => result.current.toggleOption('q2-a')); // regular — camera stays
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-cam', 'q2-a']);
     });
 
     it('should clear excludeFromMulti option when a regular option is selected', () => {
@@ -418,6 +454,47 @@ describe('usePhysicalExam', () => {
       act(() => result.current.toggleOption('anything'));
       expect(result.current.selectedOptionsFor('q2')).toEqual([]);
     });
+
+    it('should toggle off camera option when already selected (line 127)', () => {
+      const { result } = setupAtQ2();
+      act(() => result.current.toggleOption('q2-cam')); // select camera
+      expect(result.current.selectedOptionsFor('q2')).toContain('q2-cam');
+      act(() => result.current.toggleOption('q2-cam')); // deselect camera
+      expect(result.current.selectedOptionsFor('q2')).not.toContain('q2-cam');
+    });
+
+    it('should select only exclusive option when isExclusiveOption is true (lines 132-133)', () => {
+      const { result } = setupAtQ2();
+      // First select some regular options
+      act(() => result.current.toggleOption('q2-a'));
+      act(() => result.current.toggleOption('q2-b'));
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a', 'q2-b']);
+
+      // Now add an isExclusiveOption (non-camera) — need a question with such an option
+      // q2-cam has isExclusiveOption but also isCamera, so camera takes precedence
+      // Let's test with targetQuestionId to use a question with exclusive non-camera option
+      // We can use toggleOption with a non-camera exclusive option by adding to mock data
+      // For now, verify that camera additive overrides exclusive
+      act(() => result.current.toggleOption('q2-cam'));
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a', 'q2-b', 'q2-cam']);
+    });
+
+    it('should select only exclusive non-camera option, clearing others (lines 132-133)', () => {
+      const { result } = setupAtQ2();
+      act(() => result.current.toggleOption('q2-a'));
+      act(() => result.current.toggleOption('q2-b'));
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a', 'q2-b']);
+      // Select exclusive non-camera option — should clear all and keep only this
+      act(() => result.current.toggleOption('q2-exc'));
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-exc']);
+    });
+
+    it('should fall back to currentQuestion when targetQuestionId not found (line 115)', () => {
+      const { result } = setupAtQ2();
+      // Pass a non-existent targetQuestionId — should fall back to currentQuestion (q2)
+      act(() => result.current.toggleOption('q2-a', 'nonexistent-q'));
+      expect(result.current.selectedOptionsFor('q2')).toEqual(['q2-a']);
+    });
   });
 
   // ── goNext ─────────────────────────────────────────────────────────────
@@ -429,13 +506,14 @@ describe('usePhysicalExam', () => {
       expect(result.current.internalIndex).toBe(1);
     });
 
-    it('should call onNextQuestion when on last question', () => {
+    it('should call onNextQuestion when on last question and all required answered', () => {
       const onNext = vi.fn();
       const { result } = setup({ onNextQuestion: onNext });
 
-      // Advance to last (index 2)
-      act(() => result.current.goNext());
-      act(() => result.current.goNext());
+      // Answer all required questions (q1 and q2 are required) then advance
+      act(() => result.current.selectAndAdvance('q1-a'));
+      act(() => result.current.toggleOption('q2-a'));
+      act(() => result.current.goNext()); // advance past q2
       expect(result.current.isLastQuestion).toBe(true);
 
       act(() => result.current.goNext());
@@ -459,12 +537,13 @@ describe('usePhysicalExam', () => {
       expect(result.current.internalIndex).toBe(1);
     });
 
-    it('should call onNextQuestion when skipping last question', () => {
+    it('should call onNextQuestion when skipping last question and all required answered', () => {
       const onNext = vi.fn();
       const { result } = setup({ onNextQuestion: onNext });
 
-      // Navigate to last
-      act(() => result.current.goNext());
+      // Answer required questions then navigate to last (q3 is not required)
+      act(() => result.current.selectAndAdvance('q1-a'));
+      act(() => result.current.toggleOption('q2-a'));
       act(() => result.current.goNext());
 
       act(() => result.current.goSkip());

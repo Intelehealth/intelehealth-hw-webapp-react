@@ -19,15 +19,28 @@ import {
 import type { CapturedImage } from '../types/obs.types';
 import type { SectionProps } from '../../ayu-library/types/start-visit.types';
 
-/** Recompute visible questions for a given answer state (used for look-ahead in selectAndAdvance) */
 const computeVisible = (
   base: typeof PHYSICAL_EXAM_QUESTIONS,
   answers: PhysicalExamAnswers
 ) =>
-  base.filter(q => {
-    if (!q.showWhen) return true;
-    return (answers[q.showWhen.questionId] ?? []).includes(q.showWhen.optionId);
-  });
+  base.filter(
+    q =>
+      !q.showWhen ||
+      (answers[q.showWhen.questionId] ?? []).includes(q.showWhen.optionId)
+  );
+
+const allReqMet = (
+  questions: typeof PHYSICAL_EXAM_QUESTIONS,
+  ans: PhysicalExamAnswers
+) =>
+  questions.filter(q => q.isRequired).every(q => (ans[q.id] ?? []).length > 0);
+
+const sectionComment = (
+  questions: typeof PHYSICAL_EXAM_QUESTIONS,
+  qId: string
+) =>
+  questions.find(q => q.id === qId)?.sectionLabel?.replace(/:$/, '') ??
+  'General exams';
 
 export const usePhysicalExam = ({
   onNextQuestion,
@@ -38,8 +51,9 @@ export const usePhysicalExam = ({
   const ayuList = useAyuJsonList('IDA6');
   const serverQuestions = useMemo(() => {
     const item = ayuList.find(i => i.name === 'physExam.json');
-    if (!item) return null;
-    return parsePhysExamJson(item.json as unknown as PhysExamRawRoot);
+    return item
+      ? parsePhysExamJson(item.json as unknown as PhysExamRawRoot)
+      : null;
   }, [ayuList]);
 
   const baseQuestions = useMemo(
@@ -52,7 +66,6 @@ export const usePhysicalExam = ({
   );
   const [internalIndex, setInternalIndex] = useState(0);
   const [answers, setAnswers] = useState<PhysicalExamAnswers>({});
-  /** Captured images per question — stores both File (for binary upload) and preview (for display) */
   const [cameraImages, setCameraImages] = useState<
     Record<string, CapturedImage[]>
   >({});
@@ -64,8 +77,11 @@ export const usePhysicalExam = ({
   const totalQuestions = visibleQuestions.length;
   const currentQuestion = visibleQuestions[internalIndex] ?? null;
   const isLastQuestion = internalIndex >= totalQuestions - 1;
+  const allRequiredAnswered = useMemo(
+    () => allReqMet(visibleQuestions, answers),
+    [visibleQuestions, answers]
+  );
 
-  /** Keep a ref so goNext() sees the up-to-date isLastQuestion without stale closures */
   const isLastRef = useRef(isLastQuestion);
   isLastRef.current = isLastQuestion;
 
@@ -73,100 +89,91 @@ export const usePhysicalExam = ({
     onProgressUpdate?.(totalQuestions, internalIndex);
   }, [totalQuestions, internalIndex, onProgressUpdate]);
 
-  /** Select a single-choice option and immediately advance to the next question.
-   *  Computes the new visibility BEFORE committing state so the advance decision
-   *  accounts for newly visible conditional questions. */
+  const advance = (isLast: boolean, reqMet: boolean) => {
+    if (isLast) {
+      if (reqMet) onNextQuestion();
+    } else setInternalIndex(prev => prev + 1);
+  };
+
+  const selectSingle = (optionId: string, targetQuestionId: string) => {
+    const question = visibleQuestions.find(q => q.id === targetQuestionId);
+    if (!question) return;
+    const cameraIds = (answers[targetQuestionId] ?? []).filter(
+      id =>
+        question.options.find((o: PhysicalExamOption) => o.id === id)?.isCamera
+    );
+    setAnswers(prev => ({
+      ...prev,
+      [targetQuestionId]: [...cameraIds, optionId],
+    }));
+  };
+
   const selectAndAdvance = (optionId: string) => {
     if (!currentQuestion) return;
     const { id: questionId } = currentQuestion;
     const newAnswers = { ...answers, [questionId]: [optionId] };
     const newVisible = computeVisible(baseQuestions, newAnswers);
-    const newIsLast = internalIndex >= newVisible.length - 1;
-
     setAnswers(newAnswers);
-    if (newIsLast) {
-      onNextQuestion();
-    } else {
-      setInternalIndex(prev => prev + 1);
-    }
+    advance(
+      internalIndex >= newVisible.length - 1,
+      allReqMet(newVisible, newAnswers)
+    );
   };
 
-  /** Toggle a multi-choice option (no auto-advance). */
-  const toggleOption = (optionId: string) => {
-    if (!currentQuestion) return;
-    const { id: questionId, options } = currentQuestion;
+  const toggleOption = (optionId: string, targetQuestionId?: string) => {
+    const question = targetQuestionId
+      ? (visibleQuestions.find(q => q.id === targetQuestionId) ??
+        currentQuestion)
+      : currentQuestion;
+    if (!question) return;
+    const { id: questionId, options } = question;
     const option = options.find((o: PhysicalExamOption) => o.id === optionId);
 
     setAnswers(prev => {
       const current = prev[questionId] ?? [];
-
-      if (option?.isExclusiveOption) {
-        return { ...prev, [questionId]: [optionId] };
+      if (option?.isCamera) {
+        return current.includes(optionId)
+          ? { ...prev, [questionId]: current.filter(id => id !== optionId) }
+          : { ...prev, [questionId]: [...current, optionId] };
       }
-      if (option?.excludeFromMulti) {
+      if (option?.isExclusiveOption)
         return { ...prev, [questionId]: [optionId] };
-      }
+      if (option?.excludeFromMulti)
+        return { ...prev, [questionId]: [optionId] };
 
       const filtered = current.filter(id => {
         const o = options.find((opt: PhysicalExamOption) => opt.id === id);
-        return !o?.isExclusiveOption && !o?.excludeFromMulti;
+        return o?.isCamera || (!o?.isExclusiveOption && !o?.excludeFromMulti);
       });
-
-      if (filtered.includes(optionId)) {
-        return {
-          ...prev,
-          [questionId]: filtered.filter(id => id !== optionId),
-        };
-      }
-      return { ...prev, [questionId]: [...filtered, optionId] };
+      return filtered.includes(optionId)
+        ? { ...prev, [questionId]: filtered.filter(id => id !== optionId) }
+        : { ...prev, [questionId]: [...filtered, optionId] };
     });
   };
 
-  /** Explicit advance (used by multi-choice Next). */
-  const goNext = () => {
-    if (isLastRef.current) {
-      onNextQuestion();
-    } else {
-      setInternalIndex(prev => prev + 1);
-    }
-  };
+  const goNext = () => advance(isLastRef.current, allRequiredAnswered);
 
-  /** Skip current question — clears its answer and images before advancing. */
   const goSkip = () => {
     if (currentQuestion) {
       setAnswers(prev => ({ ...prev, [currentQuestion.id]: [] }));
-      clearCameraImages(currentQuestion.id);
+      clearCameraImgs(currentQuestion.id);
     }
-    if (isLastRef.current) {
-      onNextQuestion();
-    } else {
-      setInternalIndex(prev => prev + 1);
-    }
+    advance(isLastRef.current, allRequiredAnswered);
   };
 
-  /** Go back one question, or exit to the previous section from question 0. */
   const goBack = () => {
-    if (internalIndex === 0) {
-      onPrevSection?.();
-    } else {
-      setInternalIndex(prev => prev - 1);
-    }
+    if (internalIndex === 0) onPrevSection?.();
+    else setInternalIndex(prev => prev - 1);
   };
 
   const selectedOptionsFor = (questionId: string): string[] =>
     answers[questionId] ?? [];
-
-  /** Returns base64 preview strings for display in the UI */
   const cameraImagesFor = (questionId: string): string[] =>
     (cameraImages[questionId] ?? []).map(img => img.preview);
 
-  /** Stores both the original File (binary) and base64 preview, and adds to pending upload array */
   const addCameraImage = async (questionId: string, file: File) => {
     const preview = await fileToBase64(file);
-    const question = baseQuestions.find(q => q.id === questionId);
-    const comment =
-      question?.sectionLabel?.replace(/:$/, '') ?? 'General exams';
-    addPendingImage(file, comment);
+    addPendingImage(file, sectionComment(baseQuestions, questionId));
     setCameraImages(prev => ({
       ...prev,
       [questionId]: [...(prev[questionId] ?? []), { file, preview }],
@@ -174,7 +181,6 @@ export const usePhysicalExam = ({
   };
 
   const removeCameraImage = (questionId: string, index: number) => {
-    // Find the flat index in pendingImages for this question's image
     let flatIndex = 0;
     for (const [qId, imgs] of Object.entries(cameraImages)) {
       if (qId === questionId) {
@@ -190,18 +196,12 @@ export const usePhysicalExam = ({
     }));
   };
 
-  const clearCameraImages = (questionId: string) => {
-    // Rebuild pending array without this question's images
+  const clearCameraImgs = (questionId: string) => {
     clearPendingImages();
     const remaining = { ...cameraImages, [questionId]: [] };
-    for (const [qId, imgs] of Object.entries(remaining)) {
-      const question = baseQuestions.find(q => q.id === qId);
-      const comment =
-        question?.sectionLabel?.replace(/:$/, '') ?? 'General exams';
-      for (const img of imgs) {
-        addPendingImage(img.file, comment);
-      }
-    }
+    for (const [qId, imgs] of Object.entries(remaining))
+      for (const img of imgs)
+        addPendingImage(img.file, sectionComment(baseQuestions, qId));
     setCameraImages(prev => ({ ...prev, [questionId]: [] }));
   };
 
@@ -215,11 +215,13 @@ export const usePhysicalExam = ({
     cameraImagesFor,
     addCameraImage,
     removeCameraImage,
-    clearCameraImages,
+    clearCameraImages: clearCameraImgs,
     selectAndAdvance,
+    selectSingle,
     toggleOption,
     goNext,
     goSkip,
     goBack,
+    allRequiredAnswered,
   };
 };
