@@ -37,8 +37,7 @@ export function AyuTextInput({
         >
           {isAssociatedSymptomsParent
             ? label === 'Additional Information' ||
-              (!label.toLowerCase().includes('other') &&
-                !label.toLowerCase().includes('describe'))
+              !label.toLowerCase().includes('other')
               ? label
               : null
             : label === 'Additional Information' ||
