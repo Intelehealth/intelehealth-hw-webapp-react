@@ -18,8 +18,9 @@ vi.mock('../../components/down-menu/down-menu.component', () => ({
   default: () => <div data-testid="down-menu">DownMenu</div>,
 }));
 
-// Test component to render inside MainContainer
-// const TestPage = () => <div data-testid="test-page">Test Page</div>;
+vi.mock('../../components/notifications/notification-manager.component', () => ({
+  default: () => null,
+}));
 
 describe('MainContainer', () => {
   it('should render the main container layout', () => {
@@ -41,7 +42,6 @@ describe('MainContainer', () => {
       </MemoryRouter>
     );
 
-    // The Outlet should be present in the layout
     const mainContent = screen.getByTestId('side-menu');
     expect(mainContent).toBeInTheDocument();
   });
@@ -53,8 +53,8 @@ describe('MainContainer', () => {
       </MemoryRouter>
     );
 
-    const mainDiv = container.firstChild as HTMLElement;
-    expect(mainDiv).toHaveClass('flex', 'flex-col', 'h-full', 'bg-(--color-maint-bg)');
+    const mainDiv = container.querySelector('[data-testid="main-container"]') as HTMLElement;
+    expect(mainDiv).toHaveClass('flex', 'flex-col', 'h-full');
   });
 
   it('should render SideMenu with children', () => {
@@ -66,8 +66,6 @@ describe('MainContainer', () => {
 
     const sideMenu = screen.getByTestId('side-menu');
     expect(sideMenu).toBeInTheDocument();
-    
-    // Check that SideMenu contains the expected children structure
     expect(screen.getByTestId('navbar')).toBeInTheDocument();
     expect(screen.getByTestId('down-menu')).toBeInTheDocument();
   });
@@ -79,7 +77,7 @@ describe('MainContainer', () => {
       </MemoryRouter>
     );
 
-    const mainDiv = container.firstChild as HTMLElement;
+    const mainDiv = container.querySelector('[data-testid="main-container"]') as HTMLElement;
     expect(mainDiv).toHaveClass('flex', 'flex-col', 'h-full');
   });
 
@@ -114,7 +112,6 @@ describe('MainContainer', () => {
       </MemoryRouter>
     );
 
-    // Check for responsive classes in the structure
     const sideMenu = screen.getByTestId('side-menu');
     expect(sideMenu).toBeInTheDocument();
   });
@@ -136,9 +133,65 @@ describe('MainContainer', () => {
       </MemoryRouter>
     );
 
-    // Verify all expected components are rendered
     expect(screen.getByTestId('side-menu')).toBeInTheDocument();
     expect(screen.getByTestId('navbar')).toBeInTheDocument();
     expect(screen.getByTestId('down-menu')).toBeInTheDocument();
+  });
+
+  it('should have content area with overflow-hidden and flex-col classes', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const contentDiv = container.querySelector('#main-container-content') as HTMLElement;
+    expect(contentDiv).toBeInTheDocument();
+    expect(contentDiv).toHaveClass('flex-1', 'overflow-hidden', 'flex', 'flex-col');
+  });
+
+  it('should have content area with bg-white class', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const contentDiv = container.querySelector('#main-container-content') as HTMLElement;
+    expect(contentDiv).toHaveClass('bg-white');
+  });
+
+  it('should have rounded-lg and shadow-md on content area for normal routes', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const contentDiv = container.querySelector('#main-container-content') as HTMLElement;
+    expect(contentDiv).toHaveClass('rounded-lg', 'shadow-md');
+  });
+
+  it('should render navbar visible for normal routes', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const navbarWrapper = screen.getByTestId('navbar').parentElement;
+    expect(navbarWrapper).not.toHaveClass('hidden');
+  });
+
+  it('should render down-menu visible for normal routes', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const downMenuWrapper = screen.getByTestId('down-menu').parentElement;
+    expect(downMenuWrapper).not.toHaveClass('hidden');
+    expect(downMenuWrapper).toHaveClass('md:hidden');
   });
 });

@@ -30,7 +30,7 @@ describe('DashboardComponent', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+    expect(screen.getAllByText('Prescriptions').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Open visits')).toBeInTheDocument();
     expect(screen.getByText('Appointments')).toBeInTheDocument();
     expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe('DashboardComponent', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+    expect(screen.getAllByText('Prescriptions').length).toBeGreaterThanOrEqual(1);
 
     // Check that the subtitle contains the HTML content
     const prescriptionCard = container.querySelector('[class*="bg-(--color-accent-light)"]');
@@ -106,7 +106,7 @@ describe('DashboardComponent', () => {
     );
 
     // Check all four card titles are present
-    expect(screen.getByText('Prescriptions')).toBeInTheDocument();
+    expect(screen.getAllByText('Prescriptions').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Open visits')).toBeInTheDocument();
     expect(screen.getByText('Appointments')).toBeInTheDocument();
     expect(screen.getByText('Follow-up visits')).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe('DashboardComponent', () => {
         </MemoryRouter>
       );
       // Click the Prescriptions card wrapper to toggle showPrescriptions
-      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      const prescriptionCard = screen.getAllByText('Prescriptions')[0].closest('[class*="cursor-pointer"]')!;
       fireEvent.click(prescriptionCard);
       // Look for the back button with the correct text
       const backButton = screen.queryByRole('button', { name: /← Prescriptions/i });
@@ -192,7 +192,7 @@ describe('DashboardComponent', () => {
         </MemoryRouter>
       );
       // Toggle on
-      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      const prescriptionCard = screen.getAllByText('Prescriptions')[0].closest('[class*="cursor-pointer"]')!;
       fireEvent.click(prescriptionCard);
       // Find the back button
       const backButton = screen.queryByRole('button', { name: /← Prescriptions/i });
@@ -225,7 +225,8 @@ describe('DashboardComponent', () => {
           <DashboardComponent />
         </MemoryRouter>
       );
-      expect(screen.getByText('Prescription Received')).toBeInTheDocument();
+      // Both the dashboard card and the PrescriptionsReceived heading say "Prescriptions"
+      expect(screen.getAllByText('Prescriptions').length).toBeGreaterThanOrEqual(2);
     });
 
     it('hides mobile Add Patients button when showPrescriptions is true', () => {
@@ -235,7 +236,7 @@ describe('DashboardComponent', () => {
         </MemoryRouter>
       );
       // Click to toggle showPrescriptions on
-      const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]')!;
+      const prescriptionCard = screen.getAllByText('Prescriptions')[0].closest('[class*="cursor-pointer"]')!;
       fireEvent.click(prescriptionCard);
       // Find the Add Patients button (mobile)
       const mobileAddPatientsBtn = screen.getAllByText('Add Patients').find(
@@ -244,6 +245,74 @@ describe('DashboardComponent', () => {
       // Current behavior: clicking navigates instead of toggling detail view,
       // so the mobile Add Patients button should remain visible (not have 'hidden').
       expect(mobileAddPatientsBtn?.closest('button')).not.toHaveClass('hidden');
+    });
+  });
+
+  describe('initialShowPrescriptions prop', () => {
+    it('renders prescriptions wrapper with flex class when initialShowPrescriptions is true', () => {
+      const { container } = render(
+        <MemoryRouter>
+          <DashboardComponent initialShowPrescriptions={true} />
+        </MemoryRouter>
+      );
+      // The prescriptions wrapper should have 'flex' class when showPrescriptions is true
+      const prescriptionWrapper = container.querySelector('[class*="lg:flex-1"]');
+      expect(prescriptionWrapper).toHaveClass('flex');
+    });
+
+    it('renders prescriptions wrapper with hidden md:flex when initialShowPrescriptions is false', () => {
+      const { container } = render(
+        <MemoryRouter>
+          <DashboardComponent initialShowPrescriptions={false} />
+        </MemoryRouter>
+      );
+      const prescriptionWrapper = container.querySelector('[class*="lg:flex-1"]');
+      expect(prescriptionWrapper).toHaveClass('hidden', 'md:flex');
+    });
+
+    it('shows mobile back button when initialShowPrescriptions is true', () => {
+      render(
+        <MemoryRouter>
+          <DashboardComponent initialShowPrescriptions={true} />
+        </MemoryRouter>
+      );
+      expect(screen.getByText('← Prescriptions')).toBeInTheDocument();
+    });
+
+    it('hides dashboard cards on mobile when initialShowPrescriptions is true', () => {
+      const { container } = render(
+        <MemoryRouter>
+          <DashboardComponent initialShowPrescriptions={true} />
+        </MemoryRouter>
+      );
+      const gridContainer = container.querySelector('[class*="grid-cols-1"]');
+      expect(gridContainer).toHaveClass('hidden', 'md:grid');
+    });
+  });
+
+  describe('Desktop Add Patients button', () => {
+    it('renders desktop Add Patients button with md:flex class', () => {
+      render(
+        <MemoryRouter>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+      const desktopAddBtn = screen.getAllByText('Add Patients')
+        .map(el => el.closest('button'))
+        .find(btn => btn?.classList.contains('md:flex'));
+      expect(desktopAddBtn).toBeTruthy();
+    });
+  });
+
+  describe('Prescription count display', () => {
+    it('displays prescription count from onCountLoaded callback', () => {
+      render(
+        <MemoryRouter>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+      // Default count is 0 since mock returns totalCount: 0
+      expect(screen.getByText(/0 Patients/)).toBeInTheDocument();
     });
   });
 });

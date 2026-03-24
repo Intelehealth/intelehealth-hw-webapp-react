@@ -30,7 +30,7 @@ describe('DashboardComponent navigation', () => {
 
   it('navigates to prescriptions when Prescriptions card is clicked', () => {
     render(<DashboardComponent />);
-    const prescriptionCard = screen.getByText('Prescriptions').closest('[class*="cursor-pointer"]');
+    const prescriptionCard = screen.getAllByText('Prescriptions')[0].closest('[class*="cursor-pointer"]');
     expect(prescriptionCard).toBeTruthy();
     if (prescriptionCard) fireEvent.click(prescriptionCard);
     expect(navigateMock).toHaveBeenCalledWith(ROUTES.PRESCRIPTIONS);

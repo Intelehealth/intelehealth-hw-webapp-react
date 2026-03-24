@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const DEFAULT_ROW_COUNT = 6;
 
 interface Column<T> {
   header: string;
@@ -9,24 +11,31 @@ interface Column<T> {
 interface ResponsiveTableProps<T> {
   columns: Column<T>[];
   data: T[];
+  initialRowCount?: number;
 }
 
 export function ReusableGridTable<T>({
   columns,
   data,
+  initialRowCount = DEFAULT_ROW_COUNT,
 }: ResponsiveTableProps<T>) {
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleData = showAll ? data : data.slice(0, initialRowCount);
+  const hasMore = data.length > initialRowCount;
+
   return (
-    <div>
-      {/* Desktop Header */}
-      <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500">
+    <div className="flex flex-col min-h-0 flex-1">
+      {/* Desktop Header – fixed at top */}
+      <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500 bg-white z-10 py-2 shrink-0">
         {columns.map((col, index) => (
           <span key={index}>{col.header}</span>
         ))}
       </div>
 
-      {/*  Rows */}
-      <div className="space-y-1.5 p-2 lg:p-1.5">
-        {data.map((row, rowIndex) => (
+      {/*  Rows – scrollable area */}
+      <div className="space-y-1.5 p-2 lg:p-1.5 flex-1 min-h-0 overflow-y-auto">
+        {visibleData.map((row, rowIndex) => (
           <div
             key={rowIndex}
             className="rounded-xl border border-[#ECEEFF] bg-white shadow-[0px_1px_2px_0px_#1018280D]"
@@ -59,10 +68,17 @@ export function ReusableGridTable<T>({
         ))}
       </div>
 
-      {/*  Footer */}
-      <div className="flex justify-end px-6 lg:px-4 py-3 lg:py-2 cursor-pointer">
-        <p className="text-sm text-indigo-600">Show all →</p>
-      </div>
+      {/*  Footer – fixed at bottom */}
+      {hasMore && (
+        <div
+          className="flex justify-end px-6 lg:px-4 py-3 lg:py-2 cursor-pointer shrink-0"
+          onClick={() => setShowAll(prev => !prev)}
+        >
+          <p className="text-sm text-indigo-600">
+            {showAll ? '← Show less' : 'Show all →'}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
