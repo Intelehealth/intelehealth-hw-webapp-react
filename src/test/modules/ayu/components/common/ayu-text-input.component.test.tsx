@@ -656,8 +656,27 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
+      // "Other [describe]" contains "other" so it is hidden when parent is associatedSymptoms
       expect(screen.queryByText('Other [describe]')).not.toBeInTheDocument();
       expect(screen.getByRole('textbox')).toBeInTheDocument();
+      mockResolveAyuComponent.mockReturnValue('text');
+    });
+
+    it('should show label with "describe" but without "other" when parent is associatedSymptoms', () => {
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      const questionWithDescribe: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Please describe your symptoms',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithDescribe}
+          parent={associatedSymptomsParent}
+          previousSibling={undefined}
+        />
+      );
+      // Label contains "describe" but NOT "other", so it is shown for associatedSymptoms parent
+      expect(screen.getByText('Please describe your symptoms')).toBeInTheDocument();
       mockResolveAyuComponent.mockReturnValue('text');
     });
 
