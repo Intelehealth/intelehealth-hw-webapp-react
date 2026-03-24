@@ -6,9 +6,9 @@ import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.t
 import { AyuNestedRenderer as MockedAyuNestedRenderer } from '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 
 // Mock SVG imports
-vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({ default: 'yes-icon.svg' }));
+vi.mock('../../../../../modules/ayu/assets/yes-default.svg', () => ({ default: 'yes-icon.svg' }));
 vi.mock('../../../../../modules/ayu/assets/Yes.svg', () => ({ default: 'yes-selected-icon.svg' }));
-vi.mock('../../../../../modules/ayu/assets/no.svg', () => ({ default: 'no-icon.svg' }));
+vi.mock('../../../../../modules/ayu/assets/no-default.svg', () => ({ default: 'no-icon.svg' }));
 vi.mock('../../../../../modules/ayu/assets/No.svg', () => ({ default: 'no-selected-icon.svg' }));
 
 // Mock AyuButton
