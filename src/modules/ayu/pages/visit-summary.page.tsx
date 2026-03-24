@@ -203,7 +203,10 @@ const MedicalHistorySection: React.FC<{
           }
           if (item.type === 'subheading') {
             return (
-              <p key={iIdx} className="text-sm font-semibold text-gray-500 mt-3 mb-1">
+              <p
+                key={iIdx}
+                className="text-sm font-semibold text-gray-500 mt-3 mb-1"
+              >
                 {item.heading}
               </p>
             );

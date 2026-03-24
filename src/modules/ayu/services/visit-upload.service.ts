@@ -142,12 +142,16 @@ export function buildPhysicalExamData(
 /**
  * Build medical history display HTML and raw JSON from summary sections.
  */
-export function buildMedicalHistoryData(
-  sections: MedicalHistorySummary[]
-): { displayHtml: string; rawJson: string } {
+export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
+  displayHtml: string;
+  rawJson: string;
+} {
   const items = sections.flatMap(s => s.items);
   const values = items
-    .filter((i): i is Extract<ModalSectionItem, { type: 'labelValue' }> => i.type === 'labelValue')
+    .filter(
+      (i): i is Extract<ModalSectionItem, { type: 'labelValue' }> =>
+        i.type === 'labelValue'
+    )
     .map(i => String(i.value ?? ''))
     .filter(Boolean);
 
@@ -165,12 +169,16 @@ export function buildMedicalHistoryData(
 /**
  * Build family history display HTML and raw JSON from summary sections.
  */
-export function buildFamilyHistoryData(
-  sections: MedicalHistorySummary[]
-): { displayHtml: string; rawJson: string } {
+export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
+  displayHtml: string;
+  rawJson: string;
+} {
   const items = sections.flatMap(s => s.items);
   const parts = items
-    .filter((i): i is Extract<ModalSectionItem, { type: 'labelValue' }> => i.type === 'labelValue')
+    .filter(
+      (i): i is Extract<ModalSectionItem, { type: 'labelValue' }> =>
+        i.type === 'labelValue'
+    )
     .map(i => {
       const relation = i.value ? ` (${i.value})` : '';
       return `${i.label}${relation}`;

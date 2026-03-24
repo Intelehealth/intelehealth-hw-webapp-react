@@ -17,7 +17,9 @@ interface UseAddPatientReturn {
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
-  const handleAddPatient = async (patientData: PatientFormData): Promise<string | false> => {
+  const handleAddPatient = async (
+    patientData: PatientFormData
+  ): Promise<string | false> => {
     try {
       // Encode OpenMRS basic auth
       const formattedPatientData = mapPatientFormData(patientData);

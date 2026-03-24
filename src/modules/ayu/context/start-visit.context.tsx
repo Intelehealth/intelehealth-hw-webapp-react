@@ -34,15 +34,30 @@ interface StartVisitContextType {
   patientUuid: string | null;
   setPatientUuid: (uuid: string) => void;
   setVitalsData: (formValues: VitalsFormValues, config: VitalField[]) => void;
-  setVisitReasonData: (answers: Record<string, AyuAnswerValue>, reasonNames: string[], details: Array<{ label: string; value: string }>) => void;
+  setVisitReasonData: (
+    answers: Record<string, AyuAnswerValue>,
+    reasonNames: string[],
+    details: Array<{ label: string; value: string }>
+  ) => void;
   setPhysicalExamData: (answers: PhysicalExamAnswers) => void;
-  setMedicalHistoryData: (patHistSummary: MedicalHistorySummary[], famHistSummary: MedicalHistorySummary[]) => void;
+  setMedicalHistoryData: (
+    patHistSummary: MedicalHistorySummary[],
+    famHistSummary: MedicalHistorySummary[]
+  ) => void;
 }
 
 const StartVisitContext = createContext<StartVisitContextType | null>(null);
 
-export const StartVisitProvider = ({ children, initialPatientUuid }: { children: React.ReactNode; initialPatientUuid?: string | null }) => {
-  const [patientUuid, setPatientUuid] = useState<string | null>(initialPatientUuid ?? null);
+export const StartVisitProvider = ({
+  children,
+  initialPatientUuid,
+}: {
+  children: React.ReactNode;
+  initialPatientUuid?: string | null;
+}) => {
+  const [patientUuid, setPatientUuid] = useState<string | null>(
+    initialPatientUuid ?? null
+  );
   const [data, setData] = useState<StartVisitData>({
     vitals: null,
     visitReason: null,
@@ -50,25 +65,49 @@ export const StartVisitProvider = ({ children, initialPatientUuid }: { children:
     medicalHistory: null,
   });
 
-  const setVitalsData = (formValues: VitalsFormValues, config: VitalField[]) => {
+  const setVitalsData = (
+    formValues: VitalsFormValues,
+    config: VitalField[]
+  ) => {
     setData(prev => ({ ...prev, vitals: { formValues, config } }));
   };
 
-  const setVisitReasonData = (answers: Record<string, AyuAnswerValue>, reasonNames: string[], details: Array<{ label: string; value: string }>) => {
-    setData(prev => ({ ...prev, visitReason: { answers, reasonNames, details } }));
+  const setVisitReasonData = (
+    answers: Record<string, AyuAnswerValue>,
+    reasonNames: string[],
+    details: Array<{ label: string; value: string }>
+  ) => {
+    setData(prev => ({
+      ...prev,
+      visitReason: { answers, reasonNames, details },
+    }));
   };
 
   const setPhysicalExamData = (answers: PhysicalExamAnswers) => {
     setData(prev => ({ ...prev, physicalExam: { answers } }));
   };
 
-  const setMedicalHistoryData = (patHistSummary: MedicalHistorySummary[], famHistSummary: MedicalHistorySummary[]) => {
-    setData(prev => ({ ...prev, medicalHistory: { patHistSummary, famHistSummary } }));
+  const setMedicalHistoryData = (
+    patHistSummary: MedicalHistorySummary[],
+    famHistSummary: MedicalHistorySummary[]
+  ) => {
+    setData(prev => ({
+      ...prev,
+      medicalHistory: { patHistSummary, famHistSummary },
+    }));
   };
 
   return (
     <StartVisitContext.Provider
-      value={{ data, patientUuid, setPatientUuid, setVitalsData, setVisitReasonData, setPhysicalExamData, setMedicalHistoryData }}
+      value={{
+        data,
+        patientUuid,
+        setPatientUuid,
+        setVitalsData,
+        setVisitReasonData,
+        setPhysicalExamData,
+        setMedicalHistoryData,
+      }}
     >
       {children}
     </StartVisitContext.Provider>
@@ -77,6 +116,7 @@ export const StartVisitProvider = ({ children, initialPatientUuid }: { children:
 
 export const useStartVisitData = () => {
   const ctx = useContext(StartVisitContext);
-  if (!ctx) throw new Error('useStartVisitData must be used within StartVisitProvider');
+  if (!ctx)
+    throw new Error('useStartVisitData must be used within StartVisitProvider');
   return ctx;
 };

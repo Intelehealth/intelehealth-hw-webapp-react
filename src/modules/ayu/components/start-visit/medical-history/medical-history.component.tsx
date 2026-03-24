@@ -89,8 +89,14 @@ export const MedicalHistory = ({
       type: 'vitalConfirm',
       size: 'lg',
       onConfirm: () => {
-        const patHist = (fileResultsRef.current[0]?.sections ?? []).map(s => ({ title: s.title, items: s.items }));
-        const famHist = (fileResultsRef.current[1]?.sections ?? []).map(s => ({ title: s.title, items: s.items }));
+        const patHist = (fileResultsRef.current[0]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
+        const famHist = (fileResultsRef.current[1]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
         setMedicalHistoryData(patHist, famHist);
         const basePath = location.pathname.replace(/\/$/, '');
         navigate(`${basePath}/visit-summary`);
