@@ -221,7 +221,7 @@ const buildVisitReasonHtml = (
   }
 
   return {
-    displayHtml: `<b>${complaint}</b><br/>${displayHtml}`.trim(),
+    displayHtml: `<b>${complaint}</b>: <br/>${displayHtml}`.trim(),
     rawJson: JSON.stringify({ text_en: rawHtml.trim() }),
   };
 };

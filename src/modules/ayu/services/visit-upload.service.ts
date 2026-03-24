@@ -10,13 +10,12 @@ import type {
   PhysicalExamAnswers,
   PhysicalExamQuestion,
 } from '../data/physical-exam.data';
-import type { VitalField } from '../types/vitals.types';
-import type { VitalsFormValues } from '../types/vitals.types';
 import type {
   EncounterObs,
   EncounterPayload,
   VisitUploadPayload,
 } from '../types/visit-upload.types';
+import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,8 +95,8 @@ export function buildPhysicalExamData(
     if (question.sectionLabel && question.sectionLabel !== currentSection) {
       currentSection = question.sectionLabel;
       const sectionName = currentSection.replace(/:$/, '');
-      displayHtml += `►<b>${sectionName}: </b><br/>`;
-      rawHtml += `►<b>${sectionName}: </b><br/>`;
+      displayHtml += `<br/>►<b>${sectionName}: </b><br/>`;
+      rawHtml += `<br/>►<b>${sectionName}: </b><br/>`;
     }
 
     // Display format: • Category-answer text.
@@ -157,9 +156,10 @@ export interface FamilyHistoryCondition {
   describeRelation?: string;
 }
 
-export function buildFamilyHistoryData(
-  conditions: FamilyHistoryCondition[]
-): { displayHtml: string; rawJson: string } {
+export function buildFamilyHistoryData(conditions: FamilyHistoryCondition[]): {
+  displayHtml: string;
+  rawJson: string;
+} {
   const yesConditions = conditions.filter(c => c.hasCondition === 'Yes');
   const parts =
     yesConditions.length > 0
@@ -199,32 +199,16 @@ function buildAdultInitialObs(data: AdultInitialData): EncounterObs[] {
       data.visitReason.displayHtml
     ),
     makeObs(
-      ADULT_INITIAL_CONCEPTS.VISIT_REASON_RAW,
-      data.visitReason.rawJson
-    ),
-    makeObs(
       ADULT_INITIAL_CONCEPTS.PHYSICAL_EXAM_DISPLAY,
       data.physicalExam.displayHtml
-    ),
-    makeObs(
-      ADULT_INITIAL_CONCEPTS.PHYSICAL_EXAM_RAW,
-      data.physicalExam.rawJson
     ),
     makeObs(
       ADULT_INITIAL_CONCEPTS.MEDICAL_HISTORY_DISPLAY,
       data.medicalHistory.displayHtml
     ),
     makeObs(
-      ADULT_INITIAL_CONCEPTS.MEDICAL_HISTORY_RAW,
-      data.medicalHistory.rawJson
-    ),
-    makeObs(
       ADULT_INITIAL_CONCEPTS.FAMILY_HISTORY_DISPLAY,
       data.familyHistory.displayHtml
-    ),
-    makeObs(
-      ADULT_INITIAL_CONCEPTS.FAMILY_HISTORY_RAW,
-      data.familyHistory.rawJson
     ),
   ];
 }
@@ -258,9 +242,7 @@ export function buildVisitUploadPayload(
 ): VisitUploadPayload {
   const now = new Date();
   const encounterDatetime = formatDatetime(now);
-  const visitCompleteDatetime = formatDatetime(
-    new Date(now.getTime() + 1000)
-  );
+  const visitCompleteDatetime = formatDatetime(new Date(now.getTime() + 1000));
 
   const encounterProviders = [
     {
@@ -305,7 +287,11 @@ export function buildVisitUploadPayload(
   };
 
   return {
-    encounters: [vitalsEncounter, adultInitialEncounter, visitCompleteEncounter],
+    encounters: [
+      vitalsEncounter,
+      adultInitialEncounter,
+      visitCompleteEncounter,
+    ],
     visits: [
       {
         attributes: [
