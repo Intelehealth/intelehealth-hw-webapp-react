@@ -67,10 +67,12 @@ const mockHookReturn = {
   removeCameraImage: vi.fn(),
   clearCameraImages: vi.fn(),
   selectAndAdvance: vi.fn(),
+  selectSingle: vi.fn(),
   toggleOption: vi.fn(),
   goNext: vi.fn(),
   goSkip: vi.fn(),
   goBack: vi.fn(),
+  allRequiredAnswered: true,
 };
 
 vi.mock('../../../../../modules/ayu/hooks/usePhysicalExam', () => ({
@@ -103,13 +105,12 @@ vi.mock('../../../../../modules/ayu/components/common/ayu-selectable-option.comp
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/physical-exam-image-capture.component', () => ({
-  PhysicalExamImageCapture: ({ onAdd, onRemove, onUpload, images }: any) => (
+  PhysicalExamImageCapture: ({ onAdd, onRemove, images }: any) => (
     <div data-testid="image-capture">
       <button data-testid="capture-add" onClick={() => onAdd(new File([''], 'test.jpg'))}>
         Add
       </button>
       <button data-testid="capture-remove" onClick={() => onRemove(0)}>Remove</button>
-      <button data-testid="capture-upload" onClick={onUpload}>Upload</button>
       <span data-testid="capture-count">{images.length}</span>
     </div>
   ),
@@ -149,6 +150,7 @@ function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
     removeCameraImage: vi.fn(),
     clearCameraImages: vi.fn(),
     selectAndAdvance: vi.fn(),
+    selectSingle: vi.fn(),
     toggleOption: vi.fn(),
     goNext: vi.fn(),
     goSkip: vi.fn(),
@@ -392,7 +394,7 @@ describe('PhysicalExamination', () => {
       render(<PhysicalExamination {...defaultProps} />);
 
       await user.click(screen.getByTestId('option-q1-cam'));
-      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q1-cam');
+      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q1-cam', 'q1');
     });
 
     it('should call clearCameraImages when camera clicked and already selected', async () => {
@@ -435,23 +437,22 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.selectAndAdvance).toHaveBeenCalledWith('q1-yes');
     });
 
-    it('should call toggleOption when regular option clicked on previous question with camera', async () => {
+    it('should call toggleOption when regular option clicked on previous question', async () => {
       const user = userEvent.setup();
       // q1 is previous (index 0), q2 is active (index 1)
-      // q1 has camera selected so full body shows
       resetHookReturn({
         internalIndex: 1,
         currentQuestion: MOCK_QUESTIONS[1],
         selectedOptionsFor: vi.fn((qId: string) => {
-          if (qId === 'q1') return ['q1-cam'];
+          if (qId === 'q1') return ['q1-yes'];
           return [];
         }),
       });
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Click q1's "Yes" option (on the previous/inactive card)
-      await user.click(screen.getByTestId('option-q1-yes'));
-      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q1-yes');
+      // Click q1's "No" option (on the previous/inactive card) — single-choice uses selectSingle
+      await user.click(screen.getByTestId('option-q1-no'));
+      expect(mockHookReturn.selectSingle).toHaveBeenCalledWith('q1-no', 'q1');
     });
   });
 
@@ -498,11 +499,47 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.removeCameraImage).toHaveBeenCalledWith('q1', 0);
     });
 
-    it('should call goNext when upload button is clicked', async () => {
+    it('should not show upload button in image capture (handled by Submit)', () => {
+      render(<PhysicalExamination {...defaultProps} />);
+      expect(screen.queryByTestId('capture-upload')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── multi-choice toggle (line 151) ──────────────────────────────────
+
+  describe('multi-choice option click', () => {
+    it('should call toggleOption when clicking a regular option on a multi-choice question (line 151)', async () => {
       const user = userEvent.setup();
+      // q2 is multi-choice, render it as active
+      resetHookReturn({
+        internalIndex: 1,
+        currentQuestion: MOCK_QUESTIONS[1],
+        visibleQuestions: MOCK_QUESTIONS,
+      });
       render(<PhysicalExamination {...defaultProps} />);
 
-      await user.click(screen.getByTestId('capture-upload'));
+      await user.click(screen.getByTestId('option-q2-a'));
+      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q2-a', 'q2');
+    });
+  });
+
+  // ── onUploadImages / Submit button (lines 269-272) ─────────────────────
+
+  describe('Submit button (onUploadImages)', () => {
+    it('should call goNext and track submitted answers when Submit is clicked (lines 269-272)', async () => {
+      const user = userEvent.setup();
+      resetHookReturn({
+        internalIndex: 1,
+        currentQuestion: MOCK_QUESTIONS[1],
+        visibleQuestions: MOCK_QUESTIONS,
+        selectedOptionsFor: vi.fn((qId: string) => qId === 'q2' ? ['q2-a'] : []),
+        allRequiredAnswered: true,
+      });
+      render(<PhysicalExamination {...defaultProps} />);
+
+      const submitBtn = screen.getByText('Submit');
+      await user.click(submitBtn);
+
       expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);
     });
   });
