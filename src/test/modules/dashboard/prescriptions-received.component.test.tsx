@@ -98,7 +98,7 @@ describe('PrescriptionsReceived', () => {
 
     it('renders header title', () => {
       renderComponent();
-      expect(screen.getByText('Prescription Received')).toBeInTheDocument();
+      expect(screen.getByText('Prescriptions')).toBeInTheDocument();
     });
 
     it('renders filter icon', () => {
@@ -116,10 +116,10 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByAltText('search')).toBeInTheDocument();
     });
 
-    it('renders Received and Pendings tab buttons', () => {
+    it('renders Received and Pending tab buttons', () => {
       renderComponent();
       expect(screen.getByText('Received')).toBeInTheDocument();
-      expect(screen.getByText('Pendings')).toBeInTheDocument();
+      expect(screen.getByText('Pending')).toBeInTheDocument();
     });
 
     it('renders patient data in the Received table', () => {
@@ -145,9 +145,9 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getAllByText('Prescription').length).toBeGreaterThan(0);
     });
 
-    it('renders Show all footer link', () => {
+    it('does not render Show all footer when data has 6 or fewer rows', () => {
       renderComponent();
-      expect(screen.getByText('Show all →')).toBeInTheDocument();
+      expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
     });
   });
 
@@ -160,9 +160,9 @@ describe('PrescriptionsReceived', () => {
       expect(receivedTab).toHaveClass('text-indigo-600');
     });
 
-    it('clicking Pendings tab sets it as active', () => {
+    it('clicking Pending tab sets it as active', () => {
       renderComponent();
-      const pendingsTab = screen.getByText('Pendings').closest('button')!;
+      const pendingsTab = screen.getByText('Pending').closest('button')!;
       fireEvent.click(pendingsTab);
       expect(pendingsTab).toHaveClass('border-indigo-600');
       expect(pendingsTab).toHaveClass('text-indigo-600');
@@ -171,7 +171,7 @@ describe('PrescriptionsReceived', () => {
     it('inactive tab has transparent border', () => {
       renderComponent();
       const receivedTab = screen.getByText('Received').closest('button')!;
-      const pendingsTab = screen.getByText('Pendings').closest('button')!;
+      const pendingsTab = screen.getByText('Pending').closest('button')!;
       fireEvent.click(pendingsTab);
       expect(receivedTab).toHaveClass('border-transparent');
     });
@@ -179,7 +179,7 @@ describe('PrescriptionsReceived', () => {
     it('switching tabs toggles active styling', () => {
       renderComponent();
       const receivedTab = screen.getByText('Received').closest('button')!;
-      const pendingsTab = screen.getByText('Pendings').closest('button')!;
+      const pendingsTab = screen.getByText('Pending').closest('button')!;
 
       fireEvent.click(receivedTab);
       expect(receivedTab).toHaveClass('border-indigo-600');
@@ -190,21 +190,21 @@ describe('PrescriptionsReceived', () => {
       expect(receivedTab).toHaveClass('border-transparent');
     });
 
-    it('shows pending prescriptions data when Pendings tab is active', () => {
+    it('shows pending prescriptions data when Pending tab is active', () => {
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
     });
 
-    it('shows Uploaded column header in Pendings tab', () => {
+    it('shows Uploaded column header in Pending tab', () => {
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getAllByText('Uploaded').length).toBeGreaterThan(0);
     });
 
     it('renders pending upload timestamp with custom render', () => {
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getAllByText('30 min ago').length).toBeGreaterThan(0);
     });
   });
@@ -258,17 +258,17 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('Failed to fetch prescriptions')).toBeInTheDocument();
     });
 
-    it('shows loading indicator for Pendings tab', () => {
+    it('shows loading indicator for Pending tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
-    it('shows error for Pendings tab', () => {
+    it('shows error for Pending tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: 'Failed to fetch pending prescriptions', totalCount: 0 });
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getByText('Failed to fetch pending prescriptions')).toBeInTheDocument();
     });
 
@@ -278,10 +278,10 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('No prescriptions found.')).toBeInTheDocument();
     });
 
-    it('shows empty message when no pending prescriptions in Pendings tab', () => {
+    it('shows empty message when no pending prescriptions in Pending tab', () => {
       mockUsePrescriptionsPending.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       expect(screen.getByText('No pending prescriptions found.')).toBeInTheDocument();
     });
   });
@@ -291,6 +291,77 @@ describe('PrescriptionsReceived', () => {
       const onCountLoaded = vi.fn();
       renderComponent({ onCountLoaded });
       expect(onCountLoaded).toHaveBeenCalledWith(3);
+    });
+
+    it('does not throw when onCountLoaded is not provided', () => {
+      expect(() => renderComponent()).not.toThrow();
+    });
+  });
+
+  describe('initialRowCount prop', () => {
+    it('passes initialRowCount to ReusableGridTable on Received tab', () => {
+      renderComponent({ initialRowCount: 2 });
+      // With initialRowCount=2, only 2 of 3 received patients should show
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Nikita Agrawal').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Suresh Deshmukh')).not.toBeInTheDocument();
+    });
+
+    it('passes initialRowCount to ReusableGridTable on Pending tab', () => {
+      renderComponent({ initialRowCount: 5 });
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+    });
+
+    it('shows Show all footer when data exceeds initialRowCount', () => {
+      renderComponent({ initialRowCount: 2 });
+      expect(screen.getByText('Show all →')).toBeInTheDocument();
+    });
+
+    it('uses default row count when initialRowCount is not provided', () => {
+      renderComponent();
+      // 3 rows < default 6, so all should show and no footer
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Suresh Deshmukh').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Search filtering on Pending tab', () => {
+    it('filters Pending tab by patient name', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: 'Ravi' } });
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+    });
+
+    it('shows empty message when search has no Pending matches', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: 'nonexistent' } });
+      expect(screen.getByText('No pending prescriptions found.')).toBeInTheDocument();
+    });
+  });
+
+  describe('Layout structure', () => {
+    it('renders with flex layout for height chain', () => {
+      const { container } = renderComponent();
+      const root = container.firstElementChild as HTMLElement;
+      expect(root).toHaveClass('flex', 'flex-col', 'flex-1', 'min-h-0');
+    });
+
+    it('renders header with shrink-0 class', () => {
+      const { container } = renderComponent();
+      const header = container.querySelector('.shrink-0');
+      expect(header).toBeInTheDocument();
+    });
+
+    it('renders tabs section with shrink-0 class', () => {
+      const { container } = renderComponent();
+      const shrinkElements = container.querySelectorAll('.shrink-0');
+      expect(shrinkElements.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -305,7 +376,7 @@ describe('PrescriptionsReceived', () => {
 
     it('navigates to visit-details on pending row click', () => {
       renderComponent();
-      fireEvent.click(screen.getByText('Pendings').closest('button')!);
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
       const patientNames = screen.getAllByText('Ravi Kumar');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);

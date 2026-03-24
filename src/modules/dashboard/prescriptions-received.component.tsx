@@ -17,10 +17,12 @@ import type {
 
 interface PrescriptionsReceivedProps {
   onCountLoaded?: (count: number) => void;
+  initialRowCount?: number;
 }
 
 export const PrescriptionsReceived = ({
   onCountLoaded,
+  initialRowCount,
 }: PrescriptionsReceivedProps = {}) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Received');
@@ -125,15 +127,13 @@ export const PrescriptionsReceived = ({
     : 'No pending prescriptions found.';
 
   return (
-    <div>
-      <div>
-        <div className="mx-auto flex flex-col gap-4 ">
-          {/* Top Section max-w-7xl space-y-6 */}
-
+    <div className="flex flex-col flex-1 min-h-0 h-full">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="mx-auto flex flex-col flex-1 min-h-0 w-full">
           {/* Main Card */}
-          <div className="rounded-2xl bg-white shadow-sm">
+          <div className="rounded-2xl bg-white shadow-sm flex flex-col flex-1 min-h-0">
             {/* Header */}
-            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:p-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:p-3 lg:flex-row lg:items-center lg:justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex items-center">
                   <img
@@ -142,7 +142,7 @@ export const PrescriptionsReceived = ({
                   />
                 </div>
                 <h2 className="font-semibold lg:text-[14px] sm:text-[18px]">
-                  Prescription Received
+                  Prescriptions
                 </h2>
               </div>
 
@@ -172,7 +172,7 @@ export const PrescriptionsReceived = ({
             </div>
 
             {/* Tabs */}
-            <div className="px-2 py-0.5">
+            <div className="px-2 py-0.5 shrink-0">
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
                   onClick={() => setActiveTab('Received')}
@@ -187,15 +187,15 @@ export const PrescriptionsReceived = ({
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('Pendings')}
+                  onClick={() => setActiveTab('Pending')}
                   className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'Pendings'
+                    activeTab === 'Pending'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
                   }`}
                 >
                   <img src={iconPatientRecevied} />
-                  Pendings
+                  Pending
                 </button>
               </div>
             </div>
@@ -204,12 +204,14 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={receivedColumns}
                 data={loading ? [] : filteredReceived}
+                initialRowCount={initialRowCount}
                 onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
               />
             ) : (
               <ReusableGridTable
                 columns={pendingColumns}
                 data={loading ? [] : filteredPending}
+                initialRowCount={initialRowCount}
                 onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
               />
             )}

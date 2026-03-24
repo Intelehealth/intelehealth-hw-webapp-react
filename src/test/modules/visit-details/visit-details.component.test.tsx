@@ -57,6 +57,7 @@ function makeVisitData(overrides?: Partial<TransformedVisitDetails>): Transforme
     age: 30,
     patientIdentifier: 'ABC-123',
     chiefComplaint: 'Fever',
+    chiefComplaintHtml: '<b>Fever</b>: <br/>• Duration - 3 days.<br/>• Severity - Moderate.',
     visitDate: '27 January 2026',
     visitTime: '10:31 AM',
     doctorName: 'Dr. Smith',
@@ -245,6 +246,39 @@ describe('VisitDetails', () => {
         expect(screen.getByText('General Physician')).toBeInTheDocument();
         expect(screen.getByText("Doctor's speciality")).toBeInTheDocument();
       });
+    });
+
+    it('should render chief complaint HTML details', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByText(/Duration - 3 days/)).toBeInTheDocument();
+        expect(screen.getByText(/Severity - Moderate/)).toBeInTheDocument();
+      });
+    });
+
+    it('should not render HTML details div when chiefComplaintHtml is empty', async () => {
+      vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(
+        makeVisitData({ chiefComplaintHtml: '' })
+      );
+      const { container } = renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByText(/Chief Complaint: Fever/)).toBeInTheDocument();
+      });
+      const htmlDiv = container.querySelector('.leading-relaxed');
+      expect(htmlDiv).not.toBeInTheDocument();
+    });
+
+    it('should render bold text from HTML chief complaint', async () => {
+      vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(
+        makeVisitData({ chiefComplaintHtml: '<b>Cough</b>: <br/>• Dry cough' })
+      );
+      const { container } = renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByText(/Chief Complaint:/)).toBeInTheDocument();
+      });
+      const htmlDiv = container.querySelector('.leading-relaxed');
+      expect(htmlDiv).toBeInTheDocument();
+      expect(htmlDiv!.innerHTML).toContain('<b>Cough</b>');
     });
   });
 

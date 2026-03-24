@@ -292,7 +292,7 @@ const PrescriptionDetail: React.FC = () => {
     data.followUpDate;
 
   return (
-    <div className="bg-[#F5F5FA] min-h-screen p-4 md:p-5">
+    <div className="bg-[#F5F5FA] h-full overflow-y-auto p-4 md:p-5">
       {/* Back navigation – in gray area outside the card */}
       <button
         className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors mb-4"

@@ -37,10 +37,10 @@ const mockData = [
   },
 ];
 
-const renderComponent = () =>
+const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <OpenVisitsComponent />
+      <OpenVisitsComponent {...props} />
     </MemoryRouter>
   );
 
@@ -123,16 +123,81 @@ describe('OpenVisitsComponent', () => {
     expect(screen.getByText('No open visits found.')).toBeInTheDocument();
   });
 
-  it('shows Show all footer link', () => {
+  it('does not show Show all footer when data has 6 or fewer rows', () => {
     renderComponent();
-    expect(screen.getByText('Show all →')).toBeInTheDocument();
+    expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
   });
 
-  it('navigates to visit-details on row click', () => {
+  it('renders filter icon', () => {
     renderComponent();
-    const patientNames = screen.getAllByText('Ravi Kumar');
-    const row = patientNames[0].closest('.rounded-xl');
-    fireEvent.click(row!);
-    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
+    expect(screen.getByAltText('filter')).toBeInTheDocument();
+  });
+
+  it('renders search icon', () => {
+    renderComponent();
+    expect(screen.getByAltText('search')).toBeInTheDocument();
+  });
+
+  describe('initialRowCount prop', () => {
+    it('limits visible rows when initialRowCount is provided', () => {
+      const bigData = Array.from({ length: 8 }, (_, i) => ({
+        visitUuid: `v-${i}`,
+        patientName: `Patient ${i}`,
+        gender: 'M',
+        age: 30 + i,
+        visitCreatedDate: '2025-04-21',
+        clinicName: 'TM Clinic 1',
+        uploadTimestamp: `${i} hr ago`,
+      }));
+      mockUseOpenVisits.mockReturnValue({ data: bigData, loading: false, error: null, totalCount: 8 });
+      renderComponent({ initialRowCount: 3 });
+      expect(screen.getByText('Show all →')).toBeInTheDocument();
+    });
+
+    it('uses default row count when initialRowCount is not provided', () => {
+      renderComponent();
+      // 2 rows < default 6, no footer
+      expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Search filtering edge cases', () => {
+    it('shows empty message when search has no matches', () => {
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: 'nonexistent' } });
+      expect(screen.getByText('No open visits found.')).toBeInTheDocument();
+    });
+
+    it('search is case insensitive', () => {
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: 'ravi' } });
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Layout structure', () => {
+    it('renders with flex layout for height chain', () => {
+      const { container } = renderComponent();
+      const root = container.firstElementChild as HTMLElement;
+      expect(root).toHaveClass('flex', 'flex-col', 'flex-1', 'min-h-0');
+    });
+
+    it('renders header with shrink-0 class', () => {
+      const { container } = renderComponent();
+      const header = container.querySelector('.shrink-0');
+      expect(header).toBeInTheDocument();
+    });
+  });
+
+  describe('Row click navigation', () => {
+    it('navigates to visit-details on row click', () => {
+      renderComponent();
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
+    });
   });
 });
