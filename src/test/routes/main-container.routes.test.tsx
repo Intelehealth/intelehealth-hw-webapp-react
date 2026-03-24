@@ -173,7 +173,7 @@ describe('MainContainer', () => {
   });
 
   it('should render navbar visible for normal routes', () => {
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={['/dashboard']}>
         <MainContainer />
       </MemoryRouter>
@@ -184,7 +184,7 @@ describe('MainContainer', () => {
   });
 
   it('should render down-menu visible for normal routes', () => {
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={['/dashboard']}>
         <MainContainer />
       </MemoryRouter>
@@ -196,7 +196,7 @@ describe('MainContainer', () => {
   });
 
   it('should hide navbar on mobile for hideNavbarOnMobile routes (profile)', () => {
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={['/profile']}>
         <MainContainer />
       </MemoryRouter>
