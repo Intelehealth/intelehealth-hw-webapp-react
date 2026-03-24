@@ -11,7 +11,9 @@ import {
   SELECT_YES_OR_NO,
 } from '../../../ayu-library/utils/constants';
 import iconNo from '../../assets/no.svg';
+import iconNoSelected from '../../assets/No.svg';
 import iconYes from '../../assets/yes.svg';
+import iconYesSelected from '../../assets/Yes.svg';
 import { AyuNestedRenderer } from '../start-visit/visit-reason/ayu-nested-renderer.component';
 import AyuButton from './ayu-button.component';
 
@@ -76,10 +78,16 @@ export const AyuAssociatedSymptoms = ({
               <div className="flex gap-3">
                 <AyuButton
                   variant="white"
-                  leftIcon={<img src={iconYes} alt="yes" className="w-6 h-6" />}
+                  leftIcon={
+                    <img
+                      src={isSelected ? iconYesSelected : iconYes}
+                      alt="yes"
+                      className="w-full h-full"
+                    />
+                  }
                   size="md"
                   type="button"
-                  className={`px-4 py-1 rounded-lg border-none! ${
+                  className={`px-5 py-2 rounded-lg  border-none! ${
                     isSelected ? 'bg-emerald-500! text-white!' : ''
                   }`}
                   onClick={() => toggleValue(code, true)}
@@ -89,10 +97,16 @@ export const AyuAssociatedSymptoms = ({
 
                 <AyuButton
                   variant="white"
-                  leftIcon={<img src={iconNo} alt="no" className="w-6 h-6" />}
+                  leftIcon={
+                    <img
+                      src={isNo ? iconNoSelected : iconNo}
+                      alt="no"
+                      className="w-full h-full"
+                    />
+                  }
                   size="md"
                   type="button"
-                  className={`px-4 py-1 rounded-lg border-none! ${
+                  className={`px-5 py-2 rounded-lg border-none! ${
                     isNo ? 'bg-emerald-500! text-white!' : ''
                   }`}
                   onClick={() => toggleValue(code, false)}

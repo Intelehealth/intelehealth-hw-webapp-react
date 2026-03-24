@@ -7,7 +7,9 @@ import { AyuNestedRenderer as MockedAyuNestedRenderer } from '../../../../../mod
 
 // Mock SVG imports
 vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({ default: 'yes-icon.svg' }));
+vi.mock('../../../../../modules/ayu/assets/Yes.svg', () => ({ default: 'yes-selected-icon.svg' }));
 vi.mock('../../../../../modules/ayu/assets/no.svg', () => ({ default: 'no-icon.svg' }));
+vi.mock('../../../../../modules/ayu/assets/No.svg', () => ({ default: 'no-selected-icon.svg' }));
 
 // Mock AyuButton
 vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () => ({
@@ -689,6 +691,118 @@ describe('AyuAssociatedSymptoms', () => {
       const noButtons = screen.getAllByTestId('btn-no');
       expect(noButtons[0].className).toContain('bg-emerald-500');
       expect(noButtons[0].className).toContain('text-white');
+    });
+  });
+
+  describe('Icon Toggle Behavior', () => {
+    it('should show selected Yes icon when option is in yesValues', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['fever']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const yesIcons = screen.getAllByAltText('yes');
+      expect(yesIcons[0]).toHaveAttribute('src', 'yes-selected-icon.svg');
+      // Unselected options should show default icon
+      expect(yesIcons[1]).toHaveAttribute('src', 'yes-icon.svg');
+    });
+
+    it('should show default Yes icon when option is not in yesValues', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const yesIcons = screen.getAllByAltText('yes');
+      yesIcons.forEach(icon => {
+        expect(icon).toHaveAttribute('src', 'yes-icon.svg');
+      });
+    });
+
+    it('should show selected No icon when option is in noValues', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['NO_fever']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const noIcons = screen.getAllByAltText('no');
+      expect(noIcons[0]).toHaveAttribute('src', 'no-selected-icon.svg');
+      // Unselected options should show default icon
+      expect(noIcons[1]).toHaveAttribute('src', 'no-icon.svg');
+    });
+
+    it('should show default No icon when option is not in noValues', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const noIcons = screen.getAllByAltText('no');
+      noIcons.forEach(icon => {
+        expect(icon).toHaveAttribute('src', 'no-icon.svg');
+      });
+    });
+
+    it('should show correct icons for mixed yes and no selections', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['fever', 'NO_cough']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const yesIcons = screen.getAllByAltText('yes');
+      const noIcons = screen.getAllByAltText('no');
+
+      // fever is yes
+      expect(yesIcons[0]).toHaveAttribute('src', 'yes-selected-icon.svg');
+      expect(noIcons[0]).toHaveAttribute('src', 'no-icon.svg');
+
+      // cough is no
+      expect(yesIcons[1]).toHaveAttribute('src', 'yes-icon.svg');
+      expect(noIcons[1]).toHaveAttribute('src', 'no-selected-icon.svg');
+
+      // fatigue is neither
+      expect(yesIcons[2]).toHaveAttribute('src', 'yes-icon.svg');
+      expect(noIcons[2]).toHaveAttribute('src', 'no-icon.svg');
+    });
+
+    it('should render icons with w-full h-full classes', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={[]}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      const yesIcons = screen.getAllByAltText('yes');
+      const noIcons = screen.getAllByAltText('no');
+      yesIcons.forEach(icon => {
+        expect(icon).toHaveClass('w-full', 'h-full');
+      });
+      noIcons.forEach(icon => {
+        expect(icon).toHaveClass('w-full', 'h-full');
+      });
     });
   });
 

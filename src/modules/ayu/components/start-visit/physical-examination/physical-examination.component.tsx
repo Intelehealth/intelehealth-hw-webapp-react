@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { useStartVisitData } from '../../../context/start-visit.context';
@@ -10,39 +10,24 @@ import { AyuSelectableOption } from '../../common/ayu-selectable-option.componen
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { PhysicalExamImageCapture } from './physical-exam-image-capture.component';
 
-// ── Icon helpers ──────────────────────────────────────────────────────────────
-
-const CheckIcon = () => (
+const SvgIcon = ({ d, join }: { d: string; join?: boolean }) => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path
-      d="M2 7l3.5 3.5L12 3.5"
+      d={d}
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const XIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path
-      d="M2 2l10 10M12 2L2 12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
+      {...(join ? { strokeLinejoin: 'round' } : {})}
     />
   </svg>
 );
 
 const getOptionIcon = (text: string): React.ReactNode | undefined => {
-  const lower = text.toLowerCase();
-  if (lower === 'yes') return <CheckIcon />;
-  if (lower === 'no') return <XIcon />;
+  const l = text.toLowerCase();
+  if (l === 'yes') return <SvgIcon d="M2 7l3.5 3.5L12 3.5" join />;
+  if (l === 'no') return <SvgIcon d="M2 2l10 10M12 2L2 12" />;
   return undefined;
 };
-
-// ── Single question card ──────────────────────────────────────────────────────
 
 interface QuestionCardProps {
   question: PhysicalExamQuestion;
@@ -51,14 +36,16 @@ interface QuestionCardProps {
   isActive: boolean;
   selectedOptions: string[];
   cameraImages: string[];
-  onSelectSingle: (optionId: string) => void;
-  onToggleMulti: (optionId: string) => void;
+  onSelectSingle: (id: string) => void;
+  onSelectSinglePast: (id: string) => void;
+  onToggleMulti: (id: string) => void;
   onSkip: () => void;
-  onAddCameraImage: (file: File) => void;
-  onRemoveCameraImage: (index: number) => void;
+  onAddCameraImage: (f: File) => void;
+  onRemoveCameraImage: (i: number) => void;
   onClearCameraImages: () => void;
   onUploadImages: () => void;
   activeRef: React.RefObject<HTMLDivElement | null>;
+  isSubmitted: boolean;
 }
 
 const QuestionCard = ({
@@ -69,6 +56,7 @@ const QuestionCard = ({
   selectedOptions,
   cameraImages,
   onSelectSingle,
+  onSelectSinglePast,
   onToggleMulti,
   onSkip,
   onAddCameraImage,
@@ -76,18 +64,26 @@ const QuestionCard = ({
   onClearCameraImages,
   onUploadImages,
   activeRef,
+  isSubmitted,
 }: QuestionCardProps) => {
   const regularOptions = question.options.filter(o => !o.isCamera);
   const cameraOption = question.options.find(o => o.isCamera);
   const isCameraSelected = cameraOption
     ? selectedOptions.includes(cameraOption.id)
     : false;
-  const hadCameraSelected = !isActive && isCameraSelected;
+  const jobAidUrl = question.jobAidFile
+    ? getJobAidUrl(question.jobAidFile)
+    : null;
+
+  const handleOptionClick = (optionId: string) => {
+    if (question.isMultiChoice) onToggleMulti(optionId);
+    else if (isActive) onSelectSingle(optionId);
+    else onSelectSinglePast(optionId);
+  };
 
   return (
     <div ref={isActive ? activeRef : null}>
       <QuestionLoader questionIndex={index} totalQuestions={totalQuestions}>
-        {/* Section + category label */}
         <div className="px-3 pt-3 pb-1">
           <span className="text-xs font-semibold text-gray-500">
             {question.sectionLabel}
@@ -96,64 +92,41 @@ const QuestionCard = ({
             {question.categoryLabel}
           </span>
         </div>
-
-        {/* Question text */}
         <p className="text-base font-semibold text-gray-900 px-3 pb-2">
           {question.questionText}
           {question.isRequired && (
             <span className="text-red-500 ml-0.5">*</span>
           )}
         </p>
-
-        {question.jobAidFile &&
-          (() => {
-            const assetUrl = getJobAidUrl(question.jobAidFile);
-            if (!assetUrl) return null;
-            return (
-              <div className="px-3 pb-2">
-                <p className="text-xs text-gray-500 mb-1">References:</p>
-                {question.jobAidType === 'video' ? (
-                  <video src={assetUrl} controls className="rounded-md" />
-                ) : (
-                  <img
-                    src={assetUrl}
-                    alt={question.categoryLabel}
-                    className="rounded-md"
-                  />
-                )}
-              </div>
-            );
-          })()}
-
+        {jobAidUrl && (
+          <div className="px-3 pb-2">
+            <p className="text-xs text-gray-500 mb-1">References:</p>
+            {question.jobAidType === 'video' ? (
+              <video src={jobAidUrl} controls className="rounded-md" />
+            ) : (
+              <img
+                src={jobAidUrl}
+                alt={question.categoryLabel}
+                className="rounded-md"
+              />
+            )}
+          </div>
+        )}
         <hr className="mx-3 border-gray-200" />
-
         <p className="px-3 pt-2 text-xs text-gray-500">
           {question.isMultiChoice ? 'Select any' : 'Select any one'}
         </p>
-
-        {/* Option buttons — always visible */}
         <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
-          {regularOptions.map(option => {
-            const isSelected = selectedOptions.includes(option.id);
-            return (
-              <AyuSelectableOption
-                key={option.id}
-                label={option.text}
-                value={option.id}
-                selected={isSelected}
-                leftIcon={getOptionIcon(option.text)}
-                onClick={() => {
-                  if (isActive) {
-                    onSelectSingle(option.id);
-                  } else if (hadCameraSelected) {
-                    onToggleMulti(option.id);
-                  }
-                }}
-              />
-            );
-          })}
-
-          {/* Skip — only for active non-required questions */}
+          {regularOptions.map(option => (
+            <AyuSelectableOption
+              key={option.id}
+              label={option.text}
+              value={option.id}
+              selected={selectedOptions.includes(option.id)}
+              leftIcon={getOptionIcon(option.text)}
+              onClick={() => handleOptionClick(option.id)}
+            />
+          ))}
           {isActive && !question.isRequired && (
             <AyuSelectableOption
               label="Skip"
@@ -162,8 +135,6 @@ const QuestionCard = ({
               onClick={onSkip}
             />
           )}
-
-          {/* Take a picture */}
           {cameraOption && (
             <AyuSelectableOption
               label="Take a picture"
@@ -171,34 +142,39 @@ const QuestionCard = ({
               selected={isCameraSelected}
               leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
               onClick={() => {
-                if (isCameraSelected) {
-                  onClearCameraImages();
-                } else {
-                  onToggleMulti(cameraOption.id);
-                }
+                if (isCameraSelected) onClearCameraImages();
+                onToggleMulti(cameraOption.id);
               }}
             />
           )}
         </div>
-
-        {/* Image capture area */}
         {isCameraSelected && (
           <div className="px-3 pb-3">
             <PhysicalExamImageCapture
               images={cameraImages}
               onAdd={onAddCameraImage}
               onRemove={onRemoveCameraImage}
-              onUpload={onUploadImages}
-              showTick={hadCameraSelected}
             />
           </div>
         )}
+        {selectedOptions.length > 0 &&
+          (!isCameraSelected || cameraImages.length > 0) &&
+          (question.isMultiChoice || isCameraSelected) && (
+            <div className="flex justify-end px-3 pb-3">
+              <AyuButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={onUploadImages}
+              >
+                Submit{isSubmitted && <span className="ml-1">✓</span>}
+              </AyuButton>
+            </div>
+          )}
       </QuestionLoader>
     </div>
   );
 };
-
-// ── Main section component ────────────────────────────────────────────────────
 
 export const PhysicalExamination = (props: SectionProps) => {
   const { onNextQuestion: originalOnNext } = props;
@@ -221,6 +197,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     removeCameraImage,
     clearCameraImages,
     selectAndAdvance,
+    selectSingle,
     toggleOption,
     goNext,
     goSkip,
@@ -231,18 +208,22 @@ export const PhysicalExamination = (props: SectionProps) => {
   answersRef.current = answers;
 
   const activeRef = useRef<HTMLDivElement | null>(null);
+  const [submittedAnswers, setSubmittedAnswers] = useState<
+    Record<string, string[]>
+  >({});
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [internalIndex]);
 
-  const visitedQuestions = visibleQuestions.slice(0, internalIndex + 1);
+  const arraysEqual = (a: string[], b: string[]) =>
+    JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
   return (
     <div className="flex flex-col gap-6">
-      {visitedQuestions.map((question, index) => {
+      {visibleQuestions.slice(0, internalIndex + 1).map((question, index) => {
         const isActive = index === internalIndex;
-
+        const opts = selectedOptionsFor(question.id);
         return (
           <QuestionCard
             key={question.id}
@@ -250,21 +231,30 @@ export const PhysicalExamination = (props: SectionProps) => {
             index={index}
             totalQuestions={totalQuestions}
             isActive={isActive}
-            selectedOptions={selectedOptionsFor(question.id)}
+            selectedOptions={opts}
             cameraImages={cameraImagesFor(question.id)}
-            onSelectSingle={optionId => selectAndAdvance(optionId)}
-            onToggleMulti={optionId => toggleOption(optionId)}
+            onSelectSingle={id => {
+              setSubmittedAnswers(p => ({ ...p, [question.id]: [id] }));
+              selectAndAdvance(id);
+            }}
+            onSelectSinglePast={id => selectSingle(id, question.id)}
+            onToggleMulti={id => toggleOption(id, question.id)}
             onSkip={goSkip}
-            onAddCameraImage={file => addCameraImage(question.id, file)}
-            onRemoveCameraImage={idx => removeCameraImage(question.id, idx)}
+            onAddCameraImage={f => addCameraImage(question.id, f)}
+            onRemoveCameraImage={i => removeCameraImage(question.id, i)}
             onClearCameraImages={() => clearCameraImages(question.id)}
-            onUploadImages={() => goNext()}
+            onUploadImages={() => {
+              setSubmittedAnswers(p => ({ ...p, [question.id]: opts }));
+              goNext();
+            }}
             activeRef={activeRef}
+            isSubmitted={
+              !!submittedAnswers[question.id] &&
+              arraysEqual(opts, submittedAnswers[question.id])
+            }
           />
         );
       })}
-
-      {/* Back navigation */}
       <div className="flex md:justify-end my-2">
         <AyuButton
           type="button"

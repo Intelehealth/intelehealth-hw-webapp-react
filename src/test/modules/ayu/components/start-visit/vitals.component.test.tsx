@@ -342,6 +342,7 @@ describe('Vitals Component', () => {
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
+      expect(screen.getByText('BP Sys is too high. This should be a priority visit')).toBeInTheDocument();
       expect(screen.getByText('BP Dia is too high. This should be a priority visit')).toBeInTheDocument();
     });
 
@@ -360,10 +361,11 @@ describe('Vitals Component', () => {
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
+      expect(screen.queryByText('BP Sys is too high. This should be a priority visit')).not.toBeInTheDocument();
       expect(screen.queryByText('BP Dia is too high. This should be a priority visit')).not.toBeInTheDocument();
     });
 
-    it('should call isBPHigh with correct values', () => {
+    it('should call isBPHigh per field with correct values', () => {
       const mockIsBPHighFn = vi.fn().mockReturnValue(true);
       mockUseVitals.mockReturnValue({
         ...defaultMockReturn,
@@ -379,7 +381,8 @@ describe('Vitals Component', () => {
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
-      expect(mockIsBPHighFn).toHaveBeenCalledWith(150, 95);
+      expect(mockIsBPHighFn).toHaveBeenCalledWith(150, undefined);
+      expect(mockIsBPHighFn).toHaveBeenCalledWith(undefined, 95);
     });
   });
 
@@ -640,6 +643,51 @@ describe('Vitals Component', () => {
       render(<Vitals questionIndex={5} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       expect(screen.getByText('Next')).toBeInTheDocument();
+    });
+  });
+
+  describe('BMI and WHR out-of-range warnings', () => {
+    it('should show BMI warning under weight field when BMI is out of range (lines 152-154)', () => {
+      mockWatch.mockImplementation((fieldName: string) => {
+        if (fieldName === 'bmi') return 65;
+        if (fieldName === 'waist_to_hip_ratio') return undefined;
+        if (fieldName === 'weight_kg') return 300;
+        return undefined;
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.getByText(/BMI must be between 10 and 60/)).toBeInTheDocument();
+    });
+
+    it('should not show BMI warning when BMI is within range', () => {
+      mockWatch.mockImplementation((fieldName: string) => {
+        if (fieldName === 'bmi') return 22;
+        if (fieldName === 'waist_to_hip_ratio') return undefined;
+        return undefined;
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.queryByText(/BMI must be between/)).not.toBeInTheDocument();
+    });
+
+    it('should show WHR warning under hip field when WHR is out of range (lines 157-159)', () => {
+      const otherFieldsWithHip: VitalField[] = [
+        ...mockOtherFields,
+        { name: 'Hip Circumference (cm)', key: 'hip_circumference_cm', uuid: 'hip-uuid', is_mandatory: true, lang: null, is_enabled: true },
+      ];
+      mockUseVitals.mockReturnValue({ ...defaultMockReturn, otherFields: otherFieldsWithHip });
+      mockWatch.mockImplementation((fieldName: string) => {
+        if (fieldName === 'waist_to_hip_ratio') return 1.8;
+        if (fieldName === 'hip_circumference_cm') return 50;
+        if (fieldName === 'bmi') return undefined;
+        return undefined;
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.getByText(/Waist to Hip Ratio \(WHR\) must be between 0.5 and 1.5/)).toBeInTheDocument();
     });
   });
 });

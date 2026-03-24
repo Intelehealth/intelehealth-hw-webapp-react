@@ -132,30 +132,9 @@ describe('PhysicalExamImageCapture', () => {
       expect(await screen.findByTestId('photo-upload-modal')).toBeInTheDocument();
     });
 
-    it('should show upload button', () => {
+    it('should not show upload button (removed — handled by Submit)', () => {
       render(<PhysicalExamImageCapture {...propsWithImages} />);
-      expect(screen.getByText('Upload')).toBeInTheDocument();
-    });
-
-    it('should call onUpload when upload button is clicked', async () => {
-      const user = userEvent.setup();
-      const onUpload = vi.fn();
-      render(
-        <PhysicalExamImageCapture {...propsWithImages} onUpload={onUpload} />
-      );
-
-      await user.click(screen.getByText('Upload'));
-      // handleUpload uses setTimeout(800) before calling onUpload
-      await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    });
-
-    it('should show tick icon on upload button when showTick is true', () => {
-      render(
-        <PhysicalExamImageCapture {...propsWithImages} showTick />
-      );
-      const uploadBtn = screen.getByText('Upload');
-      const svg = uploadBtn.querySelector('svg');
-      expect(svg).toBeInTheDocument();
+      expect(screen.queryByText('Upload')).not.toBeInTheDocument();
     });
   });
 
