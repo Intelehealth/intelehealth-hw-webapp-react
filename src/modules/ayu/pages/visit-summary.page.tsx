@@ -16,10 +16,14 @@ import { storage } from '../../../utils/storage';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
+import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
+import type { MedicalHistorySummary } from '../context/start-visit.context';
 import {
   buildFamilyHistoryData,
   buildMedicalHistoryData,
   buildPhysicalExamData,
+  buildVisitReasonHtml,
   buildVisitUploadPayload,
   uploadVisit,
 } from '../services/visit-upload.service';
@@ -182,56 +186,44 @@ const PhysicalExaminationSection: React.FC<{
 );
 
 const MedicalHistorySection: React.FC<{
-  conditions: Array<{
-    id: number;
-    name: string;
-    hasCondition: string | null;
-    relation?: string;
-    describeRelation?: string;
-    describeIllness?: string;
-  }>;
-}> = ({ conditions }) => (
+  sections: MedicalHistorySummary[];
+}> = ({ sections }) => (
   <div>
-    {conditions.map(c => {
-      let value = c.hasCondition ?? 'Not answered';
-      if (c.hasCondition === 'Yes' && c.relation) {
-        value += ` (${c.relation === 'Other' && c.describeRelation ? c.describeRelation : c.relation})`;
-      }
-      if (c.hasCondition === 'Yes' && c.describeIllness) {
-        value += ` - ${c.describeIllness}`;
-      }
-      return <LabelValueRow key={c.id} label={c.name} value={value} />;
-    })}
+    {sections.map((section, sIdx) => (
+      <div key={sIdx}>
+        {section.items.map((item: ModalSectionItem, iIdx: number) => {
+          if (item.type === 'labelValue') {
+            return (
+              <LabelValueRow
+                key={iIdx}
+                label={item.label}
+                value={String(item.value ?? 'No information')}
+              />
+            );
+          }
+          if (item.type === 'subheading') {
+            return (
+              <p key={iIdx} className="text-sm font-semibold text-gray-500 mt-3 mb-1">
+                {item.heading}
+              </p>
+            );
+          }
+          return null;
+        })}
+      </div>
+    ))}
   </div>
 );
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
-const buildVisitReasonHtml = (
-  details: Array<{ label: string; value: string }>,
-  reasonNames: string[]
-): { displayHtml: string; rawJson: string } => {
-  const complaint = reasonNames.join(', ');
-  let displayHtml = '';
-  let rawHtml = '';
-
-  for (const { label, value } of details) {
-    displayHtml += `• ${label} - ${value}.<br/>`;
-    rawHtml += `• ${label}-${value}<br/>`;
-  }
-
-  return {
-    displayHtml: `<b>${complaint}</b>: <br/>${displayHtml}`.trim(),
-    rawJson: JSON.stringify({ text_en: rawHtml.trim() }),
-  };
-};
-
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
-  const { data } = useStartVisitData();
+  const { data, patientUuid: ctxPatientUuid } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -250,7 +242,7 @@ const VisitSummaryPage = () => {
       return;
     }
 
-    const patientUuid = storage.get('patientUuid');
+    const patientUuid = ctxPatientUuid || storage.get('patientUuid');
     const locationUuid = storage.getLocationUuid();
     const providerUuid = hwProfile?.providerUuid;
 
@@ -276,10 +268,10 @@ const VisitSummaryPage = () => {
       );
 
       const medicalHistory = buildMedicalHistoryData(
-        data.medicalHistory.conditions
+        data.medicalHistory.patHistSummary
       );
       const familyHistory = buildFamilyHistoryData(
-        data.medicalHistory.conditions
+        data.medicalHistory.famHistSummary
       );
 
       const payload = buildVisitUploadPayload({
@@ -303,7 +295,11 @@ const VisitSummaryPage = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [data, hwProfile, navigate]);
+  }, [data, hwProfile, navigate, ctxPatientUuid]);
+
+  const confirmAndUpload = useCallback(() => {
+    setShowConfirm(true);
+  }, []);
 
   const vitals = useMemo(
     () => (data.vitals ? mapVitals(data.vitals.formValues) : null),
@@ -420,7 +416,10 @@ const VisitSummaryPage = () => {
             >
               {data.medicalHistory ? (
                 <MedicalHistorySection
-                  conditions={data.medicalHistory.conditions}
+                  sections={[
+                    ...data.medicalHistory.patHistSummary,
+                    ...data.medicalHistory.famHistSummary,
+                  ]}
                 />
               ) : (
                 <p className="text-gray-400 italic text-sm">
@@ -443,7 +442,7 @@ const VisitSummaryPage = () => {
         </button>
         <button
           type="button"
-          onClick={handleUploadVisit}
+          onClick={confirmAndUpload}
           disabled={isUploading}
           className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           style={{ backgroundColor: PRIMARY_COLOR }}
@@ -451,6 +450,23 @@ const VisitSummaryPage = () => {
           {isUploading ? 'Uploading...' : 'Upload Visit'}
         </button>
       </div>
+
+      {/* Send Visit confirmation */}
+      {showConfirm && (
+        <ConfirmationModal
+          open={showConfirm}
+          type="confirm"
+          title="Send Visit"
+          description="Are you sure you want to upload this visit?"
+          confirmText="Yes"
+          cancelText="No"
+          onClose={() => setShowConfirm(false)}
+          onConfirm={() => {
+            setShowConfirm(false);
+            handleUploadVisit();
+          }}
+        />
+      )}
     </div>
   );
 };

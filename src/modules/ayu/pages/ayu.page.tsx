@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Route, Routes, useParams } from 'react-router-dom';
+import { Route, Routes, useParams, useLocation } from 'react-router-dom';
 import { storage } from '../../../utils/storage';
 import { transformFhirToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
 import type { FhirQuestionnaire } from '../../ayu-library/types/fhir-raw.types';
@@ -9,22 +9,23 @@ import { StartVisitProvider } from '../context/start-visit.context';
 import VisitSummaryPage from './visit-summary.page';
 import fhirJson from './Cough.questionnaire.json';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const ayuSchema = transformFhirToAyu(fhirJson as unknown as FhirQuestionnaire);
 const AyuPage = () => {
-  const { patientUuid } = useParams<{ patientUuid: string }>();
+  const { patientUuid: paramUuid } = useParams<{ patientUuid: string }>();
+  const location = useLocation();
+  const stateUuid = (location.state as { patientUuid?: string })?.patientUuid;
 
-  // If patientUuid is passed via URL param, persist it to localStorage
-  useEffect(() => {
-    if (patientUuid) {
-      storage.set('patientUuid', patientUuid);
-    }
-  }, [patientUuid]);
+  // Priority: state (from patient creation) > valid URL param > localStorage
+  const validParamUuid = paramUuid && UUID_REGEX.test(paramUuid) ? paramUuid : undefined;
+  const resolvedUuid = stateUuid || validParamUuid || storage.get('patientUuid') || null;
 
   if (!ayuSchema) {
     return <div>No questionnaire available</div>;
   }
   return (
-    <StartVisitProvider>
+    <StartVisitProvider initialPatientUuid={resolvedUuid}>
       <div className="mx-auto p-6 space-y-6">
         <Routes>
           <Route path="/" element={<StartVisit />} />

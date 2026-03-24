@@ -1,4 +1,6 @@
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
+import type { MedicalHistorySummary } from '../context/start-visit.context';
 import {
   ADULT_INITIAL_CONCEPTS,
   ENCOUNTER_ROLE,
@@ -55,6 +57,25 @@ function buildVitalsObs(
 export interface VisitReasonData {
   displayHtml: string;
   rawJson: string;
+}
+
+export function buildVisitReasonHtml(
+  details: Array<{ label: string; value: string }>,
+  reasonNames: string[]
+): VisitReasonData {
+  const complaint = reasonNames.join(', ');
+  let displayHtml = '';
+  let rawHtml = '';
+
+  for (const { label, value } of details) {
+    displayHtml += `• ${label} - ${value}.<br/>`;
+    rawHtml += `• ${label}-${value}<br/>`;
+  }
+
+  return {
+    displayHtml: `<b>${complaint}</b>: <br/>${displayHtml}`.trim(),
+    rawJson: JSON.stringify({ text_en: rawHtml.trim() }),
+  };
 }
 
 // ─── Physical Exam HTML Builder ───────────────────────────────────────────────
@@ -118,66 +139,47 @@ export function buildPhysicalExamData(
 
 // ─── Medical History HTML Builder ─────────────────────────────────────────────
 
-export interface MedicalHistoryCondition {
-  name: string;
-  hasCondition: string | null;
-}
-
+/**
+ * Build medical history display HTML and raw JSON from summary sections.
+ */
 export function buildMedicalHistoryData(
-  conditions: MedicalHistoryCondition[]
+  sections: MedicalHistorySummary[]
 ): { displayHtml: string; rawJson: string } {
-  const lines: string[] = [];
-  const rawLines: string[] = [];
+  const items = sections.flatMap(s => s.items);
+  const values = items
+    .filter((i): i is Extract<ModalSectionItem, { type: 'labelValue' }> => i.type === 'labelValue')
+    .map(i => String(i.value ?? ''))
+    .filter(Boolean);
 
-  // For now, create a summary of conditions
-  const yesConditions = conditions.filter(c => c.hasCondition === 'Yes');
-  const medicalHistory =
-    yesConditions.length > 0
-      ? yesConditions.map(c => c.name).join(', ')
-      : 'None';
-
-  lines.push(`• Medical History - ${medicalHistory}.<br/>`);
-  rawLines.push(
-    `● Do you have a history of any of the following?*<br/>•${medicalHistory}<br/>`
-  );
-
-  const displayHtml = lines.join('');
-  const rawJson = JSON.stringify({ text_en: rawLines.join('') });
+  const summary = values.length > 0 ? values.join(', ') : 'None';
+  const displayHtml = `• Medical History - ${summary}.<br/>`;
+  const rawJson = JSON.stringify({
+    text_en: `● Do you have a history of any of the following?*<br/>•${summary}<br/>`,
+  });
 
   return { displayHtml, rawJson };
 }
 
 // ─── Family History HTML Builder ──────────────────────────────────────────────
 
-export interface FamilyHistoryCondition {
-  name: string;
-  hasCondition: string | null;
-  relation?: string;
-  describeRelation?: string;
-}
+/**
+ * Build family history display HTML and raw JSON from summary sections.
+ */
+export function buildFamilyHistoryData(
+  sections: MedicalHistorySummary[]
+): { displayHtml: string; rawJson: string } {
+  const items = sections.flatMap(s => s.items);
+  const parts = items
+    .filter((i): i is Extract<ModalSectionItem, { type: 'labelValue' }> => i.type === 'labelValue')
+    .map(i => {
+      const relation = i.value ? ` (${i.value})` : '';
+      return `${i.label}${relation}`;
+    });
 
-export function buildFamilyHistoryData(conditions: FamilyHistoryCondition[]): {
-  displayHtml: string;
-  rawJson: string;
-} {
-  const yesConditions = conditions.filter(c => c.hasCondition === 'Yes');
-  const parts =
-    yesConditions.length > 0
-      ? yesConditions
-          .map(c => {
-            const relation = c.relation
-              ? c.relation === 'Other' && c.describeRelation
-                ? ` (${c.describeRelation})`
-                : ` (${c.relation})`
-              : '';
-            return `${c.name}${relation}`;
-          })
-          .join(', ')
-      : 'None';
-
-  const displayHtml = `•Do you have a family history of any of the following?* : • ${parts}.<br/>`;
+  const summary = parts.length > 0 ? parts.join(', ') : 'None';
+  const displayHtml = `•Do you have a family history of any of the following?* : • ${summary}.<br/>`;
   const rawJson = JSON.stringify({
-    text_en: `•Do you have a family history of any of the following?* : •${parts}.<br/>`,
+    text_en: `•Do you have a family history of any of the following?* : •${summary}.<br/>`,
   });
 
   return { displayHtml, rawJson };
