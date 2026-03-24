@@ -35,7 +35,7 @@ describe('VisitReasonFooter', () => {
     expect(screen.getByText('Next')).toBeInTheDocument();
   });
 
-  it('should show "Confirm" on last question', () => {
+  it('should show "Next" on last question (no Confirm button)', () => {
     render(
       <VisitReasonFooter
         questionIndex={5}
@@ -45,7 +45,8 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    expect(screen.getByText('Confirm')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 
   it('should call onPrevSection when Back is clicked on first question', async () => {

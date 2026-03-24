@@ -535,6 +535,40 @@ describe('AppointmentScheduleComponent', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       expect(screen.getByText(/3rd \w+ at 09:00 am\?/)).toBeInTheDocument();
     });
+
+    it('confirm modal shows ordinal "th" suffix for dates like 4th-20th, 24th-30th', () => {
+      renderComponent();
+      // Navigate forward enough to find a date with "th" suffix (4th-20th, 24th-30th)
+      // Click "next" multiple times to reach such dates
+      const nextBtn = screen.getByAltText('next').closest('button')!;
+      fireEvent.click(nextBtn);
+      fireEvent.click(nextBtn);
+      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
+      const dateButtons = dateArea!.querySelectorAll('button');
+      // Find a button whose date text ends in a day that gets "th" suffix
+      let targetButton: Element | null = null;
+      dateButtons.forEach(btn => {
+        const dayText = btn.querySelector('.mt-1')?.textContent;
+        if (dayText && !['Today'].includes(dayText)) {
+          const dayNum = parseInt(
+            btn.querySelector('.text-\\[18px\\], .text-\\[16px\\]')?.textContent || btn.textContent?.match(/\d+/)?.[0] || '0'
+          );
+          if (
+            dayNum >= 4 &&
+            dayNum <= 20 ||
+            (dayNum >= 24 && dayNum <= 30)
+          ) {
+            if (!targetButton) targetButton = btn;
+          }
+        }
+      });
+      // Fallback: just click the 4th button (index 3) which is likely a "th" date
+      if (!targetButton) targetButton = dateButtons[3];
+      fireEvent.click(targetButton!);
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      expect(screen.getByText(/\d+th \w+ at 09:00 am\?/)).toBeInTheDocument();
+    });
   });
 
   describe('Time period icons', () => {

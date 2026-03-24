@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
@@ -22,6 +23,7 @@ interface OpenVisitsProps {
 export const OpenVisitsComponent = ({
   initialRowCount,
 }: OpenVisitsProps = {}) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data, loading, error } = useOpenVisits();
 
@@ -108,6 +110,7 @@ export const OpenVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
+              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
             />
             {loading && (
               <p className="text-center text-gray-400 py-4">Loading...</p>

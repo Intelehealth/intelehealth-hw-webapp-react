@@ -225,6 +225,22 @@ describe('SideMenu', () => {
       expect(addPatientsLink).toHaveAttribute('href', '#/patient/add');
     });
 
+    it('should close mobile menu when Add Patients link is clicked', () => {
+      Object.defineProperty(window, 'innerWidth', { value: 500 });
+      const { container } = renderWithRouter(<SideMenu />);
+
+      const mobileToggle = screen.getAllByRole('button')[0];
+      fireEvent.click(mobileToggle);
+
+      const sidebar = container.querySelector('aside');
+      expect(sidebar).toHaveClass('translate-x-0');
+
+      const addPatientsLink = screen.getByText('Add Patients').closest('a');
+      fireEvent.click(addPatientsLink!);
+
+      expect(sidebar).not.toHaveClass('translate-x-0');
+    });
+
     it('should render Add Patients button with icon', () => {
       renderWithRouter(<SideMenu />);
 

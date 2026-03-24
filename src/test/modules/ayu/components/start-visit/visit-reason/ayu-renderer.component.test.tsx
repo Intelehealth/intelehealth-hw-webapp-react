@@ -602,6 +602,24 @@ describe('AyuRenderer', () => {
     });
   });
 
+  describe('Null Question Guard', () => {
+    it('should return null when question is undefined', () => {
+      const { container } = render(
+        <AyuRenderer question={undefined as any} />
+      );
+      expect(container.firstChild).toBeNull();
+      expect(mockResolveAyuComponent).not.toHaveBeenCalled();
+    });
+
+    it('should return null when question is null', () => {
+      const { container } = render(
+        <AyuRenderer question={null as any} />
+      );
+      expect(container.firstChild).toBeNull();
+      expect(mockResolveAyuComponent).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle question without text', () => {
       const question: AyuQuestion = {

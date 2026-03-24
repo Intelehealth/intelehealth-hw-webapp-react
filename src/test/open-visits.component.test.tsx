@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { OpenVisitsComponent } from '../modules/dashboard/open-visits.component';
+
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 const mockUseOpenVisits = vi.fn();
 
@@ -29,8 +37,16 @@ const mockData = [
   },
 ];
 
+const renderComponent = (props = {}) =>
+  render(
+    <MemoryRouter>
+      <OpenVisitsComponent {...props} />
+    </MemoryRouter>
+  );
+
 describe('OpenVisitsComponent', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockUseOpenVisits.mockReturnValue({
       data: mockData,
       loading: false,
@@ -40,27 +56,27 @@ describe('OpenVisitsComponent', () => {
   });
 
   it('renders without crashing', () => {
-    expect(() => render(<OpenVisitsComponent />)).not.toThrow();
+    expect(() => renderComponent()).not.toThrow();
   });
 
   it('renders the Open Visits heading', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByText('Open Visits')).toBeInTheDocument();
   });
 
   it('renders search input with placeholder', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByPlaceholderText('Find patient')).toBeInTheDocument();
   });
 
   it('does NOT render Unclosed or Closed tabs', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.queryByText('Unclosed')).not.toBeInTheDocument();
     expect(screen.queryByText('Closed')).not.toBeInTheDocument();
   });
 
   it('renders column headers', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getAllByText('Patient').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Age').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Visit created').length).toBeGreaterThan(0);
@@ -70,19 +86,19 @@ describe('OpenVisitsComponent', () => {
   });
 
   it('renders patient data from API', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Priya Singh').length).toBeGreaterThan(0);
   });
 
   it('renders upload timestamps', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getAllByText('1 hr ago').length).toBeGreaterThan(0);
     expect(screen.getAllByText('3 hr ago').length).toBeGreaterThan(0);
   });
 
   it('filters patients by search input', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     const input = screen.getByPlaceholderText('Find patient');
     fireEvent.change(input, { target: { value: 'Ravi' } });
     expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
@@ -91,34 +107,34 @@ describe('OpenVisitsComponent', () => {
 
   it('shows loading indicator when loading', () => {
     mockUseOpenVisits.mockReturnValue({ data: [], loading: true, error: null, totalCount: 0 });
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows error message when error occurs', () => {
     mockUseOpenVisits.mockReturnValue({ data: [], loading: false, error: 'Failed to fetch open visits', totalCount: 0 });
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByText('Failed to fetch open visits')).toBeInTheDocument();
   });
 
   it('shows empty message when no data', () => {
     mockUseOpenVisits.mockReturnValue({ data: [], loading: false, error: null, totalCount: 0 });
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByText('No open visits found.')).toBeInTheDocument();
   });
 
   it('does not show Show all footer when data has 6 or fewer rows', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
   });
 
   it('renders filter icon', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByAltText('filter')).toBeInTheDocument();
   });
 
   it('renders search icon', () => {
-    render(<OpenVisitsComponent />);
+    renderComponent();
     expect(screen.getByAltText('search')).toBeInTheDocument();
   });
 
@@ -134,12 +150,12 @@ describe('OpenVisitsComponent', () => {
         uploadTimestamp: `${i} hr ago`,
       }));
       mockUseOpenVisits.mockReturnValue({ data: bigData, loading: false, error: null, totalCount: 8 });
-      render(<OpenVisitsComponent initialRowCount={3} />);
+      renderComponent({ initialRowCount: 3 });
       expect(screen.getByText('Show all →')).toBeInTheDocument();
     });
 
     it('uses default row count when initialRowCount is not provided', () => {
-      render(<OpenVisitsComponent />);
+      renderComponent();
       // 2 rows < default 6, no footer
       expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
     });
@@ -147,14 +163,14 @@ describe('OpenVisitsComponent', () => {
 
   describe('Search filtering edge cases', () => {
     it('shows empty message when search has no matches', () => {
-      render(<OpenVisitsComponent />);
+      renderComponent();
       const input = screen.getByPlaceholderText('Find patient');
       fireEvent.change(input, { target: { value: 'nonexistent' } });
       expect(screen.getByText('No open visits found.')).toBeInTheDocument();
     });
 
     it('search is case insensitive', () => {
-      render(<OpenVisitsComponent />);
+      renderComponent();
       const input = screen.getByPlaceholderText('Find patient');
       fireEvent.change(input, { target: { value: 'ravi' } });
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
@@ -163,15 +179,25 @@ describe('OpenVisitsComponent', () => {
 
   describe('Layout structure', () => {
     it('renders with flex layout for height chain', () => {
-      const { container } = render(<OpenVisitsComponent />);
+      const { container } = renderComponent();
       const root = container.firstElementChild as HTMLElement;
       expect(root).toHaveClass('flex', 'flex-col', 'flex-1', 'min-h-0');
     });
 
     it('renders header with shrink-0 class', () => {
-      const { container } = render(<OpenVisitsComponent />);
+      const { container } = renderComponent();
       const header = container.querySelector('.shrink-0');
       expect(header).toBeInTheDocument();
+    });
+  });
+
+  describe('Row click navigation', () => {
+    it('navigates to visit-details on row click', () => {
+      renderComponent();
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
     });
   });
 });

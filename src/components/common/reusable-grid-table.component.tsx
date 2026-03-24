@@ -12,12 +12,14 @@ interface ResponsiveTableProps<T> {
   columns: Column<T>[];
   data: T[];
   initialRowCount?: number;
+  onRowClick?: (row: T) => void;
 }
 
 export function ReusableGridTable<T>({
   columns,
   data,
   initialRowCount = DEFAULT_ROW_COUNT,
+  onRowClick,
 }: ResponsiveTableProps<T>) {
   const [showAll, setShowAll] = useState(false);
 
@@ -38,7 +40,8 @@ export function ReusableGridTable<T>({
         {visibleData.map((row, rowIndex) => (
           <div
             key={rowIndex}
-            className="rounded-xl border border-[#ECEEFF] bg-white shadow-[0px_1px_2px_0px_#1018280D]"
+            className={`rounded-xl border border-[#ECEEFF] bg-white shadow-[0px_1px_2px_0px_#1018280D]${onRowClick ? ' cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+            onClick={() => onRowClick?.(row)}
           >
             {/* MOBILE VIEW */}
             <div className="block lg:hidden p-4 space-y-2">

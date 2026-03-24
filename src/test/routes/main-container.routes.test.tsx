@@ -194,4 +194,38 @@ describe('MainContainer', () => {
     expect(downMenuWrapper).not.toHaveClass('hidden');
     expect(downMenuWrapper).toHaveClass('md:hidden');
   });
+
+  it('should hide navbar on mobile for hideNavbarOnMobile routes (profile)', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const navbarWrapper = screen.getByTestId('navbar').parentElement;
+    expect(navbarWrapper).toHaveClass('hidden', 'md:block');
+  });
+
+  it('should use md:rounded-lg md:shadow-md on content for hideNavbarOnMobile routes', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const contentDiv = container.querySelector('#main-container-content') as HTMLElement;
+    expect(contentDiv).toHaveClass('md:rounded-lg', 'md:shadow-md');
+    expect(contentDiv).not.toHaveClass('rounded-lg');
+  });
+
+  it('should hide down-menu for hideNavbarOnMobile routes', () => {
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    const downMenuWrapper = screen.getByTestId('down-menu').parentElement;
+    expect(downMenuWrapper).toHaveClass('hidden');
+  });
 });

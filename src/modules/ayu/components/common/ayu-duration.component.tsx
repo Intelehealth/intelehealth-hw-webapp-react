@@ -1,8 +1,13 @@
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import { DURATION_DROPDOWN_CONFIGS } from '../../../ayu-library/utils/constants';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import { AyuDropdown } from './ayu-dropdown.component';
 
-export function AyuDuration({ value, onChange }: AyuRendererBaseProps) {
+export function AyuDuration({
+  question,
+  value,
+  onChange,
+}: AyuRendererBaseProps) {
   // Parse the value from parent (nested structure with dropdownValues)
   const parsedValue = (
     typeof value === 'object' && value !== null ? value : {}
@@ -23,8 +28,14 @@ export function AyuDuration({ value, onChange }: AyuRendererBaseProps) {
     });
   };
 
+  const label = question
+    ? resolveLabel(question, question, question)
+    : undefined;
   return (
     <div className="space-y-3">
+      {label && (
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+      )}
       {/* Duration Dropdowns */}
       {DURATION_DROPDOWN_CONFIGS && DURATION_DROPDOWN_CONFIGS.length > 0 && (
         <div className="flex gap-3">

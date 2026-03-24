@@ -595,6 +595,29 @@ describe('isQuantityInvalid', () => {
     ).toBe(true);
   });
 
+  it('should skip hidden nested children in checkDurationDeep', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'q1.1',
+          type: 'quantity',
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ],
+    };
+    // Answer is 'no', so child is hidden → should not flag as invalid
+    expect(
+      isQuantityInvalid(q, {
+        q1: 'no',
+        'q1.1': { dropdownValues: { number: 5 } },
+      })
+    ).toBe(false);
+  });
+
   it('should check grandchild duration validity', () => {
     const q: AyuQuestion = {
       linkId: 'q1',

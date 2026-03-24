@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { ReusableGridTable } from '../../../components/common/reusable-grid-table.component';
 
 interface TestRow {
@@ -302,6 +302,39 @@ describe('ReusableGridTable', () => {
         '.rounded-xl.border.border-\\[\\#ECEEFF\\]'
       );
       expect(rows.length).toBe(INITIAL_LIMIT);
+    });
+  });
+
+  describe('Row click', () => {
+    it('calls onRowClick with row data when a row is clicked', () => {
+      const onRowClick = vi.fn();
+      render(<ReusableGridTable columns={columns} data={data} onRowClick={onRowClick} />);
+      const aliceCells = screen.getAllByText('Alice');
+      const row = aliceCells[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(onRowClick).toHaveBeenCalledWith(data[0]);
+    });
+
+    it('adds cursor-pointer class when onRowClick is provided', () => {
+      const onRowClick = vi.fn();
+      render(<ReusableGridTable columns={columns} data={data} onRowClick={onRowClick} />);
+      const aliceCells = screen.getAllByText('Alice');
+      const row = aliceCells[0].closest('.rounded-xl');
+      expect(row).toHaveClass('cursor-pointer');
+    });
+
+    it('does not add cursor-pointer class when onRowClick is not provided', () => {
+      render(<ReusableGridTable columns={columns} data={data} />);
+      const aliceCells = screen.getAllByText('Alice');
+      const row = aliceCells[0].closest('.rounded-xl');
+      expect(row).not.toHaveClass('cursor-pointer');
+    });
+
+    it('does not throw when row is clicked without onRowClick', () => {
+      render(<ReusableGridTable columns={columns} data={data} />);
+      const aliceCells = screen.getAllByText('Alice');
+      const row = aliceCells[0].closest('.rounded-xl');
+      expect(() => fireEvent.click(row!)).not.toThrow();
     });
   });
 });

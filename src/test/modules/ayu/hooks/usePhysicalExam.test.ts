@@ -662,6 +662,29 @@ describe('usePhysicalExam', () => {
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
       expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
     });
+
+    it('should fall back to "General exams" when remaining image belongs to unknown question', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+
+      // Add image to a known question
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+      });
+      // Add image to an unknown question id
+      await act(async () => {
+        await result.current.addCameraImage('unknown-q', file2);
+      });
+
+      mockClearPendingImages.mockClear();
+      mockAddPendingImage.mockClear();
+
+      // Clear q1 — unknown-q's image remains and falls back to 'General exams'
+      act(() => result.current.clearCameraImages('q1'));
+
+      expect(mockAddPendingImage).toHaveBeenCalledWith(file2, 'General exams');
+    });
   });
 
   // ── onProgressUpdate ───────────────────────────────────────────────────

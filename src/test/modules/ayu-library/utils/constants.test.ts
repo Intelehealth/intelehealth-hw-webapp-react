@@ -9,6 +9,7 @@ import {
   PATIENT_DENIES_LABEL,
   SELECT_ONE_OR_MORE,
   SELECT_ANY_ONE,
+  SELECT_YES_OR_NO,
   EXCLUDED_JSON_NAMES,
   DURATION_DROPDOWN_CONFIGS,
 } from '../../../../modules/ayu-library/utils/constants';
@@ -20,7 +21,7 @@ describe('Constants', () => {
     });
 
     it('should export EXT_URL_MUTUALLY_EXCLUSIVE', () => {
-      expect(EXT_URL_MUTUALLY_EXCLUSIVE).toBe('urn:intelehealth:mutually-exclusive');
+      expect(EXT_URL_MUTUALLY_EXCLUSIVE).toBe('https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice');
     });
   });
 
@@ -57,9 +58,14 @@ describe('Constants', () => {
       expect(SELECT_ANY_ONE).toBe('Select any one');
     });
 
+    it('should export SELECT_YES_OR_NO constant', () => {
+      expect(SELECT_YES_OR_NO).toBe('Select yes or no');
+    });
+
     it('should be string type', () => {
       expect(typeof SELECT_ONE_OR_MORE).toBe('string');
       expect(typeof SELECT_ANY_ONE).toBe('string');
+      expect(typeof SELECT_YES_OR_NO).toBe('string');
     });
   });
 

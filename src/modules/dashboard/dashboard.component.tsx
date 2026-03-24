@@ -8,6 +8,9 @@ import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';
 import imgPrescriptionGreen from '../../assets/images/img-prescription-green.svg';
 import DashboardCard from '../../components/common/dashboard-card.component';
+import { useOpenVisits } from '../../hooks/useOpenVisits';
+import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
+import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
 import ROUTES from '../../routes/paths';
 import NotificationList from './notification-list.component';
 import { PrescriptionsReceived } from './prescriptions-received.component';
@@ -24,6 +27,9 @@ const DashboardComponent = ({
     initialShowPrescriptions
   );
   const [prescriptionCount, setPrescriptionCount] = useState(0);
+  const { totalCount: receivedCount } = usePrescriptionsReceived();
+  const { totalCount: pendingCount } = usePrescriptionsPending();
+  const { totalCount: openVisitsCount } = useOpenVisits();
   const navigate = useNavigate();
   const location = useLocation();
   const showNotifications = location.pathname === ROUTES.NOTIFICATIONS;
@@ -69,7 +75,7 @@ const DashboardComponent = ({
         >
           <DashboardCard
             title="Prescriptions"
-            subtitle="<strong>5</strong> out of <strong>12</strong> received"
+            subtitle={`<strong>${receivedCount}</strong> out of <strong>${receivedCount + pendingCount}</strong> received`}
             bg="bg-(--color-accent-light)"
             iconBg="bg-green-300"
             icon={iconRightArrow}
@@ -82,7 +88,7 @@ const DashboardComponent = ({
         >
           <DashboardCard
             title="Open visits"
-            subtitle="<strong>12</strong> Unclosed visits"
+            subtitle={`<strong>${openVisitsCount}</strong> Unclosed visits`}
             bg="bg-(--color-primary-light)"
             iconBg="bg-purple-300"
             icon={iconRightArrow}

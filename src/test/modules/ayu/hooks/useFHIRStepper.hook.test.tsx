@@ -170,7 +170,7 @@ describe('useFHIRStepper', () => {
       expect(mockShowVitalConfirmationModal).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'vitalConfirm',
-          title: '2/4. Visit reason summary',
+          title: undefined,
           size: 'lg',
         })
       );
@@ -1356,7 +1356,10 @@ describe('useFHIRStepper', () => {
             {
               linkId: 'q1',
               text: 'Simple Question',
-              type: 'integer',
+              type: 'choice',
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+              ],
             },
             {
               linkId: 'q2',
@@ -1373,7 +1376,7 @@ describe('useFHIRStepper', () => {
         act(() => {
           const q1 = result.current.topLevelItems[0];
 
-          result.current.setAnswer(q1, 42);
+          result.current.setAnswer(q1, 'yes');
         });
 
         act(() => {
@@ -2380,8 +2383,8 @@ describe('useFHIRStepper', () => {
               valueCoding: { code: 'none', display: 'None of the above' },
               extension: [
                 {
-                  url: 'urn:intelehealth:mutually-exclusive',
-                  valueBoolean: true,
+                  url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+                  valueString: 'True',
                 },
               ],
             },
@@ -2577,8 +2580,8 @@ describe('useFHIRStepper', () => {
       expect(
         noneOption?.extension?.some(
           ext =>
-            ext.url === 'urn:intelehealth:mutually-exclusive' &&
-            ext.valueBoolean === true
+            ext.url === 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice' &&
+            ext.valueString === 'True'
         )
       ).toBe(true);
     });
@@ -3107,7 +3110,7 @@ describe('useFHIRStepper', () => {
             {
               valueCoding: { code: 'none', display: 'None of the above' },
               extension: [
-                { url: 'urn:intelehealth:mutually-exclusive', valueBoolean: true },
+                { url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice', valueString: 'True' },
               ],
             },
           ],
@@ -3620,6 +3623,86 @@ describe('useFHIRStepper', () => {
 
       expect(result.current.answers['yes-child']).toBeUndefined();
       expect(result.current.answers['always-child']).toBe('val2');
+    });
+  });
+
+  describe('skipSummary mode', () => {
+    it('should call onComplete directly without showing modal when skipSummary is true', () => {
+      const onComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          skipSummary: true,
+          onComplete,
+        })
+      );
+
+      // Answer all questions and navigate past the last one
+      act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'answer1'); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.setAnswer(result.current.topLevelItems[1], 'yes'); });
+      act(() => { vi.advanceTimersByTime(300); });
+      act(() => { result.current.setAnswer(result.current.topLevelItems[2], 42); });
+      act(() => { result.current.goNext(); });
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(mockShowVitalConfirmationModal).not.toHaveBeenCalled();
+    });
+
+    it('should not throw when skipSummary is true but onComplete is undefined', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          skipSummary: true,
+        })
+      );
+
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      expect(() => {
+        act(() => { result.current.goNext(); });
+      }).not.toThrow();
+    });
+  });
+
+  describe('hasVisibleStringOrRepeatsDeep recursive traversal', () => {
+    it('should recurse into nested group children to find a deep string type', () => {
+      const deepQuestionnaire = {
+        item: [
+          {
+            linkId: 'parent',
+            text: 'Parent',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+              { valueCoding: { code: 'no', display: 'No' } },
+            ],
+            item: [
+              {
+                linkId: 'group-wrapper',
+                text: 'Group Wrapper',
+                type: 'group',
+                item: [
+                  { linkId: 'deep-string', text: 'Deep String', type: 'string' },
+                ],
+              },
+            ],
+          },
+          { linkId: 'next-q', text: 'Next Q', type: 'string' },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: deepQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+      });
+      act(() => { vi.advanceTimersByTime(300); });
+
+      // Should NOT auto-advance because recursive check finds deep string child
+      expect(result.current.currentIndex).toBe(0);
     });
   });
 });

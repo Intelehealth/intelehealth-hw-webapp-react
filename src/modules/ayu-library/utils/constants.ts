@@ -5,7 +5,14 @@ import type { DropdownOption } from '../types/dropdown.types';
 // ========================
 export const EXT_URL_ORIGINAL_QUESTION_TEXT =
   'urn:intelehealth:original-question-text';
-export const EXT_URL_MUTUALLY_EXCLUSIVE = 'urn:intelehealth:mutually-exclusive';
+export const EXT_URL_MUTUALLY_EXCLUSIVE =
+  'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice';
+
+export const EXT_URL_DISPLAY_TEXT =
+  'https://intelehealth.org/fhir/StructureDefinition/display';
+
+export const EXT_URL_LANGUGAE_TEXT =
+  'https://intelehealth.org/fhir/StructureDefinition/language';
 
 // ========================
 // Associated Symptoms
@@ -23,6 +30,7 @@ export const PATIENT_DENIES_LABEL = 'Patient denies';
 // Nested question helper text
 export const SELECT_ONE_OR_MORE = 'Select one or more';
 export const SELECT_ANY_ONE = 'Select any one';
+export const SELECT_YES_OR_NO = 'Select yes or no';
 
 //JSON name list to exclude to display on visit reason selection
 export const EXCLUDED_JSON_NAMES = ['famHist', 'physExam', 'patHist'];

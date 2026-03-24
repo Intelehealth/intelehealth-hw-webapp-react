@@ -1,28 +1,27 @@
-import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import Calendar from '../../../../components/common/calendar.component';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 
 export function AyuDateInput({
   question,
   parent,
   previousSibling,
+  value,
+  onChange,
 }: AyuRendererBaseProps) {
   const label = question
     ? resolveLabel(question, parent, previousSibling)
     : undefined;
-  const inputId = `ayu-date-${question?.linkId}`;
 
   return (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
-          {label}
-        </label>
-      )}
-      <input
-        id={inputId}
-        type="date"
+    <div>
+      <Calendar
+        label={label}
+        value={typeof value === 'string' ? value : ''}
+        onChange={date => onChange?.(date)}
         disabled={question?.readOnly}
-        className="w-full border rounded px-3 py-2"
+        dateFormat="dd MMM,yyyy"
+        maxDate={new Date()}
       />
     </div>
   );

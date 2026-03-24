@@ -1,6 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
   usePrescriptionsReceived: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
@@ -10,9 +17,25 @@ vi.mock('../../../hooks/usePrescriptionsPending', () => ({
   usePrescriptionsPending: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
+vi.mock('../../../hooks/useOpenVisits', () => ({
+  useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
+
+vi.mock('../../../modules/dashboard/notification-list.component', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="notification-list">
+      <button data-testid="close-notifications" onClick={onClose}>Close</button>
+    </div>
+  ),
+}));
+
 import DashboardComponent from '../../../modules/dashboard/dashboard.component';
 
 describe('DashboardComponent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('should render without crashing', () => {
     expect(() => {
       render(
@@ -313,6 +336,52 @@ describe('DashboardComponent', () => {
       );
       // Default count is 0 since mock returns totalCount: 0
       expect(screen.getByText(/0 Patients/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Desktop Add Patients button click', () => {
+    it('navigates to add patient route on desktop Add Patients click', () => {
+      render(
+        <MemoryRouter>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+
+      const desktopAddBtn = screen.getAllByText('Add Patients')
+        .map(el => el.closest('button'))
+        .find(btn => btn?.classList.contains('md:flex'));
+      fireEvent.click(desktopAddBtn!);
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('patient'));
+    });
+  });
+
+  describe('Notifications route', () => {
+    it('renders NotificationList when on /notifications route', () => {
+      render(
+        <MemoryRouter initialEntries={['/notifications']}>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+      expect(screen.getByTestId('notification-list')).toBeInTheDocument();
+    });
+
+    it('hides Add Patients and Prescriptions when on notifications route', () => {
+      render(
+        <MemoryRouter initialEntries={['/notifications']}>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+      expect(screen.queryByText('Add Patients')).not.toBeInTheDocument();
+    });
+
+    it('calls closeNotifications (navigate to dashboard) when NotificationList onClose is invoked', () => {
+      render(
+        <MemoryRouter initialEntries={['/notifications']}>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByTestId('close-notifications'));
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
   });
 });

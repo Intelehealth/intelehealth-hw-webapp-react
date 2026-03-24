@@ -358,6 +358,41 @@ describe('AyuNestedRenderer', () => {
       expect(svg).toHaveAttribute('height', '14');
     });
 
+    it('should render arrow SVG icon for string-type children when showAllTriangles is true', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'String Question', type: 'string' },
+        { linkId: 'child-2', text: 'Another String', type: 'string' },
+      ];
+
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          showAllTriangles
+        />
+      );
+
+      const svgs = container.querySelectorAll('svg');
+      expect(svgs.length).toBe(2);
+    });
+
+    it('should not render arrow SVG for a sole string child (describe field) even when showAllTriangles is false', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Describe...', type: 'string' },
+      ];
+
+      const { container } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(container.querySelector('svg')).not.toBeInTheDocument();
+    });
+
     it('should not render arrow SVG icon for non-choice type children', () => {
       const items: AyuQuestion[] = [
         { linkId: 'child-1', text: 'String Question', type: 'string' },

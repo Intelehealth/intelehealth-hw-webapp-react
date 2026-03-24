@@ -268,6 +268,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors },
   } = useForm<VitalsFormValues>({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
@@ -289,16 +290,18 @@ export const useVitals = (onNextQuestion: () => void) => {
     const calculatedBMI = calculateBMI(height, weight);
     if (calculatedBMI !== undefined && calculatedBMI !== bmi) {
       setValue('bmi', calculatedBMI);
+      trigger('bmi');
     }
-  }, [height, weight, bmi, setValue]);
+  }, [height, weight, bmi, setValue, trigger]);
 
   // Auto-calculate WHR when waist or hip changes
   useEffect(() => {
     const calculatedWHR = calculateWHR(waist, hip);
     if (calculatedWHR !== undefined) {
       setValue('waist_to_hip_ratio', calculatedWHR);
+      trigger('waist_to_hip_ratio');
     }
-  }, [waist, hip, setValue]);
+  }, [waist, hip, setValue, trigger]);
 
   const onSubmit = () => {
     // TODO: Send vitals data to API

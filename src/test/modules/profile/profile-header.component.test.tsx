@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { HashRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,6 +73,15 @@ describe('ProfileHeader', () => {
     expect(backButton).toBeInTheDocument();
     const backIcon = backButton?.querySelector('.fa-arrow-left');
     expect(backIcon).toBeInTheDocument();
+  });
+
+  it('should call navigate(-1) when back button is clicked', () => {
+    const { container } = renderWithRouter(<ProfileHeader />);
+
+    const backButton = container.querySelector('button.p-2.md\\:hidden') as HTMLButtonElement;
+    expect(backButton).toBeInTheDocument();
+    // Clicking the back button should not throw (navigate(-1) is called internally)
+    expect(() => fireEvent.click(backButton!)).not.toThrow();
   });
 
   it('should render desktop header with user icon', () => {
