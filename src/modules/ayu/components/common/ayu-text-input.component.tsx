@@ -35,11 +35,15 @@ export function AyuTextInput({
               : 'block text-base text-(--color-muted)'
           }
         >
-          {label === 'Additional Information' ||
-          (isAssociatedSymptomsParent && !label.includes('Other [Describe]')) ||
-          !label.includes('Describe')
-            ? label
-            : null}
+          {isAssociatedSymptomsParent
+            ? label === 'Additional Information' ||
+              !label.toLowerCase().includes('other')
+              ? label
+              : null
+            : label === 'Additional Information' ||
+                !label.toLowerCase().includes('describe')
+              ? label
+              : null}
         </label>
       )}
       <textarea

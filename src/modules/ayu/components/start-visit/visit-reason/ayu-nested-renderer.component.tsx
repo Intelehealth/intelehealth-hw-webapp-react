@@ -228,7 +228,9 @@ export const AyuNestedRenderer = ({
                 child.type === 'string' && children.length === 1;
               const showTriangle = isDescribeField
                 ? false
-                : showAllTriangles || child.type !== 'string';
+                : showAllTriangles ||
+                  child.type !== 'string' ||
+                  children.length > 1;
 
               return (
                 <div key={child.linkId} className="flex items-start gap-2 mt-2">
