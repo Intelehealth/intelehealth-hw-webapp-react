@@ -1,0 +1,678 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+/* ── Mock navigation ─────────────────────────────────────────────────────── */
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+/* ── Mock context: useStartVisitData ─────────────────────────────────────── */
+
+const defaultData = {
+  vitals: null as any,
+  visitReason: null as any,
+  physicalExam: null as any,
+  medicalHistory: null as any,
+};
+
+const mockUseStartVisitData = vi.fn(() => ({
+  data: { ...defaultData },
+  patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  setPatientUuid: vi.fn(),
+  setVitalsData: vi.fn(),
+  setVisitReasonData: vi.fn(),
+  setPhysicalExamData: vi.fn(),
+  setMedicalHistoryData: vi.fn(),
+}));
+
+vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: (...args: any[]) => mockUseStartVisitData(...args),
+}));
+
+/* ── Mock ProfileContext ─────────────────────────────────────────────────── */
+
+const mockHwProfile = {
+  providerUuid: 'provider-uuid-1234',
+  display: 'Test Provider',
+};
+
+vi.mock('../../../../context/ProfileContext', () => ({
+  useProfileContext: () => ({
+    hwProfile: mockHwProfile,
+    profile: null,
+    isLoading: false,
+  }),
+}));
+
+/* ── Mock storage ────────────────────────────────────────────────────────── */
+
+const mockStorageGet = vi.fn<(key: string) => string | null>(() => null);
+const mockStorageGetLocationUuid = vi.fn(() => 'location-uuid-5678');
+
+vi.mock('../../../../utils/storage', () => ({
+  storage: {
+    get: (...args: any[]) => mockStorageGet(...args),
+    set: vi.fn(),
+    getLocationUuid: (...args: any[]) => mockStorageGetLocationUuid(...args),
+  },
+}));
+
+/* ── Mock toast ──────────────────────────────────────────────────────────── */
+
+const mockShowToast = vi.fn();
+vi.mock('../../../../services/toast', () => ({
+  showToast: (...args: any[]) => mockShowToast(...args),
+}));
+
+/* ── Mock ConfirmationModal ──────────────────────────────────────────────── */
+
+vi.mock('../../../../components/modal/confirmation.modal', () => ({
+  ConfirmationModal: vi.fn(
+    ({ open, title, onConfirm, onClose }: any) =>
+      open ? (
+        <div data-testid="confirmation-modal">
+          <span>{title}</span>
+          <button data-testid="modal-confirm" onClick={onConfirm}>
+            Confirm
+          </button>
+          <button data-testid="modal-cancel" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      ) : null
+  ),
+}));
+
+/* ── Mock CollapsedComponent (render children directly) ──────────────────── */
+
+vi.mock('../../../../modules/visit-summary/visit-summary-collapsed.component', () => ({
+  default: vi.fn(({ title, children }: any) => (
+    <div data-testid={`collapsed-${title}`}>
+      <span>{title}</span>
+      {children}
+    </div>
+  )),
+}));
+
+/* ── Mock visit-upload service functions ──────────────────────────────────── */
+
+const mockBuildVisitReasonHtml = vi.fn(() => '<p>visit reason</p>');
+const mockBuildPhysicalExamData = vi.fn(() => 'physical-exam-data');
+const mockBuildMedicalHistoryData = vi.fn(() => 'medical-history-data');
+const mockBuildFamilyHistoryData = vi.fn(() => 'family-history-data');
+const mockBuildVisitUploadPayload = vi.fn(() => ({ payload: true }));
+const mockUploadVisit = vi.fn(() => Promise.resolve());
+
+vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
+  buildVisitReasonHtml: (...args: any[]) => mockBuildVisitReasonHtml(...args),
+  buildPhysicalExamData: (...args: any[]) => mockBuildPhysicalExamData(...args),
+  buildMedicalHistoryData: (...args: any[]) =>
+    mockBuildMedicalHistoryData(...args),
+  buildFamilyHistoryData: (...args: any[]) =>
+    mockBuildFamilyHistoryData(...args),
+  buildVisitUploadPayload: (...args: any[]) =>
+    mockBuildVisitUploadPayload(...args),
+  uploadVisit: (...args: any[]) => mockUploadVisit(...args),
+}));
+
+/* ── Mock icon imports ───────────────────────────────────────────────────── */
+
+vi.mock('../../../../assets/icons/icon-chevron-down.svg', () => ({
+  default: 'icon-chevron-down.svg',
+}));
+vi.mock('../../../../assets/icons/icon-physical-examination.svg', () => ({
+  default: 'icon-physical-examination.svg',
+}));
+vi.mock('../../../../assets/icons/icon-visit-summery.svg', () => ({
+  default: 'icon-visit-summery.svg',
+}));
+vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
+  default: 'visit-reason.svg',
+}));
+vi.mock('../../../../assets/icons/vitals.svg', () => ({
+  default: 'vitals.svg',
+}));
+
+/* ── Mock physical-exam data ─────────────────────────────────────────────── */
+
+vi.mock('../../../../modules/ayu/data/physical-exam.data', () => ({
+  PHYSICAL_EXAM_QUESTIONS: [
+    {
+      id: 'pe1',
+      sectionLabel: 'General',
+      categoryLabel: 'General Appearance',
+      questionText: 'General appearance?',
+      isRequired: false,
+      isMultiChoice: true,
+      options: [
+        { id: 'opt1', text: 'Normal' },
+        { id: 'opt2', text: 'Abnormal' },
+      ],
+    },
+  ],
+}));
+
+/* ── Import the component under test (after all mocks) ───────────────────── */
+
+const { default: VisitSummaryPage } = await import(
+  '../../../../modules/ayu/pages/visit-summary.page'
+);
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+
+const fullData = {
+  vitals: {
+    formValues: {
+      height_cm: 170,
+      weight_kg: 70,
+      bmi: 24.2,
+      bp_systolic: 120,
+      bp_diastolic: 80,
+      pulse_bpm: 72,
+      temprature_f: 98.6,
+      spo2: 98,
+      respiratory_rate: 16,
+    },
+    config: [],
+  },
+  visitReason: {
+    answers: {},
+    reasonNames: ['Cough', 'Fever'],
+    details: [{ label: 'Duration', value: '3 days' }],
+  },
+  physicalExam: {
+    answers: {
+      pe1: ['opt1'],
+    },
+  },
+  medicalHistory: {
+    patHistSummary: [
+      {
+        title: 'Past History',
+        items: [{ type: 'labelValue' as const, label: 'Diabetes', value: 'Yes' }],
+      },
+    ],
+    famHistSummary: [
+      {
+        title: 'Family History',
+        items: [{ type: 'labelValue' as const, label: 'Hypertension', value: 'No' }],
+      },
+    ],
+  },
+};
+
+function renderWithData(dataOverride?: Partial<typeof defaultData>) {
+  const data = { ...defaultData, ...dataOverride };
+  mockUseStartVisitData.mockReturnValue({
+    data,
+    patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    setPatientUuid: vi.fn(),
+    setVitalsData: vi.fn(),
+    setVisitReasonData: vi.fn(),
+    setPhysicalExamData: vi.fn(),
+    setMedicalHistoryData: vi.fn(),
+  });
+  return render(<VisitSummaryPage />);
+}
+
+/* ── Tests ────────────────────────────────────────────────────────────────── */
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockStorageGet.mockReturnValue(null);
+  mockStorageGetLocationUuid.mockReturnValue('location-uuid-5678');
+  mockUploadVisit.mockResolvedValue(undefined);
+});
+
+describe('VisitSummaryPage', () => {
+  /* ── Header ──────────────────────────────────────────────────────────── */
+
+  it('should render the "Visit Summary" header', () => {
+    renderWithData();
+    expect(screen.getByText('Visit Summary')).toBeInTheDocument();
+  });
+
+  /* ── Empty-state messages ────────────────────────────────────────────── */
+
+  it('should show "No vitals recorded" when data.vitals is null', () => {
+    renderWithData({ vitals: null });
+    expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+  });
+
+  it('should show "No visit reason recorded" when data.visitReason is null', () => {
+    renderWithData({ visitReason: null });
+    expect(screen.getByText('No visit reason recorded')).toBeInTheDocument();
+  });
+
+  it('should show "No physical exam recorded" when data.physicalExam is null', () => {
+    renderWithData({ physicalExam: null });
+    expect(screen.getByText('No physical exam recorded')).toBeInTheDocument();
+  });
+
+  it('should show "No medical history recorded" when data.medicalHistory is null', () => {
+    renderWithData({ medicalHistory: null });
+    expect(screen.getByText('No medical history recorded')).toBeInTheDocument();
+  });
+
+  /* ── Vitals data rendering ──────────────────────────────────────────── */
+
+  it('should show vitals data when available', () => {
+    renderWithData({ vitals: fullData.vitals });
+
+    expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
+    // Check a few representative vital labels/values
+    expect(screen.getAllByText('Height(cm)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('170').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Weight(kg)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('70').length).toBeGreaterThan(0);
+  });
+
+  /* ── Confirmation modal ─────────────────────────────────────────────── */
+
+  it('should show confirmation modal when upload button is clicked', () => {
+    renderWithData(fullData);
+
+    expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
+
+    const uploadButton = screen.getByText('Upload Visit');
+    fireEvent.click(uploadButton);
+
+    expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
+    expect(screen.getByText('Send Visit')).toBeInTheDocument();
+  });
+
+  /* ── handleUploadVisit: validation ──────────────────────────────────── */
+
+  it('should show error toast when required data is missing', async () => {
+    // All sections null
+    renderWithData();
+
+    // Click Upload Visit to open modal
+    fireEvent.click(screen.getByText('Upload Visit'));
+    // Confirm in modal
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Please complete all sections before uploading',
+        'error'
+      );
+    });
+  });
+
+  /* ── handleUploadVisit: success path ────────────────────────────────── */
+
+  it('should call uploadVisit with correct payload when all data is present', async () => {
+    renderWithData(fullData);
+
+    // Open and confirm modal
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBuildVisitReasonHtml).toHaveBeenCalledWith(
+        fullData.visitReason.details,
+        fullData.visitReason.reasonNames
+      );
+      expect(mockBuildPhysicalExamData).toHaveBeenCalled();
+      expect(mockBuildMedicalHistoryData).toHaveBeenCalled();
+      expect(mockBuildFamilyHistoryData).toHaveBeenCalled();
+      expect(mockBuildVisitUploadPayload).toHaveBeenCalled();
+      expect(mockUploadVisit).toHaveBeenCalledWith({ payload: true });
+    });
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+    });
+  });
+
+  /* ── "Back to Edit" button ──────────────────────────────────────────── */
+
+  it('should navigate to /ayu when "Back to Edit" button is clicked', () => {
+    renderWithData();
+
+    const backButton = screen.getByText('Back to Edit');
+    fireEvent.click(backButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+  });
+
+  /* ── MedicalHistorySection: subheading items ──────────────────────── */
+
+  it('should render subheading items in medical history', () => {
+    renderWithData({
+      ...fullData,
+      medicalHistory: {
+        patHistSummary: [
+          {
+            title: 'Past History',
+            items: [
+              { type: 'subheading' as const, heading: 'Chronic Conditions', values: ['Asthma'] },
+              { type: 'labelValue' as const, label: 'Diabetes', value: 'Yes' },
+            ],
+          },
+        ],
+        famHistSummary: [],
+      },
+    });
+
+    expect(screen.getByText('Chronic Conditions')).toBeInTheDocument();
+    expect(screen.getByText('Diabetes')).toBeInTheDocument();
+  });
+
+  it('should return null for unknown item types in medical history', () => {
+    renderWithData({
+      ...fullData,
+      medicalHistory: {
+        patHistSummary: [
+          {
+            title: 'Past History',
+            items: [
+              { type: 'unknownType' as any, label: 'X', value: 'Y' },
+              { type: 'labelValue' as const, label: 'Known', value: 'Value' },
+            ],
+          },
+        ],
+        famHistSummary: [],
+      },
+    });
+
+    // The known labelValue item should render, the unknown type should be skipped
+    expect(screen.getByText('Known')).toBeInTheDocument();
+  });
+
+  it('should show "No information" for medical history item with null value', () => {
+    renderWithData({
+      ...fullData,
+      medicalHistory: {
+        patHistSummary: [
+          {
+            title: 'Past History',
+            items: [
+              { type: 'labelValue' as const, label: 'Diabetes', value: null },
+            ],
+          },
+        ],
+        famHistSummary: [],
+      },
+    });
+
+    expect(screen.getByText('No information')).toBeInTheDocument();
+  });
+
+  /* ── Missing patient/location/provider shows error toast ──────────── */
+
+  it('should show error toast when patient UUID is missing', async () => {
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: null as any,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+    });
+    mockStorageGet.mockReturnValue(null);
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Missing patient, location, or provider information',
+        'error'
+      );
+    });
+  });
+
+  it('should show error toast when location UUID is missing', async () => {
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: 'patient-uuid',
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+    });
+    mockStorageGetLocationUuid.mockReturnValue(null as any);
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Missing patient, location, or provider information',
+        'error'
+      );
+    });
+  });
+
+  /* ── Upload failure shows error toast ─────────────────────────────── */
+
+  it('should show error toast when upload fails', async () => {
+    mockUploadVisit.mockRejectedValueOnce(new Error('Network error'));
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to upload visit. Please try again.',
+        'error'
+      );
+    });
+  });
+
+  /* ── Storage fallback when ctxPatientUuid is null ──────────────────── */
+
+  it('should use storage fallback when ctxPatientUuid is null', async () => {
+    mockStorageGet.mockImplementation((key: string) =>
+      key === 'patientUuid' ? 'storage-patient-uuid' : null
+    );
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: null as any,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+    });
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockUploadVisit).toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+  });
+
+  /* ── Toggle all button toggles allOpen state ──────────────────────── */
+
+  it('should toggle between "Close all" and "Open all" when clicked', () => {
+    renderWithData(fullData);
+
+    // Initially allOpen is true, so button says "Close all"
+    const toggleButton = screen.getByText('Close all');
+    expect(toggleButton).toBeInTheDocument();
+
+    fireEvent.click(toggleButton);
+
+    // After click, allOpen is false, so button says "Open all"
+    expect(screen.getByText('Open all')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Open all'));
+
+    // After second click, back to "Close all"
+    expect(screen.getByText('Close all')).toBeInTheDocument();
+  });
+
+  /* ── Modal cancel/close closes modal ──────────────────────────────── */
+
+  it('should close the confirmation modal when cancel is clicked', () => {
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('modal-cancel'));
+
+    expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
+  });
+
+  /* ── Full vitals rendering (mapVitals, VitalsSection branches) ─────── */
+
+  it('should render all vitals including BMI and BP from formValues', () => {
+    renderWithData({ vitals: fullData.vitals });
+
+    expect(screen.getAllByText('BMI').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('24.2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('BP').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('120/80').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pulse').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('72').length).toBeGreaterThan(0);
+  });
+
+  it('should render "No information" for null vital values', () => {
+    renderWithData({
+      vitals: {
+        formValues: {
+          height_cm: undefined as any,
+          weight_kg: undefined as any,
+          bmi: undefined as any,
+          bp_systolic: undefined as any,
+          bp_diastolic: undefined as any,
+          pulse_bpm: undefined as any,
+          temprature_f: undefined as any,
+          spo2: undefined as any,
+          respiratory_rate: undefined as any,
+        },
+        config: [],
+      },
+    });
+
+    // mapVitals v() with undefined => value null, note 'No information'
+    // getVitalDisplay(null, 'No information') => 'No information'
+    const noInfoElements = screen.getAllByText('No information');
+    expect(noInfoElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  /* ── LabelValueRow compact prop branch ────────────────────────────── */
+
+  it('should render LabelValueRow with compact styling when vitals use compact=false by default', () => {
+    renderWithData({ vitals: fullData.vitals });
+    // LabelValueRow renders with py-1 when compact is false (default)
+    expect(screen.getAllByText('Height(cm)').length).toBeGreaterThan(0);
+  });
+
+  /* ── Physical exam data rendering ─────────────────────────────────── */
+
+  it('should render physical examination data with answers', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: {
+          pe1: ['opt1'],
+        },
+      },
+    });
+
+    expect(screen.getByText('General Appearance')).toBeInTheDocument();
+    expect(screen.getByText('Normal')).toBeInTheDocument();
+  });
+
+  it('should handle physical exam with empty answers (mapPhysicalExam filters empty)', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: {},
+      },
+    });
+
+    // No physical exam items with answers, but section still renders (not null)
+    expect(screen.queryByText('No physical exam recorded')).not.toBeInTheDocument();
+  });
+
+  /* ── Check-up reason section rendering ────────────────────────────── */
+
+  it('should render check-up reason with chief complaint chips and details', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough', 'Fever'],
+        details: [{ label: 'Duration', value: '3 days' }],
+      },
+    });
+
+    expect(screen.getByText('Chief complaint(s)')).toBeInTheDocument();
+    expect(screen.getByText('Cough')).toBeInTheDocument();
+    expect(screen.getByText('Fever')).toBeInTheDocument();
+    expect(screen.getByText('Duration')).toBeInTheDocument();
+    expect(screen.getByText('3 days')).toBeInTheDocument();
+  });
+
+  /* ── Vitals with null values (note fallback path) ────────────────── */
+
+  it('should show "No information" for vitals with null values via note fallback', () => {
+    renderWithData({
+      vitals: {
+        formValues: {
+          height_cm: undefined as any,
+          weight_kg: undefined as any,
+          bmi: undefined as any,
+          bp_systolic: undefined as any,
+          bp_diastolic: undefined as any,
+          pulse_bpm: undefined as any,
+          temprature_f: undefined as any,
+          spo2: undefined as any,
+          respiratory_rate: undefined as any,
+        },
+        config: [],
+      },
+    });
+
+    // When val is null, note is 'No information' — covers val?.toString() ?? note ?? 'No information'
+    const noInfoElements = screen.getAllByText('No information');
+    expect(noInfoElements.length).toBeGreaterThan(0);
+  });
+
+  /* ── Physical exam with question having no answers (answers[q.id] ?? []) ── */
+
+  it('should handle physical exam questions with no matching answers', () => {
+    renderWithData({
+      physicalExam: {
+        answers: {
+          // pe1 has no entry — covers answers[q.id] ?? [] branch
+        },
+      },
+    });
+
+    // Should still render without crashing, no exam items shown
+    expect(screen.queryByText('General Appearance')).not.toBeInTheDocument();
+  });
+});

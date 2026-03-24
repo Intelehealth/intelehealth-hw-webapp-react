@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 // Create mock objects
 const mockAyuSchema = {
@@ -17,6 +17,28 @@ const mockAyuSchema = {
 };
 
 const mockTransformFhirToAyu = vi.fn(() => mockAyuSchema);
+
+// ── useLocation / useParams mock state ──────────────────────────────────────
+const mockLocationState: { patientUuid?: string } = {};
+const mockParams: Record<string, string> = {};
+
+// Mock react-router-dom: keep MemoryRouter / Route / Routes real, stub hooks
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>(
+    'react-router-dom'
+  );
+  return {
+    ...actual,
+    useLocation: vi.fn(() => ({
+      pathname: '/',
+      search: '',
+      hash: '',
+      key: 'default',
+      state: mockLocationState,
+    })),
+    useParams: vi.fn(() => mockParams),
+  };
+});
 
 // Mock the transformFhirToAyu utility and resolveLabel
 vi.mock('../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
@@ -43,8 +65,45 @@ vi.mock('../../../../modules/ayu/components/start-visit/start-visit.component', 
   StartVisit: vi.fn(() => <div data-testid="start-visit">Start Visit Component</div>),
 }));
 
+// Mock the StartVisitProvider – capture the initialPatientUuid prop
+const mockStartVisitProviderProps: { initialPatientUuid?: string | null } = {};
+vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
+  StartVisitProvider: vi.fn(({ children, initialPatientUuid }: any) => {
+    mockStartVisitProviderProps.initialPatientUuid = initialPatientUuid;
+    return <div data-testid="start-visit-provider">{children}</div>;
+  }),
+  useStartVisitData: vi.fn(),
+}));
+
+// Mock VisitSummaryPage
+vi.mock('../../../../modules/ayu/pages/visit-summary.page', () => ({
+  default: vi.fn(() => (
+    <div data-testid="visit-summary-page">Visit Summary Page</div>
+  )),
+}));
+
+// Mock storage utility
+const mockStorageGet = vi.fn<(key: string) => string | null>(() => null);
+const mockStorageSet = vi.fn();
+vi.mock('../../../../utils/storage', () => ({
+  storage: {
+    get: (...args: any[]) => mockStorageGet(...args),
+    set: (...args: any[]) => mockStorageSet(...args),
+    getLocationUuid: vi.fn(),
+  },
+}));
+
 // Import after mocks are set up
 const { default: AyuPage } = await import('../../../../modules/ayu/pages/ayu.page');
+
+beforeEach(() => {
+  // Reset mutable mock state
+  Object.keys(mockLocationState).forEach((k) => delete (mockLocationState as any)[k]);
+  Object.keys(mockParams).forEach((k) => delete mockParams[k]);
+  mockStorageGet.mockReturnValue(null);
+  mockStorageSet.mockReset();
+  mockStartVisitProviderProps.initialPatientUuid = undefined;
+});
 
 describe('AyuPage', () => {
   describe('Component Structure', () => {
@@ -331,6 +390,91 @@ describe('AyuPage', () => {
       );
 
       expect(screen.getByTestId('start-visit')).toBeInTheDocument();
+    });
+  });
+
+  /* ── NEW: Patient UUID resolution ───────────────────────────────────────── */
+
+  describe('Patient UUID resolution', () => {
+    it('should prioritise UUID from location state over URL params', () => {
+      const stateUuid = '11111111-1111-1111-1111-111111111111';
+      const paramUuid = '22222222-2222-2222-2222-222222222222';
+
+      mockLocationState.patientUuid = stateUuid;
+      mockParams.patientUuid = paramUuid;
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBe(stateUuid);
+    });
+
+    it('should use UUID from URL params when state has no UUID', () => {
+      const paramUuid = '22222222-2222-2222-2222-222222222222';
+      mockParams.patientUuid = paramUuid;
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBe(paramUuid);
+    });
+
+    it('should ignore an invalid (non-UUID) URL param', () => {
+      mockParams.patientUuid = 'not-a-valid-uuid';
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      // Falls through to localStorage (which also returns null)
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBeNull();
+    });
+
+    it('should fall back to localStorage when neither state nor params provide a UUID', () => {
+      const storedUuid = '33333333-3333-3333-3333-333333333333';
+      mockStorageGet.mockReturnValue(storedUuid);
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStorageGet).toHaveBeenCalledWith('patientUuid');
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBe(storedUuid);
+    });
+
+    it('should resolve to null when no UUID is available anywhere', () => {
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBeNull();
+    });
+  });
+
+  /* ── NEW: visit-summary sub-route ───────────────────────────────────────── */
+
+  describe('Visit Summary sub-route', () => {
+    it('should render VisitSummaryPage on /visit-summary path', () => {
+      render(
+        <MemoryRouter initialEntries={['/visit-summary']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
+      expect(screen.getByText('Visit Summary Page')).toBeInTheDocument();
     });
   });
 });

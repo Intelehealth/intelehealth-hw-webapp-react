@@ -2,10 +2,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { PrescriptionData } from '../../services/visit-prescription.service';
 
 // ─── Mock pdfmake ─────────────────────────────────────────────────────────────
-const mockDownload = vi.fn();
-const mockCreatePdf = vi.fn(() => ({ download: mockDownload }));
+const h = vi.hoisted(() => {
+  const mockDownload = vi.fn();
+  const mockCreatePdf = vi.fn(() => ({ download: mockDownload }));
+  return { mockDownload, mockCreatePdf };
+});
+const { mockDownload, mockCreatePdf } = h;
 
-vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: mockCreatePdf, vfs: {} } }));
+vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, vfs: {} } }));
 vi.mock('pdfmake/build/vfs_fonts', () => ({ default: { pdfMake: { vfs: {} } } }));
 
 // ─── Mock SVG ?url imports ────────────────────────────────────────────────────

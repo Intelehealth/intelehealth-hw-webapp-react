@@ -123,7 +123,7 @@ describe('useAddPatient hook', () => {
         'Patient has been added successfully',
         'success'
       );
-      expect(success).toBe(true);
+      expect(success).toBe('patient-uuid-123');
     });
 
     it('should successfully create a patient with profile photo', async () => {
@@ -165,7 +165,7 @@ describe('useAddPatient hook', () => {
         'Patient has been added successfully',
         'success'
       );
-      expect(success).toBe(true);
+      expect(success).toBe('patient-uuid-123');
     });
 
     it('should map all personal info attributes correctly', async () => {
