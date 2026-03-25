@@ -311,14 +311,14 @@ describe('VisitDetails', () => {
       expect(screen.queryByText(/Received/)).not.toBeInTheDocument();
     });
 
-    it('should handle visit summary row click', async () => {
+    it('should navigate to visit summary on row click', async () => {
       vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(makeVisitData());
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByText('Visit summary')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Visit summary'));
-      // TODO handler
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary');
     });
 
     it('should navigate to prescription detail on prescription row click', async () => {

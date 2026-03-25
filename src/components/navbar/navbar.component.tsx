@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import iconLocation from '../../assets/icons/icon-location.svg';
-import iconSync from '../../assets/icons/icon-sync.svg';
 import iconNotification from '../../assets/icons/icon-notification.svg';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import { useNotificationContext } from '../../context/NotificationContext';
@@ -46,7 +45,7 @@ const Navbar = () => {
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-auto gap-4">
-          <img src={iconSync} alt="Sync" className="w-6 h-6" />
+          {/* <img src={iconSync} alt="Sync" className="w-6 h-6" /> */}
           <CountReadNotification />
           <Link
             to={ROUTES.PROFILE}
