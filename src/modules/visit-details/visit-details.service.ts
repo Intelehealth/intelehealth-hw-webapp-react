@@ -47,21 +47,30 @@ function getPhoneNumber(patient: VisitDetailsResponse['patient']): string {
   return phoneAttr?.value ?? '';
 }
 
-function parseChiefComplaintValue(value: string): string {
+function extractNameFromHtml(html: string): string {
+  const match = html.match(/<b>([^<]+)<\/b>/);
+  return match ? match[1] : html.replace(/<[^>]*>/g, '').trim();
+}
+
+function parseChiefComplaintValue(value: string): {
+  name: string;
+  html: string;
+} {
   try {
     const parsed = JSON.parse(value);
     const html = parsed.en || parsed['l-en'] || '';
-    // Extract the bold complaint name: ►<b>Abdominal Pain</b>
-    const match = html.match(/<b>([^<]+)<\/b>/);
-    return match ? match[1] : html.replace(/<[^>]*>/g, '').trim() || value;
+    const name = extractNameFromHtml(html) || value;
+    return { name, html: html || value };
   } catch {
-    return value;
+    const name = extractNameFromHtml(value) || value;
+    return { name, html: value };
   }
 }
 
-function getChiefComplaint(
-  encounters: VisitDetailsResponse['encounters']
-): string {
+function getChiefComplaint(encounters: VisitDetailsResponse['encounters']): {
+  name: string;
+  html: string;
+} {
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
       if (obs.concept?.uuid === CONCEPT_UUIDS.CHIEF_COMPLAINT) {
@@ -80,7 +89,7 @@ function getChiefComplaint(
       }
     }
   }
-  return 'Not available';
+  return { name: 'Not available', html: '' };
 }
 
 function getFollowUpDate(
@@ -140,6 +149,7 @@ function transformVisitResponse(
   const doctor = getDoctorInfo(encounters);
   const prescriptionDateRaw = getPrescriptionDate(encounters);
   const followUpDateRaw = getFollowUpDate(encounters);
+  const chiefComplaint = getChiefComplaint(encounters);
 
   return {
     visitUuid: response.uuid,
@@ -151,7 +161,8 @@ function transformVisitResponse(
     gender: patient.person?.gender === 'M' ? 'Male' : 'Female',
     age: patient.person?.age ?? 0,
     patientIdentifier: getPatientIdentifier(patient),
-    chiefComplaint: getChiefComplaint(encounters),
+    chiefComplaint: chiefComplaint.name,
+    chiefComplaintHtml: chiefComplaint.html,
     visitDate: formatDate(response.startDatetime),
     visitTime: formatTime(response.startDatetime),
     doctorName: doctor.name,

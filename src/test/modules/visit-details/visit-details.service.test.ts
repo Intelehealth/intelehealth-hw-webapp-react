@@ -291,6 +291,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Fever');
+      expect(r.chiefComplaintHtml).toBe('Fever');
     });
 
     it('should find by concept UUID with object value', async () => {
@@ -300,6 +301,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Headache');
+      expect(r.chiefComplaintHtml).toBe('Headache');
     });
 
     it('should find by display containing "chief complaint" with string value', async () => {
@@ -309,6 +311,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Cough');
+      expect(r.chiefComplaintHtml).toBe('Cough');
     });
 
     it('should find by display containing "chief complaint" with object value', async () => {
@@ -318,6 +321,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Cold');
+      expect(r.chiefComplaintHtml).toBe('Cold');
     });
 
     it('should return "Not available" when no matching obs', async () => {
@@ -327,12 +331,14 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Not available');
+      expect(r.chiefComplaintHtml).toBe('');
     });
 
     it('should return "Not available" when encounters is empty', async () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Not available');
+      expect(r.chiefComplaintHtml).toBe('');
     });
 
     it('should handle object value without display (fallback to empty string) via UUID match', async () => {
@@ -342,6 +348,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('');
+      expect(r.chiefComplaintHtml).toBe('');
     });
 
     it('should handle object value without display (fallback to empty string) via display match', async () => {
@@ -351,29 +358,34 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('');
+      expect(r.chiefComplaintHtml).toBe('');
     });
 
-    it('should parse JSON value and extract bold complaint name', async () => {
-      const jsonValue = JSON.stringify({ en: '►<b>Abdominal Pain</b>: <br/>• Site - All over.' });
+    it('should parse JSON value and extract bold complaint name, preserving full HTML', async () => {
+      const htmlContent = '►<b>Abdominal Pain</b>: <br/>• Site - All over.';
+      const jsonValue = JSON.stringify({ en: htmlContent });
       const enc = makeEncounter({
         obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
       });
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Abdominal Pain');
+      expect(r.chiefComplaintHtml).toBe(htmlContent);
     });
 
     it('should fall back to l-en when en is missing in JSON', async () => {
-      const jsonValue = JSON.stringify({ 'l-en': '►<b>Fever</b>: details' });
+      const htmlContent = '►<b>Fever</b>: details';
+      const jsonValue = JSON.stringify({ 'l-en': htmlContent });
       const enc = makeEncounter({
         obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
       });
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Fever');
+      expect(r.chiefComplaintHtml).toBe(htmlContent);
     });
 
-    it('should strip HTML when no bold tag in JSON value', async () => {
+    it('should strip HTML for name when no bold tag in JSON value, keep html field', async () => {
       const jsonValue = JSON.stringify({ en: '►Headache: some details' });
       const enc = makeEncounter({
         obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: jsonValue }],
@@ -381,6 +393,7 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('►Headache: some details');
+      expect(r.chiefComplaintHtml).toBe('►Headache: some details');
     });
 
     it('should return original value when JSON has no en or l-en keys', async () => {
@@ -391,6 +404,29 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe(jsonValue);
+      expect(r.chiefComplaintHtml).toBe(jsonValue);
+    });
+
+    it('should extract name from raw HTML string (non-JSON) with bold tag', async () => {
+      const rawHtml = '<b>Cough</b>: <br/>• Duration - Acute (0-2 weeks).<br/>• Timing - Day.';
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: rawHtml }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('Cough');
+      expect(r.chiefComplaintHtml).toBe(rawHtml);
+    });
+
+    it('should handle raw HTML string without bold tag', async () => {
+      const rawHtml = 'Headache: <br/>• Duration - Chronic.';
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: rawHtml }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('Headache: • Duration - Chronic.');
+      expect(r.chiefComplaintHtml).toBe(rawHtml);
     });
   });
 

@@ -151,7 +151,7 @@ const DashboardComponent = ({
       {/* Prescriptions table - hidden on notifications route */}
       {!showNotifications && (
         <div
-          className={`${showPrescriptions ? '' : 'hidden md:block'} lg:flex-1 lg:min-h-0 lg:overflow-auto`}
+          className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} lg:flex-1 lg:min-h-0 flex-col`}
         >
           <PrescriptionsReceived onCountLoaded={setPrescriptionCount} />
         </div>

@@ -116,6 +116,7 @@ export interface TransformedVisitDetails {
   age: number;
   patientIdentifier: string;
   chiefComplaint: string;
+  chiefComplaintHtml: string;
   visitDate: string;
   visitTime: string;
   doctorName: string;

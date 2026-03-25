@@ -70,6 +70,12 @@ const ChiefComplaintSection: React.FC<{
     <h3 className="text-base font-semibold text-gray-800">
       Chief Complaint: {data.chiefComplaint}
     </h3>
+    {data.chiefComplaintHtml && (
+      <div
+        className="text-sm text-gray-600 mt-2 leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: data.chiefComplaintHtml }}
+      />
+    )}
     <p className="text-xs text-gray-400 mt-1">Visit ID: {data.visitId}</p>
 
     <div className="flex items-center gap-6 mt-3 text-sm text-gray-600">
@@ -279,7 +285,7 @@ const VisitDetails: React.FC = () => {
   }
 
   return (
-    <div className="px-4 py-3 md:px-6 md:py-4 min-h-screen bg-[#F5F5FA]">
+    <div className="px-4 py-3 md:px-6 md:py-4 h-full overflow-y-auto bg-[#F5F5FA]">
       {/* Back navigation */}
       <button
         className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"

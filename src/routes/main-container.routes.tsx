@@ -26,7 +26,7 @@ const MainContainer = () => {
                   <Navbar />
                 </div>
                 <div
-                  className={`flex-1 overflow-auto bg-white ${hideNavbarOnMobile ? 'md:rounded-lg md:shadow-md' : 'rounded-lg shadow-md'}`}
+                  className={`flex-1 overflow-hidden flex flex-col bg-white ${hideNavbarOnMobile ? 'md:rounded-lg md:shadow-md' : 'rounded-lg shadow-md'}`}
                   id="main-container-content"
                 >
                   <Outlet />

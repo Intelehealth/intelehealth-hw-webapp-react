@@ -1,4 +1,5 @@
 import { useVitals } from '../../hooks/useVitals';
+import { VITAL_RANGES } from './vitals.validation';
 import type { SectionProps } from '../../../ayu-library/types/start-visit.types';
 import type { VitalField, VitalsFormValues } from '../../types/vitals.types';
 import AyuButton from '../common/ayu-button.component';
@@ -67,7 +68,23 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
     const showBMIStatus = field.key === 'bmi' && fieldValue;
     const bmiStatus = getBMIStatus(fieldValue as number);
     const showBPWarning =
-      field.key === 'bp_diastolic' && isBPHigh(bpSystolic, bpDiastolic);
+      (field.key === 'bp_systolic' && isBPHigh(bpSystolic, undefined)) ||
+      (field.key === 'bp_diastolic' && isBPHigh(undefined, bpDiastolic));
+
+    // Show BMI/WHR out-of-range warning under the input fields users can change
+    const bmiVal = Number(watch('bmi'));
+    const whrVal = Number(watch('waist_to_hip_ratio'));
+    const bmiRange = VITAL_RANGES.bmi;
+    const showBMIWarning =
+      field.key === 'weight_kg' &&
+      !isNaN(bmiVal) &&
+      bmiVal > 0 &&
+      (bmiVal < bmiRange.min || bmiVal > bmiRange.max);
+    const showWHRWarning =
+      field.key === 'hip_circumference_cm' &&
+      !isNaN(whrVal) &&
+      whrVal > 0 &&
+      (whrVal < 0.5 || whrVal > 1.5);
 
     return (
       <div key={field.uuid} className="relative">
@@ -133,9 +150,20 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
         {showBPWarning && (
           <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-700 font-medium">
-              BP Dia is too high. This should be a priority visit
+              {field.key === 'bp_systolic' ? 'BP Sys' : 'BP Dia'} is too high.
+              This should be a priority visit
             </p>
           </div>
+        )}
+        {showBMIWarning && (
+          <p className="form-error-message mt-1">
+            BMI must be between {bmiRange.min} and {bmiRange.max}
+          </p>
+        )}
+        {showWHRWarning && (
+          <p className="form-error-message mt-1">
+            Waist to Hip Ratio (WHR) must be between 0.5 and 1.5
+          </p>
         )}
         {error && (
           <p className="form-error-message mt-1">{error.message as string}</p>

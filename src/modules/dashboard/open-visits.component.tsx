@@ -16,7 +16,13 @@ interface Column {
   render?: (row: OpenVisit) => React.ReactNode;
 }
 
-export const OpenVisitsComponent = () => {
+interface OpenVisitsProps {
+  initialRowCount?: number;
+}
+
+export const OpenVisitsComponent = ({
+  initialRowCount,
+}: OpenVisitsProps = {}) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data, loading, error } = useOpenVisits();
@@ -55,15 +61,13 @@ export const OpenVisitsComponent = () => {
   ];
 
   return (
-    <div>
-      <div>
-        <div className="mx-auto flex flex-col gap-4 ">
-          {/* Top Section max-w-7xl space-y-6 */}
-
+    <div className="flex flex-col flex-1 min-h-0 h-full">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="mx-auto flex flex-col flex-1 min-h-0 w-full">
           {/* Main Card */}
-          <div className="rounded-2xl bg-white shadow-sm">
+          <div className="rounded-2xl bg-white shadow-sm flex flex-col flex-1 min-h-0">
             {/* Header */}
-            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:flex-row lg:items-center lg:justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex items-center">
                   <img
@@ -105,6 +109,7 @@ export const OpenVisitsComponent = () => {
             <ReusableGridTable
               columns={columns}
               data={loading ? [] : filtered}
+              initialRowCount={initialRowCount}
               onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
             />
             {loading && (
