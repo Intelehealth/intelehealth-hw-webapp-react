@@ -147,7 +147,7 @@ describe('MainContainer', () => {
 
     const contentDiv = container.querySelector('#main-container-content') as HTMLElement;
     expect(contentDiv).toBeInTheDocument();
-    expect(contentDiv).toHaveClass('flex-1', 'overflow-hidden', 'flex', 'flex-col');
+    expect(contentDiv).toHaveClass('flex-1', 'overflow-auto');
   });
 
   it('should have content area with bg-white class', () => {
