@@ -6,7 +6,7 @@ import {
   getBMIStatus,
   isBPHigh,
   VITAL_RANGES,
-} from '../../../../../modules/ayu/components/start-visit/vitals.validation';
+} from '../../../../../modules/ayu/components/start-visit/vitals/vitals.validation';
 import type { VitalField } from '../../../../../modules/ayu/types/vitals.types';
 
 describe('vitals.validation', () => {

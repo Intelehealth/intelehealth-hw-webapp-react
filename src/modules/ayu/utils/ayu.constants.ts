@@ -53,3 +53,18 @@ export const SUMMARY_CANCEL_TEXT = 'Back';
 // Visit Reasons Hook
 // ========================
 export const AYU_JSON_KEY_NAME = 'IDA6';
+
+// ========================
+// Validation
+// ========================
+export const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ========================
+// Item Types
+// ========================
+export const ITEM_TYPES = {
+  GROUP: 'group',
+  LABEL_VALUE: 'labelValue',
+  SUBHEADING: 'subheading',
+} as const;

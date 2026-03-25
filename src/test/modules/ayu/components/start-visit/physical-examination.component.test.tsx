@@ -75,8 +75,9 @@ const mockHookReturn = {
   allRequiredAnswered: true,
 };
 
+let capturedHookProps: any = {};
 vi.mock('../../../../../modules/ayu/hooks/usePhysicalExam', () => ({
-  usePhysicalExam: () => mockHookReturn,
+  usePhysicalExam: (props: any) => { capturedHookProps = props; return mockHookReturn; },
 }));
 
 vi.mock('../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
@@ -104,7 +105,7 @@ vi.mock('../../../../../modules/ayu/components/common/ayu-selectable-option.comp
   ),
 }));
 
-vi.mock('../../../../../modules/ayu/components/start-visit/physical-exam-image-capture.component', () => ({
+vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-image-capture.component', () => ({
   PhysicalExamImageCapture: ({ onAdd, onRemove, images }: any) => (
     <div data-testid="image-capture">
       <button data-testid="capture-add" onClick={() => onAdd(new File([''], 'test.jpg'))}>
@@ -120,13 +121,26 @@ vi.mock('../../../../../assets/icons/icon-camera.svg', () => ({
   default: 'camera-icon.svg',
 }));
 
+const mockSetPhysicalExamData = vi.fn();
+vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: () => ({
+    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+    patientUuid: null,
+    setPatientUuid: vi.fn(),
+    setVitalsData: vi.fn(),
+    setVisitReasonData: vi.fn(),
+    setPhysicalExamData: mockSetPhysicalExamData,
+    setMedicalHistoryData: vi.fn(),
+  }),
+}));
+
 const mockGetJobAidUrl = vi.fn().mockReturnValue(undefined);
 
 vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   getJobAidUrl: (...args: unknown[]) => mockGetJobAidUrl(...args),
 }));
 
-import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination.component';
+import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -168,6 +182,7 @@ describe('PhysicalExamination', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetHookReturn();
+    capturedHookProps = {};
   });
 
   // ── Rendering ──────────────────────────────────────────────────────────
@@ -550,6 +565,25 @@ describe('PhysicalExamination', () => {
     it('should call scrollIntoView on the active question card', () => {
       render(<PhysicalExamination {...defaultProps} />);
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+  });
+
+  // ── wrappedOnNextQuestion ───────────────────────────────────────────
+
+  describe('wrappedOnNextQuestion', () => {
+    it('should call setPhysicalExamData and original onNextQuestion when invoked', () => {
+      const originalOnNext = vi.fn();
+      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
+
+      // The component wraps onNextQuestion and passes it to usePhysicalExam
+      expect(capturedHookProps.onNextQuestion).toBeDefined();
+      expect(capturedHookProps.onNextQuestion).not.toBe(originalOnNext);
+
+      // Call the wrapped function
+      capturedHookProps.onNextQuestion();
+
+      expect(mockSetPhysicalExamData).toHaveBeenCalled();
+      expect(originalOnNext).toHaveBeenCalled();
     });
   });
 });

@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import iconCamera from '../../../../assets/icons/icon-camera.svg';
-import { getJobAidUrl } from '../../utils/physExamAssets';
-import type { PhysicalExamQuestion } from '../../data/physical-exam.data';
-import { usePhysicalExam } from '../../hooks/usePhysicalExam';
-import type { SectionProps } from '../../../ayu-library/types/start-visit.types';
-import AyuButton from '../common/ayu-button.component';
-import { AyuSelectableOption } from '../common/ayu-selectable-option.component';
-import { QuestionLoader } from '../loaders/question-loader.component';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import iconCamera from '../../../../../assets/icons/icon-camera.svg';
+import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
+import { useStartVisitData } from '../../../context/start-visit.context';
+import type { PhysicalExamQuestion } from '../../../data/physical-exam.data';
+import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
+import { getJobAidUrl } from '../../../utils/physExamAssets';
+import AyuButton from '../../common/ayu-button.component';
+import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
+import { QuestionLoader } from '../../loaders/question-loader.component';
 import { PhysicalExamImageCapture } from './physical-exam-image-capture.component';
 
 const SvgIcon = ({ d, join }: { d: string; join?: boolean }) => (
@@ -176,10 +177,20 @@ const QuestionCard = ({
 };
 
 export const PhysicalExamination = (props: SectionProps) => {
+  const { onNextQuestion: originalOnNext } = props;
+  const { setPhysicalExamData } = useStartVisitData();
+  const answersRef = useRef<Record<string, string[]>>({});
+
+  const wrappedOnNextQuestion = useCallback(() => {
+    setPhysicalExamData(answersRef.current);
+    originalOnNext();
+  }, [originalOnNext, setPhysicalExamData]);
+
   const {
     internalIndex,
     visibleQuestions,
     totalQuestions,
+    answers,
     selectedOptionsFor,
     cameraImagesFor,
     addCameraImage,
@@ -191,7 +202,10 @@ export const PhysicalExamination = (props: SectionProps) => {
     goNext,
     goSkip,
     goBack,
-  } = usePhysicalExam(props);
+  } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
+
+  // Keep ref in sync so the wrapped callback always has latest answers
+  answersRef.current = answers;
 
   const activeRef = useRef<HTMLDivElement | null>(null);
   const [submittedAnswers, setSubmittedAnswers] = useState<

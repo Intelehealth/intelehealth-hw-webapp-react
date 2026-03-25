@@ -1,16 +1,22 @@
 import { useCallback, useMemo, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import type { AyuQuestion } from '../../../../ayu-library/types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import { useStartVisitData } from '../../../context/start-visit.context';
 import {
   CONFIRM_MODAL_DESCRIPTION,
   CONFIRM_MODAL_NO,
   CONFIRM_MODAL_TITLE,
   CONFIRM_MODAL_YES,
+  ITEM_TYPES,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
+import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
@@ -42,6 +48,7 @@ export const VisitReason = ({
     selectedComplaints,
   } = visitReasons!;
 
+  const { setVisitReasonData } = useStartVisitData();
   const { showConfirmModal } = useGlobalModal();
 
   const canSubmit = selectedReasons.length > 0;
@@ -69,10 +76,43 @@ export const VisitReason = ({
 
   const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
 
-  const handleStepperComplete = useCallback(() => {
-    onProgressUpdate?.(1, 1);
-    onNextQuestion();
-  }, [onProgressUpdate, onNextQuestion]);
+  const handleStepperComplete = useCallback(
+    (answers: Record<string, AyuAnswerValue>) => {
+      // Use buildVisitSummary to properly resolve answer codes to display text
+      const topLevelItems = (stableSchema?.item ?? []).filter(
+        q => q.type !== ITEM_TYPES.GROUP
+      );
+      const answersMap = new Map(Object.entries(answers));
+      const sections = buildVisitSummary(topLevelItems, answersMap, '');
+      const details: Array<{ label: string; value: string }> = [];
+      for (const section of sections) {
+        for (const item of section.items) {
+          if (item.type === ITEM_TYPES.LABEL_VALUE) {
+            details.push({
+              label: item.label,
+              value: String(item.value ?? ''),
+            });
+          } else if (item.type === ITEM_TYPES.SUBHEADING) {
+            details.push({
+              label: item.heading,
+              value: item.values.join(', '),
+            });
+          }
+        }
+      }
+
+      setVisitReasonData(answers, selectedReasons, details);
+      onProgressUpdate?.(1, 1);
+      onNextQuestion();
+    },
+    [
+      onProgressUpdate,
+      onNextQuestion,
+      stableSchema,
+      selectedReasons,
+      setVisitReasonData,
+    ]
+  );
 
   const handleStepperProgress = useCallback(
     (total: number, answered: number) => {

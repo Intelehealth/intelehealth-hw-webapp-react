@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VisitReason } from '../../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component';
 
@@ -83,11 +83,25 @@ vi.mock('../../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: vi.fn(),
 }));
 
+vi.mock('../../../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: vi.fn(() => ({
+    setVisitReasonData: vi.fn(),
+  })),
+}));
+
+vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', () => ({
+  buildVisitSummary: vi.fn(() => []),
+}));
+
 // Import mocked functions after mocks are set up
 import { useGlobalModal } from '../../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import { useStartVisitData } from '../../../../../../modules/ayu/context/start-visit.context';
+import { buildVisitSummary } from '../../../../../../modules/ayu/utils/visit-summary.util';
 const mockUseGlobalModal = vi.mocked(useGlobalModal);
 const mockTransformFhirToAyu = vi.mocked(transformFhirToAyu);
+const mockUseStartVisitData = vi.mocked(useStartVisitData);
+const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
 const mockShowConfirmModal = vi.fn();
 
 // Helper function to create mock AyuJsonItem
@@ -120,6 +134,7 @@ describe('VisitReason', () => {
   const mockOnPrevQuestion = vi.fn();
   const mockOnPrevSection = vi.fn();
   const mockOnProgressUpdate = vi.fn();
+  const mockSetVisitReasonData = vi.fn();
 
   let defaultVisitReasons: ReturnType<typeof createDefaultVisitReasons>;
 
@@ -133,6 +148,10 @@ describe('VisitReason', () => {
       showVitalConfirmationModal: vi.fn(),
       closeModal: vi.fn(),
     });
+
+    mockUseStartVisitData.mockReturnValue({
+      setVisitReasonData: mockSetVisitReasonData,
+    } as any);
   });
 
   describe('Default Visit Reason UI', () => {
@@ -261,8 +280,7 @@ describe('VisitReason', () => {
   });
 
   describe('handleNext Function', () => {
-    it('should not show confirmation modal when canSubmit is false', async () => {
-      const user = userEvent.setup();
+    it('should not show confirmation modal when canSubmit is false', () => {
       defaultVisitReasons = createDefaultVisitReasons({
         search: '',
         setSearch: vi.fn(),
@@ -283,8 +301,10 @@ describe('VisitReason', () => {
         />
       );
 
+      // Use fireEvent (not userEvent) to bypass the disabled attribute on the button
+      // This ensures handleNext is actually called and hits the !canSubmit early return
       const nextButton = screen.getByTestId('footer-next-button');
-      await user.click(nextButton);
+      fireEvent.click(nextButton);
 
       expect(mockShowConfirmModal).not.toHaveBeenCalled();
     });
@@ -1084,6 +1104,217 @@ describe('VisitReason', () => {
       onConfirm();
 
       expect(mockOnReasonsConfirmed).toHaveBeenCalledWith(['Fever']);
+    });
+  });
+
+  describe('handleStepperComplete (onConfirm flow with buildVisitSummary)', () => {
+    it('should call setVisitReasonData with labelValue details when stepper completes', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [{ linkId: 'q1', text: 'Duration', type: 'string' as const }],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      mockBuildVisitSummary.mockReturnValue([
+        {
+          title: 'Summary',
+          items: [
+            { type: 'labelValue' as const, label: 'Duration', value: '3 days' },
+          ],
+        },
+      ]);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // Trigger modal
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      // Wait for stepper to render
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      // Click complete button to trigger handleStepperComplete
+      const completeButton = screen.getByTestId('stepper-complete-button');
+      await user.click(completeButton);
+
+      expect(mockBuildVisitSummary).toHaveBeenCalled();
+      expect(mockSetVisitReasonData).toHaveBeenCalledWith(
+        expect.anything(),
+        ['Fever'],
+        [{ label: 'Duration', value: '3 days' }]
+      );
+    });
+
+    it('should process subheading items from buildVisitSummary into details', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [{ linkId: 'q1', text: 'Symptoms', type: 'string' as const }],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      mockBuildVisitSummary.mockReturnValue([
+        {
+          title: 'Summary',
+          items: [
+            { type: 'subheading' as const, heading: 'Symptoms', values: ['Cough', 'Fever'] },
+            { type: 'labelValue' as const, label: 'Duration', value: '5 days' },
+          ],
+        },
+      ]);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Cold'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      const completeButton = screen.getByTestId('stepper-complete-button');
+      await user.click(completeButton);
+
+      expect(mockSetVisitReasonData).toHaveBeenCalledWith(
+        expect.anything(),
+        ['Cold'],
+        [
+          { label: 'Symptoms', value: 'Cough, Fever' },
+          { label: 'Duration', value: '5 days' },
+        ]
+      );
+    });
+
+    it('should handle schema with no item property (stableSchema?.item ?? [])', async () => {
+      const user = userEvent.setup();
+
+      // Schema with no item property — covers the ?? [] fallback
+      const schemaWithoutItems = {
+        linkId: 'root',
+        type: 'group' as const,
+      };
+      mockTransformFhirToAyu.mockReturnValue(schemaWithoutItems);
+      mockBuildVisitSummary.mockReturnValue([]);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      const completeButton = screen.getByTestId('stepper-complete-button');
+      await user.click(completeButton);
+
+      // buildVisitSummary should be called with empty array (from ?? [])
+      expect(mockBuildVisitSummary).toHaveBeenCalledWith([], expect.any(Map), '');
+    });
+
+    it('should handle null value in labelValue items by converting to empty string', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      };
+
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      mockBuildVisitSummary.mockReturnValue([
+        {
+          title: 'Summary',
+          items: [
+            { type: 'labelValue' as const, label: 'Notes', value: null },
+          ],
+        },
+      ]);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      const completeButton = screen.getByTestId('stepper-complete-button');
+      await user.click(completeButton);
+
+      expect(mockSetVisitReasonData).toHaveBeenCalledWith(
+        expect.anything(),
+        ['Fever'],
+        [{ label: 'Notes', value: '' }]
+      );
     });
   });
 });
