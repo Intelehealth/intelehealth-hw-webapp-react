@@ -572,7 +572,7 @@ describe('visitSummaryService', () => {
   describe('transformVisitSummaryResponse — null person branch', () => {
     it('should handle patient.person being null', () => {
       const response = makeResponse();
-      (response.patient as Record<string, unknown>).person = null;
+      (response.patient as unknown as Record<string, unknown>).person = null;
       const result = transformVisitSummaryResponse(response);
       // Line 172: person?.attributes ?? [] → empty → no phone
       expect(result.patient.phoneNumber).toBe('No information');
@@ -588,8 +588,8 @@ describe('visitSummaryService', () => {
 
     it('should return empty name when person and display are both absent', () => {
       const response = makeResponse();
-      (response.patient as Record<string, unknown>).person = null;
-      (response.patient as Record<string, unknown>).display = undefined;
+      (response.patient as unknown as Record<string, unknown>).person = null;
+      (response.patient as unknown as Record<string, unknown>).display = undefined;
       const result = transformVisitSummaryResponse(response);
       // Line 197: patient.display ?? '' → ''
       expect(result.patient.name).toBe('');
