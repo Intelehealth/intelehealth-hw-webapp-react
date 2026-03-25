@@ -1,6 +1,7 @@
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
+import { ITEM_TYPES } from '../utils/ayu.constants';
 import {
   ADULT_INITIAL_CONCEPTS,
   ENCOUNTER_ROLE,
@@ -150,7 +151,7 @@ export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
   const values = items
     .filter(
       (i): i is Extract<ModalSectionItem, { type: 'labelValue' }> =>
-        i.type === 'labelValue'
+        i.type === ITEM_TYPES.LABEL_VALUE
     )
     .map(i => String(i.value ?? ''))
     .filter(Boolean);
@@ -177,7 +178,7 @@ export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
   const parts = items
     .filter(
       (i): i is Extract<ModalSectionItem, { type: 'labelValue' }> =>
-        i.type === 'labelValue'
+        i.type === ITEM_TYPES.LABEL_VALUE
     )
     .map(i => {
       const relation = i.value ? ` (${i.value})` : '';

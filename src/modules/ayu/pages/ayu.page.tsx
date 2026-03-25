@@ -5,11 +5,9 @@ import type { FhirQuestionnaire } from '../../ayu-library/types/fhir-raw.types';
 import { StartVisit } from '../components/start-visit/start-visit.component';
 import { AyuRenderer } from '../components/start-visit/visit-reason/ayu-renderer.component';
 import { StartVisitProvider } from '../context/start-visit.context';
+import { UUID_REGEX } from '../utils/ayu.constants';
 import VisitSummaryPage from './visit-summary.page';
 import fhirJson from './Cough.questionnaire.json';
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ayuSchema = transformFhirToAyu(fhirJson as unknown as FhirQuestionnaire);
 const AyuPage = () => {

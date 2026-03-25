@@ -13,6 +13,7 @@ import {
   CONFIRM_MODAL_NO,
   CONFIRM_MODAL_TITLE,
   CONFIRM_MODAL_YES,
+  ITEM_TYPES,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
@@ -79,19 +80,19 @@ export const VisitReason = ({
     (answers: Record<string, AyuAnswerValue>) => {
       // Use buildVisitSummary to properly resolve answer codes to display text
       const topLevelItems = (stableSchema?.item ?? []).filter(
-        q => q.type !== 'group'
+        q => q.type !== ITEM_TYPES.GROUP
       );
       const answersMap = new Map(Object.entries(answers));
       const sections = buildVisitSummary(topLevelItems, answersMap, '');
       const details: Array<{ label: string; value: string }> = [];
       for (const section of sections) {
         for (const item of section.items) {
-          if (item.type === 'labelValue') {
+          if (item.type === ITEM_TYPES.LABEL_VALUE) {
             details.push({
               label: item.label,
               value: String(item.value ?? ''),
             });
-          } else if (item.type === 'subheading') {
+          } else if (item.type === ITEM_TYPES.SUBHEADING) {
             details.push({
               label: item.heading,
               value: item.values.join(', '),

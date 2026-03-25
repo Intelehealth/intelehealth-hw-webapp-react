@@ -28,6 +28,7 @@ import {
   uploadVisit,
 } from '../services/visit-upload.service';
 import type { VitalsFormValues } from '../types/vitals.types';
+import { ITEM_TYPES } from '../utils/ayu.constants';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -192,7 +193,7 @@ const MedicalHistorySection: React.FC<{
     {sections.map((section, sIdx) => (
       <div key={sIdx}>
         {section.items.map((item: ModalSectionItem, iIdx: number) => {
-          if (item.type === 'labelValue') {
+          if (item.type === ITEM_TYPES.LABEL_VALUE) {
             return (
               <LabelValueRow
                 key={iIdx}
@@ -201,7 +202,7 @@ const MedicalHistorySection: React.FC<{
               />
             );
           }
-          if (item.type === 'subheading') {
+          if (item.type === ITEM_TYPES.SUBHEADING) {
             return (
               <p
                 key={iIdx}
