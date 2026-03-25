@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import iconVisitReasonSummary from '../../../../../assets/icons/visit-reason.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import type { AyuAnswerValue } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import { useStartVisitData } from '../../../context/start-visit.context';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
@@ -32,6 +33,8 @@ export const MedicalHistory = ({
   ayuConfigFiles,
 }: SectionProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { setMedicalHistoryData } = useStartVisitData();
   const [currentStep, setCurrentStep] = useState(0);
   const fileResultsRef = useRef<FileResult[]>([]);
   const fileAnswersRef = useRef<Record<string, Record<string, AyuAnswerValue>>>(
@@ -86,10 +89,20 @@ export const MedicalHistory = ({
       type: 'vitalConfirm',
       size: 'lg',
       onConfirm: () => {
-        navigate('/visit-summary');
+        const patHist = (fileResultsRef.current[0]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
+        const famHist = (fileResultsRef.current[1]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
+        setMedicalHistoryData(patHist, famHist);
+        const basePath = location.pathname.replace(/\/$/, '');
+        navigate(`${basePath}/visit-summary`);
       },
     });
-  }, [showVitalConfirmationModal, navigate]);
+  }, [showVitalConfirmationModal, navigate, setMedicalHistoryData]);
 
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {

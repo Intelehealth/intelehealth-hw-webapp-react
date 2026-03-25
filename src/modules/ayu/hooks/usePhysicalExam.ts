@@ -211,6 +211,7 @@ export const usePhysicalExam = ({
     totalQuestions,
     currentQuestion,
     isLastQuestion,
+    answers,
     selectedOptionsFor,
     cameraImagesFor,
     addCameraImage,

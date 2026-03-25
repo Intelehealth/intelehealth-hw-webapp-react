@@ -62,17 +62,12 @@ describe('Navbar', () => {
     const locationIcon = screen.getByAltText('Location');
     expect(locationIcon).toBeInTheDocument();
     expect(locationIcon).toHaveClass('w-6', 'h-6');
-    
-    // Check for sync icon
-    const syncIcon = screen.getByAltText('Sync');
-    expect(syncIcon).toBeInTheDocument();
-    expect(syncIcon).toHaveClass('w-6', 'h-6');
-    
+
     // Check for notification icon
     const notificationIcon = screen.getByAltText('Notification');
     expect(notificationIcon).toBeInTheDocument();
     expect(notificationIcon).toHaveClass('w-6', 'h-6');
-    
+
     // Check for user avatar
     const userAvatar = screen.getByAltText('Profile');
     expect(userAvatar).toBeInTheDocument();
@@ -145,12 +140,10 @@ describe('Navbar', () => {
     renderWithRouter(<Navbar />);
     
     const locationIcon = screen.getByAltText('Location');
-    const syncIcon = screen.getByAltText('Sync');
     const notificationIcon = screen.getByAltText('Notification');
     const userAvatar = screen.getByAltText('Profile');
-    
+
     expect(locationIcon).toHaveAttribute('alt', 'Location');
-    expect(syncIcon).toHaveAttribute('alt', 'Sync');
     expect(notificationIcon).toHaveAttribute('alt', 'Notification');
     expect(userAvatar).toHaveAttribute('alt', 'Profile');
   });

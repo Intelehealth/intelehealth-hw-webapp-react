@@ -1,22 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import iconPhone from '../../assets/icons/appiontment/green-field-apm-phone-icon.svg';
+import iconAngleRight from '../../assets/icons/appiontment/icon-apm-angle-small-right.svg';
+import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
+import iconClock from '../../assets/icons/appiontment/icon-apm-clock-time.svg';
+import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
+import iconPrescriptionPlain from '../../assets/icons/appiontment/icons-patient-recevied.svg';
+import iconGeneralPhysician from '../../assets/icons/appiontment/violet-field-apm-general-physician.svg';
+import iconPrescription from '../../assets/icons/appiontment/violet-field-apm-prescription.svg';
+import iconVisitSummary from '../../assets/icons/appiontment/violet-field-apm-visit-summary.svg';
+import iconChat from '../../assets/icons/icon-chat.svg';
+import iconPrint from '../../assets/icons/icon-print.svg';
+import iconShare from '../../assets/icons/icon-share.svg';
+import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
+import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import { visitDetailsService } from './visit-details.service';
 import type { TransformedVisitDetails } from './visit-details.types';
-import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconPhone from '../../assets/icons/appiontment/green-field-apm-phone-icon.svg';
-import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
-import iconClock from '../../assets/icons/appiontment/icon-apm-clock-time.svg';
-import iconGeneralPhysician from '../../assets/icons/appiontment/violet-field-apm-general-physician.svg';
-import iconVisitSummary from '../../assets/icons/appiontment/violet-field-apm-visit-summary.svg';
-import iconAngleRight from '../../assets/icons/appiontment/icon-apm-angle-small-right.svg';
-import iconPrescription from '../../assets/icons/appiontment/violet-field-apm-prescription.svg';
-import iconPrescriptionPlain from '../../assets/icons/appiontment/icons-patient-recevied.svg';
-import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
-import iconPrint from '../../assets/icons/icon-print.svg';
-import iconShare from '../../assets/icons/icon-share.svg';
-import iconChat from '../../assets/icons/icon-chat.svg';
-import Button from '../../components/common/button.component';
 
 const PatientInfoCard: React.FC<{
   data: TransformedVisitDetails;
@@ -325,7 +325,7 @@ const VisitDetails: React.FC = () => {
             icon={iconVisitSummary}
             title="Visit summary"
             onClick={() => {
-              /* TODO: Navigate to visit summary */
+              navigate('/visit-summary');
             }}
           />
 

@@ -7,9 +7,9 @@ import { SectionCompletionLoader } from '../loaders/section-completion-loader.co
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
-import { PhysicalExamination } from './physical-examination.component';
+import { PhysicalExamination } from './physical-examination/physical-examination.component';
 import { VisitReason } from './visit-reason/visit-reason.component';
-import { Vitals } from './vitals.component';
+import { Vitals } from './vitals/vitals.component';
 
 const getPhysicalExamFilter = (
   questionnaire: typeof CoughQuestionnaire

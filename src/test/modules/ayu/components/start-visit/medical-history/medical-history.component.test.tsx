@@ -7,10 +7,24 @@ import type { AyuJsonItem } from '../../../../../../modules/ayu-library/types/ay
 // ── Mocks ──────────────────────────────────────────────────────────────
 
 const mockNavigate = vi.fn();
+const mockLocation = { pathname: '/ayu', search: '', hash: '', state: null, key: 'default' };
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
+  return { ...actual, useNavigate: () => mockNavigate, useLocation: () => mockLocation };
 });
+
+const mockSetMedicalHistoryData = vi.fn();
+vi.mock('../../../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: () => ({
+    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+    patientUuid: null,
+    setPatientUuid: vi.fn(),
+    setVitalsData: vi.fn(),
+    setVisitReasonData: vi.fn(),
+    setPhysicalExamData: vi.fn(),
+    setMedicalHistoryData: mockSetMedicalHistoryData,
+  }),
+}));
 
 const mockShowVitalConfirmationModal = vi.fn();
 vi.mock('../../../../../../components/modal/global-modal-context', () => ({
@@ -280,7 +294,7 @@ describe('MedicalHistory', () => {
       expect(modalConfig.onConfirm).toBeInstanceOf(Function);
     });
 
-    it('should navigate to /visit-summary when modal confirm is invoked', async () => {
+    it('should navigate to visit-summary when modal confirm is invoked', async () => {
       const user = userEvent.setup();
       const props = buildDefaultProps();
       render(<MedicalHistory {...props} />);
@@ -291,7 +305,8 @@ describe('MedicalHistory', () => {
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       modalConfig.onConfirm();
 
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary');
+      expect(mockSetMedicalHistoryData).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu/visit-summary');
     });
 
     it('should include sections from all completed files', async () => {
