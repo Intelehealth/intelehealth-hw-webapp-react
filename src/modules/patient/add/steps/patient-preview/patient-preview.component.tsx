@@ -4,6 +4,7 @@ import type { PatientFormData } from '../../../../../types/patient/add/add-patie
 
 interface PatientPreviewComponentProps {
   data: PatientFormData;
+  patientUuid: string | null;
 }
 
 const Card = ({
@@ -37,6 +38,7 @@ const Card = ({
 
 export default function PatientPreviewComponent({
   data,
+  patientUuid,
 }: PatientPreviewComponentProps) {
   const navigate = useNavigate();
 
@@ -54,6 +56,7 @@ export default function PatientPreviewComponent({
         patientName,
         patientAge: data.personalInfo.age || data.personalInfo.dateOfBirth,
         patientGender: data.personalInfo.gender,
+        patientUuid,
       },
     });
   };

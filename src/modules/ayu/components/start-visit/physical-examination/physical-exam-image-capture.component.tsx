@@ -1,7 +1,7 @@
 import React, { Suspense, useState } from 'react';
 
 const PhotoUploadModal = React.lazy(
-  () => import('../../../../components/common/photo-upload-modal.component')
+  () => import('../../../../../components/common/photo-upload-modal.component')
 );
 
 interface PhysicalExamImageCaptureProps {

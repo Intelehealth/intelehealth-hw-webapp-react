@@ -10,9 +10,9 @@ import {
   EXT_URL_DISPLAY_TEXT,
   SELECT_YES_OR_NO,
 } from '../../../ayu-library/utils/constants';
-import iconNo from '../../assets/no.svg';
+import iconNo from '../../assets/no-default.svg';
 import iconNoSelected from '../../assets/No.svg';
-import iconYes from '../../assets/yes.svg';
+import iconYes from '../../assets/yes-default.svg';
 import iconYesSelected from '../../assets/Yes.svg';
 import { AyuNestedRenderer } from '../start-visit/visit-reason/ayu-nested-renderer.component';
 import AyuButton from './ayu-button.component';

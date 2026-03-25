@@ -21,6 +21,19 @@ vi.mock('../../../../components/modal/global-modal-context', () => ({
   })),
 }));
 
+// Mock useStartVisitData context
+vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: () => ({
+    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+    patientUuid: null,
+    setPatientUuid: vi.fn(),
+    setVitalsData: vi.fn(),
+    setVisitReasonData: vi.fn(),
+    setPhysicalExamData: vi.fn(),
+    setMedicalHistoryData: vi.fn(),
+  }),
+}));
+
 import { useGlobalModal } from '../../../../components/modal/global-modal-context';
 import { useConfig } from '../../../../hooks/useConfig';
 
