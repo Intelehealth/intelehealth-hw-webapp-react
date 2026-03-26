@@ -98,7 +98,15 @@ export const StartVisit = () => {
   /* ---------------- Question Navigation ---------------- */
 
   const goNextQuestion = () => {
-    const total = sections[currentSectionIndex].totalQuestions;
+    const section = sections[currentSectionIndex];
+    const total = section.totalQuestions;
+
+    // Section already completed (e.g. Confirm on revisit) → go straight to next section
+    if (section.answeredQuestions >= total) {
+      goNextSection();
+      return;
+    }
+
     //If NOT last question → just move forward
     if (currentQuestionIndex < total - 1) {
       setCurrentQuestionIndex(prev => prev + 1);

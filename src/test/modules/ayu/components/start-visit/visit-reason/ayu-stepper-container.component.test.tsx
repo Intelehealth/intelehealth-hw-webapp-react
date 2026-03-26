@@ -432,7 +432,7 @@ describe('AyuStepperContainer', () => {
       expect(mockOnComplete).not.toHaveBeenCalled();
     });
 
-    it('should call onComplete when submit is clicked on last question', () => {
+    it('should call goNext when submit is clicked on last question', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
         text: 'Last Question',
@@ -746,7 +746,7 @@ describe('AyuStepperContainer', () => {
       expect(mockGoNext).toHaveBeenCalled();
     });
 
-    it('should call onComplete when skip is clicked on last question', () => {
+    it('should call goNext when skip is clicked on last question', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
         text: 'Last Question',
@@ -2313,6 +2313,47 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('Associated symptoms with no answerOption (line 380 ?? 0 fallback)', () => {
+    it('should use 0 as fallback when question.answerOption is undefined', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Associated symptoms',
+        type: 'choice',
+        repeats: true,
+        // No answerOption property → triggers ?? 0 fallback
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['some-code'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Click submit — should reach the validation check with ?? 0 fallback
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // answerCodes.length (1) < (undefined?.length ?? 0) = 0 → false → validation passes
+      // So goNext should be called (not a validation error)
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+  });
+
   describe('Choice with Repeats Submit Button', () => {
     it('should show submit button for choice type with repeats even without answer', () => {
       const question: AyuQuestion = {
@@ -3338,6 +3379,473 @@ describe('AyuStepperContainer', () => {
       // Change the answer via the input — handleSetAnswer should clear skippedQuestions
       fireEvent.change(screen.getByTestId('input-q1'), { target: { value: 'new answer' } });
       expect(screen.queryByTestId('right-icon-skip')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Skip clears previously submitted state', () => {
+    it('should remove question from submittedQuestions when skip is clicked after changing answer', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question',
+        type: 'string',
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // First submit the question
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(screen.getByTestId('right-icon-submit')).toBeInTheDocument();
+
+      // Change the answer to clear submitted state (so skip button becomes enabled again)
+      fireEvent.change(screen.getByTestId('input-q1'), { target: { value: 'new' } });
+      expect(screen.queryByTestId('right-icon-submit')).not.toBeInTheDocument();
+
+      // Re-submit to get submitted state back
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(screen.getByTestId('right-icon-submit')).toBeInTheDocument();
+
+      // Now change answer again to enable skip button
+      fireEvent.change(screen.getByTestId('input-q1'), { target: { value: '' } });
+
+      // Skip the question — the skip handler's setSubmittedQuestions cleanup runs
+      fireEvent.click(screen.getByTestId('button-skip'));
+      expect(screen.getByTestId('right-icon-skip')).toBeInTheDocument();
+    });
+  });
+
+  describe('useImperativeHandle showSummary', () => {
+    it('should call goNext when showSummary is invoked via ref', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      ref.current!.showSummary();
+      expect(mockGoNext).toHaveBeenCalled();
+      // showSummary does NOT directly call onComplete
+      expect(mockOnComplete).not.toHaveBeenCalled();
+    });
+
+    it('should not throw when showSummary is called without onComplete', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(() => ref.current!.showSummary()).not.toThrow();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should expose both confirm and showSummary on the ref handle', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'val' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(ref.current).toBeDefined();
+      expect(typeof ref.current!.confirm).toBe('function');
+      expect(typeof ref.current!.showSummary).toBe('function');
+    });
+  });
+
+  describe('submittedQuestions initialization from initialAnswers', () => {
+    it('should show submit tick marks for questions with answers in initialAnswers', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string' },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'answer1', q2: 'answer2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'answer1', q2: 'answer2' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // q1 and q2 have answers in initialAnswers so their submit buttons should show the tick icon
+      const rightIcons = screen.getAllByTestId('right-icon-submit');
+      expect(rightIcons.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should NOT show submit tick marks when initialAnswers is empty', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{}}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // No initialAnswers entries, so no pre-populated tick marks
+      expect(screen.queryByTestId('right-icon-submit')).not.toBeInTheDocument();
+    });
+
+    it('should NOT show submit tick marks when initialAnswers is undefined', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.queryByTestId('right-icon-submit')).not.toBeInTheDocument();
+    });
+
+    it('should only mark questions whose linkId has a value in initialAnswers', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string' },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'answer1', q2: 'answer2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'answer1' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // q1 has initialAnswer so it gets a tick, q2 does not
+      const rightIcons = screen.getAllByTestId('right-icon-submit');
+      expect(rightIcons).toHaveLength(1);
+    });
+  });
+
+  describe('skippedQuestions initialization from initialAnswers', () => {
+    it('should show skip tick marks for non-required questions without answers in initialAnswers', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: false },
+        { linkId: 'q2', text: 'Question 2', type: 'string', required: false },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q2: 'answer2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q2: 'answer2' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // q1 is non-required and has no answer in initialAnswers, so skip button gets tick
+      const rightIcons = screen.getAllByTestId('right-icon-skip');
+      expect(rightIcons.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should NOT mark required questions as skipped even without answers in initialAnswers', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+        { linkId: 'q2', text: 'Question 2', type: 'string', required: false },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q2: 'answer2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q2: 'answer2' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // q1 is required so it should NOT get a skip tick
+      // q2 has an answer so it also should NOT get a skip tick
+      // Only non-required questions WITHOUT answers get skip ticks
+      expect(screen.queryByTestId('right-icon-skip')).not.toBeInTheDocument();
+    });
+
+    it('should disable submit button when question is in skippedQuestions from initialAnswers', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: false },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'val', q2: 'answer2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q2: 'answer2' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // q1 is non-required and has no answer in initialAnswers => skippedQuestions
+      // Submit button for q1 should be disabled because skippedQuestions.has(q1)
+      const submitButtons = screen.getAllByTestId('button-submit');
+      expect(submitButtons[0]).toBeDisabled();
+    });
+  });
+
+  describe('Skip on last question calls goNext', () => {
+    it('should call goNext when skip is clicked on the last question', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Last Question',
+        type: 'string',
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const skipButton = screen.getByTestId('button-skip');
+      fireEvent.click(skipButton);
+
+      // Skip on last question now calls goNext (triggers normal completion flow)
+      expect(mockGoNext).toHaveBeenCalled();
+      // Also calls onProgressUpdate with total steps
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
+    });
+
+    it('should call both onProgressUpdate and goNext for last question skip', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string' },
+        { linkId: 'q2', text: 'Last Question', type: 'string', required: false },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'answer1' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const skipButtons = screen.getAllByTestId('button-skip');
+      // Click skip on the last (active) question
+      fireEvent.click(skipButtons[skipButtons.length - 1]);
+
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 2);
+      expect(mockGoNext).toHaveBeenCalled();
     });
   });
 });

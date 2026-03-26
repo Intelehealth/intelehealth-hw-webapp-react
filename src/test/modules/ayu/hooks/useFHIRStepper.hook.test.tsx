@@ -3453,6 +3453,70 @@ describe('useFHIRStepper', () => {
 
       expect(result.current.answers.nonexistent).toBeUndefined();
     });
+
+    it('should sync answersRef so goNext called right after clearAnswers uses cleared answers', () => {
+      const onComplete = vi.fn();
+      const twoChoiceQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Question 1',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+          },
+          {
+            linkId: 'q2',
+            text: 'Question 2',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'a', display: 'A' } },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: twoChoiceQuestionnaire,
+          skipSummary: true,
+          onComplete,
+        })
+      );
+
+      // Set answers for both questions
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+        result.current.setAnswer(result.current.topLevelItems[1], 'a');
+      });
+
+      // Navigate to last question
+      act(() => {
+        result.current.goNext();
+      });
+
+      expect(result.current.currentIndex).toBe(1);
+      expect(result.current.isLast).toBe(true);
+
+      // Clear q2 first. The state updater inside clearAnswers syncs answersRef.current
+      // so that subsequent reads of the ref within the same React flush see cleared answers.
+      act(() => {
+        result.current.clearAnswers(['q2']);
+      });
+
+      // After React processes the clearAnswers state update (which syncs answersRef),
+      // calling goNext triggers handleComplete which reads answersRef.current.
+      act(() => {
+        result.current.goNext();
+      });
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      const completedAnswers = onComplete.mock.calls[0][0];
+      // q2 should NOT be present because clearAnswers synced the ref
+      expect(completedAnswers).toEqual({ q1: 'yes' });
+      expect(completedAnswers.q2).toBeUndefined();
+    });
   });
 
   describe('clearHiddenDescendantAnswers on parent answer change', () => {

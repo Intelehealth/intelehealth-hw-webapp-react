@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
+import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import type {
   AyuAnswerValue,
@@ -9,6 +10,8 @@ import type { SectionProps } from '../../../../ayu-library/types/start-visit.typ
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import {
+  BUTTON_BACK,
+  BUTTON_CONFIRM,
   CONFIRM_MODAL_DESCRIPTION,
   CONFIRM_MODAL_NO,
   CONFIRM_MODAL_TITLE,
@@ -16,8 +19,10 @@ import {
   ITEM_TYPES,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
+import AyuButton from '../../common/ayu-button.component';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import { QuestionLoader } from '../../loaders/question-loader.component';
+import type { AyuStepperContainerHandle } from './ayu-stepper-container.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
 import { ReasonAlphabetList } from './reason-alphabetList.component';
@@ -34,9 +39,6 @@ export const VisitReason = ({
   visitReasons,
   onReasonsConfirmed,
 }: SectionProps) => {
-  const [showStepper, setShowStepper] = useState(false);
-  const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(null);
-
   const {
     search,
     setSearch,
@@ -48,8 +50,20 @@ export const VisitReason = ({
     selectedComplaints,
   } = visitReasons!;
 
-  const { setVisitReasonData } = useStartVisitData();
+  const { data, setVisitReasonData } = useStartVisitData();
+  const savedAnswers = data.visitReason?.answers;
+
+  // Restore stepper state from context so answers survive if the component
+  // remounts (e.g. React reconciliation). Same pattern as Medical History.
+  const [showStepper, setShowStepper] = useState(() => !!savedAnswers);
+  const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(() => {
+    if (savedAnswers && selectedComplaints.length > 0) {
+      return transformFhirToAyu(selectedComplaints[0].json);
+    }
+    return null;
+  });
   const { showConfirmModal } = useGlobalModal();
+  const stepperRef = useRef<AyuStepperContainerHandle>(null);
 
   const canSubmit = selectedReasons.length > 0;
 
@@ -123,14 +137,39 @@ export const VisitReason = ({
 
   // STEP 2: If stepper active, render it instead
   if (showStepper && stableSchema) {
+    const isReviewMode = !!savedAnswers;
     return (
       <div className="w-full flex flex-col h-full">
         <AyuStepperContainer
+          ref={stepperRef}
           questionnaire={stableSchema}
           summaryTitle={VISIT_REASON_SUMMARY_TITLE}
+          initialAnswers={savedAnswers}
           onComplete={handleStepperComplete}
           onProgressUpdate={handleStepperProgress}
         />
+        {/* Navigation buttons — pinned to bottom (same pattern as Medical History) */}
+        {isReviewMode && (
+          <div className="sticky bottom-0 bg-white pt-2 pb-4 flex gap-3 md:justify-end">
+            <AyuButton
+              type="button"
+              variant="secondary"
+              onClick={() => onPrevSection?.()}
+              className="w-full md:w-[10%]"
+            >
+              <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
+            </AyuButton>
+            <AyuButton
+              type="button"
+              variant="primary"
+              rightIcon={<img src={iconRightArrow} alt="yes" />}
+              onClick={() => stepperRef.current?.showSummary()}
+              className="w-full md:w-[10%]"
+            >
+              <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
+            </AyuButton>
+          </div>
+        )}
       </div>
     );
   }

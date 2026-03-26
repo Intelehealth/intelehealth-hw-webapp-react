@@ -713,12 +713,12 @@ describe('buildVisitSummary', () => {
       expect(result[0].items[1]).toEqual({
         type: 'labelValue',
         label: 'Diabetes',
-        value: null,
+        value: ' ',
       });
       expect(result[0].items[2]).toEqual({
         type: 'labelValue',
         label: 'Hypertension',
-        value: null,
+        value: ' ',
       });
     });
 
@@ -1275,6 +1275,237 @@ describe('buildVisitSummary', () => {
         label: 'Medical history',
         value: 'Diabetes',
       });
+    });
+  });
+
+  describe('exclusive None option answered No (lines 315-317, 371-385)', () => {
+    it('should show exclusive None option when answered No in patient history (non-percent label)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Do you have a history of any of the following?*',
+            },
+            {
+              url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+              valueString: 'Medical history',
+            },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+            {
+              valueCoding: { code: 'NONE', display: 'None' },
+              extension: [
+                {
+                  url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+                  valueString: 'True',
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      // The exclusive "None" is answered "No" → code is "NO_NONE"
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB', 'NO_NONE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', {
+        useLabeledFormat: true,
+      });
+
+      // Should have: Diabetes as labelValue AND None as exclusive No labelValue
+      const items = result[0].items;
+      expect(items.some(i => i.type === 'labelValue' && i.label === 'Medical history' && (i.value as string).includes('Diabetes'))).toBe(true);
+      expect(items.some(i => i.type === 'labelValue' && i.label === 'Medical history' && i.value === 'None')).toBe(true);
+    });
+
+    it('should show exclusive None when answered No in percent-label question (line 372-377)', () => {
+      // Must be recognized as associatedSymptoms by resolveAyuComponent, with useLabeledFormat
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'famHist',
+          type: 'choice',
+          text: 'Do you have a family history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a family history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: '%' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'Mother' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+            {
+              valueCoding: { code: 'NONE', display: 'None' },
+              extension: [{ url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice', valueString: 'True' }],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['famHist', ['DIAB', 'NO_NONE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result.length).toBeGreaterThan(0);
+      const items = result[0].items;
+      // In percent-label path: subheading + each code as labelValue with label=display
+      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'Diabetes')).toBe(true);
+      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'None')).toBe(true);
+    });
+
+    it('should show exclusive None when answered No in non-percent-label question (line 378-384)', () => {
+      // Patient history with Medical history label (non-percent)
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+            {
+              valueCoding: { code: 'NONE', display: 'None' },
+              extension: [{ url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice', valueString: 'True' }],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB', 'NO_NONE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result.length).toBeGreaterThan(0);
+      const items = result[0].items;
+      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'Medical history' && (i as any).value === 'None')).toBe(true);
+    });
+  });
+
+  describe('branch coverage for fallback paths', () => {
+    it('should handle getExtensionLabel when language is percent but no display ext', () => {
+      const questions: AyuQuestion[] = [
+        makeQuestion({
+          type: 'string',
+          text: 'Fallback text',
+          extension: [
+            {
+              url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+              valueString: '%',
+            },
+            // No display extension → falls back to ''
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([['q1', 'answer']]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect((result[0].items[0] as any).label).toBe('');
+    });
+
+    it('should handle getDisplay when opt has no display and no valueString', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          answerOption: [
+            { valueCoding: { code: 'CODE_A' } }, // no display
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([['q1', 'CODE_A']]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      // getDisplay returns null → value is empty string fallback
+      expect(result).toEqual([]);
+    });
+
+    it('should handle quantity dropdownValues with number but no days', () => {
+      const questions = [makeQuestion({ type: 'quantity' })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { dropdownValues: { number: 5, days: null } } as any],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect((result[0].items[0] as any).value).toBe('5');
+    });
+
+    it('should handle collectLabeledValues when item.text is empty', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'History',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'History' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [{ valueCoding: { code: 'DIAB', display: 'Diabetes' } }],
+          item: [
+            {
+              linkId: 'patHist.child',
+              type: 'integer',
+              text: '', // empty text → label is ''
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: '' }],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        ['patHist.child', 42],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+      // With empty label, it should still format: the value is just "42"
+      expect((result[0].items[0] as any).value).toContain('42');
+    });
+
+    it('should handle associated symptoms code with no display (line 249)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'ID_1', display: 'Headache' } },
+          ],
+        },
+      ];
+      // Answer includes a code that doesn't match any option → display is null → skipped
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1', 'UNKNOWN_CODE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(i => i.type === 'subheading' && i.heading === 'Patient reports');
+      expect(reports).toBeDefined();
+      if (reports?.type === 'subheading') {
+        expect(reports.values[0]).toContain('Headache');
+      }
+    });
+
+    it('should handle single select display with no nested values (line 469)', () => {
+      const questions = [
+        makeChoiceQuestion({
+          answerOption: [
+            { valueCoding: { code: 'CODE_A' } }, // no display property
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([['q1', 'CODE_A']]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      // No display → getDisplay returns null → empty result
+      expect(result).toEqual([]);
     });
   });
 

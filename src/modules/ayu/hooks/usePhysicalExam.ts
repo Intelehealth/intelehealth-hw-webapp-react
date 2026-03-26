@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SectionProps } from '../../ayu-library/types/start-visit.types';
 import { fileToBase64 } from '../../profile/profile.helpers';
 import {
   filterPhysicalExamQuestions,
@@ -6,18 +7,17 @@ import {
   type PhysicalExamAnswers,
   type PhysicalExamOption,
 } from '../data/physical-exam.data';
-import { useAyuJsonList } from './useAyuJson.hook';
+import {
+  addPendingImage,
+  clearPendingImages,
+  removePendingImage,
+} from '../services/obs.service';
+import type { CapturedImage } from '../types/obs.types';
 import {
   parsePhysExamJson,
   type PhysExamRawRoot,
 } from '../utils/parsePhysExamJson';
-import {
-  clearPendingImages,
-  addPendingImage,
-  removePendingImage,
-} from '../services/obs.service';
-import type { CapturedImage } from '../types/obs.types';
-import type { SectionProps } from '../../ayu-library/types/start-visit.types';
+import { useAyuJsonList } from './useAyuJson.hook';
 
 const computeVisible = (
   base: typeof PHYSICAL_EXAM_QUESTIONS,
@@ -223,6 +223,7 @@ export const usePhysicalExam = ({
     goNext,
     goSkip,
     goBack,
+    onPrevSection,
     allRequiredAnswered,
   };
 };

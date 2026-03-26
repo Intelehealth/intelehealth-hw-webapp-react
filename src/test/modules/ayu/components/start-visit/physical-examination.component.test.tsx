@@ -61,6 +61,7 @@ const mockHookReturn = {
   totalQuestions: 3,
   currentQuestion: MOCK_QUESTIONS[0],
   isLastQuestion: false,
+  answers: {} as Record<string, string[]>,
   selectedOptionsFor: vi.fn().mockReturnValue([]),
   cameraImagesFor: vi.fn().mockReturnValue([]),
   addCameraImage: vi.fn(),
@@ -72,6 +73,7 @@ const mockHookReturn = {
   goNext: vi.fn(),
   goSkip: vi.fn(),
   goBack: vi.fn(),
+  onPrevSection: vi.fn(),
   allRequiredAnswered: true,
 };
 
@@ -121,10 +123,19 @@ vi.mock('../../../../../assets/icons/icon-camera.svg', () => ({
   default: 'camera-icon.svg',
 }));
 
+vi.mock('../../../../../assets/icons/icon-right-arrow.svg', () => ({
+  default: 'right-arrow-icon.svg',
+}));
+
+vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({
+  default: 'yes-icon.svg',
+}));
+
 const mockSetPhysicalExamData = vi.fn();
+let mockContextData: { physicalExam: Record<string, string[]> | null } = { physicalExam: null };
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => ({
-    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+    data: { vitals: null, visitReason: null, physicalExam: mockContextData.physicalExam, medicalHistory: null },
     patientUuid: null,
     setPatientUuid: vi.fn(),
     setVitalsData: vi.fn(),
@@ -158,6 +169,7 @@ function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
     totalQuestions: 3,
     currentQuestion: MOCK_QUESTIONS[0],
     isLastQuestion: false,
+    answers: {},
     selectedOptionsFor: vi.fn().mockReturnValue([]),
     cameraImagesFor: vi.fn().mockReturnValue([]),
     addCameraImage: vi.fn(),
@@ -169,6 +181,7 @@ function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
     goNext: vi.fn(),
     goSkip: vi.fn(),
     goBack: vi.fn(),
+    onPrevSection: vi.fn(),
     ...overrides,
   });
 }
@@ -183,6 +196,7 @@ describe('PhysicalExamination', () => {
     vi.clearAllMocks();
     resetHookReturn();
     capturedHookProps = {};
+    mockContextData = { physicalExam: null };
   });
 
   // ── Rendering ──────────────────────────────────────────────────────────
@@ -474,12 +488,12 @@ describe('PhysicalExamination', () => {
   // ── Back button ────────────────────────────────────────────────────────
 
   describe('back button', () => {
-    it('should call goBack when clicked', async () => {
+    it('should call onPrevSection when clicked', async () => {
       const user = userEvent.setup();
       render(<PhysicalExamination {...defaultProps} />);
 
       await user.click(screen.getByText('Back'));
-      expect(mockHookReturn.goBack).toHaveBeenCalledTimes(1);
+      expect(mockHookReturn.onPrevSection).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -582,6 +596,35 @@ describe('PhysicalExamination', () => {
       // Call the wrapped function
       capturedHookProps.onNextQuestion();
 
+      expect(mockSetPhysicalExamData).toHaveBeenCalled();
+      expect(originalOnNext).toHaveBeenCalled();
+    });
+  });
+
+  // ── Confirm button (review mode) ─────────────────────────────────────
+
+  describe('confirm button', () => {
+    it('should not show Confirm button when data.physicalExam is null', () => {
+      mockContextData = { physicalExam: null };
+      render(<PhysicalExamination {...defaultProps} />);
+
+      expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
+    });
+
+    it('should show Confirm button when data.physicalExam is truthy', () => {
+      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] } } as any };
+      render(<PhysicalExamination {...defaultProps} />);
+
+      expect(screen.getByText('Confirm')).toBeInTheDocument();
+    });
+
+    it('should call setPhysicalExamData and onNextQuestion when Confirm is clicked', async () => {
+      const user = userEvent.setup();
+      const originalOnNext = vi.fn();
+      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] } } as any };
+      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
+
+      await user.click(screen.getByText('Confirm'));
       expect(mockSetPhysicalExamData).toHaveBeenCalled();
       expect(originalOnNext).toHaveBeenCalled();
     });

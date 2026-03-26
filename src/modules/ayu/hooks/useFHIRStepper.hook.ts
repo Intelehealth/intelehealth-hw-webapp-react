@@ -147,6 +147,9 @@ export const useFHIRStepper = (
       for (const id of linkIds) {
         delete updated[id];
       }
+      // Keep ref in sync so handleComplete reads cleared answers
+      // when called in the same event tick (e.g. skip on last question)
+      answersRef.current = updated;
       return updated;
     });
   };

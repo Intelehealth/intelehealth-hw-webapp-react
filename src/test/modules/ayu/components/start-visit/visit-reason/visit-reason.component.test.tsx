@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VisitReason } from '../../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component';
 
 // Mock all child components
@@ -52,27 +52,51 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/selec
   )),
 }));
 
-vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component', () => ({
-  AyuStepperContainer: vi.fn(({ onComplete, onProgressUpdate }) => (
-    <div data-testid="ayu-stepper-container">
-      <div>Stepper Container</div>
-      <button data-testid="stepper-complete-button" onClick={onComplete}>
-        Complete
-      </button>
-      <button
-        data-testid="stepper-progress-button"
-        onClick={() => onProgressUpdate?.(5, 3)}
-      >
-        Update Progress
-      </button>
-      <button
-        data-testid="stepper-progress-complete"
-        onClick={() => onProgressUpdate?.(5, 5)}
-      >
-        Complete All
-      </button>
-    </div>
-  )),
+const mockShowSummary = vi.fn();
+const mockConfirm = vi.fn();
+vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component', async () => {
+  const ReactModule = await vi.importActual<typeof import('react')>('react');
+  return {
+    AyuStepperContainer: ReactModule.forwardRef((props: any, ref: any) => {
+      ReactModule.useImperativeHandle(ref, () => ({
+        confirm: mockConfirm,
+        showSummary: mockShowSummary,
+      }));
+      return (
+        <div data-testid="ayu-stepper-container">
+          <div>Stepper Container</div>
+          {props.initialAnswers && (
+            <div data-testid="initial-answers">{JSON.stringify(props.initialAnswers)}</div>
+          )}
+          <button data-testid="stepper-complete-button" onClick={() => props.onComplete?.({ q1: 'a' })}>
+            Complete
+          </button>
+          <button
+            data-testid="stepper-progress-button"
+            onClick={() => props.onProgressUpdate?.(5, 3)}
+          >
+            Update Progress
+          </button>
+          <button
+            data-testid="stepper-progress-complete"
+            onClick={() => props.onProgressUpdate?.(5, 5)}
+          >
+            Complete All
+          </button>
+        </div>
+      );
+    }),
+  };
+});
+
+vi.mock('../../../../../../modules/ayu/components/common/ayu-button.component', () => ({
+  default: ({ children, onClick, ...rest }: any) => (
+    <button onClick={onClick} {...rest}>{children}</button>
+  ),
+}));
+
+vi.mock('../../../../../../assets/icons/icon-right-arrow.svg', () => ({
+  default: 'right-arrow-icon.svg',
 }));
 
 vi.mock('../../../../../../components/modal/global-modal-context', () => ({
@@ -150,6 +174,7 @@ describe('VisitReason', () => {
     });
 
     mockUseStartVisitData.mockReturnValue({
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
       setVisitReasonData: mockSetVisitReasonData,
     } as any);
   });
@@ -1315,6 +1340,206 @@ describe('VisitReason', () => {
         ['Fever'],
         [{ label: 'Notes', value: '' }]
       );
+    });
+  });
+
+  // ── Review Mode (savedAnswers from context) ─────────────────────────
+
+  describe('Review Mode', () => {
+    const savedAnswers = { q1: 'answer1', q2: 'answer2' };
+
+    it('should show stepper immediately when savedAnswers exists', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // Stepper should render immediately without needing modal confirm
+      expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      // Default UI should not be shown
+      expect(screen.queryByTestId('visit-reason-footer')).not.toBeInTheDocument();
+    });
+
+    it('should pass initialAnswers to AyuStepperContainer', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      expect(screen.getByTestId('initial-answers')).toHaveTextContent(JSON.stringify(savedAnswers));
+    });
+
+    it('should show Back and Confirm buttons in review mode', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onPrevSection={mockOnPrevSection}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      expect(screen.getByText('Back')).toBeInTheDocument();
+      expect(screen.getByText('Confirm')).toBeInTheDocument();
+    });
+
+    it('should call onPrevSection when Back is clicked in review mode', async () => {
+      const user = userEvent.setup();
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onPrevSection={mockOnPrevSection}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      await user.click(screen.getByText('Back'));
+      expect(mockOnPrevSection).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call showSummary when Confirm is clicked in review mode', async () => {
+      const user = userEvent.setup();
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      await user.click(screen.getByText('Confirm'));
+      expect(mockShowSummary).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not show Back/Confirm buttons when not in review mode', async () => {
+      const user = userEvent.setup();
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // Enter stepper via normal flow
+      const nextButton = screen.getByTestId('footer-next-button');
+      await user.click(nextButton);
+      const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
+      onConfirm();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      // No Back/Confirm buttons in first-pass mode (savedAnswers is null)
+      expect(screen.queryByText('Back')).not.toBeInTheDocument();
+      expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
+    });
+
+    it('should not render stepper when savedAnswers exists but selectedComplaints is empty', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        setVisitReasonData: mockSetVisitReasonData,
+      } as any);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [], // empty
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // No schema can be built, so default UI should render
+      expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });
   });
 });
