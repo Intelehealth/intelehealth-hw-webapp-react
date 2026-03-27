@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReasonSummary from '../../../../../assets/icons/visit-reason.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
@@ -58,6 +59,15 @@ export const MedicalHistory = ({
     }));
   }, [historyFiles]);
 
+  // Precompute total question count across all files so the counter is
+  // correct even before later files have rendered their steppers.
+  const precomputedTotal = useMemo(() => {
+    return schemas.reduce((sum, s) => {
+      const items = s.schema?.item || [];
+      return sum + items.filter(item => item.type !== 'group').length;
+    }, 0);
+  }, [schemas]);
+
   const currentSchema = schemas[currentStep];
 
   // Review mode: true when returning from "Change" in the summary modal
@@ -102,7 +112,12 @@ export const MedicalHistory = ({
         navigate(`${basePath}/visit-summary`);
       },
     });
-  }, [showVitalConfirmationModal, navigate, setMedicalHistoryData]);
+  }, [
+    showVitalConfirmationModal,
+    navigate,
+    setMedicalHistoryData,
+    location.pathname,
+  ]);
 
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
@@ -172,11 +187,6 @@ export const MedicalHistory = ({
     .slice(0, currentStep)
     .reduce((sum, f) => sum + f.total, 0);
 
-  const combinedTotal = fileProgressRef.current.reduce(
-    (sum, f) => sum + f.total,
-    0
-  );
-
   if (!currentSchema?.schema) {
     return <div>Loading medical history...</div>;
   }
@@ -191,7 +201,9 @@ export const MedicalHistory = ({
         skipSummary
         initialAnswers={fileAnswersRef.current[currentSchema.name]}
         questionIndexOffset={questionIndexOffset}
-        totalQuestionsOverride={combinedTotal > 0 ? combinedTotal : undefined}
+        totalQuestionsOverride={
+          precomputedTotal > 0 ? precomputedTotal : undefined
+        }
         onComplete={handleComplete}
         onProgressUpdate={handleProgressUpdate}
       />
@@ -215,6 +227,7 @@ export const MedicalHistory = ({
           <AyuButton
             type="button"
             variant="primary"
+            rightIcon={<img src={iconRightArrow} alt="yes" />}
             onClick={() => {
               stepperRef.current?.confirm();
             }}

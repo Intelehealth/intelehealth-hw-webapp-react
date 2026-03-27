@@ -19,6 +19,7 @@ import type {
   AyuQuestion,
   FhirQuestionnaire,
 } from '../../../../ayu-library/types/ayu.types';
+import { collectDescendantLinkIds } from '../../../../ayu-library/utils/question.utils';
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import {
@@ -39,7 +40,10 @@ import { AyuNestedRenderer } from './ayu-nested-renderer.component';
 import { AyuRenderer } from './ayu-renderer.component';
 
 export interface AyuStepperContainerHandle {
+  /** Directly call onComplete with current answers (skips summary modal). */
   confirm: () => void;
+  /** Trigger the normal completion flow which shows the summary modal (when skipSummary is false). */
+  showSummary: () => void;
 }
 
 interface AyuStepperContainerProps {
@@ -97,17 +101,44 @@ export const AyuStepperContainer = forwardRef<
         confirm: () => {
           onComplete?.(answers);
         },
+        showSummary: () => {
+          goNext();
+        },
       }),
-      [answers, onComplete]
+      [answers, onComplete, goNext]
     );
 
     const totalSteps = topLevelItems.length;
     const lastQuestionRef = useRef<HTMLDivElement | null>(null);
+
+    // When remounting with initialAnswers (e.g. returning via "Change" in
+    // medical-history combined summary), reconstruct submitted/skipped sets
+    // so tick-mark icons are preserved — matching Visit Reason behaviour.
     const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(
-      new Set()
+      () => {
+        if (!initialAnswers || Object.keys(initialAnswers).length === 0)
+          return new Set();
+        const submitted = new Set<string>();
+        for (const item of topLevelItems) {
+          if (initialAnswers[item.linkId] !== undefined) {
+            submitted.add(item.linkId);
+          }
+        }
+        return submitted;
+      }
     );
     const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(
-      new Set()
+      () => {
+        if (!initialAnswers || Object.keys(initialAnswers).length === 0)
+          return new Set();
+        const skipped = new Set<string>();
+        for (const item of topLevelItems) {
+          if (initialAnswers[item.linkId] === undefined && !item.required) {
+            skipped.add(item.linkId);
+          }
+        }
+        return skipped;
+      }
     );
 
     const prevCompletedRef = useRef<number>(-1);
@@ -405,9 +436,22 @@ export const AyuStepperContainer = forwardRef<
                                 ) : undefined
                               }
                               onClick={() => {
+                                // Clear answer data for this question and all its descendants
+                                const descendantIds =
+                                  collectDescendantLinkIds(question);
+                                clearAnswers([
+                                  question.linkId,
+                                  ...descendantIds,
+                                ]);
+
                                 setSkippedQuestions(prev =>
                                   new Set(prev).add(question.linkId)
                                 );
+                                setSubmittedQuestions(prev => {
+                                  const next = new Set(prev);
+                                  next.delete(question.linkId);
+                                  return next;
+                                });
                                 if (isActive) {
                                   if (isLast) {
                                     onProgressUpdate?.(totalSteps, totalSteps);

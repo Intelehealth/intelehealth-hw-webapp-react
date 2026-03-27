@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
+import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
+import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import type { PhysicalExamQuestion } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
+import {
+  BUTTON_BACK,
+  BUTTON_CONFIRM,
+  BUTTON_SUBMIT,
+} from '../../../utils/ayu.constants';
 import { getJobAidUrl } from '../../../utils/physExamAssets';
 import AyuButton from '../../common/ayu-button.component';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { PhysicalExamImageCapture } from './physical-exam-image-capture.component';
-
 const SvgIcon = ({ d, join }: { d: string; join?: boolean }) => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path
@@ -167,7 +173,8 @@ const QuestionCard = ({
                 size="sm"
                 onClick={onUploadImages}
               >
-                Submit{isSubmitted && <span className="ml-1">✓</span>}
+                {BUTTON_SUBMIT}
+                {isSubmitted && <img src={iconYes} alt="yes" />}
               </AyuButton>
             </div>
           )}
@@ -178,7 +185,7 @@ const QuestionCard = ({
 
 export const PhysicalExamination = (props: SectionProps) => {
   const { onNextQuestion: originalOnNext } = props;
-  const { setPhysicalExamData } = useStartVisitData();
+  const { data, setPhysicalExamData } = useStartVisitData();
   const answersRef = useRef<Record<string, string[]>>({});
 
   const wrappedOnNextQuestion = useCallback(() => {
@@ -201,7 +208,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     toggleOption,
     goNext,
     goSkip,
-    goBack,
+    onPrevSection,
   } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
 
   // Keep ref in sync so the wrapped callback always has latest answers
@@ -255,15 +262,26 @@ export const PhysicalExamination = (props: SectionProps) => {
           />
         );
       })}
-      <div className="flex md:justify-end my-2">
+      <div className="flex gap-3 md:justify-end my-2">
         <AyuButton
           type="button"
           variant="secondary"
-          onClick={goBack}
+          onClick={() => onPrevSection?.()}
           className="w-full md:w-[10%]"
         >
-          <span className="mx-auto w-full text-base">Back</span>
+          <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
         </AyuButton>
+        {!!data.physicalExam && (
+          <AyuButton
+            type="button"
+            variant="primary"
+            rightIcon={<img src={iconRightArrow} alt="yes" />}
+            onClick={() => wrappedOnNextQuestion()}
+            className="w-full md:w-[10%]"
+          >
+            <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
+          </AyuButton>
+        )}
       </div>
     </div>
   );

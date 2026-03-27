@@ -12,6 +12,7 @@ import {
   isStrictAssociatedSymptoms,
   resolveAyuComponent,
 } from './decision-matrix';
+import { isMutuallyExclusiveOption } from './stepper.logic';
 
 /** Portable summary item — platform-agnostic equivalent of ModalSectionItem */
 export type SummaryItem =
@@ -55,12 +56,14 @@ export function buildVisitSummary(
   }
 
   function getDisplay(item: AyuQuestion, code: string): string | null {
-    const opt = item.answerOption?.find(o => o.valueCoding?.code === code);
+    const opt = item.answerOption?.find(
+      o => o.valueCoding?.code === code || o.valueString === code
+    );
     const langValue = opt?.extension?.find(
       ext => ext.url === EXT_URL_LANGUGAE_TEXT
     )?.valueString;
     if (langValue && langValue !== '%') return langValue;
-    return opt?.valueCoding?.display || null;
+    return opt?.valueCoding?.display || opt?.valueString || null;
   }
 
   function formatAnswerByType(
@@ -302,10 +305,20 @@ export function buildVisitSummary(
               ? ''
               : langExt?.valueString || item.text || '';
 
-            // Filter out negated codes
-            const positiveCodes = answerValue.filter(
-              code => !code.startsWith(NEGATED_ID_PREFIX)
-            );
+            // Separate positive codes and negated "None" (exclusive) option
+            const positiveCodes: string[] = [];
+            let exclusiveNoDisplay: string | null = null;
+            answerValue.forEach(code => {
+              if (code.startsWith(NEGATED_PREFIX)) {
+                // Show the mutually exclusive (None) option even when answered "No"
+                const lookupCode = code.slice(NEGATED_PREFIX.length);
+                if (isMutuallyExclusiveOption(item, lookupCode)) {
+                  exclusiveNoDisplay = getDisplay(item, lookupCode);
+                }
+              } else {
+                positiveCodes.push(code);
+              }
+            });
 
             // Family history: show question text as subheading
             if (isPercentLabel && item.text) {
@@ -339,7 +352,7 @@ export function buildVisitSummary(
                 mainItems.push({
                   type: 'labelValue',
                   label: display,
-                  value: labeledParts.length ? labeledParts.join(', ') : null,
+                  value: labeledParts.length ? labeledParts.join(', ') : ' ',
                 });
               } else {
                 // Patient history: "Medical history" → "Diabetes – date | Current medication – value | ..."
@@ -353,6 +366,23 @@ export function buildVisitSummary(
                 });
               }
             });
+
+            // Show the exclusive (None) option when answered No
+            if (exclusiveNoDisplay) {
+              if (isPercentLabel) {
+                mainItems.push({
+                  type: 'labelValue',
+                  label: exclusiveNoDisplay,
+                  value: ' ',
+                });
+              } else {
+                mainItems.push({
+                  type: 'labelValue',
+                  label: summaryLabel,
+                  value: exclusiveNoDisplay,
+                });
+              }
+            }
           }
         }
 

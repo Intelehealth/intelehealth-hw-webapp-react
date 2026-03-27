@@ -895,6 +895,37 @@ describe('StartVisit', () => {
     });
   });
 
+  describe('goNextQuestion early exit for already-completed section', () => {
+    it('should immediately advance to next section when answeredQuestions >= totalQuestions', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      // Complete Vitals → now on Visit Reason
+      await user.click(screen.getByText('Next Vitals'));
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
+
+      // Complete Visit Reason (1 question) → now on Physical Exam
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Next Question'));
+      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+
+      // Go back to Visit Reason (which is now fully completed: answeredQuestions=1, totalQuestions=1)
+      const physExam = screen.getByTestId('physical-exam-component');
+      await user.click(within(physExam).getByText('Prev Section'));
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
+
+      // Click Next Question on the already-completed Visit Reason section.
+      // The new check (answeredQuestions >= totalQuestions) should cause
+      // goNextQuestion to call goNextSection() immediately.
+      const visitReasonAgain = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReasonAgain).getByText('Next Question'));
+
+      // Should jump straight to Physical Exam (next section)
+      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByTestId('physical-exam-component')).toBeVisible();
+    });
+  });
+
   describe('Section Subtitle Coverage', () => {
     it('should display visit reason subtitle when reasons are confirmed', async () => {
       const user = userEvent.setup();
