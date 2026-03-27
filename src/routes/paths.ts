@@ -20,7 +20,7 @@ const ROUTES = {
   APPOINTMENT_DETAILS: '/my-appointments/:id',
   NOTIFICATIONS: '/notifications',
   PRESCRIPTION_PREVIEW: '/prescription-preview',
-  VISIT_SUMMARY: '/visit-summary',
+  VISIT_SUMMARY: '/visit-summary/:visitId?',
   VISIT_DETAILS: '/visit-details/:visitId',
   PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',
   NOT_FOUND: '*', // catch-all

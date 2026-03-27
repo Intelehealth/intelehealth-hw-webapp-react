@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
 import { visitSummaryService } from './visit-summary.service';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import ROUTES from '../../routes/paths';
 import type {
+  VisitData,
   Patient,
   Vitals,
   CheckupReason,
@@ -205,12 +206,30 @@ const PhysicalExaminationSection: React.FC<{
 );
 
 const VisitSummaryComponent: React.FC = () => {
-  const { action } = useParams<{ action: string }>();
+  const { visitId, action } = useParams<{ visitId: string; action: string }>();
   const navigate = useNavigate();
   const { showConfirmModal } = useGlobalModal();
   const isCloseVisit = action === 'close';
   const [allOpen, setAllOpen] = useState(true);
-  const data = visitSummaryData[0];
+  const [data, setData] = useState<VisitData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visitId) {
+      setData(visitSummaryData[0] ?? null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    visitSummaryService
+      .getVisitSummary(visitId)
+      .then(setData)
+      .catch(() => setError('Failed to load visit summary'))
+      .finally(() => setLoading(false));
+  }, [visitId]);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -252,6 +271,18 @@ const VisitSummaryComponent: React.FC = () => {
       },
     });
   }, [showConfirmModal]);
+
+  if (loading) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading visit summary...
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="p-10 text-center text-gray-500">{error}</div>;
+  }
 
   if (!data) {
     return (

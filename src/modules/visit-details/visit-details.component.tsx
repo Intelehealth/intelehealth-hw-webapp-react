@@ -324,9 +324,7 @@ const VisitDetails: React.FC = () => {
           <NavigableRow
             icon={iconVisitSummary}
             title="Visit summary"
-            onClick={() => {
-              navigate('/visit-summary');
-            }}
+            onClick={() => navigate(`/visit-summary/${visitId}`)}
           />
 
           <NavigableRow
