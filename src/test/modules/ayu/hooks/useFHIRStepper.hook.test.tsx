@@ -16,6 +16,12 @@ vi.mock('../../../../modules/ayu/utils/visit-summary.util', () => ({
   buildVisitSummary: vi.fn(() => []),
 }));
 
+// Mock showToast
+const mockShowToast = vi.fn();
+vi.mock('../../../../services/toast', () => ({
+  showToast: (...args: unknown[]) => mockShowToast(...args),
+}));
+
 // Mock SVG import
 vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
   default: 'mock-visit-reason-icon',
@@ -27,6 +33,7 @@ describe('useFHIRStepper', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockShowVitalConfirmationModal.mockClear();
+    mockShowToast.mockClear();
   });
 
   afterEach(() => {
@@ -151,6 +158,11 @@ describe('useFHIRStepper', () => {
         })
       );
 
+      // Answer required q1 so validation passes
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+
       // Navigate to second question
       act(() => {
         result.current.goNext();
@@ -181,7 +193,9 @@ describe('useFHIRStepper', () => {
         modalConfig.onConfirm();
       });
 
-      expect(onComplete).toHaveBeenCalledWith({});
+      expect(onComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ q1: 'answer1' })
+      );
     });
 
     it('should assign onChange to each section returned by buildVisitSummary', async () => {
@@ -201,6 +215,11 @@ describe('useFHIRStepper', () => {
           onComplete: vi.fn(),
         })
       );
+
+      // Answer required q1 so validation passes
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
 
       // Navigate to last question and trigger handleComplete
       act(() => {
@@ -3278,6 +3297,11 @@ describe('useFHIRStepper', () => {
         useFHIRStepper({ questionnaire: mockQuestionnaire })
       );
 
+      // Answer required q1 so validation passes
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+
       // Navigate to last question and trigger handleComplete
       act(() => { result.current.goNext(); });
       act(() => { result.current.goNext(); });
@@ -3767,6 +3791,227 @@ describe('useFHIRStepper', () => {
 
       // Should NOT auto-advance because recursive check finds deep string child
       expect(result.current.currentIndex).toBe(0);
+    });
+  });
+
+  describe('validateAllQuestions', () => {
+    it('should return true when all required questions are answered', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+
+      let isValid = false;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(true);
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it('should return false and show toast when required question is unanswered', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please select any one option',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should return false when answered question has incomplete nested children', () => {
+      const nestedQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Parent',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            item: [
+              {
+                linkId: 'q1.1',
+                type: 'string',
+                enableWhen: [
+                  { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should block handleComplete when validation fails', () => {
+      const onComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          skipSummary: true,
+          onComplete,
+        })
+      );
+
+      // Navigate to last without answering required q1
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalled();
+    });
+
+    it('should show enter value toast for incomplete quantity nested child', () => {
+      const quantityQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Duration question',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            item: [
+              {
+                linkId: 'q1.dur',
+                type: 'quantity',
+                enableWhen: [
+                  { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: quantityQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should show select option toast when nested choice child is unanswered', () => {
+      const nestedChoiceQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Parent',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            item: [
+              {
+                linkId: 'q1.child',
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'a', display: 'A' } },
+                ],
+                enableWhen: [
+                  { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedChoiceQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please select any one option',
+        undefined,
+        'warning'
+      );
+    });
+  });
+
+  describe('initialAnswers', () => {
+    it('should initialize with provided answers and showAll true', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          initialAnswers: { q1: 'saved', q2: 'yes' },
+        })
+      );
+
+      expect(result.current.answers).toEqual({ q1: 'saved', q2: 'yes' });
+      expect(result.current.showAll).toBe(true);
+    });
+
+    it('should not set showAll when initialAnswers is empty', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          initialAnswers: {},
+        })
+      );
+
+      expect(result.current.answers).toEqual({});
+      expect(result.current.showAll).toBeFalsy();
     });
   });
 });

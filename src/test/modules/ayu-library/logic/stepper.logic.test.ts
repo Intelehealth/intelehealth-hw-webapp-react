@@ -281,6 +281,26 @@ describe('isTopLevelComplete', () => {
     expect(isTopLevelComplete(q, { q1: 'yes', 'q1.1': 'text', 'q1.2': 42 })).toBe(true);
   });
 
+  it('should return false when visible date child is unanswered', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'q1.1',
+          type: 'date',
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ],
+    };
+    // Child visible but unanswered
+    expect(isTopLevelComplete(q, { q1: 'yes' })).toBe(false);
+    // Child visible and answered
+    expect(isTopLevelComplete(q, { q1: 'yes', 'q1.1': '2026-01-01' })).toBe(true);
+  });
+
   it('should return false for repeats with non-array answer', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice', repeats: true };
     expect(isTopLevelComplete(q, { q1: 'not-array' })).toBe(false);

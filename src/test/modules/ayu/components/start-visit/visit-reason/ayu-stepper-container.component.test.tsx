@@ -93,7 +93,17 @@ vi.mock('../../../../../../modules/ayu/assets/yes.svg', () => ({
 import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
 import { resolveAyuComponent, isStrictAssociatedSymptoms } from '../../../../../../modules/ayu/pages/decision-matrix';
 import { showToast } from '../../../../../../services/toast';
-const mockUseFHIRStepper = vi.mocked(useFHIRStepper);
+const _mockUseFHIRStepper = vi.mocked(useFHIRStepper);
+// Wrap mock to always inject validateAllQuestions so existing tests don't need updating
+const mockValidateAllQuestions = vi.fn(() => true);
+const mockUseFHIRStepper = {
+  mockReturnValue: (val: Record<string, unknown>) => {
+    _mockUseFHIRStepper.mockReturnValue({
+      validateAllQuestions: mockValidateAllQuestions,
+      ...val,
+    } as unknown as ReturnType<typeof useFHIRStepper>);
+  },
+};
 const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
 const mockIsStrictAssociatedSymptoms = vi.mocked(isStrictAssociatedSymptoms);
 const mockShowToast = vi.mocked(showToast);
@@ -111,6 +121,7 @@ describe('AyuStepperContainer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockValidateAllQuestions.mockReturnValue(true);
     // Reset scroll mock
     Element.prototype.scrollIntoView = vi.fn();
     // Default: resolveAyuComponent returns 'selectableOptionGroup' (not associatedSymptoms)
@@ -3846,6 +3857,83 @@ describe('AyuStepperContainer', () => {
 
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 2);
       expect(mockGoNext).toHaveBeenCalled();
+    });
+  });
+
+  describe('confirm validates before calling onComplete', () => {
+    it('should not call onComplete when validateAllQuestions returns false', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+        required: true,
+      };
+
+      mockValidateAllQuestions.mockReturnValue(false);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      ref.current!.confirm();
+      expect(mockValidateAllQuestions).toHaveBeenCalled();
+      expect(mockOnComplete).not.toHaveBeenCalled();
+    });
+
+    it('should call onComplete when validateAllQuestions returns true', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockValidateAllQuestions.mockReturnValue(true);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      ref.current!.confirm();
+      expect(mockValidateAllQuestions).toHaveBeenCalled();
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'hello' });
     });
   });
 });

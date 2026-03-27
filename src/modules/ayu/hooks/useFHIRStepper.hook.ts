@@ -1,11 +1,17 @@
 import { useMemo, useRef, useState } from 'react';
 import iconVisitReasonSummary from '../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
+import { showToast } from '../../../services/toast';
 import { evaluateEnableWhen } from '../../ayu-library/logic/enable-when.logic';
 import {
   computeMultiSelectToggle,
   isTopLevelComplete,
 } from '../../ayu-library/logic/stepper.logic';
+import {
+  isEmpty,
+  isNestedInputValueMissing,
+  isQuantityInvalid,
+} from '../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
@@ -20,6 +26,8 @@ import {
   DEFAULT_VISIT_REASON_TEXT,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
+  VALIDATION_ENTER_VALUE,
+  VALIDATION_SELECT_OPTION,
 } from '../utils/ayu.constants';
 import { buildVisitSummary } from '../utils/visit-summary.util';
 
@@ -43,6 +51,8 @@ interface UseFHIRStepperReturn {
   topLevelItems: AyuQuestion[];
   isLast: boolean;
   showAll?: boolean;
+  /** Validate all questions; returns true if valid, shows toast and returns false otherwise. */
+  validateAllQuestions: () => boolean;
 }
 
 export const useFHIRStepper = (
@@ -94,7 +104,36 @@ export const useFHIRStepper = (
     }
   };
 
+  const validateAllQuestions = (): boolean => {
+    const latestAnswers = answersRef.current;
+    for (const question of topLevelItems) {
+      const answer = latestAnswers[question.linkId];
+
+      // Required questions must have an answer
+      if (question.required && isEmpty(answer)) {
+        showToast(VALIDATION_SELECT_OPTION, undefined, 'warning');
+        return false;
+      }
+
+      // If a question is answered (or required), validate nested children are complete
+      if (!isEmpty(answer) || question.required) {
+        if (!isTopLevelComplete(question, latestAnswers)) {
+          const message =
+            isNestedInputValueMissing(question, latestAnswers) ||
+            isQuantityInvalid(question, latestAnswers)
+              ? VALIDATION_ENTER_VALUE
+              : VALIDATION_SELECT_OPTION;
+          showToast(message, undefined, 'warning');
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   const handleComplete = () => {
+    if (!validateAllQuestions()) return;
+
     const latestAnswers = answersRef.current;
 
     if (skipSummary) {
@@ -285,5 +324,6 @@ export const useFHIRStepper = (
     topLevelItems,
     isLast: currentIndex === structuralTotal - 1,
     showAll,
+    validateAllQuestions,
   };
 };

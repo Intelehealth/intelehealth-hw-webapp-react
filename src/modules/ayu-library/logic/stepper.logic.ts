@@ -131,6 +131,7 @@ export const isTopLevelComplete = (
       if (
         (child.type === 'string' ||
           child.type === 'integer' ||
+          child.type === 'date' ||
           child.type === 'quantity') &&
         !updatedAnswers[child.linkId]
       ) {
