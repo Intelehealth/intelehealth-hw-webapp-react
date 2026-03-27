@@ -9,36 +9,16 @@ import type {
   Detail,
   GeneralExam,
 } from '../../assets/data/visit-summary.data';
+import {
+  CONCEPT_UUIDS,
+  VISIT_SUMMARY_CUSTOM_REP,
+} from '../../assets/data/visit-summary.data';
+
+export { CONCEPT_UUIDS, VISIT_SUMMARY_CUSTOM_REP };
 
 export const API_ENDPOINTS = {
   VISIT: '/visit',
 } as const;
-
-export const CONCEPT_UUIDS = {
-  HEIGHT: '5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  WEIGHT: '5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  BMI: '9d311fac-538f-11e6-9cfe-86f436325720',
-  BP_SYSTOLIC: '5085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  BP_DIASTOLIC: '5086AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  PULSE: '5087AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  TEMPERATURE: '5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  SPO2: '5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  RESPIRATORY_RATE: '5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  CHIEF_COMPLAINT: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce',
-  PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',
-} as const;
-
-const VISIT_SUMMARY_CUSTOM_REP =
-  'custom:(uuid,display,startDatetime,stopDatetime,' +
-  'encounters:(display,uuid,encounterDatetime,encounterType:(display),' +
-  'obs:(display,uuid,value,concept:(uuid,display)),' +
-  'encounterProviders:(display,provider:(uuid,display,person:(uuid,display)))),' +
-  'patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),' +
-  'attributes:(display,attributeType:(display),value),' +
-  'person:(display,gender,age,birthdate,' +
-  'preferredName:(givenName,familyName),' +
-  'attributes:(display,attributeType:(display),value))))';
-
 interface CloseVisitPayload {
   stopDatetime: string;
 }

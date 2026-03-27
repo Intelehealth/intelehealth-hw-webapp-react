@@ -1,3 +1,8 @@
+export const PRESCRIPTION_TABS = {
+  RECEIVED: 'Received',
+  PENDING: 'Pending',
+} as const;
+
 export interface Medication {
   name: string;
   strength: string;
