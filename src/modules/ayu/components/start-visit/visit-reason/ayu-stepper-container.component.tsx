@@ -87,6 +87,7 @@ export const AyuStepperContainer = forwardRef<
       topLevelItems,
       isLast,
       showAll,
+      validateAllQuestions,
     } = useFHIRStepper({
       questionnaire,
       summaryTitle,
@@ -99,13 +100,14 @@ export const AyuStepperContainer = forwardRef<
       ref,
       () => ({
         confirm: () => {
+          if (!validateAllQuestions()) return;
           onComplete?.(answers);
         },
         showSummary: () => {
           goNext();
         },
       }),
-      [answers, onComplete, goNext]
+      [answers, onComplete, goNext, validateAllQuestions]
     );
 
     const totalSteps = topLevelItems.length;
