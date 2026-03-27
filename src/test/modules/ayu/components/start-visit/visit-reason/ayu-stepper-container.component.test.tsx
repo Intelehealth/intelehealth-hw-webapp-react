@@ -101,7 +101,7 @@ const mockUseFHIRStepper = {
     _mockUseFHIRStepper.mockReturnValue({
       validateAllQuestions: mockValidateAllQuestions,
       ...val,
-    } as ReturnType<typeof useFHIRStepper>);
+    } as unknown as ReturnType<typeof useFHIRStepper>);
   },
 };
 const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
