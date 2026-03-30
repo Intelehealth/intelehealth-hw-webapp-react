@@ -6,11 +6,7 @@ import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import type { PhysicalExamQuestion } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
-import {
-  BUTTON_BACK,
-  BUTTON_CONFIRM,
-  BUTTON_SUBMIT,
-} from '../../../utils/ayu.constants';
+import { BUTTON_BACK, BUTTON_CONFIRM } from '../../../utils/ayu.constants';
 import { getJobAidUrl } from '../../../utils/physExamAssets';
 import AyuButton from '../../common/ayu-button.component';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
