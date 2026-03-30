@@ -387,7 +387,7 @@ describe('ProfileFormFields', () => {
   });
 
   it('should render mobile gender icons', () => {
-    const { container } = render(
+    render(
       <ProfileFormFields
         register={mockRegister}
         errors={mockErrors}
