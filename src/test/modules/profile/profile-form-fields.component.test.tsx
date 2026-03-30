@@ -365,7 +365,6 @@ describe('ProfileFormFields', () => {
 
     expect(screen.getAllByPlaceholderText('Username').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByPlaceholderText('Enter first name').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByPlaceholderText('Enter middle name').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByPlaceholderText('Enter last name').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -422,8 +421,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const errorMessages = screen.getAllByText('Gender is required');
-    expect(errorMessages.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
   });
 
   it('should render profile image and camera button', () => {
@@ -481,8 +479,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const errorMessages = screen.getAllByText('Gender is required');
-    expect(errorMessages.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
   });
 
   it('should handle date of birth change and trigger validation', async () => {
@@ -610,8 +607,6 @@ describe('ProfileFormFields', () => {
     // Column 2
     const userNames = screen.getAllByText('User name');
     expect(userNames.length).toBeGreaterThanOrEqual(1);
-    const middleNames = screen.getAllByText('Middle Name');
-    expect(middleNames.length).toBeGreaterThanOrEqual(1);
     const dateOfBirths = screen.getAllByText('Date of Birth');
     expect(dateOfBirths.length).toBeGreaterThanOrEqual(1);
     const ages = screen.getAllByText('Age');
@@ -693,8 +688,8 @@ describe('ProfileFormFields', () => {
     expect(screen.getAllByText('Phone is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Date of birth is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Location is required').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Gender is required').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Middle name error').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Middle name error')).not.toBeInTheDocument();
   });
 
   it('should use memoized age calculation', () => {
@@ -779,11 +774,6 @@ describe('ProfileFormFields', () => {
     expect(firstNameInput).toBeInTheDocument();
     fireEvent.change(firstNameInput, { target: { value: 'John' } });
     expect(mockRegister).toHaveBeenCalledWith('firstName');
-
-    const middleNameInput = container.querySelector('input[name="middleName"]') as HTMLInputElement;
-    expect(middleNameInput).toBeInTheDocument();
-    fireEvent.change(middleNameInput, { target: { value: 'M' } });
-    expect(mockRegister).toHaveBeenCalledWith('middleName');
 
     const lastNameInput = container.querySelector('input[name="lastName"]') as HTMLInputElement;
     expect(lastNameInput).toBeInTheDocument();

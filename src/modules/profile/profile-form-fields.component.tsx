@@ -123,24 +123,12 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             error={errors.firstName?.message}
             variant="default"
             size="wide"
-          />
-        </div>
-
-        {/* Middle Name */}
-        <div className="md:col-start-2 md:col-span-1">
-          <Input
-            label="Middle Name"
-            {...register('middleName')}
-            placeholder="Enter middle name"
-            isRequired
-            error={errors.middleName?.message}
-            variant="default"
-            size="wide"
+            disabled
           />
         </div>
 
         {/* Last Name */}
-        <div className="md:col-start-3 md:col-span-1">
+        <div className="md:col-start-2 md:col-span-1">
           <Input
             label="Last Name"
             {...register('lastName')}
@@ -149,12 +137,13 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             error={errors.lastName?.message}
             variant="default"
             size="wide"
+            disabled
           />
         </div>
 
         {/* Gender */}
         <div className="md:col-start-1 md:col-span-1">
-          <label className="form-label block mb-2 text-sm">
+          <label className="form-label block mb-2 text-sm text-gray-400">
             Gender <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-4">
@@ -163,19 +152,17 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               { value: 'female', label: 'Female', icon: IconFemale },
               { value: 'other', label: 'Other', icon: IconGenderOther },
             ].map(g => (
-              <div key={g.value} className="flex items-center gap-1">
+              <div key={g.value} className="flex items-center gap-1 opacity-60">
                 <Radio
                   {...register('gender')}
                   value={g.value}
                   label={g.label}
+                  disabled
                 />
                 <img src={g.icon} alt={g.label} className="w-4 h-4" />
               </div>
             ))}
           </div>
-          {errors.gender && (
-            <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>
-          )}
         </div>
 
         {/* Date of Birth + Age */}
@@ -230,6 +217,20 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Email */}
+        <div className="md:col-start-1 md:col-span-1">
+          <Input
+            label="Email"
+            type="email"
+            {...register('email')}
+            placeholder="Enter email"
+            isRequired
+            error={errors.email?.message}
+            variant="default"
+            size="wide"
+          />
         </div>
       </div>
     </div>
