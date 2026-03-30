@@ -7,6 +7,7 @@ import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.
 import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
 import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
+import { PRESCRIPTION_TABS } from '../../assets/data/prescription-detail.data';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
 import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
@@ -25,7 +26,9 @@ export const PrescriptionsReceived = ({
   initialRowCount,
 }: PrescriptionsReceivedProps = {}) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Received');
+  const [activeTab, setActiveTab] = useState<string>(
+    PRESCRIPTION_TABS.RECEIVED
+  );
   const [search, setSearch] = useState('');
 
   const {
@@ -119,7 +122,7 @@ export const PrescriptionsReceived = ({
     },
   ];
 
-  const isReceived = activeTab === 'Received';
+  const isReceived = activeTab === PRESCRIPTION_TABS.RECEIVED;
   const loading = isReceived ? receivedLoading : pendingLoading;
   const error = isReceived ? receivedError : pendingError;
   const emptyMessage = isReceived
@@ -175,27 +178,27 @@ export const PrescriptionsReceived = ({
             <div className="px-2 py-0.5 shrink-0">
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
-                  onClick={() => setActiveTab('Received')}
+                  onClick={() => setActiveTab(PRESCRIPTION_TABS.RECEIVED)}
                   className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'Received'
+                    activeTab === PRESCRIPTION_TABS.RECEIVED
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
                   }`}
                 >
                   <img src={iconPatientRecevied} />
-                  Received
+                  {PRESCRIPTION_TABS.RECEIVED}
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('Pending')}
+                  onClick={() => setActiveTab(PRESCRIPTION_TABS.PENDING)}
                   className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
-                    activeTab === 'Pending'
+                    activeTab === PRESCRIPTION_TABS.PENDING
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
                   }`}
                 >
                   <img src={iconPatientRecevied} />
-                  Pending
+                  {PRESCRIPTION_TABS.PENDING}
                 </button>
               </div>
             </div>
