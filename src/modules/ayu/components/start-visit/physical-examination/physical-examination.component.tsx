@@ -173,7 +173,7 @@ const QuestionCard = ({
                 size="sm"
                 onClick={onUploadImages}
               >
-                {BUTTON_SUBMIT}
+                Upload
                 {isSubmitted && <img src={iconYes} alt="yes" />}
               </AyuButton>
             </div>
