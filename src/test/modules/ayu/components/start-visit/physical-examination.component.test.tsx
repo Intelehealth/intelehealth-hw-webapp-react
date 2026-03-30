@@ -566,7 +566,7 @@ describe('PhysicalExamination', () => {
       });
       render(<PhysicalExamination {...defaultProps} />);
 
-      const submitBtn = screen.getByText('Submit');
+      const submitBtn = screen.getByText('Upload');
       await user.click(submitBtn);
 
       expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);

@@ -365,7 +365,6 @@ describe('ProfileFormFields', () => {
 
     expect(screen.getAllByPlaceholderText('Username').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByPlaceholderText('Enter first name').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByPlaceholderText('Enter middle name').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByPlaceholderText('Enter last name').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -388,7 +387,7 @@ describe('ProfileFormFields', () => {
   });
 
   it('should render mobile gender icons', () => {
-    const { container } = render(
+    render(
       <ProfileFormFields
         register={mockRegister}
         errors={mockErrors}
@@ -400,9 +399,13 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for gender radio buttons (male, female, other)
-    const radioButtons = container.querySelectorAll('input[type="radio"]');
-    expect(radioButtons.length).toBe(3);
+    // Check for gender option buttons (male, female, other)
+    const maleBtn = screen.getByText('Male');
+    const femaleBtn = screen.getByText('Female');
+    const otherBtn = screen.getByText('Other');
+    expect(maleBtn).toBeInTheDocument();
+    expect(femaleBtn).toBeInTheDocument();
+    expect(otherBtn).toBeInTheDocument();
   });
 
   it('should display mobile gender error message', () => {
@@ -422,8 +425,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const errorMessages = screen.getAllByText('Gender is required');
-    expect(errorMessages.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
   });
 
   it('should render profile image and camera button', () => {
@@ -481,8 +483,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const errorMessages = screen.getAllByText('Gender is required');
-    expect(errorMessages.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
   });
 
   it('should handle date of birth change and trigger validation', async () => {
@@ -610,8 +611,6 @@ describe('ProfileFormFields', () => {
     // Column 2
     const userNames = screen.getAllByText('User name');
     expect(userNames.length).toBeGreaterThanOrEqual(1);
-    const middleNames = screen.getAllByText('Middle Name');
-    expect(middleNames.length).toBeGreaterThanOrEqual(1);
     const dateOfBirths = screen.getAllByText('Date of Birth');
     expect(dateOfBirths.length).toBeGreaterThanOrEqual(1);
     const ages = screen.getAllByText('Age');
@@ -693,8 +692,8 @@ describe('ProfileFormFields', () => {
     expect(screen.getAllByText('Phone is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Date of birth is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Location is required').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Gender is required').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Middle name error').length).toBeGreaterThan(0);
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
+    expect(screen.queryByText('Middle name error')).not.toBeInTheDocument();
   });
 
   it('should use memoized age calculation', () => {
@@ -780,11 +779,6 @@ describe('ProfileFormFields', () => {
     fireEvent.change(firstNameInput, { target: { value: 'John' } });
     expect(mockRegister).toHaveBeenCalledWith('firstName');
 
-    const middleNameInput = container.querySelector('input[name="middleName"]') as HTMLInputElement;
-    expect(middleNameInput).toBeInTheDocument();
-    fireEvent.change(middleNameInput, { target: { value: 'M' } });
-    expect(mockRegister).toHaveBeenCalledWith('middleName');
-
     const lastNameInput = container.querySelector('input[name="lastName"]') as HTMLInputElement;
     expect(lastNameInput).toBeInTheDocument();
     fireEvent.change(lastNameInput, { target: { value: 'Doe' } });
@@ -809,11 +803,11 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const genderRadios = screen.getAllByRole('radio');
-    expect(genderRadios.length).toBe(3); // male, female, other
+    const maleBtn = screen.getByText('Male');
+    expect(maleBtn).toBeInTheDocument();
 
-    fireEvent.change(genderRadios[0], { target: { value: 'male' } });
-    expect(mockRegister).toHaveBeenCalledWith('gender');
+    fireEvent.click(maleBtn);
+    expect(mockSetValue).toHaveBeenCalledWith('gender', 'male');
   });
 
   it('should have correct CSS classes for layout', () => {

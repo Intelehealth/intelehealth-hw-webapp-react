@@ -9,7 +9,7 @@ import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
-  BUTTON_SUBMIT,
+  BUTTON_UPLOAD,
 } from '../../../utils/ayu.constants';
 import { getJobAidUrl } from '../../../utils/physExamAssets';
 import AyuButton from '../../common/ayu-button.component';
@@ -173,7 +173,7 @@ const QuestionCard = ({
                 size="sm"
                 onClick={onUploadImages}
               >
-                {BUTTON_SUBMIT}
+                {BUTTON_UPLOAD}
                 {isSubmitted && <img src={iconYes} alt="yes" />}
               </AyuButton>
             </div>
