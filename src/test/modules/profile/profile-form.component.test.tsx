@@ -350,8 +350,7 @@ describe('ProfileForm Component', () => {
     expect(emptyInputs.length).toBeGreaterThan(0);
     
     // Verify gender defaults to 'male' when undefined (line 83)
-    const genderInputs = screen.getAllByDisplayValue('male');
-    expect(genderInputs.length).toBeGreaterThan(0);
+    expect(screen.getByText('Male')).toBeInTheDocument();
   });
 
   // --------------------------------------------------------

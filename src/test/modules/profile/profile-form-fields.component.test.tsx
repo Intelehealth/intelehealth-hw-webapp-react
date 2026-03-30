@@ -399,9 +399,13 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    // Check for gender radio buttons (male, female, other)
-    const radioButtons = container.querySelectorAll('input[type="radio"]');
-    expect(radioButtons.length).toBe(3);
+    // Check for gender option buttons (male, female, other)
+    const maleBtn = screen.getByText('Male');
+    const femaleBtn = screen.getByText('Female');
+    const otherBtn = screen.getByText('Other');
+    expect(maleBtn).toBeInTheDocument();
+    expect(femaleBtn).toBeInTheDocument();
+    expect(otherBtn).toBeInTheDocument();
   });
 
   it('should display mobile gender error message', () => {
@@ -421,7 +425,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
   });
 
   it('should render profile image and camera button', () => {
@@ -479,7 +483,7 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
   });
 
   it('should handle date of birth change and trigger validation', async () => {
@@ -688,7 +692,7 @@ describe('ProfileFormFields', () => {
     expect(screen.getAllByText('Phone is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Date of birth is required').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Location is required').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Gender is required')).not.toBeInTheDocument();
+    expect(screen.getByText('Gender is required')).toBeInTheDocument();
     expect(screen.queryByText('Middle name error')).not.toBeInTheDocument();
   });
 
@@ -799,11 +803,11 @@ describe('ProfileFormFields', () => {
       />
     );
 
-    const genderRadios = screen.getAllByRole('radio');
-    expect(genderRadios.length).toBe(3); // male, female, other
+    const maleBtn = screen.getByText('Male');
+    expect(maleBtn).toBeInTheDocument();
 
-    fireEvent.change(genderRadios[0], { target: { value: 'male' } });
-    expect(mockRegister).toHaveBeenCalledWith('gender');
+    fireEvent.click(maleBtn);
+    expect(mockSetValue).toHaveBeenCalledWith('gender', 'male');
   });
 
   it('should have correct CSS classes for layout', () => {

@@ -9,7 +9,8 @@ import DefaultUserImage from '../../assets/images/default-user-img.svg';
 import IconMale from '../../assets/icons/icon-male.svg';
 import IconFemale from '../../assets/icons/icon-female.svg';
 import IconGenderOther from '../../assets/icons/icon-gender-other.svg';
-import { Calendar, Dropdown, Input, Radio } from '../../components/common';
+import { Calendar, Dropdown, Input } from '../../components/common';
+import { cn } from '../../utils/cn';
 import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
 import { calculateAge } from '../../utils/utils';
 import type { ProfileFormValues } from './profile.validation';
@@ -123,7 +124,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             error={errors.firstName?.message}
             variant="default"
             size="wide"
-            disabled
+            disabled={!!watch('firstName')}
           />
         </div>
 
@@ -137,33 +138,71 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
             error={errors.lastName?.message}
             variant="default"
             size="wide"
-            disabled
+            disabled={!!watch('lastName')}
           />
         </div>
 
         {/* Gender */}
-        <div className="md:col-start-1 md:col-span-1">
-          <label className="form-label block mb-2 text-sm text-gray-400">
-            Gender <span className="text-red-500">*</span>
-          </label>
-          <div className="flex gap-4">
-            {[
-              { value: 'male', label: 'Male', icon: IconMale },
-              { value: 'female', label: 'Female', icon: IconFemale },
-              { value: 'other', label: 'Other', icon: IconGenderOther },
-            ].map(g => (
-              <div key={g.value} className="flex items-center gap-1 opacity-60">
-                <Radio
-                  {...register('gender')}
-                  value={g.value}
-                  label={g.label}
-                  disabled
-                />
-                <img src={g.icon} alt={g.label} className="w-4 h-4" />
+        {(() => {
+          const selectedGender = watch('gender');
+          const isGenderFilled = !!selectedGender;
+          return (
+            <div className="md:col-start-1 md:col-span-1">
+              <label className="form-label block mb-2 text-sm">
+                Gender <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-4">
+                {[
+                  { value: 'male', label: 'Male', icon: IconMale },
+                  { value: 'female', label: 'Female', icon: IconFemale },
+                  { value: 'other', label: 'Other', icon: IconGenderOther },
+                ].map(g => {
+                  const isSelected = selectedGender === g.value;
+                  return (
+                    <button
+                      key={g.value}
+                      type="button"
+                      disabled={isGenderFilled && !isSelected}
+                      onClick={() => {
+                        if (!isGenderFilled) {
+                          setValue(
+                            'gender',
+                            g.value as 'male' | 'female' | 'other'
+                          );
+                        }
+                      }}
+                      className={cn(
+                        'flex items-center gap-1.5 text-sm text-gray-700',
+                        isGenderFilled && !isSelected
+                          ? 'opacity-30 cursor-not-allowed'
+                          : 'cursor-pointer'
+                      )}
+                    >
+                      {/* Custom radio circle with dot */}
+                      <span
+                        className={cn(
+                          'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                          isSelected ? 'border-[#34cc8b]' : 'border-gray-400'
+                        )}
+                      >
+                        {isSelected && (
+                          <span className="w-2 h-2 rounded-full bg-[#34cc8b]" />
+                        )}
+                      </span>
+                      {g.label}
+                      <img src={g.icon} alt={g.label} className="w-4 h-4" />
+                    </button>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </div>
+              {!isGenderFilled && errors.gender && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.gender.message}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Date of Birth + Age */}
         <div className="flex gap-3 md:col-start-2 md:col-span-1">
@@ -180,6 +219,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               placeholder="Select date of birth"
               dateFormat="dd-MMM-yy"
               maxDate={new Date()}
+              disabled={!!watch('dateOfBirth')}
             />
           </div>
           <div className="w-20">
