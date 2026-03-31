@@ -1,9 +1,9 @@
-import { OpenMRSApi } from '../../services/openmrs';
-import type { VisitDetailsResponse } from '../visit-details/visit-details.types';
 import type {
   Medication,
   PrescriptionData,
 } from '../../assets/data/prescription-detail.data';
+import { OpenMRSApi } from '../../services/openmrs';
+import type { VisitDetailsResponse } from '../visit-details/visit-details.types';
 
 export const API_ENDPOINTS = {
   VISIT: '/visit',
@@ -91,9 +91,9 @@ function parseDiagnosisValue(raw: string): string {
   }
   // Handle structured format: "NA::PEURPERAL FEVER:Primary & Provisional"
   // Extract the disease name between :: and the next :type qualifier
-  const structuredMatch = raw.match(
-    /::(.*?)(?::(?:Primary|Provisional|Confirmed|Secondary).*)?$/i
-  );
+  const structuredRegex =
+    /::(.*?)(?::(?:Primary|Provisional|Confirmed|Secondary).*)?$/i;
+  const structuredMatch = structuredRegex.exec(raw);
   if (structuredMatch?.[1]) {
     return structuredMatch[1].trim();
   }
@@ -170,7 +170,7 @@ function parseListFromObs(raw: string): string[] {
     if (Array.isArray(parsed))
       return parsed.filter((s: unknown) => typeof s === 'string' && s.trim());
     if (typeof parsed === 'string') return parsed.trim() ? [parsed.trim()] : [];
-    if (parsed.en) return [parsed.en.replace(/<[^>]*>/g, '').trim()];
+    if (parsed.en) return [parsed.en.replaceAll(/<[^>]*>/g, '').trim()];
   } catch {
     // Plain text
   }
@@ -219,7 +219,7 @@ function getReferredSpecialist(
 
 function safeFormatDate(val: string): string | null {
   const date = new Date(val);
-  if (isNaN(date.getTime())) return null;
+  if (Number.isNaN(date.getTime())) return null;
   return formatDate(val);
 }
 
