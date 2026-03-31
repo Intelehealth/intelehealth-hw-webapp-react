@@ -33,6 +33,7 @@ export const BUTTON_NEXT = 'Next';
 
 // --- Stepper ---
 export const BUTTON_SUBMIT = 'Submit';
+export const BUTTON_UPLOAD = 'Upload';
 export const BUTTON_SKIP = 'Skip';
 export const VALIDATION_ALL_COMPULSORY =
   'All questions are compulsory, please answer';
