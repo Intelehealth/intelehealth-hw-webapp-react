@@ -4,11 +4,11 @@ import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
-import type { PhysicalExamQuestion } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
+  BUTTON_SUBMIT,
   BUTTON_UPLOAD,
 } from '../../../utils/ayu.constants';
 import { getJobAidUrl } from '../../../utils/physExamAssets';
@@ -16,43 +16,8 @@ import AyuButton from '../../common/ayu-button.component';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import { PhysicalExamImageCapture } from './physical-exam-image-capture.component';
-const SvgIcon = ({ d, join }: { d: string; join?: boolean }) => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path
-      d={d}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      {...(join ? { strokeLinejoin: 'round' } : {})}
-    />
-  </svg>
-);
-
-const getOptionIcon = (text: string): React.ReactNode | undefined => {
-  const l = text.toLowerCase();
-  if (l === 'yes') return <SvgIcon d="M2 7l3.5 3.5L12 3.5" join />;
-  if (l === 'no') return <SvgIcon d="M2 2l10 10M12 2L2 12" />;
-  return undefined;
-};
-
-interface QuestionCardProps {
-  question: PhysicalExamQuestion;
-  index: number;
-  totalQuestions: number;
-  isActive: boolean;
-  selectedOptions: string[];
-  cameraImages: string[];
-  onSelectSingle: (id: string) => void;
-  onSelectSinglePast: (id: string) => void;
-  onToggleMulti: (id: string) => void;
-  onSkip: () => void;
-  onAddCameraImage: (f: File) => void;
-  onRemoveCameraImage: (i: number) => void;
-  onClearCameraImages: () => void;
-  onUploadImages: () => void;
-  activeRef: React.RefObject<HTMLDivElement | null>;
-  isSubmitted: boolean;
-}
+import type { QuestionCardProps } from './physical-examination.types';
+import { arraysEqual, getOptionIcon } from './physical-examination.utils';
 
 const QuestionCard = ({
   question,
@@ -173,8 +138,12 @@ const QuestionCard = ({
                 size="sm"
                 onClick={onUploadImages}
               >
-                {BUTTON_UPLOAD}
-                {isSubmitted && <img src={iconYes} alt="yes" />}
+                {isCameraSelected && cameraImages.length > 0
+                  ? `${BUTTON_UPLOAD} (${cameraImages.length})`
+                  : BUTTON_SUBMIT}
+                {isCameraSelected && cameraImages.length > 0 && isSubmitted && (
+                  <img src={iconYes} alt="yes" />
+                )}
               </AyuButton>
             </div>
           )}
@@ -211,7 +180,6 @@ export const PhysicalExamination = (props: SectionProps) => {
     onPrevSection,
   } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
 
-  // Keep ref in sync so the wrapped callback always has latest answers
   answersRef.current = answers;
 
   const activeRef = useRef<HTMLDivElement | null>(null);
@@ -222,9 +190,6 @@ export const PhysicalExamination = (props: SectionProps) => {
   useEffect(() => {
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [internalIndex]);
-
-  const arraysEqual = (a: string[], b: string[]) =>
-    JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
   return (
     <div className="flex flex-col gap-6">
