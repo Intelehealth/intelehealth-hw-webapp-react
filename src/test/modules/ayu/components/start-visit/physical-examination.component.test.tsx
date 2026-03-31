@@ -566,10 +566,39 @@ describe('PhysicalExamination', () => {
       });
       render(<PhysicalExamination {...defaultProps} />);
 
-      const submitBtn = screen.getByText('Upload');
+      const submitBtn = screen.getByText('Submit');
       await user.click(submitBtn);
 
       expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── Upload button with tick icon ──────────────────────────────────────
+
+  describe('Upload button with tick icon', () => {
+    it('should show Upload with image count and tick icon when camera images are uploaded and submitted', async () => {
+      const user = userEvent.setup();
+      resetHookReturn({
+        internalIndex: 1,
+        currentQuestion: MOCK_QUESTIONS[1],
+        visibleQuestions: MOCK_QUESTIONS,
+        selectedOptionsFor: vi.fn((qId: string) => qId === 'q2' ? ['q2-a', 'q2-cam'] : []),
+        cameraImagesFor: vi.fn((qId: string) => qId === 'q2' ? ['img1.jpg', 'img2.jpg'] : []),
+        allRequiredAnswered: true,
+      });
+      render(<PhysicalExamination {...defaultProps} />);
+
+      // Button should show "Upload (2)"
+      const uploadBtn = screen.getByText('Upload (2)');
+      expect(uploadBtn).toBeInTheDocument();
+
+      // Click to submit
+      await user.click(uploadBtn);
+
+      // After submit, tick icon should appear
+      const tickIcon = screen.getByAltText('yes');
+      expect(tickIcon).toBeInTheDocument();
+      expect(tickIcon).toHaveAttribute('src', 'yes-icon.svg');
     });
   });
 
