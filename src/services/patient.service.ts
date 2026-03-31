@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import type { FollowupVisit } from '../hooks/useFollowupVisits';
 import { storage } from '../utils/storage';
 import { HttpService } from './http';
 
@@ -101,6 +102,20 @@ export interface PrescriptionPendingResponse {
 }
 
 export const patientService = {
+  async getFollowupVisits(
+    locationId: string,
+    page = 0,
+    limit = 50
+  ): Promise<{
+    visits: FollowupVisit[];
+    totalCount: number;
+  }> {
+    const url = `/pull/hw-visits/${locationId}?type=followup-visits&page=${page}&limit=${limit}`;
+    const res = await EmrMiddlewareApi.get<{
+      data: { visits: FollowupVisit[]; totalCount: number };
+    }>(url);
+    return { visits: res.data.visits, totalCount: res.data.totalCount };
+  },
   async getRecentPatients(
     hwId: string,
     page = 0,
