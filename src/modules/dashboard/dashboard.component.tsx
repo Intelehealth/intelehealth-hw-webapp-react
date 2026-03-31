@@ -102,13 +102,24 @@ const DashboardComponent = ({
             iconBg="bg-purple-200"
             icon={iconCalenderBlue}
           />
-          <DashboardCard
-            title="Follow-up visits"
-            subtitle="<strong>0</strong> Pending"
-            bg="bg-white"
-            iconBg="bg-purple-200"
-            icon={iconSummeryList}
-          />
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate('/followup-visits')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ')
+                navigate('/followup-visits');
+            }}
+          >
+            <DashboardCard
+              title="Follow-up visits"
+              subtitle="<strong>0</strong> Pending"
+              bg="bg-white"
+              iconBg="bg-purple-200"
+              icon={iconSummeryList}
+            />
+          </div>
         </div>
       </div>
 

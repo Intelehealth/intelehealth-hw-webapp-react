@@ -36,6 +36,9 @@ const OpenVisitsPage = lazy(
   () => import('../pages/open-visits/open-visits.page')
 );
 const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
+const FollowupVisitsPage = lazy(
+  () => import('../pages/followup-visits/followup-visits.page')
+);
 const AddPatientPage = lazy(
   () => import('../pages/patient/add/add-patient.page')
 );
@@ -48,9 +51,9 @@ const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
+import PrescriptionDetail from '../modules/prescription-detail/prescription-detail.component';
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 import VisitDetails from '../modules/visit-details/visit-details.component';
-import PrescriptionDetail from '../modules/prescription-detail/prescription-detail.component';
 import VisitSummary from '../modules/visit-summary/visit-summary.component';
 
 const PrescriptionPreviewPage = lazy(
@@ -152,6 +155,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <PrescriptionsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.FOLLOWUP_VISITS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <FollowupVisitsPage />
                 </Suspense>
               }
             />

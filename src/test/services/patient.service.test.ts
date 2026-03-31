@@ -45,6 +45,35 @@ describe('patientService', () => {
     vi.clearAllMocks();
   });
 
+  describe('getFollowupVisits', () => {
+
+    it('calls the correct URL and returns visits/totalCount', async () => {
+      const mockVisits = [
+        { visitUuid: 'f-1', patientName: 'Amit', gender: 'M', visitCreatedDate: '2025-04-22', clinicName: 'TC 3', uploadTimestamp: '2h' },
+      ];
+      h.mockGet.mockResolvedValue({ data: { data: { visits: mockVisits, totalCount: 5 } } });
+
+      const result = await patientService.getFollowupVisits('loc-123');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/loc-123?type=followup-visits&page=0&limit=50', undefined);
+      expect(result).toEqual({ visits: mockVisits, totalCount: 5 });
+    });
+
+    it('passes custom page and limit', async () => {
+      h.mockGet.mockResolvedValue({ data: { data: { visits: [], totalCount: 0 } } });
+
+      await patientService.getFollowupVisits('loc-456', 2, 15);
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/loc-456?type=followup-visits&page=2&limit=15', undefined);
+    });
+
+    it('propagates errors from the API', async () => {
+      h.mockGet.mockRejectedValue(new Error('API error'));
+
+      await expect(patientService.getFollowupVisits('loc-789')).rejects.toThrow('API error');
+    });
+  });
+
   // HttpService.get() unwraps response.data before returning.
   // So axiosInstance.get() must resolve to { data: <API response body> }
   // where the API response body is { status, data: { visits, ... } }.

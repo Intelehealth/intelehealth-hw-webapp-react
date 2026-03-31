@@ -184,6 +184,50 @@ describe('DashboardComponent', () => {
     expect(gridContainer).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3');
   });
 
+  // NEW TEST CASES FOR 100% COVERAGE
+  it('should navigate to followup visits page when Enter key is pressed on follow-up visits card', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <DashboardComponent />
+      </MemoryRouter>
+    );
+
+    const followupCard = container.querySelector('[role="button"][tabindex="0"]');
+    expect(followupCard).toBeInTheDocument();
+    
+    fireEvent.keyDown(followupCard!, { key: 'Enter' });
+    expect(mockNavigate).toHaveBeenCalledWith('/followup-visits');
+  });
+
+  it('should navigate to followup visits page when Space key is pressed on follow-up visits card', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <DashboardComponent />
+      </MemoryRouter>
+    );
+
+    const followupCard = container.querySelector('[role="button"][tabindex="0"]');
+    expect(followupCard).toBeInTheDocument();
+    
+    fireEvent.keyDown(followupCard!, { key: ' ' });
+    expect(mockNavigate).toHaveBeenCalledWith('/followup-visits');
+  });
+
+  it('should not navigate when other keys are pressed on follow-up visits card', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <DashboardComponent />
+      </MemoryRouter>
+    );
+
+    const followupCard = container.querySelector('[role="button"][tabindex="0"]');
+    expect(followupCard).toBeInTheDocument();
+    
+    mockNavigate.mockClear();
+    fireEvent.keyDown(followupCard!, { key: 'Tab' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   describe('showPrescriptions toggle', () => {
     it('does not show mobile back button initially', () => {
       render(
