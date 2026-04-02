@@ -44,17 +44,17 @@ const Calendar: React.FC<CalendarProps> = ({
   const [showYearGrid, setShowYearGrid] = useState(false);
   const [showMonthGrid, setShowMonthGrid] = useState(false);
 
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleDateChange = (date: Date | null) => {
     setSelectedDate(date);
     setCurrentDate(date || new Date());
-    if (date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      onChange?.(`${year}-${month}-${day}`);
-    } else {
-      onChange?.('');
-    }
+    onChange?.(date ? formatLocalDate(date) : '');
   };
 
   const sizeClasses = {
@@ -157,10 +157,7 @@ const Calendar: React.FC<CalendarProps> = ({
                     newDate.setMonth(monthIndex);
                     setCurrentDate(newDate);
                     setSelectedDate(newDate);
-                    const y = newDate.getFullYear();
-                    const m = String(newDate.getMonth() + 1).padStart(2, '0');
-                    const d = String(newDate.getDate()).padStart(2, '0');
-                    onChange?.(`${y}-${m}-${d}`);
+                    onChange?.(formatLocalDate(newDate));
                     setShowMonthGrid(false);
                   }}
                   onYearChange={year => {
