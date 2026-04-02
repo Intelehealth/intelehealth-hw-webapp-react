@@ -254,7 +254,7 @@ describe('PhysicalExamination', () => {
       render(<PhysicalExamination {...defaultProps} />);
 
       // q2 is active — should show "Select any" for multi-choice
-      expect(screen.getByText('Select any')).toBeInTheDocument();
+      expect(screen.getByText('Select one or more')).toBeInTheDocument();
     });
 
     it('should show answered summary for inactive questions with selections', () => {
@@ -382,7 +382,7 @@ describe('PhysicalExamination', () => {
     it('should show "Select any" for multi-choice questions', () => {
       resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
       render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('Select any')).toBeInTheDocument();
+      expect(screen.getByText('Select one or more')).toBeInTheDocument();
     });
   });
 

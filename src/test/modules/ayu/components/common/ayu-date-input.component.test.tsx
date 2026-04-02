@@ -8,7 +8,7 @@ vi.spyOn(fhirUtils, 'resolveLabel').mockImplementation((question) => question?.t
 
 // Mock the Calendar component for simpler testing
 vi.mock('../../../../../components/common/calendar.component', () => ({
-  default: vi.fn(({ label, value, onChange, disabled }: any) => (
+  default: vi.fn(({ label, value, onChange, disabled, minDate }: any) => (
     <div data-testid="calendar-component">
       {label && <label data-testid="calendar-label">{label}</label>}
       <input
@@ -19,6 +19,7 @@ vi.mock('../../../../../components/common/calendar.component', () => ({
         disabled={disabled}
         aria-label={label}
       />
+      {minDate && <span data-testid="calendar-min-date">{minDate.toISOString().split('T')[0]}</span>}
     </div>
   )),
 }));
@@ -207,6 +208,105 @@ describe('AyuDateInput', () => {
       );
       const input = screen.getByTestId('calendar-input') as HTMLInputElement;
       expect(input.value).toBe('01 Jan,2025');
+    });
+  });
+
+  describe('minDate from previous sibling', () => {
+    it('should set minDate when previous sibling is a date with a value', () => {
+      const previousSibling: AyuQuestion = {
+        linkId: 'from-date',
+        text: 'From Date',
+        type: 'date',
+      };
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={previousSibling}
+          answers={{ 'from-date': '2026-01-15' }}
+        />
+      );
+      const minDateEl = screen.getByTestId('calendar-min-date');
+      expect(minDateEl).toHaveTextContent('2026-01-15');
+    });
+
+    it('should not set minDate when previous sibling is not a date type', () => {
+      const previousSibling: AyuQuestion = {
+        linkId: 'prev-string',
+        text: 'Some string',
+        type: 'string',
+      };
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={previousSibling}
+          answers={{ 'prev-string': 'some value' }}
+        />
+      );
+      expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
+    });
+
+    it('should not set minDate when answers are not provided', () => {
+      const previousSibling: AyuQuestion = {
+        linkId: 'from-date',
+        text: 'From Date',
+        type: 'date',
+      };
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={previousSibling}
+        />
+      );
+      expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
+    });
+
+    it('should not set minDate when previous sibling date has no value', () => {
+      const previousSibling: AyuQuestion = {
+        linkId: 'from-date',
+        text: 'From Date',
+        type: 'date',
+      };
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={previousSibling}
+          answers={{ 'from-date': '' }}
+        />
+      );
+      expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
+    });
+
+    it('should not set minDate when previous sibling value is not a string', () => {
+      const previousSibling: AyuQuestion = {
+        linkId: 'from-date',
+        text: 'From Date',
+        type: 'date',
+      };
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={previousSibling}
+          answers={{ 'from-date': 42 }}
+        />
+      );
+      expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
+    });
+
+    it('should not set minDate when no previousSibling', () => {
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          answers={{ 'some-id': '2026-01-01' }}
+        />
+      );
+      expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
     });
   });
 

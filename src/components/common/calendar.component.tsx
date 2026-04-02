@@ -48,7 +48,10 @@ const Calendar: React.FC<CalendarProps> = ({
     setSelectedDate(date);
     setCurrentDate(date || new Date());
     if (date) {
-      onChange?.(date.toISOString().split('T')[0]);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      onChange?.(`${year}-${month}-${day}`);
     } else {
       onChange?.('');
     }
@@ -154,7 +157,10 @@ const Calendar: React.FC<CalendarProps> = ({
                     newDate.setMonth(monthIndex);
                     setCurrentDate(newDate);
                     setSelectedDate(newDate);
-                    onChange?.(newDate.toISOString().split('T')[0]);
+                    const y = newDate.getFullYear();
+                    const m = String(newDate.getMonth() + 1).padStart(2, '0');
+                    const d = String(newDate.getDate()).padStart(2, '0');
+                    onChange?.(`${y}-${m}-${d}`);
                     setShowMonthGrid(false);
                   }}
                   onYearChange={year => {

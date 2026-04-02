@@ -163,55 +163,62 @@ export function buildVisitSummary(
    */
   function collectLabeledValues(item: AyuQuestion, parts: string[]) {
     const answer = getAnswerValue(item);
-    if (!answer) return;
 
-    const itemLabel = item.text || '';
+    if (answer) {
+      // Use the display extension label (e.g. "From Date", "To Date") if available,
+      // falling back to item.text — mirrors resolveLabel used in the UI.
+      const displayExt = item.extension?.find(
+        e => e.url === EXT_URL_DISPLAY_TEXT
+      )?.valueString;
+      const itemLabel = displayExt || item.text || '';
 
-    if (Array.isArray(answer) && item.answerOption) {
-      const displayValues: string[] = [];
+      if (Array.isArray(answer) && item.answerOption) {
+        const displayValues: string[] = [];
 
-      answer.forEach((code: string) => {
-        const display = getDisplay(item, code);
-        if (!display) return;
+        answer.forEach((code: string) => {
+          const display = getDisplay(item, code);
+          if (!display) return;
 
-        // Check if this option has a nested child with answers
-        const child = item.item?.find((c: AyuQuestion) =>
-          c.enableWhen?.some(cond => cond.answerCoding?.code === code)
-        );
+          // Check if this option has a nested child with answers
+          const child = item.item?.find((c: AyuQuestion) =>
+            c.enableWhen?.some(cond => cond.answerCoding?.code === code)
+          );
 
-        if (child && !processed.has(child.linkId)) {
-          const childParts: string[] = [];
-          collectLabeledValues(child, childParts);
-          processed.add(child.linkId);
+          if (child && !processed.has(child.linkId)) {
+            const childParts: string[] = [];
+            collectLabeledValues(child, childParts);
+            processed.add(child.linkId);
 
-          if (childParts.length) {
-            displayValues.push(`${display} – ${childParts.join(', ')}`);
+            if (childParts.length) {
+              displayValues.push(`${display} – ${childParts.join(', ')}`);
+            } else {
+              displayValues.push(display);
+            }
           } else {
             displayValues.push(display);
           }
-        } else {
-          displayValues.push(display);
-        }
-      });
+        });
 
-      if (displayValues.length) {
-        parts.push(displayValues.join(', '));
-      }
-    } else {
-      const formatted = formatAnswerByType(item, answer);
-      if (formatted) {
-        // For string/text describe fields, just output the value — the parent option
-        // already provides context, so adding the label would cause duplication
-        // (e.g., "[Describe relation] – [Describe relation] – value")
-        if (item.type === 'string') {
-          parts.push(formatted);
-        } else {
-          parts.push(itemLabel ? `${itemLabel} – ${formatted}` : formatted);
+        if (displayValues.length) {
+          parts.push(displayValues.join(', '));
+        }
+      } else {
+        const formatted = formatAnswerByType(item, answer);
+        if (formatted) {
+          // For string/text describe fields, just output the value — the parent option
+          // already provides context, so adding the label would cause duplication
+          // (e.g., "[Describe relation] – [Describe relation] – value")
+          if (item.type === 'string') {
+            parts.push(formatted);
+          } else {
+            parts.push(itemLabel ? `${itemLabel} – ${formatted}` : formatted);
+          }
         }
       }
     }
 
-    // Process remaining children
+    // Process remaining children (including when item itself has no answer,
+    // e.g. group containers whose nested fields hold the actual values)
     item.item?.forEach((child: AyuQuestion) => {
       if (processed.has(child.linkId)) return;
       const childAnswer = getAnswerValue(child);
@@ -341,34 +348,101 @@ export function buildVisitSummary(
                   )
                 ) || [];
 
-              const labeledParts: string[] = [];
-              matchingChildren.forEach((nested: AyuQuestion) => {
-                collectLabeledValues(nested, labeledParts);
-                processed.add(nested.linkId);
+              // Check if a matching child is a multi-select with nested items
+              // (e.g. "Current medication" → multiple medicine entries each with dates)
+              const multiSelectChild = matchingChildren.find(child => {
+                const childAnswer = getAnswerValue(child);
+                return (
+                  Array.isArray(childAnswer) &&
+                  child.answerOption &&
+                  child.item?.length
+                );
               });
 
-              if (isPercentLabel) {
-                // Family history: each condition as its own labelValue
-                mainItems.push({
-                  type: 'labelValue',
-                  label: display,
-                  value: labeledParts.length ? labeledParts.join(', ') : ' ',
+              if (multiSelectChild) {
+                // Collect each medication's details and combine into one value
+                const childAnswer = getAnswerValue(
+                  multiSelectChild
+                ) as string[];
+                processed.add(multiSelectChild.linkId);
+
+                const medicationEntries: string[] = [];
+                childAnswer.forEach(childCode => {
+                  const childDisplay = getDisplay(multiSelectChild, childCode);
+                  if (!childDisplay) return;
+
+                  // Use filter — date fields are siblings with the same enableWhen code
+                  const nestedChildren =
+                    multiSelectChild.item?.filter((c: AyuQuestion) =>
+                      c.enableWhen?.some(
+                        cond => cond.answerCoding?.code === childCode
+                      )
+                    ) || [];
+
+                  const childParts: string[] = [];
+                  nestedChildren.forEach(nestedChild => {
+                    collectLabeledValues(nestedChild, childParts);
+                    processed.add(nestedChild.linkId);
+                  });
+
+                  const entry = childParts.length
+                    ? `${childDisplay} – ${childParts.join(', ')}`
+                    : childDisplay;
+                  medicationEntries.push(entry);
+                });
+
+                if (medicationEntries.length) {
+                  if (isPercentLabel) {
+                    mainItems.push({
+                      type: 'labelValue',
+                      label: display,
+                      value: medicationEntries.join(', '),
+                    });
+                  } else {
+                    mainItems.push({
+                      type: 'labelValue',
+                      label: summaryLabel,
+                      value: medicationEntries.join(', '),
+                    });
+                  }
+                }
+
+                // Process any remaining non-multi-select matching children
+                matchingChildren.forEach(c => {
+                  if (c.linkId !== multiSelectChild.linkId) {
+                    processed.add(c.linkId);
+                  }
                 });
               } else {
-                // Patient history: "Medical history" → "Diabetes – date | Current medication – value | ..."
-                const valueStr = labeledParts.length
-                  ? `${display} – ${labeledParts.join(' | ')}`
-                  : display;
-                mainItems.push({
-                  type: 'labelValue',
-                  label: summaryLabel,
-                  value: valueStr,
+                const labeledParts: string[] = [];
+                matchingChildren.forEach((nested: AyuQuestion) => {
+                  collectLabeledValues(nested, labeledParts);
+                  processed.add(nested.linkId);
                 });
+
+                if (isPercentLabel) {
+                  // Family history: each condition as its own labelValue
+                  mainItems.push({
+                    type: 'labelValue',
+                    label: display,
+                    value: labeledParts.length ? labeledParts.join(', ') : ' ',
+                  });
+                } else {
+                  // Patient history: "Medical history" → "Diabetes – date, Current medication – value, ..."
+                  const valueStr = labeledParts.length
+                    ? `${display} – ${labeledParts.join(', ')}`
+                    : display;
+                  mainItems.push({
+                    type: 'labelValue',
+                    label: summaryLabel,
+                    value: valueStr,
+                  });
+                }
               }
             });
 
-            // Show the exclusive (None) option when answered No
-            if (exclusiveNoDisplay) {
+            // Show the exclusive (None) option only when no other items are selected
+            if (exclusiveNoDisplay && positiveCodes.length === 0) {
               if (isPercentLabel) {
                 mainItems.push({
                   type: 'labelValue',
@@ -392,38 +466,68 @@ export function buildVisitSummary(
 
       // Multi Select
       if (Array.isArray(answerValue) && item.answerOption) {
-        const flatValues: string[] = [];
-
-        answerValue.forEach(code => {
-          const display = getDisplay(item, code);
-          if (!display) return;
-
+        // Check if any selected option has nested children with answers —
+        // if so, display each option as its own summary row for readability.
+        const hasNestedAnswers = answerValue.some(code => {
           const nested = item.item?.find((child: AyuQuestion) =>
             child.enableWhen?.some(cond => cond.answerCoding?.code === code)
           );
-
-          if (nested) {
-            const nestedValues: string[] = collectNestedOwnValues(nested);
-            nestedValues.push(...collectDescendantValues(nested.item));
-
-            // Combine option display with nested values inline
-            if (nestedValues.length) {
-              flatValues.push(`${display} – ${nestedValues.join(', ')}`);
-            } else {
-              flatValues.push(display);
-            }
-            processed.add(nested.linkId);
-          } else {
-            flatValues.push(display);
-          }
+          if (!nested) return false;
+          // Check if the nested item itself or any of its children have answers
+          if (answersMap.has(nested.linkId)) return true;
+          const nestedItems = nested.item || [];
+          return nestedItems.some(c => answersMap.has(c.linkId));
         });
 
-        if (flatValues.length) {
-          mainItems.push({
-            type: 'labelValue',
-            label,
-            value: flatValues.join(', '),
+        if (hasNestedAnswers) {
+          // Collect each option's nested values with labels
+          const optionEntries: string[] = [];
+          answerValue.forEach(code => {
+            const display = getDisplay(item, code);
+            if (!display) return;
+
+            // Use filter — sibling fields (name, from date, to date) share the same enableWhen
+            const itemChildren = item.item || [];
+            const nestedChildren = itemChildren.filter((child: AyuQuestion) =>
+              child.enableWhen?.some(cond => cond.answerCoding?.code === code)
+            );
+
+            if (nestedChildren.length) {
+              const labeledParts: string[] = [];
+              nestedChildren.forEach(nested => {
+                collectLabeledValues(nested, labeledParts);
+                processed.add(nested.linkId);
+              });
+
+              const entry = labeledParts.length
+                ? `${display} – ${labeledParts.join(', ')}`
+                : display;
+              optionEntries.push(entry);
+            } else {
+              optionEntries.push(display);
+            }
           });
+
+          if (optionEntries.length) {
+            mainItems.push({
+              type: 'labelValue',
+              label,
+              value: optionEntries.join(', '),
+            });
+          }
+        } else {
+          // Simple multi-select without nested values — single row
+          const flatValues: string[] = answerValue
+            .map(code => getDisplay(item, code))
+            .filter((d): d is string => !!d);
+
+          if (flatValues.length) {
+            mainItems.push({
+              type: 'labelValue',
+              label,
+              value: flatValues.join(', '),
+            });
+          }
         }
 
         processed.add(item.linkId);
@@ -445,28 +549,82 @@ export function buildVisitSummary(
           ) || [];
 
         if (matchingNested.length > 0) {
-          const allNestedValues: string[] = [];
-
-          matchingNested.forEach((nested: AyuQuestion) => {
-            const nestedValues: string[] = collectNestedOwnValues(nested);
-            nestedValues.push(...collectDescendantValues(nested.item));
-
-            allNestedValues.push(...nestedValues);
-            processed.add(nested.linkId);
+          // Check if a matching nested child is a multi-select with its own nested items
+          // (e.g. Drug history → Yes → multiple medications each with dates)
+          const multiSelectChild = matchingNested.find(nested => {
+            const nestedAnswer = getAnswerValue(nested);
+            return (
+              Array.isArray(nestedAnswer) &&
+              nested.answerOption &&
+              nested.item?.length
+            );
           });
 
-          if (allNestedValues.length) {
-            mainItems.push({
-              type: 'labelValue',
-              label,
-              value: `${display} - ${allNestedValues.join(', ')}`,
+          if (multiSelectChild) {
+            const childAnswer = getAnswerValue(multiSelectChild) as string[];
+            processed.add(multiSelectChild.linkId);
+
+            // Collect each medication's details (name, from date, to date)
+            // and combine into one comma-separated value
+            const medicationEntries: string[] = [];
+            childAnswer.forEach(childCode => {
+              const childDisplay = getDisplay(multiSelectChild, childCode);
+              if (!childDisplay) return;
+
+              // Use filter (not find) — date fields are siblings with the same enableWhen code
+              const msChildren = multiSelectChild.item || [];
+              const nestedChildren = msChildren.filter((c: AyuQuestion) =>
+                c.enableWhen?.some(
+                  cond => cond.answerCoding?.code === childCode
+                )
+              );
+
+              const childParts: string[] = [];
+              nestedChildren.forEach(nestedChild => {
+                collectLabeledValues(nestedChild, childParts);
+                processed.add(nestedChild.linkId);
+              });
+
+              const entry = childParts.length
+                ? `${childDisplay} – ${childParts.join(', ')}`
+                : childDisplay;
+              medicationEntries.push(entry);
             });
+
+            if (medicationEntries.length) {
+              mainItems.push({
+                type: 'labelValue',
+                label,
+                value: `${display} – ${medicationEntries.join(', ')}`,
+              });
+            }
+
+            // Mark remaining matching children as processed
+            matchingNested.forEach(c => processed.add(c.linkId));
           } else {
-            mainItems.push({
-              type: 'labelValue',
-              label,
-              value: display || '',
+            const allNestedValues: string[] = [];
+
+            matchingNested.forEach((nested: AyuQuestion) => {
+              const nestedValues: string[] = collectNestedOwnValues(nested);
+              nestedValues.push(...collectDescendantValues(nested.item));
+
+              allNestedValues.push(...nestedValues);
+              processed.add(nested.linkId);
             });
+
+            if (allNestedValues.length) {
+              mainItems.push({
+                type: 'labelValue',
+                label,
+                value: `${display} - ${allNestedValues.join(', ')}`,
+              });
+            } else if (display) {
+              mainItems.push({
+                type: 'labelValue',
+                label,
+                value: display,
+              });
+            }
           }
         } else if (display) {
           mainItems.push({

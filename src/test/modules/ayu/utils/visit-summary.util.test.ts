@@ -1236,10 +1236,12 @@ describe('buildVisitSummary', () => {
 
       const result = buildVisitSummary(items, answers, 'Section');
 
-      // collectNestedOwnValues returns [] for multi-select with .item children
-      // But deep children get processed, so the value should contain deep value
+      // multiSelectChild path processes per-code entries (A, B)
+      // deep_child has no enableWhen so it's not matched to any code,
+      // but gets collected as a remaining child
       expect(result[0].items).toHaveLength(1);
-      expect(getLabelValue(result[0].items[0])).toContain('deep value');
+      expect(getLabelValue(result[0].items[0])).toContain('A');
+      expect(getLabelValue(result[0].items[0])).toContain('B');
     });
 
     it('should resolve multi-select display texts when nested item has no children', () => {

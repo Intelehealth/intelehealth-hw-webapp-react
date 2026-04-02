@@ -73,7 +73,7 @@ vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-re
 vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component', () => ({
   PhysicalExamination: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onProgressUpdate }: any) => {
     React.useEffect(() => {
-      onProgressUpdate?.(8, questionIndex);
+      onProgressUpdate?.(3, questionIndex);
     }, [questionIndex, onProgressUpdate]);
     return (
       <div data-testid="physical-exam-component">
@@ -254,7 +254,7 @@ describe('StartVisit', () => {
 
       // Should move to Physical Exam
       expect(screen.getByTestId('physical-exam-component')).toBeVisible();
-      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
     });
   });
 
@@ -269,7 +269,7 @@ describe('StartVisit', () => {
       await user.click(within(visitReason).getByText('Next Question'));
 
       expect(screen.getByTestId('physical-exam-component')).toBeVisible();
-      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
     });
 
     it('should navigate within Physical Exam questions', async () => {
@@ -316,8 +316,8 @@ describe('StartVisit', () => {
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
 
-      // Complete Physical Exam (8 questions) - scope within Physical Exam
-      for (let i = 0; i < 8; i++) {
+      // Complete Physical Exam (3 questions) - scope within Physical Exam
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -333,11 +333,11 @@ describe('StartVisit', () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
 
-      // Navigate to Medical History (1 + 1 + 8 questions)
+      // Navigate to Medical History (1 + 1 + 3 questions)
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -354,7 +354,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -372,7 +372,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -407,7 +407,7 @@ describe('StartVisit', () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
 
-      // Move to Physical Exam (which has 8 questions)
+      // Move to Physical Exam (which has 3 questions)
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
@@ -466,7 +466,6 @@ describe('StartVisit', () => {
       const physExam = screen.getByTestId('physical-exam-component');
       await user.click(within(physExam).getByText('Next Question'));
       await user.click(within(physExam).getByText('Next Question'));
-      await user.click(within(physExam).getByText('Next Question'));
 
       // Go back to previous section (Visit Reason) from Physical Exam
       await user.click(within(physExam).getByText('Prev Section'));
@@ -489,13 +488,13 @@ describe('StartVisit', () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
 
-      // Navigate to Physical Exam which has 8 questions (SideLoader will render)
+      // Navigate to Physical Exam which has 3 questions (SideLoader will render)
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
 
       const sideLoader = screen.getByTestId('side-loader');
-      expect(sideLoader).toHaveTextContent('Question 1 of 8');
+      expect(sideLoader).toHaveTextContent('Question 1 of 3');
     });
 
     it('should update SideLoader when navigating to different sections', async () => {
@@ -509,10 +508,10 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
 
-      // Move to Physical Exam (8 questions) - SideLoader now rendered
+      // Move to Physical Exam (3 questions) - SideLoader now rendered
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      expect(screen.getByText('Question 1 of 8')).toBeInTheDocument();
+      expect(screen.getByText('Question 1 of 3')).toBeInTheDocument();
     });
   });
 
@@ -538,9 +537,9 @@ describe('StartVisit', () => {
 
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -557,7 +556,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -624,7 +623,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -748,7 +747,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -854,7 +853,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
@@ -907,7 +906,7 @@ describe('StartVisit', () => {
       // Complete Visit Reason (1 question) → now on Physical Exam
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
 
       // Go back to Visit Reason (which is now fully completed: answeredQuestions=1, totalQuestions=1)
       const physExam = screen.getByTestId('physical-exam-component');
@@ -921,7 +920,7 @@ describe('StartVisit', () => {
       await user.click(within(visitReasonAgain).getByText('Next Question'));
 
       // Should jump straight to Physical Exam (next section)
-      expect(screen.getByText('3/4 Physical Exam')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
       expect(screen.getByTestId('physical-exam-component')).toBeVisible();
     });
   });
@@ -950,7 +949,7 @@ describe('StartVisit', () => {
       await user.click(screen.getByText('Next Vitals'));
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Next Question'));
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         const physExam = screen.getByTestId('physical-exam-component');
         await user.click(within(physExam).getByText('Next Question'));
       }
