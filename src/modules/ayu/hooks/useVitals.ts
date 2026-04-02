@@ -235,7 +235,8 @@ const VITAL_KEYS = [
 export const useVitals = (onNextQuestion: () => void) => {
   // Get vitals configuration from Redux store (populated by getPublishedConfig API)
   const { config } = useConfig();
-  const { setVitalsData } = useStartVisitData();
+  const { data, setVitalsData } = useStartVisitData();
+  const savedVitals = data.vitals?.formValues;
 
   // Use patient_vitals from API config, fallback to hardcoded config if API data is not available
   const vitalsConfig = useMemo(() => {
@@ -271,11 +272,20 @@ export const useVitals = (onNextQuestion: () => void) => {
     watch,
     setValue,
     trigger,
+    reset,
     formState: { errors },
   } = useForm<VitalsFormValues>({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     mode: 'onChange',
+    defaultValues: savedVitals || {},
   });
+
+  // Restore saved vitals data when navigating back to the vitals screen
+  useEffect(() => {
+    if (savedVitals) {
+      reset(savedVitals);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { showVitalConfirmationModal } = useGlobalModal();
   // Watch values for auto-calculation
