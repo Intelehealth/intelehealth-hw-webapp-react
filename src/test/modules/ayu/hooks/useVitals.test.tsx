@@ -1001,7 +1001,7 @@ describe('useVitals', () => {
 
       mockStartVisitData.mockReturnValue({
         data: {
-          vitals: { formValues: savedFormValues, config: mockVitalsConfig },
+          vitals: { formValues: savedFormValues, config: mockVitalsConfig } as any,
           visitReason: null,
           physicalExam: null,
           medicalHistory: null,
@@ -1016,7 +1016,7 @@ describe('useVitals', () => {
 
       const TestComponent = () => {
         const hookResult = useVitals(mockOnNextQuestion);
-        const { register, watch } = hookResult;
+        const { register } = hookResult;
 
         return (
           <form>
@@ -1086,7 +1086,7 @@ describe('useVitals', () => {
 
       mockStartVisitData.mockReturnValue({
         data: {
-          vitals: { formValues: savedFormValues, config: mockVitalsConfig },
+          vitals: { formValues: savedFormValues, config: mockVitalsConfig } as any,
           visitReason: null,
           physicalExam: null,
           medicalHistory: null,
