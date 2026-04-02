@@ -70,12 +70,15 @@ export const AyuNestedRenderer = ({
         const matchedCode = findMatchingOptionCode(nestedItem, parentChild);
         return matchedCode && selectedCodes.includes(matchedCode);
       })
-      .map(nestedItem => (
+      .map((nestedItem, idx, filtered) => (
         <div key={nestedItem.linkId} className="mt-2 ml-3">
           <AyuRenderer
             question={nestedItem}
+            previousSibling={idx > 0 ? filtered[idx - 1] : undefined}
             value={answers[nestedItem.linkId]}
             onChange={val => setAnswer(nestedItem, val)}
+            answers={answers}
+            setAnswer={setAnswer}
           />
           {nestedItem.item && (
             <AyuNestedRenderer
@@ -220,7 +223,7 @@ export const AyuNestedRenderer = ({
             </>
           ) : (
             /* Render all items directly via AyuRenderer */
-            children.map(child => {
+            children.map((child, childIndex) => {
               // Show triangle for string items only when the group has multiple children
               // (standalone question like "How often...?"), not when it's the sole child
               // of an option (describe field like "Describe..." under a "Describe" option)
@@ -231,6 +234,9 @@ export const AyuNestedRenderer = ({
                 : showAllTriangles ||
                   child.type !== 'string' ||
                   children.length > 1;
+
+              const prevSibling =
+                childIndex > 0 ? children[childIndex - 1] : undefined;
 
               return (
                 <div key={child.linkId} className="flex items-start gap-2 mt-2">
@@ -249,8 +255,11 @@ export const AyuNestedRenderer = ({
                     <AyuRenderer
                       question={child}
                       parent={parentQuestion}
+                      previousSibling={prevSibling}
                       value={answers[child.linkId]}
                       onChange={val => setAnswer(child, val)}
+                      answers={answers}
+                      setAnswer={setAnswer}
                     />
                     {child.item && (
                       <AyuNestedRenderer

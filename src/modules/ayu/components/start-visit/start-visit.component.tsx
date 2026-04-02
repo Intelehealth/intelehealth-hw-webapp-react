@@ -2,9 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
+import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
-import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
@@ -48,7 +48,7 @@ export const StartVisit = () => {
     switch (sectionName) {
       case 'Visit Reason':
         return confirmedReasons.length > 0 ? confirmedReasons.join(', ') : '';
-      case 'Physical Exam': {
+      case 'Physical Examination': {
         const physExam = ayuConfigFiles.find(
           f => f.name.replace(/\.json$/i, '') === 'physExam'
         );
@@ -79,11 +79,11 @@ export const StartVisit = () => {
       currentStepIndex: 0,
     }, // Visit Reason
     {
-      totalQuestions: 25, // updated by onProgressUpdate at runtime (conditional questions may change count)
+      totalQuestions: 3, // updated by onProgressUpdate at runtime (conditional questions may change count)
       answeredQuestions: 0,
-      name: 'Physical Exam',
+      name: 'Physical Examination',
       currentStepIndex: 0,
-    }, // Physical Exam
+    }, // Physical Examination
     {
       totalQuestions: 5,
       answeredQuestions: 0,

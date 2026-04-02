@@ -6,7 +6,7 @@ import type { AyuQuestion } from '../../../../../../modules/ayu-library/types/ay
 
 // Mock AyuRenderer component
 vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
-  AyuRenderer: vi.fn(({ question, value, onChange }) => (
+  AyuRenderer: vi.fn(({ question, value, onChange, previousSibling, answers }) => (
     <div data-testid={`renderer-${question.linkId}`}>
       <div>{question.text}</div>
       <input
@@ -14,6 +14,8 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-r
         value={value || ''}
         onChange={e => onChange?.(e.target.value)}
       />
+      {previousSibling && <span data-testid={`prev-sibling-${question.linkId}`}>{previousSibling.linkId}</span>}
+      {answers && <span data-testid={`has-answers-${question.linkId}`}>has-answers</span>}
     </div>
   )),
 }));
@@ -86,6 +88,39 @@ describe('AyuNestedRenderer', () => {
 
       expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-child-2')).toBeInTheDocument();
+    });
+
+    it('should pass previousSibling and answers to AyuRenderer in non-selectable mode', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'date-from',
+          text: 'From Date',
+          type: 'date',
+        },
+        {
+          linkId: 'date-to',
+          text: 'To Date',
+          type: 'date',
+        },
+      ];
+
+      const answers = { 'date-from': '2026-01-01', 'date-to': '2026-06-01' };
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={answers}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Second child (date-to) should have previousSibling pointing to date-from
+      expect(screen.getByTestId('prev-sibling-date-to')).toHaveTextContent('date-from');
+      // First child should not have previousSibling
+      expect(screen.queryByTestId('prev-sibling-date-from')).not.toBeInTheDocument();
+      // Both should have answers passed
+      expect(screen.getByTestId('has-answers-date-from')).toBeInTheDocument();
+      expect(screen.getByTestId('has-answers-date-to')).toBeInTheDocument();
     });
   });
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
+import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
@@ -85,7 +86,7 @@ const QuestionCard = ({
         )}
         <hr className="mx-3 border-gray-200" />
         <p className="px-3 pt-2 text-xs text-gray-500">
-          {question.isMultiChoice ? 'Select any' : 'Select any one'}
+          {question.isMultiChoice ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
         </p>
         <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
           {regularOptions.map(option => (

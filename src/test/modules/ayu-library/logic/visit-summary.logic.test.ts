@@ -1006,10 +1006,15 @@ describe('buildVisitSummary', () => {
         useLabeledFormat: true,
       });
 
+      // With multiSelectChild detection: patHist.sub is a multi-select with items,
+      // so each selected option (S1, S2) gets processed via collectLabeledValues.
+      // S1 has a matching grandchild with answer 'details here' → "Option 1 – details here"
+      // S2 has no matching grandchild → "Symptom 2"
+      // Combined into one medication entries value
       expect(result[0].items[0]).toEqual({
         type: 'labelValue',
         label: 'Medical history',
-        value: expect.stringContaining('Diabetes'),
+        value: expect.stringContaining('details here'),
       });
     });
 
@@ -1279,7 +1284,7 @@ describe('buildVisitSummary', () => {
   });
 
   describe('exclusive None option answered No (lines 315-317, 371-385)', () => {
-    it('should show exclusive None option when answered No in patient history (non-percent label)', () => {
+    it('should NOT show exclusive None when other items are selected in patient history', () => {
       const questions: AyuQuestion[] = [
         {
           linkId: 'patHist',
@@ -1310,7 +1315,7 @@ describe('buildVisitSummary', () => {
           ],
         },
       ];
-      // The exclusive "None" is answered "No" → code is "NO_NONE"
+      // The exclusive "None" is answered "No" → code is "NO_NONE", but Diabetes is selected
       const answers = new Map<string, AyuAnswerValue>([
         ['patHist', ['DIAB', 'NO_NONE']],
       ]);
@@ -1318,13 +1323,13 @@ describe('buildVisitSummary', () => {
         useLabeledFormat: true,
       });
 
-      // Should have: Diabetes as labelValue AND None as exclusive No labelValue
+      // Should have Diabetes but NOT None (since other items are selected)
       const items = result[0].items;
       expect(items.some(i => i.type === 'labelValue' && i.label === 'Medical history' && (i.value as string).includes('Diabetes'))).toBe(true);
-      expect(items.some(i => i.type === 'labelValue' && i.label === 'Medical history' && i.value === 'None')).toBe(true);
+      expect(items.some(i => i.type === 'labelValue' && i.label === 'Medical history' && i.value === 'None')).toBe(false);
     });
 
-    it('should show exclusive None when answered No in percent-label question (line 372-377)', () => {
+    it('should NOT show exclusive None when other items selected in percent-label question', () => {
       // Must be recognized as associatedSymptoms by resolveAyuComponent, with useLabeledFormat
       const questions: AyuQuestion[] = [
         {
@@ -1353,13 +1358,13 @@ describe('buildVisitSummary', () => {
 
       expect(result.length).toBeGreaterThan(0);
       const items = result[0].items;
-      // In percent-label path: subheading + each code as labelValue with label=display
+      // In percent-label path: subheading + Diabetes as labelValue, but None should NOT appear
       expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'Diabetes')).toBe(true);
-      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'None')).toBe(true);
+      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'None')).toBe(false);
     });
 
-    it('should show exclusive None when answered No in non-percent-label question (line 378-384)', () => {
-      // Patient history with Medical history label (non-percent)
+    it('should show exclusive None when it is the only answer (no positive codes)', () => {
+      // When only None is selected (no other positive codes), it should still appear
       const questions: AyuQuestion[] = [
         {
           linkId: 'patHist',
@@ -1380,13 +1385,481 @@ describe('buildVisitSummary', () => {
         },
       ];
       const answers = new Map<string, AyuAnswerValue>([
-        ['patHist', ['DIAB', 'NO_NONE']],
+        ['patHist', ['NO_NONE']],
       ]);
       const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
 
       expect(result.length).toBeGreaterThan(0);
       const items = result[0].items;
       expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'Medical history' && (i as any).value === 'None')).toBe(true);
+    });
+  });
+
+  describe('single-select with nested multi-select medications', () => {
+    it('should create one row with all medication entries comma-separated', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'drug',
+          text: 'Drug history',
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Drug history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'YES', display: 'Yes' } },
+            { valueCoding: { code: 'NO', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'drug.meds',
+              type: 'choice',
+              text: 'Medications',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'MED1', display: 'Medication name 1' } },
+                { valueCoding: { code: 'MED2', display: 'Medication name 2' } },
+              ],
+              enableWhen: [{ question: 'drug', operator: '=', answerCoding: { code: 'YES' } }],
+              item: [
+                {
+                  linkId: 'drug.med1.name',
+                  type: 'string',
+                  text: 'Medicine name',
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+                {
+                  linkId: 'drug.med1.from',
+                  type: 'date',
+                  text: '',
+                  extension: [
+                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
+                  ],
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+                {
+                  linkId: 'drug.med1.to',
+                  type: 'date',
+                  text: '',
+                  extension: [
+                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
+                  ],
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+                {
+                  linkId: 'drug.med2.name',
+                  type: 'string',
+                  text: 'Medicine name',
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED2' } }],
+                },
+                {
+                  linkId: 'drug.med2.from',
+                  type: 'date',
+                  text: '',
+                  extension: [
+                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
+                  ],
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED2' } }],
+                },
+                {
+                  linkId: 'drug.med2.to',
+                  type: 'date',
+                  text: '',
+                  extension: [
+                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
+                  ],
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED2' } }],
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['drug', 'YES'],
+        ['drug.meds', ['MED1', 'MED2']],
+        ['drug.med1.name', 'Aspirin'],
+        ['drug.med1.from', '2026-01-01'],
+        ['drug.med1.to', '2026-06-01'],
+        ['drug.med2.name', 'Metformin'],
+        ['drug.med2.from', '2026-03-01'],
+        ['drug.med2.to', '2026-12-01'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result[0].items).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        // Should include Yes prefix
+        expect(item.value).toContain('Yes');
+        // Should include both medication entries with date labels
+        expect(item.value).toContain('Medication name 1');
+        expect(item.value).toContain('Aspirin');
+        expect(item.value).toContain('From Date');
+        expect(item.value).toContain('2026-01-01');
+        expect(item.value).toContain('To Date');
+        expect(item.value).toContain('Medication name 2');
+        expect(item.value).toContain('Metformin');
+      }
+    });
+
+    it('should fall back to original path when nested child is not a multi-select', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          item: [
+            {
+              linkId: 'q1.detail',
+              type: 'string',
+              text: 'Details',
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Details' }],
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        ['q1.detail', 'Some details'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Select option',
+        value: 'Option A - Some details',
+      });
+    });
+  });
+
+  describe('collectLabeledValues with display extension labels', () => {
+    it('should use display extension for date field labels instead of item.text', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+          ],
+          item: [
+            {
+              linkId: 'patHist.from',
+              type: 'date',
+              text: '',
+              extension: [
+                { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+            },
+            {
+              linkId: 'patHist.to',
+              type: 'date',
+              text: '',
+              extension: [
+                { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        ['patHist.from', '2026-01-01'],
+        ['patHist.to', '2026-06-01'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Medical history',
+        value: 'Diabetes – From Date – 2026-01-01, To Date – 2026-06-01',
+      });
+    });
+
+    it('should process children of group containers (no own answer)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+          ],
+          item: [
+            {
+              linkId: 'patHist.group',
+              type: 'group',
+              text: 'Details group',
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+              item: [
+                {
+                  linkId: 'patHist.group.name',
+                  type: 'string',
+                  text: 'Name',
+                },
+                {
+                  linkId: 'patHist.group.date',
+                  type: 'date',
+                  text: 'Since',
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        ['patHist.group.name', 'Metformin'],
+        ['patHist.group.date', '2020-01-01'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toContain('Metformin');
+        expect(item.value).toContain('2020-01-01');
+      }
+    });
+  });
+
+  describe('multi-select with nested answers creates per-option entries', () => {
+    it('should create labeled entries when multi-select options have nested children', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.a.detail',
+              type: 'string',
+              text: 'Detail A',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+            {
+              linkId: 'q1.b.detail',
+              type: 'string',
+              text: 'Detail B',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_B' } }],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A', 'CODE_B']],
+        ['q1.a.detail', 'info A'],
+        ['q1.b.detail', 'info B'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      // Should be one item with both entries
+      expect(result[0].items).toHaveLength(1);
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Option A');
+        expect(result[0].items[0].value).toContain('info A');
+        expect(result[0].items[0].value).toContain('Option B');
+        expect(result[0].items[0].value).toContain('info B');
+      }
+    });
+
+    it('should use simple flat format when multi-select has no nested answers', () => {
+      const questions = [makeChoiceQuestion({ repeats: true })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A', 'CODE_B']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Select option',
+        value: 'Option A, Option B',
+      });
+    });
+  });
+
+  describe('exclusive None with percent-label and no positive codes', () => {
+    it('should show None as labelValue with percent-label when it is the only answer', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'famHist',
+          type: 'choice',
+          text: 'Do you have a family history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a family history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: '%' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+            {
+              valueCoding: { code: 'NONE', display: 'None' },
+              extension: [{ url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice', valueString: 'True' }],
+            },
+          ],
+        },
+      ];
+      // Only the exclusive None is answered (no positive codes)
+      const answers = new Map<string, AyuAnswerValue>([
+        ['famHist', ['NO_NONE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result.length).toBeGreaterThan(0);
+      const items = result[0].items;
+      // percent-label path: None should appear as label with value ' '
+      expect(items.some(i => i.type === 'labelValue' && (i as any).label === 'None' && (i as any).value === ' ')).toBe(true);
+    });
+  });
+
+  describe('family history multiSelectChild with percent-label', () => {
+    it('should display medication entries with percent-label format', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'famHist',
+          type: 'choice',
+          text: 'Do you have a family history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a family history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: '%' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'MED', display: 'Medication' } },
+          ],
+          item: [
+            {
+              linkId: 'famHist.meds',
+              type: 'choice',
+              text: 'Medications',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'M1', display: 'Med 1' } },
+              ],
+              enableWhen: [{ question: 'famHist', operator: '=', answerCoding: { code: 'MED' } }],
+              item: [
+                {
+                  linkId: 'famHist.meds.name',
+                  type: 'string',
+                  text: 'Name',
+                  enableWhen: [{ question: 'famHist.meds', operator: '=', answerCoding: { code: 'M1' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['famHist', ['MED']],
+        ['famHist.meds', ['M1']],
+        ['famHist.meds.name', 'Aspirin'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      // percent-label: label is the display text
+      const item = result[0].items.find(i => i.type === 'labelValue' && (i as any).label === 'Medication');
+      expect(item).toBeDefined();
+      if (item && item.type === 'labelValue') {
+        expect(item.value).toContain('Aspirin');
+      }
+    });
+  });
+
+  describe('associated symptoms multiSelectChild with extra matching children', () => {
+    it('should mark remaining non-multi-select matching children as processed', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'MED', display: 'Medication' } },
+          ],
+          item: [
+            // Multi-select child
+            {
+              linkId: 'patHist.meds',
+              type: 'choice',
+              text: 'Medications',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'M1', display: 'Med 1' } },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'MED' } }],
+              item: [
+                {
+                  linkId: 'patHist.meds.name',
+                  type: 'string',
+                  text: 'Name',
+                  enableWhen: [{ question: 'patHist.meds', operator: '=', answerCoding: { code: 'M1' } }],
+                },
+              ],
+            },
+            // Extra non-multi-select matching child (same enableWhen)
+            {
+              linkId: 'patHist.extra',
+              type: 'string',
+              text: 'Extra note',
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'MED' } }],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['MED']],
+        ['patHist.meds', ['M1']],
+        ['patHist.meds.name', 'Aspirin'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Medical history',
+        value: expect.stringContaining('Aspirin'),
+      });
+    });
+  });
+
+  describe('multi-select with nested children but empty labeled parts', () => {
+    it('should use display text when nested children have no answers', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.child',
+              type: 'string',
+              text: 'Detail',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+          ],
+        }),
+      ];
+      // Child has enableWhen match but no answer → empty labeledParts → fallback to display
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A']],
+        ['q1.child', 'detail value'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Option A');
+        expect(result[0].items[0].value).toContain('detail value');
+      }
     });
   });
 
@@ -1619,7 +2092,7 @@ describe('buildVisitSummary', () => {
           ],
         }),
       ];
-      // answer equals the label text
+      // answer equals the label text — collectLabeledValues includes the value for string types
       const answers = new Map<string, AyuAnswerValue>([
         ['q1', ['CODE_A']],
         ['q1.nested', 'Details'],
@@ -1629,7 +2102,7 @@ describe('buildVisitSummary', () => {
       expect(result[0].items[0]).toEqual({
         type: 'labelValue',
         label: 'Select option',
-        value: 'Option A',
+        value: 'Option A – Details',
       });
     });
 
@@ -1863,6 +2336,564 @@ describe('buildVisitSummary', () => {
         label: 'Select option',
         value: expect.stringContaining('deep value'),
       });
+    });
+  });
+
+  describe('100% line coverage — empty child fallback branches', () => {
+    it('line 144-145: collectNestedOwnValues matching child exists but has empty childValues', () => {
+      // Single-select where nested child is a multi-select WITHOUT .item (so no multiSelectChild detection).
+      // That nested child has a matching grandchild but it has no answer.
+      // Goes through old single-select fallback → collectNestedOwnValues → line 141-145.
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          item: [
+            {
+              linkId: 'q1.nested',
+              type: 'choice',
+              text: 'Nested',
+              repeats: true,
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Nested' }],
+              answerOption: [
+                { valueCoding: { code: 'N1', display: 'Nested 1' } },
+              ],
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+              // Has item children so matching child can be found
+              item: [
+                {
+                  linkId: 'q1.nested.gc',
+                  type: 'string',
+                  text: 'GC',
+                  extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'GC' }],
+                  enableWhen: [{ question: 'q1.nested', operator: '=', answerCoding: { code: 'N1' } }],
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      // Single-select CODE_A → nested is detected as multiSelectChild (has array answer + items),
+      // N1 has matching child gc but gc has NO answer → empty childParts → display fallback
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        ['q1.nested', ['N1']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Nested 1');
+      }
+    });
+
+    it('line 144 via associated symptoms: matching child with no childValues in collectNestedOwnValues', () => {
+      // Strict associated symptoms path calls collectNestedOwnValues for nested items.
+      // A nested multi-select has a matchingChild but that child's own nested has no answer.
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          repeats: true,
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' }],
+          answerOption: [
+            { valueCoding: { code: 'ID_1', display: 'Headache' } },
+          ],
+          item: [
+            {
+              linkId: 'assoc.child',
+              type: 'choice',
+              text: 'Severity',
+              repeats: true,
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Severity' }],
+              answerOption: [
+                { valueCoding: { code: 'S1', display: 'Mild' } },
+              ],
+              enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'ID_1' } }],
+              item: [
+                {
+                  linkId: 'assoc.child.detail',
+                  type: 'string',
+                  text: 'Detail',
+                  extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Detail' }],
+                  enableWhen: [{ question: 'assoc.child', operator: '=', answerCoding: { code: 'S1' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      // S1 selected, detail child exists but has no answer → childValues empty → line 144
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        ['assoc.child', ['S1']],
+        // assoc.child.detail intentionally not answered
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(i => i.type === 'subheading' && i.heading === 'Patient reports');
+      expect(reports).toBeDefined();
+      if (reports?.type === 'subheading') {
+        expect(reports.values[0]).toContain('Mild');
+      }
+    });
+
+    it('line 193: collectLabeledValues array answer with matching child but empty childParts', () => {
+      // In collectLabeledValues, when processing an array answer (multi-select),
+      // each code checks for a matching child. If the child exists but produces
+      // empty childParts, the display is pushed without childParts (line 195).
+      // To reach line 192-193 (the if-true branch), the child MUST produce non-empty childParts.
+      // But to reach 194-195 (the else), the child must produce empty childParts.
+      // We need a nested choice within a labeled-format item where one code's child has
+      // no answer at all.
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+          ],
+          item: [
+            {
+              // This child is a multi-select with items → detected as multiSelectChild.
+              // But the array path in collectLabeledValues (line 175) is hit when
+              // collectLabeledValues is called ON this child for its OWN array answer.
+              linkId: 'patHist.sub',
+              type: 'choice',
+              text: 'Sub',
+              repeats: true,
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Sub' }],
+              answerOption: [
+                { valueCoding: { code: 'S1', display: 'Sub 1' } },
+                { valueCoding: { code: 'S2', display: 'Sub 2' } },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+              item: [
+                {
+                  linkId: 'patHist.sub.detail',
+                  type: 'string',
+                  text: 'Detail',
+                  extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Detail' }],
+                  enableWhen: [{ question: 'patHist.sub', operator: '=', answerCoding: { code: 'S1' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      // S1 has matching child but it has NO answer → empty childParts (line 194-195)
+      // S2 has no matching child → else branch (line 198)
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        ['patHist.sub', ['S1', 'S2']],
+        // patHist.sub.detail intentionally not answered → empty childParts for S1
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Sub 1');
+        expect(result[0].items[0].value).toContain('Sub 2');
+      }
+    });
+
+    it('line 193: collectLabeledValues array with child that HAS answers (true branch)', () => {
+      // A nested multi-select within patient history. One of its codes has
+      // a matching child that DOES have an answer → non-empty childParts → line 193.
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+          ],
+          item: [
+            {
+              linkId: 'patHist.sub',
+              type: 'choice',
+              text: 'Condition',
+              repeats: true,
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Condition' }],
+              answerOption: [
+                { valueCoding: { code: 'S1', display: 'Type 1' } },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+              item: [
+                {
+                  linkId: 'patHist.sub.detail',
+                  type: 'string',
+                  text: 'Notes',
+                  extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Notes' }],
+                  enableWhen: [{ question: 'patHist.sub', operator: '=', answerCoding: { code: 'S1' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      // S1 has matching child WITH answer → non-empty childParts → line 193
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        ['patHist.sub', ['S1']],
+        ['patHist.sub.detail', 'insulin dependent'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Type 1');
+        expect(result[0].items[0].value).toContain('insulin dependent');
+      }
+    });
+
+    it('line 505: multi-select option with nested children but no labeled parts', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.child',
+              type: 'string',
+              text: 'Detail',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+            {
+              linkId: 'q1.child2',
+              type: 'string',
+              text: 'Detail2',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_B' } }],
+            },
+          ],
+        }),
+      ];
+      // CODE_A has matching child but no answer → empty labeledParts → fallback to display (line 505)
+      // CODE_B has matching child with answer → has labeled parts
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A', 'CODE_B']],
+        // q1.child intentionally not answered → line 505 fallback
+        ['q1.child2', 'some detail'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Option A');
+        expect(result[0].items[0].value).toContain('Option B');
+        expect(result[0].items[0].value).toContain('some detail');
+      }
+    });
+
+    it('line 394: associated symptoms multiSelectChild with empty medicationEntries', () => {
+      // All selected codes in the multi-select child have no display → medicationEntries stays empty
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'MED', display: 'Medication' } },
+          ],
+          item: [
+            {
+              linkId: 'patHist.meds',
+              type: 'choice',
+              repeats: true,
+              text: 'Meds',
+              answerOption: [
+                { valueCoding: { code: 'M1', display: 'Med 1' } },
+              ],
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'MED' } }],
+              item: [
+                {
+                  linkId: 'patHist.meds.name',
+                  type: 'string',
+                  text: 'Name',
+                  enableWhen: [{ question: 'patHist.meds', operator: '=', answerCoding: { code: 'M1' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      // Selected code UNKNOWN has no display → childDisplay is null → skipped → empty medicationEntries
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['MED']],
+        ['patHist.meds', ['UNKNOWN_CODE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+      // No medication entries generated → empty result
+      expect(result).toEqual([]);
+    });
+
+    it('line 575: single-select multiSelectChild with unknown code (no display)', () => {
+      // In the single-select multiSelectChild path, a selected code has no matching display
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          item: [
+            {
+              linkId: 'q1.meds',
+              type: 'choice',
+              repeats: true,
+              text: 'Meds',
+              answerOption: [
+                { valueCoding: { code: 'M1', display: 'Med 1' } },
+              ],
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+              item: [
+                {
+                  linkId: 'q1.meds.detail',
+                  type: 'string',
+                  text: 'Detail',
+                  enableWhen: [{ question: 'q1.meds', operator: '=', answerCoding: { code: 'M1' } }],
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      // UNKNOWN code has no display → line 575 return → empty medicationEntries
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        ['q1.meds', ['UNKNOWN']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      // medicationEntries is empty → empty result since no display generated
+      expect(result).toEqual([]);
+    });
+
+    it('line 478: hasNestedAnswers check when nested.item is explicitly undefined', () => {
+      // nested.item is undefined → nested.item?.some(...) is undefined → ?? false
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.nested',
+              type: 'string',
+              text: 'Detail',
+              item: undefined, // explicitly undefined .item
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+          ],
+        }),
+      ];
+      // q1.nested NOT in answersMap → line 477 false → falls to line 478
+      // nested.item is undefined → ?.some() returns undefined → ?? false
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      // hasNestedAnswers = false → simple flat format
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Select option',
+        value: 'Option A',
+      });
+    });
+
+    it('line 486: multi-select hasNestedAnswers path with unknown code (no display)', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          item: [
+            {
+              linkId: 'q1.child',
+              type: 'string',
+              text: 'Detail',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+          ],
+        }),
+      ];
+      // CODE_A has nested answer, UNKNOWN has no display → line 486 return
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A', 'UNKNOWN']],
+        ['q1.child', 'detail value'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Option A');
+        expect(result[0].items[0].value).not.toContain('UNKNOWN');
+      }
+    });
+
+    it('line 494: multi-select hasNestedAnswers with item that has no .item children', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          // No .item at top level, but child answer exists through other means
+          item: [
+            {
+              linkId: 'q1.child',
+              type: 'string',
+              text: 'Detail',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+            {
+              linkId: 'q1.child2',
+              type: 'string',
+              text: 'Detail2',
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_B' } }],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['CODE_A', 'CODE_B']],
+        ['q1.child', 'val A'],
+        ['q1.child2', 'val B'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+    });
+
+    it('line 583+628: single-select multiSelectChild with no .item on multiSelectChild', () => {
+      // multiSelectChild.item is undefined → filter returns undefined → || [] fallback (line 583)
+      // Also tests line 628: when allNestedValues empty and display exists
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          item: [
+            {
+              linkId: 'q1.meds',
+              type: 'choice',
+              repeats: true,
+              text: 'Meds',
+              answerOption: [
+                { valueCoding: { code: 'M1', display: 'Med 1' } },
+              ],
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+              // item intentionally omitted → line 583 || [] fallback
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        ['q1.meds', ['M1']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Med 1');
+      }
+    });
+
+    it('line 628: single-select with matching nested but no nested values', () => {
+      // Single-select with a matching nested child (non-multiSelectChild), but
+      // nested child has no answer → allNestedValues is empty → line 628 fallback.
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          item: [
+            {
+              linkId: 'q1.child',
+              type: 'string',
+              text: 'Detail',
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Detail' }],
+              enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'CODE_A' } }],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        // q1.child intentionally NOT answered → allNestedValues empty → line 628
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Select option',
+        value: 'Option A',
+      });
+    });
+
+    it('line 193: collectLabeledValues array branch via group container with nested multi-select', () => {
+      // Structure: patient history → matching child is a GROUP (no own answer, not multiSelectChild).
+      // Inside the group, a multi-select child has an array answer with nested items that HAVE answers.
+      // collectLabeledValues processes the group → "Process remaining children" →
+      // calls collectLabeledValues on the multi-select → array branch at line 175 →
+      // matching grandchild has answer → non-empty childParts → line 193.
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'patHist',
+          type: 'choice',
+          text: 'Do you have a history of any of the following?*',
+          repeats: true,
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Do you have a history of any of the following?*' },
+            { url: 'https://intelehealth.org/fhir/StructureDefinition/language', valueString: 'Medical history' },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'DIAB', display: 'Diabetes' } },
+          ],
+          item: [
+            {
+              // Group container — no own answer, so NOT detected as multiSelectChild
+              linkId: 'patHist.group',
+              type: 'group',
+              text: 'Details',
+              enableWhen: [{ question: 'patHist', operator: '=', answerCoding: { code: 'DIAB' } }],
+              item: [
+                {
+                  linkId: 'patHist.group.name',
+                  type: 'string',
+                  text: 'Medicine name',
+                },
+                {
+                  // Multi-select inside the group — has array answer + answerOption + item children
+                  linkId: 'patHist.group.types',
+                  type: 'choice',
+                  repeats: true,
+                  text: 'Types',
+                  answerOption: [
+                    { valueCoding: { code: 'T1', display: 'Type 1' } },
+                  ],
+                  item: [
+                    {
+                      linkId: 'patHist.group.types.detail',
+                      type: 'string',
+                      text: 'Notes',
+                      enableWhen: [{ question: 'patHist.group.types', operator: '=', answerCoding: { code: 'T1' } }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['patHist', ['DIAB']],
+        // Group has no answer (group type)
+        ['patHist.group.name', 'Metformin'],
+        ['patHist.group.types', ['T1']],           // Array answer → hits line 175
+        ['patHist.group.types.detail', 'insulin'],  // Matching child HAS answer → line 193
+      ]);
+      const result = buildVisitSummary(questions, answers, 'History', { useLabeledFormat: true });
+
+      expect(result[0].items[0].type).toBe('labelValue');
+      if (result[0].items[0].type === 'labelValue') {
+        expect(result[0].items[0].value).toContain('Metformin');
+        expect(result[0].items[0].value).toContain('Type 1');
+        expect(result[0].items[0].value).toContain('insulin');
+      }
     });
   });
 });
