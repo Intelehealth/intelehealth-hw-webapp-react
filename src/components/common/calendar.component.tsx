@@ -117,7 +117,15 @@ const Calendar: React.FC<CalendarProps> = ({
             }
             return dayOfMonth;
           }}
-          renderCustomHeader={({ date }: { date: Date }) => {
+          renderCustomHeader={({
+            date,
+            decreaseMonth,
+            increaseMonth,
+          }: {
+            date: Date;
+            decreaseMonth: () => void;
+            increaseMonth: () => void;
+          }) => {
             const formatDateHeader = (date: Date) => {
               const dayNames = [
                 'SUN',
@@ -204,6 +212,7 @@ const Calendar: React.FC<CalendarProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      decreaseMonth();
                       const newDate = new Date(currentDate);
                       newDate.setMonth(newDate.getMonth() - 1);
                       setCurrentDate(newDate);
@@ -225,6 +234,7 @@ const Calendar: React.FC<CalendarProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      increaseMonth();
                       const newDate = new Date(currentDate);
                       newDate.setMonth(newDate.getMonth() + 1);
                       setCurrentDate(newDate);

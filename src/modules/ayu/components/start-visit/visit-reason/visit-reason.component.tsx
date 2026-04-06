@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
+import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import type {
   AyuAnswerValue,
@@ -8,19 +8,22 @@ import type {
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
   CONFIRM_MODAL_DESCRIPTION,
   CONFIRM_MODAL_NO,
+  CONFIRM_MODAL_OK,
   CONFIRM_MODAL_TITLE,
   CONFIRM_MODAL_YES,
   ITEM_TYPES,
+  PHYSCAL_EXAM_DESCRIPTION,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
-import AyuButton from '../../common/ayu-button.component';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
+import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
 import type { AyuStepperContainerHandle } from './ayu-stepper-container.component';
 import { AyuStepperContainer } from './ayu-stepper-container.component';
@@ -116,8 +119,29 @@ export const VisitReason = ({
       }
 
       setVisitReasonData(answers, selectedReasons, details);
-      onProgressUpdate?.(1, 1);
-      onNextQuestion();
+
+      // Show wash-hands modal only on first navigation to Physical Exam
+      if (savedAnswers) {
+        onProgressUpdate?.(1, 1);
+        onNextQuestion();
+      } else {
+        // Defer so the summary modal's closeModal() finishes before opening the next modal
+        setTimeout(() => {
+          showConfirmModal({
+            icon: iconWashHand,
+            size: 'sm',
+            description: PHYSCAL_EXAM_DESCRIPTION,
+            confirmText: CONFIRM_MODAL_OK,
+            type: 'confirm',
+            open: true,
+            title: '',
+            onConfirm: () => {
+              onProgressUpdate?.(1, 1);
+              onNextQuestion();
+            },
+          });
+        }, 0);
+      }
     },
     [
       onProgressUpdate,
@@ -125,6 +149,7 @@ export const VisitReason = ({
       stableSchema,
       selectedReasons,
       setVisitReasonData,
+      showConfirmModal,
     ]
   );
 

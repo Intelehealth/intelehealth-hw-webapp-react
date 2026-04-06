@@ -45,9 +45,15 @@ describe('ConfirmationModal', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
-  it('renders default button text', () => {
+  it('renders default button text when title is present', () => {
     render(<ConfirmationModal {...defaultProps} />);
     expect(screen.getByText('Back')).toBeInTheDocument();
+    expect(screen.getByText('Confirm')).toBeInTheDocument();
+  });
+
+  it('does not render cancel button when title is empty', () => {
+    render(<ConfirmationModal {...defaultProps} title="" />);
+    expect(screen.queryByText('Back')).not.toBeInTheDocument();
     expect(screen.getByText('Confirm')).toBeInTheDocument();
   });
 
@@ -139,11 +145,33 @@ describe('ConfirmationModal', () => {
     expect(descElement).toHaveClass('text-left');
   });
 
-  it('renders both buttons with correct variants', () => {
+  it('applies text-gray-500 for description when title is present', () => {
+    render(<ConfirmationModal {...defaultProps} description="Test Description" />);
+
+    const descElement = screen.getByText('Test Description');
+    expect(descElement).toHaveClass('text-gray-500');
+  });
+
+  it('applies font-semibold and text-gray-800 for description when title is empty', () => {
+    render(<ConfirmationModal {...defaultProps} title="" description="Test Description" />);
+
+    const descElement = screen.getByText('Test Description');
+    expect(descElement).toHaveClass('font-semibold', 'text-gray-800');
+  });
+
+  it('renders both buttons when title is present', () => {
     render(<ConfirmationModal {...defaultProps} />);
     const buttons = screen.getAllByRole('button');
 
     expect(buttons).toHaveLength(2);
+  });
+
+  it('renders only confirm button when title is empty', () => {
+    render(<ConfirmationModal {...defaultProps} title="" />);
+    const buttons = screen.getAllByRole('button');
+
+    expect(buttons).toHaveLength(1);
+    expect(screen.getByText('Confirm')).toBeInTheDocument();
   });
 
   it('works without onConfirm callback', async () => {
