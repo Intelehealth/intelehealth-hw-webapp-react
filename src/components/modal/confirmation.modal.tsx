@@ -47,7 +47,7 @@ export const ConfirmationModal = ({
         {/* Description */}
         {description && (
           <p
-            className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 text-gray-500 break-words px-2`}
+            className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 ${title ? 'text-gray-500' : 'font-semibold text-gray-800'} break-words px-2`}
           >
             {description}
           </p>
@@ -74,16 +74,18 @@ export const ConfirmationModal = ({
         <div className="mt-3 border-b border-gray-200" />
         {/* Footer Buttons Fixed */}
         <div className="mt-3 flex justify-center gap-4 max-sm:mt-3 max-sm:pb-6">
-          <Button
-            variant="primarylight"
-            size="sm"
-            type="button"
-            onClick={onClose}
-          >
-            <span className="mx-auto w-full font-semibold text-base">
-              {cancelText}
-            </span>
-          </Button>
+          {title && (
+            <Button
+              variant="primarylight"
+              size="sm"
+              type="button"
+              onClick={onClose}
+            >
+              <span className="mx-auto w-full font-semibold text-base">
+                {cancelText}
+              </span>
+            </Button>
+          )}
           <Button variant="primary" size="sm" type="button" onClick={onConfirm}>
             <span className="mx-auto w-full font-semibold text-base">
               {confirmText}
