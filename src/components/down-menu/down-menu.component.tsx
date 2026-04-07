@@ -12,7 +12,7 @@ const menuItems = [
     icon: iconAchievements,
     path: ROUTES.ACHIEVEMENT_UI,
   },
-  { label: 'Help & Support', icon: iconInfo, path: '/help' },
+  { label: 'Help & Support', icon: iconInfo, path: ROUTES.HELP },
   { label: 'Add Patient', icon: iconPatientPlus, path: ROUTES.ADD_PATIENT },
 ];
 
