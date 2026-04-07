@@ -233,9 +233,6 @@ describe('AchievementUiComponent', () => {
 
   describe('navigation', () => {
     it('should navigate to /dashboard when back arrow is clicked', () => {
-      renderComponent();
-      const backButton = screen.getByRole('button', { name: '' });
-      // Find the button with the back arrow icon
       const { container } = renderComponent();
       const arrowBtn = container.querySelector('button .fa-arrow-left')?.closest('button');
       if (arrowBtn) {
