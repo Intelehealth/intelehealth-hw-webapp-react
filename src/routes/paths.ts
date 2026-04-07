@@ -12,6 +12,7 @@ const ROUTES = {
   PRESCRIPTIONS: '/prescriptions',
   OPEN_VISITS: '/open-visits',
   PROFILE: '/profile',
+  FOLLOWUP_VISITS: '/followup-visits',
   ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',
   TEST_PROFILE_GUARD: '/test-profile-guard',

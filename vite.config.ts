@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
+import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 
