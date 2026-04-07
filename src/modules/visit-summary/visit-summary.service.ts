@@ -212,6 +212,7 @@ export function transformVisitSummaryResponse(
       name: patientName,
       gender,
       id: identifier,
+      patientUuid: patient.uuid,
       dateOfBirth: birthdate,
       age: `${age} Years`,
       chwWorker,

@@ -4,12 +4,45 @@ import AppointmentScheduleComponent from '../../../modules/appointment-visit/sch
 import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
 
 const mockNavigate = vi.fn();
+const mockLocationState = { visitUuid: 'test-visit-uuid', patientUuid: 'test-patient-uuid' };
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    useLocation: () => ({ state: mockLocationState, pathname: '/appointment-schedule', search: '', hash: '', key: 'default' }),
+  };
+});
+
+// Mock ProfileContext so the component gets a locationUuid
+vi.mock('../../../context/ProfileContext', () => ({
+  useProfileContext: () => ({
+    locationUuid: 'test-location-uuid',
+    hwProfile: null,
+  }),
+}));
+
+// Mock the appointment slots hook — return empty data (fallback to hardcoded slots)
+vi.mock('../../../hooks/useAppointmentSlots', () => ({
+  useAppointmentSlots: () => ({
+    data: [],
+    loading: false,
+    error: null,
+  }),
+}));
+
+// Mock appointment service
+const mockBookAppointment = vi.fn();
+vi.mock('../../../modules/appointment-visit/appointment.service', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('../../../modules/appointment-visit/appointment.service');
+  const originalService = actual.appointmentService as Record<string, unknown>;
+  return {
+    ...actual,
+    appointmentService: {
+      ...originalService,
+      bookAppointment: (...args: unknown[]) => mockBookAppointment(...args),
+    },
   };
 });
 
@@ -28,6 +61,7 @@ const MONTHS = [
 describe('AppointmentScheduleComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockBookAppointment.mockResolvedValue({ success: true });
     Object.defineProperty(window, 'innerWidth', {
       value: 500,
       writable: true,
@@ -431,15 +465,22 @@ describe('AppointmentScheduleComponent', () => {
       expect(screen.queryByText('Confirm appointment?')).not.toBeInTheDocument();
     });
 
-    it('clicking Yes confirms booking and shows success modal', async () => {
+    it('clicking Yes calls bookAppointment API and shows success modal', async () => {
       vi.useFakeTimers();
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      act(() => { vi.advanceTimersByTime(1); });
+
+      // Flush the async bookAppointment call
+      await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
+
       await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T09:00:00\.000\+0530$/)
+        );
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
       });
     });
@@ -450,7 +491,7 @@ describe('AppointmentScheduleComponent', () => {
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      act(() => { vi.advanceTimersByTime(1); });
+      await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
       await waitFor(() => {
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
@@ -465,7 +506,7 @@ describe('AppointmentScheduleComponent', () => {
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      act(() => { vi.advanceTimersByTime(1); });
+      await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
       await waitFor(() => {
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
@@ -481,7 +522,7 @@ describe('AppointmentScheduleComponent', () => {
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      act(() => { vi.advanceTimersByTime(1); });
+      await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
 
       // Dismiss the success modal
@@ -504,6 +545,20 @@ describe('AppointmentScheduleComponent', () => {
       const btn = screen.getByRole('button', { name: 'Book Appointment' });
       fireEvent.click(btn);
       expect(screen.queryByText('Confirm appointment?')).not.toBeInTheDocument();
+    });
+
+    it('shows error modal when API call fails', async () => {
+      mockBookAppointment.mockRejectedValue(new Error('Network error'));
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(screen.getByText('Booking failed')).toBeInTheDocument();
+      });
     });
 
     it('confirm modal shows ordinal "st" suffix for the 1st', () => {

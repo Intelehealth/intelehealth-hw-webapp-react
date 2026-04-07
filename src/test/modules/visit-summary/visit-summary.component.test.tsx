@@ -462,7 +462,9 @@ describe('VisitSummaryComponent', () => {
       const appointmentButtons = screen.getAllByText('Appointment');
       fireEvent.click(appointmentButtons[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(mockNavigate).toHaveBeenCalledWith('/appointment-schedule');
+      expect(mockNavigate).toHaveBeenCalledWith('/appointment-schedule', {
+        state: { patientUuid: '00000000-0000-0000-0000-000000000000' },
+      });
     });
 
     it('should dismiss modal on cancel', async () => {

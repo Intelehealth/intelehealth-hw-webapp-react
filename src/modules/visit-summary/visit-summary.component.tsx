@@ -252,10 +252,12 @@ const VisitSummaryComponent: React.FC = () => {
       type: 'confirm',
       open: true,
       onConfirm: () => {
-        navigate(ROUTES.APPOINTMENT_VISIT_SHEDULE);
+        navigate(ROUTES.APPOINTMENT_VISIT_SHEDULE, {
+          state: { patientUuid: data?.patient.patientUuid, visitUuid: visitId },
+        });
       },
     });
-  }, [showConfirmModal, navigate]);
+  }, [showConfirmModal, navigate, data?.patient.patientUuid, visitId]);
 
   const handleSendVisit = useCallback(() => {
     showConfirmModal({

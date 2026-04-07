@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import iconSunset from '../../assets/icons/appiontment/icon-apmsc-sunset.svg';
 import iconAfternoon from '../../assets/icons/appiontment/icon-apmsc-afternoon.svg';
 import iconSunrise from '../../assets/icons/appiontment/icon-apmsc-sunrise.svg';
@@ -9,8 +9,10 @@ import iconChevronRight from '../../assets/icons/appiontment/icon-apm-chevron_2.
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
-
-type SlotPeriod = 'Morning' | 'Afternoon' | 'Evening';
+import { useProfileContext } from '../../context/ProfileContext';
+import { useAppointmentSlots } from '../../hooks/useAppointmentSlots';
+import { appointmentService } from './appointment.service';
+import type { SlotPeriod } from './appointment.service';
 
 interface Appointment {
   id: number;
@@ -76,12 +78,16 @@ const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
 export default function AppointmentScheduleComponent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showConfirmModal } = useGlobalModal();
+  const { locationUuid } = useProfileContext();
+  const visitUuid = (location.state as { visitUuid?: string })?.visitUuid;
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [booking, setBooking] = useState(false);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -146,31 +152,126 @@ export default function AppointmentScheduleComponent() {
     return dates;
   }, [year, month, datesToShow]);
 
+  /* ================= API SLOTS ================= */
+  const fromDate = selectedDate;
+  // const toDate = selectedDate;
+  const toDate = useMemo(() => {
+    const d = new Date(`${selectedDate}T00:00:00`);
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString('en-CA');
+  }, [selectedDate]);
+  const {
+    data: apiSlots,
+    loading: slotsLoading,
+    error: slotsError,
+  } = useAppointmentSlots(fromDate, toDate, locationUuid ?? '');
+
+  // Group API slots by period for the selected date; fall back to hardcoded TIME_SLOTS
+  const displaySlots: Record<
+    SlotPeriod,
+    { time: string; available: boolean }[]
+  > = useMemo(() => {
+    const slotsForDate = apiSlots.filter(s => s.date === selectedDate);
+    if (slotsForDate.length > 0) {
+      const grouped: Record<
+        SlotPeriod,
+        { time: string; available: boolean }[]
+      > = {
+        Morning: [],
+        Afternoon: [],
+        Evening: [],
+      };
+      for (const slot of slotsForDate) {
+        if (grouped[slot.period]) {
+          grouped[slot.period].push({
+            time: slot.time,
+            available: slot.isAvailable,
+          });
+        }
+      }
+      return grouped;
+    }
+    // Fallback to hardcoded slots
+    const fallback: Record<SlotPeriod, { time: string; available: boolean }[]> =
+      {
+        Morning: TIME_SLOTS.Morning.map(t => ({ time: t, available: true })),
+        Afternoon: TIME_SLOTS.Afternoon.map(t => ({
+          time: t,
+          available: true,
+        })),
+        Evening: TIME_SLOTS.Evening.map(t => ({ time: t, available: true })),
+      };
+    return fallback;
+  }, [apiSlots, selectedDate]);
+
   const getDayName = (date: string) =>
     new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
 
   const isSlotBooked = (date: string, time: string) =>
     appointments.some(a => a.date === date && a.time === time);
 
-  const confirmBooking = () => {
-    setAppointments(prev => [
-      ...prev,
-      { id: Date.now(), date: selectedDate, time: selectedTime! },
-    ]);
-    // Delay to allow the confirm modal to close before opening the success modal
-    setTimeout(() => {
+  const confirmBooking = async () => {
+    if (!visitUuid) {
       showConfirmModal({
         icon: iconCalendar,
-        title: 'Appointment booked successfully!',
+        title: 'Booking failed',
+        description:
+          'Visit information is missing. Please go back and try again.',
         confirmText: 'Ok',
         cancelText: 'Close',
         type: 'confirm',
         open: true,
-        onConfirm: () => {
-          navigate('/my-appointments');
-        },
       });
-    }, 0);
+      return;
+    }
+
+    setBooking(true);
+    // Build ISO datetime from selected date + time (e.g. "2025-10-03" + "09:00 am")
+    const [time, meridiem] = selectedTime!.split(' ');
+    const [hourStr, min] = time.split(':');
+    let hour = parseInt(hourStr, 10);
+    if (meridiem.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+    if (meridiem.toLowerCase() === 'am' && hour === 12) hour = 0;
+    const appointmentDatetime = `${selectedDate}T${String(hour).padStart(2, '0')}:${min}:00.000+0530`;
+
+    try {
+      await appointmentService.bookAppointment(visitUuid!, appointmentDatetime);
+
+      setAppointments(prev => [
+        ...prev,
+        { id: Date.now(), date: selectedDate, time: selectedTime! },
+      ]);
+
+      // Delay to allow the confirm modal to close before opening the success modal
+      setTimeout(() => {
+        showConfirmModal({
+          icon: iconCalendar,
+          title: 'Appointment booked successfully!',
+          confirmText: 'Ok',
+          cancelText: 'Close',
+          type: 'confirm',
+          open: true,
+          onConfirm: () => {
+            navigate('/my-appointments');
+          },
+        });
+      }, 0);
+    } catch (error) {
+      console.error('Failed to book appointment:', error);
+      setTimeout(() => {
+        showConfirmModal({
+          icon: iconCalendar,
+          title: 'Booking failed',
+          description: 'Failed to book the appointment. Please try again.',
+          confirmText: 'Ok',
+          cancelText: 'Close',
+          type: 'confirm',
+          open: true,
+        });
+      }, 0);
+    } finally {
+      setBooking(false);
+    }
   };
 
   const bookAppointment = () => {
@@ -297,56 +398,71 @@ export default function AppointmentScheduleComponent() {
         Pick a time slot
       </p>
 
+      {/* Loading / Error states */}
+      {slotsLoading && (
+        <p className="text-center text-gray-400 py-4">Loading slots...</p>
+      )}
+      {!slotsLoading && slotsError && (
+        <p className="text-center text-red-500 py-2 text-sm">{slotsError}</p>
+      )}
+
       {/* Time Slots */}
-      {(Object.keys(TIME_SLOTS) as SlotPeriod[]).map(period => (
-        <div key={period} className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <img src={getTimeIcon(period)} alt={period} />
-            <span className="text-[14px] font-medium text-gray-800">
-              {period}
-            </span>
-          </div>
+      {!slotsLoading &&
+        (Object.keys(displaySlots) as SlotPeriod[]).map(period => {
+          const slots = displaySlots[period];
+          if (slots.length === 0) return null;
+          return (
+            <div key={period} className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <img src={getTimeIcon(period)} alt={period} />
+                <span className="text-[14px] font-medium text-gray-800">
+                  {period}
+                </span>
+              </div>
 
-          <div className="grid grid-cols-3 md:grid-cols-6 lg:flex lg:flex-wrap gap-3">
-            {TIME_SLOTS[period].map(time => {
-              const selected = selectedTime === time;
-              const booked = !!selectedDate && isSlotBooked(selectedDate, time);
+              <div className="grid grid-cols-3 md:grid-cols-6 lg:flex lg:flex-wrap gap-3">
+                {slots.map(({ time, available }) => {
+                  const selected = selectedTime === time;
+                  const booked =
+                    !available ||
+                    (!!selectedDate && isSlotBooked(selectedDate, time));
 
-              return (
-                <button
-                  key={time}
-                  disabled={!selectedDate || booked}
-                  onClick={() => setSelectedTime(selected ? null : time)}
-                  className={`h-[37px] min-w-[97px] rounded-lg text-xs font-medium border transition
-                    ${
-                      selected
-                        ? 'bg-[#3F2E9C] text-white border-[#3F2E9C]'
-                        : booked
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : 'bg-[#F3F1FB] text-gray-700 border-[#E0DDF5]'
-                    }`}
-                >
-                  {time}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+                  return (
+                    <button
+                      key={time}
+                      disabled={!selectedDate || booked}
+                      onClick={() => setSelectedTime(selected ? null : time)}
+                      className={`h-[37px] min-w-[97px] rounded-lg text-xs font-medium border transition
+                        ${
+                          selected
+                            ? 'bg-[#3F2E9C] text-white border-[#3F2E9C]'
+                            : booked
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-[#F3F1FB] text-gray-700 border-[#E0DDF5]'
+                        }`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
 
       {/* Book Button */}
       <div className="flex justify-end mt-4">
         <button
-          disabled={!selectedDate || !selectedTime}
+          disabled={!selectedDate || !selectedTime || booking}
           onClick={bookAppointment}
           className={`px-6 h-10 rounded-lg text-sm font-semibold transition
             ${
-              selectedDate && selectedTime
+              selectedDate && selectedTime && !booking
                 ? 'bg-[#3F2E9C] text-white hover:bg-[#35258A]'
                 : 'bg-[#3F2E9C] text-white opacity-50 cursor-not-allowed'
             }`}
         >
-          Book Appointment
+          {booking ? 'Booking...' : 'Book Appointment'}
         </button>
       </div>
     </div>
