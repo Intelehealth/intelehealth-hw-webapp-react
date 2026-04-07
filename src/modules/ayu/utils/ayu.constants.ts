@@ -10,7 +10,7 @@ export const CONFIRM_MODAL_YES = 'Yes';
 export const CONFIRM_MODAL_NO = 'No';
 
 export const PHYSCAL_EXAM_DESCRIPTION = 'Please wash/sanitize your hands';
-export const CONFIRM_MODAL_OK = 'Ok';
+export const CONFIRM_MODAL_OK = 'Okay';
 // --- Category List ---
 export const RECENTLY_SEARCHED_LABEL = 'Recently searched';
 export const MOST_COMMON_REASONS_LABEL = 'Most common reasons';
