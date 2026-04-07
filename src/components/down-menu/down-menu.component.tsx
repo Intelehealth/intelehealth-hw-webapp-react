@@ -3,12 +3,17 @@ import iconAchievements from '../../assets/icons/icon-achievement.svg';
 import iconHome from '../../assets/icons/icon-home.svg';
 import iconInfo from '../../assets/icons/icon-info.svg';
 import iconPatientPlus from '../../assets/icons/icon-user-plus.svg';
+import ROUTES from '../../routes/paths';
 
 const menuItems = [
-  { label: 'Dashboard', icon: iconHome, path: '/dashboard' },
-  { label: 'Achievements', icon: iconAchievements, path: '/achievements' },
-  { label: 'Help & Support', icon: iconInfo, path: '/help' },
-  { label: 'Add Patient', icon: iconPatientPlus, path: '/add-patient' },
+  { label: 'Dashboard', icon: iconHome, path: ROUTES.DASHBOARD },
+  {
+    label: 'Achievements',
+    icon: iconAchievements,
+    path: ROUTES.ACHIEVEMENT_UI,
+  },
+  { label: 'Help & Support', icon: iconInfo, path: ROUTES.HELP },
+  { label: 'Add Patient', icon: iconPatientPlus, path: ROUTES.ADD_PATIENT },
 ];
 
 const DownMenu = () => {
