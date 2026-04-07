@@ -224,7 +224,7 @@ describe('AddPatientComponent', () => {
       await waitFor(() => {
         const label = screen.getByText('Add Patient');
         expect(label).toBeInTheDocument();
-        expect(label).toHaveClass('text-base');
+        expect(label).toHaveClass('text-base', 'font-semibold');
       });
     });
 
@@ -236,6 +236,30 @@ describe('AddPatientComponent', () => {
         expect(mobileHeader).toBeInTheDocument();
         expect(mobileHeader).toHaveClass('text-lg', 'font-semibold', 'md:hidden');
       });
+    });
+
+    it('should render header with Patient Details label on Preview step', async () => {
+      mockHandleAddPatient.mockResolvedValue(true);
+      renderWithRouter(<AddPatientComponent />);
+
+      // Navigate through all steps to Preview
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('terms-accept'));
+      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('personal-next'));
+      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('address-next'));
+      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('other-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+
+      const label = screen.getByText('Patient Details');
+      expect(label).toBeInTheDocument();
+      expect(label).toHaveClass('text-base', 'font-semibold');
     });
 
     it('should render icon in header', async () => {

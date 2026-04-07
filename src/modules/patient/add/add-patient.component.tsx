@@ -133,7 +133,9 @@ export default function AddPatientComponent() {
     <div className="flex p-6 flex-col h-full">
       <div className="hidden md:flex items-center gap-3">
         <img src={iconUserPlusGreenRounded} />
-        <label className="text-base">Add Patient</label>
+        <label className="text-base font-semibold">
+          {step === 5 ? 'Patient Details' : 'Add Patient'}
+        </label>
       </div>
       <hr className="hidden md:block border-t border-[#DFDEE3] my-3" />
       <h2 className="text-lg font-semibold mb-6 md:hidden">Add New Patient</h2>

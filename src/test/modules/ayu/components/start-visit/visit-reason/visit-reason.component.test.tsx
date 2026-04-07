@@ -708,7 +708,7 @@ describe('VisitReason', () => {
         expect(mockShowConfirmModal).toHaveBeenCalledWith(
           expect.objectContaining({
             description: 'Please wash/sanitize your hands',
-            confirmText: 'Ok',
+            confirmText: 'Okay',
             type: 'confirm',
             open: true,
             title: '',

@@ -481,6 +481,91 @@ describe('AyuSelectableOptionGroup', () => {
       expect(onChange).toHaveBeenNthCalledWith(1, 'Option A'); // Option A has valueString
       expect(onChange).toHaveBeenNthCalledWith(2, 'opt-c'); // Option C has code
     });
+
+    it('should call onChange with undefined when clicking an already selected single-select option (deselect)', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="Option A"
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      expect(onChange).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call onChange with value when clicking an unselected single-select option', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="Option A"
+          onChange={onChange}
+        />
+      );
+
+      const optionB = screen.getByRole('button', { name: 'Option B' });
+      await user.click(optionB);
+
+      expect(onChange).toHaveBeenCalledWith('Option B');
+    });
+
+    it('should call onChange with undefined when clicking an already selected valueCoding option (deselect)', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="opt-c"
+          onChange={onChange}
+        />
+      );
+
+      const optionC = screen.getByRole('button', { name: 'Option C' });
+      await user.click(optionC);
+
+      expect(onChange).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call onChange with optionValue for multi-select even when already selected', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const multiSelectQuestion: AyuQuestion = {
+        ...mockQuestion,
+        repeats: true,
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['Option A']}
+          onChange={onChange}
+        />
+      );
+
+      // Click already selected option — multi-select toggle is handled by computeMultiSelectToggle upstream
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      expect(onChange).toHaveBeenCalledWith('Option A');
+    });
   });
 
   describe('Selection State', () => {
