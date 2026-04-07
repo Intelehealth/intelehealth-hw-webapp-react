@@ -51,7 +51,7 @@ describe('DownMenu', () => {
     const addPatientLink = screen.getByText('Add Patient').closest('a');
     
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
-    expect(achievementsLink).toHaveAttribute('href', '/achievements');
+    expect(achievementsLink).toHaveAttribute('href', '/achievement-ui');
     expect(helpLink).toHaveAttribute('href', '/help');
     expect(addPatientLink).toHaveAttribute('href', '/add-patient');
   });
@@ -186,7 +186,7 @@ describe('DownMenu', () => {
 
   it('should apply active link styling when on achievements route', () => {
     render(
-      <MemoryRouter initialEntries={['/achievements']}>
+      <MemoryRouter initialEntries={['/achievement-ui']}>
         <DownMenu />
       </MemoryRouter>
     );

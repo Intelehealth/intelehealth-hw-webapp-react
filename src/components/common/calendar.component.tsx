@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/calendar.css';
+import iconCalendar from '../../assets/icons/icon-calendar-blue.svg';
 import { cn } from '../../utils/cn';
 import CalendarMonthGrid from './calendar-month-grid.component';
 import CalendarYearGrid from './calendar-year-grid.component';
@@ -262,7 +263,7 @@ const Calendar: React.FC<CalendarProps> = ({
           type="button"
           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 pointer-events-none"
         >
-          <i className="fa-solid fa-calendar text-sm"></i>
+          <img src={iconCalendar} alt="calendar" className="w-5 h-5" />
         </button>
       </div>
       {error && (

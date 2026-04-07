@@ -15,7 +15,11 @@ import { storage } from '../../utils/storage';
 
 const menuItems = [
   { label: 'Home', icon: iconHome, path: ROUTES.DASHBOARD },
-  { label: 'Achievements', icon: iconAchievements, path: '#' },
+  {
+    label: 'Achievements',
+    icon: iconAchievements,
+    path: ROUTES.ACHIEVEMENT_UI,
+  },
   { label: 'Help & Support', icon: iconInfo, path: '#' },
   { label: 'Educational Videos', icon: iconVideos, path: '#' },
   { label: 'Settings', icon: iconSettings, path: '#' },
