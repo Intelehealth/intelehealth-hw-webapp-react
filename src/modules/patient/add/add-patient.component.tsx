@@ -10,6 +10,11 @@ import iconUserGreenRoundedFilled from '../../../assets/icons/icon-user-green-ro
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
 import ROUTES from '../../../routes/paths';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
+
+import {
+  ADD_PATIENT_LABEL,
+  PATIENT_DETAILS_LABEL,
+} from '../../../utils/constant';
 import { useAddPatient } from './add-patient.hooks';
 import AddressInfo from './steps/address-info/patient-address-info.component';
 import OtherInfo from './steps/other-info/patient-other-info.component';
@@ -134,7 +139,7 @@ export default function AddPatientComponent() {
       <div className="hidden md:flex items-center gap-3">
         <img src={iconUserPlusGreenRounded} />
         <label className="text-base font-semibold">
-          {step === 5 ? 'Patient Details' : 'Add Patient'}
+          {step === 5 ? PATIENT_DETAILS_LABEL : ADD_PATIENT_LABEL}
         </label>
       </div>
       <hr className="hidden md:block border-t border-[#DFDEE3] my-3" />

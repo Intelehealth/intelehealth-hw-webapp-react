@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VisitReason } from '../../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component';
+import {
+  CONFIRM_MODAL_OK,
+  PHYSCAL_EXAM_DESCRIPTION,
+} from '../../../../../../modules/ayu/utils/ayu.constants';
 
 // Mock all child components
 vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
@@ -707,8 +711,8 @@ describe('VisitReason', () => {
       await waitFor(() => {
         expect(mockShowConfirmModal).toHaveBeenCalledWith(
           expect.objectContaining({
-            description: 'Please wash/sanitize your hands',
-            confirmText: 'Okay',
+            description: PHYSCAL_EXAM_DESCRIPTION,
+            confirmText: CONFIRM_MODAL_OK,
             type: 'confirm',
             open: true,
             title: '',

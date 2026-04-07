@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import AddPatientComponent from '../../../../modules/patient/add/add-patient.component';
+import { ADD_PATIENT_LABEL, PATIENT_DETAILS_LABEL } from '../../../../utils/constant';
 
 // Mock the hooks
 const mockHandleAddPatient = vi.fn();
@@ -222,7 +224,7 @@ describe('AddPatientComponent', () => {
       renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
-        const label = screen.getByText('Add Patient');
+        const label = screen.getByText(ADD_PATIENT_LABEL);
         expect(label).toBeInTheDocument();
         expect(label).toHaveClass('text-base', 'font-semibold');
       });
@@ -257,7 +259,7 @@ describe('AddPatientComponent', () => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
       });
 
-      const label = screen.getByText('Patient Details');
+      const label = screen.getByText(PATIENT_DETAILS_LABEL);
       expect(label).toBeInTheDocument();
       expect(label).toHaveClass('text-base', 'font-semibold');
     });

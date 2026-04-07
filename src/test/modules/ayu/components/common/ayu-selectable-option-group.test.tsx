@@ -499,7 +499,7 @@ describe('AyuSelectableOptionGroup', () => {
       const optionA = screen.getByRole('button', { name: 'Option A' });
       await user.click(optionA);
 
-      expect(onChange).toHaveBeenCalledWith(undefined);
+      expect(onChange).toHaveBeenCalledWith(null);
     });
 
     it('should call onChange with value when clicking an unselected single-select option', async () => {
@@ -539,7 +539,7 @@ describe('AyuSelectableOptionGroup', () => {
       const optionC = screen.getByRole('button', { name: 'Option C' });
       await user.click(optionC);
 
-      expect(onChange).toHaveBeenCalledWith(undefined);
+      expect(onChange).toHaveBeenCalledWith(null);
     });
 
     it('should call onChange with optionValue for multi-select even when already selected', async () => {

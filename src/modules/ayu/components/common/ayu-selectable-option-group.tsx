@@ -61,7 +61,7 @@ export function AyuSelectableOptionGroup({
               selected={isSelected}
               onClick={() =>
                 onChange?.(
-                  isSelected && !question?.repeats ? undefined : optionValue
+                  isSelected && !question?.repeats ? null : optionValue
                 )
               }
             />
