@@ -16,7 +16,6 @@ import { AchievementsComponent } from './achievements.component';
 import NotificationList from './notification-list.component';
 import { PrescriptionsReceived } from './prescriptions-received.component';
 
-// Declare the functional component with an optional prop to help testing
 type DashboardProps = {
   initialShowPrescriptions?: boolean;
 };
@@ -40,7 +39,6 @@ const DashboardComponent = ({
 
   return (
     <div className="p-4 lg:p-3 flex flex-col gap-4 lg:gap-3 h-full">
-      {/* Mobile: back button shown when in prescriptions detail view */}
       {!showNotifications && showPrescriptions && (
         <button
           className="flex md:hidden items-center gap-2 text-[#2E1E91] font-semibold text-[16px]"
@@ -50,7 +48,6 @@ const DashboardComponent = ({
         </button>
       )}
 
-      {/* Add Patients Button - mobile only (top), hidden in detail view or notifications */}
       {!showNotifications && (
         <button
           className={`${showPrescriptions ? 'hidden' : 'flex'} md:hidden items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md`}
@@ -65,11 +62,9 @@ const DashboardComponent = ({
         </button>
       )}
 
-      {/* Dashboard cards - hidden on mobile when in prescriptions detail view */}
       <div
         className={`${showPrescriptions ? 'hidden md:grid' : 'grid'} w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3`}
       >
-        {/* Prescriptions card - clickable to navigate to prescriptions page */}
         <div
           className="cursor-pointer"
           onClick={() => navigate(ROUTES.PRESCRIPTIONS)}
@@ -113,15 +108,12 @@ const DashboardComponent = ({
         </div>
       </div>
 
-      {/* Add Patients + Pending Prescriptions row - hidden on notifications route */}
       {!showNotifications && (
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-3 flex-1 min-h-0">
-          {/* Left column: Add Patients + Pending bar + Prescriptions table */}
           <div
             className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-[3] min-h-0 flex-col gap-4 lg:gap-3`}
           >
             <div className="flex flex-row gap-4 lg:gap-3">
-              {/* Add Patients Button - desktop only */}
               <button
                 className="hidden md:flex items-center h-[46px] justify-between rounded-lg bg-[#2E1E91] px-4 py-1 text-white shadow-md md:w-56 lg:w-72 xl:w-96 shrink-0 cursor-pointer"
                 onClick={() =>
@@ -141,7 +133,6 @@ const DashboardComponent = ({
                 <img src={iconArrowright} className="w-[34px] h-[34px]" />
               </button>
 
-              {/* Pending Prescriptions Info */}
               <div className="flex flex-1 items-center h-[46px] gap-4 rounded-lg bg-white px-4 py-1 border border-[#ECEEFF] shadow-[0px_1px_2px_0px_#1018280D] shadow-sm">
                 <div className="flex items-center justify-center rounded-full bg-orange-100 shrink-0">
                   <img className="w-[34px] h-[34px]" src={iconOPatient} />
@@ -155,7 +146,6 @@ const DashboardComponent = ({
               </div>
             </div>
 
-            {/* Prescriptions table */}
             <div
               className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} lg:flex-1 lg:min-h-0 flex-col`}
             >
@@ -163,12 +153,10 @@ const DashboardComponent = ({
             </div>
           </div>
 
-          {/* Right column: Achievements sidebar */}
           <AchievementsComponent />
         </div>
       )}
 
-      {/* Notification list - shown only on notifications route */}
       {showNotifications && (
         <div className="lg:flex-1 lg:min-h-0 lg:overflow-auto">
           <NotificationList onClose={closeNotifications} />
