@@ -148,7 +148,7 @@ describe('AyuTextInput', () => {
       expect(screen.getByText('What is your name?')).toBeInTheDocument();
     });
 
-    it('should have placeholder text "Describe..."', () => {
+    it('should have dynamic placeholder based on question text', () => {
       render(
         <AyuTextInput
           question={mockQuestion}
@@ -157,7 +157,103 @@ describe('AyuTextInput', () => {
         />
       );
       const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Enter what is your name?');
+    });
+
+    it('should have placeholder "Describe..." when question text contains "describe"', () => {
+      const describeQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Color change in stool [describe]',
+      };
+      render(
+        <AyuTextInput
+          question={describeQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveAttribute('placeholder', 'Describe...');
+    });
+
+    it('should have placeholder "Describe..." when question text contains "other"', () => {
+      const otherQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Other [Describe]',
+      };
+      render(
+        <AyuTextInput
+          question={otherQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Describe...');
+    });
+
+    it('should have placeholder "Describe..." when question text contains "additional information"', () => {
+      const additionalInfoQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Enter additional information',
+      };
+      render(
+        <AyuTextInput
+          question={additionalInfoQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Describe...');
+    });
+
+    it('should not prepend "Enter" when question text already starts with "enter"', () => {
+      const enterQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Enter if known',
+      };
+      render(
+        <AyuTextInput
+          question={enterQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'enter if known');
+    });
+
+    it('should have placeholder "Describe..." when question text is undefined', () => {
+      const noTextQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: undefined,
+      };
+      render(
+        <AyuTextInput
+          question={noTextQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Describe...');
+    });
+
+    it('should show dynamic placeholder for medication name', () => {
+      const medicationQuestion: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Medication Name',
+      };
+      render(
+        <AyuTextInput
+          question={medicationQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('placeholder', 'Enter medication name');
     });
 
     it('should have correct CSS classes', () => {

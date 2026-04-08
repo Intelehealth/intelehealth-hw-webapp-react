@@ -58,6 +58,20 @@ export const SUMMARY_CANCEL_TEXT = 'Back';
 export const AYU_JSON_KEY_NAME = 'IDA6';
 
 // ========================
+// Text Input
+// ========================
+export const ADDITIONAL_INFORMATION_LABEL = 'Additional Information';
+export const TEXT_INPUT_DEFAULT_PLACEHOLDER = 'Describe...';
+export const TEXT_INPUT_KEYWORD_DESCRIBE = 'describe';
+export const TEXT_INPUT_KEYWORD_OTHER = 'other';
+export const TEXT_INPUT_ENTER_PREFIX = 'Enter';
+export const TEXT_INPUT_DEFAULT_KEYWORDS = [
+  TEXT_INPUT_KEYWORD_DESCRIBE,
+  TEXT_INPUT_KEYWORD_OTHER,
+  ADDITIONAL_INFORMATION_LABEL.toLowerCase(),
+];
+
+// ========================
 // Validation
 // ========================
 export const UUID_REGEX =
