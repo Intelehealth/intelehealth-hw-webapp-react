@@ -16,7 +16,7 @@ const ROUTES = {
   COMMON_UI: '/common-ui',
   TEST_PROFILE_GUARD: '/test-profile-guard',
   MY_APPOINTMENTS: '/my-appointments',
-  APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule',
+  APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule/:visitUuid?',
   APPOINTMENT_DETAILS: '/my-appointments/:id',
   NOTIFICATIONS: '/notifications',
   PRESCRIPTION_PREVIEW: '/prescription-preview',

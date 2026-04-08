@@ -93,6 +93,7 @@ export interface PhysicalExamination {
 // ═══════════════════════════════════════════════════════════
 
 export interface VisitData {
+  visitUuid: string;
   patient: Patient;
   vitals: Vitals;
   checkupReason: CheckupReason;
@@ -101,6 +102,7 @@ export interface VisitData {
 
 export const visitSummaryData: VisitData[] = [
   {
+    visitUuid: '00000000-0000-0000-0000-000000000000',
     patient: {
       name: 'Vimla Jadhav',
       gender: 'Female',

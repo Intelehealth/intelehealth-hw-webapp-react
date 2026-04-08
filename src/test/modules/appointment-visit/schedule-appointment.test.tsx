@@ -4,32 +4,49 @@ import AppointmentScheduleComponent from '../../../modules/appointment-visit/sch
 import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
 
 const mockNavigate = vi.fn();
-const mockLocationState = { visitUuid: 'test-visit-uuid', patientUuid: 'test-patient-uuid' };
+let mockLocationState: { speciality?: string } | null = { speciality: 'General Physician' };
+let mockVisitUuid: string | undefined = 'test-visit-uuid';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ state: mockLocationState, pathname: '/appointment-schedule', search: '', hash: '', key: 'default' }),
+    useParams: () => ({ visitUuid: mockVisitUuid }),
+    useLocation: () => ({ state: mockLocationState, pathname: '/appointment-schedule/test-visit-uuid', search: '', hash: '', key: 'default' }),
   };
 });
 
-// Mock ProfileContext so the component gets a locationUuid
-vi.mock('../../../context/ProfileContext', () => ({
-  useProfileContext: () => ({
-    locationUuid: 'test-location-uuid',
-    hwProfile: null,
-  }),
-}));
+// Generate mock slots for a given date
+const morningTimes = ['09:00 am', '09:30 am', '10:00 am', '10:30 am', '11:00 am', '11:30 am'];
+const afternoonTimes = ['12:00 pm', '12:30 pm', '01:00 pm', '01:30 pm', '02:00 pm', '02:30 pm', '03:00 pm', '03:30 pm', '04:00 pm', '04:30 pm', '05:00 pm', '05:30 pm', '06:00 pm'];
+const eveningTimes = ['06:30 pm', '07:00 pm', '07:30 pm', '08:00 pm', '08:30 pm', '09:00 pm', '09:30 pm', '10:00 pm', '10:30 pm', '11:00 pm'];
 
-// Mock the appointment slots hook — return empty data (fallback to hardcoded slots)
+const buildSlotsForDate = (date: string, allAvailable = true) => [
+  ...morningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: allAvailable, period: 'Morning' as const, speciality: 'General Physician' })),
+  ...afternoonTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Afternoon' as const, speciality: 'General Physician' })),
+  ...eveningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Evening' as const, speciality: 'General Physician' })),
+];
+
+// Generate slots for today and next 90 days to cover future-month navigation tests
+const defaultSlots: ReturnType<typeof buildSlotsForDate> = [];
+{
+  const cursor = new Date();
+  for (let i = 0; i < 90; i++) {
+    defaultSlots.push(...buildSlotsForDate(cursor.toLocaleDateString('en-CA')));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+}
+
+// Configurable mock return value
+let mockSlotsReturn: { data: typeof defaultSlots; loading: boolean; error: string | null } = {
+  data: defaultSlots,
+  loading: false,
+  error: null,
+};
+
 vi.mock('../../../hooks/useAppointmentSlots', () => ({
-  useAppointmentSlots: () => ({
-    data: [],
-    loading: false,
-    error: null,
-  }),
+  useAppointmentSlots: () => mockSlotsReturn,
 }));
 
 // Mock appointment service
@@ -58,10 +75,16 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/** Helper: get the date-buttons container (inner flex with gap-[8px]) */
+const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
+
 describe('AppointmentScheduleComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBookAppointment.mockResolvedValue({ success: true });
+    mockSlotsReturn = { data: defaultSlots, loading: false, error: null };
+    mockVisitUuid = 'test-visit-uuid';
+    mockLocationState = { speciality: 'General Physician' };
     Object.defineProperty(window, 'innerWidth', {
       value: 500,
       writable: true,
@@ -124,31 +147,32 @@ describe('AppointmentScheduleComponent', () => {
       const hr = container.querySelector('hr');
       expect(hr).toBeInTheDocument();
     });
+
+    it('renders without crashing when speciality is not provided (uses fallback)', () => {
+      mockLocationState = null;
+      expect(() => renderComponent()).not.toThrow();
+    });
   });
 
   describe('Date count based on screen size', () => {
     it('shows 5 date buttons on mobile (innerWidth=500)', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      expect(dateArea).toBeInTheDocument();
-      const buttons = dateArea!.querySelectorAll('button');
+      const buttons = getDateArea().querySelectorAll('button');
       expect(buttons.length).toBe(5);
     });
 
     it('shows 10 date buttons on tablet (innerWidth=800)', () => {
       Object.defineProperty(window, 'innerWidth', { value: 800, writable: true, configurable: true });
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const buttons = dateArea!.querySelectorAll('button');
+      const buttons = getDateArea().querySelectorAll('button');
       expect(buttons.length).toBe(10);
     });
 
     it('shows 13 date buttons on desktop (innerWidth=1200)', () => {
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const buttons = dateArea!.querySelectorAll('button');
+      const buttons = getDateArea().querySelectorAll('button');
       expect(buttons.length).toBe(13);
     });
   });
@@ -166,8 +190,7 @@ describe('AppointmentScheduleComponent', () => {
 
       vi.useRealTimers();
       await waitFor(() => {
-        const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-        const buttons = dateArea!.querySelectorAll('button');
+        const buttons = getDateArea().querySelectorAll('button');
         expect(buttons.length).toBe(13);
       });
     });
@@ -177,10 +200,8 @@ describe('AppointmentScheduleComponent', () => {
       renderComponent();
 
       act(() => {
-        // First resize to tablet
         Object.defineProperty(window, 'innerWidth', { value: 800, writable: true, configurable: true });
         fireEvent(window, new Event('resize'));
-        // Second resize to desktop before debounce fires
         Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
         fireEvent(window, new Event('resize'));
         vi.advanceTimersByTime(200);
@@ -188,8 +209,7 @@ describe('AppointmentScheduleComponent', () => {
 
       vi.useRealTimers();
       await waitFor(() => {
-        const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-        const buttons = dateArea!.querySelectorAll('button');
+        const buttons = getDateArea().querySelectorAll('button');
         expect(buttons.length).toBe(13);
       });
     });
@@ -206,12 +226,10 @@ describe('AppointmentScheduleComponent', () => {
       const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
       renderComponent();
 
-      // Trigger resize to start the debounce timer
       act(() => {
         fireEvent(window, new Event('resize'));
       });
 
-      // Unmount before debounce completes — should clear the timer
       const { unmount } = render(
         <GlobalModalProvider>
           <AppointmentScheduleComponent />
@@ -275,9 +293,101 @@ describe('AppointmentScheduleComponent', () => {
       renderComponent();
       const now = new Date();
       const expected = `${MONTHS[now.getMonth()]}, ${now.getFullYear()}`;
-      // Click prev on current month — should stay
       fireEvent.click(screen.getByAltText('prev').closest('button')!);
       expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
+    it('resets date offset when navigating to next month', () => {
+      renderComponent();
+      // Slide dates forward first
+      const nextDatesBtn = screen.getByAltText('next-dates').closest('button')!;
+      fireEvent.click(nextDatesBtn);
+      // Now navigate to next month — should reset to 1st
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
+      const firstBtn = getDateArea().querySelector('button')!;
+      expect(firstBtn.textContent).toContain('01');
+    });
+
+    it('resets date offset when navigating back to previous month', () => {
+      renderComponent();
+      // Go to next month, slide dates, then go back
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
+      const nextDatesBtn = screen.getByAltText('next-dates').closest('button')!;
+      fireEvent.click(nextDatesBtn);
+      fireEvent.click(screen.getByAltText('prev').closest('button')!);
+      // Should show today again
+      expect(screen.getByText('Today')).toBeInTheDocument();
+    });
+
+    it('navigating back from 2 months ahead lands on a future (non-current) month', () => {
+      renderComponent();
+      const nextBtn = screen.getByAltText('next').closest('button')!;
+      // Go forward 2 months
+      fireEvent.click(nextBtn);
+      fireEvent.click(nextBtn);
+      // Go back 1 month (still a future month, not current)
+      fireEvent.click(screen.getByAltText('prev').closest('button')!);
+      const now = new Date();
+      const expectedMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const expected = `${MONTHS[expectedMonth.getMonth()]}, ${expectedMonth.getFullYear()}`;
+      expect(screen.getByText(expected)).toBeInTheDocument();
+      // First visible date should be 1st (not today, since it's a future month)
+      const firstBtn = getDateArea().querySelector('button')!;
+      expect(firstBtn.textContent).toContain('01');
+    });
+  });
+
+  describe('Date slider navigation', () => {
+    it('renders prev-dates and next-dates arrow buttons', () => {
+      renderComponent();
+      expect(screen.getByAltText('prev-dates')).toBeInTheDocument();
+      expect(screen.getByAltText('next-dates')).toBeInTheDocument();
+    });
+
+    it('prev-dates is disabled at initial offset (start of dates)', () => {
+      renderComponent();
+      const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
+      expect(prevDatesBtn).toBeDisabled();
+    });
+
+    it('next-dates slides to next page of dates', () => {
+      Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
+      renderComponent();
+      const firstDateBefore = getDateArea().querySelector('button')!.textContent;
+      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+      const firstDateAfter = getDateArea().querySelector('button')!.textContent;
+      expect(firstDateAfter).not.toBe(firstDateBefore);
+    });
+
+    it('prev-dates becomes enabled after sliding forward', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+      const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
+      expect(prevDatesBtn).not.toBeDisabled();
+    });
+
+    it('prev-dates slides back to previous page of dates', () => {
+      renderComponent();
+      const firstDateOriginal = getDateArea().querySelector('button')!.textContent;
+      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+      fireEvent.click(screen.getByAltText('prev-dates').closest('button')!);
+      const firstDateBack = getDateArea().querySelector('button')!.textContent;
+      expect(firstDateBack).toBe(firstDateOriginal);
+    });
+
+    it('next-dates is disabled when at the end of month dates', () => {
+      Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
+      renderComponent();
+      // Navigate to next month (full 30/31 days) and click next-dates until disabled
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
+      const nextDatesBtn = screen.getByAltText('next-dates').closest('button')!;
+      // Click multiple times to reach end
+      for (let i = 0; i < 5; i++) {
+        if (nextDatesBtn.disabled) break;
+        fireEvent.click(nextDatesBtn);
+      }
+      // At some point it should be disabled
+      expect(nextDatesBtn).toBeDisabled();
     });
   });
 
@@ -292,9 +402,7 @@ describe('AppointmentScheduleComponent', () => {
 
     it('non-selected date has default class', () => {
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const buttons = dateArea!.querySelectorAll('button');
-      // Second date should not be selected
+      const buttons = getDateArea().querySelectorAll('button');
       expect(buttons[1]).toHaveClass('bg-white');
     });
 
@@ -305,16 +413,13 @@ describe('AppointmentScheduleComponent', () => {
       const timeBtn = screen.getByText('09:00 am');
       fireEvent.click(timeBtn);
       expect(timeBtn).toHaveClass('bg-[#3F2E9C]');
-      // Click same date again — resets time selection
       fireEvent.click(todayBtn);
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
     it('today button shows "Today" text with purple color when not selected', () => {
       renderComponent();
-      // Today is selected by default; click another date to deselect it
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const secondBtn = dateArea!.querySelectorAll('button')[1];
+      const secondBtn = getDateArea().querySelectorAll('button')[1];
       fireEvent.click(secondBtn);
       const todayLabel = screen.getByText('Today');
       expect(todayLabel).toHaveClass('text-[#2E1E91]');
@@ -323,16 +428,13 @@ describe('AppointmentScheduleComponent', () => {
 
     it('today button shows white text when selected (default state)', () => {
       renderComponent();
-      // Today is selected by default
       const todayLabel = screen.getByText('Today');
       expect(todayLabel).toHaveClass('text-white');
     });
 
     it('non-today dates display short day name', () => {
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const buttons = dateArea!.querySelectorAll('button');
-      // Second date should show a day name (Mon, Tue, etc.)
+      const buttons = getDateArea().querySelectorAll('button');
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const expectedDay = tomorrow.toLocaleDateString('en-US', { weekday: 'short' });
@@ -342,8 +444,7 @@ describe('AppointmentScheduleComponent', () => {
     it('displays correct day number for each date', () => {
       renderComponent();
       const todayNumber = new Date().toLocaleDateString('en-CA').split('-')[2];
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const firstBtn = dateArea!.querySelector('button')!;
+      const firstBtn = getDateArea().querySelector('button')!;
       expect(firstBtn.textContent).toContain(todayNumber);
     });
   });
@@ -407,6 +508,40 @@ describe('AppointmentScheduleComponent', () => {
       renderComponent();
       expect(screen.getByText('06:30 pm')).toBeInTheDocument();
       expect(screen.getByText('11:00 pm')).toBeInTheDocument();
+    });
+
+    it('unavailable slot shows disabled gray styling', () => {
+      const todayDate = new Date().toLocaleDateString('en-CA');
+      const slotsWithBooked = defaultSlots.map(s =>
+        s.date === todayDate && s.time === '10:00 am' ? { ...s, isAvailable: false } : s
+      );
+      mockSlotsReturn = { data: slotsWithBooked, loading: false, error: null };
+      renderComponent();
+      const slot = screen.getByText('10:00 am');
+      expect(slot).toBeDisabled();
+      expect(slot).toHaveClass('bg-gray-200');
+      expect(slot).toHaveClass('text-gray-400');
+      expect(slot).toHaveClass('cursor-not-allowed');
+    });
+  });
+
+  describe('Loading and error states', () => {
+    it('shows loading text when slots are loading', () => {
+      mockSlotsReturn = { data: [], loading: true, error: null };
+      renderComponent();
+      expect(screen.getByText('Loading slots...')).toBeInTheDocument();
+    });
+
+    it('shows error message when slots fail to load', () => {
+      mockSlotsReturn = { data: [], loading: false, error: 'Failed to fetch appointment slots' };
+      renderComponent();
+      expect(screen.getByText('Failed to fetch appointment slots')).toBeInTheDocument();
+    });
+
+    it('does not show time periods when loading', () => {
+      mockSlotsReturn = { data: [], loading: true, error: null };
+      renderComponent();
+      expect(screen.queryByText('Morning')).not.toBeInTheDocument();
     });
   });
 
@@ -472,7 +607,6 @@ describe('AppointmentScheduleComponent', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
 
-      // Flush the async bookAppointment call
       await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
 
@@ -515,29 +649,36 @@ describe('AppointmentScheduleComponent', () => {
       expect(screen.queryByText('Appointment booked successfully!')).not.toBeInTheDocument();
     });
 
-    it('booked slot becomes disabled with gray styling', async () => {
+    it('correctly converts PM time when booking (hour += 12 for non-12 PM)', async () => {
       vi.useFakeTimers();
       renderComponent();
-      const todayBtn = screen.getByText('Today').closest('button')!;
-      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByText('01:00 pm'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
       await act(async () => { await vi.runAllTimersAsync(); });
       vi.useRealTimers();
-
-      // Dismiss the success modal
       await waitFor(() => {
-        expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T13:00:00\.000\+0530$/)
+        );
       });
-      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    });
 
-      // Re-select today to check the slot
-      fireEvent.click(todayBtn);
-      const slot = screen.getByText('09:00 am');
-      expect(slot).toBeDisabled();
-      expect(slot).toHaveClass('bg-gray-200');
-      expect(slot).toHaveClass('text-gray-400');
-      expect(slot).toHaveClass('cursor-not-allowed');
+    it('correctly handles 12:00 PM (noon) without adding 12', async () => {
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('12:00 pm'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T12:00:00\.000\+0530$/)
+        );
+      });
     });
 
     it('clicking Book does nothing when no time selected', () => {
@@ -561,11 +702,25 @@ describe('AppointmentScheduleComponent', () => {
       });
     });
 
+    it('shows "Visit information is missing" modal when visitUuid is absent', async () => {
+      mockVisitUuid = undefined;
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(screen.getByText('Visit information is missing. Please go back and try again.')).toBeInTheDocument();
+      });
+      expect(mockBookAppointment).not.toHaveBeenCalled();
+    });
+
     it('confirm modal shows ordinal "st" suffix for the 1st', () => {
       renderComponent();
       fireEvent.click(screen.getByAltText('next').closest('button')!);
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      fireEvent.click(dateArea!.querySelector('button')!);
+      fireEvent.click(getDateArea().querySelector('button')!);
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       expect(screen.getByText(/1st \w+ at 09:00 am\?/)).toBeInTheDocument();
@@ -574,8 +729,7 @@ describe('AppointmentScheduleComponent', () => {
     it('confirm modal shows ordinal "nd" suffix for the 2nd', () => {
       renderComponent();
       fireEvent.click(screen.getByAltText('next').closest('button')!);
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      fireEvent.click(dateArea!.querySelectorAll('button')[1]);
+      fireEvent.click(getDateArea().querySelectorAll('button')[1]);
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       expect(screen.getByText(/2nd \w+ at 09:00 am\?/)).toBeInTheDocument();
@@ -584,8 +738,7 @@ describe('AppointmentScheduleComponent', () => {
     it('confirm modal shows ordinal "rd" suffix for the 3rd', () => {
       renderComponent();
       fireEvent.click(screen.getByAltText('next').closest('button')!);
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      fireEvent.click(dateArea!.querySelectorAll('button')[2]);
+      fireEvent.click(getDateArea().querySelectorAll('button')[2]);
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
       expect(screen.getByText(/3rd \w+ at 09:00 am\?/)).toBeInTheDocument();
@@ -593,31 +746,20 @@ describe('AppointmentScheduleComponent', () => {
 
     it('confirm modal shows ordinal "th" suffix for dates like 4th-20th, 24th-30th', () => {
       renderComponent();
-      // Navigate forward enough to find a date with "th" suffix (4th-20th, 24th-30th)
-      // Click "next" multiple times to reach such dates
       const nextBtn = screen.getByAltText('next').closest('button')!;
       fireEvent.click(nextBtn);
       fireEvent.click(nextBtn);
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const dateButtons = dateArea!.querySelectorAll('button');
-      // Find a button whose date text ends in a day that gets "th" suffix
+      const dateButtons = getDateArea().querySelectorAll('button');
       let targetButton: Element | null = null;
       dateButtons.forEach(btn => {
-        const dayText = btn.querySelector('.mt-1')?.textContent;
-        if (dayText && !['Today'].includes(dayText)) {
-          const dayNum = parseInt(
-            btn.querySelector('.text-\\[18px\\], .text-\\[16px\\]')?.textContent || btn.textContent?.match(/\d+/)?.[0] || '0'
-          );
-          if (
-            dayNum >= 4 &&
-            dayNum <= 20 ||
-            (dayNum >= 24 && dayNum <= 30)
-          ) {
-            if (!targetButton) targetButton = btn;
-          }
+        const dayNum = parseInt(btn.textContent?.match(/\d+/)?.[0] || '0');
+        if (
+          (dayNum >= 4 && dayNum <= 20) ||
+          (dayNum >= 24 && dayNum <= 30)
+        ) {
+          if (!targetButton) targetButton = btn;
         }
       });
-      // Fallback: just click the 4th button (index 3) which is likely a "th" date
       if (!targetButton) targetButton = dateButtons[3];
       fireEvent.click(targetButton!);
       fireEvent.click(screen.getByText('09:00 am'));
@@ -652,18 +794,16 @@ describe('AppointmentScheduleComponent', () => {
     it('generates dates starting from 1st for future month', () => {
       renderComponent();
       fireEvent.click(screen.getByAltText('next').closest('button')!);
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const firstBtn = dateArea!.querySelector('button')!;
+      const firstBtn = getDateArea().querySelector('button')!;
       expect(firstBtn.textContent).toContain('01');
     });
 
-    it('spans into next month when current month runs short', () => {
-      // On desktop with 13 dates, starting late in the month may span into next month
+    it('shows remaining days of current month on desktop', () => {
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
       renderComponent();
-      const dateArea = document.querySelector('.flex.gap-\\[8px\\]');
-      const buttons = dateArea!.querySelectorAll('button');
-      expect(buttons.length).toBe(13);
+      const buttons = getDateArea().querySelectorAll('button');
+      expect(buttons.length).toBeGreaterThan(0);
+      expect(buttons.length).toBeLessThanOrEqual(31);
     });
   });
 });

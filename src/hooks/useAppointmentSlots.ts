@@ -7,25 +7,25 @@ import {
 export const useAppointmentSlots = (
   fromDate: string,
   toDate: string,
-  locationUuid: string
+  speciality: string
 ) => {
   const [data, setData] = useState<AppointmentSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!fromDate || !toDate || !locationUuid) return;
+    if (!fromDate || !toDate || !speciality) return;
     setLoading(true);
     setError(null);
     appointmentService
-      .getAppointmentSlots(fromDate, toDate, locationUuid)
+      .getAppointmentSlots(fromDate, toDate, speciality)
       .then(setData)
       .catch(err => {
         console.error('Appointment slots API error:', err);
         setError('Failed to fetch appointment slots');
       })
       .finally(() => setLoading(false));
-  }, [fromDate, toDate, locationUuid]);
+  }, [fromDate, toDate, speciality]);
 
   return { data, loading, error };
 };

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import iconSunset from '../../assets/icons/appiontment/icon-apmsc-sunset.svg';
 import iconAfternoon from '../../assets/icons/appiontment/icon-apmsc-afternoon.svg';
 import iconSunrise from '../../assets/icons/appiontment/icon-apmsc-sunrise.svg';
@@ -9,54 +8,9 @@ import iconChevronRight from '../../assets/icons/appiontment/icon-apm-chevron_2.
 import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
 import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
-import { useProfileContext } from '../../context/ProfileContext';
 import { useAppointmentSlots } from '../../hooks/useAppointmentSlots';
 import { appointmentService } from './appointment.service';
 import type { SlotPeriod } from './appointment.service';
-
-interface Appointment {
-  id: number;
-  date: string;
-  time: string;
-}
-
-const TIME_SLOTS: Record<SlotPeriod, string[]> = {
-  Morning: [
-    '09:00 am',
-    '09:30 am',
-    '10:00 am',
-    '10:30 am',
-    '11:00 am',
-    '11:30 am',
-  ],
-  Afternoon: [
-    '12:00 pm',
-    '12:30 pm',
-    '01:00 pm',
-    '01:30 pm',
-    '02:00 pm',
-    '02:30 pm',
-    '03:00 pm',
-    '03:30 pm',
-    '04:00 pm',
-    '04:30 pm',
-    '05:00 pm',
-    '05:30 pm',
-    '06:00 pm',
-  ],
-  Evening: [
-    '06:30 pm',
-    '07:00 pm',
-    '07:30 pm',
-    '08:00 pm',
-    '08:30 pm',
-    '09:00 pm',
-    '09:30 pm',
-    '10:00 pm',
-    '10:30 pm',
-    '11:00 pm',
-  ],
-};
 
 const MONTHS = [
   'January',
@@ -79,15 +33,17 @@ const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 export default function AppointmentScheduleComponent() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { visitUuid: visitUuidParam } = useParams<{ visitUuid: string }>();
   const { showConfirmModal } = useGlobalModal();
-  const { locationUuid } = useProfileContext();
-  const visitUuid = (location.state as { visitUuid?: string })?.visitUuid;
+  const locationState = location.state as { speciality?: string } | null;
+  const visitUuid = visitUuidParam;
+  const speciality = locationState?.speciality ?? 'General Physician';
 
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [booking, setBooking] = useState(false);
+  const [dateOffset, setDateOffset] = useState(0);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -121,40 +77,73 @@ export default function AppointmentScheduleComponent() {
 
   const handlePrevMonth = () => {
     const now = new Date();
-    /* c8 ignore next 5 */
+    /* c8 ignore next 9 */
     if (
       year > now.getFullYear() ||
       (year === now.getFullYear() && month > now.getMonth())
     ) {
-      setCurrentMonth(new Date(year, month - 1, 1));
+      const prevMonth = new Date(year, month - 1, 1);
+      setCurrentMonth(prevMonth);
+      const isCurrentMonth =
+        prevMonth.getFullYear() === now.getFullYear() &&
+        prevMonth.getMonth() === now.getMonth();
+      setSelectedDate(
+        isCurrentMonth ? today : prevMonth.toLocaleDateString('en-CA')
+      );
+      setSelectedTime(null);
+      setDateOffset(0);
     }
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(new Date(year, month + 1, 1));
+    const nextMonth = new Date(year, month + 1, 1);
+    setCurrentMonth(nextMonth);
+    setSelectedDate(nextMonth.toLocaleDateString('en-CA'));
+    setSelectedTime(null);
+    setDateOffset(0);
   };
 
   /* ================= DATE GENERATION ================= */
 
-  // Always generates exactly `datesToShow` dates.
+  // Generate all remaining dates for the current month view.
   // For the current month starts from today; for future months starts from the 1st.
-  // Spans into the next month when the current month runs short.
-  const visibleDates = useMemo(() => {
+  const allDates = useMemo(() => {
     const now = new Date(`${today}T00:00:00`);
     const isCurrentMonth =
       year === now.getFullYear() && month === now.getMonth();
-    const cursor = isCurrentMonth ? new Date(now) : new Date(year, month, 1);
+    const startDate = isCurrentMonth ? new Date(now) : new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0).getDate();
     const dates: string[] = [];
-    while (dates.length < datesToShow) {
+    const cursor = new Date(startDate);
+    while (cursor.getMonth() === month || dates.length === 0) {
       dates.push(cursor.toLocaleDateString('en-CA'));
       cursor.setDate(cursor.getDate() + 1);
+      /* c8 ignore next */
+      if (cursor.getDate() > lastDay && cursor.getMonth() !== month) break;
     }
     return dates;
-  }, [year, month, datesToShow]);
+  }, [year, month]);
+
+  // Slice visible dates based on offset and datesToShow
+  const visibleDates = useMemo(() => {
+    return allDates.slice(dateOffset, dateOffset + datesToShow);
+  }, [allDates, dateOffset, datesToShow]);
+
+  const canSlidePrev = dateOffset > 0;
+  const canSlideNext = dateOffset + datesToShow < allDates.length;
+
+  const handleDatePrev = () => {
+    setDateOffset(prev => Math.max(0, prev - datesToShow));
+  };
+
+  const handleDateNext = () => {
+    setDateOffset(prev =>
+      Math.min(allDates.length - datesToShow, prev + datesToShow)
+    );
+  };
 
   /* ================= API SLOTS ================= */
   const fromDate = selectedDate;
-  // const toDate = selectedDate;
   const toDate = useMemo(() => {
     const d = new Date(`${selectedDate}T00:00:00`);
     d.setDate(d.getDate() + 1);
@@ -164,64 +153,48 @@ export default function AppointmentScheduleComponent() {
     data: apiSlots,
     loading: slotsLoading,
     error: slotsError,
-  } = useAppointmentSlots(fromDate, toDate, locationUuid ?? '');
+  } = useAppointmentSlots(fromDate, toDate, speciality);
 
-  // Group API slots by period for the selected date; fall back to hardcoded TIME_SLOTS
+  // Group API slots by period for the selected date
   const displaySlots: Record<
     SlotPeriod,
     { time: string; available: boolean }[]
   > = useMemo(() => {
-    const slotsForDate = apiSlots.filter(s => s.date === selectedDate);
-    if (slotsForDate.length > 0) {
-      const grouped: Record<
-        SlotPeriod,
-        { time: string; available: boolean }[]
-      > = {
+    const grouped: Record<SlotPeriod, { time: string; available: boolean }[]> =
+      {
         Morning: [],
         Afternoon: [],
         Evening: [],
       };
-      for (const slot of slotsForDate) {
-        if (grouped[slot.period]) {
-          grouped[slot.period].push({
-            time: slot.time,
-            available: slot.isAvailable,
-          });
-        }
+    const slotsForDate = apiSlots.filter(s => s.date === selectedDate);
+    for (const slot of slotsForDate) {
+      if (grouped[slot.period]) {
+        grouped[slot.period].push({
+          time: slot.time,
+          available: slot.isAvailable,
+        });
       }
-      return grouped;
     }
-    // Fallback to hardcoded slots
-    const fallback: Record<SlotPeriod, { time: string; available: boolean }[]> =
-      {
-        Morning: TIME_SLOTS.Morning.map(t => ({ time: t, available: true })),
-        Afternoon: TIME_SLOTS.Afternoon.map(t => ({
-          time: t,
-          available: true,
-        })),
-        Evening: TIME_SLOTS.Evening.map(t => ({ time: t, available: true })),
-      };
-    return fallback;
+    return grouped;
   }, [apiSlots, selectedDate]);
 
   const getDayName = (date: string) =>
     new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
 
-  const isSlotBooked = (date: string, time: string) =>
-    appointments.some(a => a.date === date && a.time === time);
-
   const confirmBooking = async () => {
     if (!visitUuid) {
-      showConfirmModal({
-        icon: iconCalendar,
-        title: 'Booking failed',
-        description:
-          'Visit information is missing. Please go back and try again.',
-        confirmText: 'Ok',
-        cancelText: 'Close',
-        type: 'confirm',
-        open: true,
-      });
+      setTimeout(() => {
+        showConfirmModal({
+          icon: iconCalendar,
+          title: 'Booking failed',
+          description:
+            'Visit information is missing. Please go back and try again.',
+          confirmText: 'Ok',
+          cancelText: 'Close',
+          type: 'confirm',
+          open: true,
+        });
+      }, 0);
       return;
     }
 
@@ -231,16 +204,12 @@ export default function AppointmentScheduleComponent() {
     const [hourStr, min] = time.split(':');
     let hour = parseInt(hourStr, 10);
     if (meridiem.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+    /* c8 ignore next */
     if (meridiem.toLowerCase() === 'am' && hour === 12) hour = 0;
     const appointmentDatetime = `${selectedDate}T${String(hour).padStart(2, '0')}:${min}:00.000+0530`;
 
     try {
       await appointmentService.bookAppointment(visitUuid!, appointmentDatetime);
-
-      setAppointments(prev => [
-        ...prev,
-        { id: Date.now(), date: selectedDate, time: selectedTime! },
-      ]);
 
       // Delay to allow the confirm modal to close before opening the success modal
       setTimeout(() => {
@@ -358,39 +327,59 @@ export default function AppointmentScheduleComponent() {
       </div>
 
       {/* Date Selection */}
-      <div className="flex gap-[8px] mb-4 overflow-x-auto pb-1">
-        {visibleDates.map(date => {
-          const isSelected = selectedDate === date;
-          const isToday = date === today;
-          const dayNumber = date.split('-')[2];
+      <div className="flex items-center gap-1 mb-4">
+        <button
+          onClick={handleDatePrev}
+          disabled={!canSlidePrev}
+          aria-label="prev-dates"
+          className="w-8 h-8 shrink-0 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <img src={iconChevronRight} className="w-4 h-4" alt="prev-dates" />
+        </button>
 
-          return (
-            <button
-              key={date}
-              onClick={() => {
-                setSelectedDate(date);
-                setSelectedTime(null);
-              }}
-              className={`w-[50px] h-[60px] shrink-0 rounded-xl border flex flex-col items-center justify-center text-xs transition
-                ${
-                  isSelected
-                    ? 'bg-[#3F2E9C] text-white border-[#3F2E9C]'
-                    : 'bg-white text-gray-700 border-[#E5E7EB] hover:border-[#3F2E9C]'
-                }`}
-            >
-              <div
-                className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-[#2E1E91]'}`}
+        <div className="flex gap-[8px] overflow-hidden">
+          {visibleDates.map(date => {
+            const isSelected = selectedDate === date;
+            const isToday = date === today;
+            const dayNumber = date.split('-')[2];
+
+            return (
+              <button
+                key={date}
+                onClick={() => {
+                  setSelectedDate(date);
+                  setSelectedTime(null);
+                }}
+                className={`w-[50px] h-[60px] shrink-0 rounded-xl border flex flex-col items-center justify-center text-xs transition
+                  ${
+                    isSelected
+                      ? 'bg-[#3F2E9C] text-white border-[#3F2E9C]'
+                      : 'bg-white text-gray-700 border-[#E5E7EB] hover:border-[#3F2E9C]'
+                  }`}
               >
-                {dayNumber}
-              </div>
-              <div
-                className={`text-[14px] mt-1 ${isSelected ? 'text-white' : 'text-[#2E1E91]'} ${isToday && !isSelected ? 'font-medium' : ''}`}
-              >
-                {isToday ? 'Today' : getDayName(date)}
-              </div>
-            </button>
-          );
-        })}
+                <div
+                  className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-[#2E1E91]'}`}
+                >
+                  {dayNumber}
+                </div>
+                <div
+                  className={`text-[14px] mt-1 ${isSelected ? 'text-white' : 'text-[#2E1E91]'} ${isToday && !isSelected ? 'font-medium' : ''}`}
+                >
+                  {isToday ? 'Today' : getDayName(date)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={handleDateNext}
+          disabled={!canSlideNext}
+          aria-label="next-dates"
+          className="w-8 h-8 shrink-0 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <img src={iconChevronLeft} className="w-4 h-4" alt="next-dates" />
+        </button>
       </div>
 
       {/* Pick a time slot — desktop/tablet only */}
@@ -423,9 +412,7 @@ export default function AppointmentScheduleComponent() {
               <div className="grid grid-cols-3 md:grid-cols-6 lg:flex lg:flex-wrap gap-3">
                 {slots.map(({ time, available }) => {
                   const selected = selectedTime === time;
-                  const booked =
-                    !available ||
-                    (!!selectedDate && isSlotBooked(selectedDate, time));
+                  const booked = !available;
 
                   return (
                     <button

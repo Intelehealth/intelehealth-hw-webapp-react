@@ -115,10 +115,10 @@ const DashboardComponent = ({
 
       {/* Add Patients + Pending Prescriptions row - hidden on notifications route */}
       {!showNotifications && (
-        <div className="flex flex-row gap-4 lg:gap-3 flex-1 min-h-0">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-3 flex-1 min-h-0">
           {/* Left column: Add Patients + Pending bar + Prescriptions table */}
           <div
-            className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-1 min-h-0 flex-col gap-4 lg:gap-3`}
+            className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-[3] min-h-0 flex-col gap-4 lg:gap-3`}
           >
             <div className="flex flex-row gap-4 lg:gap-3">
               {/* Add Patients Button - desktop only */}

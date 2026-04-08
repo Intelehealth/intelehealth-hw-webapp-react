@@ -80,47 +80,194 @@ const mockRawVisit: RawVisitResponse = {
   ],
 };
 
+const mockApiResponse = {
+  status: true,
+  dates: [
+    {
+      slotDay: 'Wednesday',
+      slotDate: '08/04/2026',
+      slotDuration: 30,
+      slotDurationUnit: 'minutes',
+      slotTime: '9:00 AM',
+      speciality: 'General Physician',
+      userUuid: 'uuid-1',
+      drName: 'Dr Test',
+    },
+    {
+      slotDay: 'Wednesday',
+      slotDate: '08/04/2026',
+      slotDuration: 30,
+      slotDurationUnit: 'minutes',
+      slotTime: '2:00 PM',
+      speciality: 'General Physician',
+      userUuid: 'uuid-1',
+      drName: 'Dr Test',
+    },
+    {
+      slotDay: 'Wednesday',
+      slotDate: '08/04/2026',
+      slotDuration: 30,
+      slotDurationUnit: 'minutes',
+      slotTime: '7:00 PM',
+      speciality: 'General Physician',
+      userUuid: 'uuid-1',
+      drName: 'Dr Test',
+    },
+    {
+      slotDay: 'Wednesday',
+      slotDate: '08/04/2026',
+      slotDuration: 30,
+      slotDurationUnit: 'minutes',
+      slotTime: '6:00 PM',
+      speciality: 'General Physician',
+      userUuid: 'uuid-1',
+      drName: 'Dr Test',
+    },
+  ],
+  bookedAppointments: [],
+  rescheduledAppointments: [],
+};
+
 describe('appointmentService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('getAppointmentSlots', () => {
-    it('returns dummy slots with the provided fromDate when USE_DUMMY_DATA is true', async () => {
-      const result = await appointmentService.getAppointmentSlots(
-        '2026-04-01',
-        '2026-04-13',
-        'location-uuid-123'
+    it('calls the API with correct URL using DD/MM/YYYY dates and speciality', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
       );
-
-      expect(result).toHaveLength(20);
-      expect(result[0].date).toBe('2026-04-01');
-      expect(result[0].slotId).toBe('slot-001');
-      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('/appointment/getAppointmentSlots')
+      );
+      const url: string = mockGet.mock.calls[0][0];
+      expect(url).toContain('fromDate=08%2F04%2F2026');
+      expect(url).toContain('toDate=09%2F04%2F2026');
+      expect(url).toContain('speciality=General%20Physician');
     });
 
-    it('returns slots covering Morning, Afternoon, and Evening periods', async () => {
+    it('maps slotDate from DD/MM/YYYY to YYYY-MM-DD', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
       const result = await appointmentService.getAppointmentSlots(
-        '2026-04-01',
-        '2026-04-13',
-        'location-uuid-123'
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
       );
+      expect(result[0].date).toBe('2026-04-08');
+    });
 
+    it('maps slotTime to lowercase', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[0].time).toBe('9:00 am');
+    });
+
+    it('classifies Morning period correctly (before 12:00 PM)', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[0].period).toBe('Morning'); // 9:00 AM
+    });
+
+    it('classifies Afternoon period correctly (12:00 PM to 6:00 PM inclusive)', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[1].period).toBe('Afternoon'); // 2:00 PM
+      expect(result[3].period).toBe('Afternoon'); // 6:00 PM (boundary)
+    });
+
+    it('classifies Evening period correctly (after 6:00 PM)', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[2].period).toBe('Evening'); // 7:00 PM
+    });
+
+    it('sets isAvailable to true for all slots', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result.every(s => s.isAvailable)).toBe(true);
+    });
+
+    it('includes speciality in each slot', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[0].speciality).toBe('General Physician');
+    });
+
+    it('generates a slotId for each slot', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[0].slotId).toBeTruthy();
+    });
+
+    it('returns empty array when dates is empty', async () => {
+      mockGet.mockResolvedValue({
+        status: true,
+        dates: [],
+        bookedAppointments: [],
+        rescheduledAppointments: [],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('returns all slots covering Morning, Afternoon, and Evening periods', async () => {
+      mockGet.mockResolvedValue(mockApiResponse);
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
       const periods = new Set(result.map(s => s.period));
-      expect(periods).toEqual(new Set(['Morning', 'Afternoon', 'Evening']));
+      expect(periods.has('Morning')).toBe(true);
+      expect(periods.has('Afternoon')).toBe(true);
+      expect(periods.has('Evening')).toBe(true);
     });
 
-    it('includes both available and unavailable slots', async () => {
-      const result = await appointmentService.getAppointmentSlots(
-        '2026-04-01',
-        '2026-04-13',
-        'location-uuid-123'
-      );
-
-      const available = result.filter(s => s.isAvailable);
-      const unavailable = result.filter(s => !s.isAvailable);
-      expect(available.length).toBeGreaterThan(0);
-      expect(unavailable.length).toBeGreaterThan(0);
+    it('throws when API call fails', async () => {
+      mockGet.mockRejectedValue(new Error('Network error'));
+      await expect(
+        appointmentService.getAppointmentSlots(
+          '2026-04-08',
+          '2026-04-09',
+          'General Physician'
+        )
+      ).rejects.toThrow('Network error');
     });
   });
 

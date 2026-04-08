@@ -15,16 +15,16 @@ import { useAppointmentSlots } from '../../hooks/useAppointmentSlots';
 const mockSlots = [
   {
     slotId: 's1',
-    date: '2026-04-01',
-    time: '09:00 am',
+    date: '2026-04-08',
+    time: '9:00 am',
     isAvailable: true,
     period: 'Morning' as const,
   },
   {
     slotId: 's2',
-    date: '2026-04-01',
-    time: '02:00 pm',
-    isAvailable: false,
+    date: '2026-04-08',
+    time: '2:00 pm',
+    isAvailable: true,
     period: 'Afternoon' as const,
   },
 ];
@@ -37,7 +37,7 @@ describe('useAppointmentSlots', () => {
   it('initialises with empty data, loading false, no error', () => {
     mockGetAppointmentSlots.mockResolvedValue([]);
     const { result } = renderHook(() =>
-      useAppointmentSlots('2026-04-01', '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots('2026-04-08', '2026-04-09', 'General Physician')
     );
 
     expect(result.current.data).toEqual([]);
@@ -47,7 +47,7 @@ describe('useAppointmentSlots', () => {
   it('fetches slots and populates data', async () => {
     mockGetAppointmentSlots.mockResolvedValue(mockSlots);
     const { result } = renderHook(() =>
-      useAppointmentSlots('2026-04-01', '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots('2026-04-08', '2026-04-09', 'General Physician')
     );
 
     await waitFor(() => {
@@ -61,14 +61,14 @@ describe('useAppointmentSlots', () => {
   it('calls getAppointmentSlots with correct params', async () => {
     mockGetAppointmentSlots.mockResolvedValue([]);
     renderHook(() =>
-      useAppointmentSlots('2026-04-01', '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots('2026-04-08', '2026-04-09', 'General Physician')
     );
 
     await waitFor(() => {
       expect(mockGetAppointmentSlots).toHaveBeenCalledWith(
-        '2026-04-01',
-        '2026-04-13',
-        'location-uuid-123'
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
       );
     });
   });
@@ -76,7 +76,7 @@ describe('useAppointmentSlots', () => {
   it('sets error message when API call fails', async () => {
     mockGetAppointmentSlots.mockRejectedValue(new Error('Network error'));
     const { result } = renderHook(() =>
-      useAppointmentSlots('2026-04-01', '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots('2026-04-08', '2026-04-09', 'General Physician')
     );
 
     await waitFor(() => {
@@ -89,7 +89,7 @@ describe('useAppointmentSlots', () => {
 
   it('does not fetch when fromDate is empty', () => {
     renderHook(() =>
-      useAppointmentSlots('', '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots('', '2026-04-09', 'General Physician')
     );
 
     expect(mockGetAppointmentSlots).not.toHaveBeenCalled();
@@ -97,15 +97,15 @@ describe('useAppointmentSlots', () => {
 
   it('does not fetch when toDate is empty', () => {
     renderHook(() =>
-      useAppointmentSlots('2026-04-01', '', 'location-uuid-123')
+      useAppointmentSlots('2026-04-08', '', 'General Physician')
     );
 
     expect(mockGetAppointmentSlots).not.toHaveBeenCalled();
   });
 
-  it('does not fetch when locationUuid is empty', () => {
+  it('does not fetch when speciality is empty', () => {
     renderHook(() =>
-      useAppointmentSlots('2026-04-01', '2026-04-13', '')
+      useAppointmentSlots('2026-04-08', '2026-04-09', '')
     );
 
     expect(mockGetAppointmentSlots).not.toHaveBeenCalled();
@@ -113,10 +113,10 @@ describe('useAppointmentSlots', () => {
 
   it('re-fetches when params change', async () => {
     mockGetAppointmentSlots.mockResolvedValue(mockSlots);
-    let fromDate = '2026-04-01';
+    let fromDate = '2026-04-08';
 
     const { rerender } = renderHook(() =>
-      useAppointmentSlots(fromDate, '2026-04-13', 'location-uuid-123')
+      useAppointmentSlots(fromDate, '2026-04-09', 'General Physician')
     );
 
     await waitFor(() => {
@@ -131,8 +131,8 @@ describe('useAppointmentSlots', () => {
       expect(mockGetAppointmentSlots).toHaveBeenCalledTimes(2);
       expect(mockGetAppointmentSlots).toHaveBeenLastCalledWith(
         '2026-05-01',
-        '2026-04-13',
-        'location-uuid-123'
+        '2026-04-09',
+        'General Physician'
       );
     });
   });
