@@ -1,18 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGet = vi.fn();
-const mockPost = vi.fn();
-const mockOpenMRSGet = vi.fn();
+type InterceptorFn = (config: { headers: Record<string, string> }) => { headers: Record<string, string> };
+
+const {
+  mockGet,
+  mockPost,
+  mockOpenMRSGet,
+  interceptorHolder,
+  tokenHolder,
+} = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+  mockOpenMRSGet: vi.fn(),
+  interceptorHolder: { fn: null as InterceptorFn | null },
+  tokenHolder: { value: null as string | null },
+}));
 
 vi.mock('../../../services/http', () => ({
   HttpService: vi.fn().mockImplementation(() => ({
-    axiosInstance: { interceptors: { request: { use: vi.fn() } } },
+    axiosInstance: {
+      interceptors: {
+        request: {
+          use: (fn: InterceptorFn) => {
+            interceptorHolder.fn = fn;
+          },
+        },
+      },
+    },
     get: (...args: unknown[]) => mockGet(...args),
   })),
 }));
 
 vi.mock('../../../utils/storage', () => ({
-  storage: { getAuthToken: () => null },
+  storage: { getAuthToken: () => tokenHolder.value },
 }));
 
 vi.mock('../../../services/patient.service', () => ({
@@ -246,6 +266,46 @@ describe('appointmentService', () => {
       expect(result).toEqual([]);
     });
 
+    it('returns empty array when dates is undefined', async () => {
+      mockGet.mockResolvedValue({
+        status: true,
+        bookedAppointments: [],
+        rescheduledAppointments: [],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('classifies 12:00 AM as Morning (midnight edge case)', async () => {
+      mockGet.mockResolvedValue({
+        status: true,
+        dates: [
+          {
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '12:00 AM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+          },
+        ],
+        bookedAppointments: [],
+        rescheduledAppointments: [],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result[0].period).toBe('Morning');
+    });
+
     it('returns all slots covering Morning, Afternoon, and Evening periods', async () => {
       mockGet.mockResolvedValue(mockApiResponse);
       const result = await appointmentService.getAppointmentSlots(
@@ -335,6 +395,25 @@ describe('appointmentService', () => {
           '2025-10-05T09:00:00.000+0530'
         )
       ).rejects.toThrow('Server error');
+    });
+  });
+
+  describe('request interceptor', () => {
+    it('sets Authorization header when auth token exists', () => {
+      tokenHolder.value = 'my-token';
+      const config = { headers: {} as Record<string, string> };
+      const result = interceptorHolder.fn!(config);
+      expect(result.headers.Authorization).toBe('Bearer my-token');
+      expect(result.headers['Cache-Control']).toBe('no-cache');
+      tokenHolder.value = null;
+    });
+
+    it('does not set Authorization header when no auth token', () => {
+      tokenHolder.value = null;
+      const config = { headers: {} as Record<string, string> };
+      const result = interceptorHolder.fn!(config);
+      expect(result.headers.Authorization).toBeUndefined();
+      expect(result.headers['Cache-Control']).toBe('no-cache');
     });
   });
 
