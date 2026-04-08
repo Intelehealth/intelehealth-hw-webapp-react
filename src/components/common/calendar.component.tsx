@@ -151,9 +151,7 @@ const Calendar: React.FC<CalendarProps> = ({
                 'NOV',
                 'DEC',
               ];
-              // Use selected date if available, otherwise use current date
-              const displayDate = selectedDate || date;
-              return `${dayNames[displayDate.getDay()]} ${monthNames[displayDate.getMonth()]} ${displayDate.getDate()} ${displayDate.getFullYear()}`;
+              return `${dayNames[date.getDay()]} ${monthNames[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
             };
 
             // If month grid is shown, render month grid
@@ -212,12 +210,7 @@ const Calendar: React.FC<CalendarProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      decreaseMonth();
-                      const newDate = new Date(currentDate);
-                      newDate.setMonth(newDate.getMonth() - 1);
-                      setCurrentDate(newDate);
-                    }}
+                    onClick={decreaseMonth}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <i className="fa-solid fa-chevron-left text-gray-600"></i>
@@ -228,18 +221,13 @@ const Calendar: React.FC<CalendarProps> = ({
                     onClick={() => setShowYearGrid(!showYearGrid)}
                     className="text-sm font-medium text-gray-700 hover:text-blue-600 flex items-center gap-1"
                   >
-                    {formatDateHeader(currentDate)}
+                    {formatDateHeader(date)}
                     <i className="fa-solid fa-chevron-down text-xs"></i>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      increaseMonth();
-                      const newDate = new Date(currentDate);
-                      newDate.setMonth(newDate.getMonth() + 1);
-                      setCurrentDate(newDate);
-                    }}
+                    onClick={increaseMonth}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <i className="fa-solid fa-chevron-right text-gray-600"></i>
