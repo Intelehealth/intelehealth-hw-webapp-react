@@ -235,7 +235,8 @@ const VITAL_KEYS = [
 export const useVitals = (onNextQuestion: () => void) => {
   // Get vitals configuration from Redux store (populated by getPublishedConfig API)
   const { config } = useConfig();
-  const { setVitalsData } = useStartVisitData();
+  const { data, setVitalsData } = useStartVisitData();
+  const savedVitals = data.vitals?.formValues;
 
   // Use patient_vitals from API config, fallback to hardcoded config if API data is not available
   const vitalsConfig = useMemo(() => {
@@ -270,12 +271,20 @@ export const useVitals = (onNextQuestion: () => void) => {
     handleSubmit,
     watch,
     setValue,
-    trigger,
-    formState: { errors },
+    reset,
+    formState: { errors, touchedFields },
   } = useForm<VitalsFormValues>({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     mode: 'onChange',
+    defaultValues: savedVitals || {},
   });
+
+  // Restore saved vitals data when navigating back to the vitals screen
+  useEffect(() => {
+    if (savedVitals) {
+      reset(savedVitals);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { showVitalConfirmationModal } = useGlobalModal();
   // Watch values for auto-calculation
@@ -292,18 +301,16 @@ export const useVitals = (onNextQuestion: () => void) => {
     const calculatedBMI = calculateBMI(height, weight);
     if (calculatedBMI !== undefined && calculatedBMI !== bmi) {
       setValue('bmi', calculatedBMI);
-      trigger('bmi');
     }
-  }, [height, weight, bmi, setValue, trigger]);
+  }, [height, weight, bmi, setValue]);
 
   // Auto-calculate WHR when waist or hip changes
   useEffect(() => {
     const calculatedWHR = calculateWHR(waist, hip);
     if (calculatedWHR !== undefined) {
       setValue('waist_to_hip_ratio', calculatedWHR);
-      trigger('waist_to_hip_ratio');
     }
-  }, [waist, hip, setValue, trigger]);
+  }, [waist, hip, setValue]);
 
   const onSubmit = () => {
     // TODO: Send vitals data to API
@@ -381,6 +388,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     handleSubmit,
     watch,
     errors,
+    touchedFields,
 
     // Field groups
     bodyMeasurementFields,

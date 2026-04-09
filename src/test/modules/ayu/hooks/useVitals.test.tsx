@@ -22,16 +22,19 @@ vi.mock('../../../../components/modal/global-modal-context', () => ({
 }));
 
 // Mock useStartVisitData context
+const mockSetVitalsData = vi.fn();
+const mockStartVisitData = vi.fn(() => ({
+  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+  patientUuid: null,
+  setPatientUuid: vi.fn(),
+  setVitalsData: mockSetVitalsData,
+  setVisitReasonData: vi.fn(),
+  setPhysicalExamData: vi.fn(),
+  setMedicalHistoryData: vi.fn(),
+}));
+
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
-  useStartVisitData: () => ({
-    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
-    patientUuid: null,
-    setPatientUuid: vi.fn(),
-    setVitalsData: vi.fn(),
-    setVisitReasonData: vi.fn(),
-    setPhysicalExamData: vi.fn(),
-    setMedicalHistoryData: vi.fn(),
-  }),
+  useStartVisitData: () => mockStartVisitData(),
 }));
 
 import { useGlobalModal } from '../../../../components/modal/global-modal-context';
@@ -97,6 +100,15 @@ describe('useVitals', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStartVisitData.mockReturnValue({
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+      patientUuid: null,
+      setPatientUuid: vi.fn(),
+      setVitalsData: mockSetVitalsData,
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+    });
     vi.mocked(useConfig).mockReturnValue({
       config: null,
     } as any);
@@ -966,6 +978,158 @@ describe('useVitals', () => {
 
       // Function reference might change, but functionality should remain
       expect(result.current.onSubmit).toBeDefined();
+    });
+  });
+
+  describe('Restore Saved Vitals', () => {
+    const savedFormValues = {
+      height_cm: 170,
+      weight_kg: 70,
+      bmi: 24.22,
+      bp_systolic: 120,
+      bp_diastolic: 80,
+      pulse_bpm: 72,
+      temprature_f: 98.6,
+      spo2: 98,
+      respiratory_rate: 16,
+    };
+
+    it('should restore saved vitals data as default values when navigating back', async () => {
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: mockVitalsConfig },
+      } as any);
+
+      mockStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: savedFormValues, config: mockVitalsConfig } as any,
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+        },
+        patientUuid: null,
+        setPatientUuid: vi.fn(),
+        setVitalsData: mockSetVitalsData,
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+      });
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register } = hookResult;
+
+        return (
+          <form>
+            <input {...register('height_cm')} data-testid="height" type="number" />
+            <input {...register('weight_kg')} data-testid="weight" type="number" />
+            <input {...register('bp_systolic')} data-testid="systolic" type="number" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" type="number" />
+            <input {...register('pulse_bpm')} data-testid="pulse" type="number" />
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      await waitFor(() => {
+        const heightInput = screen.getByTestId('height') as HTMLInputElement;
+        expect(heightInput.value).toBe('170');
+      });
+
+      const weightInput = screen.getByTestId('weight') as HTMLInputElement;
+      expect(weightInput.value).toBe('70');
+
+      const systolicInput = screen.getByTestId('systolic') as HTMLInputElement;
+      expect(systolicInput.value).toBe('120');
+
+      const diastolicInput = screen.getByTestId('diastolic') as HTMLInputElement;
+      expect(diastolicInput.value).toBe('80');
+
+      const pulseInput = screen.getByTestId('pulse') as HTMLInputElement;
+      expect(pulseInput.value).toBe('72');
+    });
+
+    it('should start with empty fields when no saved vitals exist', () => {
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: mockVitalsConfig },
+      } as any);
+
+      mockStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+        },
+        patientUuid: null,
+        setPatientUuid: vi.fn(),
+        setVitalsData: mockSetVitalsData,
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.watch('height_cm')).toBeUndefined();
+      expect(result.current.watch('weight_kg')).toBeUndefined();
+      expect(result.current.watch('bp_systolic')).toBeUndefined();
+    });
+
+    it('should restore saved vitals and allow editing the values', async () => {
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: mockVitalsConfig },
+      } as any);
+
+      mockStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: savedFormValues, config: mockVitalsConfig } as any,
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+        },
+        patientUuid: null,
+        setPatientUuid: vi.fn(),
+        setVitalsData: mockSetVitalsData,
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+      });
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, watch } = hookResult;
+        const currentHeight = watch('height_cm');
+
+        return (
+          <form>
+            <input {...register('height_cm')} data-testid="height" type="number" />
+            <span data-testid="height-display">{currentHeight}</span>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Wait for saved value to be restored
+      await waitFor(() => {
+        const heightInput = screen.getByTestId('height') as HTMLInputElement;
+        expect(heightInput.value).toBe('170');
+      });
+
+      // Edit the value
+      act(() => {
+        fireEvent.change(screen.getByTestId('height'), { target: { value: '175' } });
+      });
+
+      await waitFor(() => {
+        const heightInput = screen.getByTestId('height') as HTMLInputElement;
+        expect(heightInput.value).toBe('175');
+      });
     });
   });
 
