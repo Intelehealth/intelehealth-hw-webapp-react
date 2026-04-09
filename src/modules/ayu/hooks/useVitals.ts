@@ -271,7 +271,6 @@ export const useVitals = (onNextQuestion: () => void) => {
     handleSubmit,
     watch,
     setValue,
-    trigger,
     reset,
     formState: { errors, touchedFields },
   } = useForm<VitalsFormValues>({
