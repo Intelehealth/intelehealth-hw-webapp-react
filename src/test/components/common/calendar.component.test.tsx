@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Calendar from '../../../components/common/calendar.component';
+import DatePicker from 'react-datepicker';
 
 // Mock react-datepicker
 vi.mock('react-datepicker', () => ({
@@ -21,6 +22,8 @@ vi.mock('react-datepicker', () => ({
     />
   )),
 }));
+
+const MockDatePicker = vi.mocked(DatePicker);
 
 // Mock CSS imports
 vi.mock('react-datepicker/dist/react-datepicker.css', () => ({}));
@@ -139,7 +142,7 @@ describe('Calendar', () => {
 
     it('should render the calendar icon button', () => {
       const { container } = render(<Calendar />);
-      const icon = container.querySelector('.fa-calendar');
+      const icon = container.querySelector('img[alt="calendar"]');
       expect(icon).toBeInTheDocument();
     });
   });
@@ -170,6 +173,70 @@ describe('Calendar', () => {
 
       rerender(<Calendar value={undefined} />);
       expect(input.value).toBe('');
+    });
+  });
+
+  describe('month navigation', () => {
+    it('should pass decreaseMonth directly as onClick for prev button', () => {
+      render(<Calendar value="2026-03-15" />);
+
+      // Get the renderCustomHeader prop passed to DatePicker
+      const lastCall = MockDatePicker.mock.calls[MockDatePicker.mock.calls.length - 1][0] as any;
+      const mockDecreaseMonth = vi.fn();
+      const mockIncreaseMonth = vi.fn();
+
+      const header = lastCall.renderCustomHeader({
+        date: new Date(2026, 2, 15),
+        decreaseMonth: mockDecreaseMonth,
+        increaseMonth: mockIncreaseMonth,
+      });
+
+      const { container } = render(header);
+      const buttons = container.querySelectorAll('button');
+      // First button is prev
+      fireEvent.click(buttons[0]);
+
+      expect(mockDecreaseMonth).toHaveBeenCalledTimes(1);
+    });
+
+    it('should pass increaseMonth directly as onClick for next button', () => {
+      render(<Calendar value="2026-03-15" />);
+
+      const lastCall = MockDatePicker.mock.calls[MockDatePicker.mock.calls.length - 1][0] as any;
+      const mockDecreaseMonth = vi.fn();
+      const mockIncreaseMonth = vi.fn();
+
+      const header = lastCall.renderCustomHeader({
+        date: new Date(2026, 2, 15),
+        decreaseMonth: mockDecreaseMonth,
+        increaseMonth: mockIncreaseMonth,
+      });
+
+      const { container } = render(header);
+      const buttons = container.querySelectorAll('button');
+      // Last button is next
+      fireEvent.click(buttons[buttons.length - 1]);
+
+      expect(mockIncreaseMonth).toHaveBeenCalledTimes(1);
+    });
+
+    it('should display header based on navigated date, not selected date', () => {
+      render(<Calendar value="2026-03-15" />);
+
+      const lastCall = MockDatePicker.mock.calls[MockDatePicker.mock.calls.length - 1][0] as any;
+
+      // Simulate navigating to April while March is selected
+      const header = lastCall.renderCustomHeader({
+        date: new Date(2026, 3, 8), // April 8, 2026 (Wednesday)
+        decreaseMonth: vi.fn(),
+        increaseMonth: vi.fn(),
+      });
+
+      const { container } = render(header);
+
+      // Header should show APR (navigated month), not MAR (selected month)
+      expect(container.textContent).toContain('APR');
+      expect(container.textContent).not.toContain('MAR');
     });
   });
 

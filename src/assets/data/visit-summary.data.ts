@@ -35,6 +35,7 @@ export interface Patient {
   name: string;
   gender: string;
   id: string;
+  patientUuid: string;
   dateOfBirth: string;
   age: string;
   chwWorker: string;
@@ -92,6 +93,7 @@ export interface PhysicalExamination {
 // ═══════════════════════════════════════════════════════════
 
 export interface VisitData {
+  visitUuid: string;
   patient: Patient;
   vitals: Vitals;
   checkupReason: CheckupReason;
@@ -100,10 +102,12 @@ export interface VisitData {
 
 export const visitSummaryData: VisitData[] = [
   {
+    visitUuid: '00000000-0000-0000-0000-000000000000',
     patient: {
       name: 'Vimla Jadhav',
       gender: 'Female',
       id: '987654jK',
+      patientUuid: '00000000-0000-0000-0000-000000000000',
       dateOfBirth: '12th May 1988',
       age: '24 Years',
       chwWorker: 'Kiran Devi',

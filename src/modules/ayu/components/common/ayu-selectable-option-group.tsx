@@ -59,7 +59,11 @@ export function AyuSelectableOptionGroup({
               label={opt?.valueString || opt?.valueCoding?.display}
               value={optionValue}
               selected={isSelected}
-              onClick={() => onChange?.(optionValue)}
+              onClick={() =>
+                onChange?.(
+                  isSelected && !question?.repeats ? null : optionValue
+                )
+              }
             />
           );
         })}

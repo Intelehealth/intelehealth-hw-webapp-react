@@ -1,3 +1,11 @@
+/* Achievement Calendar — green selected date circle */
+.achievement-calendar .react-datepicker__day--selected,
+.achievement-calendar .react-datepicker__day--selected:hover {
+  background-color: #10b981 !important;
+  border-radius: 50% !important;
+  color: white !important;
+}
+
 /* Custom Calendar Styles */
 .react-datepicker-popper {
   z-index: 9999 !important;

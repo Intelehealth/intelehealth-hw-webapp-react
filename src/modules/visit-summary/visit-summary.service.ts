@@ -208,10 +208,12 @@ export function transformVisitSummaryResponse(
   const physicalExamination = extractPhysicalExamination(encounters);
 
   return {
+    visitUuid: response.uuid,
     patient: {
       name: patientName,
       gender,
       id: identifier,
+      patientUuid: patient.uuid,
       dateOfBirth: birthdate,
       age: `${age} Years`,
       chwWorker,

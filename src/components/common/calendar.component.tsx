@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/calendar.css';
+import iconCalendar from '../../assets/icons/icon-calendar-blue.svg';
 import { cn } from '../../utils/cn';
 import CalendarMonthGrid from './calendar-month-grid.component';
 import CalendarYearGrid from './calendar-year-grid.component';
@@ -117,7 +118,15 @@ const Calendar: React.FC<CalendarProps> = ({
             }
             return dayOfMonth;
           }}
-          renderCustomHeader={({ date }: { date: Date }) => {
+          renderCustomHeader={({
+            date,
+            decreaseMonth,
+            increaseMonth,
+          }: {
+            date: Date;
+            decreaseMonth: () => void;
+            increaseMonth: () => void;
+          }) => {
             const formatDateHeader = (date: Date) => {
               const dayNames = [
                 'SUN',
@@ -142,9 +151,7 @@ const Calendar: React.FC<CalendarProps> = ({
                 'NOV',
                 'DEC',
               ];
-              // Use selected date if available, otherwise use current date
-              const displayDate = selectedDate || date;
-              return `${dayNames[displayDate.getDay()]} ${monthNames[displayDate.getMonth()]} ${displayDate.getDate()} ${displayDate.getFullYear()}`;
+              return `${dayNames[date.getDay()]} ${monthNames[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
             };
 
             // If month grid is shown, render month grid
@@ -203,11 +210,7 @@ const Calendar: React.FC<CalendarProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const newDate = new Date(currentDate);
-                      newDate.setMonth(newDate.getMonth() - 1);
-                      setCurrentDate(newDate);
-                    }}
+                    onClick={decreaseMonth}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <i className="fa-solid fa-chevron-left text-gray-600"></i>
@@ -218,17 +221,13 @@ const Calendar: React.FC<CalendarProps> = ({
                     onClick={() => setShowYearGrid(!showYearGrid)}
                     className="text-sm font-medium text-gray-700 hover:text-blue-600 flex items-center gap-1"
                   >
-                    {formatDateHeader(currentDate)}
+                    {formatDateHeader(date)}
                     <i className="fa-solid fa-chevron-down text-xs"></i>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      const newDate = new Date(currentDate);
-                      newDate.setMonth(newDate.getMonth() + 1);
-                      setCurrentDate(newDate);
-                    }}
+                    onClick={increaseMonth}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <i className="fa-solid fa-chevron-right text-gray-600"></i>
@@ -252,7 +251,7 @@ const Calendar: React.FC<CalendarProps> = ({
           type="button"
           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 pointer-events-none"
         >
-          <i className="fa-solid fa-calendar text-sm"></i>
+          <img src={iconCalendar} alt="calendar" className="w-5 h-5" />
         </button>
       </div>
       {error && (

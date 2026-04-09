@@ -9,6 +9,8 @@ export const CONFIRM_MODAL_DESCRIPTION =
 export const CONFIRM_MODAL_YES = 'Yes';
 export const CONFIRM_MODAL_NO = 'No';
 
+export const PHYSCAL_EXAM_DESCRIPTION = 'Please wash/sanitize your hands';
+export const CONFIRM_MODAL_OK = 'Okay';
 // --- Category List ---
 export const RECENTLY_SEARCHED_LABEL = 'Recently searched';
 export const MOST_COMMON_REASONS_LABEL = 'Most common reasons';
@@ -54,6 +56,20 @@ export const SUMMARY_CANCEL_TEXT = 'Back';
 // Visit Reasons Hook
 // ========================
 export const AYU_JSON_KEY_NAME = 'IDA6';
+
+// ========================
+// Text Input
+// ========================
+export const ADDITIONAL_INFORMATION_LABEL = 'Additional Information';
+export const TEXT_INPUT_DEFAULT_PLACEHOLDER = 'Describe...';
+export const TEXT_INPUT_KEYWORD_DESCRIBE = 'describe';
+export const TEXT_INPUT_KEYWORD_OTHER = 'other';
+export const TEXT_INPUT_ENTER_PREFIX = 'Enter';
+export const TEXT_INPUT_DEFAULT_KEYWORDS = [
+  TEXT_INPUT_KEYWORD_DESCRIBE,
+  TEXT_INPUT_KEYWORD_OTHER,
+  ADDITIONAL_INFORMATION_LABEL.toLowerCase(),
+];
 
 // ========================
 // Validation

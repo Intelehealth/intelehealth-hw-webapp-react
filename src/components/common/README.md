@@ -277,6 +277,66 @@ import { Chip } from './components/common';
 - `selected`: boolean
 - `disabled`: boolean
 
+### ReusableGridTable
+
+A generic, responsive table component that renders as a card list on mobile and a CSS grid on desktop. Supports pagination via a show/hide toggle and optional row click handling.
+
+```tsx
+import { ReusableGridTable } from './components/common';
+
+interface Patient {
+  name: string;
+  age: number;
+  status: string;
+}
+
+const columns: Column<Patient>[] = [
+  { header: 'Name', accessor: 'name' },
+  { header: 'Age', accessor: 'age' },
+  {
+    header: 'Status',
+    accessor: 'status',
+    render: row => (
+      <span className={row.status === 'Active' ? 'text-green-600' : 'text-red-500'}>
+        {row.status}
+      </span>
+    ),
+  },
+];
+
+// Basic usage
+<ReusableGridTable
+  columns={columns}
+  data={patients}
+  initialRowCount={6}
+/>
+
+// With row click handler
+<ReusableGridTable
+  columns={columns}
+  data={patients}
+  initialRowCount={6}
+  onRowClick={row => navigate(`/patient/${row.id}`)}
+/>
+```
+
+**Column Interface:**
+
+```tsx
+interface Column<T> {
+  header: string;
+  accessor: keyof T;
+  render?: (row: T) => React.ReactNode;
+}
+```
+
+**Props:**
+
+- `columns`: Column\<T\>[] — column definitions with header, accessor, and optional custom render
+- `data`: T[] — array of data rows (generic, matches your data type)
+- `initialRowCount`: number — number of rows shown before "Show all" toggle (default: 6)
+- `onRowClick`: (row: T) => void — optional click handler; makes rows appear clickable
+
 ## Styling
 
 All components use TailwindCSS for styling and support:
