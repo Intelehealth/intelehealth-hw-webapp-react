@@ -74,7 +74,7 @@ describe('VerifyOtpComponent', () => {
         type: 'email',
         otpFor: 'reset-password',
       },
-    });
+    } as any);
 
     mockUseVerifyOtp.mockReturnValue({
       otp: ['', '', '', '', '', ''],
@@ -111,7 +111,7 @@ describe('VerifyOtpComponent', () => {
         pathname: '',
         search: '',
         hash: ''
-      });
+      } as any);
 
       render(<VerifyOtpComponent />);
       
@@ -348,7 +348,7 @@ describe('VerifyOtpComponent', () => {
         pathname: '',
         search: '',
         hash: ''
-      });
+      } as any);
 
       render(<VerifyOtpComponent />);
       
@@ -363,7 +363,7 @@ describe('VerifyOtpComponent', () => {
         pathname: '',
         search: '',
         hash: ''
-      });
+      } as any);
 
       render(<VerifyOtpComponent />);
       

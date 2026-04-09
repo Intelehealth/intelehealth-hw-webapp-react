@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearConfigError,
   configReducer,
-  fetchConfigFailure,
   fetchConfigSuccess,
+  fetchConfigFailure,
+  clearConfigError,
   resetConfig,
 } from '../../reducers/config.reducer';
 import type { AppConfig } from '../../types/config.types';

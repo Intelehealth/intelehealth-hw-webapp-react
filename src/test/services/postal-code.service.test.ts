@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { env } from '../../config/env';
 import { fetchPostalCodeData } from '../../services/postal-code.service';
 import type { PostalCodeApiResponse } from '../../types/postal-code.type';
 
@@ -70,7 +71,7 @@ describe('postal-code.service', () => {
       const result = await fetchPostalCodeData('  123456  ');
       expect(result).not.toBeNull();
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://www.postalpincode.in/api/pincode/123456'
+        `${env.PORTAL_API_URL}/pincode/123456`
       );
     });
 
@@ -104,7 +105,7 @@ describe('postal-code.service', () => {
       const result = await fetchPostalCodeData('452001');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://www.postalpincode.in/api/pincode/452001'
+        `${env.PORTAL_API_URL}/pincode/452001`
       );
       expect(result).toEqual({
         state: 'Madhya Pradesh',
