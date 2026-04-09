@@ -110,6 +110,7 @@ describe('Vitals Component', () => {
     handleSubmit: mockHandleSubmit,
     watch: mockWatch,
     errors: {},
+    touchedFields: {},
     bodyMeasurementFields: mockBodyMeasurementFields,
     vitalFields: mockVitalFields,
     otherFields: mockOtherFields,
@@ -393,6 +394,7 @@ describe('Vitals Component', () => {
         errors: {
           height_cm: { message: 'Height must be between 50 and 250 cm' },
         },
+        touchedFields: { height_cm: true },
       });
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
@@ -406,6 +408,7 @@ describe('Vitals Component', () => {
         errors: {
           height_cm: { message: 'Height is required' },
         },
+        touchedFields: { height_cm: true },
       });
 
       const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
@@ -420,6 +423,7 @@ describe('Vitals Component', () => {
         errors: {
           weight_kg: { message: 'Weight is required' },
         },
+        touchedFields: { weight_kg: true },
       });
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
@@ -589,6 +593,7 @@ describe('Vitals Component', () => {
         errors: {
           height_cm: { message: undefined },
         },
+        touchedFields: { height_cm: true },
       });
 
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
@@ -613,6 +618,7 @@ describe('Vitals Component', () => {
         errors: {
           height_cm: { message: 'Height error' },
         },
+        touchedFields: { height_cm: true },
       });
       mockWatch.mockImplementation((fieldName) => {
         if (fieldName === 'bmi') return 25;
