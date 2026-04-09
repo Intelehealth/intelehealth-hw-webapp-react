@@ -1,3 +1,4 @@
+import { env } from '../config/env';
 import type {
   PostalCodeApiResponse,
   PostalCodeData,
@@ -19,7 +20,7 @@ export async function fetchPostalCodeData(
 
   try {
     const response = await fetch(
-      `http://www.postalpincode.in/api/pincode/${trimmedPincode}`
+      `${env.PORTAL_API_URL}/pincode/${trimmedPincode}`
     );
 
     if (!response.ok) {

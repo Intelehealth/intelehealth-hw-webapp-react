@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { clearConfigError, fetchConfig, resetConfig } from '../../actions/config.actions';
-import {
-  fetchConfigFailure,
-  fetchConfigSuccess,
-} from '../../reducers/config.reducer';
+import { fetchConfig, clearConfigError, resetConfig } from '../../actions/config.actions';
 import { configService } from '../../services/config.service';
+import {
+  fetchConfigSuccess,
+  fetchConfigFailure,
+} from '../../reducers/config.reducer';
 import type { AppConfig } from '../../types/config.types';
 
 // Mock the config service
