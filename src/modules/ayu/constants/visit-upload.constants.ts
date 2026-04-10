@@ -5,7 +5,7 @@ export const ENCOUNTER_TYPES = {
   /** Adult Initial encounter (visit reason, physical exam, medical & family history) */
   ADULT_INITIAL: '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f',
   /** Visit Complete encounter */
-  VISIT_COMPLETE: 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c',
+  VISIT_PRIORITY: 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c',
 } as const;
 
 /** Encounter role UUID */

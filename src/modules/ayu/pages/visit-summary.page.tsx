@@ -10,15 +10,19 @@ import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.sv
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
 import iconVisitReason from '../../../assets/icons/visit-reason.svg';
 import iconVitals from '../../../assets/icons/vitals.svg';
+import { Dropdown, Toggle } from '../../../components/common';
+import type { DropdownOption } from '../../../components/common';
+import iconInfo from '../../../assets/icons/icon-info.svg';
+import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { useProfileContext } from '../../../context/ProfileContext';
+import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
 import { storage } from '../../../utils/storage';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
+import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
-import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
-import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
-import type { MedicalHistorySummary } from '../context/start-visit.context';
 import {
   buildFamilyHistoryData,
   buildMedicalHistoryData,
@@ -81,7 +85,7 @@ const mapPhysicalExam = (
   const generalExams = PHYSICAL_EXAM_QUESTIONS.filter(
     q => (answers[q.id] ?? []).length > 0
   ).map(q => {
-    const selectedTexts = (answers[q.id] ?? [])
+    const selectedTexts = answers[q.id]
       .map(id => q.options.find(o => o.id === id)?.text)
       .filter(Boolean);
     return { label: q.categoryLabel, value: selectedTexts.join(', ') };
@@ -93,8 +97,8 @@ const mapPhysicalExam = (
 /* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
-  const getVitalDisplay = (val: number | null, note?: string) =>
-    val?.toString() ?? note ?? 'No information';
+  const getVitalDisplay = (val: number | null, note = 'No information') =>
+    val?.toString() ?? note;
 
   const items = [
     {
@@ -228,6 +232,8 @@ const VisitSummaryPage = () => {
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [speciality, setSpeciality] = useState('General Physician');
+  const [priorityVisit, setPriorityVisit] = useState(false);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -288,6 +294,8 @@ const VisitSummaryPage = () => {
         physicalExam,
         medicalHistory,
         familyHistory,
+        speciality,
+        priorityVisit,
       });
 
       await uploadVisit(payload);
@@ -299,7 +307,7 @@ const VisitSummaryPage = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [data, hwProfile, navigate, ctxPatientUuid]);
+  }, [data, hwProfile, navigate, ctxPatientUuid, speciality, priorityVisit]);
 
   const confirmAndUpload = useCallback(() => {
     setShowConfirm(true);
@@ -326,6 +334,9 @@ const VisitSummaryPage = () => {
       data.physicalExam ? mapPhysicalExam(data.physicalExam.answers) : null,
     [data.physicalExam]
   );
+
+  const { config } = useConfig();
+  const specializations = config?.specialization ?? [];
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
@@ -431,6 +442,42 @@ const VisitSummaryPage = () => {
                 </p>
               )}
             </CollapsedComponent>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-end gap-4 mt-4 px-4 mb-4 md:px-0">
+        <div className="w-full md:w-1/2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Doctor's specialty
+          </p>
+          <Dropdown
+            options={specializations.map(
+              (s, idx): DropdownOption => ({
+                value: String(s.name ?? ''),
+                label: String(s.name ?? `Option ${idx + 1}`),
+              })
+            )}
+            value={speciality}
+            onChange={val => setSpeciality(val as string)}
+            placeholder="General physician"
+            size="sm"
+          />
+        </div>
+
+        <div className="w-full md:w-1/2 flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none md:mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">
+              Priority Visit
+            </span>
+            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+          </div>
+          <div className="w-12">
+            <Toggle
+              checked={priorityVisit}
+              onChange={e => setPriorityVisit(e.target.checked)}
+              size="md"
+            />
           </div>
         </div>
       </div>

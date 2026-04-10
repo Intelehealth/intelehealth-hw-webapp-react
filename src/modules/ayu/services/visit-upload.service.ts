@@ -237,6 +237,7 @@ export interface BuildVisitUploadParams {
   medicalHistory: { displayHtml: string; rawJson: string };
   familyHistory: { displayHtml: string; rawJson: string };
   speciality?: string;
+  priorityVisit?: boolean;
 }
 
 /**
@@ -294,15 +295,13 @@ export function buildVisitUploadPayload(
   const visitCompleteEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime: visitCompleteDatetime,
-    encounterType: ENCOUNTER_TYPES.VISIT_COMPLETE,
+    encounterType: ENCOUNTER_TYPES.VISIT_PRIORITY,
   };
 
   return {
-    encounters: [
-      vitalsEncounter,
-      adultInitialEncounter,
-      visitCompleteEncounter,
-    ],
+    encounters: params.priorityVisit
+      ? [vitalsEncounter, adultInitialEncounter, visitCompleteEncounter]
+      : [vitalsEncounter, adultInitialEncounter],
     visits: [
       {
         attributes: [

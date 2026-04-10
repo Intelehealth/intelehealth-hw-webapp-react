@@ -191,6 +191,20 @@ describe('visit-upload.service', () => {
 
       expect(result.displayHtml).toContain('no jaundice seen, jaundice present');
     });
+
+    it('should skip question when selected IDs do not match any option', () => {
+      const questions: PhysicalExamQuestion[] = [
+        makeQuestion({ id: 'q1' }),
+      ];
+      const answers = { q1: ['non_existent_id'] };
+
+      const result = buildPhysicalExamData(answers, questions);
+
+      // selectedIds has entries but none match options, so selectedTexts is empty after filter(Boolean)
+      // !selectedTexts.length triggers continue, skipping the question
+      expect(result.displayHtml).toBe('');
+      expect(JSON.parse(result.rawJson).text_en).toBe('');
+    });
   });
 
   // ─── buildMedicalHistoryData ───────────────────────────────────────────────
@@ -378,8 +392,14 @@ describe('visit-upload.service', () => {
       ...overrides,
     });
 
-    it('should create 3 encounters', () => {
+    it('should create 2 encounters when priorityVisit is false/undefined', () => {
       const result = buildVisitUploadPayload(makeParams());
+
+      expect(result.encounters).toHaveLength(2);
+    });
+
+    it('should create 3 encounters when priorityVisit is true', () => {
+      const result = buildVisitUploadPayload(makeParams({ priorityVisit: true }));
 
       expect(result.encounters).toHaveLength(3);
     });
@@ -437,28 +457,36 @@ describe('visit-upload.service', () => {
       expect(concepts).toContain(ADULT_INITIAL_CONCEPTS.FAMILY_HISTORY_DISPLAY);
     });
 
-    it('should create visit complete encounter as third encounter', () => {
-      const result = buildVisitUploadPayload(makeParams());
-      const visitCompleteEnc = result.encounters[2];
+    it('should not include visit priority encounter when priorityVisit is false', () => {
+      const result = buildVisitUploadPayload(makeParams({ priorityVisit: false }));
 
-      expect(visitCompleteEnc.encounterType).toBe(ENCOUNTER_TYPES.VISIT_COMPLETE);
-      expect(visitCompleteEnc.obs).toBeUndefined();
+      expect(result.encounters).toHaveLength(2);
+      expect(result.encounters[0].encounterType).toBe(ENCOUNTER_TYPES.VITALS);
+      expect(result.encounters[1].encounterType).toBe(ENCOUNTER_TYPES.ADULT_INITIAL);
     });
 
-    it('should have visit complete datetime slightly after vitals datetime', () => {
-      const result = buildVisitUploadPayload(makeParams());
+    it('should create visit priority encounter as third encounter when priorityVisit is true', () => {
+      const result = buildVisitUploadPayload(makeParams({ priorityVisit: true }));
+      const visitPriorityEnc = result.encounters[2];
+
+      expect(visitPriorityEnc.encounterType).toBe(ENCOUNTER_TYPES.VISIT_PRIORITY);
+      expect(visitPriorityEnc.obs).toBeUndefined();
+    });
+
+    it('should have visit priority datetime slightly after vitals datetime', () => {
+      const result = buildVisitUploadPayload(makeParams({ priorityVisit: true }));
 
       const vitalsDatetime = result.encounters[0].encounterDatetime;
-      const completeDatetime = result.encounters[2].encounterDatetime;
+      const priorityDatetime = result.encounters[2].encounterDatetime;
 
       // Both should be ISO-like strings with +0000
       expect(vitalsDatetime).toContain('+0000');
-      expect(completeDatetime).toContain('+0000');
+      expect(priorityDatetime).toContain('+0000');
 
-      // Visit complete should be after vitals
+      // Visit priority should be after vitals
       const vitalsTime = new Date(vitalsDatetime.replace('+0000', 'Z')).getTime();
-      const completeTime = new Date(completeDatetime.replace('+0000', 'Z')).getTime();
-      expect(completeTime).toBeGreaterThan(vitalsTime);
+      const priorityTime = new Date(priorityDatetime.replace('+0000', 'Z')).getTime();
+      expect(priorityTime).toBeGreaterThan(vitalsTime);
     });
 
     it('should create 1 visit with correct structure', () => {
