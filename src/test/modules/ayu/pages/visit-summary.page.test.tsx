@@ -131,6 +131,25 @@ vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
 vi.mock('../../../../assets/icons/vitals.svg', () => ({
   default: 'vitals.svg',
 }));
+vi.mock('../../../../assets/icons/icon-info.svg', () => ({
+  default: 'icon-info.svg',
+}));
+
+/* ── Mock useConfig ────────────────────────────────────────────────────── */
+
+const defaultMockConfig = {
+  specialization: [
+    { name: 'General Physician' },
+    { name: 'Dermatology' },
+    { name: 'Cardiology' },
+  ],
+};
+
+const mockUseConfig = vi.fn(() => ({ config: defaultMockConfig }));
+
+vi.mock('../../../../hooks/useConfig', () => ({
+  useConfig: () => mockUseConfig(),
+}));
 
 /* ── Mock physical-exam data ─────────────────────────────────────────────── */
 
@@ -221,6 +240,7 @@ beforeEach(() => {
   mockStorageGet.mockReturnValue(null);
   mockStorageGetLocationUuid.mockReturnValue('location-uuid-5678');
   mockUploadVisit.mockResolvedValue(undefined);
+  mockUseConfig.mockReturnValue({ config: defaultMockConfig });
 });
 
 describe('VisitSummaryPage', () => {
@@ -671,5 +691,126 @@ describe('VisitSummaryPage', () => {
 
     // Should still render without crashing, no exam items shown
     expect(screen.queryByText('General Appearance')).not.toBeInTheDocument();
+  });
+
+  /* ── Doctor's Specialty Dropdown ──────────────────────────────────── */
+
+  it('should render Doctor\'s specialty label and dropdown', () => {
+    renderWithData(fullData);
+    expect(screen.getByText("Doctor's specialty")).toBeInTheDocument();
+    expect(screen.getByText('General Physician')).toBeInTheDocument();
+  });
+
+  it('should render specialization options from config in the dropdown', () => {
+    renderWithData(fullData);
+
+    // Click dropdown to open options
+    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    fireEvent.click(dropdownButton);
+
+    expect(screen.getByText('Dermatology')).toBeInTheDocument();
+    expect(screen.getByText('Cardiology')).toBeInTheDocument();
+  });
+
+  it('should update speciality when a dropdown option is selected', () => {
+    renderWithData(fullData);
+
+    // Open dropdown
+    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    fireEvent.click(dropdownButton);
+
+    // Select Dermatology
+    fireEvent.click(screen.getByText('Dermatology'));
+
+    // Dropdown should now show Dermatology
+    expect(screen.getByText('Dermatology')).toBeInTheDocument();
+  });
+
+  /* ── Priority Visit Toggle ───────────────────────────────────────── */
+
+  it('should render Priority Visit label and toggle', () => {
+    renderWithData(fullData);
+    expect(screen.getByText('Priority Visit')).toBeInTheDocument();
+    // Toggle checkbox should be unchecked by default
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('should toggle priority visit when clicked', () => {
+    renderWithData(fullData);
+
+    const toggle = screen.getByRole('checkbox');
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+  });
+
+  it('should pass speciality and priorityVisit to buildVisitUploadPayload', async () => {
+    renderWithData(fullData);
+
+    // Toggle priority visit on
+    const toggle = screen.getByRole('checkbox');
+    fireEvent.click(toggle);
+
+    // Open and confirm upload
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBuildVisitUploadPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          speciality: 'General Physician',
+          priorityVisit: true,
+        })
+      );
+    });
+  });
+
+  /* ── Config null/empty fallbacks ──────────────────────────────────── */
+
+  it('should handle null config gracefully with empty specializations', () => {
+    mockUseConfig.mockReturnValue({ config: null as any });
+    renderWithData(fullData);
+
+    // Dropdown should still render with placeholder
+    expect(screen.getByText("Doctor's specialty")).toBeInTheDocument();
+  });
+
+  it('should handle specialization entries with null name', () => {
+    mockUseConfig.mockReturnValue({
+      config: {
+        specialization: [
+          { name: null as any },
+          { name: 'Cardiology' },
+        ],
+      },
+    });
+    renderWithData(fullData);
+
+    // Open dropdown to see options
+    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    fireEvent.click(dropdownButton);
+
+    // Null name should fallback to "Option 1"
+    expect(screen.getByText('Option 1')).toBeInTheDocument();
+    expect(screen.getByText('Cardiology')).toBeInTheDocument();
+  });
+
+  /* ── Physical exam with non-matching answer IDs ──────────────────── */
+
+  it('should render empty value when physical exam answer IDs do not match any option', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: {
+          pe1: ['non_existent_option'],
+        },
+      },
+    });
+
+    // Question passes filter (has answers) but selectedTexts will be empty after .filter(Boolean)
+    // So value becomes empty string from .join(', ')
+    expect(screen.getByText('General Appearance')).toBeInTheDocument();
   });
 });
