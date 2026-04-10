@@ -770,7 +770,7 @@ describe('VisitSummaryPage', () => {
   /* ── Config null/empty fallbacks ──────────────────────────────────── */
 
   it('should handle null config gracefully with empty specializations', () => {
-    mockUseConfig.mockReturnValue({ config: null });
+    mockUseConfig.mockReturnValue({ config: null as any });
     renderWithData(fullData);
 
     // Dropdown should still render with placeholder
@@ -781,7 +781,7 @@ describe('VisitSummaryPage', () => {
     mockUseConfig.mockReturnValue({
       config: {
         specialization: [
-          { name: null },
+          { name: null as any },
           { name: 'Cardiology' },
         ],
       },

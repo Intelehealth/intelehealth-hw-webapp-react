@@ -41,9 +41,8 @@ const PRIMARY_COLOR = '#0fd197';
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
-  compact?: boolean;
-}> = ({ label, value, compact = false }) => (
-  <div className={`flex items-center text-sm ${compact ? '' : 'py-1'}`}>
+}> = ({ label, value }) => (
+  <div className="flex items-center text-sm py-1">
     <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
       <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
       {label}
@@ -467,7 +466,7 @@ const VisitSummaryPage = () => {
 
         <div className="w-full md:w-1/2 flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none md:mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
             <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
