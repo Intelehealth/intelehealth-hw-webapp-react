@@ -291,8 +291,8 @@ export function buildVisitUploadPayload(
     }),
   };
 
-  // Encounter 3: Visit Complete
-  const visitCompleteEncounter: EncounterPayload = {
+  // Encounter 3: Visit Priority
+  const visitPriorityEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime: visitCompleteDatetime,
     encounterType: ENCOUNTER_TYPES.VISIT_PRIORITY,
@@ -300,7 +300,7 @@ export function buildVisitUploadPayload(
 
   return {
     encounters: params.priorityVisit
-      ? [vitalsEncounter, adultInitialEncounter, visitCompleteEncounter]
+      ? [vitalsEncounter, adultInitialEncounter, visitPriorityEncounter]
       : [vitalsEncounter, adultInitialEncounter],
     visits: [
       {
