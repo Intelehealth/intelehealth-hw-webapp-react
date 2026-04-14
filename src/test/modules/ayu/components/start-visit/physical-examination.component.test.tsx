@@ -77,6 +77,31 @@ const mockHookReturn = {
   allRequiredAnswered: true,
 };
 
+const { hoistedMockQuestions } = vi.hoisted(() => {
+  const hoistedMockQuestions = [
+    {
+      id: 'q1', sectionLabel: 'General:', categoryLabel: 'Jaundice', questionText: 'Is there jaundice?',
+      isRequired: true, isMultiChoice: false, sectionKey: 'General', jobAidType: 'image', jobAidFile: 'jaundice',
+      options: [{ id: 'q1-yes', text: 'Yes' }, { id: 'q1-no', text: 'No' }, { id: 'q1-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true }],
+    },
+    {
+      id: 'q2', sectionLabel: 'General:', categoryLabel: 'Pallor', questionText: 'Is there pallor?',
+      isRequired: true, isMultiChoice: true, sectionKey: 'General', jobAidType: 'video', jobAidFile: 'pallor',
+      options: [{ id: 'q2-normal', text: 'Normal', excludeFromMulti: true }, { id: 'q2-a', text: 'Option A' }, { id: 'q2-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true }],
+    },
+    {
+      id: 'q3', sectionLabel: 'Head:', categoryLabel: 'Injury', questionText: 'Any injuries?',
+      isRequired: false, isMultiChoice: false, sectionKey: 'Head',
+      options: [{ id: 'q3-yes', text: 'Yes' }, { id: 'q3-other', text: 'Maybe' }],
+    },
+  ];
+  return { hoistedMockQuestions };
+});
+
+vi.mock('../../../../../modules/ayu/data/physical-exam.data', () => ({
+  PHYSICAL_EXAM_QUESTIONS: hoistedMockQuestions,
+}));
+
 let capturedHookProps: any = {};
 vi.mock('../../../../../modules/ayu/hooks/usePhysicalExam', () => ({
   usePhysicalExam: (props: any) => { capturedHookProps = props; return mockHookReturn; },
@@ -123,8 +148,21 @@ vi.mock('../../../../../assets/icons/icon-camera.svg', () => ({
   default: 'camera-icon.svg',
 }));
 
+vi.mock('../../../../../assets/icons/icon-physical-examination.svg', () => ({
+  default: 'physical-exam-icon.svg',
+}));
+
 vi.mock('../../../../../assets/icons/icon-right-arrow.svg', () => ({
   default: 'right-arrow-icon.svg',
+}));
+
+const mockShowVitalConfirmationModal = vi.fn();
+vi.mock('../../../../../components/modal/global-modal-context', () => ({
+  useGlobalModal: () => ({
+    showConfirmModal: vi.fn(),
+    showVitalConfirmationModal: mockShowVitalConfirmationModal,
+    closeModal: vi.fn(),
+  }),
 }));
 
 vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({
@@ -132,7 +170,7 @@ vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({
 }));
 
 const mockSetPhysicalExamData = vi.fn();
-let mockContextData: { physicalExam: Record<string, string[]> | null } = { physicalExam: null };
+let mockContextData: { physicalExam: { answers: Record<string, string[]>; details: Array<{ label: string; value: string }> } | null } = { physicalExam: null };
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => ({
     data: { vitals: null, visitReason: null, physicalExam: mockContextData.physicalExam, medicalHistory: null },
@@ -614,19 +652,76 @@ describe('PhysicalExamination', () => {
   // ── wrappedOnNextQuestion ───────────────────────────────────────────
 
   describe('wrappedOnNextQuestion', () => {
-    it('should call setPhysicalExamData and original onNextQuestion when invoked', () => {
+    it('should show summary modal with sections grouped by sectionKey and call setPhysicalExamData on confirm', () => {
       const originalOnNext = vi.fn();
+      // Set answers so section-building logic is exercised
+      mockHookReturn.answers = { q1: ['q1-yes'], q2: ['q2-normal'], q3: ['q3-yes'] };
       render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
 
-      // The component wraps onNextQuestion and passes it to usePhysicalExam
       expect(capturedHookProps.onNextQuestion).toBeDefined();
       expect(capturedHookProps.onNextQuestion).not.toBe(originalOnNext);
 
-      // Call the wrapped function
+      // Call the wrapped function — should open modal with sections
       capturedHookProps.onNextQuestion();
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          open: true,
+          type: 'vitalConfirm',
+          title: 'Physical Exam Summary',
+          sections: expect.arrayContaining([
+            expect.objectContaining({
+              title: 'General',
+              items: expect.arrayContaining([
+                expect.objectContaining({ type: 'labelValue', label: 'Jaundice', value: 'Yes' }),
+                expect.objectContaining({ type: 'labelValue', label: 'Pallor', value: 'Normal' }),
+              ]),
+            }),
+            expect.objectContaining({
+              title: 'Head',
+              items: expect.arrayContaining([
+                expect.objectContaining({ type: 'labelValue', label: 'Injury', value: 'Yes' }),
+              ]),
+            }),
+          ]),
+        })
+      );
 
-      expect(mockSetPhysicalExamData).toHaveBeenCalled();
+      // Verify sections have onChange callbacks and invoke them
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections[0].onChange).toBeInstanceOf(Function);
+      modalConfig.sections[0].onChange();
+
+      // Simulate modal confirm
+      modalConfig.onConfirm();
+
+      expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.arrayContaining([
+          expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
+          expect.objectContaining({ label: 'Pallor', value: 'Normal' }),
+          expect.objectContaining({ label: 'Injury', value: 'Yes' }),
+        ])
+      );
       expect(originalOnNext).toHaveBeenCalled();
+    });
+
+    it('should show empty sections when no answers are provided', () => {
+      mockHookReturn.answers = {};
+      render(<PhysicalExamination {...defaultProps} />);
+
+      capturedHookProps.onNextQuestion();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toEqual([]);
+    });
+
+    it('should skip questions with non-matching option IDs', () => {
+      mockHookReturn.answers = { q1: ['nonexistent-id'] };
+      render(<PhysicalExamination {...defaultProps} />);
+
+      capturedHookProps.onNextQuestion();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      // No sections because selectedTexts filter(Boolean) removes undefined
+      expect(modalConfig.sections).toEqual([]);
     });
   });
 
@@ -641,20 +736,29 @@ describe('PhysicalExamination', () => {
     });
 
     it('should show Confirm button when data.physicalExam is truthy', () => {
-      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] } } as any };
+      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
       render(<PhysicalExamination {...defaultProps} />);
 
       expect(screen.getByText('Confirm')).toBeInTheDocument();
     });
 
-    it('should call setPhysicalExamData and onNextQuestion when Confirm is clicked', async () => {
+    it('should show summary modal and call setPhysicalExamData on confirm when Confirm is clicked', async () => {
       const user = userEvent.setup();
       const originalOnNext = vi.fn();
-      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] } } as any };
+      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
       render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
 
       await user.click(screen.getByText('Confirm'));
-      expect(mockSetPhysicalExamData).toHaveBeenCalled();
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+
+      // Simulate modal confirm
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      modalConfig.onConfirm();
+
+      expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Array)
+      );
       expect(originalOnNext).toHaveBeenCalled();
     });
   });

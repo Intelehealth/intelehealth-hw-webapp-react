@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
+import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
+import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
+import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
+import { PHYSICAL_EXAM_QUESTIONS } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
 import {
   BUTTON_BACK,
@@ -156,12 +160,58 @@ const QuestionCard = ({
 export const PhysicalExamination = (props: SectionProps) => {
   const { onNextQuestion: originalOnNext } = props;
   const { data, setPhysicalExamData } = useStartVisitData();
+  const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
 
   const wrappedOnNextQuestion = useCallback(() => {
-    setPhysicalExamData(answersRef.current);
-    originalOnNext();
-  }, [originalOnNext, setPhysicalExamData]);
+    const currentAnswers = answersRef.current;
+    const details = PHYSICAL_EXAM_QUESTIONS.filter(
+      q => (currentAnswers[q.id] ?? []).length > 0
+    ).map(q => {
+      const selectedTexts = currentAnswers[q.id]
+        .map(id => q.options.find(o => o.id === id)?.text)
+        .filter(Boolean);
+      return { label: q.categoryLabel, value: selectedTexts.join(', ') };
+    });
+
+    // Group details by sectionKey for modal sections
+    const sectionMap = new Map<string, ModalSection>();
+    for (const q of PHYSICAL_EXAM_QUESTIONS) {
+      if ((currentAnswers[q.id] ?? []).length === 0) continue;
+      const selectedTexts = currentAnswers[q.id]
+        .map(id => q.options.find(o => o.id === id)?.text)
+        .filter(Boolean);
+      if (!selectedTexts.length) continue;
+      if (!sectionMap.has(q.sectionKey)) {
+        sectionMap.set(q.sectionKey, {
+          title: q.sectionKey,
+          items: [],
+          onChange: () => {},
+        });
+      }
+      sectionMap.get(q.sectionKey)!.items.push({
+        type: 'labelValue',
+        label: q.categoryLabel,
+        value: selectedTexts.join(', '),
+      });
+    }
+    const sections = Array.from(sectionMap.values());
+
+    showVitalConfirmationModal({
+      open: true,
+      type: 'vitalConfirm',
+      icon: iconPhysicalExam,
+      title: 'Physical Exam Summary',
+      sections,
+      size: 'lg',
+      confirmText: 'Confirm',
+      cancelText: 'Back',
+      onConfirm: () => {
+        setPhysicalExamData(currentAnswers, details);
+        originalOnNext();
+      },
+    });
+  }, [originalOnNext, setPhysicalExamData, showVitalConfirmationModal]);
 
   const {
     internalIndex,
