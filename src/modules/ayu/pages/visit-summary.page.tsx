@@ -78,21 +78,6 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
   };
 };
 
-const mapPhysicalExam = (
-  answers: Record<string, string[]>
-): PhysicalExamination => {
-  const generalExams = PHYSICAL_EXAM_QUESTIONS.filter(
-    q => (answers[q.id] ?? []).length > 0
-  ).map(q => {
-    const selectedTexts = answers[q.id]
-      .map(id => q.options.find(o => o.id === id)?.text)
-      .filter(Boolean);
-    return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-  });
-
-  return { generalExams };
-};
-
 /* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
@@ -329,8 +314,8 @@ const VisitSummaryPage = () => {
   );
 
   const physicalExamination = useMemo(
-    () =>
-      data.physicalExam ? mapPhysicalExam(data.physicalExam.answers) : null,
+    (): PhysicalExamination | null =>
+      data.physicalExam ? { generalExams: data.physicalExam.details } : null,
     [data.physicalExam]
   );
 

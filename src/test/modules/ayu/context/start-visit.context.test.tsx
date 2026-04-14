@@ -68,7 +68,8 @@ function ContextUpdater() {
         data-testid="btn-setPhysicalExam"
         onClick={() => {
           const answers: PhysicalExamAnswers = { eyes_jaundice: ['no_jaundice'] };
-          ctx.setPhysicalExamData(answers);
+          const details = [{ label: 'Eyes: Jaundice', value: 'No' }];
+          ctx.setPhysicalExamData(answers, details);
         }}
       />
       <button
@@ -204,6 +205,7 @@ describe('StartVisitProvider', () => {
     const physicalExamText = screen.getByTestId('physicalExam').textContent!;
     const physicalExam = JSON.parse(physicalExamText);
     expect(physicalExam.answers).toEqual({ eyes_jaundice: ['no_jaundice'] });
+    expect(physicalExam.details).toEqual([{ label: 'Eyes: Jaundice', value: 'No' }]);
   });
 
   it('should update medicalHistory in data via setMedicalHistoryData', () => {
