@@ -8,7 +8,7 @@ import { StartVisit } from '../../../../../modules/ayu/components/start-visit/st
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
 const mockUseStartVisitData = vi.fn(() => ({
-  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
   patientUuid: null,
   lastSectionIndex: 0,
   setLastSectionIndex: mockSetLastSectionIndex,
@@ -132,7 +132,7 @@ describe('StartVisit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseStartVisitData.mockReturnValue({
-      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
       patientUuid: null,
       lastSectionIndex: 0,
       setLastSectionIndex: mockSetLastSectionIndex,
@@ -1000,7 +1000,7 @@ describe('StartVisit', () => {
           visitReason: { answers: {}, reasonNames: [], details: [] },
           physicalExam: { answers: {} },
           medicalHistory: { patHistSummary: [], famHistSummary: [] },
-        },
+        } as any,
         patientUuid: null,
         lastSectionIndex: 3,
         setLastSectionIndex: mockSetLastSectionIndex,
@@ -1051,7 +1051,7 @@ describe('StartVisit', () => {
           visitReason: { answers: {}, reasonNames: [], details: [] },
           physicalExam: { answers: {} },
           medicalHistory: { patHistSummary: [], famHistSummary: [] },
-        },
+        } as any,
         patientUuid: null,
         lastSectionIndex: 3,
         setLastSectionIndex: mockSetLastSectionIndex,
