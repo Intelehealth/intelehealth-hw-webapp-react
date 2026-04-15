@@ -300,7 +300,7 @@ export const useVitals = (onNextQuestion: () => void) => {
   useEffect(() => {
     const calculatedBMI = calculateBMI(height, weight);
     if (calculatedBMI !== undefined && calculatedBMI !== bmi) {
-      setValue('bmi', calculatedBMI);
+      setValue('bmi', calculatedBMI, { shouldValidate: true });
     }
   }, [height, weight, bmi, setValue]);
 
@@ -308,7 +308,11 @@ export const useVitals = (onNextQuestion: () => void) => {
   useEffect(() => {
     const calculatedWHR = calculateWHR(waist, hip);
     if (calculatedWHR !== undefined) {
-      setValue('waist_to_hip_ratio', calculatedWHR);
+      setValue('waist_to_hip_ratio', calculatedWHR, { shouldValidate: true });
+    } else {
+      setValue('waist_to_hip_ratio', undefined as unknown as number, {
+        shouldValidate: true,
+      });
     }
   }, [waist, hip, setValue]);
 

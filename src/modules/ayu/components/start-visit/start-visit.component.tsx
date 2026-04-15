@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
+import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
@@ -28,6 +29,7 @@ const getPhysicalExamFilter = (
 
 export const StartVisit = () => {
   const location = useLocation();
+  const { lastSectionIndex, setLastSectionIndex, data } = useStartVisitData();
   const { patientName, patientAge, patientGender } =
     (location.state as {
       patientName?: string;
@@ -65,34 +67,41 @@ export const StartVisit = () => {
     () => getPhysicalExamFilter(CoughQuestionnaire),
     []
   );
-  const [sections, setSections] = useState<SectionState[]>([
-    {
-      totalQuestions: 1,
-      answeredQuestions: 1,
-      name: 'Vitals',
-      currentStepIndex: 0,
-    }, // Vitals
-    {
-      totalQuestions: 1,
-      answeredQuestions: 0,
-      name: 'Visit Reason',
-      currentStepIndex: 0,
-    }, // Visit Reason
-    {
-      totalQuestions: 3, // updated by onProgressUpdate at runtime (conditional questions may change count)
-      answeredQuestions: 0,
-      name: 'Physical Examination',
-      currentStepIndex: 0,
-    }, // Physical Examination
-    {
-      totalQuestions: 5,
-      answeredQuestions: 0,
-      name: 'Medical History',
-      currentStepIndex: 0,
-    }, // Medical History
-  ]);
+  const [sections, setSections] = useState<SectionState[]>(() => {
+    const vitalsTotal = 1;
+    const visitReasonTotal = 1;
+    const physExamTotal = 3;
+    const medHistTotal = 5;
+    return [
+      {
+        totalQuestions: vitalsTotal,
+        answeredQuestions: data.vitals ? vitalsTotal : 1,
+        name: 'Vitals',
+        currentStepIndex: 0,
+      },
+      {
+        totalQuestions: visitReasonTotal,
+        answeredQuestions: data.visitReason ? visitReasonTotal : 0,
+        name: 'Visit Reason',
+        currentStepIndex: 0,
+      },
+      {
+        totalQuestions: physExamTotal, // updated by onProgressUpdate at runtime
+        answeredQuestions: data.physicalExam ? physExamTotal : 0,
+        name: 'Physical Examination',
+        currentStepIndex: 0,
+      },
+      {
+        totalQuestions: medHistTotal,
+        answeredQuestions: data.medicalHistory ? medHistTotal : 0,
+        name: 'Medical History',
+        currentStepIndex: 0,
+      },
+    ];
+  });
 
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [currentSectionIndex, setCurrentSectionIndex] =
+    useState(lastSectionIndex);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   /* ---------------- Question Navigation ---------------- */
@@ -131,13 +140,18 @@ export const StartVisit = () => {
   /* ---------------- Section Navigation ---------------- */
 
   const goNextSection = () => {
-    setCurrentSectionIndex(prev => Math.min(prev + 1, sections.length - 1));
+    setCurrentSectionIndex(prev => {
+      const next = Math.min(prev + 1, sections.length - 1);
+      setLastSectionIndex(next);
+      return next;
+    });
     setCurrentQuestionIndex(0);
   };
 
   const goPreviousSection = () => {
     setCurrentSectionIndex(prev => {
       const newIndex = Math.max(prev - 1, 0);
+      setLastSectionIndex(newIndex);
 
       setCurrentQuestionIndex(
         Math.max(sections[newIndex].answeredQuestions - 1, 0)

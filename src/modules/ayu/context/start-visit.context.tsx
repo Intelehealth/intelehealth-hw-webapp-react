@@ -32,6 +32,8 @@ export interface StartVisitData {
 interface StartVisitContextType {
   data: StartVisitData;
   patientUuid: string | null;
+  lastSectionIndex: number;
+  setLastSectionIndex: (index: number) => void;
   setPatientUuid: (uuid: string) => void;
   setVitalsData: (formValues: VitalsFormValues, config: VitalField[]) => void;
   setVisitReasonData: (
@@ -58,6 +60,7 @@ export const StartVisitProvider = ({
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
   );
+  const [lastSectionIndex, setLastSectionIndex] = useState(0);
   const [data, setData] = useState<StartVisitData>({
     vitals: null,
     visitReason: null,
@@ -102,6 +105,8 @@ export const StartVisitProvider = ({
       value={{
         data,
         patientUuid,
+        lastSectionIndex,
+        setLastSectionIndex,
         setPatientUuid,
         setVitalsData,
         setVisitReasonData,

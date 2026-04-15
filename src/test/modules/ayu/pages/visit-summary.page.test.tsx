@@ -20,6 +20,8 @@ const defaultData = {
 const mockUseStartVisitData = vi.fn(() => ({
   data: { ...defaultData },
   patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  lastSectionIndex: 0,
+  setLastSectionIndex: vi.fn(),
   setPatientUuid: vi.fn(),
   setVitalsData: vi.fn(),
   setVisitReasonData: vi.fn(),
@@ -224,6 +226,8 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
   mockUseStartVisitData.mockReturnValue({
     data,
     patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    lastSectionIndex: 0,
+    setLastSectionIndex: vi.fn(),
     setPatientUuid: vi.fn(),
     setVitalsData: vi.fn(),
     setVisitReasonData: vi.fn(),
@@ -353,13 +357,13 @@ describe('VisitSummaryPage', () => {
 
   /* ── "Back to Edit" button ──────────────────────────────────────────── */
 
-  it('should navigate to /ayu when "Back to Edit" button is clicked', () => {
+  it('should navigate back when "Back to Edit" button is clicked', () => {
     renderWithData();
 
     const backButton = screen.getByText('Back to Edit');
     fireEvent.click(backButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
   /* ── MedicalHistorySection: subheading items ──────────────────────── */
@@ -431,6 +435,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),
@@ -457,6 +463,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: 'patient-uuid',
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),
@@ -506,6 +514,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),

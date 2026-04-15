@@ -485,7 +485,7 @@ const VisitSummaryPage = () => {
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
-          onClick={() => navigate('/ayu')}
+          onClick={() => navigate(-1)}
           className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Back to Edit
