@@ -9,6 +9,7 @@ import iconAdviceUrl from '../assets/icons/prescription-advice.svg?url';
 import iconTestUrl from '../assets/icons/prescription-test.svg?url';
 import iconFollowupUrl from '../assets/icons/prescription-followup.svg?url';
 import iconReferralUrl from '../assets/icons/prescription-referral.svg?url';
+import iconVitalsUrl from '../assets/icons/vitals.svg?url';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs;
 
@@ -68,70 +69,66 @@ const m4 = (a: number, b: number, c: number, d: number) =>
 function bulletRow(label: string, value: string | null | undefined) {
   return {
     columns: [
-      { text: `• ${label}`, color: '#888888', fontSize: 9, width: 140 },
-      { text: value || 'NA', color: '#1A237E', fontSize: 9 },
+      { text: `• ${label}`, color: '#555555', fontSize: 8, width: 170 },
+      { text: value || 'NA', color: '#1A1A2E', fontSize: 8 },
     ],
     margin: m4(0, 4, 0, 0),
   };
 }
 
-function sectionHeader(title: string, icon: string | null) {
+function sectionHeaderInline(title: string, icon: string | null) {
   const iconCell = icon
-    ? { image: icon, width: 24, height: 24, margin: m4(0, 2, 0, 0) }
+    ? { image: icon, width: 20, height: 20, margin: m4(0, 1, 0, 0) }
     : {
         canvas: [
-          { type: 'ellipse', x: 11, y: 11, r1: 11, r2: 11, color: '#2E1E91' },
+          { type: 'ellipse', x: 10, y: 10, r1: 10, r2: 10, color: '#2E1E91' },
         ],
-        width: 22,
-        height: 22,
+        width: 20,
+        height: 20,
       };
-  return [
-    {
-      colSpan: 4,
-      columns: [
-        iconCell,
-        {
-          text: title,
-          bold: true,
-          fontSize: 11,
-          color: '#1A1A2E',
-          margin: m4(6, 4, 0, 0),
-        },
-      ],
-      columnGap: 0,
-      margin: m4(0, 10, 0, 0),
-    },
-    '',
-    '',
-    '',
-  ];
+  return {
+    columns: [
+      iconCell,
+      {
+        text: title,
+        bold: true,
+        fontSize: 11,
+        color: '#1A1A2E',
+        margin: m4(5, 2, 0, 0),
+      },
+    ],
+    columnGap: 0,
+    margin: m4(0, 8, 0, 0),
+  };
 }
 
-function divider() {
-  return [
-    {
-      colSpan: 4,
-      canvas: [
-        {
-          type: 'line',
-          x1: 0,
-          y1: 0,
-          x2: 515,
-          y2: 0,
-          lineWidth: 0.5,
-          lineColor: '#E0E0E0',
-        },
-      ],
-      margin: m4(0, 2, 0, 4),
-    },
-    '',
-    '',
-    '',
-  ];
+function dividerInline() {
+  return {
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: 535,
+        y2: 0,
+        lineWidth: 0.5,
+        lineColor: '#E0E0E0',
+      },
+    ],
+    margin: m4(0, 2, 0, 3),
+  };
 }
 
 function contentRow(content: any) {
   return [{ colSpan: 4, ...content }, '', '', ''];
+}
+
+/** Wraps section header + divider + content into a single unbreakable row */
+function sectionBlock(title: string, icon: string | null, content: any) {
+  return contentRow({
+    unbreakable: true,
+    stack: [sectionHeaderInline(title, icon), dividerInline(), content],
+  });
 }
 
 const tableLayout = {
@@ -139,8 +136,8 @@ const tableLayout = {
     i === 0 ? 0 : i === 1 ? 0.5 : i === node.table.body.length ? 0 : 0.3,
   vLineWidth: () => 0,
   hLineColor: (i: number) => (i === 1 ? '#CCCCCC' : '#EBEBEB'),
-  paddingLeft: () => 6,
-  paddingRight: () => 6,
+  paddingLeft: () => 5,
+  paddingRight: () => 5,
   paddingTop: () => 4,
   paddingBottom: () => 4,
 };
@@ -152,9 +149,7 @@ export function openPrescriptionPreview(visitUuid: string): void {
   );
 }
 
-export async function downloadVisitPrescriptionPdf(
-  data: PrescriptionData
-): Promise<void> {
+async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
   const [
     iConsultation,
     iDiagnosis,
@@ -163,6 +158,7 @@ export async function downloadVisitPrescriptionPdf(
     iTest,
     iFollowup,
     iReferral,
+    iVitals,
   ] = await Promise.all([
     svgToPng(iconConsultationUrl),
     svgToPng(iconDiagnosisUrl),
@@ -171,10 +167,12 @@ export async function downloadVisitPrescriptionPdf(
     svgToPng(iconTestUrl),
     svgToPng(iconFollowupUrl),
     svgToPng(iconReferralUrl),
+    svgToPng(iconVitalsUrl),
   ]);
 
   const patientImg = await toBase64(
-    `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${data.patientUuid}`
+    `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${data.patientUuid}`,
+    true
   );
   const signatureB64 = data.doctorSignatureUrl
     ? data.doctorSignatureUrl.startsWith('data:')
@@ -183,17 +181,17 @@ export async function downloadVisitPrescriptionPdf(
     : null;
 
   const patientAvatar = patientImg
-    ? { image: patientImg, width: 36, height: 36, margin: m4(0, 6, 10, 6) }
+    ? { image: patientImg, width: 32, height: 32, margin: m4(0, 4, 6, 4) }
     : {
         canvas: [
-          { type: 'ellipse', x: 18, y: 18, r1: 18, r2: 18, color: '#C5CAE9' },
+          { type: 'ellipse', x: 16, y: 16, r1: 16, r2: 16, color: '#C5CAE9' },
         ],
-        width: 36,
-        height: 36,
-        margin: m4(0, 6, 10, 6),
+        width: 32,
+        height: 32,
+        margin: m4(0, 4, 6, 4),
       };
 
-  const cell9 = (t: string) => ({ text: t, fontSize: 9 });
+  const cell9 = (t: string) => ({ text: t, fontSize: 8 });
   const noData = (msg: string, span: number) => [
     [
       {
@@ -228,10 +226,10 @@ export async function downloadVisitPrescriptionPdf(
 
   const infoCell = (label: string, value: string | null | undefined) => ({
     stack: [
-      { text: label, color: '#888888', fontSize: 8, margin: m4(0, 0, 0, 2) },
-      { text: value || '-', fontSize: 9, color: '#1A1A2E' },
+      { text: label, color: '#9E9E9E', fontSize: 7, margin: m4(0, 0, 0, 1) },
+      { text: value || '-', fontSize: 8, bold: true, color: '#212121' },
     ],
-    margin: m4(0, 4, 0, 4),
+    margin: m4(0, 3, 0, 3),
   });
 
   const sigItems: any[] = [];
@@ -245,20 +243,20 @@ export async function downloadVisitPrescriptionPdf(
   if (data.doctorName)
     sigItems.push({
       text: data.doctorName,
-      fontSize: 10,
+      fontSize: 9,
       bold: true,
       color: '#1A1A2E',
     });
   if (data.doctorQualification)
     sigItems.push({
       text: data.doctorQualification,
-      fontSize: 9,
+      fontSize: 8,
       color: '#555',
     });
   if (data.doctorRegNumber)
     sigItems.push({
       text: `Registration No: ${data.doctorRegNumber}`,
-      fontSize: 9,
+      fontSize: 8,
       color: '#555',
     });
 
@@ -276,11 +274,11 @@ export async function downloadVisitPrescriptionPdf(
                   {
                     text: data.patientName,
                     bold: true,
-                    fontSize: 11,
+                    fontSize: 10,
                     color: '#1A1A2E',
-                    margin: m4(0, 6, 0, 2),
+                    margin: m4(0, 4, 0, 1),
                   },
-                  { text: data.patientId, fontSize: 9, color: '#7B7FA6' },
+                  { text: data.patientId, fontSize: 8, color: '#7B7FA6' },
                 ],
               },
             ],
@@ -289,39 +287,105 @@ export async function downloadVisitPrescriptionPdf(
         layout: 'noBorders',
       },
       {
-        stack: [infoCell('Gender', data.gender), infoCell('Age', data.age)],
-        margin: m4(8, 0, 0, 0),
+        columns: [
+          {
+            canvas: [
+              {
+                type: 'line',
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 45,
+                lineWidth: 1,
+                lineColor: '#E0E0E0',
+              },
+            ],
+            width: 8,
+            margin: m4(0, 3, 0, 0),
+          },
+          {
+            stack: [infoCell('Gender', data.gender), infoCell('Age', data.age)],
+          },
+        ],
+        columnGap: 0,
       },
       {
-        stack: [
-          infoCell('Address', data.address),
-          infoCell('Occupation', data.occupation),
+        columns: [
+          {
+            canvas: [
+              {
+                type: 'line',
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 45,
+                lineWidth: 1,
+                lineColor: '#E0E0E0',
+              },
+            ],
+            width: 8,
+            margin: m4(0, 3, 0, 0),
+          },
+          {
+            stack: [
+              infoCell('Address', data.address),
+              infoCell('Occupation', data.occupation),
+            ],
+          },
         ],
-        margin: m4(8, 0, 0, 0),
+        columnGap: 0,
       },
       {
-        stack: [
-          infoCell('National ID', data.nationalId),
-          infoCell('Contact no.', data.phone),
+        columns: [
+          {
+            canvas: [
+              {
+                type: 'line',
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 45,
+                lineWidth: 1,
+                lineColor: '#E0E0E0',
+              },
+            ],
+            width: 8,
+            margin: m4(0, 3, 0, 0),
+          },
+          {
+            stack: [
+              infoCell('National ID', data.nationalId),
+              infoCell('Contact no.', data.phone),
+            ],
+          },
         ],
-        margin: m4(8, 0, 0, 0),
+        columnGap: 0,
       },
     ],
-    sectionHeader('Consultation details', iConsultation),
-    divider(),
-    contentRow({
-      margin: m4(28, 0, 0, 6),
+    sectionBlock('Vitals', iVitals, {
+      margin: m4(30, 0, 0, 4),
+      stack: [
+        bulletRow('Height(cm):', data.vitals.height),
+        bulletRow('Weight(kg):', data.vitals.weight),
+        bulletRow('Systolic Blood Pressure:', data.vitals.bpSystolic),
+        bulletRow('Diastolic Blood Pressure:', data.vitals.bpDiastolic),
+        bulletRow('Pulse(bpm):', data.vitals.pulse),
+        bulletRow('Temperature (F):', data.vitals.temperature),
+        bulletRow('SpO2 (%):', data.vitals.spo2),
+        bulletRow('Respiratory Rate:', data.vitals.respiratoryRate),
+      ],
+    }),
+    sectionBlock('Consultation details', iConsultation, {
+      margin: m4(30, 0, 0, 4),
       stack: [
         bulletRow('Patient Id', data.patientId),
         bulletRow('Prescription Issued', data.consultationDate),
       ],
     }),
-    sectionHeader('Diagnosis', iDiagnosis),
-    divider(),
-    contentRow({
-      margin: m4(28, 0, 0, 6),
+    sectionBlock('Diagnosis', iDiagnosis, {
+      margin: m4(30, 0, 0, 4),
       table: {
-        widths: ['*', 'auto', 'auto'],
+        widths: ['55%', '20%', '25%'],
         headerRows: 1,
         body: [
           [
@@ -334,168 +398,202 @@ export async function downloadVisitPrescriptionPdf(
       },
       layout: tableLayout,
     }),
-    sectionHeader('Prescribed Medications', iMedication),
-    divider(),
-    contentRow({
-      margin: m4(28, 0, 0, 6),
-      table: {
-        widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
-        headerRows: 1,
-        body: [
-          [
-            { text: 'Medicine', style: 'tHeader' },
-            { text: 'Strength', style: 'tHeader' },
-            { text: 'Frequency', style: 'tHeader' },
-            { text: 'Duration', style: 'tHeader' },
-            { text: 'Timing', style: 'tHeader' },
-            { text: 'Remarks', style: 'tHeader' },
-          ],
-          ...medicineRows,
-        ],
-      },
-      layout: tableLayout,
-    }),
   ];
+
+  if (data.medicines.length > 0) {
+    bodyRows.push(
+      sectionBlock('Prescribed Medications', iMedication, {
+        margin: m4(30, 0, 0, 4),
+        table: {
+          widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+          headerRows: 1,
+          body: [
+            [
+              { text: 'Medicine', style: 'tHeader' },
+              { text: 'Strength', style: 'tHeader' },
+              { text: 'Frequency', style: 'tHeader' },
+              { text: 'Duration', style: 'tHeader' },
+              { text: 'Timing', style: 'tHeader' },
+              { text: 'Remarks', style: 'tHeader' },
+            ],
+            ...medicineRows,
+          ],
+        },
+        layout: tableLayout,
+      })
+    );
+  }
 
   if (data.advices.length > 0) {
     bodyRows.push(
-      sectionHeader('Advice', iAdvice),
-      divider(),
-      contentRow({
-        margin: m4(28, 0, 0, 6),
+      sectionBlock('Advice', iAdvice, {
+        margin: m4(30, 0, 0, 4),
         ul: data.advices.map(a => ({
           text: a,
-          fontSize: 9,
-          margin: m4(0, 3, 0, 0),
+          fontSize: 8,
+          margin: m4(0, 2, 0, 0),
         })),
       })
     );
   }
   if (data.tests.length > 0) {
     bodyRows.push(
-      sectionHeader('Tests Recommended', iTest),
-      divider(),
-      contentRow({
-        margin: m4(28, 0, 0, 6),
+      sectionBlock('Tests Recommended', iTest, {
+        margin: m4(30, 0, 0, 4),
         ul: data.tests.map(t => ({
           text: t,
-          fontSize: 9,
-          margin: m4(0, 3, 0, 0),
+          fontSize: 8,
+          margin: m4(0, 2, 0, 0),
         })),
       })
     );
   }
   if (data.referrals.length > 0) {
     bodyRows.push(
-      sectionHeader('Referred Specialist', iReferral),
-      divider(),
-      contentRow({
-        margin: m4(28, 0, 0, 6),
+      sectionBlock('Referred Specialist', iReferral, {
+        margin: m4(30, 0, 0, 4),
         ul: data.referrals.map(r => ({
           text: r.speciality + (r.reason ? ` – ${r.reason}` : ''),
-          fontSize: 9,
-          margin: m4(0, 3, 0, 0),
+          fontSize: 8,
+          margin: m4(0, 2, 0, 0),
         })),
       })
     );
   }
 
+  // Follow-up + Signature combined as unbreakable
   bodyRows.push(
-    sectionHeader('Follow-up', iFollowup),
-    divider(),
     contentRow({
-      margin: m4(28, 0, 0, 6),
+      unbreakable: true,
       stack: [
-        bulletRow('Follow-up suggested', data.followUp?.wantFollowUp ?? 'No'),
-        bulletRow('Type', data.followUp?.followUpType ?? null),
-        bulletRow('Follow-up Date', data.followUp?.followUpDate ?? null),
-        bulletRow('Follow-up Time', data.followUp?.followUpTime ?? null),
-        bulletRow(
-          'Reason for follow-up',
-          data.followUp?.followUpReason ?? null
-        ),
+        sectionHeaderInline('Follow-up', iFollowup),
+        dividerInline(),
+        {
+          margin: m4(30, 0, 0, 4),
+          stack: [
+            bulletRow(
+              'Follow-up suggested',
+              data.followUp?.wantFollowUp ?? 'No'
+            ),
+            bulletRow('Follow-up Date', data.followUp?.followUpDate ?? null),
+            bulletRow('Follow-up Time', data.followUp?.followUpTime ?? null),
+            bulletRow(
+              'Reason for follow-up',
+              data.followUp?.followUpReason ?? null
+            ),
+          ],
+        },
+        {
+          columns: [
+            { text: '', width: '*' },
+            { stack: sigItems, width: 'auto', alignment: 'right' as const },
+          ],
+          margin: m4(0, 20, 0, 0),
+        },
       ],
-    }),
-    contentRow({
-      columns: [
-        { text: '', width: '*' },
-        { stack: sigItems, width: 'auto', alignment: 'right' as const },
-      ],
-      margin: m4(0, 24, 0, 0),
     })
   );
 
-  pdfMake
-    .createPdf({
-      pageSize: 'A4',
-      pageOrientation: 'portrait',
-      pageMargins: m4(30, 48, 30, 50),
-      header: {
-        table: {
-          widths: ['*'],
-          body: [
-            [
-              {
-                text: 'Intelehealth e-Prescription',
-                alignment: 'center',
-                bold: true,
-                fontSize: 14,
-                color: '#1A1A2E',
-                fillColor: '#E6FFF3',
-                border: [false, false, false, false],
-                margin: m4(0, 12, 0, 12),
-              },
-            ],
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: m4(30, 40, 30, 34),
+    header: {
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              text: 'Intelehealth e-Prescription',
+              alignment: 'center',
+              bold: true,
+              fontSize: 12,
+              color: '#1A1A2E',
+              fillColor: '#E6FFF3',
+              border: [false, false, false, false],
+              margin: m4(0, 8, 0, 8),
+            },
           ],
-        },
-        layout: 'noBorders',
-      },
-      watermark: {
-        text: 'INTELEHEALTH',
-        color: '#cccccc',
-        opacity: 0.07,
-        bold: true,
-        italics: false,
-        angle: 0,
-        fontSize: 50,
-      },
-      footer: (currentPage: number, pageCount: number) => ({
-        columns: [
-          {
-            text:
-              currentPage === pageCount
-                ? '*The diagnosis and prescription is through telemedicine consultation conducted as per applicable telemedicine guideline'
-                : '',
-            fontSize: 7,
-            color: '#555',
-            margin: [30, 4, 0, 0],
-          },
-          {
-            text: `${currentPage} of ${pageCount}`,
-            width: 45,
-            fontSize: 7,
-            color: '#888',
-            alignment: 'right',
-            margin: [0, 4, 10, 0],
-          },
         ],
-      }),
-      content: [
+      },
+      layout: 'noBorders',
+    },
+    watermark: {
+      text: 'INTELEHEALTH',
+      color: '#cccccc',
+      opacity: 0.07,
+      bold: true,
+      italics: false,
+      angle: 0,
+      fontSize: 50,
+    },
+    footer: (currentPage: number, pageCount: number) => ({
+      columns: [
         {
-          table: { widths: ['25%', '30%', '22%', '23%'], body: bodyRows },
-          layout: 'noBorders',
+          text:
+            currentPage === pageCount
+              ? '*The diagnosis and prescription is through telemedicine consultation conducted as per applicable telemedicine guideline'
+              : '',
+          fontSize: 7,
+          color: '#555',
+          margin: [28, 4, 0, 0],
+        },
+        {
+          text: `${currentPage} of ${pageCount}`,
+          width: 45,
+          fontSize: 7,
+          color: '#888',
+          alignment: 'right',
+          margin: [0, 4, 10, 0],
         },
       ],
-      styles: {
-        tHeader: {
-          bold: true,
-          fontSize: 9,
-          color: '#444444',
-          fillColor: '#F5F7FA',
-          margin: m4(0, 2, 0, 2),
-        },
+    }),
+    content: [
+      {
+        table: { widths: ['25%', '25%', '25%', '25%'], body: bodyRows },
+        layout: 'noBorders',
       },
-      defaultStyle: { fontSize: 10, color: '#1A1A2E' },
-    } as any)
-    .download('e-prescription.pdf');
+    ],
+    styles: {
+      tHeader: {
+        bold: true,
+        fontSize: 8,
+        color: '#444444',
+        fillColor: '#F5F7FA',
+        margin: m4(0, 2, 0, 2),
+      },
+    },
+    defaultStyle: { fontSize: 9, color: '#1A1A2E' },
+  };
+}
+
+export async function downloadVisitPrescriptionPdf(
+  data: PrescriptionData
+): Promise<void> {
+  const docDef = await buildPrescriptionDocDef(data);
+  pdfMake.createPdf(docDef).download('e-prescription.pdf');
+}
+
+export async function printVisitPrescriptionPdf(
+  data: PrescriptionData
+): Promise<void> {
+  const docDef = await buildPrescriptionDocDef(data);
+  pdfMake.createPdf(docDef).print();
+}
+
+export async function shareVisitPrescriptionPdf(
+  data: PrescriptionData,
+  phoneNumber: string
+): Promise<void> {
+  const docDef = await buildPrescriptionDocDef(data);
+  const pdfDoc = pdfMake.createPdf(docDef);
+
+  // Download the PDF so the user has it locally
+  pdfDoc.download('e-prescription.pdf');
+
+  // Open WhatsApp with the provided phone number
+  const message = encodeURIComponent(
+    `Please find the e-Prescription for ${data.patientName}`
+  );
+  window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
 }

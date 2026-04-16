@@ -5,9 +5,13 @@ import type { PrescriptionData } from '../../../assets/data/prescription-detail.
 
 /* ── Hoisted mock data ── */
 
-const { mockGetPrescriptionData, mockNavigate } = vi.hoisted(() => ({
+const { mockGetPrescriptionData, mockNavigate, mockGetVisitPrescriptionData, mockDownloadPdf, mockPrintPdf, mockSharePdf } = vi.hoisted(() => ({
   mockGetPrescriptionData: vi.fn(),
   mockNavigate: vi.fn(),
+  mockGetVisitPrescriptionData: vi.fn(),
+  mockDownloadPdf: vi.fn(),
+  mockPrintPdf: vi.fn(),
+  mockSharePdf: vi.fn(),
 }));
 
 /* ── Mocks ── */
@@ -21,6 +25,16 @@ vi.mock('../../../modules/prescription-detail/prescription-detail.service', () =
   prescriptionDetailService: {
     getPrescriptionData: mockGetPrescriptionData,
   },
+}));
+
+vi.mock('../../../services/visit-prescription.service', () => ({
+  getVisitPrescriptionData: mockGetVisitPrescriptionData,
+}));
+
+vi.mock('../../../utils/visit-prescription-pdf', () => ({
+  downloadVisitPrescriptionPdf: mockDownloadPdf,
+  printVisitPrescriptionPdf: mockPrintPdf,
+  shareVisitPrescriptionPdf: mockSharePdf,
 }));
 
 // SVG icon mocks
@@ -181,28 +195,141 @@ describe('PrescriptionDetail', () => {
       expect(screen.getByText('Download PDF')).toBeInTheDocument();
     });
 
-    it('should handle Print button click', async () => {
+    it('should call printVisitPrescriptionPdf when Print is clicked', async () => {
+      const pdfData = { visitUuid: 'visit-123', patientName: 'Test' };
+      mockGetVisitPrescriptionData.mockResolvedValue(pdfData);
+      mockPrintPdf.mockResolvedValue(undefined);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Print')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+      });
+      await waitFor(() => {
+        expect(mockPrintPdf).toHaveBeenCalledWith(pdfData);
+      });
     });
 
-    it('should handle Share button click', async () => {
+    it('should open WhatsApp share modal when Share is clicked', async () => {
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Share')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(screen.getByText('Enter the mobile number to which you want to share the prescription.')).toBeInTheDocument();
+      });
     });
 
-    it('should handle Download PDF button click', async () => {
+    it('should close WhatsApp share modal on backdrop click', async () => {
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Share'));
+      const modalText = 'Enter the mobile number to which you want to share the prescription.';
+      await waitFor(() => {
+        expect(screen.getByText(modalText)).toBeInTheDocument();
+      });
+      // Click the backdrop overlay
+      const backdrop = screen.getByText(modalText).closest('.fixed');
+      fireEvent.click(backdrop!);
+      await waitFor(() => {
+        expect(screen.queryByText(modalText)).not.toBeInTheDocument();
+      });
+    });
+
+    it('should show validation error when phone number is too short', async () => {
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
+      });
+      // Enter short number (valid country code but less than 10 digits)
+      const phoneInput = screen.getByPlaceholderText('+918179987770');
+      fireEvent.change(phoneInput, { target: { value: '+9112345' } });
+      // Click the Share button inside the modal
+      const shareButtons = screen.getAllByRole('button', { name: /share/i });
+      fireEvent.click(shareButtons[shareButtons.length - 1]);
+      await waitFor(() => {
+        expect(screen.getByText('Please enter a valid 10-digit phone number')).toBeInTheDocument();
+      });
+    });
+
+    it('should call shareVisitPrescriptionPdf with phone number when modal share is submitted', async () => {
+      const pdfData = { visitUuid: 'visit-123', patientName: 'Test' };
+      mockGetVisitPrescriptionData.mockResolvedValue(pdfData);
+      mockSharePdf.mockResolvedValue(undefined);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
+      });
+      // Enter full phone number with country code
+      const phoneInput = screen.getByPlaceholderText('+918179987770');
+      fireEvent.change(phoneInput, { target: { value: '+919876543210' } });
+      // Click Share button in modal
+      const shareButtons = screen.getAllByRole('button', { name: /share/i });
+      fireEvent.click(shareButtons[shareButtons.length - 1]);
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+      });
+      await waitFor(() => {
+        expect(mockSharePdf).toHaveBeenCalledWith(pdfData, '919876543210');
+      });
+    });
+
+    it('should call downloadVisitPrescriptionPdf when Download PDF is clicked', async () => {
+      const pdfData = { visitUuid: 'visit-123', patientName: 'Test' };
+      mockGetVisitPrescriptionData.mockResolvedValue(pdfData);
+      mockDownloadPdf.mockResolvedValue(undefined);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Download PDF')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Download PDF'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+      });
+      await waitFor(() => {
+        expect(mockDownloadPdf).toHaveBeenCalledWith(pdfData);
+      });
+    });
+
+    it('should handle download error gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(new Error('API error'));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Download PDF'));
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF:', expect.any(Error));
+      });
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle print error gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(new Error('API error'));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF:', expect.any(Error));
+      });
+      consoleSpy.mockRestore();
     });
   });
 

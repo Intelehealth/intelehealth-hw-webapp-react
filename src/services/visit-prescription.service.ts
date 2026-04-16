@@ -85,6 +85,17 @@ export interface FollowUpData {
   followUpReason: string | null;
 }
 
+export interface VitalsData {
+  height: string | null;
+  weight: string | null;
+  bpSystolic: string | null;
+  bpDiastolic: string | null;
+  pulse: string | null;
+  temperature: string | null;
+  spo2: string | null;
+  respiratoryRate: string | null;
+}
+
 export interface PrescriptionData {
   visitUuid: string;
   patientName: string;
@@ -102,6 +113,7 @@ export interface PrescriptionData {
   doctorQualification: string;
   doctorRegNumber: string;
   doctorSignatureUrl: string | null;
+  vitals: VitalsData;
   diagnoses: DiagnosisItem[];
   medicines: MedicineItem[];
   advices: string[];
@@ -316,6 +328,13 @@ export async function getVisitPrescriptionData(
   const allObs: Obs[] = encounters.flatMap(enc => enc.obs || []);
   const byConceptId = (id: string) =>
     allObs.filter(o => o.concept?.uuid === id);
+  const getObsValue = (id: string): string | null => {
+    const obs = allObs.find(o => o.concept?.uuid === id);
+    if (!obs) return null;
+    const v = obs.value;
+    const raw = typeof v === 'object' && v !== null ? v.display || v.name : v;
+    return raw ? String(raw) : null;
+  };
   const followUpObs = byConceptId(PRESCRIPTION_CONCEPT_IDS.FOLLOW_UP);
 
   return {
@@ -335,6 +354,16 @@ export async function getVisitPrescriptionData(
     doctorQualification,
     doctorRegNumber,
     doctorSignatureUrl,
+    vitals: {
+      height: getObsValue(PRESCRIPTION_CONCEPT_IDS.HEIGHT),
+      weight: getObsValue(PRESCRIPTION_CONCEPT_IDS.WEIGHT),
+      bpSystolic: getObsValue(PRESCRIPTION_CONCEPT_IDS.BP_SYSTOLIC),
+      bpDiastolic: getObsValue(PRESCRIPTION_CONCEPT_IDS.BP_DIASTOLIC),
+      pulse: getObsValue(PRESCRIPTION_CONCEPT_IDS.PULSE),
+      temperature: getObsValue(PRESCRIPTION_CONCEPT_IDS.TEMPERATURE),
+      spo2: getObsValue(PRESCRIPTION_CONCEPT_IDS.SPO2),
+      respiratoryRate: getObsValue(PRESCRIPTION_CONCEPT_IDS.RESPIRATORY_RATE),
+    },
     diagnoses: byConceptId(PRESCRIPTION_CONCEPT_IDS.DIAGNOSIS).map(o => {
       const v = o.value;
       const val =

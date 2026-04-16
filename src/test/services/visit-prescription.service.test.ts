@@ -243,6 +243,14 @@ describe('getVisitPrescriptionData', () => {
           { concept: { uuid: '23601d71-50e6-483f-968d-aeef3031346d' }, value: 'CBC Test' },
           { concept: { uuid: '605b6f15-8f7a-4c45-b06d-14165f6974be' }, value: 'Cardiology:Apollo:Urgent:Chest pain' },
           { concept: { uuid: 'e8caffd6-5d22-41c4-8d6a-bc31a44d0c86' }, value: '2026-04-01,Time:10:00 AM,Remark:Rest,Type:In person' },
+          { concept: { uuid: '5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '170' },
+          { concept: { uuid: '5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '65' },
+          { concept: { uuid: '5085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '120' },
+          { concept: { uuid: '5086AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '80' },
+          { concept: { uuid: '5087AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '72' },
+          { concept: { uuid: '5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '98.6' },
+          { concept: { uuid: '5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '98' },
+          { concept: { uuid: '5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: '16' },
         ],
       },
     ],
@@ -284,6 +292,32 @@ describe('getVisitPrescriptionData', () => {
     expect(result.referrals[0].speciality).toBe('Cardiology');
     expect(result.followUp?.followUpDate).toBe('2026-04-01');
     expect(result.followUp?.followUpType).toBe('In person');
+  });
+
+  it('maps vitals correctly', async () => {
+    mockGet.mockResolvedValue(makeVisit());
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.vitals.height).toBe('170');
+    expect(result.vitals.weight).toBe('65');
+    expect(result.vitals.bpSystolic).toBe('120');
+    expect(result.vitals.bpDiastolic).toBe('80');
+    expect(result.vitals.pulse).toBe('72');
+    expect(result.vitals.temperature).toBe('98.6');
+    expect(result.vitals.spo2).toBe('98');
+    expect(result.vitals.respiratoryRate).toBe('16');
+  });
+
+  it('returns null vitals when no vitals obs present', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = visit.encounters[0].obs.filter(
+      (o: any) => !o.concept.uuid.match(/^5\d{3}AAAA|^5242AAAA/)
+    );
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.vitals.height).toBeNull();
+    expect(result.vitals.weight).toBeNull();
+    expect(result.vitals.bpSystolic).toBeNull();
+    expect(result.vitals.pulse).toBeNull();
   });
 
   it('handles female gender mapping', async () => {

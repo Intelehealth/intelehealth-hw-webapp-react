@@ -4,10 +4,11 @@ import type { PrescriptionData } from '../../services/visit-prescription.service
 // ─── Mock pdfmake ─────────────────────────────────────────────────────────────
 const h = vi.hoisted(() => {
   const mockDownload = vi.fn();
-  const mockCreatePdf = vi.fn(() => ({ download: mockDownload }));
-  return { mockDownload, mockCreatePdf };
+  const mockPrint = vi.fn();
+  const mockCreatePdf = vi.fn(() => ({ download: mockDownload, print: mockPrint }));
+  return { mockDownload, mockPrint, mockCreatePdf };
 });
-const { mockDownload, mockCreatePdf } = h;
+const { mockDownload, mockPrint, mockCreatePdf } = h;
 
 vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, vfs: {} } }));
 vi.mock('pdfmake/build/vfs_fonts', () => ({ default: { pdfMake: { vfs: {} } } }));
@@ -20,6 +21,7 @@ vi.mock('../../assets/icons/prescription-advice.svg?url', () => ({ default: 'adv
 vi.mock('../../assets/icons/prescription-test.svg?url', () => ({ default: 'test.svg' }));
 vi.mock('../../assets/icons/prescription-followup.svg?url', () => ({ default: 'followup.svg' }));
 vi.mock('../../assets/icons/prescription-referral.svg?url', () => ({ default: 'referral.svg' }));
+vi.mock('../../assets/icons/vitals.svg?url', () => ({ default: 'vitals.svg' }));
 
 // ─── Mock browser APIs ────────────────────────────────────────────────────────
 
@@ -88,6 +90,16 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
   doctorQualification: 'MBBS',
   doctorRegNumber: 'REG-999',
   doctorSignatureUrl: null,
+  vitals: {
+    height: '170',
+    weight: '65',
+    bpSystolic: '120',
+    bpDiastolic: '80',
+    pulse: '72',
+    temperature: '98.6',
+    spo2: '98',
+    respiratoryRate: '16',
+  },
   diagnoses: [{ diagnosisName: 'Typhoid fever', diagnosisType: 'Primary', diagnosisStatus: 'Confirmed' }],
   medicines: [{ drug: 'Paracetamol', strength: '500mg', frequency: 'Twice daily', days: '5', timing: 'After food', remark: 'NA' }],
   advices: ['Drink plenty of water'],
@@ -98,7 +110,7 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 });
 
 // ─── Import the functions under test (after mocks are set up) ─────────────────
-const { downloadVisitPrescriptionPdf, openPrescriptionPreview } =
+const { downloadVisitPrescriptionPdf, printVisitPrescriptionPdf, shareVisitPrescriptionPdf, openPrescriptionPreview } =
   await import('../../utils/visit-prescription-pdf');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -246,16 +258,50 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(footer.columns[1].text).toBe('1 of 3');
   });
 
+  it('includes Vitals section with vitals data', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Vitals');
+    expect(bodyStr).toContain('Height(cm):');
+    expect(bodyStr).toContain('170');
+    expect(bodyStr).toContain('Weight(kg):');
+    expect(bodyStr).toContain('65');
+    expect(bodyStr).toContain('Systolic Blood Pressure:');
+    expect(bodyStr).toContain('120');
+    expect(bodyStr).toContain('Diastolic Blood Pressure:');
+    expect(bodyStr).toContain('80');
+    expect(bodyStr).toContain('Pulse(bpm):');
+    expect(bodyStr).toContain('SpO2 (%):');
+    expect(bodyStr).toContain('Respiratory Rate:');
+  });
+
+  it('shows NA for null vitals values', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      vitals: {
+        height: null, weight: null, bpSystolic: null, bpDiastolic: null,
+        pulse: null, temperature: null, spo2: null, respiratoryRate: null,
+      },
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Vitals');
+    expect(bodyStr).toContain('Height(cm):');
+    // NA is shown for null values
+    const naCount = (bodyStr.match(/"NA"/g) || []).length;
+    expect(naCount).toBeGreaterThanOrEqual(8);
+  });
+
   it('shows "No diagnosis added" row when diagnoses empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ diagnoses: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(JSON.stringify(docDef.content)).toContain('No diagnosis added');
   });
 
-  it('shows "No medicines added" row when medicines empty', async () => {
+  it('omits Prescribed Medications section when medicines empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ medicines: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
-    expect(JSON.stringify(docDef.content)).toContain('No medicines added');
+    expect(JSON.stringify(docDef.content)).not.toContain('Prescribed Medications');
   });
 
   it('returns null from toBase64 when reader result does not start with data: (lines 29-31)', async () => {
@@ -322,11 +368,28 @@ describe('downloadVisitPrescriptionPdf', () => {
     const calls = mockCreatePdf.mock.calls as any[][];
     const docDef = calls[0][0];
     const bodyRows: any[] = docDef.content[0].table.body;
-    const diagnosisContentRow = bodyRows.find((r: any) =>
-      Array.isArray(r) && r[0]?.table?.body && typeof r[0]?.layout?.hLineWidth === 'function'
-    );
-    expect(diagnosisContentRow).toBeDefined();
-    const layout = diagnosisContentRow![0].layout;
+    // After sectionBlock refactor, tables are nested inside unbreakable stacks
+    let layout: any;
+    for (const r of bodyRows) {
+      if (!Array.isArray(r)) continue;
+      const cell = r[0];
+      // Direct table row
+      if (cell?.table?.body && typeof cell?.layout?.hLineWidth === 'function') {
+        layout = cell.layout;
+        break;
+      }
+      // Inside unbreakable stack
+      if (cell?.stack) {
+        const nested = cell.stack.find(
+          (s: any) => s?.table?.body && typeof s?.layout?.hLineWidth === 'function'
+        );
+        if (nested) {
+          layout = nested.layout;
+          break;
+        }
+      }
+    }
+    expect(layout).toBeDefined();
     const node = { table: { body: new Array(5) } };
 
     expect(layout.hLineWidth(0, node)).toBe(0);
@@ -336,9 +399,67 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(layout.vLineWidth()).toBe(0);
     expect(layout.hLineColor(1)).toBe('#CCCCCC');
     expect(layout.hLineColor(2)).toBe('#EBEBEB');
-    expect(layout.paddingLeft()).toBe(6);
-    expect(layout.paddingRight()).toBe(6);
+    expect(layout.paddingLeft()).toBe(5);
+    expect(layout.paddingRight()).toBe(5);
     expect(layout.paddingTop()).toBe(4);
     expect(layout.paddingBottom()).toBe(4);
+  });
+});
+
+describe('printVisitPrescriptionPdf', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+  });
+
+  it('calls pdfMake.createPdf and triggers print', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+    expect(mockPrint).toHaveBeenCalledTimes(1);
+    expect(mockDownload).not.toHaveBeenCalled();
+  });
+
+  it('generates same document definition as download', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(docDef.pageSize).toBe('A4');
+    expect(docDef.watermark.text).toBe('INTELEHEALTH');
+  });
+});
+
+describe('shareVisitPrescriptionPdf', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('downloads PDF and opens WhatsApp with phone number', async () => {
+    await shareVisitPrescriptionPdf(makePrescription({ patientName: 'JANE DOE' }), '919876543210');
+
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+    expect(mockDownload).toHaveBeenCalledWith('e-prescription.pdf');
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/919876543210'),
+      '_blank'
+    );
+  });
+
+  it('includes patient name in WhatsApp message', async () => {
+    await shareVisitPrescriptionPdf(makePrescription({ patientName: 'JOHN DOE' }), '11234567890');
+
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining(encodeURIComponent('Please find the e-Prescription for JOHN DOE')),
+      '_blank'
+    );
+  });
+
+  it('generates same document definition as download', async () => {
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210');
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(docDef.pageSize).toBe('A4');
+    expect(docDef.watermark.text).toBe('INTELEHEALTH');
   });
 });
