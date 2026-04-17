@@ -663,31 +663,27 @@ describe('PhysicalExamination', () => {
 
       // Call the wrapped function — should open modal with sections
       capturedHookProps.onNextQuestion();
-      expect(mockShowVitalConfirmationModal).toHaveBeenCalledWith(
-        expect.objectContaining({
-          open: true,
-          type: 'vitalConfirm',
-          title: 'Physical Exam Summary',
-          sections: expect.arrayContaining([
-            expect.objectContaining({
-              title: 'General',
-              items: expect.arrayContaining([
-                expect.objectContaining({ type: 'labelValue', label: 'Jaundice', value: 'Yes' }),
-                expect.objectContaining({ type: 'labelValue', label: 'Pallor', value: 'Normal' }),
-              ]),
-            }),
-            expect.objectContaining({
-              title: 'Head',
-              items: expect.arrayContaining([
-                expect.objectContaining({ type: 'labelValue', label: 'Injury', value: 'Yes' }),
-              ]),
-            }),
-          ]),
-        })
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.open).toBe(true);
+      expect(modalConfig.type).toBe('vitalConfirm');
+      expect(modalConfig.title).toBe('Physical Examination Summary');
+      expect(modalConfig.size).toBe('lg');
+      expect(modalConfig.sections).toHaveLength(2);
+      expect(modalConfig.sections[0].title).toBe('General');
+      expect(modalConfig.sections[0].items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'labelValue', label: 'Jaundice', value: 'Yes' }),
+          expect.objectContaining({ type: 'labelValue', label: 'Pallor', value: 'Normal' }),
+        ])
+      );
+      expect(modalConfig.sections[1].title).toBe('Head');
+      expect(modalConfig.sections[1].items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'labelValue', label: 'Injury', value: 'Yes' }),
+        ])
       );
 
       // Verify sections have onChange callbacks and invoke them
-      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections[0].onChange).toBeInstanceOf(Function);
       modalConfig.sections[0].onChange();
 
@@ -722,6 +718,87 @@ describe('PhysicalExamination', () => {
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       // No sections because selectedTexts filter(Boolean) removes undefined
       expect(modalConfig.sections).toEqual([]);
+    });
+
+    it('should show "Taken Picture" when camera option selected and images exist', () => {
+      mockHookReturn.answers = { q1: ['q1-cam'] };
+      mockHookReturn.cameraImagesFor = vi.fn((qId: string) =>
+        qId === 'q1' ? ['img1.jpg'] : []
+      );
+      render(<PhysicalExamination {...defaultProps} />);
+
+      capturedHookProps.onNextQuestion();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toHaveLength(1);
+      expect(modalConfig.sections[0].items[0].value).toBe('Taken Picture');
+    });
+
+    it('should show "Take a picture" when camera option selected but no images uploaded', () => {
+      mockHookReturn.answers = { q1: ['q1-cam'] };
+      mockHookReturn.cameraImagesFor = vi.fn().mockReturnValue([]);
+      render(<PhysicalExamination {...defaultProps} />);
+
+      capturedHookProps.onNextQuestion();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toHaveLength(1);
+      expect(modalConfig.sections[0].items[0].value).toBe('Take a picture');
+    });
+
+    it('should use visibleQuestions from hook (not static PHYSICAL_EXAM_QUESTIONS)', () => {
+      // Override visibleQuestions with a custom question that has different IDs
+      const serverQuestion = {
+        id: 'server-q1',
+        sectionLabel: 'Custom:',
+        categoryLabel: 'Custom Check',
+        questionText: 'Custom question?',
+        isRequired: true,
+        isMultiChoice: false,
+        sectionKey: 'Custom Section',
+        options: [
+          { id: 'server-opt-yes', text: 'Yes' },
+          { id: 'server-opt-no', text: 'No' },
+        ],
+      };
+      resetHookReturn({
+        visibleQuestions: [serverQuestion] as any,
+        totalQuestions: 1,
+        currentQuestion: serverQuestion as any,
+      });
+      mockHookReturn.answers = { 'server-q1': ['server-opt-yes'] };
+      render(<PhysicalExamination {...defaultProps} />);
+
+      capturedHookProps.onNextQuestion();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toHaveLength(1);
+      expect(modalConfig.sections[0].title).toBe('Custom Section');
+      expect(modalConfig.sections[0].items[0]).toEqual(
+        expect.objectContaining({ label: 'Custom Check', value: 'Yes' })
+      );
+    });
+
+    it('should update answersRef immediately in onSelectSingle so last question answer appears in summary', async () => {
+      const user = userEvent.setup();
+      const originalOnNext = vi.fn();
+      // Simulate: selectAndAdvance triggers wrappedOnNextQuestion (last question)
+      // The mock selectAndAdvance should call wrappedOnNextQuestion
+      resetHookReturn({
+        selectAndAdvance: vi.fn(() => {
+          // Simulate the hook calling onNextQuestion after selectAndAdvance
+          capturedHookProps.onNextQuestion();
+        }),
+      });
+      mockHookReturn.answers = {};
+      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
+
+      // Click "Yes" on q1 — this triggers onSelectSingle which updates answersRef immediately
+      await user.click(screen.getByTestId('option-q1-yes'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      // The summary should include q1's answer even though answers state hadn't re-rendered
+      expect(modalConfig.sections).toHaveLength(1);
+      expect(modalConfig.sections[0].items[0]).toEqual(
+        expect.objectContaining({ label: 'Jaundice', value: 'Yes' })
+      );
     });
   });
 

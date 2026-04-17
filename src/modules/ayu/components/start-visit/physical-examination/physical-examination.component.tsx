@@ -162,24 +162,34 @@ export const PhysicalExamination = (props: SectionProps) => {
   const { data, setPhysicalExamData } = useStartVisitData();
   const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
+  const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
+  const visibleQuestionsRef = useRef<typeof PHYSICAL_EXAM_QUESTIONS>([]);
 
   const wrappedOnNextQuestion = useCallback(() => {
     const currentAnswers = answersRef.current;
-    const details = PHYSICAL_EXAM_QUESTIONS.filter(
-      q => (currentAnswers[q.id] ?? []).length > 0
-    ).map(q => {
-      const selectedTexts = currentAnswers[q.id]
-        .map(id => q.options.find(o => o.id === id)?.text)
-        .filter(Boolean);
-      return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-    });
+    const questions = visibleQuestionsRef.current;
+    const details = questions
+      .filter(q => (currentAnswers[q.id] ?? []).length > 0)
+      .map(q => {
+        const selectedTexts = currentAnswers[q.id]
+          .map(id => q.options.find(o => o.id === id)?.text)
+          .filter(Boolean);
+        return { label: q.categoryLabel, value: selectedTexts.join(', ') };
+      });
 
     // Group details by sectionKey for modal sections
     const sectionMap = new Map<string, ModalSection>();
-    for (const q of PHYSICAL_EXAM_QUESTIONS) {
+    for (const q of questions) {
       if ((currentAnswers[q.id] ?? []).length === 0) continue;
       const selectedTexts = currentAnswers[q.id]
-        .map(id => q.options.find(o => o.id === id)?.text)
+        .map(id => {
+          const opt = q.options.find(o => o.id === id);
+          if (opt?.isCamera) {
+            const hasImages = cameraImagesForRef.current(q.id).length > 0;
+            return hasImages ? 'Taken Picture' : 'Take a picture';
+          }
+          return opt?.text;
+        })
         .filter(Boolean);
       if (!selectedTexts.length) continue;
       if (!sectionMap.has(q.sectionKey)) {
@@ -201,7 +211,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       open: true,
       type: 'vitalConfirm',
       icon: iconPhysicalExam,
-      title: 'Physical Exam Summary',
+      title: 'Physical Examination Summary',
       sections,
       size: 'lg',
       confirmText: 'Confirm',
@@ -232,6 +242,8 @@ export const PhysicalExamination = (props: SectionProps) => {
   } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
 
   answersRef.current = answers;
+  cameraImagesForRef.current = cameraImagesFor;
+  visibleQuestionsRef.current = visibleQuestions;
 
   const activeRef = useRef<HTMLDivElement | null>(null);
   const [submittedAnswers, setSubmittedAnswers] = useState<
@@ -258,6 +270,11 @@ export const PhysicalExamination = (props: SectionProps) => {
             cameraImages={cameraImagesFor(question.id)}
             onSelectSingle={id => {
               setSubmittedAnswers(p => ({ ...p, [question.id]: [id] }));
+              // Update ref immediately so wrappedOnNextQuestion sees the latest answer
+              answersRef.current = {
+                ...answersRef.current,
+                [question.id]: [id],
+              };
               selectAndAdvance(id);
             }}
             onSelectSinglePast={id => selectSingle(id, question.id)}
