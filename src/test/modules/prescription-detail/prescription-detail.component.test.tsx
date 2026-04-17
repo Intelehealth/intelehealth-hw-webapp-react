@@ -331,6 +331,27 @@ describe('PrescriptionDetail', () => {
       });
       consoleSpy.mockRestore();
     });
+
+    it('should handle share error gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(new Error('Share API error'));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
+      });
+      const phoneInput = screen.getByPlaceholderText('+918179987770');
+      fireEvent.change(phoneInput, { target: { value: '+919876543210' } });
+      const shareButtons = screen.getAllByRole('button', { name: /share/i });
+      fireEvent.click(shareButtons[shareButtons.length - 1]);
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF:', expect.any(Error));
+      });
+      consoleSpy.mockRestore();
+    });
   });
 
   /* ── DiagnosisSection ── */

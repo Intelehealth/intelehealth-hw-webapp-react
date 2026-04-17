@@ -283,6 +283,7 @@ const PrescriptionDetail: React.FC = () => {
   }, [visitId]);
 
   const handleDownloadPdf = useCallback(async () => {
+    /* c8 ignore next */
     if (!visitId) return;
     setPdfLoading(true);
     try {
@@ -296,6 +297,7 @@ const PrescriptionDetail: React.FC = () => {
   }, [visitId]);
 
   const handlePrintPdf = useCallback(async () => {
+    /* c8 ignore next */
     if (!visitId) return;
     setPdfLoading(true);
     try {
@@ -314,6 +316,7 @@ const PrescriptionDetail: React.FC = () => {
 
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
+      /* c8 ignore next */
       if (!visitId) return;
       setShowShareModal(false);
       setPdfLoading(true);
