@@ -6,8 +6,6 @@ import { VITAL_RANGES } from './vitals.validation';
 
 const TOTAL_QUESTIONS = 10;
 
-const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-
 const getPlaceholder = (key: string): string => {
   const placeholders: Record<string, string> = {
     height_cm: '172 cm',
@@ -50,6 +48,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
     bpDiastolic,
     getBMIStatus,
     isBPHigh,
+    getCodedAnswers,
   } = useVitals(onNextQuestion);
 
   if (isLoading) {
@@ -82,11 +81,12 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
       !isNaN(bmiVal) &&
       bmiVal > 0 &&
       (bmiVal < bmiRange.min || bmiVal > bmiRange.max);
+    const whrRange = VITAL_RANGES.waist_to_hip_ratio;
     const showWHRWarning =
-      field.key === 'hip_circumference_cm' &&
+      field.key === 'waist_to_hip_ratio' &&
       !isNaN(whrVal) &&
       whrVal > 0 &&
-      (whrVal < 0.5 || whrVal > 1.5);
+      (whrVal < whrRange.min || whrVal > whrRange.max);
 
     return (
       <div key={field.uuid} className="relative">
@@ -95,15 +95,15 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           {field.is_mandatory && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="relative">
-          {field.key === 'blood_group' ? (
+          {field.datatype === 'Coded' ? (
             <select
               {...register(field.key as keyof VitalsFormValues)}
               className={`form-input-base w-full px-3 py-2 ${error ? 'border-red-500' : ''}`}
             >
-              <option value="">Select Blood Group</option>
-              {BLOOD_GROUP_OPTIONS.map(bg => (
-                <option key={bg} value={bg}>
-                  {bg}
+              <option value="">Select {field.name}</option>
+              {getCodedAnswers(field.key).map(answer => (
+                <option key={answer.uuid} value={answer.uuid}>
+                  {answer.display}
                 </option>
               ))}
             </select>
@@ -164,7 +164,8 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
         )}
         {showWHRWarning && (
           <p className="form-error-message mt-1">
-            Waist to Hip Ratio (WHR) must be between 0.5 and 1.5
+            Waist to Hip Ratio (WHR) must be between {whrRange.min} and{' '}
+            {whrRange.max}
           </p>
         )}
         {error && (
