@@ -6,11 +6,32 @@
       "code": "IN",
       "states": [
         {
+          "state": "Andaman & Nicobar",
+          "state-hi": "अंडमान और निकोबार",
+          "districts": [
+            {
+              "name": "Nicobar",
+              "name-hi": "निकोबार",
+              "tahasil": []
+            },
+            {
+              "name": "North And Middle Andaman",
+              "name-hi": "उत्तर और मध्य अंडमान",
+              "tahasil": []
+            },
+            {
+              "name": "South Andaman",
+              "name-hi": "दक्षिण अंडमान",
+              "tahasil": []
+            }
+          ]
+        },
+        {
           "state": "Andhra Pradesh",
           "state-hi": "आंध्र प्रदेश",
           "districts": [
             {
-              "name": "Anantapur",
+              "name": "Ananthapur",
               "name-hi": "अनंतपुर",
               "tahasil": [
                 "Agali",
@@ -705,8 +726,8 @@
               ]
             },
             {
-              "name": "YSR Kadapa",
-              "name-hi": "वाईएसआर कडप्पा",
+              "name": "Cuddapah",
+              "name-hi": "कडप्पा",
               "tahasil": [
                 "Achanta",
                 "Akividu",
@@ -931,6 +952,11 @@
               "tahasil": []
             },
             {
+              "name": "Dima Hasao",
+              "name-hi": "दीमा हसाओ",
+              "tahasil": []
+            },
+            {
               "name": "Goalpara",
               "name-hi": "गोलपाड़ा",
               "tahasil": []
@@ -953,6 +979,11 @@
             {
               "name": "Jorhat",
               "name-hi": "जोरहाट",
+              "tahasil": []
+            },
+            {
+              "name": "Kamrup",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -991,6 +1022,11 @@
               "tahasil": []
             },
             {
+              "name": "Marigaon",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Morigaon",
               "name-hi": "मोरीगांव",
               "tahasil": []
@@ -1006,8 +1042,13 @@
               "tahasil": []
             },
             {
-              "name": "Dima Hasao",
-              "name-hi": "दीमा हसाओ",
+              "name": "North Cachar Hills",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
+              "name": "Sibsagar",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -1062,6 +1103,11 @@
               "tahasil": []
             },
             {
+              "name": "Aurangabad(BH)",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Banka",
               "name-hi": "बांका",
               "tahasil": []
@@ -1089,6 +1135,11 @@
             {
               "name": "Darbhanga",
               "name-hi": "दरभंगा",
+              "tahasil": []
+            },
+            {
+              "name": "East Champaran",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -1147,6 +1198,11 @@
               "tahasil": []
             },
             {
+              "name": "Munger",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Munger (Monghyr)",
               "name-hi": "मुंगेर",
               "tahasil": []
@@ -1169,6 +1225,11 @@
             {
               "name": "Patna",
               "name-hi": "पटना",
+              "tahasil": []
+            },
+            {
+              "name": "Purnia",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -1234,7 +1295,7 @@
           ]
         },
         {
-          "state": "Chandigarh (UT)",
+          "state": "Chandigarh",
           "state-hi": "चंडीगढ़",
           "districts": [
             {
@@ -1245,7 +1306,7 @@
           ]
         },
         {
-          "state": "Chhattisgarh",
+          "state": "Chattisgarh",
           "state-hi": "छत्तीसगढ",
           "districts": [
             {
@@ -1264,11 +1325,6 @@
               "tahasil": []
             },
             {
-              "name": "Saharsa",
-              "name-hi": "सहरसा",
-              "tahasil": []
-            },
-            {
               "name": "Bastar",
               "name-hi": "बस्तर",
               "tahasil": []
@@ -1279,17 +1335,17 @@
               "tahasil": []
             },
             {
-              "name": "Bijapur",
+              "name": "Bijapur(CGH)",
               "name-hi": "बीजापुर",
               "tahasil": []
             },
             {
-              "name": "Bilaspur",
+              "name": "Bilaspur(CGH)",
               "name-hi": "बिलासपुर",
               "tahasil": []
             },
             {
-              "name": "Dantewada (South Bastar)",
+              "name": "Dantewada",
               "name-hi": "दंतेवाड़ा (दक्षिण बस्तर)",
               "tahasil": []
             },
@@ -1304,12 +1360,12 @@
               "tahasil": []
             },
             {
-              "name": "Gariyaband",
+              "name": "Gariaband",
               "name-hi": "गरियाबंद",
               "tahasil": []
             },
             {
-              "name": "Janjgir-Champa",
+              "name": "Janjgir-champa",
               "name-hi": "जांजगीर-चंपा",
               "tahasil": []
             },
@@ -1319,13 +1375,13 @@
               "tahasil": []
             },
             {
-              "name": "Kabirdham (Kawardha)",
-              "name-hi": "कबीरधाम (कवर्धा)",
+              "name": "Kanker",
+              "name-hi": "कांकेर",
               "tahasil": []
             },
             {
-              "name": "Kanker (North Bastar)",
-              "name-hi": "कांकेर",
+              "name": "Kawardha",
+              "name-hi": "कबीरधाम (कवर्धा)",
               "tahasil": []
             },
             {
@@ -1339,7 +1395,7 @@
               "tahasil": []
             },
             {
-              "name": "Korea (Koriya)",
+              "name": "Koriya",
               "name-hi": "कोरिया",
               "tahasil": []
             },
@@ -1374,6 +1430,11 @@
               "tahasil": []
             },
             {
+              "name": "Saharsa",
+              "name-hi": "सहरसा",
+              "tahasil": []
+            },
+            {
               "name": "Sukma",
               "name-hi": "सुकमा",
               "tahasil": []
@@ -1391,7 +1452,7 @@
           ]
         },
         {
-          "state": "Dadra and Nagar Haveli (UT)",
+          "state": "Dadra & Nagar Haveli",
           "state-hi": "दादरा और नगर हवेली",
           "districts": [
             {
@@ -1402,7 +1463,7 @@
           ]
         },
         {
-          "state": "Daman and Diu (UT)",
+          "state": "Daman & Diu",
           "state-hi": "दमन और दीव",
           "districts": [
             {
@@ -1418,7 +1479,7 @@
           ]
         },
         {
-          "state": "Delhi (NCT)",
+          "state": "Delhi",
           "state-hi": "दिल्ली",
           "districts": [
             {
@@ -1572,6 +1633,11 @@
               ]
             },
             {
+              "name": "Banaskantha",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Banaskantha (Palanpur)",
               "name-hi": "बनासकांठा",
               "tahasil": [
@@ -1617,6 +1683,11 @@
               ]
             },
             {
+              "name": "Bhavnagar",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Botad",
               "name-hi": "बोताड",
               "tahasil": ["Botad", "Gadhada", "Ranpur", "Barvala"]
@@ -1655,6 +1726,11 @@
               "name": "Devbhoomi Dwarka",
               "name-hi": "देवभूमी द्वारका",
               "tahasil": ["Bhanvad", "Kalyanpur", "Khambhalia", "Okhamandal"]
+            },
+            {
+              "name": "Gandhi Nagar",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Gandhinagar",
@@ -1753,6 +1829,11 @@
               ]
             },
             {
+              "name": "Mahesana",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Mahisagar",
               "name-hi": "महिसागर",
               "tahasil": [
@@ -1799,6 +1880,11 @@
                 "Jalalpore",
                 "Navsari"
               ]
+            },
+            {
+              "name": "Panch Mahals",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Panchmahal(Godhra)",
@@ -1891,6 +1977,11 @@
               ]
             },
             {
+              "name": "Surendra Nagar",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Surendranagar",
               "name-hi": "सुरेंद्रनगर",
               "tahasil": [
@@ -1910,6 +2001,11 @@
               "name": "Tapi (Vyara)",
               "name-hi": "तापी",
               "tahasil": ["Nizar", "Songadh", "Uchchhal", "Valod", "Vyara"]
+            },
+            {
+              "name": "The Dangs",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Vadodara",
@@ -2052,6 +2148,11 @@
               "tahasil": []
             },
             {
+              "name": "Yamuna Nagar",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Yamunanagar",
               "name-hi": "यमुनानगर",
               "tahasil": []
@@ -2068,6 +2169,11 @@
               "tahasil": []
             },
             {
+              "name": "Bilaspur (HP)",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Chamba",
               "name-hi": "चंबा",
               "tahasil": []
@@ -2075,6 +2181,11 @@
             {
               "name": "Hamirpur",
               "name-hi": "हमीरपुर",
+              "tahasil": []
+            },
+            {
+              "name": "Hamirpur(HP)",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -2098,8 +2209,23 @@
               "tahasil": []
             },
             {
+              "name": "Lahul & Spiti",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
+              "name": "Mandi",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Shimla",
               "name-hi": "शिमला",
+              "tahasil": []
+            },
+            {
+              "name": "Sirmaur",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -2120,9 +2246,14 @@
           ]
         },
         {
-          "state": "Jammu and Kashmir",
+          "state": "Jammu & Kashmir",
           "state-hi": "जम्मू और कश्मीर",
           "districts": [
+            {
+              "name": "Ananthnag",
+              "name-hi": "",
+              "tahasil": []
+            },
             {
               "name": "Anantnag",
               "name-hi": "अनंतनाग",
@@ -2131,6 +2262,11 @@
             {
               "name": "Bandipore",
               "name-hi": "बांदीपुरा",
+              "tahasil": []
+            },
+            {
+              "name": "Bandipur",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -2196,6 +2332,11 @@
             {
               "name": "Pulwama",
               "name-hi": "पुलवामा",
+              "tahasil": []
+            },
+            {
+              "name": "Rajauri",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -2363,6 +2504,11 @@
               ]
             },
             {
+              "name": "Giridh",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Giridih",
               "name-hi": "गिरिडीह",
               "tahasil": [
@@ -2517,6 +2663,11 @@
               ]
             },
             {
+              "name": "Palamau",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Palamu",
               "name-hi": "पलामू",
               "tahasil": [
@@ -2622,7 +2773,7 @@
               ]
             },
             {
-              "name": "Seraikela-Kharsawan",
+              "name": "Seraikela-kharsawan",
               "name-hi": "सरायकेला-खरसावाँ",
               "tahasil": [
                 "Adityapur(gamharia)",
@@ -2932,6 +3083,11 @@
               ]
             },
             {
+              "name": "Bangalore",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Belagavi (Belgaum)",
               "name-hi": "बेलगावी",
               "tahasil": [
@@ -2951,6 +3107,11 @@
                 "Kagawad",
                 "Mudalagi"
               ]
+            },
+            {
+              "name": "Belgaum",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Bengaluru (Bangalore) Rural",
@@ -2982,6 +3143,11 @@
               "name": "Chamarajanagar",
               "name-hi": "चामराजनगर",
               "tahasil": ["Chamarajanagar", "Gundlupet", "Kollegal", "Yelandur"]
+            },
+            {
+              "name": "Chickmagalur",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Chikballapur",
@@ -3165,6 +3331,11 @@
               "tahasil": ["Gadag", "Mundargi", "Nargund", "Ron", "Shirhatti"]
             },
             {
+              "name": "Gulbarga",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Hassan",
               "name-hi": "हसन",
               "tahasil": [
@@ -3240,6 +3411,11 @@
               ]
             },
             {
+              "name": "Mysore",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Mysuru (Mysore)",
               "name-hi": "मैसूर",
               "tahasil": [
@@ -3269,6 +3445,11 @@
               "tahasil": ["Channapatna", "Kanakapura", "Magadi", "Ramanagara"]
             },
             {
+              "name": "Shimoga",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Shivamogga (Shimoga)",
               "name-hi": "शिवमोग्गा",
               "tahasil": [
@@ -3296,6 +3477,11 @@
                 "Tumakuru",
                 "Turuvekere"
               ]
+            },
+            {
+              "name": "Tumkur",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Udupi",
@@ -3367,6 +3553,11 @@
               "tahasil": []
             },
             {
+              "name": "Kasargod",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Kollam",
               "name-hi": "कोल्लम",
               "tahasil": []
@@ -3397,6 +3588,11 @@
               "tahasil": []
             },
             {
+              "name": "Pondicherry",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Thiruvananthapuram",
               "name-hi": "तिरुवनंतपुरम",
               "tahasil": []
@@ -3414,7 +3610,7 @@
           ]
         },
         {
-          "state": "Lakshadweep (UT)",
+          "state": "Lakshadweep",
           "state-hi": "लक्षद्वीप",
           "districts": [
             {
@@ -3443,11 +3639,6 @@
               "tahasil": []
             },
             {
-              "name": "Kavaratti",
-              "name-hi": "चेतलाट",
-              "tahasil": []
-            },
-            {
               "name": "Kadmath",
               "name-hi": "कदमत",
               "tahasil": []
@@ -3458,8 +3649,18 @@
               "tahasil": []
             },
             {
+              "name": "Kavaratti",
+              "name-hi": "चेतलाट",
+              "tahasil": []
+            },
+            {
               "name": "Kilthan",
               "name-hi": "किल्टन",
+              "tahasil": []
+            },
+            {
+              "name": "Lakshadweep",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -3493,6 +3694,11 @@
               "name": "Anuppur",
               "name-hi": "अनूपपुर",
               "tahasil": ["Anuppur", "Jaithari", "Kotma", "Pushparajgarh"]
+            },
+            {
+              "name": "Ashok Nagar",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Ashoknagar",
@@ -3687,6 +3893,11 @@
               "name": "Dindori",
               "name-hi": "डिंडोरी",
               "tahasil": ["Bajag", "Dindori", "Shahpura"]
+            },
+            {
+              "name": "East Nimar",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Guna",
@@ -4004,6 +4215,11 @@
               ]
             },
             {
+              "name": "Sehore",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Seoni",
               "name-hi": "सिवनी",
               "tahasil": [
@@ -4150,6 +4366,11 @@
                 "Vidisha",
                 "Vidisha Nagar"
               ]
+            },
+            {
+              "name": "West Nimar",
+              "name-hi": "",
+              "tahasil": []
             }
           ]
         },
@@ -4157,6 +4378,11 @@
           "state": "Maharashtra",
           "state-hi": "महाराष्ट्र",
           "districts": [
+            {
+              "name": "Ahmed Nagar",
+              "name-hi": "",
+              "tahasil": []
+            },
             {
               "name": "Ahmednagar",
               "name-hi": "अहमदनगर",
@@ -4405,6 +4631,11 @@
               ]
             },
             {
+              "name": "Mumbai",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Mumbai Suburban",
               "name-hi": "मुंबई उपनगर",
               "tahasil": ["Andheri", "Borivali", "Kurla"]
@@ -4553,6 +4784,11 @@
                 "Tala",
                 "Uran"
               ]
+            },
+            {
+              "name": "Raigarh(MH)",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Ratnagiri",
@@ -4789,6 +5025,11 @@
           "name-hi": "मेघालय",
           "districts": [
             {
+              "name": "Bongaigaon",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "East Garo Hills",
               "name-hi": "ईस्ट गारो हिल्स",
               "tahasil": []
@@ -4801,6 +5042,11 @@
             {
               "name": "East Khasi Hills",
               "name-hi": "ईस्ट खासी हिल्स",
+              "tahasil": []
+            },
+            {
+              "name": "Jaintia Hills",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -4880,6 +5126,11 @@
               "tahasil": []
             },
             {
+              "name": "Mammit",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Saiha",
               "name-hi": "सैहा",
               "tahasil": []
@@ -4948,6 +5199,11 @@
             {
               "name": "Zunheboto",
               "name-hi": "जुन्हेबोटो",
+              "tahasil": []
+            },
+            {
+              "name": "Zunhebotto",
+              "name-hi": "",
               "tahasil": []
             }
           ]
@@ -5109,12 +5365,27 @@
           ]
         },
         {
-          "state": "Puducherry (UT)",
+          "state": "Pondicherry",
           "state-hi": "पुडुचेरी (यूटी)",
           "districts": [
             {
+              "name": "Cuddalore",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
+              "name": "East Godavari",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Karaikal",
               "name-hi": "कराईकल",
+              "tahasil": []
+            },
+            {
+              "name": "Kozhikode",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -5123,8 +5394,23 @@
               "tahasil": []
             },
             {
+              "name": "Nagapattinam",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Pondicherry",
               "name-hi": "पांडिचेरी",
+              "tahasil": []
+            },
+            {
+              "name": "Tiruvarur",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
+              "name": "Villupuram",
+              "name-hi": "",
               "tahasil": []
             },
             {
@@ -5240,6 +5526,11 @@
                 "Nihal Singhwala",
                 "Moga"
               ]
+            },
+            {
+              "name": "Mohali",
+              "name-hi": "",
+              "tahasil": []
             },
             {
               "name": "Muktsar",
@@ -6128,6 +6419,11 @@
               "tahasil": []
             },
             {
+              "name": "Villupuram",
+              "name-hi": "",
+              "tahasil": []
+            },
+            {
               "name": "Viluppuram",
               "name-hi": "विलुप्पुरम",
               "tahasil": []
@@ -6184,8 +6480,8 @@
               "tahasil": []
             },
             {
-              "name": "Karimnagar",
-              "name-hi": "करीमनगर",
+              "name": "Karim Nagar",
+              "name-hi": "करीम नगर",
               "tahasil": []
             },
             {
@@ -6204,8 +6500,8 @@
               "tahasil": []
             },
             {
-              "name": "Mahabubnagar",
-              "name-hi": "महबूबनगर",
+              "name": "Mahabub Nagar",
+              "name-hi": "महबूब नगर",
               "tahasil": []
             },
             {
@@ -6254,8 +6550,8 @@
               "tahasil": []
             },
             {
-              "name": "Rangareddy",
-              "name-hi": "रंगारेड्डी",
+              "name": "K.V.Rangareddy",
+              "name-hi": "के.वी.रंगारेड्डी",
               "tahasil": []
             },
             {
@@ -6284,13 +6580,8 @@
               "tahasil": []
             },
             {
-              "name": "Warangal (Rural)",
-              "name-hi": "वारंगल (ग्रामीण)",
-              "tahasil": []
-            },
-            {
-              "name": "Warangal (Urban)",
-              "name-hi": "वारंगल (शहरी)",
+              "name": "Warangal",
+              "name-hi": "वारंगल",
               "tahasil": []
             },
             {

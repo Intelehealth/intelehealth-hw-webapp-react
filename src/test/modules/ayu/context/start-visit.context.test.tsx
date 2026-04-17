@@ -25,6 +25,7 @@ function ContextConsumer({
       <span data-testid="visitReason">{ctx.data.visitReason ? 'set' : 'null'}</span>
       <span data-testid="physicalExam">{ctx.data.physicalExam ? 'set' : 'null'}</span>
       <span data-testid="medicalHistory">{ctx.data.medicalHistory ? 'set' : 'null'}</span>
+      <span data-testid="lastSectionIndex">{ctx.lastSectionIndex}</span>
     </div>
   );
 }
@@ -40,6 +41,11 @@ function ContextUpdater() {
       <span data-testid="physicalExam">{JSON.stringify(ctx.data.physicalExam)}</span>
       <span data-testid="medicalHistory">{JSON.stringify(ctx.data.medicalHistory)}</span>
 
+      <span data-testid="lastSectionIndex">{ctx.lastSectionIndex}</span>
+      <button
+        data-testid="btn-setLastSectionIndex"
+        onClick={() => ctx.setLastSectionIndex(3)}
+      />
       <button
         data-testid="btn-setPatientUuid"
         onClick={() => ctx.setPatientUuid('new-uuid-123')}
@@ -68,7 +74,8 @@ function ContextUpdater() {
         data-testid="btn-setPhysicalExam"
         onClick={() => {
           const answers: PhysicalExamAnswers = { eyes_jaundice: ['no_jaundice'] };
-          ctx.setPhysicalExamData(answers);
+          const details = [{ label: 'Eyes: Jaundice', value: 'No' }];
+          ctx.setPhysicalExamData(answers, details);
         }}
       />
       <button
@@ -117,6 +124,32 @@ describe('StartVisitProvider', () => {
     );
 
     expect(screen.getByTestId('patientUuid')).toHaveTextContent('null');
+  });
+
+  it('should default lastSectionIndex to 0', () => {
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('0');
+  });
+
+  it('should update lastSectionIndex via setLastSectionIndex', () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('0');
+
+    act(() => {
+      screen.getByTestId('btn-setLastSectionIndex').click();
+    });
+
+    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('3');
   });
 
   it('should default all data fields to null', () => {
@@ -204,6 +237,7 @@ describe('StartVisitProvider', () => {
     const physicalExamText = screen.getByTestId('physicalExam').textContent!;
     const physicalExam = JSON.parse(physicalExamText);
     expect(physicalExam.answers).toEqual({ eyes_jaundice: ['no_jaundice'] });
+    expect(physicalExam.details).toEqual([{ label: 'Eyes: Jaundice', value: 'No' }]);
   });
 
   it('should update medicalHistory in data via setMedicalHistoryData', () => {

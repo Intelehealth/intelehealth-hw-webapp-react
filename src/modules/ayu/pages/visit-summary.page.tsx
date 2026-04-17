@@ -78,21 +78,6 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
   };
 };
 
-const mapPhysicalExam = (
-  answers: Record<string, string[]>
-): PhysicalExamination => {
-  const generalExams = PHYSICAL_EXAM_QUESTIONS.filter(
-    q => (answers[q.id] ?? []).length > 0
-  ).map(q => {
-    const selectedTexts = answers[q.id]
-      .map(id => q.options.find(o => o.id === id)?.text)
-      .filter(Boolean);
-    return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-  });
-
-  return { generalExams };
-};
-
 /* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
@@ -329,8 +314,8 @@ const VisitSummaryPage = () => {
   );
 
   const physicalExamination = useMemo(
-    () =>
-      data.physicalExam ? mapPhysicalExam(data.physicalExam.answers) : null,
+    (): PhysicalExamination | null =>
+      data.physicalExam ? { generalExams: data.physicalExam.details } : null,
     [data.physicalExam]
   );
 
@@ -485,7 +470,7 @@ const VisitSummaryPage = () => {
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
-          onClick={() => navigate('/ayu')}
+          onClick={() => navigate(-1)}
           className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Back to Edit

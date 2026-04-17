@@ -5,6 +5,24 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { StartVisit } from '../../../../../modules/ayu/components/start-visit/start-visit.component';
 
+// Mock useStartVisitData context
+const mockSetLastSectionIndex = vi.fn();
+const mockUseStartVisitData = vi.fn(() => ({
+  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
+  patientUuid: null,
+  lastSectionIndex: 0,
+  setLastSectionIndex: mockSetLastSectionIndex,
+  setPatientUuid: vi.fn(),
+  setVitalsData: vi.fn(),
+  setVisitReasonData: vi.fn(),
+  setPhysicalExamData: vi.fn(),
+  setMedicalHistoryData: vi.fn(),
+}));
+
+vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: () => mockUseStartVisitData(),
+}));
+
 // Mock useVisitReasons hook
 vi.mock('../../../../../modules/ayu/hooks/useVisitReasons.hook', () => ({
   useVisitReasons: vi.fn(() => ({
@@ -113,6 +131,17 @@ const renderWithRouter = (
 describe('StartVisit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseStartVisitData.mockReturnValue({
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
+      patientUuid: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: mockSetLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+    });
     // Mock window.alert
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -960,6 +989,94 @@ describe('StartVisit', () => {
 
       // The subtitle should now appear
       expect(screen.getByText(/Diabetes, Hypertension/)).toBeInTheDocument();
+    });
+  });
+
+  describe('lastSectionIndex persistence via context', () => {
+    it('should initialize at lastSectionIndex from context when returning from visit summary', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: { answers: {} },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+        } as any,
+        patientUuid: null,
+        lastSectionIndex: 3,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+      });
+
+      renderWithRouter(<StartVisit />);
+
+      // Should start at Medical History (index 3)
+      expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
+      expect(screen.getByTestId('medical-history-component')).toBeVisible();
+    });
+
+    it('should call setLastSectionIndex when navigating to next section', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      await user.click(screen.getByText('Next Vitals'));
+
+      expect(mockSetLastSectionIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('should call setLastSectionIndex when navigating to previous section', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      // Navigate to Visit Reason
+      await user.click(screen.getByText('Next Vitals'));
+      mockSetLastSectionIndex.mockClear();
+
+      // Go back to Vitals
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Prev Section'));
+
+      expect(mockSetLastSectionIndex).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe('sections initialization from context data', () => {
+    it('should mark all sections as completed when all data exists in context', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: { answers: {} },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+        } as any,
+        patientUuid: null,
+        lastSectionIndex: 3,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+      });
+
+      renderWithRouter(<StartVisit />);
+
+      // The SectionCompletionLoader should reflect completed sections
+      const loader = screen.getByTestId('section-completion-loader');
+      expect(loader).toBeInTheDocument();
+      // Medical History section (index 3) should show answered = totalQuestions
+      expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
+    });
+
+    it('should leave sections as incomplete when no data in context', () => {
+      renderWithRouter(<StartVisit />);
+
+      // The SectionCompletionLoader shows vitals as answered (default 1)
+      const loader = screen.getByTestId('section-completion-loader');
+      expect(loader).toHaveTextContent('Section: 1, Question: 1');
     });
   });
 });

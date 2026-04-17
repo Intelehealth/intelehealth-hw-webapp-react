@@ -20,6 +20,8 @@ const defaultData = {
 const mockUseStartVisitData = vi.fn(() => ({
   data: { ...defaultData },
   patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  lastSectionIndex: 0,
+  setLastSectionIndex: vi.fn(),
   setPatientUuid: vi.fn(),
   setVitalsData: vi.fn(),
   setVisitReasonData: vi.fn(),
@@ -202,6 +204,7 @@ const fullData = {
     answers: {
       pe1: ['opt1'],
     },
+    details: [{ label: 'General Appearance', value: 'Normal' }],
   },
   medicalHistory: {
     patHistSummary: [
@@ -224,6 +227,8 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
   mockUseStartVisitData.mockReturnValue({
     data,
     patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    lastSectionIndex: 0,
+    setLastSectionIndex: vi.fn(),
     setPatientUuid: vi.fn(),
     setVitalsData: vi.fn(),
     setVisitReasonData: vi.fn(),
@@ -353,13 +358,13 @@ describe('VisitSummaryPage', () => {
 
   /* ── "Back to Edit" button ──────────────────────────────────────────── */
 
-  it('should navigate to /ayu when "Back to Edit" button is clicked', () => {
+  it('should navigate back when "Back to Edit" button is clicked', () => {
     renderWithData();
 
     const backButton = screen.getByText('Back to Edit');
     fireEvent.click(backButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
   /* ── MedicalHistorySection: subheading items ──────────────────────── */
@@ -431,6 +436,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),
@@ -457,6 +464,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: 'patient-uuid',
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),
@@ -506,6 +515,8 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: vi.fn(),
       setVisitReasonData: vi.fn(),
@@ -615,6 +626,7 @@ describe('VisitSummaryPage', () => {
         answers: {
           pe1: ['opt1'],
         },
+        details: [{ label: 'General Appearance', value: 'Normal' }],
       },
     });
 
@@ -622,11 +634,12 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('Normal')).toBeInTheDocument();
   });
 
-  it('should handle physical exam with empty answers (mapPhysicalExam filters empty)', () => {
+  it('should handle physical exam with empty answers (details empty)', () => {
     renderWithData({
       ...fullData,
       physicalExam: {
         answers: {},
+        details: [],
       },
     });
 
@@ -684,8 +697,9 @@ describe('VisitSummaryPage', () => {
     renderWithData({
       physicalExam: {
         answers: {
-          // pe1 has no entry — covers answers[q.id] ?? [] branch
+          // pe1 has no entry
         },
+        details: [],
       },
     });
 
@@ -806,11 +820,11 @@ describe('VisitSummaryPage', () => {
         answers: {
           pe1: ['non_existent_option'],
         },
+        details: [{ label: 'General Appearance', value: '' }],
       },
     });
 
-    // Question passes filter (has answers) but selectedTexts will be empty after .filter(Boolean)
-    // So value becomes empty string from .join(', ')
+    // details has the label but value is empty since answer IDs didn't match any option
     expect(screen.getByText('General Appearance')).toBeInTheDocument();
   });
 });

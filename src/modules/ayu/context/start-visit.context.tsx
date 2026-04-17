@@ -22,6 +22,7 @@ export interface StartVisitData {
   } | null;
   physicalExam: {
     answers: PhysicalExamAnswers;
+    details: Array<{ label: string; value: string }>;
   } | null;
   medicalHistory: {
     patHistSummary: MedicalHistorySummary[];
@@ -32,6 +33,8 @@ export interface StartVisitData {
 interface StartVisitContextType {
   data: StartVisitData;
   patientUuid: string | null;
+  lastSectionIndex: number;
+  setLastSectionIndex: (index: number) => void;
   setPatientUuid: (uuid: string) => void;
   setVitalsData: (formValues: VitalsFormValues, config: VitalField[]) => void;
   setVisitReasonData: (
@@ -39,7 +42,10 @@ interface StartVisitContextType {
     reasonNames: string[],
     details: Array<{ label: string; value: string }>
   ) => void;
-  setPhysicalExamData: (answers: PhysicalExamAnswers) => void;
+  setPhysicalExamData: (
+    answers: PhysicalExamAnswers,
+    details: Array<{ label: string; value: string }>
+  ) => void;
   setMedicalHistoryData: (
     patHistSummary: MedicalHistorySummary[],
     famHistSummary: MedicalHistorySummary[]
@@ -58,6 +64,7 @@ export const StartVisitProvider = ({
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
   );
+  const [lastSectionIndex, setLastSectionIndex] = useState(0);
   const [data, setData] = useState<StartVisitData>({
     vitals: null,
     visitReason: null,
@@ -83,8 +90,11 @@ export const StartVisitProvider = ({
     }));
   };
 
-  const setPhysicalExamData = (answers: PhysicalExamAnswers) => {
-    setData(prev => ({ ...prev, physicalExam: { answers } }));
+  const setPhysicalExamData = (
+    answers: PhysicalExamAnswers,
+    details: Array<{ label: string; value: string }>
+  ) => {
+    setData(prev => ({ ...prev, physicalExam: { answers, details } }));
   };
 
   const setMedicalHistoryData = (
@@ -102,6 +112,8 @@ export const StartVisitProvider = ({
       value={{
         data,
         patientUuid,
+        lastSectionIndex,
+        setLastSectionIndex,
         setPatientUuid,
         setVitalsData,
         setVisitReasonData,

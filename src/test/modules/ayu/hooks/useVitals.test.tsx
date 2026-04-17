@@ -26,6 +26,8 @@ const mockSetVitalsData = vi.fn();
 const mockStartVisitData = vi.fn(() => ({
   data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
   patientUuid: null,
+  lastSectionIndex: 0,
+  setLastSectionIndex: vi.fn(),
   setPatientUuid: vi.fn(),
   setVitalsData: mockSetVitalsData,
   setVisitReasonData: vi.fn(),
@@ -103,6 +105,8 @@ describe('useVitals', () => {
     mockStartVisitData.mockReturnValue({
       data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
       patientUuid: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
       setVitalsData: mockSetVitalsData,
       setVisitReasonData: vi.fn(),
@@ -426,6 +430,86 @@ describe('useVitals', () => {
       // Initially, waist and hip should be undefined
       expect(result.current.watch('waist_circumference_cm')).toBeUndefined();
       expect(result.current.watch('hip_circumference_cm')).toBeUndefined();
+    });
+
+    it('should clear WHR to undefined when waist is removed after being set', async () => {
+      const configWithWHR: VitalField[] = [
+        ...mockVitalsConfig,
+        {
+          uuid: '14',
+          key: 'waist_circumference_cm',
+          name: 'Waist',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+        },
+        {
+          uuid: '15',
+          key: 'hip_circumference_cm',
+          name: 'Hip',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+        },
+        {
+          uuid: '16',
+          key: 'waist_to_hip_ratio',
+          name: 'WHR',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+        },
+      ];
+
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: configWithWHR },
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, watch } = hookResult;
+        const whr = watch('waist_to_hip_ratio');
+
+        return (
+          <form>
+            <input {...register('waist_circumference_cm')} data-testid="waist" type="number" />
+            <input {...register('hip_circumference_cm')} data-testid="hip" type="number" />
+            <input {...register('waist_to_hip_ratio')} data-testid="whr" type="number" readOnly value={whr ?? ''} />
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Set waist and hip to trigger WHR calculation
+      act(() => {
+        fireEvent.change(screen.getByTestId('waist'), { target: { value: '80' } });
+        fireEvent.change(screen.getByTestId('hip'), { target: { value: '100' } });
+      });
+
+      // Wait for WHR to be calculated
+      await waitFor(
+        () => {
+          const whrInput = screen.getByTestId('whr') as HTMLInputElement;
+          expect(whrInput.value).not.toBe('');
+        },
+        { timeout: 3000 }
+      );
+
+      // Clear waist to trigger WHR clearing to undefined
+      act(() => {
+        fireEvent.change(screen.getByTestId('waist'), { target: { value: '' } });
+      });
+
+      // WHR should be cleared
+      await waitFor(
+        () => {
+          const whrInput = screen.getByTestId('whr') as HTMLInputElement;
+          expect(whrInput.value).toBe('');
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -1007,6 +1091,8 @@ describe('useVitals', () => {
           medicalHistory: null,
         },
         patientUuid: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
         setVitalsData: mockSetVitalsData,
         setVisitReasonData: vi.fn(),
@@ -1063,6 +1149,8 @@ describe('useVitals', () => {
           medicalHistory: null,
         },
         patientUuid: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
         setVitalsData: mockSetVitalsData,
         setVisitReasonData: vi.fn(),
@@ -1092,6 +1180,8 @@ describe('useVitals', () => {
           medicalHistory: null,
         },
         patientUuid: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
         setVitalsData: mockSetVitalsData,
         setVisitReasonData: vi.fn(),
