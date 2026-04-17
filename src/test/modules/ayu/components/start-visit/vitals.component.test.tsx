@@ -94,6 +94,7 @@ describe('Vitals Component', () => {
       is_mandatory: false,
       lang: null,
       is_enabled: true,
+      datatype: 'Coded',
     },
     {
       name: 'Waist to Hip Ratio (WHR)',
@@ -120,6 +121,14 @@ describe('Vitals Component', () => {
     bpDiastolic: undefined,
     getBMIStatus: mockGetBMIStatus,
     isBPHigh: mockIsBPHigh,
+    getCodedAnswers: (key: string) =>
+      key === 'blood_group'
+        ? [
+            { uuid: 'uuid-a-pos', display: 'A POSITIVE' },
+            { uuid: 'uuid-a-neg', display: 'A NEGATIVE' },
+            { uuid: 'uuid-b-pos', display: 'B POSITIVE' },
+          ]
+        : [],
   };
 
   beforeEach(() => {
@@ -515,15 +524,15 @@ describe('Vitals Component', () => {
       });
     });
 
-    it('should render dropdown for blood_group field', () => {
+    it('should render dropdown for coded field (blood_group) with concept answers', () => {
       render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
 
       const select = screen.getByRole('combobox');
       expect(select).toBeInTheDocument();
       expect(select).toHaveAttribute('name', 'blood_group');
       expect(screen.getByText('Select Blood Group')).toBeInTheDocument();
-      expect(screen.getByText('A+')).toBeInTheDocument();
-      expect(screen.getByText('O-')).toBeInTheDocument();
+      expect(screen.getByText('A POSITIVE')).toBeInTheDocument();
+      expect(screen.getByText('B POSITIVE')).toBeInTheDocument();
     });
   });
 
@@ -678,15 +687,9 @@ describe('Vitals Component', () => {
       expect(screen.queryByText(/BMI must be between/)).not.toBeInTheDocument();
     });
 
-    it('should show WHR warning under hip field when WHR is out of range (lines 157-159)', () => {
-      const otherFieldsWithHip: VitalField[] = [
-        ...mockOtherFields,
-        { name: 'Hip Circumference (cm)', key: 'hip_circumference_cm', uuid: 'hip-uuid', is_mandatory: true, lang: null, is_enabled: true },
-      ];
-      mockUseVitals.mockReturnValue({ ...defaultMockReturn, otherFields: otherFieldsWithHip });
+    it('should show WHR warning under WHR field when WHR is out of range', () => {
       mockWatch.mockImplementation((fieldName: string) => {
         if (fieldName === 'waist_to_hip_ratio') return 1.8;
-        if (fieldName === 'hip_circumference_cm') return 50;
         if (fieldName === 'bmi') return undefined;
         return undefined;
       });

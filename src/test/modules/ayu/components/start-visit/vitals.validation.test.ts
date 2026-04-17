@@ -217,6 +217,7 @@ describe('vitals.validation', () => {
       is_enabled: true,
       is_mandatory: true,
       lang: null,
+      datatype: 'Coded',
     };
 
     it('should create schema with required field', async () => {

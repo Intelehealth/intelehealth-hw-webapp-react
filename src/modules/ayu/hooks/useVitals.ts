@@ -1,9 +1,11 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import iconVitals from '../../../assets/icons/vitals.svg';
 import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
+import { fetchConceptAnswers } from '../../../services/concept.service';
+import type { ConceptAnswer } from '../../../types/config.types';
 import { useStartVisitData } from '../context/start-visit.context';
 import {
   calculateBMI,
@@ -218,6 +220,7 @@ const FALLBACK_VITALS_CONFIG: VitalField[] = [
     is_mandatory: false,
     lang: null,
     is_enabled: true,
+    datatype: 'Coded',
   },
 ];
 
@@ -285,6 +288,56 @@ export const useVitals = (onNextQuestion: () => void) => {
       reset(savedVitals);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch concept answers for coded vitals (e.g. Blood Typing)
+  const [codedAnswers, setCodedAnswers] = useState<
+    Record<string, ConceptAnswer[]>
+  >({});
+
+  useEffect(() => {
+    const codedFields = vitalsConfig.filter(
+      f => f.datatype === 'Coded' && !f.answers?.length
+    );
+    if (codedFields.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const results: Record<string, ConceptAnswer[]> = {};
+      await Promise.all(
+        codedFields.map(async field => {
+          try {
+            results[field.key] = await fetchConceptAnswers(field.uuid);
+          } catch {
+            // API unavailable — leave empty so the field renders without options
+          }
+        })
+      );
+      if (!cancelled) setCodedAnswers(results);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vitalsConfig]);
+
+  /** Get the dropdown answers for a coded vital field. */
+  const getCodedAnswers = useCallback(
+    (fieldKey: string): ConceptAnswer[] => {
+      const field = vitalsConfig.find(f => f.key === fieldKey);
+      // Prefer answers from config; fall back to API-fetched answers
+      return field?.answers ?? codedAnswers[fieldKey] ?? [];
+    },
+    [vitalsConfig, codedAnswers]
+  );
+
+  /** Resolve a coded answer UUID to its display name (for the summary modal). */
+  const getCodedDisplay = useCallback(
+    (fieldKey: string, uuid: string | undefined): string | null => {
+      if (!uuid) return null;
+      const answers = getCodedAnswers(fieldKey);
+      return answers.find(a => a.uuid === uuid)?.display ?? uuid;
+    },
+    [getCodedAnswers]
+  );
 
   const { showVitalConfirmationModal } = useGlobalModal();
   // Watch values for auto-calculation
@@ -368,7 +421,10 @@ export const useVitals = (onNextQuestion: () => void) => {
           value: watch('ogtt_mg_per_dl') || null,
         },
         { label: 'HbA1c', value: watch('hba1c') || null },
-        { label: 'Blood Group', value: watch('blood_group') || null },
+        {
+          label: 'Blood Group',
+          value: getCodedDisplay('blood_group', watch('blood_group')) || null,
+        },
       ],
       confirmText: 'Confirm',
       cancelText: 'Back',
@@ -412,5 +468,8 @@ export const useVitals = (onNextQuestion: () => void) => {
     // Utility functions (re-exported for component use)
     getBMIStatus,
     isBPHigh,
+
+    // Coded vital helpers
+    getCodedAnswers,
   };
 };

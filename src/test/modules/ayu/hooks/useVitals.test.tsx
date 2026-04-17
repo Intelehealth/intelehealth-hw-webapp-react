@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useVitals } from '../../../../modules/ayu/hooks/useVitals';
 import type { VitalField } from '../../../../modules/ayu/types/vitals.types';
+import type { ConceptAnswer } from '../../../../types/config.types';
 
 // Mock useConfig hook
 vi.mock('../../../../hooks/useConfig', () => ({
@@ -19,6 +20,12 @@ vi.mock('../../../../components/modal/global-modal-context', () => ({
     showConfirmModal: vi.fn(),
     showVitalConfirmationModal: vi.fn(),
   })),
+}));
+
+// Mock concept service
+const mockFetchConceptAnswers = vi.fn<(uuid: string) => Promise<ConceptAnswer[]>>();
+vi.mock('../../../../services/concept.service', () => ({
+  fetchConceptAnswers: (...args: [string]) => mockFetchConceptAnswers(...args),
 }));
 
 // Mock useStartVisitData context
@@ -113,6 +120,7 @@ describe('useVitals', () => {
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
     });
+    mockFetchConceptAnswers.mockResolvedValue([]);
     vi.mocked(useConfig).mockReturnValue({
       config: null,
     } as any);
@@ -1254,6 +1262,151 @@ describe('useVitals', () => {
 
       expect(totalFields).toBeGreaterThan(5);
       expect(totalFields).toBeLessThan(50);
+    });
+  });
+
+  describe('Coded Vitals (getCodedAnswers)', () => {
+    const mockAnswers: ConceptAnswer[] = [
+      { uuid: 'uuid-a-pos', display: 'A POSITIVE' },
+      { uuid: 'uuid-b-pos', display: 'B POSITIVE' },
+    ];
+
+    const codedConfig: VitalField[] = [
+      ...mockVitalsConfig,
+      {
+        uuid: 'bg-concept-uuid',
+        key: 'blood_group',
+        name: 'Blood Group',
+        is_mandatory: false,
+        is_enabled: true,
+        lang: null,
+        datatype: 'Coded',
+      },
+    ];
+
+    it('should return answers fetched from the API for coded vitals', async () => {
+      mockFetchConceptAnswers.mockResolvedValue(mockAnswers);
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: codedConfig },
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.getCodedAnswers('blood_group')).toHaveLength(2);
+      });
+
+      expect(result.current.getCodedAnswers('blood_group')[0].display).toBe('A POSITIVE');
+      expect(mockFetchConceptAnswers).toHaveBeenCalledWith('bg-concept-uuid');
+    });
+
+    it('should prefer answers from config over API-fetched answers', async () => {
+      const configAnswers: ConceptAnswer[] = [
+        { uuid: 'cfg-uuid-1', display: 'Config Answer 1' },
+      ];
+
+      const configWithAnswers: VitalField[] = [
+        ...mockVitalsConfig,
+        {
+          uuid: 'bg-concept-uuid',
+          key: 'blood_group',
+          name: 'Blood Group',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+          datatype: 'Coded',
+          answers: configAnswers,
+        },
+      ];
+
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: configWithAnswers },
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      // Should not fetch from API since config already has answers
+      expect(mockFetchConceptAnswers).not.toHaveBeenCalled();
+      expect(result.current.getCodedAnswers('blood_group')).toEqual(configAnswers);
+    });
+
+    it('should return empty array for non-coded fields', async () => {
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: mockVitalsConfig },
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.getCodedAnswers('height_cm')).toEqual([]);
+    });
+
+    it('should show coded display name in summary modal', async () => {
+      mockFetchConceptAnswers.mockResolvedValue(mockAnswers);
+
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: codedConfig },
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <select {...register('blood_group')} data-testid="blood-group" defaultValue="uuid-a-pos">
+              <option value="uuid-a-pos">A POSITIVE</option>
+            </select>
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Wait for concept answers to load
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+      });
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('submit'));
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bgItem = modalConfig.items.find((item: any) => item.label === 'Blood Group');
+      expect(bgItem).toBeDefined();
+      // Should show display name, not UUID
+      expect(bgItem.value).toBe('A POSITIVE');
+    });
+
+    it('should handle API fetch failure gracefully', async () => {
+      mockFetchConceptAnswers.mockRejectedValue(new Error('Network error'));
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: codedConfig },
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      // Should not crash, just return empty
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+      });
+      expect(result.current.getCodedAnswers('blood_group')).toEqual([]);
     });
   });
 
