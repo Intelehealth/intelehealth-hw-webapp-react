@@ -172,10 +172,15 @@ export const PhysicalExamination = (props: SectionProps) => {
       .filter(q => (currentAnswers[q.id] ?? []).length > 0)
       .map(q => {
         const selectedTexts = currentAnswers[q.id]
-          .map(id => q.options.find(o => o.id === id)?.text)
+          .map(id => {
+            const opt = q.options.find(o => o.id === id);
+            if (opt?.isCamera) return undefined;
+            return opt?.text;
+          })
           .filter(Boolean);
         return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-      });
+      })
+      .filter(d => d.value);
 
     // Group details by sectionKey for modal sections
     const sectionMap = new Map<string, ModalSection>();
@@ -186,7 +191,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           const opt = q.options.find(o => o.id === id);
           if (opt?.isCamera) {
             const hasImages = cameraImagesForRef.current(q.id).length > 0;
-            return hasImages ? 'Picture Taken' : 'Take a picture';
+            return hasImages ? 'Picture taken' : '';
           }
           return opt?.text;
         })
