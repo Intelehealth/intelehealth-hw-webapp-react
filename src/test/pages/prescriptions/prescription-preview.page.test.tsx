@@ -40,6 +40,7 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
   doctorQualification: 'MBBS',
   doctorRegNumber: 'REG-999',
   doctorSignatureUrl: null,
+  vitals: { height: '170', weight: '70', bpSystolic: '120', bpDiastolic: '80', pulse: '72', temperature: '98.6', spo2: '98', respiratoryRate: '18' },
   diagnoses: [{ diagnosisName: 'Typhoid fever', diagnosisType: 'Primary', diagnosisStatus: 'Confirmed' }],
   medicines: [{ drug: 'Paracetamol', strength: '500mg', frequency: 'Twice daily', days: '5', timing: 'After food', remark: 'NA' }],
   advices: ['Drink plenty of water'],
