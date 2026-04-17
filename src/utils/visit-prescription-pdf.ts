@@ -591,9 +591,13 @@ export async function shareVisitPrescriptionPdf(
   // Download the PDF so the user has it locally
   pdfDoc.download('e-prescription.pdf');
 
-  // Open WhatsApp with the provided phone number
+  // TODO: Replace dummy link with actual upload URL once backend API is ready
+  const downloadLink =
+    'https://pathqa.intelehealth.org/intelehealth/index.html#/i/2vpa';
+
+  // Open WhatsApp with the provided phone number and download link
   const message = encodeURIComponent(
-    `Please find the e-Prescription for ${data.patientName}`
+    `Hello, Thank you for using Intelehealth. To download your prescription click here\nDownload here: ${downloadLink}`
   );
   window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
 }

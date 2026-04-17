@@ -447,13 +447,13 @@ describe('shareVisitPrescriptionPdf', () => {
     );
   });
 
-  it('includes patient name in WhatsApp message', async () => {
+  it('includes download link in WhatsApp message', async () => {
     await shareVisitPrescriptionPdf(makePrescription({ patientName: 'JOHN DOE' }), '11234567890');
 
-    expect(window.open).toHaveBeenCalledWith(
-      expect.stringContaining(encodeURIComponent('Please find the e-Prescription for JOHN DOE')),
-      '_blank'
-    );
+    const url = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const message = decodeURIComponent(url.split('?text=')[1]);
+    expect(message).toContain('Download here:');
+    expect(message).toContain('https://');
   });
 
   it('generates same document definition as download', async () => {
