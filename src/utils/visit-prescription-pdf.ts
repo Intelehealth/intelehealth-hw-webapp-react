@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import pdfFonts from './pdfmake-vfs';
 import type { PrescriptionData } from '../services/visit-prescription.service';
 import iconConsultationUrl from '../assets/icons/prescription-consultation.svg?url';
 import iconDiagnosisUrl from '../assets/icons/prescription-diagnosis.svg?url';
@@ -13,6 +13,15 @@ import iconVitalsUrl from '../assets/icons/vitals.svg?url';
 
 /* c8 ignore next */
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs;
+/* c8 ignore next 8 */
+(pdfMake as any).fonts = {
+  Roboto: {
+    normal: 'Roboto-Regular.ttf',
+    bold: 'Roboto-Medium.ttf',
+    italics: 'Roboto-Regular.ttf',
+    bolditalics: 'Roboto-Medium.ttf',
+  },
+};
 
 async function toBase64(
   url: string,
