@@ -5,6 +5,7 @@ import {
   PERSON_ATTRIBUTES,
   PROVIDER_ATTRIBUTES,
 } from './prescription.constant';
+import type * as PrescriptionTypes from '../types/prescription.types';
 
 interface ObsValue {
   display?: string;
@@ -64,63 +65,13 @@ interface VisitResponse {
   encounters?: Encounter[];
 }
 
-export interface DiagnosisItem {
-  diagnosisName: string;
-  diagnosisType: string;
-  diagnosisStatus: string;
-}
-export interface MedicineItem {
-  drug: string;
-  strength: string;
-  days: string;
-  timing: string;
-  frequency: string;
-  remark: string;
-}
-export interface FollowUpData {
-  wantFollowUp: string;
-  followUpType: string | null;
-  followUpDate: string | null;
-  followUpTime: string | null;
-  followUpReason: string | null;
-}
-
-export interface VitalsData {
-  height: string | null;
-  weight: string | null;
-  bpSystolic: string | null;
-  bpDiastolic: string | null;
-  pulse: string | null;
-  temperature: string | null;
-  spo2: string | null;
-  respiratoryRate: string | null;
-}
-
-export interface PrescriptionData {
-  visitUuid: string;
-  patientName: string;
-  patientUuid: string;
-  patientId: string;
-  gender: string;
-  age: string;
-  phone: string | null;
-  address: string | null;
-  nationalId: string | null;
-  occupation: string | null;
-  consultationDate: string;
-  location: string;
-  doctorName: string;
-  doctorQualification: string;
-  doctorRegNumber: string;
-  doctorSignatureUrl: string | null;
-  vitals: VitalsData;
-  diagnoses: DiagnosisItem[];
-  medicines: MedicineItem[];
-  advices: string[];
-  tests: string[];
-  referrals: { speciality: string; reason: string }[];
-  followUp: FollowUpData | null;
-}
+export type {
+  DiagnosisItem,
+  MedicineItem,
+  FollowUpData,
+  VitalsData,
+  PrescriptionData,
+} from '../types/prescription.types';
 
 const VISIT_CUSTOM_REP =
   'custom:(uuid,startDatetime,location:(display),' +
@@ -144,7 +95,7 @@ function getPersonAttribute(
   );
 }
 
-export function parseDiagnosis(value: string): DiagnosisItem {
+export function parseDiagnosis(value: string): PrescriptionTypes.DiagnosisItem {
   const dictMatch = value.match(/\{['"]\w+['"]\s*:\s*["'](.+)["']\s*\}/s);
   if (dictMatch)
     return {
@@ -172,7 +123,7 @@ export function parseDiagnosis(value: string): DiagnosisItem {
   };
 }
 
-export function parseMedicine(value: string): MedicineItem {
+export function parseMedicine(value: string): PrescriptionTypes.MedicineItem {
   const p = value.split(':');
   return {
     drug: p[0] || '',
@@ -184,7 +135,7 @@ export function parseMedicine(value: string): MedicineItem {
   };
 }
 
-export function parseFollowUp(obs: Obs): FollowUpData {
+export function parseFollowUp(obs: Obs): PrescriptionTypes.FollowUpData {
   const wantFollowUp = 'Yes';
   const members: Obs[] = obs.groupMembers || [];
   if (members.length > 0) {
@@ -247,7 +198,7 @@ function obsStr(o: Obs): string {
 
 export async function getVisitPrescriptionData(
   visitUuid: string
-): Promise<PrescriptionData> {
+): Promise<PrescriptionTypes.PrescriptionData> {
   const visit = await OpenMRSApi.get<VisitResponse>(
     `/visit/${visitUuid}?v=${VISIT_CUSTOM_REP}`
   );

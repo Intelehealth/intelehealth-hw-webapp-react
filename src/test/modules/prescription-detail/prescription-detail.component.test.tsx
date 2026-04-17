@@ -38,7 +38,7 @@ vi.mock('../../../utils/visit-prescription-pdf', () => ({
 }));
 
 // SVG icon mocks
-vi.mock('../../../assets/icons/appiontment/icon-patient-image.svg', () => ({ default: 'icon-patient.svg' }));
+vi.mock('../../../assets/icons/appointment/icon-patient-image.svg', () => ({ default: 'icon-patient.svg' }));
 vi.mock('../../../assets/icons/icon-advice.svg', () => ({ default: 'icon-advice.svg' }));
 vi.mock('../../../assets/icons/icon-download.svg', () => ({ default: 'icon-download.svg' }));
 vi.mock('../../../assets/icons/icon-followup-circle.svg', () => ({ default: 'icon-followup.svg' }));

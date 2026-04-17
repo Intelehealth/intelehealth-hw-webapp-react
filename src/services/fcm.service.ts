@@ -1,7 +1,7 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  getMessaging,
-  getToken as fcmGetToken, // renamed to avoid collision
+  getToken as fcmGetToken,
+  getMessaging, // renamed to avoid collision
   onMessage,
   type MessagePayload,
   type Messaging,
@@ -122,7 +122,6 @@ class FCMService {
 
       this._token = await fcmGetToken(this.messaging, {
         vapidKey: env.FIREBASE_VAPID_KEY,
-        /* c8 ignore next */
         serviceWorkerRegistration: this.swRegistration ?? undefined,
       });
       console.warn(

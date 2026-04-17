@@ -11,7 +11,7 @@ import {
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
 } from '../../utils/visit-prescription-pdf';
-import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
+import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconAdvice from '../../assets/icons/icon-advice.svg';
 import iconDownload from '../../assets/icons/icon-download.svg';
 import iconFollowUp from '../../assets/icons/icon-followup-circle.svg';

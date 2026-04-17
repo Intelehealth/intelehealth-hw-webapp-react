@@ -3,6 +3,7 @@ import {
   getAllCountries,
   getCountryByDialCode,
   getCountryByName,
+  getCountryCode,
 } from '../../utils/countries';
 
 describe('countries.ts', () => {
@@ -85,6 +86,30 @@ describe('countries.ts', () => {
     it('should return undefined for dial code without plus sign', () => {
       const result = getCountryByDialCode('91');
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getCountryCode', () => {
+    it('should return country code for Indian number', () => {
+      expect(getCountryCode('911234567890')).toBe('91');
+    });
+
+    it('should return country code for US number', () => {
+      expect(getCountryCode('11234567890')).toBe('1');
+    });
+
+    it('should prefer longer code over shorter (e.g. +44 over +4)', () => {
+      // 44 is UK; should match 44 not just 4
+      expect(getCountryCode('441234567890')).toBe('44');
+    });
+
+    it('should match empty dial code for unrecognized prefix', () => {
+      // Data includes a country with empty dial_code, so '' matches any input
+      expect(getCountryCode('0001234567890')).toBe('');
+    });
+
+    it('should match empty dial code for empty string', () => {
+      expect(getCountryCode('')).toBe('');
     });
   });
 });

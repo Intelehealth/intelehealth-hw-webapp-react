@@ -10,7 +10,7 @@ const h = vi.hoisted(() => {
 });
 const { mockDownload, mockPrint, mockCreatePdf } = h;
 
-vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, vfs: {} } }));
+vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, addVirtualFileSystem: vi.fn() } }));
 vi.mock('pdfmake/build/vfs_fonts', () => ({ default: { pdfMake: { vfs: {} } } }));
 
 // ─── Mock SVG ?url imports ────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ vi.mock('../../assets/icons/prescription-test.svg?url', () => ({ default: 'test.
 vi.mock('../../assets/icons/prescription-followup.svg?url', () => ({ default: 'followup.svg' }));
 vi.mock('../../assets/icons/prescription-referral.svg?url', () => ({ default: 'referral.svg' }));
 vi.mock('../../assets/icons/vitals.svg?url', () => ({ default: 'vitals.svg' }));
+vi.mock('../../assets/images/default-user-img.svg?url', () => ({ default: 'default-user.svg' }));
 
 // ─── Mock browser APIs ────────────────────────────────────────────────────────
 
@@ -157,14 +158,42 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(mockDrawImage).toHaveBeenCalled();
   });
 
-  it('uses ellipse canvas for patient avatar when fetch fails', async () => {
+  it('uses patient avatar icon when patient image fetch fails', async () => {
     mockFetch.mockResolvedValue({ ok: false });
     await downloadVisitPrescriptionPdf(makePrescription());
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     const bodyRows = docDef.content[0].table.body;
     const patientRow = bodyRows[0];
     const avatarCell = patientRow[0].table.body[0][0];
+    expect(avatarCell).toHaveProperty('image');
+  });
+
+  it('skips patient image fetch when patientUuid is empty', async () => {
+    mockFetch.mockResolvedValue(makeImageResponse());
+    await downloadVisitPrescriptionPdf(makePrescription({ patientUuid: '' }));
+    // fetch should only be called for SVG icon conversions, not for personimage
+    const personImageCalls = mockFetch.mock.calls.filter(
+      (call: any[]) => String(call[0]).includes('personimage')
+    );
+    expect(personImageCalls).toHaveLength(0);
+    // Should use patient avatar icon fallback
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const avatarCell = docDef.content[0].table.body[0][0].table.body[0][0];
+    expect(avatarCell).toHaveProperty('image');
+  });
+
+  it('uses ellipse canvas when both patient fetch and avatar SVG fail', async () => {
+    mockFetch.mockResolvedValue({ ok: false });
+    // Force canvas.getContext to return null so svgToPng returns null for all icons
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => null) as any;
+
+    await downloadVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const avatarCell = docDef.content[0].table.body[0][0].table.body[0][0];
     expect(avatarCell).toHaveProperty('canvas');
+
+    HTMLCanvasElement.prototype.getContext = origGetContext;
   });
 
   it('includes signature image when doctorSignatureUrl is a data URL', async () => {
@@ -177,7 +206,6 @@ describe('downloadVisitPrescriptionPdf', () => {
 
   it('fetches and uses signature when doctorSignatureUrl is a URL', async () => {
     mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient image
       .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'application/octet-stream' })) }); // signature
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     expect(mockCreatePdf).toHaveBeenCalled();
@@ -337,7 +365,6 @@ describe('downloadVisitPrescriptionPdf', () => {
     vi.stubGlobal('FileReader', ErrorReader);
 
     mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
       .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'image/png' })) }); // signature
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
@@ -362,7 +389,6 @@ describe('downloadVisitPrescriptionPdf', () => {
 
     // Signature URL triggers toBase64 with forceImageMime=true
     mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
       .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'image/png' })) }); // signature
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
@@ -372,10 +398,15 @@ describe('downloadVisitPrescriptionPdf', () => {
     vi.stubGlobal('FileReader', OrigReader);
   });
 
-  it('returns null from toBase64 when fetch throws (lines 40-41)', async () => {
-    mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
-      .mockRejectedValueOnce(new Error('Network error')); // signature fetch throws
+  it('returns null from toBase64 when signature fetch returns not ok', async () => {
+    mockFetch.mockResolvedValue({ ok: false });
+    await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');
+  });
+
+  it('returns null from toBase64 when fetch throws (lines 44-46)', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');

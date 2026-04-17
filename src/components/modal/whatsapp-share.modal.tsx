@@ -1,22 +1,11 @@
 import { useState } from 'react';
-import { countries } from '../../assets/data/countries';
+import { getCountryCode } from '../../utils/countries';
 
 interface WhatsAppShareModalProps {
   open: boolean;
   onClose: () => void;
   onShare: (fullPhoneNumber: string) => void;
   isLoading?: boolean;
-}
-
-const DIAL_CODES = countries.map(c => c.dial_code.replace('+', ''));
-// Sort longest first so +44 matches before +4
-DIAL_CODES.sort((a, b) => b.length - a.length);
-
-function getCountryCode(digits: string): string | null {
-  for (const code of DIAL_CODES) {
-    if (digits.startsWith(code)) return code;
-  }
-  return null;
 }
 
 const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({

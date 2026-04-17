@@ -10,18 +10,11 @@ import iconTestUrl from '../assets/icons/prescription-test.svg?url';
 import iconFollowupUrl from '../assets/icons/prescription-followup.svg?url';
 import iconReferralUrl from '../assets/icons/prescription-referral.svg?url';
 import iconVitalsUrl from '../assets/icons/vitals.svg?url';
+import defaultUserImgUrl from '../assets/images/default-user-img.svg?url';
 
-/* c8 ignore next */
-(pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs;
-/* c8 ignore next 8 */
-(pdfMake as any).fonts = {
-  Roboto: {
-    normal: 'Roboto-Regular.ttf',
-    bold: 'Roboto-Medium.ttf',
-    italics: 'Roboto-Regular.ttf',
-    bolditalics: 'Roboto-Medium.ttf',
-  },
-};
+/* c8 ignore next 2 */
+const vfsData = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs ?? {};
+(pdfMake as any).addVirtualFileSystem(vfsData);
 
 async function toBase64(
   url: string,
@@ -171,6 +164,7 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
     iFollowup,
     iReferral,
     iVitals,
+    iPatientAvatar,
   ] = await Promise.all([
     svgToPng(iconConsultationUrl),
     svgToPng(iconDiagnosisUrl),
@@ -180,20 +174,18 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
     svgToPng(iconFollowupUrl),
     svgToPng(iconReferralUrl),
     svgToPng(iconVitalsUrl),
+    svgToPng(defaultUserImgUrl, 32),
   ]);
 
-  const patientImg = await toBase64(
-    `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${data.patientUuid}`,
-    true
-  );
   const signatureB64 = data.doctorSignatureUrl
     ? data.doctorSignatureUrl.startsWith('data:')
       ? data.doctorSignatureUrl
       : await toBase64(data.doctorSignatureUrl, true)
     : null;
 
-  const patientAvatar = patientImg
-    ? { image: patientImg, width: 32, height: 32, margin: m4(0, 4, 6, 4) }
+  const avatarImg = iPatientAvatar;
+  const patientAvatar = avatarImg
+    ? { image: avatarImg, width: 32, height: 32, margin: m4(0, 4, 6, 4) }
     : {
         canvas: [
           { type: 'ellipse', x: 16, y: 16, r1: 16, r2: 16, color: '#C5CAE9' },
