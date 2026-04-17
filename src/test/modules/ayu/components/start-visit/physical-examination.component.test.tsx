@@ -730,7 +730,7 @@ describe('PhysicalExamination', () => {
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections).toHaveLength(1);
-      expect(modalConfig.sections[0].items[0].value).toBe('Taken Picture');
+      expect(modalConfig.sections[0].items[0].value).toBe('Picture Taken');
     });
 
     it('should show "Take a picture" when camera option selected but no images uploaded', () => {

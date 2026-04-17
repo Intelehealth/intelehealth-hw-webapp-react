@@ -238,6 +238,53 @@ describe('FCMService', () => {
         })
       );
     });
+
+    it('should use notification fields when data fields are missing (lines 92-95)', async () => {
+      await fcmService.initialize();
+
+      const messageCallback = mockOnMessage.mock.calls[0][1];
+      const payload = {
+        notification: { title: 'Notif Title', body: 'Notif body' },
+      } as unknown as MessagePayload;
+
+      messageCallback(payload);
+
+      expect(mockServiceWorkerRegistration.showNotification).toHaveBeenCalledWith(
+        'Notif Title',
+        expect.objectContaining({
+          body: 'Notif body',
+          tag: 'fcm-foreground',
+        })
+      );
+    });
+
+    it('should use default title when no title in data or notification (line 94)', async () => {
+      await fcmService.initialize();
+
+      const messageCallback = mockOnMessage.mock.calls[0][1];
+      const payload = {} as unknown as MessagePayload;
+
+      messageCallback(payload);
+
+      expect(mockServiceWorkerRegistration.showNotification).toHaveBeenCalledWith(
+        'New Notification',
+        expect.objectContaining({
+          body: '',
+          tag: 'fcm-foreground',
+        })
+      );
+    });
+
+    it('should unsubscribe previous listener when initialize is called twice (line 73)', async () => {
+      const unsub1 = vi.fn();
+      mockOnMessage.mockReturnValueOnce(unsub1);
+
+      await fcmService.initialize();
+      expect(unsub1).not.toHaveBeenCalled();
+
+      await fcmService.initialize();
+      expect(unsub1).toHaveBeenCalled();
+    });
   });
 
   describe('requestPermission', () => {

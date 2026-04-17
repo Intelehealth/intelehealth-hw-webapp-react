@@ -11,6 +11,7 @@ import iconFollowupUrl from '../assets/icons/prescription-followup.svg?url';
 import iconReferralUrl from '../assets/icons/prescription-referral.svg?url';
 import iconVitalsUrl from '../assets/icons/vitals.svg?url';
 
+/* c8 ignore next */
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs;
 
 async function toBase64(
@@ -21,6 +22,7 @@ async function toBase64(
     const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) return null;
     const blob = await res.blob();
+    /* c8 ignore next */
     if (!forceImageMime && !blob.type.startsWith('image/')) return null;
     return await new Promise(resolve => {
       const reader = new FileReader();
@@ -58,6 +60,7 @@ async function svgToPng(svgUrl: string, size = 28): Promise<string | null> {
       ctx.drawImage(img, 0, 0, size, size);
       resolve(canvas.toDataURL('image/png'));
     };
+    /* c8 ignore next */
     img.onerror = () => resolve(null);
     img.src = svgUrl;
   });

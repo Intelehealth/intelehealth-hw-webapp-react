@@ -225,6 +225,26 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(JSON.stringify(docDef.content)).toContain('Cardiology');
   });
 
+  it('shows dash for null infoCell value (line 230)', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      gender: null as any,
+      occupation: '',
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('-');
+  });
+
+  it('shows referral without reason (line 456)', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      referrals: [{ speciality: 'Dermatology', reason: '' }],
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Dermatology');
+    expect(bodyStr).not.toContain('Dermatology –');
+  });
+
   it('omits Referral section when referrals empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ referrals: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
@@ -302,6 +322,28 @@ describe('downloadVisitPrescriptionPdf', () => {
     await downloadVisitPrescriptionPdf(makePrescription({ medicines: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(JSON.stringify(docDef.content)).not.toContain('Prescribed Medications');
+  });
+
+  it('returns null from toBase64 when reader.onerror fires (line 37)', async () => {
+    const OrigReader = globalThis.FileReader;
+    class ErrorReader {
+      result: string | null = null;
+      onloadend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      readAsDataURL() {
+        setTimeout(() => this.onerror?.(), 0);
+      }
+    }
+    vi.stubGlobal('FileReader', ErrorReader);
+
+    mockFetch
+      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
+      .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'image/png' })) }); // signature
+    await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');
+
+    vi.stubGlobal('FileReader', OrigReader);
   });
 
   it('returns null from toBase64 when reader result does not start with data: (lines 29-31)', async () => {

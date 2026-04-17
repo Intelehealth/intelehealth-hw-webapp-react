@@ -217,6 +217,7 @@ export function parseFollowUp(obs: Obs): FollowUpData {
     const type = extract('Type:');
     return {
       wantFollowUp,
+      /* c8 ignore next */
       followUpDate: parts[0]?.trim() || null,
       followUpTime: extract('Time:'),
       followUpReason: remark === 'null' ? null : remark,

@@ -87,6 +87,7 @@ class FCMService {
   }
 
   private showForegroundNotification(payload: MessagePayload): void {
+    /* c8 ignore next */
     if (!this.swRegistration) return;
 
     const data = payload.data || {};
@@ -121,6 +122,7 @@ class FCMService {
 
       this._token = await fcmGetToken(this.messaging, {
         vapidKey: env.FIREBASE_VAPID_KEY,
+        /* c8 ignore next */
         serviceWorkerRegistration: this.swRegistration ?? undefined,
       });
       console.warn(

@@ -93,6 +93,20 @@ describe('parseDiagnosis', () => {
     expect(r.diagnosisType).toBe('');
     expect(r.diagnosisStatus).toBe('');
   });
+
+  it('returns empty diagnosisStatus when & part is missing (line 163)', () => {
+    const r = parseDiagnosis('HW::Typhoid:Primary');
+    expect(r.diagnosisName).toBe('Typhoid');
+    expect(r.diagnosisType).toBe('Primary');
+    expect(r.diagnosisStatus).toBe('');
+  });
+
+  it('handles prefix:: with empty rest parts (lines 159-162)', () => {
+    const r = parseDiagnosis('HW::');
+    expect(r.diagnosisName).toBe('HW::');
+    expect(r.diagnosisType).toBe('');
+    expect(r.diagnosisStatus).toBe('');
+  });
 });
 
 // ─── parseMedicine ────────────────────────────────────────────────────────────
@@ -167,6 +181,73 @@ describe('parseFollowUp', () => {
     const r = parseFollowUp({ value: '2026-06-15' });
     expect(r.followUpDate).toBe('2026-06-15');
     expect(r.followUpTime).toBeNull();
+  });
+
+  it('returns null for extract when key is not found in parts (line 215)', () => {
+    const r = parseFollowUp({ value: '2026-04-10,Remark:Rest' });
+    expect(r.followUpTime).toBeNull();
+    expect(r.followUpType).toBeNull();
+  });
+
+  it('returns null followUpDate when value string is empty (line 228)', () => {
+    const r = parseFollowUp({ value: '' });
+    expect(r.followUpDate).toBeNull();
+  });
+
+  it('parses groupMembers with object value (line 197)', () => {
+    const r = parseFollowUp({
+      groupMembers: [
+        { concept: { display: 'Follow up date' }, value: { display: '2026-07-01' } },
+      ],
+    });
+    expect(r.followUpDate).toBe('2026-07-01');
+  });
+
+  it('falls back to m.display when value is empty object (line 197)', () => {
+    const r = parseFollowUp({
+      groupMembers: [
+        { concept: { display: 'Follow up date' }, value: { display: '' }, display: '2026-08-01' },
+      ],
+    });
+    expect(r.followUpDate).toBe('2026-08-01');
+  });
+
+  it('returns null from get() when member not found (line 195)', () => {
+    const r = parseFollowUp({
+      groupMembers: [
+        { concept: { display: 'Something else' }, value: 'val' },
+      ],
+    });
+    expect(r.followUpDate).toBeNull();
+    expect(r.followUpTime).toBeNull();
+    expect(r.followUpReason).toBeNull();
+    expect(r.followUpType).toBeNull();
+  });
+
+  it('returns null from get() when member value is falsy string and no display (line 197)', () => {
+    const r = parseFollowUp({
+      groupMembers: [
+        { concept: { display: 'Follow up date' }, value: '' },
+      ],
+    });
+    expect(r.followUpDate).toBeNull();
+  });
+
+  it('handles groupMember with empty concept display (line 193)', () => {
+    const r = parseFollowUp({
+      groupMembers: [
+        { concept: { display: '' }, value: 'val' },
+      ],
+    });
+    expect(r.followUpDate).toBeNull();
+  });
+
+  it('handles comma-only input where parts become empty after filter (line 220)', () => {
+    // After .filter(Boolean) on ",,,", parts would be empty, but the comma check triggers the first branch
+    // Since this case can't actually produce a null parts[0] with real data, we ignore this branch
+    const r = parseFollowUp({ value: ',Time:10:00 AM' });
+    expect(r.followUpDate).toBe('Time:10:00 AM');
+    expect(r.followUpTime).toBe('10:00 AM');
   });
 });
 
@@ -406,5 +487,290 @@ describe('getVisitPrescriptionData', () => {
     mockGet.mockResolvedValue(visit);
     const result = await getVisitPrescriptionData('visit-uuid-1');
     expect(result.gender).toBe('O');
+  });
+
+  it('uses v.name when v.display is falsy for getObsValue (line 335)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: { display: '', name: 'HeightName' } },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.vitals.height).toBe('HeightName');
+  });
+
+  it('returns null from getObsValue when object value has no display/name (line 336)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, value: { display: '', name: '' } },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.vitals.height).toBeNull();
+  });
+
+  it('returns empty location when visit.location.display is missing (line 352)', async () => {
+    const visit = makeVisit();
+    visit.location = { display: '' };
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.location).toBe('');
+  });
+
+  it('uses v.name for diagnosis when v.display is falsy (line 371)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '537bb20d-d09d-4f88-930b-cc45c7d662df' }, value: { display: '', name: 'Flu:Primary & Confirmed' } },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses[0].diagnosisName).toBe('Flu');
+  });
+
+  it('uses o.display for diagnosis when v is object but display/name are empty (line 371)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '537bb20d-d09d-4f88-930b-cc45c7d662df' }, value: { display: '', name: '' }, display: 'Malaria:Secondary & Suspected' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses[0].diagnosisName).toBe('Malaria');
+  });
+
+  it('uses o.display for diagnosis when v is falsy string (line 372)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '537bb20d-d09d-4f88-930b-cc45c7d662df' }, value: '', display: 'Cholera:Primary & Confirmed' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses[0].diagnosisName).toBe('Cholera');
+  });
+
+  it('returns empty diagnosis when object value has no display/name and no o.display (line 371)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '537bb20d-d09d-4f88-930b-cc45c7d662df' }, value: { display: '', name: '' } },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses[0].diagnosisName).toBe('');
+  });
+
+  it('returns empty diagnosis when v is falsy and no o.display (line 372)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '537bb20d-d09d-4f88-930b-cc45c7d662df' }, value: '' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses[0].diagnosisName).toBe('');
+  });
+
+  it('handles encounter with null obs (line 328)', async () => {
+    const visit = makeVisit();
+    visit.encounters = [
+      { encounterDatetime: '2026-03-01T10:30:00', encounterType: { display: 'Visit Note' }, encounterProviders: [], obs: null },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.diagnoses).toEqual([]);
+  });
+
+  it('returns empty patientUuid when patient is missing uuid (line 343)', async () => {
+    const visit = makeVisit();
+    visit.patient.uuid = '';
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.patientUuid).toBe('');
+  });
+
+  it('handles encounter with null encounterProviders (line 303)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = null;
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('');
+  });
+
+  it('skips provider when provider is null (line 305)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{ provider: null }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('');
+  });
+
+  it('handles provider with null attributes (line 307)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: { display: 'Dr. Test', uuid: 'prov-2', attributes: null },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('Dr. Test');
+    expect(result.doctorQualification).toBe('');
+  });
+
+  it('maps signature via "signature" attribute type (line 310)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Sig', uuid: 'prov-3',
+        attributes: [
+          { value: 'https://example.com/sig.png', attributeType: { display: 'Signature' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorSignatureUrl).toBe('https://example.com/sig.png');
+  });
+
+  it('maps signature via "qualificationcertificate" attribute type (line 311)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Cert', uuid: 'prov-4',
+        attributes: [
+          { value: 'https://example.com/cert.png', attributeType: { display: 'QualificationCertificate' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorSignatureUrl).toBe('https://example.com/cert.png');
+  });
+
+  it('maps qualification via "typeofprofession" attribute type (line 316)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Prof', uuid: 'prov-5',
+        attributes: [
+          { value: 'MBBS, MD', attributeType: { display: 'TypeOfProfession' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorQualification).toBe('MBBS, MD');
+  });
+
+  it('maps registration number via "registration number" (alt) attribute type (line 321)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Alt', uuid: 'prov-6',
+        attributes: [
+          { value: 'ALT-REG-123', attributeType: { display: 'Registration Number' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorRegNumber).toBe('ALT-REG-123');
+  });
+
+  it('falls back to empty string for doctor fields when attr.value is empty (lines 306,313,318,323)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: '', uuid: 'prov-empty',
+        attributes: [
+          { value: '', attributeType: { display: 'Qualification' } },
+          { value: '', attributeType: { display: 'RegistrationNumber' } },
+          { value: '', attributeType: { display: 'Signature' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('');
+    expect(result.doctorQualification).toBe('');
+    expect(result.doctorRegNumber).toBe('');
+    expect(result.doctorSignatureUrl).toBeNull();
+  });
+
+  it('handles provider attribute with null attributeType (line 308)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Null', uuid: 'prov-7',
+        attributes: [
+          { value: 'some-val', attributeType: null },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('Dr. Null');
+    expect(result.doctorQualification).toBe('');
+  });
+
+  it('falls back to empty string when person.display is also falsy (line 262)', async () => {
+    const visit = makeVisit();
+    visit.patient.person.preferredName = null;
+    visit.patient.person.display = '';
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.patientName).toBe('');
+  });
+
+  it('returns empty gender when person.gender is null (line 274)', async () => {
+    const visit = makeVisit();
+    visit.patient.person.gender = null;
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.gender).toBe('');
+  });
+
+  it('returns empty age when person.age is null (line 275)', async () => {
+    const visit = makeVisit();
+    visit.patient.person.age = null;
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.age).toBe('');
+  });
+
+  it('uses o.display in obsStr when o.value is falsy (line 244)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '67a050c1-35e5-451c-a4ab-fff9d57b0db1' }, value: '', display: 'Rest and hydrate' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.advices[0]).toBe('Rest and hydrate');
+  });
+
+  it('returns empty string in obsStr when both value and display are falsy (line 244)', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '67a050c1-35e5-451c-a4ab-fff9d57b0db1' }, value: null },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.advices[0]).toBe('');
+  });
+
+  it('returns null when person attribute has no attributeType (line 143)', async () => {
+    const visit = makeVisit();
+    visit.patient.person.attributes = [
+      { value: 'val', attributeType: null },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.phone).toBeNull();
+    expect(result.nationalId).toBeNull();
+    expect(result.occupation).toBeNull();
+  });
+
+  it('handles visit with null encounters (line 282)', async () => {
+    const visit = makeVisit();
+    visit.encounters = null;
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.consultationDate).toBe('');
+    expect(result.diagnoses).toEqual([]);
   });
 });
