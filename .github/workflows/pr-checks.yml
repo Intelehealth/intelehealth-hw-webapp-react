@@ -104,16 +104,11 @@ jobs:
       - name: 🏗️ Build verification
         run: yarn build
 
-      - name: 📊 Bundle analysis
-        run: |
-          echo "📊 Analyzing bundle size..."
-          yarn analyze
-
       - name: 📈 Performance budget check
         run: |
           echo "📈 Checking performance budget..."
 
-          # Get bundle size in KB
+          # Get bundle size in KB (before analyze adds stats.html)
           BUNDLE_SIZE_KB=$(du -sk dist/ | cut -f1)
           BUNDLE_SIZE_MB=$((BUNDLE_SIZE_KB / 1024))
           BUNDLE_SIZE_DISPLAY=$(du -sh dist/ | cut -f1)
@@ -130,6 +125,11 @@ jobs:
             echo "💡 Consider optimizing your bundle size"
             exit 1
           fi
+
+      - name: 📊 Bundle analysis
+        run: |
+          echo "📊 Analyzing bundle size..."
+          yarn analyze
 
       - name: 🔒 Security audit
         run: |
