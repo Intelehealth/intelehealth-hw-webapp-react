@@ -142,7 +142,7 @@ describe('Calendar', () => {
 
     it('should render the calendar icon button', () => {
       const { container } = render(<Calendar />);
-      const icon = container.querySelector('.fa-calendar');
+      const icon = container.querySelector('img[alt="calendar"]');
       expect(icon).toBeInTheDocument();
     });
   });

@@ -38,19 +38,24 @@ export const createVitalsValidationSchema = (
         })
         .typeError(`${field.name} must be a valid number`);
 
-      // Add range validation if available (skip for auto-calculated fields)
+      // Skip all validation for auto-calculated fields (BMI, WHR) — they are
+      // set programmatically via setValue and should never show user-facing errors.
       const isAutoCalculated =
         field.key === 'bmi' || field.key === 'waist_to_hip_ratio';
-      const range = VITAL_RANGES[field.key as keyof typeof VITAL_RANGES];
-      if (range && !isAutoCalculated) {
-        fieldSchema = fieldSchema
-          .min(range.min, `${field.name} must be at least ${range.min}`)
-          .max(range.max, `${field.name} must be at most ${range.max}`);
-      }
 
-      // Add required validation for mandatory fields
-      if (field.is_mandatory) {
-        fieldSchema = fieldSchema.required(`${field.name} is required`);
+      if (!isAutoCalculated) {
+        // Add range validation if available
+        const range = VITAL_RANGES[field.key as keyof typeof VITAL_RANGES];
+        if (range) {
+          fieldSchema = fieldSchema
+            .min(range.min, `${field.name} must be at least ${range.min}`)
+            .max(range.max, `${field.name} must be at most ${range.max}`);
+        }
+
+        // Add required validation for mandatory fields
+        if (field.is_mandatory) {
+          fieldSchema = fieldSchema.required(`${field.name} is required`);
+        }
       }
 
       schemaShape[field.key] = fieldSchema;

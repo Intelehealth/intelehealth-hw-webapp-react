@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import iconClose from '../../../assets/icons/close.svg';
 import iconAddress from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
@@ -8,6 +8,7 @@ import iconSync from '../../../assets/icons/icon-sync.svg';
 import iconOther from '../../../assets/icons/icon-three-dot-green-rounded-bordered.svg';
 import iconPersonal from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
 import defaultUserImg from '../../../assets/images/default-user-img.svg';
+import { Button } from '../../../components/common';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   getVisitTitle,
@@ -32,6 +33,10 @@ const PatientProfileComponent: React.FC = () => {
 
   const { patientData, visits, loading, refreshing, error, refresh } =
     usePatientProfile(uuid);
+  const [imgError, setImgError] = useState(false);
+  const patientImgSrc = uuid
+    ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${uuid}`
+    : '';
 
   if (loading) {
     return (
@@ -94,9 +99,10 @@ const PatientProfileComponent: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-4">
           <img
-            src={defaultUserImg}
+            src={!imgError && patientImgSrc ? patientImgSrc : defaultUserImg}
             alt={fullName}
             className="w-14 h-14 rounded-full object-cover border border-gray-200"
+            onError={() => setImgError(true)}
           />
           <div>
             <p className="font-bold text-gray-900 text-base">{fullName}</p>
@@ -180,7 +186,26 @@ const PatientProfileComponent: React.FC = () => {
           </div>
           <div className="px-4 pb-3 pt-2 space-y-2">
             {visits.length === 0 ? (
-              <p className="text-sm text-gray-400 py-2">No open visits</p>
+              <div className="flex flex-col items-center gap-3 py-4">
+                <p className="text-sm text-gray-400">No open visits</p>
+                <Button
+                  variant="primary"
+                  className="w-auto px-8"
+                  type="button"
+                  onClick={() =>
+                    navigate('/ayu', {
+                      state: {
+                        patientName: fullName,
+                        patientAge: age || dob,
+                        patientGender: gender,
+                        patientUuid: uuid,
+                      },
+                    })
+                  }
+                >
+                  Start Visit
+                </Button>
+              </div>
             ) : (
               visits.map(visit => (
                 <button

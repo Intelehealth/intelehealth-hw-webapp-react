@@ -56,8 +56,7 @@ function buildVitalsObs(
 // ─── Visit Reason HTML Builder ────────────────────────────────────────────────
 
 export interface VisitReasonData {
-  displayHtml: string;
-  rawJson: string;
+  obsValue: string;
 }
 
 export function buildVisitReasonHtml(
@@ -70,20 +69,21 @@ export function buildVisitReasonHtml(
 
   for (const { label, value } of details) {
     displayHtml += `• ${label} - ${value}.<br/>`;
-    rawHtml += `• ${label}-${value}<br/>`;
+    rawHtml += `● ${label}<br/>•${value}<br/>`;
   }
 
   return {
-    displayHtml: `<b>${complaint}</b>: <br/>${displayHtml}`.trim(),
-    rawJson: JSON.stringify({ text_en: rawHtml.trim() }),
+    obsValue: JSON.stringify({
+      en: `►<b>${complaint}</b>: <br/>${displayHtml}`.trim(),
+      'l-en': `►${complaint}::${rawHtml}`.trim(),
+    }),
   };
 }
 
 // ─── Physical Exam HTML Builder ───────────────────────────────────────────────
 
 export interface PhysicalExamData {
-  displayHtml: string;
-  rawJson: string;
+  obsValue: string;
 }
 
 /**
@@ -113,19 +113,16 @@ export function buildPhysicalExamData(
 
     if (!selectedTexts.length) continue;
 
-    // Add section header if new section
     if (question.sectionLabel && question.sectionLabel !== currentSection) {
       currentSection = question.sectionLabel;
       const sectionName = currentSection.replace(/:$/, '');
       displayHtml += `<br/>►<b>${sectionName}: </b><br/>`;
-      rawHtml += `<br/>►<b>${sectionName}: </b><br/>`;
+      rawHtml += `►<b>${sectionName}: </b><br/>`;
     }
 
-    // Display format: • Category-answer text.
     const answerText = selectedTexts.join(', ').toLowerCase();
     displayHtml += `• ${question.categoryLabel}-${answerText}. <br/>`;
 
-    // Raw format: • Category-● QuestionText*<br/>•Answer-<br/>
     rawHtml += `• ${question.categoryLabel}-● ${question.questionText}${question.isRequired ? '*' : ''}<br/>`;
     for (const text of selectedTexts) {
       rawHtml += `•${text}-<br/>`;
@@ -133,8 +130,10 @@ export function buildPhysicalExamData(
   }
 
   return {
-    displayHtml: displayHtml.trim(),
-    rawJson: JSON.stringify({ text_en: rawHtml.trim() }),
+    obsValue: JSON.stringify({
+      en: displayHtml.trim(),
+      'l-en': rawHtml.trim(),
+    }),
   };
 }
 
@@ -144,25 +143,32 @@ export function buildPhysicalExamData(
  * Build medical history display HTML and raw JSON from summary sections.
  */
 export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
-  displayHtml: string;
-  rawJson: string;
+  obsValue: string;
 } {
   const items = sections.flatMap(s => s.items);
-  const values = items
-    .filter(
-      (i): i is Extract<ModalSectionItem, { type: 'labelValue' }> =>
-        i.type === ITEM_TYPES.LABEL_VALUE
-    )
-    .map(i => String(i.value ?? ''))
-    .filter(Boolean);
+  let displayHtml = '';
+  let rawHtml = '';
 
-  const summary = values.length > 0 ? values.join(', ') : 'None';
-  const displayHtml = `• Medical History - ${summary}.<br/>`;
-  const rawJson = JSON.stringify({
-    text_en: `● Do you have a history of any of the following?*<br/>•${summary}<br/>`,
-  });
+  for (const item of items) {
+    if (item.type === ITEM_TYPES.LABEL_VALUE) {
+      const val = String(item.value ?? 'None');
+      displayHtml += `• ${item.label} - ${val}.<br/>`;
+      rawHtml += `● ${item.label}<br/>•${val}<br/>`;
+    }
+  }
 
-  return { displayHtml, rawJson };
+  if (!displayHtml) {
+    displayHtml = '• Medical History - None.<br/>';
+    rawHtml =
+      '● Do you have a history of any of the following?*<br/>•None<br/>';
+  }
+
+  return {
+    obsValue: JSON.stringify({
+      en: displayHtml.trim(),
+      'l-en': rawHtml.trim(),
+    }),
+  };
 }
 
 // ─── Family History HTML Builder ──────────────────────────────────────────────
@@ -171,8 +177,7 @@ export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
  * Build family history display HTML and raw JSON from summary sections.
  */
 export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
-  displayHtml: string;
-  rawJson: string;
+  obsValue: string;
 } {
   const items = sections.flatMap(s => s.items);
   const parts = items
@@ -186,12 +191,15 @@ export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
     });
 
   const summary = parts.length > 0 ? parts.join(', ') : 'None';
-  const displayHtml = `•Do you have a family history of any of the following?* : • ${summary}.<br/>`;
-  const rawJson = JSON.stringify({
-    text_en: `•Do you have a family history of any of the following?* : •${summary}.<br/>`,
-  });
+  const displayHtml = `Do you have a family history of any of the following? : • ${summary}.<br/>`;
+  const rawHtml = `Do you have a family history of any of the following? : •${summary}.<br/>`;
 
-  return { displayHtml, rawJson };
+  return {
+    obsValue: JSON.stringify({
+      en: displayHtml.trim(),
+      'l-en': rawHtml.trim(),
+    }),
+  };
 }
 
 // ─── Adult Initial Encounter Builder ──────────────────────────────────────────
@@ -199,27 +207,27 @@ export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
 interface AdultInitialData {
   visitReason: VisitReasonData;
   physicalExam: PhysicalExamData;
-  medicalHistory: { displayHtml: string; rawJson: string };
-  familyHistory: { displayHtml: string; rawJson: string };
+  medicalHistory: { obsValue: string };
+  familyHistory: { obsValue: string };
 }
 
 function buildAdultInitialObs(data: AdultInitialData): EncounterObs[] {
   return [
     makeObs(
       ADULT_INITIAL_CONCEPTS.VISIT_REASON_DISPLAY,
-      data.visitReason.displayHtml
+      data.visitReason.obsValue
     ),
     makeObs(
       ADULT_INITIAL_CONCEPTS.PHYSICAL_EXAM_DISPLAY,
-      data.physicalExam.displayHtml
+      data.physicalExam.obsValue
     ),
     makeObs(
       ADULT_INITIAL_CONCEPTS.MEDICAL_HISTORY_DISPLAY,
-      data.medicalHistory.displayHtml
+      data.medicalHistory.obsValue
     ),
     makeObs(
       ADULT_INITIAL_CONCEPTS.FAMILY_HISTORY_DISPLAY,
-      data.familyHistory.displayHtml
+      data.familyHistory.obsValue
     ),
   ];
 }
@@ -234,9 +242,10 @@ export interface BuildVisitUploadParams {
   vitalsConfig: VitalField[];
   visitReason: VisitReasonData;
   physicalExam: PhysicalExamData;
-  medicalHistory: { displayHtml: string; rawJson: string };
-  familyHistory: { displayHtml: string; rawJson: string };
+  medicalHistory: { obsValue: string };
+  familyHistory: { obsValue: string };
   speciality?: string;
+  priorityVisit?: boolean;
 }
 
 /**
@@ -290,19 +299,17 @@ export function buildVisitUploadPayload(
     }),
   };
 
-  // Encounter 3: Visit Complete
-  const visitCompleteEncounter: EncounterPayload = {
+  // Encounter 3: Visit Priority
+  const visitPriorityEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime: visitCompleteDatetime,
-    encounterType: ENCOUNTER_TYPES.VISIT_COMPLETE,
+    encounterType: ENCOUNTER_TYPES.VISIT_PRIORITY,
   };
 
   return {
-    encounters: [
-      vitalsEncounter,
-      adultInitialEncounter,
-      visitCompleteEncounter,
-    ],
+    encounters: params.priorityVisit
+      ? [vitalsEncounter, adultInitialEncounter, visitPriorityEncounter]
+      : [vitalsEncounter, adultInitialEncounter],
     visits: [
       {
         attributes: [

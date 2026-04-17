@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
 import { visitSummaryService } from './visit-summary.service';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
-import ROUTES from '../../routes/paths';
 import type {
   VisitData,
   Patient,
@@ -252,10 +251,13 @@ const VisitSummaryComponent: React.FC = () => {
       type: 'confirm',
       open: true,
       onConfirm: () => {
-        navigate(ROUTES.APPOINTMENT_VISIT_SHEDULE);
+        const uuid = visitId ?? data?.visitUuid ?? '';
+        navigate(`/appointment-schedule/${uuid}`, {
+          state: { speciality: 'General Physician' },
+        });
       },
     });
-  }, [showConfirmModal, navigate]);
+  }, [showConfirmModal, navigate, data?.visitUuid, visitId]);
 
   const handleSendVisit = useCallback(() => {
     showConfirmModal({

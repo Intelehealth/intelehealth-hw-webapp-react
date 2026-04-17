@@ -10,15 +10,19 @@ import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.sv
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
 import iconVisitReason from '../../../assets/icons/visit-reason.svg';
 import iconVitals from '../../../assets/icons/vitals.svg';
+import { Dropdown, Toggle } from '../../../components/common';
+import type { DropdownOption } from '../../../components/common';
+import iconInfo from '../../../assets/icons/icon-info.svg';
+import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { useProfileContext } from '../../../context/ProfileContext';
+import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
 import { storage } from '../../../utils/storage';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
+import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
-import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
-import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
-import type { MedicalHistorySummary } from '../context/start-visit.context';
 import {
   buildFamilyHistoryData,
   buildMedicalHistoryData,
@@ -37,9 +41,8 @@ const PRIMARY_COLOR = '#0fd197';
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
-  compact?: boolean;
-}> = ({ label, value, compact = false }) => (
-  <div className={`flex items-center text-sm ${compact ? '' : 'py-1'}`}>
+}> = ({ label, value }) => (
+  <div className="flex items-center text-sm py-1">
     <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
       <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
       {label}
@@ -75,26 +78,11 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
   };
 };
 
-const mapPhysicalExam = (
-  answers: Record<string, string[]>
-): PhysicalExamination => {
-  const generalExams = PHYSICAL_EXAM_QUESTIONS.filter(
-    q => (answers[q.id] ?? []).length > 0
-  ).map(q => {
-    const selectedTexts = (answers[q.id] ?? [])
-      .map(id => q.options.find(o => o.id === id)?.text)
-      .filter(Boolean);
-    return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-  });
-
-  return { generalExams };
-};
-
 /* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
-  const getVitalDisplay = (val: number | null, note?: string) =>
-    val?.toString() ?? note ?? 'No information';
+  const getVitalDisplay = (val: number | null, note = 'No information') =>
+    val?.toString() ?? note;
 
   const items = [
     {
@@ -228,6 +216,8 @@ const VisitSummaryPage = () => {
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [speciality, setSpeciality] = useState('General Physician');
+  const [priorityVisit, setPriorityVisit] = useState(false);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -288,6 +278,8 @@ const VisitSummaryPage = () => {
         physicalExam,
         medicalHistory,
         familyHistory,
+        speciality,
+        priorityVisit,
       });
 
       await uploadVisit(payload);
@@ -299,7 +291,7 @@ const VisitSummaryPage = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [data, hwProfile, navigate, ctxPatientUuid]);
+  }, [data, hwProfile, navigate, ctxPatientUuid, speciality, priorityVisit]);
 
   const confirmAndUpload = useCallback(() => {
     setShowConfirm(true);
@@ -322,10 +314,13 @@ const VisitSummaryPage = () => {
   );
 
   const physicalExamination = useMemo(
-    () =>
-      data.physicalExam ? mapPhysicalExam(data.physicalExam.answers) : null,
+    (): PhysicalExamination | null =>
+      data.physicalExam ? { generalExams: data.physicalExam.details } : null,
     [data.physicalExam]
   );
+
+  const { config } = useConfig();
+  const specializations = config?.specialization ?? [];
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
@@ -435,11 +430,47 @@ const VisitSummaryPage = () => {
         </div>
       </div>
 
+      <div className="flex flex-col md:flex-row md:items-end gap-4 mt-4 px-4 mb-4 md:px-0">
+        <div className="w-full md:w-1/2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Doctor's specialty
+          </p>
+          <Dropdown
+            options={specializations.map(
+              (s, idx): DropdownOption => ({
+                value: String(s.name ?? ''),
+                label: String(s.name ?? `Option ${idx + 1}`),
+              })
+            )}
+            value={speciality}
+            onChange={val => setSpeciality(val as string)}
+            placeholder="General physician"
+            size="sm"
+          />
+        </div>
+
+        <div className="w-full md:w-1/2 flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none md:mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[#2E1E91]">
+              Priority Visit
+            </span>
+            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+          </div>
+          <div className="w-12">
+            <Toggle
+              checked={priorityVisit}
+              onChange={e => setPriorityVisit(e.target.checked)}
+              size="md"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons */}
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
-          onClick={() => navigate('/ayu')}
+          onClick={() => navigate(-1)}
           className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Back to Edit

@@ -389,6 +389,11 @@ describe('visitSummaryService', () => {
       expect(result.patient.visitId).toBe('12345678');
     });
 
+    it('should include full visit UUID as visitUuid', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.visitUuid).toBe('visit-uuid-12345678');
+    });
+
     it('should show "No information" for missing phone', () => {
       const result = transformVisitSummaryResponse(makeResponse());
       expect(result.patient.phoneNumber).toBe('No information');

@@ -59,6 +59,9 @@ import VisitSummary from '../modules/visit-summary/visit-summary.component';
 const PrescriptionPreviewPage = lazy(
   () => import('../pages/prescriptions/prescription-preview.page')
 );
+const AchievementUiPage = lazy(
+  () => import('../pages/achievement-ui/achievement-ui.page')
+);
 const AyuModule = lazy(() => import('../modules/ayu'));
 
 // appointment module
@@ -276,8 +279,17 @@ const AppRoutes = () => (
                 </Suspense>
               }
             />
+            <Route
+              path={ROUTES.ACHIEVEMENT_UI}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AchievementUiPage />
+                </Suspense>
+              }
+            />
           </Route>
         </Route>
+
         <Route
           path={ROUTES.COMMON_UI}
           element={

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,9 +9,10 @@ const h = vi.hoisted(() => ({
   mockUsePatientProfile: vi.fn(),
 }));
 
+let mockUuid: string | undefined = 'test-uuid';
 vi.mock('react-router-dom', () => ({
   useNavigate: () => h.mockNavigate,
-  useParams: () => ({ uuid: 'test-uuid' }),
+  useParams: () => ({ uuid: mockUuid }),
 }));
 
 vi.mock(
@@ -71,6 +72,14 @@ vi.mock(
   '../../../../assets/images/default-user-img.svg',
   () => ({ default: 'user.svg' })
 );
+
+vi.mock('../../../../components/common', () => ({
+  Button: ({ children, onClick, ...props }: any) => (
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
+  ),
+}));
 
 
 vi.mock('../../../../assets/data/openmrs_uuids', () => ({
@@ -348,5 +357,90 @@ describe('PatientProfileComponent', () => {
     render(<PatientProfileComponent />);
     const notProvided = screen.getAllByText('Not provided');
     expect(notProvided.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('renders patient profile image using personimage URL', () => {
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+    const img = screen.getByAltText('John K Doe') as HTMLImageElement;
+    expect(img.src).toContain('/personimage/test-uuid');
+  });
+
+  it('falls back to default image on profile image load error', async () => {
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+    const img = screen.getByAltText('John K Doe') as HTMLImageElement;
+
+    // Trigger error using fireEvent
+    fireEvent.error(img);
+
+    // After error, should use default image
+    expect(img.src).toContain('user.svg');
+  });
+
+  it('renders "Start Visit" button when there are no open visits', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Start Visit')).toBeInTheDocument();
+  });
+
+  it('navigates to /ayu with patient state when "Start Visit" is clicked', async () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
+    });
+    render(<PatientProfileComponent />);
+    await userEvent.click(screen.getByText('Start Visit'));
+    expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
+      state: {
+        patientName: 'John K Doe',
+        patientAge: '30 years',
+        patientGender: 'Male',
+        patientUuid: 'test-uuid',
+      },
+    });
+  });
+
+  it('does not render "Start Visit" button when visits exist', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [
+        {
+          uuid: 'vis-uuid-abcd1234',
+          startDatetime: '2025-09-12T20:14:36.000+0000',
+          visitType: { display: 'OPD Visit' },
+          encounters: [],
+        },
+      ],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.queryByText('Start Visit')).not.toBeInTheDocument();
+  });
+
+  it('uses default image when uuid is undefined', () => {
+    mockUuid = undefined;
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+    const img = screen.getByAltText('John K Doe') as HTMLImageElement;
+    expect(img.src).toContain('user.svg');
+    mockUuid = 'test-uuid';
+  });
+
+  it('uses dob as fallback for patientAge in Start Visit navigation when age is empty', async () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      patientData: { ...basePatientData, age: '', dob: '1/15/1994' },
+      visits: [],
+    });
+    render(<PatientProfileComponent />);
+    await userEvent.click(screen.getByText('Start Visit'));
+    expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
+      state: expect.objectContaining({
+        patientAge: '1/15/1994',
+      }),
+    });
   });
 });
