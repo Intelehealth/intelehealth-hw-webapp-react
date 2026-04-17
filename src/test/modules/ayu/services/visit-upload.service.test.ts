@@ -28,6 +28,11 @@ vi.mock('../../../../services/patient.service', () => ({
 
 import { EmrMiddlewareApi } from '../../../../services/patient.service';
 
+/** Helper to parse the obsValue JSON and return { en, 'l-en' } */
+function parseObs(obsValue: string): { en: string; 'l-en': string } {
+  return JSON.parse(obsValue);
+}
+
 describe('visit-upload.service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -44,14 +49,14 @@ describe('visit-upload.service', () => {
       const reasonNames = ['Cough', 'Fever'];
 
       const result = buildVisitReasonHtml(details, reasonNames);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('<b>Cough, Fever</b>');
-      expect(result.displayHtml).toContain('Duration - 3 days.<br/>');
-      expect(result.displayHtml).toContain('Severity - Moderate.<br/>');
+      expect(parsed.en).toContain('<b>Cough, Fever</b>');
+      expect(parsed.en).toContain('Duration - 3 days.<br/>');
+      expect(parsed.en).toContain('Severity - Moderate.<br/>');
 
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('Duration-3 days<br/>');
-      expect(rawParsed.text_en).toContain('Severity-Moderate<br/>');
+      expect(parsed['l-en']).toContain('● Duration<br/>•3 days<br/>');
+      expect(parsed['l-en']).toContain('● Severity<br/>•Moderate<br/>');
     });
 
     it('should handle empty details', () => {
@@ -59,11 +64,9 @@ describe('visit-upload.service', () => {
       const reasonNames = ['Headache'];
 
       const result = buildVisitReasonHtml(details, reasonNames);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toBe('<b>Headache</b>: <br/>');
-
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toBe('');
+      expect(parsed.en).toContain('<b>Headache</b>');
     });
 
     it('should handle empty reasons', () => {
@@ -71,9 +74,10 @@ describe('visit-upload.service', () => {
       const reasonNames: string[] = [];
 
       const result = buildVisitReasonHtml(details, reasonNames);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('<b></b>');
-      expect(result.displayHtml).toContain('Note - Some note.<br/>');
+      expect(parsed.en).toContain('<b></b>');
+      expect(parsed.en).toContain('Note - Some note.<br/>');
     });
 
     it('should handle single detail and single reason', () => {
@@ -81,10 +85,10 @@ describe('visit-upload.service', () => {
       const reasonNames = ['Chest Pain'];
 
       const result = buildVisitReasonHtml(details, reasonNames);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toBe(
-        '<b>Chest Pain</b>: <br/>\u2022 Onset - Sudden.<br/>'
-      );
+      expect(parsed.en).toContain('<b>Chest Pain</b>');
+      expect(parsed.en).toContain('Onset - Sudden.<br/>');
     });
   });
 
@@ -114,14 +118,14 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['no_jaundice'] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('General exams');
-      expect(result.displayHtml).toContain('Eyes-no jaundice seen.');
+      expect(parsed.en).toContain('General exams');
+      expect(parsed.en).toContain('Eyes-no jaundice seen.');
 
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('Eyes-');
-      expect(rawParsed.text_en).toContain('Is there jaundice?*');
-      expect(rawParsed.text_en).toContain('No jaundice seen');
+      expect(parsed['l-en']).toContain('Eyes-');
+      expect(parsed['l-en']).toContain('Is there jaundice?*');
+      expect(parsed['l-en']).toContain('No jaundice seen');
     });
 
     it('should skip questions with no selected answers', () => {
@@ -132,9 +136,10 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['no_jaundice'], q2: [] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Eyes');
-      expect(result.displayHtml).not.toContain('Skin');
+      expect(parsed.en).toContain('Eyes');
+      expect(parsed.en).not.toContain('Skin');
     });
 
     it('should handle multiple sections', () => {
@@ -152,9 +157,10 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['no_jaundice'], q2: ['normal'] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('General exams');
-      expect(result.displayHtml).toContain('Cardiovascular');
+      expect(parsed.en).toContain('General exams');
+      expect(parsed.en).toContain('Cardiovascular');
     });
 
     it('should return empty strings for no answers', () => {
@@ -164,9 +170,10 @@ describe('visit-upload.service', () => {
       const answers = {};
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toBe('');
-      expect(JSON.parse(result.rawJson).text_en).toBe('');
+      expect(parsed.en).toBe('');
+      expect(parsed['l-en']).toBe('');
     });
 
     it('should not add asterisk for non-required questions in raw HTML', () => {
@@ -176,9 +183,9 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['no_jaundice'] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).not.toContain('*');
+      expect(parsed['l-en']).not.toContain('*');
     });
 
     it('should handle multi-choice answers', () => {
@@ -188,8 +195,9 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['no_jaundice', 'jaundice'] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('no jaundice seen, jaundice present');
+      expect(parsed.en).toContain('no jaundice seen, jaundice present');
     });
 
     it('should skip question when selected IDs do not match any option', () => {
@@ -199,11 +207,10 @@ describe('visit-upload.service', () => {
       const answers = { q1: ['non_existent_id'] };
 
       const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
 
-      // selectedIds has entries but none match options, so selectedTexts is empty after filter(Boolean)
-      // !selectedTexts.length triggers continue, skipping the question
-      expect(result.displayHtml).toBe('');
-      expect(JSON.parse(result.rawJson).text_en).toBe('');
+      expect(parsed.en).toBe('');
+      expect(parsed['l-en']).toBe('');
     });
   });
 
@@ -222,23 +229,24 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildMedicalHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Medical History - Yes, No');
-      expect(result.displayHtml).toContain('<br/>');
+      expect(parsed.en).toContain('Diabetes - Yes');
+      expect(parsed.en).toContain('Hypertension - No');
+      expect(parsed.en).toContain('<br/>');
 
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('Yes, No');
+      expect(parsed['l-en']).toContain('Diabetes');
+      expect(parsed['l-en']).toContain('Yes');
     });
 
     it('should handle empty sections', () => {
       const sections: MedicalHistorySummary[] = [];
 
       const result = buildMedicalHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('None');
-
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('None');
+      expect(parsed.en).toContain('None');
+      expect(parsed['l-en']).toContain('None');
     });
 
     it('should filter out items with null values', () => {
@@ -253,9 +261,9 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildMedicalHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Medical History - Yes');
-      expect(result.displayHtml).not.toContain('null');
+      expect(parsed.en).toContain('Asthma - Yes');
     });
 
     it('should handle sections with only subheading items (no labelValue)', () => {
@@ -269,8 +277,9 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildMedicalHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('None');
+      expect(parsed.en).toContain('None');
     });
 
     it('should combine items from multiple sections', () => {
@@ -286,8 +295,10 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildMedicalHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Val A, Val B');
+      expect(parsed.en).toContain('A - Val A');
+      expect(parsed.en).toContain('B - Val B');
     });
   });
 
@@ -306,24 +317,23 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildFamilyHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Diabetes (Father)');
-      expect(result.displayHtml).toContain('Hypertension (Mother)');
+      expect(parsed.en).toContain('Diabetes (Father)');
+      expect(parsed.en).toContain('Hypertension (Mother)');
 
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('Diabetes (Father)');
-      expect(rawParsed.text_en).toContain('Hypertension (Mother)');
+      expect(parsed['l-en']).toContain('Diabetes (Father)');
+      expect(parsed['l-en']).toContain('Hypertension (Mother)');
     });
 
     it('should handle empty sections', () => {
       const sections: MedicalHistorySummary[] = [];
 
       const result = buildFamilyHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('None');
-
-      const rawParsed = JSON.parse(result.rawJson);
-      expect(rawParsed.text_en).toContain('None');
+      expect(parsed.en).toContain('None');
+      expect(parsed['l-en']).toContain('None');
     });
 
     it('should handle items without values (no relation)', () => {
@@ -337,10 +347,10 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildFamilyHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      // When value is null/falsy, no parenthetical relation is added
-      expect(result.displayHtml).toContain('Cancer');
-      expect(result.displayHtml).not.toContain('Cancer (');
+      expect(parsed.en).toContain('Cancer');
+      expect(parsed.en).not.toContain('Cancer (');
     });
 
     it('should combine items from multiple sections', () => {
@@ -356,8 +366,9 @@ describe('visit-upload.service', () => {
       ];
 
       const result = buildFamilyHistoryData(sections);
+      const parsed = parseObs(result.obsValue);
 
-      expect(result.displayHtml).toContain('Diabetes (Father), Asthma (Sister)');
+      expect(parsed.en).toContain('Diabetes (Father), Asthma (Sister)');
     });
   });
 
@@ -374,20 +385,16 @@ describe('visit-upload.service', () => {
         { name: 'Weight', key: 'weight_kg', uuid: 'uuid-weight', is_mandatory: true, lang: null, is_enabled: true },
       ],
       visitReason: {
-        displayHtml: '<b>Cough</b>: test',
-        rawJson: '{"text_en":"test"}',
+        obsValue: JSON.stringify({ en: '<b>Cough</b>: test', 'l-en': 'Cough::test' }),
       },
       physicalExam: {
-        displayHtml: '<b>General</b>: test',
-        rawJson: '{"text_en":"test"}',
+        obsValue: JSON.stringify({ en: '<b>General</b>: test', 'l-en': 'General::test' }),
       },
       medicalHistory: {
-        displayHtml: '* Medical History - None',
-        rawJson: '{"text_en":"None"}',
+        obsValue: JSON.stringify({ en: '• Medical History - None', 'l-en': '● None' }),
       },
       familyHistory: {
-        displayHtml: '* Family History - None',
-        rawJson: '{"text_en":"None"}',
+        obsValue: JSON.stringify({ en: '• Family History - None', 'l-en': '● None' }),
       },
       ...overrides,
     });
@@ -479,11 +486,9 @@ describe('visit-upload.service', () => {
       const vitalsDatetime = result.encounters[0].encounterDatetime;
       const priorityDatetime = result.encounters[2].encounterDatetime;
 
-      // Both should be ISO-like strings with +0000
       expect(vitalsDatetime).toContain('+0000');
       expect(priorityDatetime).toContain('+0000');
 
-      // Visit priority should be after vitals
       const vitalsTime = new Date(vitalsDatetime.replace('+0000', 'Z')).getTime();
       const priorityTime = new Date(priorityDatetime.replace('+0000', 'Z')).getTime();
       expect(priorityTime).toBeGreaterThan(vitalsTime);
