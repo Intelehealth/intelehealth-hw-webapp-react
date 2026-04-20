@@ -75,6 +75,13 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/** Remaining days in the current month (including today) */
+const remainingDaysInMonth = (() => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return lastDay - now.getDate() + 1;
+})();
+
 /** Helper: get the date-buttons container (inner flex with gap-[8px]) */
 const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
 
@@ -173,7 +180,7 @@ describe('AppointmentScheduleComponent', () => {
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(13);
+      expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
     });
   });
 
@@ -191,7 +198,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(13);
+        expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
       });
     });
 
@@ -210,7 +217,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(13);
+        expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
       });
     });
 
