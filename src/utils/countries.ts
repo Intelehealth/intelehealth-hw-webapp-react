@@ -30,3 +30,15 @@ export function getCountryByDialCode(dialCode: string): Country | undefined {
   const countries = getAllCountries();
   return countries.find(country => country.dial_code === dialCode);
 }
+
+const DIAL_CODES = getAllCountries()
+  .map(c => (c.dial_code ?? '').replace('+', ''))
+  // Sort longest first so +44 matches before +4
+  .sort((a, b) => b.length - a.length);
+
+export function getCountryCode(digits: string): string | null {
+  for (const code of DIAL_CODES) {
+    if (digits.startsWith(code)) return code;
+  }
+  return null;
+}

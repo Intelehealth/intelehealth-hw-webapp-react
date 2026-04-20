@@ -4,12 +4,13 @@ import type { PrescriptionData } from '../../services/visit-prescription.service
 // ─── Mock pdfmake ─────────────────────────────────────────────────────────────
 const h = vi.hoisted(() => {
   const mockDownload = vi.fn();
-  const mockCreatePdf = vi.fn(() => ({ download: mockDownload }));
-  return { mockDownload, mockCreatePdf };
+  const mockPrint = vi.fn();
+  const mockCreatePdf = vi.fn(() => ({ download: mockDownload, print: mockPrint }));
+  return { mockDownload, mockPrint, mockCreatePdf };
 });
-const { mockDownload, mockCreatePdf } = h;
+const { mockDownload, mockPrint, mockCreatePdf } = h;
 
-vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, vfs: {} } }));
+vi.mock('pdfmake/build/pdfmake', () => ({ default: { createPdf: h.mockCreatePdf, addVirtualFileSystem: vi.fn() } }));
 vi.mock('pdfmake/build/vfs_fonts', () => ({ default: { pdfMake: { vfs: {} } } }));
 
 // ─── Mock SVG ?url imports ────────────────────────────────────────────────────
@@ -20,6 +21,8 @@ vi.mock('../../assets/icons/prescription-advice.svg?url', () => ({ default: 'adv
 vi.mock('../../assets/icons/prescription-test.svg?url', () => ({ default: 'test.svg' }));
 vi.mock('../../assets/icons/prescription-followup.svg?url', () => ({ default: 'followup.svg' }));
 vi.mock('../../assets/icons/prescription-referral.svg?url', () => ({ default: 'referral.svg' }));
+vi.mock('../../assets/icons/vitals.svg?url', () => ({ default: 'vitals.svg' }));
+vi.mock('../../assets/images/default-user-img.svg?url', () => ({ default: 'default-user.svg' }));
 
 // ─── Mock browser APIs ────────────────────────────────────────────────────────
 
@@ -88,6 +91,16 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
   doctorQualification: 'MBBS',
   doctorRegNumber: 'REG-999',
   doctorSignatureUrl: null,
+  vitals: {
+    height: '170',
+    weight: '65',
+    bpSystolic: '120',
+    bpDiastolic: '80',
+    pulse: '72',
+    temperature: '98.6',
+    spo2: '98',
+    respiratoryRate: '16',
+  },
   diagnoses: [{ diagnosisName: 'Typhoid fever', diagnosisType: 'Primary', diagnosisStatus: 'Confirmed' }],
   medicines: [{ drug: 'Paracetamol', strength: '500mg', frequency: 'Twice daily', days: '5', timing: 'After food', remark: 'NA' }],
   advices: ['Drink plenty of water'],
@@ -98,7 +111,7 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 });
 
 // ─── Import the functions under test (after mocks are set up) ─────────────────
-const { downloadVisitPrescriptionPdf, openPrescriptionPreview } =
+const { downloadVisitPrescriptionPdf, printVisitPrescriptionPdf, shareVisitPrescriptionPdf, openPrescriptionPreview } =
   await import('../../utils/visit-prescription-pdf');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -145,14 +158,42 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(mockDrawImage).toHaveBeenCalled();
   });
 
-  it('uses ellipse canvas for patient avatar when fetch fails', async () => {
+  it('uses patient avatar icon when patient image fetch fails', async () => {
     mockFetch.mockResolvedValue({ ok: false });
     await downloadVisitPrescriptionPdf(makePrescription());
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     const bodyRows = docDef.content[0].table.body;
     const patientRow = bodyRows[0];
     const avatarCell = patientRow[0].table.body[0][0];
+    expect(avatarCell).toHaveProperty('image');
+  });
+
+  it('skips patient image fetch when patientUuid is empty', async () => {
+    mockFetch.mockResolvedValue(makeImageResponse());
+    await downloadVisitPrescriptionPdf(makePrescription({ patientUuid: '' }));
+    // fetch should only be called for SVG icon conversions, not for personimage
+    const personImageCalls = mockFetch.mock.calls.filter(
+      (call: any[]) => String(call[0]).includes('personimage')
+    );
+    expect(personImageCalls).toHaveLength(0);
+    // Should use patient avatar icon fallback
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const avatarCell = docDef.content[0].table.body[0][0].table.body[0][0];
+    expect(avatarCell).toHaveProperty('image');
+  });
+
+  it('uses ellipse canvas when both patient fetch and avatar SVG fail', async () => {
+    mockFetch.mockResolvedValue({ ok: false });
+    // Force canvas.getContext to return null so svgToPng returns null for all icons
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => null) as any;
+
+    await downloadVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const avatarCell = docDef.content[0].table.body[0][0].table.body[0][0];
     expect(avatarCell).toHaveProperty('canvas');
+
+    HTMLCanvasElement.prototype.getContext = origGetContext;
   });
 
   it('includes signature image when doctorSignatureUrl is a data URL', async () => {
@@ -165,7 +206,6 @@ describe('downloadVisitPrescriptionPdf', () => {
 
   it('fetches and uses signature when doctorSignatureUrl is a URL', async () => {
     mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient image
       .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'application/octet-stream' })) }); // signature
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     expect(mockCreatePdf).toHaveBeenCalled();
@@ -213,6 +253,26 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(JSON.stringify(docDef.content)).toContain('Cardiology');
   });
 
+  it('shows dash for null infoCell value (line 230)', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      gender: null as any,
+      occupation: '',
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('-');
+  });
+
+  it('shows referral without reason (line 456)', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      referrals: [{ speciality: 'Dermatology', reason: '' }],
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Dermatology');
+    expect(bodyStr).not.toContain('Dermatology –');
+  });
+
   it('omits Referral section when referrals empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ referrals: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
@@ -246,16 +306,71 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(footer.columns[1].text).toBe('1 of 3');
   });
 
+  it('includes Vitals section with vitals data', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Vitals');
+    expect(bodyStr).toContain('Height(cm):');
+    expect(bodyStr).toContain('170');
+    expect(bodyStr).toContain('Weight(kg):');
+    expect(bodyStr).toContain('65');
+    expect(bodyStr).toContain('Systolic Blood Pressure:');
+    expect(bodyStr).toContain('120');
+    expect(bodyStr).toContain('Diastolic Blood Pressure:');
+    expect(bodyStr).toContain('80');
+    expect(bodyStr).toContain('Pulse(bpm):');
+    expect(bodyStr).toContain('SpO2 (%):');
+    expect(bodyStr).toContain('Respiratory Rate:');
+  });
+
+  it('shows NA for null vitals values', async () => {
+    await downloadVisitPrescriptionPdf(makePrescription({
+      vitals: {
+        height: null, weight: null, bpSystolic: null, bpDiastolic: null,
+        pulse: null, temperature: null, spo2: null, respiratoryRate: null,
+      },
+    }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    const bodyStr = JSON.stringify(docDef.content);
+    expect(bodyStr).toContain('Vitals');
+    expect(bodyStr).toContain('Height(cm):');
+    // NA is shown for null values
+    const naCount = (bodyStr.match(/"NA"/g) || []).length;
+    expect(naCount).toBeGreaterThanOrEqual(8);
+  });
+
   it('shows "No diagnosis added" row when diagnoses empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ diagnoses: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(JSON.stringify(docDef.content)).toContain('No diagnosis added');
   });
 
-  it('shows "No medicines added" row when medicines empty', async () => {
+  it('omits Prescribed Medications section when medicines empty', async () => {
     await downloadVisitPrescriptionPdf(makePrescription({ medicines: [] }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
-    expect(JSON.stringify(docDef.content)).toContain('No medicines added');
+    expect(JSON.stringify(docDef.content)).not.toContain('Prescribed Medications');
+  });
+
+  it('returns null from toBase64 when reader.onerror fires (line 37)', async () => {
+    const OrigReader = globalThis.FileReader;
+    class ErrorReader {
+      result: string | null = null;
+      onloadend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      readAsDataURL() {
+        setTimeout(() => this.onerror?.(), 0);
+      }
+    }
+    vi.stubGlobal('FileReader', ErrorReader);
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'image/png' })) }); // signature
+    await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');
+
+    vi.stubGlobal('FileReader', OrigReader);
   });
 
   it('returns null from toBase64 when reader result does not start with data: (lines 29-31)', async () => {
@@ -274,7 +389,6 @@ describe('downloadVisitPrescriptionPdf', () => {
 
     // Signature URL triggers toBase64 with forceImageMime=true
     mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
       .mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(new Blob(['sig'], { type: 'image/png' })) }); // signature
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
@@ -284,10 +398,15 @@ describe('downloadVisitPrescriptionPdf', () => {
     vi.stubGlobal('FileReader', OrigReader);
   });
 
-  it('returns null from toBase64 when fetch throws (lines 40-41)', async () => {
-    mockFetch
-      .mockResolvedValueOnce(makeImageResponse()) // patient avatar
-      .mockRejectedValueOnce(new Error('Network error')); // signature fetch throws
+  it('returns null from toBase64 when signature fetch returns not ok', async () => {
+    mockFetch.mockResolvedValue({ ok: false });
+    await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');
+  });
+
+  it('returns null from toBase64 when fetch throws (lines 44-46)', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
     await downloadVisitPrescriptionPdf(makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }));
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(JSON.stringify(docDef.content)).not.toContain('SIGDATA');
@@ -322,11 +441,28 @@ describe('downloadVisitPrescriptionPdf', () => {
     const calls = mockCreatePdf.mock.calls as any[][];
     const docDef = calls[0][0];
     const bodyRows: any[] = docDef.content[0].table.body;
-    const diagnosisContentRow = bodyRows.find((r: any) =>
-      Array.isArray(r) && r[0]?.table?.body && typeof r[0]?.layout?.hLineWidth === 'function'
-    );
-    expect(diagnosisContentRow).toBeDefined();
-    const layout = diagnosisContentRow![0].layout;
+    // After sectionBlock refactor, tables are nested inside unbreakable stacks
+    let layout: any;
+    for (const r of bodyRows) {
+      if (!Array.isArray(r)) continue;
+      const cell = r[0];
+      // Direct table row
+      if (cell?.table?.body && typeof cell?.layout?.hLineWidth === 'function') {
+        layout = cell.layout;
+        break;
+      }
+      // Inside unbreakable stack
+      if (cell?.stack) {
+        const nested = cell.stack.find(
+          (s: any) => s?.table?.body && typeof s?.layout?.hLineWidth === 'function'
+        );
+        if (nested) {
+          layout = nested.layout;
+          break;
+        }
+      }
+    }
+    expect(layout).toBeDefined();
     const node = { table: { body: new Array(5) } };
 
     expect(layout.hLineWidth(0, node)).toBe(0);
@@ -336,9 +472,67 @@ describe('downloadVisitPrescriptionPdf', () => {
     expect(layout.vLineWidth()).toBe(0);
     expect(layout.hLineColor(1)).toBe('#CCCCCC');
     expect(layout.hLineColor(2)).toBe('#EBEBEB');
-    expect(layout.paddingLeft()).toBe(6);
-    expect(layout.paddingRight()).toBe(6);
+    expect(layout.paddingLeft()).toBe(5);
+    expect(layout.paddingRight()).toBe(5);
     expect(layout.paddingTop()).toBe(4);
     expect(layout.paddingBottom()).toBe(4);
+  });
+});
+
+describe('printVisitPrescriptionPdf', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+  });
+
+  it('calls pdfMake.createPdf and triggers print', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+    expect(mockPrint).toHaveBeenCalledTimes(1);
+    expect(mockDownload).not.toHaveBeenCalled();
+  });
+
+  it('generates same document definition as download', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(docDef.pageSize).toBe('A4');
+    expect(docDef.watermark.text).toBe('INTELEHEALTH');
+  });
+});
+
+describe('shareVisitPrescriptionPdf', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('downloads PDF and opens WhatsApp with phone number', async () => {
+    await shareVisitPrescriptionPdf(makePrescription({ patientName: 'JANE DOE' }), '919876543210');
+
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+    expect(mockDownload).toHaveBeenCalledWith('e-prescription.pdf');
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/919876543210'),
+      '_blank'
+    );
+  });
+
+  it('includes download link in WhatsApp message', async () => {
+    await shareVisitPrescriptionPdf(makePrescription({ patientName: 'JOHN DOE' }), '11234567890');
+
+    const url = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const message = decodeURIComponent(url.split('?text=')[1]);
+    expect(message).toContain('Download here:');
+    expect(message).toContain('https://');
+  });
+
+  it('generates same document definition as download', async () => {
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210');
+    const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
+    expect(docDef.pageSize).toBe('A4');
+    expect(docDef.watermark.text).toBe('INTELEHEALTH');
   });
 });

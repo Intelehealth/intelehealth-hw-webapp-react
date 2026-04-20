@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import iconPhoneRounded from '../../assets/icons/appiontment/green-field-apm-phone-icon.svg';
-import iconWatsappsRounded from '../../assets/icons/appiontment/green-field-apm-wattsapps.svg';
-import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
-import iconClock from '../../assets/icons/appiontment/icon-apm-clock-time.svg';
-import icongreenClock from '../../assets/icons/appiontment/icon-apm-clocktime.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
-import iconGeneralphysician from '../../assets/icons/appiontment/violet-field-apm-general-physician.svg';
-import iconVisitsummary from '../../assets/icons/appiontment/violet-field-apm-visit-summary.svg';
-import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconEdit from '../../assets/icons/appiontment/icons-apm-edit.svg';
-import iconAngleSmallRight from '../../assets/icons/appiontment/icon-angle-small-right.svg';
-import iconsPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
-import iconsApmArrowRight from '../../assets/icons/appiontment/icon-apm-arrow-right.svg';
+import iconPhoneRounded from '../../assets/icons/appointment/green-field-apm-phone-icon.svg';
+import iconWatsappsRounded from '../../assets/icons/appointment/green-field-apm-wattsapps.svg';
+import iconCalendar from '../../assets/icons/appointment/icon-apm-calendar.svg';
+import iconClock from '../../assets/icons/appointment/icon-apm-clock-time.svg';
+import icongreenClock from '../../assets/icons/appointment/icon-apm-clocktime.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
+import iconGeneralphysician from '../../assets/icons/appointment/violet-field-apm-general-physician.svg';
+import iconVisitsummary from '../../assets/icons/appointment/violet-field-apm-visit-summary.svg';
+import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconEdit from '../../assets/icons/appointment/icons-apm-edit.svg';
+import iconAngleSmallRight from '../../assets/icons/appointment/icon-angle-small-right.svg';
+import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
+import iconsApmArrowRight from '../../assets/icons/appointment/icon-apm-arrow-right.svg';
 import { appointmentsDetailData } from '../../assets/data/appointments.data';
 
 export default function AppointmentDetails() {
@@ -52,7 +52,7 @@ export default function AppointmentDetails() {
     <div>
       <div className="w-full bg-white rounded-xl p-4 md:p-5">
         <div className="hidden md:flex items-center gap-3">
-          <img src={iconsvioletFieldAppiontmentDetails} alt="appointments" />
+          <img src={iconsvioletFieldAppointmentDetails} alt="appointments" />
           <span className="text-base font-semibold tracking-wide">
             My appointments
           </span>

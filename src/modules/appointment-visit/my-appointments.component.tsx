@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
-import iconSortFilter from '../../assets/icons/appiontment/icon-apm-sortasd-filter.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
+import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
+import iconSortFilter from '../../assets/icons/appointment/icon-apm-sortasd-filter.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconClock from '../../assets/icons/appiontment/icon-apm-clocktime.svg';
-import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconAngleSmallRight from '../../assets/icons/appiontment/icon-angle-small-right.svg';
-import iconsPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
+import iconClock from '../../assets/icons/appointment/icon-apm-clocktime.svg';
+import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconAngleSmallRight from '../../assets/icons/appointment/icon-angle-small-right.svg';
+import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import { appointmentsListData } from '../../assets/data/appointments.data';
 
 export default function MyAppointments() {
@@ -69,7 +69,7 @@ export default function MyAppointments() {
     <div className="w-full bg-white rounded-xl p-4 md:p-5">
       {/* Header */}
       <div className="hidden md:flex items-center gap-3">
-        <img src={iconsvioletFieldAppiontmentDetails} alt="appointments" />
+        <img src={iconsvioletFieldAppointmentDetails} alt="appointments" />
         <span className="text-base font-semibold tracking-wide">
           My appointments
         </span>

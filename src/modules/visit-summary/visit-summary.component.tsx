@@ -11,7 +11,7 @@ import type {
   PhysicalExamination,
 } from '../../assets/data/visit-summary.data';
 import CollapsedComponent from './visit-summary-collapsed.component';
-import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
+import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconVisitSummary from '../../assets/icons/icon-visit-summery.svg';
 import iconPhysicalExam from '../../assets/icons/icon-physical-examination.svg';
 import iconVitals from '../../assets/icons/vitals.svg';

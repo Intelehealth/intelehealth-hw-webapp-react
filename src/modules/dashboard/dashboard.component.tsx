@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import iconAddPatient from '../../assets/icons/appiontment/icon-add-patient.svg';
-import iconArrowright from '../../assets/icons/appiontment/icon-arrow-right.svg';
-import iconOPatient from '../../assets/icons/appiontment/icon-o-patient.svg';
+import iconAddPatient from '../../assets/icons/appointment/icon-add-patient.svg';
+import iconArrowright from '../../assets/icons/appointment/icon-arrow-right.svg';
+import iconOPatient from '../../assets/icons/appointment/icon-o-patient.svg';
 import iconCalenderBlue from '../../assets/icons/icon-calendar-blue.svg';
 import iconRightArrow from '../../assets/icons/icon-right-arrow.svg';
 import iconSummeryList from '../../assets/icons/icon-summary-list.svg';

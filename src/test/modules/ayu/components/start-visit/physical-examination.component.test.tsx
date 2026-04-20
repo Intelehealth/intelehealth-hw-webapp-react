@@ -720,7 +720,7 @@ describe('PhysicalExamination', () => {
       expect(modalConfig.sections).toEqual([]);
     });
 
-    it('should show "Taken Picture" when camera option selected and images exist', () => {
+    it('should show "Picture taken" when camera option selected and images exist', () => {
       mockHookReturn.answers = { q1: ['q1-cam'] };
       mockHookReturn.cameraImagesFor = vi.fn((qId: string) =>
         qId === 'q1' ? ['img1.jpg'] : []
@@ -730,18 +730,18 @@ describe('PhysicalExamination', () => {
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections).toHaveLength(1);
-      expect(modalConfig.sections[0].items[0].value).toBe('Taken Picture');
+      expect(modalConfig.sections[0].items[0].value).toBe('Picture taken');
     });
 
-    it('should show "Take a picture" when camera option selected but no images uploaded', () => {
+    it('should produce empty sections when camera option selected but no images uploaded', () => {
       mockHookReturn.answers = { q1: ['q1-cam'] };
       mockHookReturn.cameraImagesFor = vi.fn().mockReturnValue([]);
       render(<PhysicalExamination {...defaultProps} />);
 
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.sections).toHaveLength(1);
-      expect(modalConfig.sections[0].items[0].value).toBe('Take a picture');
+      // Empty string is filtered out by .filter(Boolean), so no sections
+      expect(modalConfig.sections).toEqual([]);
     });
 
     it('should use visibleQuestions from hook (not static PHYSICAL_EXAM_QUESTIONS)', () => {

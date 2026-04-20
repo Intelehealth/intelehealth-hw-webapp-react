@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
-import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
+import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
+import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import {
@@ -58,7 +58,7 @@ export const FollowupVisitsComponent = ({
                 <div className="flex items-center">
                   <img
                     className="w-8.5 h-8.5"
-                    src={iconsvioletFieldAppiontmentDetails}
+                    src={iconsvioletFieldAppointmentDetails}
                     alt=""
                   />
                 </div>

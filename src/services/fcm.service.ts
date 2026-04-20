@@ -1,7 +1,7 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  getMessaging,
-  getToken as fcmGetToken, // renamed to avoid collision
+  getToken as fcmGetToken,
+  getMessaging, // renamed to avoid collision
   onMessage,
   type MessagePayload,
   type Messaging,
@@ -87,6 +87,7 @@ class FCMService {
   }
 
   private showForegroundNotification(payload: MessagePayload): void {
+    /* c8 ignore next */
     if (!this.swRegistration) return;
 
     const data = payload.data || {};

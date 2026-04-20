@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
 import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
+import type { ModalSection } from '../../../../../components/modal/global-modal-context';
+import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../../../data/physical-exam.data';
@@ -172,10 +172,15 @@ export const PhysicalExamination = (props: SectionProps) => {
       .filter(q => (currentAnswers[q.id] ?? []).length > 0)
       .map(q => {
         const selectedTexts = currentAnswers[q.id]
-          .map(id => q.options.find(o => o.id === id)?.text)
+          .map(id => {
+            const opt = q.options.find(o => o.id === id);
+            if (opt?.isCamera) return undefined;
+            return opt?.text;
+          })
           .filter(Boolean);
         return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-      });
+      })
+      .filter(d => d.value);
 
     // Group details by sectionKey for modal sections
     const sectionMap = new Map<string, ModalSection>();
@@ -186,7 +191,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           const opt = q.options.find(o => o.id === id);
           if (opt?.isCamera) {
             const hasImages = cameraImagesForRef.current(q.id).length > 0;
-            return hasImages ? 'Taken Picture' : 'Take a picture';
+            return hasImages ? 'Picture taken' : '';
           }
           return opt?.text;
         })

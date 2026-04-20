@@ -60,6 +60,22 @@ describe('DashboardComponent navigation', () => {
     );
   });
 
+  it('navigates to follow-up visits when Follow-up visits card is clicked', () => {
+    render(<DashboardComponent />);
+    const followUpCard = screen.getByText('Follow-up visits').closest('[class*="cursor-pointer"]');
+    expect(followUpCard).toBeTruthy();
+    if (followUpCard) fireEvent.click(followUpCard);
+    expect(navigateMock).toHaveBeenCalledWith('/followup-visits');
+  });
+
+  it('navigates to follow-up visits via keyboard on Follow-up visits card', () => {
+    render(<DashboardComponent />);
+    const followUpCard = screen.getByText('Follow-up visits').closest('[class*="cursor-pointer"]');
+    expect(followUpCard).toBeTruthy();
+    if (followUpCard) fireEvent.keyDown(followUpCard, { key: 'Enter' });
+    expect(navigateMock).toHaveBeenCalledWith('/followup-visits');
+  });
+
   it('hides mobile back button and shows it when showPrescriptions is true', () => {
     render(<DashboardComponent initialShowPrescriptions={true} />);
     const backButton = screen.getByText('← Prescriptions');

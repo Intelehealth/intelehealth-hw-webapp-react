@@ -31,15 +31,15 @@ vi.mock('../../../modules/visit-details/visit-details.service', () => ({
 }));
 
 // SVG icon mocks
-vi.mock('../../../assets/icons/appiontment/icon-patient-image.svg', () => ({ default: 'icon-patient-image.svg' }));
-vi.mock('../../../assets/icons/appiontment/green-field-apm-phone-icon.svg', () => ({ default: 'icon-phone.svg' }));
-vi.mock('../../../assets/icons/appiontment/icon-apm-calendar.svg', () => ({ default: 'icon-calendar.svg' }));
-vi.mock('../../../assets/icons/appiontment/icon-apm-clock-time.svg', () => ({ default: 'icon-clock.svg' }));
-vi.mock('../../../assets/icons/appiontment/violet-field-apm-general-physician.svg', () => ({ default: 'icon-gp.svg' }));
-vi.mock('../../../assets/icons/appiontment/violet-field-apm-visit-summary.svg', () => ({ default: 'icon-visit-summary.svg' }));
-vi.mock('../../../assets/icons/appiontment/icon-apm-angle-small-right.svg', () => ({ default: 'icon-angle-right.svg' }));
-vi.mock('../../../assets/icons/appiontment/violet-field-apm-prescription.svg', () => ({ default: 'icon-prescription.svg' }));
-vi.mock('../../../assets/icons/appiontment/icons-patient-recevied.svg', () => ({ default: 'icon-prescription-plain.svg' }));
+vi.mock('../../../assets/icons/appointment/icon-patient-image.svg', () => ({ default: 'icon-patient-image.svg' }));
+vi.mock('../../../assets/icons/appointment/green-field-apm-phone-icon.svg', () => ({ default: 'icon-phone.svg' }));
+vi.mock('../../../assets/icons/appointment/icon-apm-calendar.svg', () => ({ default: 'icon-calendar.svg' }));
+vi.mock('../../../assets/icons/appointment/icon-apm-clock-time.svg', () => ({ default: 'icon-clock.svg' }));
+vi.mock('../../../assets/icons/appointment/violet-field-apm-general-physician.svg', () => ({ default: 'icon-gp.svg' }));
+vi.mock('../../../assets/icons/appointment/violet-field-apm-visit-summary.svg', () => ({ default: 'icon-visit-summary.svg' }));
+vi.mock('../../../assets/icons/appointment/icon-apm-angle-small-right.svg', () => ({ default: 'icon-angle-right.svg' }));
+vi.mock('../../../assets/icons/appointment/violet-field-apm-prescription.svg', () => ({ default: 'icon-prescription.svg' }));
+vi.mock('../../../assets/icons/appointment/icons-patient-recevied.svg', () => ({ default: 'icon-prescription-plain.svg' }));
 vi.mock('../../../assets/icons/icon-visit-summery.svg', () => ({ default: 'icon-visit-summary-icon.svg' }));
 vi.mock('../../../assets/icons/icon-print.svg', () => ({ default: 'icon-print.svg' }));
 vi.mock('../../../assets/icons/icon-share.svg', () => ({ default: 'icon-share.svg' }));
