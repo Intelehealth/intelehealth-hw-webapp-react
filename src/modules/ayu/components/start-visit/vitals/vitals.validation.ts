@@ -24,7 +24,7 @@ export const createVitalsValidationSchema = (
     if (!field.is_enabled) return;
 
     // Handle coded fields (e.g. Blood Typing) as string, others as number
-    if (field.datatype === 'Coded') {
+    if (field.key === 'blood_group') {
       let fieldSchema = yup.string();
       if (field.is_mandatory) {
         fieldSchema = fieldSchema.required(`${field.name} is required`);

@@ -296,7 +296,7 @@ export const useVitals = (onNextQuestion: () => void) => {
 
   useEffect(() => {
     const codedFields = vitalsConfig.filter(
-      f => f.datatype === 'Coded' && !f.answers?.length
+      f => f.key === 'blood_group' && !f.answers?.length
     );
     if (codedFields.length === 0) return;
 

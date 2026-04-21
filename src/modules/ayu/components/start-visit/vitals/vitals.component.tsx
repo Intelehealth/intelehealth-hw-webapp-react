@@ -95,7 +95,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           {field.is_mandatory && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="relative">
-          {field.datatype === 'Coded' ? (
+          {field.key === 'blood_group' ? (
             <select
               {...register(field.key as keyof VitalsFormValues)}
               className={`form-input-base w-full px-3 py-2 ${error ? 'border-red-500' : ''}`}
