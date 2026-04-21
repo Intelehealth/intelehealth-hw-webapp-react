@@ -100,6 +100,8 @@ VITE_APP_ENV=production
 - `VITE_API_URL` - Backend API endpoint
 - `VITE_SENTRY_DSN` - Sentry error tracking DSN (production only)
 - `VITE_APP_ENV` - Application environment (development/staging/production)
+- `VITE_ENABLE_SITE_CAPTCHA` - Toggle Google reCAPTCHA on the login form (`true`/`false`). When `false` or unset, the captcha is not rendered and submit is ungated.
+- `VITE_RECAPTCHA_SITE_KEY` - Google reCAPTCHA v2 site key. Required when `VITE_ENABLE_SITE_CAPTCHA=true`; if empty, the captcha is skipped regardless of the flag.
 
 **Note:** `VITE_SENTRY_DSN` is only required in production. Sentry is automatically disabled in development for better performance.
 
