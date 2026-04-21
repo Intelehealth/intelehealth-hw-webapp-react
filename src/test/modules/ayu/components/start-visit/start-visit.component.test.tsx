@@ -3,24 +3,55 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { StartVisit } from '../../../../../modules/ayu/components/start-visit/start-visit.component';
+import {
+  StartVisit,
+  getPhysicalExamFilter,
+} from '../../../../../modules/ayu/components/start-visit/start-visit.component';
 
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
-const mockUseStartVisitData = vi.fn(() => ({
-  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
-  patientUuid: null,
-  lastSectionIndex: 0,
-  setLastSectionIndex: mockSetLastSectionIndex,
-  setPatientUuid: vi.fn(),
-  setVitalsData: vi.fn(),
-  setVisitReasonData: vi.fn(),
-  setPhysicalExamData: vi.fn(),
-  setMedicalHistoryData: vi.fn(),
-}));
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
+const mockUseStartVisitData = vi.fn(
+  () =>
+    ({
+      data: {
+        vitals: null,
+        visitReason: null,
+        physicalExam: null,
+        medicalHistory: null,
+        medicalHistoryAnswers: null,
+      } as any,
+      patientUuid: null as string | null,
+      visitId: 'test-visit-id',
+      tempRecordId: null as number | null,
+      isRestoring: false,
+      restoredSectionIndex: null as number | null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: mockSetLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: vi.fn(),
+    })
+);
 
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => mockUseStartVisitData(),
+}));
+
+// Mock storage for patient info (StartVisit reads patient display from localStorage)
+const mockStorageStore: Record<string, string | null> = {};
+vi.mock('../../../../../utils/storage', () => ({
+  storage: {
+    get: (key: string) => mockStorageStore[key] ?? null,
+    set: (key: string, value: string) => { mockStorageStore[key] = value; },
+    remove: (key: string) => { delete mockStorageStore[key]; },
+    getUser: () => JSON.stringify({ uuid: 'user-uuid' }),
+  },
 }));
 
 // Mock useVisitReasons hook
@@ -38,9 +69,18 @@ vi.mock('../../../../../modules/ayu/hooks/useVisitReasons.hook', () => ({
   })),
 }));
 
-// Mock Cough questionnaire JSON
+// Mock Cough questionnaire JSON — includes a matching extension so the
+// `?.valueString ?? ''` branch for "found extension" is exercised.
 vi.mock('../../../../../modules/ayu/pages/Cough.questionnaire.json', () => ({
-  default: { item: [], extension: [] },
+  default: {
+    item: [],
+    extension: [
+      {
+        url: 'urn:intelehealth:perform-physical-exam',
+        valueString: 'ga-gen',
+      },
+    ],
+  },
 }));
 
 // Mock SVG import
@@ -105,10 +145,11 @@ vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination/
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/medical-history/medical-history.component', () => ({
-  MedicalHistory: vi.fn(({ onPrevSection, onSubtitleChange }) => (
+  MedicalHistory: vi.fn(({ onPrevSection, onSubtitleChange, onNextQuestion }) => (
     <div data-testid="medical-history-component">
       <div>Medical History</div>
       {onPrevSection && <button onClick={onPrevSection}>Prev Section</button>}
+      {onNextQuestion && <button onClick={onNextQuestion}>Next Question</button>}
       {onSubtitleChange && (
         <button onClick={() => onSubtitleChange('Diabetes, Hypertension')}>Set Subtitle</button>
       )}
@@ -131,9 +172,15 @@ const renderWithRouter = (
 describe('StartVisit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear mock storage between tests
+    Object.keys(mockStorageStore).forEach(k => delete mockStorageStore[k]);
     mockUseStartVisitData.mockReturnValue({
-      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null } as any,
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null } as any,
       patientUuid: null,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: mockSetLastSectionIndex,
       setPatientUuid: vi.fn(),
@@ -141,6 +188,9 @@ describe('StartVisit', () => {
       setVisitReasonData: vi.fn(),
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: vi.fn(),
     });
     // Mock window.alert
     vi.spyOn(window, 'alert').mockImplementation(() => {});
@@ -189,28 +239,24 @@ describe('StartVisit', () => {
   });
 
   describe('Patient Info Display', () => {
-    it('should display patient name, age, and gender when provided via location state', () => {
-      renderWithRouter(<StartVisit />, {
-        state: {
-          patientName: 'John Doe',
-          patientAge: '34',
-          patientGender: 'M',
-        },
-      });
+    it('should display patient name, age, and gender when stored in localStorage', () => {
+      mockStorageStore.patientName = 'John Doe';
+      mockStorageStore.patientAge = '34';
+      mockStorageStore.patientGender = 'M';
+      renderWithRouter(<StartVisit />);
       expect(screen.getByText('John Doe')).toBeInTheDocument();
       expect(screen.getByText(/\(34/)).toBeInTheDocument();
       expect(screen.getByText(/\| M\)/)).toBeInTheDocument();
     });
 
-    it('should not render patient info when location state is empty', () => {
+    it('should not render patient info when storage is empty', () => {
       renderWithRouter(<StartVisit />);
       expect(screen.queryByText(/\|/)).not.toBeInTheDocument();
     });
 
     it('should handle partial patient info (name only)', () => {
-      renderWithRouter(<StartVisit />, {
-        state: { patientName: 'Jane' },
-      });
+      mockStorageStore.patientName = 'Jane';
+      renderWithRouter(<StartVisit />);
       expect(screen.getByText('Jane')).toBeInTheDocument();
     });
   });
@@ -1002,6 +1048,10 @@ describe('StartVisit', () => {
           medicalHistory: { patHistSummary: [], famHistSummary: [] },
         } as any,
         patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 3,
         lastSectionIndex: 3,
         setLastSectionIndex: mockSetLastSectionIndex,
         setPatientUuid: vi.fn(),
@@ -1009,6 +1059,9 @@ describe('StartVisit', () => {
         setVisitReasonData: vi.fn(),
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
       });
 
       renderWithRouter(<StartVisit />);
@@ -1018,28 +1071,32 @@ describe('StartVisit', () => {
       expect(screen.getByTestId('medical-history-component')).toBeVisible();
     });
 
-    it('should call setLastSectionIndex when navigating to next section', async () => {
+    it('should persist currentSectionIndex to temp-storage when navigating forward', async () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
 
       await user.click(screen.getByText('Next Vitals'));
 
-      expect(mockSetLastSectionIndex).toHaveBeenCalledWith(1);
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 1 })
+      );
     });
 
-    it('should call setLastSectionIndex when navigating to previous section', async () => {
+    it('should persist currentSectionIndex to temp-storage when navigating back', async () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
 
       // Navigate to Visit Reason
       await user.click(screen.getByText('Next Vitals'));
-      mockSetLastSectionIndex.mockClear();
+      mockSaveSectionToTemp.mockClear();
 
       // Go back to Vitals
       const visitReason = screen.getByTestId('visit-reason-component');
       await user.click(within(visitReason).getByText('Prev Section'));
 
-      expect(mockSetLastSectionIndex).toHaveBeenCalledWith(0);
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 0 })
+      );
     });
   });
 
@@ -1053,6 +1110,10 @@ describe('StartVisit', () => {
           medicalHistory: { patHistSummary: [], famHistSummary: [] },
         } as any,
         patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 3,
         lastSectionIndex: 3,
         setLastSectionIndex: mockSetLastSectionIndex,
         setPatientUuid: vi.fn(),
@@ -1060,6 +1121,9 @@ describe('StartVisit', () => {
         setVisitReasonData: vi.fn(),
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
       });
 
       renderWithRouter(<StartVisit />);
@@ -1077,6 +1141,306 @@ describe('StartVisit', () => {
       // The SectionCompletionLoader shows vitals as answered (default 1)
       const loader = screen.getByTestId('section-completion-loader');
       expect(loader).toHaveTextContent('Section: 1, Question: 1');
+    });
+  });
+
+  /* ── Branch coverage: confirmedReasons restore + section subtitles + isCurrentSectionCompleted ── */
+  describe('Branch coverage', () => {
+    it('should restore confirmedReasons from restoredData on mount', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: ['Fever', 'Cough'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 1, // Visit Reason section
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      // After restore, subtitle for Visit Reason joins reasonNames
+      expect(screen.getByText(/Fever, Cough/)).toBeInTheDocument();
+    });
+
+    it('should render Physical Examination subtitle from ayuConfigFiles when present', async () => {
+      // Override useVisitReasons mock to supply a physExam config file
+      const { useVisitReasons } = await import(
+        '../../../../../modules/ayu/hooks/useVisitReasons.hook'
+      );
+      vi.mocked(useVisitReasons).mockReturnValue({
+        search: '',
+        setSearch: vi.fn(),
+        filteredNames: [],
+        selectedReasons: [],
+        addReason: vi.fn(),
+        removeReason: vi.fn(),
+        grouped: {},
+        selectedComplaints: [],
+        ayuConfigFiles: [
+          { name: 'physExam.json', json: { title: 'General Physical Exam' } as any },
+        ],
+      } as any);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 2, // Physical Examination section
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      expect(screen.getByText(/General Physical Exam/)).toBeInTheDocument();
+    });
+
+    it('should fall back to empty subtitle when physExam config has no title', async () => {
+      const { useVisitReasons } = await import(
+        '../../../../../modules/ayu/hooks/useVisitReasons.hook'
+      );
+      vi.mocked(useVisitReasons).mockReturnValue({
+        search: '',
+        setSearch: vi.fn(),
+        filteredNames: [],
+        selectedReasons: [],
+        addReason: vi.fn(),
+        removeReason: vi.fn(),
+        grouped: {},
+        selectedComplaints: [],
+        ayuConfigFiles: [{ name: 'physExam.json', json: {} as any }],
+      } as any);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 2,
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      // Header shows "3/4 Physical Examination" with no trailing subtitle text
+      expect(screen.getByText(/3\/4 Physical Examination/)).toBeInTheDocument();
+    });
+
+    it('should short-circuit goNextQuestion on revisit when medicalHistory data exists (case 3)', async () => {
+      const user = userEvent.setup();
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: { answers: {}, details: [] },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 3, // Medical History section
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      // Start at Medical History — isCurrentSectionCompleted returns true via case 3
+      expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
+
+      // Go back to Physical Exam then forward — case 3 branch is reached when
+      // we arrive on MH with data and its own Confirm triggers goNextQuestion.
+      // We simulate via Prev/Next to exercise section transitions.
+      const mh = screen.getByTestId('medical-history-component');
+      await user.click(within(mh).getByText('Prev Section'));
+      expect(screen.getByText('3/4 Physical Examination')).toBeInTheDocument();
+    });
+
+    it('should execute case 3 of isCurrentSectionCompleted when Next fires on MH with data', async () => {
+      const user = userEvent.setup();
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: { answers: {}, details: [] },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 3,
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      // Clicking Next on MH triggers goNextQuestion → isCurrentSectionCompleted case 3
+      // → goNextSection (but already at last, clamps).
+      const mh = screen.getByTestId('medical-history-component');
+      await user.click(within(mh).getByText('Next Question'));
+
+      // saveSectionToTemp is called with next index (still 3 since clamped at sections.length-1)
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 3 })
+      );
+    });
+
+    it('should compute restoreIndex from data when restoredSectionIndex is null', () => {
+      // No saved section index → falls into the else branch (lines 122-124)
+      // computing restoreIndex from which sections have data.
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: [], details: [] },
+          physicalExam: { answers: {}, details: [] },
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: null, // Forces else branch
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      // PE data exists → restoreIndex = 3 → lands on Medical History
+      expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
+    });
+
+    it('should render loading state when isRestoring is true', () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: true,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+      renderWithRouter(<StartVisit />);
+
+      expect(screen.getByText('Restoring visit data...')).toBeInTheDocument();
+      // Main UI should not render
+      expect(screen.queryByTestId('vitals-component')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('getPhysicalExamFilter', () => {
+    it('returns the matching extension valueString when present', () => {
+      const questionnaire = {
+        extension: [
+          { url: 'urn:intelehealth:perform-physical-exam', valueString: 'ga-gen' },
+        ],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('ga-gen');
+    });
+
+    it('returns empty string when the extension array is missing', () => {
+      expect(getPhysicalExamFilter({} as any)).toBe('');
+    });
+
+    it('returns empty string when no extension matches the physical-exam URL', () => {
+      const questionnaire = {
+        extension: [{ url: 'urn:intelehealth:some-other-ext', valueString: 'x' }],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('');
+    });
+
+    it('returns empty string when the matching extension has no valueString', () => {
+      const questionnaire = {
+        extension: [{ url: 'urn:intelehealth:perform-physical-exam' }],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('');
     });
   });
 });

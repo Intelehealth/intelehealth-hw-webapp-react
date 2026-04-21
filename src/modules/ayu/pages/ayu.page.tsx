@@ -5,7 +5,7 @@ import type { FhirQuestionnaire } from '../../ayu-library/types/fhir-raw.types';
 import { StartVisit } from '../components/start-visit/start-visit.component';
 import { AyuRenderer } from '../components/start-visit/visit-reason/ayu-renderer.component';
 import { StartVisitProvider } from '../context/start-visit.context';
-import { UUID_REGEX } from '../utils/ayu.constants';
+import { PATIENT_UUID_KEY, UUID_REGEX } from '../utils/ayu.constants';
 import VisitSummaryPage from './visit-summary.page';
 import fhirJson from './Cough.questionnaire.json';
 
@@ -19,7 +19,7 @@ const AyuPage = () => {
   const validParamUuid =
     paramUuid && UUID_REGEX.test(paramUuid) ? paramUuid : undefined;
   const resolvedUuid =
-    stateUuid || validParamUuid || storage.get('patientUuid') || null;
+    stateUuid || validParamUuid || storage.get(PATIENT_UUID_KEY) || null;
 
   if (!ayuSchema) {
     return <div>No questionnaire available</div>;

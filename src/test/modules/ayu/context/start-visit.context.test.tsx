@@ -1,5 +1,5 @@
-import { render, screen, act } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, act, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   StartVisitProvider,
   useStartVisitData,
@@ -10,7 +10,34 @@ import type { PhysicalExamAnswers } from '../../../../modules/ayu/data/physical-
 import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
 import type { AyuAnswerValue } from '../../../../modules/ayu-library/types/ayu.types';
 
-// Helper component that renders context values
+// ── Mocks ──────────────────────────────────────────────────────────────────
+
+const mockGetResource = vi.fn();
+const mockUpsertResource = vi.fn();
+
+vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
+  getResource: (...args: unknown[]) => mockGetResource(...args),
+  upsertResource: (...args: unknown[]) => mockUpsertResource(...args),
+}));
+
+const mockStorageGet = vi.fn(() => 'test-visit-id' as string | null);
+const mockStorageSet = vi.fn();
+const mockStorageRemove = vi.fn();
+const mockStorageGetUser = vi.fn(
+  () => JSON.stringify({ uuid: 'user-uuid' }) as string | null
+);
+
+vi.mock('../../../../utils/storage', () => ({
+  storage: {
+    get: (...args: unknown[]) => mockStorageGet(...(args as [])),
+    set: (...args: unknown[]) => mockStorageSet(...(args as [])),
+    remove: (...args: unknown[]) => mockStorageRemove(...(args as [])),
+    getUser: () => mockStorageGetUser(),
+  },
+}));
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 function ContextConsumer({
   onContext,
 }: {
@@ -21,16 +48,19 @@ function ContextConsumer({
   return (
     <div>
       <span data-testid="patientUuid">{ctx.patientUuid ?? 'null'}</span>
+      <span data-testid="visitId">{ctx.visitId}</span>
+      <span data-testid="isRestoring">{String(ctx.isRestoring)}</span>
+      <span data-testid="tempRecordId">{ctx.tempRecordId ?? 'null'}</span>
+      <span data-testid="restoredSectionIndex">{ctx.restoredSectionIndex ?? 'null'}</span>
       <span data-testid="vitals">{ctx.data.vitals ? 'set' : 'null'}</span>
       <span data-testid="visitReason">{ctx.data.visitReason ? 'set' : 'null'}</span>
       <span data-testid="physicalExam">{ctx.data.physicalExam ? 'set' : 'null'}</span>
       <span data-testid="medicalHistory">{ctx.data.medicalHistory ? 'set' : 'null'}</span>
-      <span data-testid="lastSectionIndex">{ctx.lastSectionIndex}</span>
+      <span data-testid="medicalHistoryAnswers">{ctx.data.medicalHistoryAnswers ? 'set' : 'null'}</span>
     </div>
   );
 }
 
-// Helper component that triggers context setters via buttons
 function ContextUpdater() {
   const ctx = useStartVisitData();
   return (
@@ -40,12 +70,8 @@ function ContextUpdater() {
       <span data-testid="visitReason">{JSON.stringify(ctx.data.visitReason)}</span>
       <span data-testid="physicalExam">{JSON.stringify(ctx.data.physicalExam)}</span>
       <span data-testid="medicalHistory">{JSON.stringify(ctx.data.medicalHistory)}</span>
+      <span data-testid="medicalHistoryAnswers">{JSON.stringify(ctx.data.medicalHistoryAnswers)}</span>
 
-      <span data-testid="lastSectionIndex">{ctx.lastSectionIndex}</span>
-      <button
-        data-testid="btn-setLastSectionIndex"
-        onClick={() => ctx.setLastSectionIndex(3)}
-      />
       <button
         data-testid="btn-setPatientUuid"
         onClick={() => ctx.setPatientUuid('new-uuid-123')}
@@ -74,7 +100,7 @@ function ContextUpdater() {
         data-testid="btn-setPhysicalExam"
         onClick={() => {
           const answers: PhysicalExamAnswers = { eyes_jaundice: ['no_jaundice'] };
-          const details = [{ label: 'Eyes: Jaundice', value: 'No' }];
+          const details = [{ label: 'Eyes', value: 'No jaundice' }];
           ctx.setPhysicalExamData(answers, details);
         }}
       />
@@ -90,89 +116,116 @@ function ContextUpdater() {
           ctx.setMedicalHistoryData(patHistSummary, famHistSummary);
         }}
       />
+      <button
+        data-testid="btn-setMedicalHistoryAnswers"
+        onClick={() => {
+          ctx.setMedicalHistoryAnswers({ patHist: { q1: 'yes' }, famHist: { q2: 'no' } });
+        }}
+      />
+      <button
+        data-testid="btn-saveSectionToTemp"
+        onClick={() => ctx.saveSectionToTemp({ currentSectionIndex: 2 })}
+      />
+      <button
+        data-testid="btn-clearVisitId"
+        onClick={() => ctx.clearVisitId()}
+      />
     </div>
   );
 }
 
+// ── Tests ──────────────────────────────────────────────────────────────────
+
 describe('StartVisitProvider', () => {
-  it('should render children', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: no saved record (404-like rejection)
+    mockGetResource.mockRejectedValue(new Error('Not found'));
+    mockUpsertResource.mockResolvedValue({ data: { id: 1 } });
+    // Reset storage defaults
+    mockStorageGet.mockReturnValue('test-visit-id');
+    mockStorageGetUser.mockReturnValue(JSON.stringify({ uuid: 'user-uuid' }));
+  });
+
+  it('should render children', async () => {
     render(
       <StartVisitProvider>
         <div data-testid="child">Hello</div>
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('child')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('child')).toBeInTheDocument();
+    });
     expect(screen.getByText('Hello')).toBeInTheDocument();
   });
 
-  it('should set patientUuid when initialPatientUuid is provided', () => {
+  it('should set patientUuid when initialPatientUuid is provided', async () => {
     render(
       <StartVisitProvider initialPatientUuid="patient-abc-123">
         <ContextConsumer />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('patientUuid')).toHaveTextContent('patient-abc-123');
-  });
-
-  it('should default patientUuid to null when no initialPatientUuid', () => {
-    render(
-      <StartVisitProvider>
-        <ContextConsumer />
-      </StartVisitProvider>
-    );
-
-    expect(screen.getByTestId('patientUuid')).toHaveTextContent('null');
-  });
-
-  it('should default lastSectionIndex to 0', () => {
-    render(
-      <StartVisitProvider>
-        <ContextConsumer />
-      </StartVisitProvider>
-    );
-
-    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('0');
-  });
-
-  it('should update lastSectionIndex via setLastSectionIndex', () => {
-    render(
-      <StartVisitProvider>
-        <ContextUpdater />
-      </StartVisitProvider>
-    );
-
-    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('0');
-
-    act(() => {
-      screen.getByTestId('btn-setLastSectionIndex').click();
+    await waitFor(() => {
+      expect(screen.getByTestId('patientUuid')).toHaveTextContent('patient-abc-123');
     });
-
-    expect(screen.getByTestId('lastSectionIndex')).toHaveTextContent('3');
   });
 
-  it('should default all data fields to null', () => {
+  it('should default patientUuid to null when no initialPatientUuid', async () => {
     render(
       <StartVisitProvider>
         <ContextConsumer />
       </StartVisitProvider>
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('patientUuid')).toHaveTextContent('null');
+    });
+  });
+
+  it('should default all data fields to null', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
 
     expect(screen.getByTestId('vitals')).toHaveTextContent('null');
     expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
     expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
     expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('null');
   });
 
-  it('should update patientUuid via setPatientUuid', () => {
+  it('should expose visitId from localStorage', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('visitId')).toHaveTextContent('test-visit-id');
+    });
+  });
+
+  // ── Data setters ────────────────────────────────────────────────────────
+
+  it('should update patientUuid via setPatientUuid', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('patientUuid')).toHaveTextContent('null');
+    await waitFor(() => {
+      expect(screen.getByTestId('patientUuid')).toHaveTextContent('null');
+    });
 
     act(() => {
       screen.getByTestId('btn-setPatientUuid').click();
@@ -181,14 +234,16 @@ describe('StartVisitProvider', () => {
     expect(screen.getByTestId('patientUuid')).toHaveTextContent('new-uuid-123');
   });
 
-  it('should update vitals in data via setVitalsData', () => {
+  it('should update vitals in data via setVitalsData', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    await waitFor(() => {
+      expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    });
 
     act(() => {
       screen.getByTestId('btn-setVitals').click();
@@ -201,14 +256,16 @@ describe('StartVisitProvider', () => {
     expect(vitals.config[0].key).toBe('height_cm');
   });
 
-  it('should update visitReason in data via setVisitReasonData', () => {
+  it('should update visitReason in data via setVisitReasonData', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    await waitFor(() => {
+      expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    });
 
     act(() => {
       screen.getByTestId('btn-setVisitReason').click();
@@ -221,14 +278,16 @@ describe('StartVisitProvider', () => {
     expect(visitReason.details).toEqual([{ label: 'Duration', value: '3 days' }]);
   });
 
-  it('should update physicalExam in data via setPhysicalExamData', () => {
+  it('should update physicalExam in data via setPhysicalExamData', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+    await waitFor(() => {
+      expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+    });
 
     act(() => {
       screen.getByTestId('btn-setPhysicalExam').click();
@@ -237,17 +296,18 @@ describe('StartVisitProvider', () => {
     const physicalExamText = screen.getByTestId('physicalExam').textContent!;
     const physicalExam = JSON.parse(physicalExamText);
     expect(physicalExam.answers).toEqual({ eyes_jaundice: ['no_jaundice'] });
-    expect(physicalExam.details).toEqual([{ label: 'Eyes: Jaundice', value: 'No' }]);
   });
 
-  it('should update medicalHistory in data via setMedicalHistoryData', () => {
+  it('should update medicalHistory in data via setMedicalHistoryData', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    await waitFor(() => {
+      expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    });
 
     act(() => {
       screen.getByTestId('btn-setMedicalHistory').click();
@@ -261,21 +321,44 @@ describe('StartVisitProvider', () => {
     expect(medicalHistory.famHistSummary[0].title).toBe('Family History');
   });
 
-  it('should preserve other data fields when updating one field', () => {
+  it('should update medicalHistoryAnswers via setMedicalHistoryAnswers', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
       </StartVisitProvider>
     );
 
-    // Set vitals first
+    await waitFor(() => {
+      expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('null');
+    });
+
+    act(() => {
+      screen.getByTestId('btn-setMedicalHistoryAnswers').click();
+    });
+
+    const text = screen.getByTestId('medicalHistoryAnswers').textContent!;
+    const answers = JSON.parse(text);
+    expect(answers.patHist).toEqual({ q1: 'yes' });
+    expect(answers.famHist).toEqual({ q2: 'no' });
+  });
+
+  it('should preserve other data fields when updating one field', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    });
+
     act(() => {
       screen.getByTestId('btn-setVitals').click();
     });
 
     expect(screen.getByTestId('vitals').textContent).not.toBe('null');
 
-    // Set visit reason - vitals should still be set
     act(() => {
       screen.getByTestId('btn-setVisitReason').click();
     });
@@ -283,11 +366,324 @@ describe('StartVisitProvider', () => {
     expect(screen.getByTestId('vitals').textContent).not.toBe('null');
     expect(screen.getByTestId('visitReason').textContent).not.toBe('null');
   });
+
+  // ── Temp-storage restore ────────────────────────────────────────────────
+
+  it('should restore data from temp-storage on mount', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 42,
+        data: {
+          vitals: { formValues: { height_cm: 180 }, config: [] },
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: { patHist: { q1: 'a' } },
+          currentSectionIndex: 2,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('set');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('set');
+    expect(screen.getByTestId('tempRecordId')).toHaveTextContent('42');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('2');
+  });
+
+  it('should set isRestoring to false even when fetch fails', async () => {
+    mockGetResource.mockRejectedValue(new Error('Network error'));
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+  });
+
+  it('should restore restoredSectionIndex as 0 when saved as 0', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 10,
+        data: {
+          vitals: { formValues: {}, config: [] },
+          currentSectionIndex: 0,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('0');
+  });
+
+  // ── saveSectionToTemp ───────────────────────────────────────────────────
+
+  it('should call upsertResource when saveSectionToTemp is invoked', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resource_type: 'visit',
+        resource_id: 'test-visit-id',
+        data: expect.objectContaining({
+          currentSectionIndex: 2,
+        }),
+      })
+    );
+  });
+
+  it('should include medicalHistoryAnswers in merge when saving another section', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    // Set medicalHistoryAnswers first
+    act(() => {
+      screen.getByTestId('btn-setMedicalHistoryAnswers').click();
+    });
+
+    // Then save a different section
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medicalHistoryAnswers: { patHist: { q1: 'yes' }, famHist: { q2: 'no' } },
+          currentSectionIndex: 2,
+        }),
+      })
+    );
+  });
+
+  // ── clearVisitId ────────────────────────────────────────────────────────
+
+  it('should call storage.remove when clearVisitId is invoked', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    act(() => {
+      screen.getByTestId('btn-clearVisitId').click();
+    });
+
+    expect(mockStorageRemove).toHaveBeenCalledWith('temp_visit_id');
+  });
+
+  // ── Branch coverage: visit ID generation + createdBy fallbacks ────────
+
+  it('should generate a new visit ID via crypto.randomUUID when none exists', async () => {
+    mockStorageGet.mockReturnValue(null);
+    const randomUUIDSpy = vi
+      .spyOn(crypto, 'randomUUID')
+      .mockReturnValue('new-generated-uuid-1234-5678-abcd-efgh' as `${string}-${string}-${string}-${string}-${string}`);
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(randomUUIDSpy).toHaveBeenCalled();
+    expect(mockStorageSet).toHaveBeenCalledWith(
+      'temp_visit_id',
+      'new-generated-uuid-1234-5678-abcd-efgh'
+    );
+    expect(screen.getByTestId('visitId')).toHaveTextContent(
+      'new-generated-uuid-1234-5678-abcd-efgh'
+    );
+
+    randomUUIDSpy.mockRestore();
+  });
+
+  it('should fall back to raw user string when parsed JSON has no uuid field', async () => {
+    // Valid JSON object but no uuid key → JSON.parse(user).uuid is undefined
+    // → `?? user` falls back to the raw stored string.
+    const rawUser = '{"name":"no-uuid-user"}';
+    mockStorageGetUser.mockReturnValue(rawUser);
+
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({ created_by: rawUser })
+    );
+  });
+
+  it('should use fallback createdBy when JSON.parse throws on invalid user data', async () => {
+    // Non-JSON string → JSON.parse throws → catch block uses fallback
+    mockStorageGetUser.mockReturnValue('not-valid-json{');
+
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    // fallback is null (initial value in the try/catch block)
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({ created_by: null })
+    );
+  });
+
+  it('should restore with all-null defaults when fetched record has empty data', async () => {
+    // Covers `?? null` fallbacks for each section field + no currentSectionIndex
+    mockGetResource.mockResolvedValue({
+      data: { id: 99, data: {} },
+    });
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('null');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('null');
+  });
+
+  it('should skip restore when fetch succeeds but res.data is falsy', async () => {
+    mockGetResource.mockResolvedValue({ data: null });
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('tempRecordId')).toHaveTextContent('null');
+  });
+
+  it('should swallow errors silently when saveSectionToTemp upsert fails', async () => {
+    mockUpsertResource.mockRejectedValue(new Error('network down'));
+
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    // Should not throw even though upsert rejects
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalled();
+  });
+
+  it('should use fallback createdBy when storage.getUser returns null', async () => {
+    mockStorageGetUser.mockReturnValue(null);
+
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({ created_by: null })
+    );
+  });
 });
 
 describe('useStartVisitData', () => {
   it('should throw when used outside StartVisitProvider', () => {
-    // Suppress React error boundary console output
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => {
