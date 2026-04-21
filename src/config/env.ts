@@ -18,6 +18,8 @@ interface ImportMetaEnv {
   readonly FIREBASE_APP_ID?: string;
   readonly FIREBASE_VAPID_KEY?: string;
   readonly EMR_MIDDLEWARE_API_URL: string;
+  readonly ENABLE_SITE_CAPTCHA?: string;
+  readonly RECAPTCHA_SITE_KEY?: string;
   // add more as needed
 }
 
@@ -42,4 +44,6 @@ export const env: ImportMetaEnv = {
   FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
   FIREBASE_VAPID_KEY: import.meta.env.VITE_FIREBASE_VAPID_KEY,
   EMR_MIDDLEWARE_API_URL: import.meta.env.VITE_EMR_MIDDLEWARE_API_URL,
+  ENABLE_SITE_CAPTCHA: import.meta.env.VITE_ENABLE_SITE_CAPTCHA,
+  RECAPTCHA_SITE_KEY: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
 } as const;

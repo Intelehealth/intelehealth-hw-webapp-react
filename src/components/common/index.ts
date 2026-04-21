@@ -31,5 +31,8 @@ export type { LoaderProps } from './loader.component';
 export { default as CustomToast } from './custom-toast.component';
 export type { CustomToastProps } from './custom-toast.component';
 
+export { default as ReCaptcha } from './recaptcha.component';
+export type { ReCaptchaProps } from './recaptcha.component';
+
 // Re-export utility function
 export { cn } from '../../utils/cn';
