@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type {
   Medication,
   PrescriptionData,
 } from '../../assets/data/prescription-detail.data';
 import { prescriptionDetailService } from './prescription-detail.service';
-import iconPatientPhoto from '../../assets/icons/appiontment/icon-patient-image.svg';
+import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import {
+  downloadVisitPrescriptionPdf,
+  printVisitPrescriptionPdf,
+  shareVisitPrescriptionPdf,
+} from '../../utils/visit-prescription-pdf';
+import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconAdvice from '../../assets/icons/icon-advice.svg';
 import iconDownload from '../../assets/icons/icon-download.svg';
 import iconFollowUp from '../../assets/icons/icon-followup-circle.svg';
@@ -17,10 +23,17 @@ import iconBackArrow from '../../assets/icons/icon-back-arrow.svg';
 import iconDiagnosis from '../../assets/icons/visit-reason.svg';
 import iconTests from '../../assets/icons/vitals.svg';
 import Button from '../../components/common/button.component';
+import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
 
 /* ── Sub-components ── */
 
-const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
+const PrescriptionHeader: React.FC<{
+  data: PrescriptionData;
+  onPrint: () => void;
+  onShare: () => void;
+  onDownload: () => void;
+  pdfLoading: boolean;
+}> = ({ data, onPrint, onShare, onDownload, pdfLoading }) => (
   <div className="pb-3">
     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
       {/* Patient & Doctor info */}
@@ -69,9 +82,10 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
           variant="primary"
           size="sm"
           leftIcon={<img src={iconPrintWhite} alt="" className="w-4 h-4" />}
-          onClick={() => {
-            /* TODO: Implement print */
-          }}
+          onClick={onPrint}
+          disabled={pdfLoading}
+          isLoading={pdfLoading}
+          loadingText="Printing..."
         >
           Print
         </Button>
@@ -79,9 +93,8 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
           variant="primary"
           size="sm"
           leftIcon={<img src={iconShareWhite} alt="" className="w-4 h-4" />}
-          onClick={() => {
-            /* TODO: Implement share */
-          }}
+          onClick={onShare}
+          disabled={pdfLoading}
         >
           Share
         </Button>
@@ -90,9 +103,10 @@ const PrescriptionHeader: React.FC<{ data: PrescriptionData }> = ({ data }) => (
           size="sm"
           className="!border-[var(--color-primary)]"
           leftIcon={<img src={iconDownload} alt="" className="w-4 h-4" />}
-          onClick={() => {
-            /* TODO: Implement PDF download */
-          }}
+          onClick={onDownload}
+          disabled={pdfLoading}
+          isLoading={pdfLoading}
+          loadingText="Downloading..."
         >
           Download PDF
         </Button>
@@ -251,6 +265,8 @@ const PrescriptionDetail: React.FC = () => {
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     /* c8 ignore next */
@@ -265,6 +281,56 @@ const PrescriptionDetail: React.FC = () => {
       .catch(() => setError('Failed to load prescription details'))
       .finally(() => setLoading(false));
   }, [visitId]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    /* c8 ignore next */
+    if (!visitId) return;
+    setPdfLoading(true);
+    try {
+      const pdfData = await getVisitPrescriptionData(visitId);
+      await downloadVisitPrescriptionPdf(pdfData);
+    } catch (err) {
+      console.error('Failed to download prescription PDF:', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [visitId]);
+
+  const handlePrintPdf = useCallback(async () => {
+    /* c8 ignore next */
+    if (!visitId) return;
+    setPdfLoading(true);
+    try {
+      const pdfData = await getVisitPrescriptionData(visitId);
+      await printVisitPrescriptionPdf(pdfData);
+    } catch (err) {
+      console.error('Failed to print prescription PDF:', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [visitId]);
+
+  const handleOpenShareModal = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleSharePdf = useCallback(
+    async (phoneNumber: string) => {
+      /* c8 ignore next */
+      if (!visitId) return;
+      setShowShareModal(false);
+      setPdfLoading(true);
+      try {
+        const pdfData = await getVisitPrescriptionData(visitId);
+        await shareVisitPrescriptionPdf(pdfData, phoneNumber);
+      } catch (err) {
+        console.error('Failed to share prescription PDF:', err);
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [visitId]
+  );
 
   if (loading) {
     return (
@@ -304,7 +370,13 @@ const PrescriptionDetail: React.FC = () => {
       <div className=" max-w-4xl mx-auto">
         {/* White card */}
         <div className="bg-white rounded-xl border border-gray-200 px-8 py-6">
-          <PrescriptionHeader data={data} />
+          <PrescriptionHeader
+            data={data}
+            onPrint={handlePrintPdf}
+            onShare={handleOpenShareModal}
+            onDownload={handleDownloadPdf}
+            pdfLoading={pdfLoading}
+          />
 
           <hr className="border-t border-gray-200 mt-3 mb-1" />
           <DiagnosisSection diagnosis={data.diagnosis} />
@@ -351,6 +423,13 @@ const PrescriptionDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+      <WhatsAppShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShare={handleSharePdf}
+        isLoading={pdfLoading}
+      />
     </div>
   );
 };

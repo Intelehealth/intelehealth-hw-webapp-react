@@ -18,7 +18,7 @@ export const API_ENDPOINTS = {
 // Profile API functions - using only APIs from Angular hw-profile component
 export const profileService = {
   // GET /location?v=default - Get all locations from OpenMRS
-  getLocations: () => OpenMRSApi.get('/location?v=default'),
+  getLocations: () => OpenMRSApi.get('/location?tag=Visit Location'),
 
   // GET /auth/provider/{userId} - Get provider details (from auth.service.ts)
   getProvider: (userId: string) =>

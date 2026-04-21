@@ -25,7 +25,7 @@ vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
 }));
 
 // Mock SVG imports
-vi.mock('../../../assets/icons/appiontment/icon-patient-image.svg', () => ({
+vi.mock('../../../assets/icons/appointment/icon-patient-image.svg', () => ({
   default: 'icon-patient-image.svg',
 }));
 vi.mock('../../../assets/icons/icon-visit-summery.svg', () => ({

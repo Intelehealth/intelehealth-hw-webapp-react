@@ -12,6 +12,7 @@ export const VITAL_RANGES = {
   temprature_f: { min: 90, max: 110 },
   spo2: { min: 50, max: 100 },
   respiratory_rate: { min: 8, max: 60 },
+  waist_to_hip_ratio: { min: 0.5, max: 1.5 },
 };
 
 export const createVitalsValidationSchema = (
@@ -22,8 +23,8 @@ export const createVitalsValidationSchema = (
   fields.forEach(field => {
     if (!field.is_enabled) return;
 
-    // Handle blood group as string, others as number
-    if (field.key === 'blood_group') {
+    // Handle coded fields (e.g. Blood Typing) as string, others as number
+    if (field.datatype === 'Coded') {
       let fieldSchema = yup.string();
       if (field.is_mandatory) {
         fieldSchema = fieldSchema.required(`${field.name} is required`);
@@ -38,20 +39,21 @@ export const createVitalsValidationSchema = (
         })
         .typeError(`${field.name} must be a valid number`);
 
-      // Skip all validation for auto-calculated fields (BMI, WHR) — they are
-      // set programmatically via setValue and should never show user-facing errors.
+      // Auto-calculated fields (BMI, WHR) are set programmatically via
+      // setValue — skip required validation but still enforce range checks
+      // so that out-of-range values block form submission.
       const isAutoCalculated =
         field.key === 'bmi' || field.key === 'waist_to_hip_ratio';
 
-      if (!isAutoCalculated) {
-        // Add range validation if available
-        const range = VITAL_RANGES[field.key as keyof typeof VITAL_RANGES];
-        if (range) {
-          fieldSchema = fieldSchema
-            .min(range.min, `${field.name} must be at least ${range.min}`)
-            .max(range.max, `${field.name} must be at most ${range.max}`);
-        }
+      // Add range validation if available
+      const range = VITAL_RANGES[field.key as keyof typeof VITAL_RANGES];
+      if (range) {
+        fieldSchema = fieldSchema
+          .min(range.min, `${field.name} must be at least ${range.min}`)
+          .max(range.max, `${field.name} must be at most ${range.max}`);
+      }
 
+      if (!isAutoCalculated) {
         // Add required validation for mandatory fields
         if (field.is_mandatory) {
           fieldSchema = fieldSchema.required(`${field.name} is required`);

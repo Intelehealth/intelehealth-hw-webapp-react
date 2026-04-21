@@ -15,6 +15,12 @@ export interface PatientRegistrationFieldsConfigModel {
   [key: string]: unknown;
 }
 
+// Concept answer for coded vitals (e.g. Blood Typing)
+export interface ConceptAnswer {
+  uuid: string;
+  display: string;
+}
+
 // Vital model
 export interface VitalModel {
   name: string;
@@ -23,6 +29,8 @@ export interface VitalModel {
   is_mandatory: boolean;
   lang: Record<string, string> | null;
   is_enabled: boolean;
+  datatype?: string;
+  answers?: ConceptAnswer[];
 }
 
 // Specialization model

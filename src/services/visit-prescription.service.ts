@@ -5,6 +5,7 @@ import {
   PERSON_ATTRIBUTES,
   PROVIDER_ATTRIBUTES,
 } from './prescription.constant';
+import type * as PrescriptionTypes from '../types/prescription.types';
 
 interface ObsValue {
   display?: string;
@@ -64,51 +65,13 @@ interface VisitResponse {
   encounters?: Encounter[];
 }
 
-export interface DiagnosisItem {
-  diagnosisName: string;
-  diagnosisType: string;
-  diagnosisStatus: string;
-}
-export interface MedicineItem {
-  drug: string;
-  strength: string;
-  days: string;
-  timing: string;
-  frequency: string;
-  remark: string;
-}
-export interface FollowUpData {
-  wantFollowUp: string;
-  followUpType: string | null;
-  followUpDate: string | null;
-  followUpTime: string | null;
-  followUpReason: string | null;
-}
-
-export interface PrescriptionData {
-  visitUuid: string;
-  patientName: string;
-  patientUuid: string;
-  patientId: string;
-  gender: string;
-  age: string;
-  phone: string | null;
-  address: string | null;
-  nationalId: string | null;
-  occupation: string | null;
-  consultationDate: string;
-  location: string;
-  doctorName: string;
-  doctorQualification: string;
-  doctorRegNumber: string;
-  doctorSignatureUrl: string | null;
-  diagnoses: DiagnosisItem[];
-  medicines: MedicineItem[];
-  advices: string[];
-  tests: string[];
-  referrals: { speciality: string; reason: string }[];
-  followUp: FollowUpData | null;
-}
+export type {
+  DiagnosisItem,
+  MedicineItem,
+  FollowUpData,
+  VitalsData,
+  PrescriptionData,
+} from '../types/prescription.types';
 
 const VISIT_CUSTOM_REP =
   'custom:(uuid,startDatetime,location:(display),' +
@@ -132,7 +95,7 @@ function getPersonAttribute(
   );
 }
 
-export function parseDiagnosis(value: string): DiagnosisItem {
+export function parseDiagnosis(value: string): PrescriptionTypes.DiagnosisItem {
   const dictMatch = value.match(/\{['"]\w+['"]\s*:\s*["'](.+)["']\s*\}/s);
   if (dictMatch)
     return {
@@ -160,7 +123,7 @@ export function parseDiagnosis(value: string): DiagnosisItem {
   };
 }
 
-export function parseMedicine(value: string): MedicineItem {
+export function parseMedicine(value: string): PrescriptionTypes.MedicineItem {
   const p = value.split(':');
   return {
     drug: p[0] || '',
@@ -172,7 +135,7 @@ export function parseMedicine(value: string): MedicineItem {
   };
 }
 
-export function parseFollowUp(obs: Obs): FollowUpData {
+export function parseFollowUp(obs: Obs): PrescriptionTypes.FollowUpData {
   const wantFollowUp = 'Yes';
   const members: Obs[] = obs.groupMembers || [];
   if (members.length > 0) {
@@ -205,6 +168,7 @@ export function parseFollowUp(obs: Obs): FollowUpData {
     const type = extract('Type:');
     return {
       wantFollowUp,
+      /* c8 ignore next */
       followUpDate: parts[0]?.trim() || null,
       followUpTime: extract('Time:'),
       followUpReason: remark === 'null' ? null : remark,
@@ -234,7 +198,7 @@ function obsStr(o: Obs): string {
 
 export async function getVisitPrescriptionData(
   visitUuid: string
-): Promise<PrescriptionData> {
+): Promise<PrescriptionTypes.PrescriptionData> {
   const visit = await OpenMRSApi.get<VisitResponse>(
     `/visit/${visitUuid}?v=${VISIT_CUSTOM_REP}`
   );
@@ -316,6 +280,13 @@ export async function getVisitPrescriptionData(
   const allObs: Obs[] = encounters.flatMap(enc => enc.obs || []);
   const byConceptId = (id: string) =>
     allObs.filter(o => o.concept?.uuid === id);
+  const getObsValue = (id: string): string | null => {
+    const obs = allObs.find(o => o.concept?.uuid === id);
+    if (!obs) return null;
+    const v = obs.value;
+    const raw = typeof v === 'object' && v !== null ? v.display || v.name : v;
+    return raw ? String(raw) : null;
+  };
   const followUpObs = byConceptId(PRESCRIPTION_CONCEPT_IDS.FOLLOW_UP);
 
   return {
@@ -335,6 +306,16 @@ export async function getVisitPrescriptionData(
     doctorQualification,
     doctorRegNumber,
     doctorSignatureUrl,
+    vitals: {
+      height: getObsValue(PRESCRIPTION_CONCEPT_IDS.HEIGHT),
+      weight: getObsValue(PRESCRIPTION_CONCEPT_IDS.WEIGHT),
+      bpSystolic: getObsValue(PRESCRIPTION_CONCEPT_IDS.BP_SYSTOLIC),
+      bpDiastolic: getObsValue(PRESCRIPTION_CONCEPT_IDS.BP_DIASTOLIC),
+      pulse: getObsValue(PRESCRIPTION_CONCEPT_IDS.PULSE),
+      temperature: getObsValue(PRESCRIPTION_CONCEPT_IDS.TEMPERATURE),
+      spo2: getObsValue(PRESCRIPTION_CONCEPT_IDS.SPO2),
+      respiratoryRate: getObsValue(PRESCRIPTION_CONCEPT_IDS.RESPIRATORY_RATE),
+    },
     diagnoses: byConceptId(PRESCRIPTION_CONCEPT_IDS.DIAGNOSIS).map(o => {
       const v = o.value;
       const val =

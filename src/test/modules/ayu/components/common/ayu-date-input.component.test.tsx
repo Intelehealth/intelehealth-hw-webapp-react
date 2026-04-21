@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { AyuDateInput } from '../../../../../modules/ayu/components/common/ayu-date-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import * as fhirUtils from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
@@ -307,6 +307,37 @@ describe('AyuDateInput', () => {
         />
       );
       expect(screen.queryByTestId('calendar-min-date')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('onChange callback', () => {
+    it('should call onChange when date is selected', async () => {
+      const onChangeMock = vi.fn();
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={onChangeMock}
+        />
+      );
+      const input = screen.getByTestId('calendar-input');
+      fireEvent.change(input, { target: { value: '15 Jan,2026' } });
+      expect(onChangeMock).toHaveBeenCalledWith('15 Jan,2026');
+    });
+
+    it('should not throw when onChange is undefined', () => {
+      render(
+        <AyuDateInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const input = screen.getByTestId('calendar-input');
+      expect(() => {
+        fireEvent.change(input, { target: { value: '15 Jan,2026' } });
+      }).not.toThrow();
     });
   });
 

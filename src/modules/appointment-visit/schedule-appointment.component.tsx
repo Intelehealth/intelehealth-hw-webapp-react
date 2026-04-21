@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import iconSunset from '../../assets/icons/appiontment/icon-apmsc-sunset.svg';
-import iconAfternoon from '../../assets/icons/appiontment/icon-apmsc-afternoon.svg';
-import iconSunrise from '../../assets/icons/appiontment/icon-apmsc-sunrise.svg';
-import iconChevronLeft from '../../assets/icons/appiontment/icon-apm-chevron_1.svg';
-import iconChevronRight from '../../assets/icons/appiontment/icon-apm-chevron_2.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
-import iconCalendar from '../../assets/icons/appiontment/icon-apm-calendar.svg';
+import iconSunset from '../../assets/icons/appointment/icon-apmsc-sunset.svg';
+import iconAfternoon from '../../assets/icons/appointment/icon-apmsc-afternoon.svg';
+import iconSunrise from '../../assets/icons/appointment/icon-apmsc-sunrise.svg';
+import iconChevronLeft from '../../assets/icons/appointment/icon-apm-chevron_1.svg';
+import iconChevronRight from '../../assets/icons/appointment/icon-apm-chevron_2.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
+import iconCalendar from '../../assets/icons/appointment/icon-apm-calendar.svg';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import { useAppointmentSlots } from '../../hooks/useAppointmentSlots';
 import { appointmentService } from './appointment.service';
@@ -293,7 +293,7 @@ export default function AppointmentScheduleComponent() {
     <div className="w-full bg-white rounded-xl p-4 md:p-5">
       {/* Header */}
       <div className="hidden md:flex items-center gap-3 mb-2">
-        <img src={iconsvioletFieldAppiontmentDetails} alt="icon" />
+        <img src={iconsvioletFieldAppointmentDetails} alt="icon" />
         <span className="text-sm font-medium text-[#2E1E91]">
           Schedule appointment
         </span>

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
+import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
-import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
+import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { useOpenVisits } from '../../hooks/useOpenVisits';
 import type { OpenVisit } from '../../services/patient.service';
@@ -72,7 +72,7 @@ export const OpenVisitsComponent = ({
                 <div className="flex items-center">
                   <img
                     className="w-[34px] h-[34px]"
-                    src={iconsvioletFieldAppiontmentDetails}
+                    src={iconsvioletFieldAppointmentDetails}
                     alt=""
                   />
                 </div>

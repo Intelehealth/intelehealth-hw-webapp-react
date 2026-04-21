@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appiontment/icon-apm-filter.svg';
+import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
-import iconPatientImage from '../../assets/icons/appiontment/icon-patient-image.svg';
-import iconSummaryList from '../../assets/icons/appiontment/icon-summary-list.svg';
-import iconPatientRecevied from '../../assets/icons/appiontment/icons-patient-recevied.svg';
-import iconsvioletFieldAppiontmentDetails from '../../assets/icons/appiontment/violet-field-apm-appiontment-details-icon.svg';
+import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
+import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
+import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { PRESCRIPTION_TABS } from '../../assets/data/prescription-detail.data';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
@@ -141,7 +141,7 @@ export const PrescriptionsReceived = ({
                 <div className="flex items-center">
                   <img
                     className="w-[34px] h-[34px]"
-                    src={iconsvioletFieldAppiontmentDetails}
+                    src={iconsvioletFieldAppointmentDetails}
                   />
                 </div>
                 <h2 className="font-semibold lg:text-[14px] sm:text-[18px]">
