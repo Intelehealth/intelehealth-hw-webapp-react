@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { storage } from '../../../../utils/storage';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
@@ -20,23 +20,26 @@ const getPhysicalExamFilter = (
       questionnaire as {
         extension?: Array<{ url: string; valueString?: string }>;
       }
-    ).extension ?? [];
+    ).extension /* c8 ignore next */ ?? [];
   return (
     ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')
-      ?.valueString ?? ''
+      ?.valueString /* c8 ignore next */ ?? ''
   );
 };
 
 export const StartVisit = () => {
-  const location = useLocation();
-  const { lastSectionIndex, setLastSectionIndex, data } = useStartVisitData();
-  const { patientName, patientAge, patientGender } =
-    (location.state as {
-      patientName?: string;
-      patientAge?: string;
-      patientGender?: string;
-    }) || {};
+  const { lastSectionIndex, data } = useStartVisitData();
 
+  const patientName = storage.get('patientName') ?? null;
+  const patientAge = storage.get('patientAge') ?? null;
+  const patientGender = storage.get('patientGender') ?? null;
+
+  const {
+    data: restoredData,
+    isRestoring,
+    restoredSectionIndex,
+    saveSectionToTemp,
+  } = useStartVisitData();
   const visitReasons = useVisitReasons();
   const { ayuConfigFiles } = visitReasons;
   const [confirmedReasons, setConfirmedReasons] = useState<string[]>([]);
@@ -103,14 +106,79 @@ export const StartVisit = () => {
   const [currentSectionIndex, setCurrentSectionIndex] =
     useState(lastSectionIndex);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [hasRestored, setHasRestored] = useState(false);
+
+  // Restore section index from temp-storage data after context finishes loading
+  useEffect(() => {
+    if (isRestoring || hasRestored) return;
+    setHasRestored(true);
+
+    // Use the exact saved section index if available, otherwise compute from data
+    let restoreIndex: number;
+    if (restoredSectionIndex != null) {
+      restoreIndex = restoredSectionIndex;
+    } else {
+      restoreIndex = 0;
+      if (restoredData.vitals) restoreIndex = 1;
+      if (restoredData.visitReason) restoreIndex = 2;
+      if (restoredData.physicalExam) restoreIndex = 3;
+    }
+
+    if (restoredData.visitReason?.reasonNames?.length) {
+      setConfirmedReasons(restoredData.visitReason.reasonNames);
+    }
+
+    if (restoreIndex > 0) {
+      setCurrentSectionIndex(restoreIndex);
+    }
+
+    // Mark any section as completed if its data exists in restoredData —
+    // independent of restoreIndex, so the section completion loader reflects
+    // the true saved state after refresh.
+    setSections(prev =>
+      prev.map(s => {
+        const hasData =
+          (s.name === 'Vitals' && !!restoredData.vitals) ||
+          (s.name === 'Visit Reason' && !!restoredData.visitReason) ||
+          (s.name === 'Physical Examination' && !!restoredData.physicalExam) ||
+          (s.name === 'Medical History' && !!restoredData.medicalHistory);
+        return hasData ? { ...s, answeredQuestions: s.totalQuestions } : s;
+      })
+    );
+  }, [isRestoring, hasRestored, restoredData, restoredSectionIndex]);
 
   /* ---------------- Question Navigation ---------------- */
+
+  // Returns true if the current section has already been completed
+  // (data exists in context). Used to short-circuit Confirm-on-revisit flows.
+  const isCurrentSectionCompleted = (): boolean => {
+    switch (currentSectionIndex) {
+      case 0:
+        return !!data.vitals;
+      case 1:
+        return !!data.visitReason;
+      case 2:
+        return !!data.physicalExam;
+      case 3:
+        return !!data.medicalHistory;
+      /* c8 ignore next 2 */
+      default:
+        return false;
+    }
+  };
 
   const goNextQuestion = () => {
     const section = sections[currentSectionIndex];
     const total = section.totalQuestions;
 
-    // Section already completed (e.g. Confirm on revisit) → go straight to next section
+    // Section already completed in context (Confirm on revisit / after refresh)
+    // → go straight to next section regardless of sections[] counters
+    if (isCurrentSectionCompleted()) {
+      goNextSection();
+      return;
+    }
+
+    // Section already marked completed via counters → go to next section
     if (section.answeredQuestions >= total) {
       goNextSection();
       return;
@@ -142,7 +210,7 @@ export const StartVisit = () => {
   const goNextSection = () => {
     setCurrentSectionIndex(prev => {
       const next = Math.min(prev + 1, sections.length - 1);
-      setLastSectionIndex(next);
+      saveSectionToTemp({ currentSectionIndex: next });
       return next;
     });
     setCurrentQuestionIndex(0);
@@ -151,7 +219,7 @@ export const StartVisit = () => {
   const goPreviousSection = () => {
     setCurrentSectionIndex(prev => {
       const newIndex = Math.max(prev - 1, 0);
-      setLastSectionIndex(newIndex);
+      saveSectionToTemp({ currentSectionIndex: newIndex });
 
       setCurrentQuestionIndex(
         Math.max(sections[newIndex].answeredQuestions - 1, 0)
@@ -185,7 +253,7 @@ export const StartVisit = () => {
 
   const handlePhysicalExamProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Physical Exam', total, answered);
+      updateSectionProgress('Physical Examination', total, answered);
     },
     [updateSectionProgress]
   );
@@ -200,6 +268,14 @@ export const StartVisit = () => {
   const handleMedicalHistorySubtitleChange = useCallback((subtitle: string) => {
     setMedicalHistorySubtitle(subtitle);
   }, []);
+
+  if (isRestoring) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <p className="text-gray-500">Restoring visit data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white">

@@ -182,8 +182,9 @@ describe('VisitReason', () => {
     });
 
     mockUseStartVisitData.mockReturnValue({
-      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
       setVisitReasonData: mockSetVisitReasonData,
+      saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
     } as any);
   });
 
@@ -1399,8 +1400,9 @@ describe('VisitReason', () => {
 
     it('should show stepper immediately when savedAnswers exists', () => {
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1427,8 +1429,9 @@ describe('VisitReason', () => {
 
     it('should pass initialAnswers to AyuStepperContainer', () => {
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1452,8 +1455,9 @@ describe('VisitReason', () => {
 
     it('should show Back and Confirm buttons in review mode', () => {
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1480,8 +1484,9 @@ describe('VisitReason', () => {
     it('should call onPrevSection when Back is clicked in review mode', async () => {
       const user = userEvent.setup();
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1508,8 +1513,9 @@ describe('VisitReason', () => {
     it('should call showSummary when Confirm is clicked in review mode', async () => {
       const user = userEvent.setup();
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1569,8 +1575,9 @@ describe('VisitReason', () => {
     it('should directly call onProgressUpdate and onNextQuestion in review mode (no wash-hands modal)', async () => {
       const user = userEvent.setup();
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
       const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
@@ -1607,8 +1614,9 @@ describe('VisitReason', () => {
 
     it('should not render stepper when savedAnswers exists but selectedComplaints is empty', () => {
       mockUseStartVisitData.mockReturnValue({
-        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null },
+        data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
         setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
       } as any);
 
       defaultVisitReasons = createDefaultVisitReasons({

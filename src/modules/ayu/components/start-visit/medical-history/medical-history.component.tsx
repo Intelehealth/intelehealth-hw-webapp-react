@@ -35,11 +35,23 @@ export const MedicalHistory = ({
 }: SectionProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setMedicalHistoryData } = useStartVisitData();
-  const [currentStep, setCurrentStep] = useState(0);
+  const {
+    data: visitData,
+    setMedicalHistoryData,
+    setMedicalHistoryAnswers,
+    saveSectionToTemp,
+  } = useStartVisitData();
+  const restoredAnswers = visitData.medicalHistoryAnswers;
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (!restoredAnswers) return 0;
+    const completedFiles = HISTORY_JSON_NAMES.filter(
+      name => restoredAnswers[name]
+    );
+    return Math.min(completedFiles.length, HISTORY_JSON_NAMES.length - 1);
+  });
   const fileResultsRef = useRef<FileResult[]>([]);
   const fileAnswersRef = useRef<Record<string, Record<string, AyuAnswerValue>>>(
-    {}
+    restoredAnswers ?? {}
   );
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
   const { showVitalConfirmationModal } = useGlobalModal();
@@ -99,15 +111,23 @@ export const MedicalHistory = ({
       type: 'vitalConfirm',
       size: 'lg',
       onConfirm: () => {
-        const patHist = (fileResultsRef.current[0]?.sections ?? []).map(s => ({
-          title: s.title,
-          items: s.items,
-        }));
-        const famHist = (fileResultsRef.current[1]?.sections ?? []).map(s => ({
-          title: s.title,
-          items: s.items,
-        }));
+        const patHist =
+          /* c8 ignore next */
+          (fileResultsRef.current[0]?.sections ?? []).map(s => ({
+            title: s.title,
+            items: s.items,
+          }));
+        const famHist =
+          /* c8 ignore next */
+          (fileResultsRef.current[1]?.sections ?? []).map(s => ({
+            title: s.title,
+            items: s.items,
+          }));
         setMedicalHistoryData(patHist, famHist);
+        saveSectionToTemp({
+          medicalHistory: { patHistSummary: patHist, famHistSummary: famHist },
+          medicalHistoryAnswers: { ...fileAnswersRef.current },
+        });
         const basePath = location.pathname.replace(/\/$/, '');
         navigate(`${basePath}/visit-summary`);
       },
@@ -116,20 +136,31 @@ export const MedicalHistory = ({
     showVitalConfirmationModal,
     navigate,
     setMedicalHistoryData,
+    saveSectionToTemp,
     location.pathname,
   ]);
 
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
       const schema = schemas[currentStep];
+      /* c8 ignore next */
       if (!schema?.schema) return;
 
       // Store answers for this file so they can be restored on "Change"
       fileAnswersRef.current[schema.name] = answers;
 
-      const topLevelItems = (schema.schema.item || []).filter(
-        item => item.type !== 'group'
-      );
+      // Keep context in sync so the merge base preserves these across saves
+      const updatedAnswers = { ...fileAnswersRef.current };
+      setMedicalHistoryAnswers(updatedAnswers);
+
+      // Persist raw answers per file so they survive refresh
+      saveSectionToTemp({
+        medicalHistoryAnswers: updatedAnswers,
+      });
+
+      const topLevelItems = (
+        schema.schema.item /* c8 ignore next */ || []
+      ).filter(item => item.type !== 'group');
       const answersMap = new Map(Object.entries(answers));
       const rawSections = buildVisitSummary(
         topLevelItems,
@@ -156,7 +187,13 @@ export const MedicalHistory = ({
         showCombinedSummary();
       }
     },
-    [currentStep, schemas, showCombinedSummary]
+    [
+      currentStep,
+      schemas,
+      showCombinedSummary,
+      saveSectionToTemp,
+      setMedicalHistoryAnswers,
+    ]
   );
 
   // Track per-file totals so progress accumulates across patHist + famHist

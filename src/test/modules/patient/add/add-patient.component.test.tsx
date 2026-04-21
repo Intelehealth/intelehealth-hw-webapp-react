@@ -6,6 +6,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AddPatientComponent from '../../../../modules/patient/add/add-patient.component';
 import { ADD_PATIENT_LABEL, PATIENT_DETAILS_LABEL } from '../../../../utils/constant';
 
+// Mock temp-storage service
+const mockGetResource = vi.fn();
+const mockUpsertResource = vi.fn();
+vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
+  getResource: (...args: unknown[]) => mockGetResource(...args),
+  upsertResource: (...args: unknown[]) => mockUpsertResource(...args),
+}));
+
+// Mock storage
+const mockStorageGet = vi.fn((_key: string): string | null => 'test-patient-id');
+const mockStorageSet = vi.fn();
+const mockStorageRemove = vi.fn();
+const mockStorageGetUser = vi.fn(
+  (): string | null => JSON.stringify({ uuid: 'user-uuid' })
+);
+vi.mock('../../../../utils/storage', () => ({
+  storage: {
+    get: (key: string) => mockStorageGet(key),
+    set: (...args: unknown[]) => mockStorageSet(...(args as [])),
+    remove: (...args: unknown[]) => mockStorageRemove(...(args as [])),
+    getUser: () => mockStorageGetUser(),
+  },
+}));
+
 // Mock the hooks
 const mockHandleAddPatient = vi.fn();
 vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
@@ -195,54 +219,54 @@ vi.mock('../../../../assets/icons/icon-user-plus-green-rounded.svg', () => ({
 }));
 
 // Helper function to render with router
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(<MemoryRouter>{component}</MemoryRouter>);
+const renderWithRouter = async (component: React.ReactElement) => {
+  const result = render(<MemoryRouter>{component}</MemoryRouter>);
+  // Wait for initial render + restore effect to settle
+  await waitFor(() => {
+    expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+  });
+  return result;
 };
 
 describe('AddPatientComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: no saved record
+    mockGetResource.mockRejectedValue(new Error('Not found'));
+    mockUpsertResource.mockResolvedValue({ data: { id: 1 } });
+    // Reset storage defaults
+    mockStorageGet.mockReturnValue('test-patient-id');
+    mockStorageGetUser.mockReturnValue(JSON.stringify({ uuid: 'user-uuid' }));
   });
 
   describe('Initial Render', () => {
     it('should render without crashing', async () => {
-      renderWithRouter(<AddPatientComponent />);
-      await waitFor(() => {
-        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
-      });
+      await renderWithRouter(<AddPatientComponent />);
+      expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
     });
 
     it('should start at step 0 (Privacy Policy)', async () => {
-      renderWithRouter(<AddPatientComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
-      });
+      await renderWithRouter(<AddPatientComponent />);
+      expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
     });
 
     it('should render header with Add Patient label on desktop', async () => {
-      renderWithRouter(<AddPatientComponent />);
-
-      await waitFor(() => {
-        const label = screen.getByText(ADD_PATIENT_LABEL);
-        expect(label).toBeInTheDocument();
-        expect(label).toHaveClass('text-base', 'font-semibold');
-      });
+      await renderWithRouter(<AddPatientComponent />);
+      const label = screen.getByText(ADD_PATIENT_LABEL);
+      expect(label).toBeInTheDocument();
+      expect(label).toHaveClass('text-base', 'font-semibold');
     });
 
     it('should render mobile header', async () => {
-      renderWithRouter(<AddPatientComponent />);
-
-      await waitFor(() => {
-        const mobileHeader = screen.getByText('Add New Patient');
-        expect(mobileHeader).toBeInTheDocument();
-        expect(mobileHeader).toHaveClass('text-lg', 'font-semibold', 'md:hidden');
-      });
+      await renderWithRouter(<AddPatientComponent />);
+      const mobileHeader = screen.getByText('Add New Patient');
+      expect(mobileHeader).toBeInTheDocument();
+      expect(mobileHeader).toHaveClass('text-lg', 'font-semibold', 'md:hidden');
     });
 
     it('should render header with Patient Details label on Preview step', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps to Preview
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -265,7 +289,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should render icon in header', async () => {
-      const { container } = renderWithRouter(<AddPatientComponent />);
+      const { container } = await renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         const icon = container.querySelector('img[src="icon-user-plus-green-rounded.svg"]');
@@ -274,7 +298,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should not show step indicator on Privacy Policy step', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         const stepIndicators = screen.queryByAltText('Personal');
@@ -285,7 +309,7 @@ describe('AddPatientComponent', () => {
 
   describe('Step Navigation', () => {
     it('should navigate from Privacy Policy to Terms', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       const acceptButton = screen.getByTestId('privacy-accept');
       fireEvent.click(acceptButton);
@@ -296,7 +320,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate from Terms to Personal Info', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms step
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -310,7 +334,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate backwards from Terms to Privacy Policy', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -324,11 +348,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle prevStep when step is 0', async () => {
-      renderWithRouter(<AddPatientComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
-      });
+      await renderWithRouter(<AddPatientComponent />);
 
       // Try to go back from step 0
       const declineButton = screen.getByTestId('privacy-decline');
@@ -339,7 +359,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should navigate through all steps in order', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Privacy Policy -> Terms
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -361,7 +381,7 @@ describe('AddPatientComponent', () => {
 
   describe('Step Indicator', () => {
     it('should show step indicator when on Personal Info step (step 2)', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -376,7 +396,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show step indicator when on Address Info step (step 3)', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -393,7 +413,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show step indicator when on Other Info step (step 4)', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -411,15 +431,15 @@ describe('AddPatientComponent', () => {
       expect(screen.getByAltText('Other')).toBeInTheDocument();
     });
 
-    it('should not show step indicator on Privacy Policy step (step 0)', () => {
-      renderWithRouter(<AddPatientComponent />);
+    it('should not show step indicator on Privacy Policy step (step 0)', async () => {
+      await renderWithRouter(<AddPatientComponent />);
 
       const personalIndicator = screen.queryByAltText('Personal');
       expect(personalIndicator).not.toBeInTheDocument();
     });
 
     it('should not show step indicator on Terms step (step 1)', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
@@ -430,7 +450,7 @@ describe('AddPatientComponent', () => {
 
     it('should not show step indicator on Preview step (step 5)', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -452,7 +472,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show correct icon for current step', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -465,7 +485,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show filled icon for completed steps', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info step (Personal should be filled)
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -480,7 +500,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should show unfilled icon for future steps', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info step
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -495,7 +515,7 @@ describe('AddPatientComponent', () => {
 
   describe('Form Data Management', () => {
     it('should update formData when moving to next step', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and fill data
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -515,7 +535,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should preserve form data when navigating backwards', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Address Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -538,7 +558,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle profilePhoto as string in defaultValues', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info and submit
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -561,7 +581,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle profilePhoto as non-string (null) in defaultValues', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info (no data submitted yet)
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -581,7 +601,7 @@ describe('AddPatientComponent', () => {
   describe('Form Submission', () => {
     it('should call handleAddPatient when submitting from Other Info step', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -603,7 +623,7 @@ describe('AddPatientComponent', () => {
 
     it('should navigate to Preview on successful submission', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -623,7 +643,7 @@ describe('AddPatientComponent', () => {
 
     it('should not navigate to Preview on failed submission', async () => {
       mockHandleAddPatient.mockResolvedValue(false);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -647,7 +667,7 @@ describe('AddPatientComponent', () => {
 
     it('should merge form data correctly before submission', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -681,7 +701,7 @@ describe('AddPatientComponent', () => {
   describe('Preview Step', () => {
     it('should render Preview with all form data', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate through all steps to Preview
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -708,7 +728,7 @@ describe('AddPatientComponent', () => {
 
   describe('Edge Cases', () => {
     it('should handle nextStep being called multiple times', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       const nextButton = screen.getByTestId('privacy-accept');
       fireEvent.click(nextButton);
@@ -720,7 +740,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should handle empty form data structure', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -728,7 +748,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should render dividers between step indicators', async () => {
-      const { container } = renderWithRouter(<AddPatientComponent />);
+      const { container } = await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info to see step indicators
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -743,7 +763,7 @@ describe('AddPatientComponent', () => {
     });
 
     it('should apply correct CSS classes to step labels', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Personal Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -760,7 +780,7 @@ describe('AddPatientComponent', () => {
 
   describe('useEffect Hook', () => {
     it('should set step to 0 on component mount', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -778,7 +798,7 @@ describe('AddPatientComponent', () => {
       const originalGetElementById = document.getElementById;
       document.getElementById = vi.fn(() => mockElement as any);
 
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to next step to trigger useEffect
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -797,7 +817,7 @@ describe('AddPatientComponent', () => {
 
   describe('Conditional Rendering', () => {
     it('should only render current step component', async () => {
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Privacy Policy step
       expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
@@ -815,7 +835,7 @@ describe('AddPatientComponent', () => {
 
     it('should handle step > 3 condition in nextStep', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
-      renderWithRouter(<AddPatientComponent />);
+      await renderWithRouter(<AddPatientComponent />);
 
       // Navigate to Other Info (step 4)
       fireEvent.click(screen.getByTestId('privacy-accept'));
@@ -832,6 +852,299 @@ describe('AddPatientComponent', () => {
 
       await waitFor(() => {
         expect(mockHandleAddPatient).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Temp-Storage Integration', () => {
+    it('should fetch patient temp-storage record on mount', async () => {
+      mockGetResource.mockRejectedValue(new Error('Not found'));
+      await renderWithRouter(<AddPatientComponent />);
+
+      expect(mockGetResource).toHaveBeenCalledWith('patient', 'test-patient-id');
+    });
+
+    it('should restore form data and step from temp-storage', async () => {
+      mockGetResource.mockResolvedValue({
+        data: {
+          id: 1,
+          data: {
+            formData: {
+              personalInfo: {
+                firstName: 'Restored',
+                middleName: '',
+                lastName: 'User',
+                gender: 'F',
+                dateOfBirth: '2000-01-01',
+                age: '26',
+                phoneNumber: '9999999999',
+                phoneNumberCountryCode: '+91',
+                contactType: 'self',
+                emergencyContactName: 'EC',
+                emergencyContactNumber: '8888888888',
+                emergencyContactNumberCountryCode: '+91',
+                profilePhoto: null,
+              },
+              addressInfo: {
+                postalCode: '400001',
+                city: 'Mumbai',
+                state: 'MH',
+                country: 'India',
+                district: 'Mumbai',
+                correspondingAddress1: 'Addr 1',
+                correspondingAddress2: 'Addr 2',
+              },
+              otherInfo: {
+                sonDaughterWifeOf: '',
+                occupation: '',
+                caste: '',
+                education: 'Graduate',
+                economicStatus: '',
+              },
+            },
+            step: 3,
+            patientUuid: null,
+          },
+        },
+      });
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Should restore to step 3 (Address Info)
+      await waitFor(() => {
+        expect(screen.getByTestId('address-info')).toBeInTheDocument();
+      });
+    });
+
+    it('should restore to Preview step with patientUuid', async () => {
+      mockGetResource.mockResolvedValue({
+        data: {
+          id: 1,
+          data: {
+            formData: {
+              personalInfo: {
+                firstName: 'John',
+                middleName: '',
+                lastName: 'Doe',
+                gender: 'M',
+                dateOfBirth: '1990-01-01',
+                age: '36',
+                phoneNumber: '1234567890',
+                phoneNumberCountryCode: '+91',
+                contactType: 'self',
+                emergencyContactName: 'Jane',
+                emergencyContactNumber: '0987654321',
+                emergencyContactNumberCountryCode: '+91',
+                profilePhoto: null,
+              },
+              addressInfo: {
+                postalCode: '400001',
+                city: 'Mumbai',
+                state: 'MH',
+                country: 'India',
+                district: 'Mumbai',
+                correspondingAddress1: 'Addr 1',
+                correspondingAddress2: 'Addr 2',
+              },
+              otherInfo: {
+                sonDaughterWifeOf: '',
+                occupation: 'Doctor',
+                caste: '',
+                education: 'Graduate',
+                economicStatus: '',
+              },
+            },
+            step: 5,
+            patientUuid: 'real-patient-uuid-123',
+          },
+        },
+      });
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+    });
+
+    it('should save form data to temp-storage on nextStep', async () => {
+      await renderWithRouter(<AddPatientComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('terms')).toBeInTheDocument();
+      });
+
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource_type: 'patient',
+          resource_id: 'test-patient-id',
+          data: expect.objectContaining({
+            step: 1,
+          }),
+        })
+      );
+    });
+
+    it('should save form data to temp-storage on prevStep', async () => {
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Navigate to Terms
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
+
+      mockUpsertResource.mockClear();
+
+      // Go back
+      fireEvent.click(screen.getByTestId('terms-decline'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            step: 0,
+          }),
+        })
+      );
+    });
+
+    it('should save patientUuid to temp-storage after successful submission', async () => {
+      mockHandleAddPatient.mockResolvedValue('new-patient-uuid');
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Navigate to Other Info and submit
+      await waitFor(() => expect(screen.getByTestId('privacy-policy')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('terms-accept'));
+      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('personal-next'));
+      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('address-next'));
+      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
+
+      mockUpsertResource.mockClear();
+      fireEvent.click(screen.getByTestId('other-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            patientUuid: 'new-patient-uuid',
+            step: 5,
+          }),
+        })
+      );
+    });
+
+    it('should handle temp-storage fetch failure gracefully', async () => {
+      mockGetResource.mockRejectedValue(new Error('Network error'));
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Should still render at step 0
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+    });
+
+    it('should generate new patient ID via crypto.randomUUID when none exists', async () => {
+      mockStorageGet.mockReturnValue(null);
+      const randomUUIDSpy = vi
+        .spyOn(crypto, 'randomUUID')
+        .mockReturnValue('new-patient-uuid-1234-5678-abcd-efgh' as `${string}-${string}-${string}-${string}-${string}`);
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      expect(randomUUIDSpy).toHaveBeenCalled();
+      expect(mockStorageSet).toHaveBeenCalledWith(
+        'temp_patient_id',
+        'new-patient-uuid-1234-5678-abcd-efgh'
+      );
+
+      randomUUIDSpy.mockRestore();
+    });
+
+    it('should use fallback createdBy when JSON.parse throws on invalid user data', async () => {
+      mockStorageGetUser.mockReturnValue('not-valid-json{');
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Advance one step so savePatientToTemp fires
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+
+      await waitFor(() => {
+        expect(mockUpsertResource).toHaveBeenCalled();
+      });
+
+      // fallback is null from `let createdBy = null`
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({ created_by: null })
+      );
+    });
+
+    it('should fall back to raw user string when parsed JSON has no uuid', async () => {
+      const rawUser = '{"name":"no-uuid-user"}';
+      mockStorageGetUser.mockReturnValue(rawUser);
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+
+      await waitFor(() => {
+        expect(mockUpsertResource).toHaveBeenCalledWith(
+          expect.objectContaining({ created_by: rawUser })
+        );
+      });
+    });
+
+    it('should use null createdBy when storage.getUser returns null', async () => {
+      mockStorageGetUser.mockReturnValue(null);
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+
+      await waitFor(() => {
+        expect(mockUpsertResource).toHaveBeenCalledWith(
+          expect.objectContaining({ created_by: null })
+        );
+      });
+    });
+
+    it('should skip restore when getResource returns no data', async () => {
+      mockGetResource.mockResolvedValue({ data: null });
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Renders normally at step 0
+      expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+    });
+
+    it('should swallow errors silently when savePatientToTemp upsert fails', async () => {
+      mockUpsertResource.mockRejectedValue(new Error('network down'));
+
+      await renderWithRouter(<AddPatientComponent />);
+
+      // Advance a step — should not throw despite upsert failing
+      fireEvent.click(screen.getByTestId('privacy-accept'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('terms')).toBeInTheDocument();
       });
     });
   });

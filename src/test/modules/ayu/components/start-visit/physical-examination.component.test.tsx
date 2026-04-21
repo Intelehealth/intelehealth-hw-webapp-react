@@ -170,16 +170,32 @@ vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({
 }));
 
 const mockSetPhysicalExamData = vi.fn();
+const mockSaveSectionToTempPE = vi.fn().mockResolvedValue(undefined);
 let mockContextData: { physicalExam: { answers: Record<string, string[]>; details: Array<{ label: string; value: string }> } | null } = { physicalExam: null };
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => ({
-    data: { vitals: null, visitReason: null, physicalExam: mockContextData.physicalExam, medicalHistory: null },
+    data: {
+      vitals: null,
+      visitReason: null,
+      physicalExam: mockContextData.physicalExam,
+      medicalHistory: null,
+      medicalHistoryAnswers: null,
+    },
     patientUuid: null,
+    visitId: 'test-visit-id',
+    tempRecordId: null,
+    isRestoring: false,
+    restoredSectionIndex: null,
+    lastSectionIndex: 0,
+    setLastSectionIndex: vi.fn(),
     setPatientUuid: vi.fn(),
     setVitalsData: vi.fn(),
     setVisitReasonData: vi.fn(),
     setPhysicalExamData: mockSetPhysicalExamData,
     setMedicalHistoryData: vi.fn(),
+    setMedicalHistoryAnswers: vi.fn(),
+    saveSectionToTemp: mockSaveSectionToTempPE,
+    clearVisitId: vi.fn(),
   }),
 }));
 

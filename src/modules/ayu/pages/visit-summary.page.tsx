@@ -6,13 +6,13 @@ import type {
   Vitals,
 } from '../../../assets/data/visit-summary.data';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
+import iconInfo from '../../../assets/icons/icon-info.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
 import iconVisitReason from '../../../assets/icons/visit-reason.svg';
 import iconVitals from '../../../assets/icons/vitals.svg';
-import { Dropdown, Toggle } from '../../../components/common';
 import type { DropdownOption } from '../../../components/common';
-import iconInfo from '../../../assets/icons/icon-info.svg';
+import { Dropdown, Toggle } from '../../../components/common';
 import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { useProfileContext } from '../../../context/ProfileContext';
@@ -23,6 +23,7 @@ import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.comp
 import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
+import { bulkMarkSynced } from '../services/temp-storage.service';
 import {
   buildFamilyHistoryData,
   buildMedicalHistoryData,
@@ -211,7 +212,12 @@ const MedicalHistorySection: React.FC<{
 
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
-  const { data, patientUuid: ctxPatientUuid } = useStartVisitData();
+  const {
+    data,
+    patientUuid: ctxPatientUuid,
+    tempRecordId,
+    clearVisitId,
+  } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -283,6 +289,15 @@ const VisitSummaryPage = () => {
       });
 
       await uploadVisit(payload);
+
+      if (tempRecordId) {
+        bulkMarkSynced([tempRecordId]).catch(() => {});
+      }
+      clearVisitId();
+      storage.remove('patientName');
+      storage.remove('patientAge');
+      storage.remove('patientGender');
+
       showToast('Success', 'Visit uploaded successfully', 'success');
       navigate('/dashboard');
     } catch (error) {
@@ -291,7 +306,16 @@ const VisitSummaryPage = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [data, hwProfile, navigate, ctxPatientUuid, speciality, priorityVisit]);
+  }, [
+    data,
+    hwProfile,
+    navigate,
+    ctxPatientUuid,
+    speciality,
+    priorityVisit,
+    tempRecordId,
+    clearVisitId,
+  ]);
 
   const confirmAndUpload = useCallback(() => {
     setShowConfirm(true);

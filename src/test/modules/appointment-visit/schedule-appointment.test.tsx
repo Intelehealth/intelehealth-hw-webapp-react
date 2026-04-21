@@ -173,11 +173,23 @@ describe('AppointmentScheduleComponent', () => {
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(13);
+      // Component shows min(13, remaining days in current month from today)
+      const now = new Date();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const remaining = lastDay - now.getDate() + 1;
+      expect(buttons.length).toBe(Math.min(13, remaining));
     });
   });
 
   describe('Resize handler', () => {
+    // Component shows min(datesToShow, remaining days in current month from today)
+    const expectedDesktopCount = () => {
+      const now = new Date();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const remaining = lastDay - now.getDate() + 1;
+      return Math.min(13, remaining);
+    };
+
     it('updates datesToShow on window resize with debounce', async () => {
       vi.useFakeTimers();
       renderComponent();
@@ -191,7 +203,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(13);
+        expect(buttons.length).toBe(expectedDesktopCount());
       });
     });
 
@@ -210,7 +222,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(13);
+        expect(buttons.length).toBe(expectedDesktopCount());
       });
     });
 

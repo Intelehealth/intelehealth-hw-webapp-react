@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SectionProps } from '../../ayu-library/types/start-visit.types';
 import { fileToBase64 } from '../../profile/profile.helpers';
+import { storage } from '../../../utils/storage';
+import { useStartVisitData } from '../context/start-visit.context';
 import {
   filterPhysicalExamQuestions,
   PHYSICAL_EXAM_QUESTIONS,
@@ -12,7 +14,12 @@ import {
   clearPendingImages,
   removePendingImage,
 } from '../services/obs.service';
+import {
+  getChildResources,
+  upsertAssetResource,
+} from '../services/temp-storage.service';
 import type { CapturedImage } from '../types/obs.types';
+import { AYU_JSON_KEY_NAME } from '../utils/ayu.constants';
 import {
   parsePhysExamJson,
   type PhysExamRawRoot,
@@ -47,8 +54,10 @@ export const usePhysicalExam = ({
   onPrevSection,
   onProgressUpdate,
   physicalExamFilter,
-}: SectionProps) => {
-  const ayuList = useAyuJsonList('IDA6');
+  initialAnswers,
+}: SectionProps & { initialAnswers?: PhysicalExamAnswers }) => {
+  const { visitId } = useStartVisitData();
+  const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const serverQuestions = useMemo(() => {
     const item = ayuList.find(i => i.name === 'physExam.json');
     return item
@@ -64,11 +73,61 @@ export const usePhysicalExam = ({
       ),
     [physicalExamFilter, serverQuestions]
   );
-  const [internalIndex, setInternalIndex] = useState(0);
-  const [answers, setAnswers] = useState<PhysicalExamAnswers>({});
+  const hasInitial = initialAnswers && Object.keys(initialAnswers).length > 0;
+  const [answers, setAnswers] = useState<PhysicalExamAnswers>(
+    initialAnswers ?? {}
+  );
   const [cameraImages, setCameraImages] = useState<
     Record<string, CapturedImage[]>
   >({});
+
+  // Restore camera images from temp-storage assets on init
+  const hasRestoredImages = useRef(false);
+  useEffect(() => {
+    if (!hasInitial || hasRestoredImages.current) return;
+    hasRestoredImages.current = true;
+    (async () => {
+      try {
+        const res = await getChildResources<{ questionId: string }>(
+          'visit',
+          visitId,
+          'asset'
+        );
+        if (!res.data?.length) return;
+        const restored: Record<string, CapturedImage[]> = {};
+        for (const record of res.data) {
+          const qId = record.data?.questionId;
+          if (!qId || !record.file_path) continue;
+          if (!restored[qId]) restored[qId] = [];
+          restored[qId].push({
+            file: null,
+            preview: record.file_path,
+            assetRecordId: record.id,
+          });
+        }
+        if (Object.keys(restored).length > 0) {
+          setCameraImages(restored);
+        }
+      } catch {
+        // Restore failed — images won't show but answers are intact
+      }
+    })();
+  }, [hasInitial, visitId]);
+
+  const [internalIndex, setInternalIndex] = useState(() => {
+    if (!hasInitial) return 0;
+    const visible = computeVisible(baseQuestions, initialAnswers);
+    let lastAnswered = -1;
+    for (let i = visible.length - 1; i >= 0; i--) {
+      if ((initialAnswers[visible[i].id] ?? []).length > 0) {
+        lastAnswered = i;
+        break;
+      }
+    }
+    return lastAnswered >= 0
+      ? Math.min(lastAnswered + 1, visible.length - 1)
+      : 0;
+  });
 
   const visibleQuestions = useMemo(
     () => computeVisible(baseQuestions, answers),
@@ -85,9 +144,17 @@ export const usePhysicalExam = ({
   const isLastRef = useRef(isLastQuestion);
   isLastRef.current = isLastQuestion;
 
+  // Count of questions that have actual answers (not just the pointer position).
+  // Used as the "answered" count in progress updates so the parent can reflect
+  // true completion state (especially on restore where internalIndex is clamped).
+  const answeredCount = useMemo(
+    () => visibleQuestions.filter(q => (answers[q.id] ?? []).length > 0).length,
+    [visibleQuestions, answers]
+  );
+
   useEffect(() => {
-    onProgressUpdate?.(totalQuestions, internalIndex);
-  }, [totalQuestions, internalIndex, onProgressUpdate]);
+    onProgressUpdate?.(totalQuestions, answeredCount);
+  }, [totalQuestions, answeredCount, onProgressUpdate]);
 
   const advance = (isLast: boolean, reqMet: boolean) => {
     if (isLast) {
@@ -174,22 +241,53 @@ export const usePhysicalExam = ({
   const addCameraImage = async (questionId: string, file: File) => {
     const preview = await fileToBase64(file);
     addPendingImage(file, sectionComment(baseQuestions, questionId));
+
+    const resourceId = `${visitId}_${questionId}_${Date.now()}`;
+    let assetRecordId: number | undefined;
+    try {
+      let createdBy = 'unknown';
+      try {
+        const u = storage.getUser();
+        if (u) createdBy = JSON.parse(u).uuid ?? u;
+      } catch {
+        /* fallback */
+      }
+      const res = await upsertAssetResource<{ questionId: string }>(file, {
+        resource_id: resourceId,
+        parent_type: 'visit',
+        parent_id: visitId,
+        created_by: createdBy,
+        data: { questionId },
+      });
+      assetRecordId = res.data.id;
+    } catch {
+      // Upload failed — image still available in memory for current session
+    }
+
     setCameraImages(prev => ({
       ...prev,
-      [questionId]: [...(prev[questionId] ?? []), { file, preview }],
+      [questionId]: [
+        ...(prev[questionId] ?? []),
+        { file, preview, assetRecordId },
+      ],
     }));
   };
 
   const removeCameraImage = (questionId: string, index: number) => {
-    let flatIndex = 0;
-    for (const [qId, imgs] of Object.entries(cameraImages)) {
-      if (qId === questionId) {
-        flatIndex += index;
-        break;
+    const target = cameraImages[questionId]?.[index];
+    if (target?.file) {
+      let flatIndex = 0;
+      for (const [qId, imgs] of Object.entries(cameraImages)) {
+        if (qId === questionId) {
+          for (let i = 0; i < index; i++) {
+            if (imgs[i]?.file) flatIndex++;
+          }
+          break;
+        }
+        flatIndex += imgs.filter(img => img.file).length;
       }
-      flatIndex += imgs.length;
+      removePendingImage(flatIndex);
     }
-    removePendingImage(flatIndex);
     setCameraImages(prev => ({
       ...prev,
       [questionId]: (prev[questionId] ?? []).filter((_, i) => i !== index),
@@ -201,7 +299,8 @@ export const usePhysicalExam = ({
     const remaining = { ...cameraImages, [questionId]: [] };
     for (const [qId, imgs] of Object.entries(remaining))
       for (const img of imgs)
-        addPendingImage(img.file, sectionComment(baseQuestions, qId));
+        if (img.file)
+          addPendingImage(img.file, sectionComment(baseQuestions, qId));
     setCameraImages(prev => ({ ...prev, [questionId]: [] }));
   };
 

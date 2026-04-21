@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
 import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
+import type { ModalSection } from '../../../../../components/modal/global-modal-context';
+import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../../../data/physical-exam.data';
@@ -159,7 +159,7 @@ const QuestionCard = ({
 
 export const PhysicalExamination = (props: SectionProps) => {
   const { onNextQuestion: originalOnNext } = props;
-  const { data, setPhysicalExamData } = useStartVisitData();
+  const { data, setPhysicalExamData, saveSectionToTemp } = useStartVisitData();
   const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
   const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
@@ -218,10 +218,18 @@ export const PhysicalExamination = (props: SectionProps) => {
       cancelText: 'Back',
       onConfirm: () => {
         setPhysicalExamData(currentAnswers, details);
+        saveSectionToTemp({
+          physicalExam: { answers: answersRef.current, details },
+        });
         originalOnNext();
       },
     });
-  }, [originalOnNext, setPhysicalExamData, showVitalConfirmationModal]);
+  }, [
+    originalOnNext,
+    setPhysicalExamData,
+    showVitalConfirmationModal,
+    saveSectionToTemp,
+  ]);
 
   const {
     internalIndex,
@@ -239,7 +247,11 @@ export const PhysicalExamination = (props: SectionProps) => {
     goNext,
     goSkip,
     onPrevSection,
-  } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
+  } = usePhysicalExam({
+    ...props,
+    onNextQuestion: wrappedOnNextQuestion,
+    initialAnswers: data.physicalExam?.answers,
+  });
 
   answersRef.current = answers;
   cameraImagesForRef.current = cameraImagesFor;

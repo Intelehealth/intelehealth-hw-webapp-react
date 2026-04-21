@@ -1,9 +1,17 @@
-import { createContext, useContext, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
-import type { PhysicalExamAnswers } from '../data/physical-exam.data';
-import type { VitalsFormValues } from '../types/vitals.types';
-import type { VitalField } from '../types/vitals.types';
+import { storage } from '../../../utils/storage';
 import type { AyuAnswerValue } from '../../ayu-library/types/ayu.types';
+import type { PhysicalExamAnswers } from '../data/physical-exam.data';
+import { getResource, upsertResource } from '../services/temp-storage.service';
+import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 
 export interface MedicalHistorySummary {
   title: string;
@@ -28,11 +36,36 @@ export interface StartVisitData {
     patHistSummary: MedicalHistorySummary[];
     famHistSummary: MedicalHistorySummary[];
   } | null;
+  medicalHistoryAnswers: Record<string, Record<string, AyuAnswerValue>> | null;
+}
+
+export interface TempVisitData {
+  vitals: StartVisitData['vitals'];
+  visitReason: StartVisitData['visitReason'];
+  physicalExam: StartVisitData['physicalExam'];
+  medicalHistory: StartVisitData['medicalHistory'];
+  medicalHistoryAnswers?: Record<string, Record<string, AyuAnswerValue>>;
+  currentSectionIndex?: number;
+  confirmedReasons?: string[];
+}
+
+const VISIT_ID_STORAGE_KEY = 'temp_visit_id';
+
+function getOrCreateVisitId(): string {
+  const existing = storage.get(VISIT_ID_STORAGE_KEY);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  storage.set(VISIT_ID_STORAGE_KEY, id);
+  return id;
 }
 
 interface StartVisitContextType {
   data: StartVisitData;
   patientUuid: string | null;
+  visitId: string;
+  tempRecordId: number | null;
+  isRestoring: boolean;
+  restoredSectionIndex: number | null;
   lastSectionIndex: number;
   setLastSectionIndex: (index: number) => void;
   setPatientUuid: (uuid: string) => void;
@@ -50,6 +83,11 @@ interface StartVisitContextType {
     patHistSummary: MedicalHistorySummary[],
     famHistSummary: MedicalHistorySummary[]
   ) => void;
+  setMedicalHistoryAnswers: (
+    answers: Record<string, Record<string, AyuAnswerValue>>
+  ) => void;
+  saveSectionToTemp: (sectionData: Partial<TempVisitData>) => Promise<void>;
+  clearVisitId: () => void;
 }
 
 const StartVisitContext = createContext<StartVisitContextType | null>(null);
@@ -64,13 +102,92 @@ export const StartVisitProvider = ({
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
   );
+  const [visitId] = useState(getOrCreateVisitId);
+  const [tempRecordId, setTempRecordId] = useState<number | null>(null);
+  const [isRestoring, setIsRestoring] = useState(true);
+  const [restoredSectionIndex, setRestoredSectionIndex] = useState<
+    number | null
+  >(null);
   const [lastSectionIndex, setLastSectionIndex] = useState(0);
   const [data, setData] = useState<StartVisitData>({
     vitals: null,
     visitReason: null,
     physicalExam: null,
     medicalHistory: null,
+    medicalHistoryAnswers: null,
   });
+
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  // Restore from temp-storage on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getResource<TempVisitData>('visit', visitId);
+        if (cancelled || !res.data) return;
+        const saved = res.data.data;
+        setTempRecordId(res.data.id);
+        if (saved.currentSectionIndex != null) {
+          setRestoredSectionIndex(saved.currentSectionIndex);
+        }
+        setData({
+          vitals: saved.vitals ?? null,
+          visitReason: saved.visitReason ?? null,
+          physicalExam: saved.physicalExam ?? null,
+          medicalHistory: saved.medicalHistory ?? null,
+          medicalHistoryAnswers: saved.medicalHistoryAnswers ?? null,
+        });
+      } catch {
+        // No existing temp record — start fresh
+      } finally {
+        if (!cancelled) setIsRestoring(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visitId]);
+
+  const saveSectionToTemp = useCallback(
+    async (sectionData: Partial<TempVisitData>) => {
+      const current = dataRef.current;
+      const merged: TempVisitData = {
+        vitals: current.vitals,
+        visitReason: current.visitReason,
+        physicalExam: current.physicalExam,
+        medicalHistory: current.medicalHistory,
+        medicalHistoryAnswers: current.medicalHistoryAnswers ?? undefined,
+        ...sectionData,
+      };
+      try {
+        let createdBy = null;
+        try {
+          const user = storage.getUser();
+          if (user) createdBy = JSON.parse(user).uuid ?? user;
+        } catch {
+          /* use fallback */
+        }
+        const res = await upsertResource<TempVisitData>({
+          resource_type: 'visit',
+          resource_id: visitId,
+          parent_type: 'patient',
+          parent_id: patientUuid ?? undefined,
+          data: merged,
+          created_by: createdBy,
+        });
+        setTempRecordId(res.data.id);
+      } catch {
+        // Save failed silently — context state is still the source of truth
+      }
+    },
+    [visitId, patientUuid]
+  );
+
+  const clearVisitId = useCallback(() => {
+    storage.remove(VISIT_ID_STORAGE_KEY);
+  }, []);
 
   const setVitalsData = (
     formValues: VitalsFormValues,
@@ -107,11 +224,21 @@ export const StartVisitProvider = ({
     }));
   };
 
+  const setMedicalHistoryAnswers = (
+    answers: Record<string, Record<string, AyuAnswerValue>>
+  ) => {
+    setData(prev => ({ ...prev, medicalHistoryAnswers: answers }));
+  };
+
   return (
     <StartVisitContext.Provider
       value={{
         data,
         patientUuid,
+        visitId,
+        tempRecordId,
+        isRestoring,
+        restoredSectionIndex,
         lastSectionIndex,
         setLastSectionIndex,
         setPatientUuid,
@@ -119,6 +246,9 @@ export const StartVisitProvider = ({
         setVisitReasonData,
         setPhysicalExamData,
         setMedicalHistoryData,
+        setMedicalHistoryAnswers,
+        saveSectionToTemp,
+        clearVisitId,
       }}
     >
       {children}
