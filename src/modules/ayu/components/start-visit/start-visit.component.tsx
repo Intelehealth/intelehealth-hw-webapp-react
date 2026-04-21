@@ -5,6 +5,15 @@ import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
+import {
+  PATIENT_AGE_KEY,
+  PATIENT_GENDER_KEY,
+  PATIENT_NAME_KEY,
+  SECTION_MEDICAL_HISTORY,
+  SECTION_PHYSICAL_EXAM,
+  SECTION_VISIT_REASON,
+  SECTION_VITALS,
+} from '../../utils/ayu.constants';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
@@ -12,7 +21,7 @@ import { PhysicalExamination } from './physical-examination/physical-examination
 import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals/vitals.component';
 
-const getPhysicalExamFilter = (
+export const getPhysicalExamFilter = (
   questionnaire: typeof CoughQuestionnaire
 ): string => {
   const ext =
@@ -20,19 +29,19 @@ const getPhysicalExamFilter = (
       questionnaire as {
         extension?: Array<{ url: string; valueString?: string }>;
       }
-    ).extension /* c8 ignore next */ ?? [];
+    ).extension ?? [];
   return (
     ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')
-      ?.valueString /* c8 ignore next */ ?? ''
+      ?.valueString ?? ''
   );
 };
 
 export const StartVisit = () => {
   const { lastSectionIndex, data } = useStartVisitData();
 
-  const patientName = storage.get('patientName') ?? null;
-  const patientAge = storage.get('patientAge') ?? null;
-  const patientGender = storage.get('patientGender') ?? null;
+  const patientName = storage.get(PATIENT_NAME_KEY) ?? null;
+  const patientAge = storage.get(PATIENT_AGE_KEY) ?? null;
+  const patientGender = storage.get(PATIENT_GENDER_KEY) ?? null;
 
   const {
     data: restoredData,
@@ -51,15 +60,15 @@ export const StartVisit = () => {
 
   const getSectionSubtitle = (sectionName: string): string => {
     switch (sectionName) {
-      case 'Visit Reason':
+      case SECTION_VISIT_REASON:
         return confirmedReasons.length > 0 ? confirmedReasons.join(', ') : '';
-      case 'Physical Examination': {
+      case SECTION_PHYSICAL_EXAM: {
         const physExam = ayuConfigFiles.find(
           f => f.name.replace(/\.json$/i, '') === 'physExam'
         );
         return physExam?.json?.title ?? '';
       }
-      case 'Medical History':
+      case SECTION_MEDICAL_HISTORY:
         return medicalHistorySubtitle;
       default:
         return '';
@@ -79,25 +88,25 @@ export const StartVisit = () => {
       {
         totalQuestions: vitalsTotal,
         answeredQuestions: data.vitals ? vitalsTotal : 1,
-        name: 'Vitals',
+        name: SECTION_VITALS,
         currentStepIndex: 0,
       },
       {
         totalQuestions: visitReasonTotal,
         answeredQuestions: data.visitReason ? visitReasonTotal : 0,
-        name: 'Visit Reason',
+        name: SECTION_VISIT_REASON,
         currentStepIndex: 0,
       },
       {
-        totalQuestions: physExamTotal, // updated by onProgressUpdate at runtime
+        totalQuestions: physExamTotal,
         answeredQuestions: data.physicalExam ? physExamTotal : 0,
-        name: 'Physical Examination',
+        name: SECTION_PHYSICAL_EXAM,
         currentStepIndex: 0,
       },
       {
         totalQuestions: medHistTotal,
         answeredQuestions: data.medicalHistory ? medHistTotal : 0,
-        name: 'Medical History',
+        name: SECTION_MEDICAL_HISTORY,
         currentStepIndex: 0,
       },
     ];
@@ -132,65 +141,56 @@ export const StartVisit = () => {
       setCurrentSectionIndex(restoreIndex);
     }
 
-    // Mark any section as completed if its data exists in restoredData —
-    // independent of restoreIndex, so the section completion loader reflects
-    // the true saved state after refresh.
+    /*
+     * Mark any section as completed if its data exists in restoredData,
+     * independent of restoreIndex, so the section completion loader reflects
+     * the true saved state after refresh.
+     */
     setSections(prev =>
       prev.map(s => {
         const hasData =
-          (s.name === 'Vitals' && !!restoredData.vitals) ||
-          (s.name === 'Visit Reason' && !!restoredData.visitReason) ||
-          (s.name === 'Physical Examination' && !!restoredData.physicalExam) ||
-          (s.name === 'Medical History' && !!restoredData.medicalHistory);
+          (s.name === SECTION_VITALS && !!restoredData.vitals) ||
+          (s.name === SECTION_VISIT_REASON && !!restoredData.visitReason) ||
+          (s.name === SECTION_PHYSICAL_EXAM && !!restoredData.physicalExam) ||
+          (s.name === SECTION_MEDICAL_HISTORY && !!restoredData.medicalHistory);
         return hasData ? { ...s, answeredQuestions: s.totalQuestions } : s;
       })
     );
   }, [isRestoring, hasRestored, restoredData, restoredSectionIndex]);
 
-  /* ---------------- Question Navigation ---------------- */
-
-  // Returns true if the current section has already been completed
-  // (data exists in context). Used to short-circuit Confirm-on-revisit flows.
   const isCurrentSectionCompleted = (): boolean => {
-    switch (currentSectionIndex) {
-      case 0:
-        return !!data.vitals;
-      case 1:
-        return !!data.visitReason;
-      case 2:
-        return !!data.physicalExam;
-      case 3:
-        return !!data.medicalHistory;
-      /* c8 ignore next 2 */
-      default:
-        return false;
-    }
+    const completedBySectionIndex = [
+      !!data.vitals,
+      !!data.visitReason,
+      !!data.physicalExam,
+      !!data.medicalHistory,
+    ];
+    return !!completedBySectionIndex[currentSectionIndex];
   };
 
   const goNextQuestion = () => {
     const section = sections[currentSectionIndex];
     const total = section.totalQuestions;
 
-    // Section already completed in context (Confirm on revisit / after refresh)
-    // → go straight to next section regardless of sections[] counters
+    /*
+     * Section already completed in context (Confirm on revisit / after refresh);
+     * go straight to next section regardless of sections[] counters.
+     */
     if (isCurrentSectionCompleted()) {
       goNextSection();
       return;
     }
 
-    // Section already marked completed via counters → go to next section
     if (section.answeredQuestions >= total) {
       goNextSection();
       return;
     }
 
-    //If NOT last question → just move forward
     if (currentQuestionIndex < total - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       return;
     }
 
-    // LAST QUESTION → mark section completed ONCE
     setSections(prev => {
       const copy = [...prev];
       copy[currentSectionIndex].answeredQuestions =
@@ -204,8 +204,6 @@ export const StartVisit = () => {
   const goPreviousQuestion = () => {
     setCurrentQuestionIndex(prev => Math.max(prev - 1, 0));
   };
-
-  /* ---------------- Section Navigation ---------------- */
 
   const goNextSection = () => {
     setCurrentSectionIndex(prev => {
@@ -246,21 +244,21 @@ export const StartVisit = () => {
 
   const handleVisitReasonProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Visit Reason', total, answered);
+      updateSectionProgress(SECTION_VISIT_REASON, total, answered);
     },
     [updateSectionProgress]
   );
 
   const handlePhysicalExamProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Physical Examination', total, answered);
+      updateSectionProgress(SECTION_PHYSICAL_EXAM, total, answered);
     },
     [updateSectionProgress]
   );
 
   const handleMedicalHistoryProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Medical History', total, answered);
+      updateSectionProgress(SECTION_MEDICAL_HISTORY, total, answered);
     },
     [updateSectionProgress]
   );

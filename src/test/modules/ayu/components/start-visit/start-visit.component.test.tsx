@@ -3,7 +3,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { StartVisit } from '../../../../../modules/ayu/components/start-visit/start-visit.component';
+import {
+  StartVisit,
+  getPhysicalExamFilter,
+} from '../../../../../modules/ayu/components/start-visit/start-visit.component';
 
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
@@ -1409,6 +1412,35 @@ describe('StartVisit', () => {
       expect(screen.getByText('Restoring visit data...')).toBeInTheDocument();
       // Main UI should not render
       expect(screen.queryByTestId('vitals-component')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('getPhysicalExamFilter', () => {
+    it('returns the matching extension valueString when present', () => {
+      const questionnaire = {
+        extension: [
+          { url: 'urn:intelehealth:perform-physical-exam', valueString: 'ga-gen' },
+        ],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('ga-gen');
+    });
+
+    it('returns empty string when the extension array is missing', () => {
+      expect(getPhysicalExamFilter({} as any)).toBe('');
+    });
+
+    it('returns empty string when no extension matches the physical-exam URL', () => {
+      const questionnaire = {
+        extension: [{ url: 'urn:intelehealth:some-other-ext', valueString: 'x' }],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('');
+    });
+
+    it('returns empty string when the matching extension has no valueString', () => {
+      const questionnaire = {
+        extension: [{ url: 'urn:intelehealth:perform-physical-exam' }],
+      } as any;
+      expect(getPhysicalExamFilter(questionnaire)).toBe('');
     });
   });
 });

@@ -144,9 +144,11 @@ export const usePhysicalExam = ({
   const isLastRef = useRef(isLastQuestion);
   isLastRef.current = isLastQuestion;
 
-  // Count of questions that have actual answers (not just the pointer position).
-  // Used as the "answered" count in progress updates so the parent can reflect
-  // true completion state (especially on restore where internalIndex is clamped).
+  /*
+   * Count of questions that have actual answers (not just the pointer position).
+   * Used as the "answered" count in progress updates so the parent can reflect
+   * true completion state (especially on restore where internalIndex is clamped).
+   */
   const answeredCount = useMemo(
     () => visibleQuestions.filter(q => (answers[q.id] ?? []).length > 0).length,
     [visibleQuestions, answers]

@@ -111,18 +111,14 @@ export const MedicalHistory = ({
       type: 'vitalConfirm',
       size: 'lg',
       onConfirm: () => {
-        const patHist =
-          /* c8 ignore next */
-          (fileResultsRef.current[0]?.sections ?? []).map(s => ({
-            title: s.title,
-            items: s.items,
-          }));
-        const famHist =
-          /* c8 ignore next */
-          (fileResultsRef.current[1]?.sections ?? []).map(s => ({
-            title: s.title,
-            items: s.items,
-          }));
+        const patHist = (fileResultsRef.current[0]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
+        const famHist = (fileResultsRef.current[1]?.sections ?? []).map(s => ({
+          title: s.title,
+          items: s.items,
+        }));
         setMedicalHistoryData(patHist, famHist);
         saveSectionToTemp({
           medicalHistory: { patHistSummary: patHist, famHistSummary: famHist },
@@ -143,7 +139,6 @@ export const MedicalHistory = ({
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
       const schema = schemas[currentStep];
-      /* c8 ignore next */
       if (!schema?.schema) return;
 
       // Store answers for this file so they can be restored on "Change"
@@ -158,9 +153,9 @@ export const MedicalHistory = ({
         medicalHistoryAnswers: updatedAnswers,
       });
 
-      const topLevelItems = (
-        schema.schema.item /* c8 ignore next */ || []
-      ).filter(item => item.type !== 'group');
+      const topLevelItems = (schema.schema.item || []).filter(
+        item => item.type !== 'group'
+      );
       const answersMap = new Map(Object.entries(answers));
       const rawSections = buildVisitSummary(
         topLevelItems,

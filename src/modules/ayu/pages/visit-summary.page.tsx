@@ -33,7 +33,13 @@ import {
   uploadVisit,
 } from '../services/visit-upload.service';
 import type { VitalsFormValues } from '../types/vitals.types';
-import { ITEM_TYPES } from '../utils/ayu.constants';
+import {
+  ITEM_TYPES,
+  PATIENT_AGE_KEY,
+  PATIENT_GENDER_KEY,
+  PATIENT_NAME_KEY,
+  PATIENT_UUID_KEY,
+} from '../utils/ayu.constants';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -242,7 +248,7 @@ const VisitSummaryPage = () => {
       return;
     }
 
-    const patientUuid = ctxPatientUuid || storage.get('patientUuid');
+    const patientUuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
     const locationUuid = storage.getLocationUuid();
     const providerUuid = hwProfile?.providerUuid;
 
@@ -294,9 +300,9 @@ const VisitSummaryPage = () => {
         bulkMarkSynced([tempRecordId]).catch(() => {});
       }
       clearVisitId();
-      storage.remove('patientName');
-      storage.remove('patientAge');
-      storage.remove('patientGender');
+      storage.remove(PATIENT_NAME_KEY);
+      storage.remove(PATIENT_AGE_KEY);
+      storage.remove(PATIENT_GENDER_KEY);
 
       showToast('Success', 'Visit uploaded successfully', 'success');
       navigate('/dashboard');
