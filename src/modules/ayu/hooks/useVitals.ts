@@ -6,6 +6,7 @@ import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
 import { fetchConceptAnswers } from '../../../services/concept.service';
 import type { ConceptAnswer } from '../../../types/config.types';
+import { VITAL_FIELD_KEYS } from '../components/start-visit/vitals/vitals.constants';
 import {
   calculateBMI,
   calculateWHR,
@@ -215,7 +216,7 @@ const FALLBACK_VITALS_CONFIG: VitalField[] = [
   },
   {
     name: 'Blood Group',
-    key: 'blood_group',
+    key: VITAL_FIELD_KEYS.BLOOD_GROUP,
     uuid: '9d2df0c6-538f-11e6-9cfe-86f436325720',
     is_mandatory: false,
     lang: null,
@@ -303,7 +304,7 @@ export const useVitals = (onNextQuestion: () => void) => {
 
   useEffect(() => {
     const codedFields = vitalsConfig.filter(
-      f => f.datatype === 'Coded' && !f.answers?.length
+      f => f.key === VITAL_FIELD_KEYS.BLOOD_GROUP && !f.answers?.length
     );
     if (codedFields.length === 0) return;
 
@@ -430,7 +431,11 @@ export const useVitals = (onNextQuestion: () => void) => {
         { label: 'HbA1c', value: watch('hba1c') || null },
         {
           label: 'Blood Group',
-          value: getCodedDisplay('blood_group', watch('blood_group')) || null,
+          value:
+            getCodedDisplay(
+              VITAL_FIELD_KEYS.BLOOD_GROUP,
+              watch(VITAL_FIELD_KEYS.BLOOD_GROUP)
+            ) || null,
         },
       ],
       confirmText: 'Confirm',
