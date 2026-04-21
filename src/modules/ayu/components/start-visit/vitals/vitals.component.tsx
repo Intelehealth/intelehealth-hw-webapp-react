@@ -2,6 +2,7 @@ import type { SectionProps } from '../../../../ayu-library/types/start-visit.typ
 import { useVitals } from '../../../hooks/useVitals';
 import type { VitalField, VitalsFormValues } from '../../../types/vitals.types';
 import AyuButton from '../../common/ayu-button.component';
+import { VITAL_FIELD_KEYS } from './vitals.constants';
 import { VITAL_RANGES } from './vitals.validation';
 
 const TOTAL_QUESTIONS = 10;
@@ -25,7 +26,7 @@ const getPlaceholder = (key: string): string => {
     waist_to_hip_ratio: '0.85',
     ogtt_mg_per_dl: '140 mg/dL',
     hba1c: '5.7%',
-    blood_group: 'A+, B-, O+, AB+',
+    [VITAL_FIELD_KEYS.BLOOD_GROUP]: 'A+, B-, O+, AB+',
   };
   return placeholders[key] || '';
 };
@@ -95,7 +96,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           {field.is_mandatory && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="relative">
-          {field.key === 'blood_group' ? (
+          {field.key === VITAL_FIELD_KEYS.BLOOD_GROUP ? (
             <select
               {...register(field.key as keyof VitalsFormValues)}
               className={`form-input-base w-full px-3 py-2 ${error ? 'border-red-500' : ''}`}

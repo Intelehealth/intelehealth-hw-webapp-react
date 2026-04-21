@@ -1,5 +1,6 @@
 import * as yup from 'yup';
 import type { VitalField, VitalsFormValues } from '../../../types/vitals.types';
+import { VITAL_FIELD_KEYS } from './vitals.constants';
 
 // Normal ranges for validation
 export const VITAL_RANGES = {
@@ -24,7 +25,7 @@ export const createVitalsValidationSchema = (
     if (!field.is_enabled) return;
 
     // Handle coded fields (e.g. Blood Typing) as string, others as number
-    if (field.key === 'blood_group') {
+    if (field.key === VITAL_FIELD_KEYS.BLOOD_GROUP) {
       let fieldSchema = yup.string();
       if (field.is_mandatory) {
         fieldSchema = fieldSchema.required(`${field.name} is required`);
