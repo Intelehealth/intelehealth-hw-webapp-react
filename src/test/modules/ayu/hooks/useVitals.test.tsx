@@ -1400,13 +1400,15 @@ describe('useVitals', () => {
 
       const TestComponent = () => {
         const hookResult = useVitals(mockOnNextQuestion);
-        const { register, onSubmit } = hookResult;
+        const { register, onSubmit, getCodedAnswers } = hookResult;
+        const answers = getCodedAnswers('blood_group');
 
         return (
           <form>
             <select {...register('blood_group')} data-testid="blood-group" defaultValue="uuid-a-pos">
               <option value="uuid-a-pos">A POSITIVE</option>
             </select>
+            <span data-testid="answer-count">{answers.length}</span>
             <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
           </form>
         );
@@ -1415,9 +1417,9 @@ describe('useVitals', () => {
       const Wrapper = createWrapper();
       render(<TestComponent />, { wrapper: Wrapper });
 
-      // Wait for concept answers to load
+      // Wait for concept answers to load into state (not just for the fetch call)
       await waitFor(() => {
-        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+        expect(screen.getByTestId('answer-count').textContent).toBe('2');
       });
 
       act(() => {

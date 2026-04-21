@@ -185,14 +185,6 @@ describe('AppointmentScheduleComponent', () => {
   });
 
   describe('Resize handler', () => {
-    // Component shows min(datesToShow, remaining days in current month from today)
-    const expectedDesktopCount = () => {
-      const now = new Date();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const remaining = lastDay - now.getDate() + 1;
-      return Math.min(13, remaining);
-    };
-
     it('updates datesToShow on window resize with debounce', async () => {
       vi.useFakeTimers();
       renderComponent();
