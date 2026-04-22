@@ -166,14 +166,14 @@ describe('AppointmentScheduleComponent', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(5);
+      expect(buttons.length).toBe(Math.min(5, remainingDaysInMonth));
     });
 
     it('shows 10 date buttons on tablet (innerWidth=800)', () => {
       Object.defineProperty(window, 'innerWidth', { value: 800, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(10);
+      expect(buttons.length).toBe(Math.min(10, remainingDaysInMonth));
     });
 
     it('shows 13 date buttons on desktop (innerWidth=1200)', () => {
