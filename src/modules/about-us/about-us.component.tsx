@@ -13,7 +13,6 @@ const AboutusComponent = () => {
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-5">
-      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <button className="p-1" onClick={() => navigate(-1)}>
@@ -28,7 +27,6 @@ const AboutusComponent = () => {
         </button>
       </div>
 
-      {/* Desktop Header */}
       <div className="hidden md:flex items-center gap-3">
         <img src={iconAboutUs} alt="about-us" />
         <span className="text-base font-semibold tracking-wide">
@@ -66,7 +64,7 @@ const AboutusComponent = () => {
             {ABOUT_US_CONTENT.termsLink.text}
           </Link>
         </div>
-        {/* Mobile Button */}
+
         <a
           href={ABOUT_US_CONTENT.visitWebsite.url}
           target="_blank"
@@ -76,7 +74,7 @@ const AboutusComponent = () => {
           <img src={iconGlobe} alt="" className="w-5 h-5 absolute left-4" />
           {ABOUT_US_CONTENT.visitWebsite.text}
         </a>
-        {/* Desktop Button */}
+
         <a
           href={ABOUT_US_CONTENT.visitWebsite.url}
           target="_blank"
