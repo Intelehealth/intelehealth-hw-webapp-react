@@ -14,7 +14,7 @@ vi.mock('../../../assets/icons/icon-about-us.svg', () => ({
 vi.mock('../../../assets/images/about-us-main-img.png', () => ({
   default: 'about-us-main-img.png',
 }));
-vi.mock('../../../assets/images/about-us-main-mobile-img.png.png', () => ({
+vi.mock('../../../assets/images/about-us-main-mobile-img.png', () => ({
   default: 'about-us-mobile-img.png',
 }));
 vi.mock('../../../assets/icons/icon-ache-info-dashboard.svg', () => ({

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import iconAboutUs from '../../assets/icons/icon-about-us.svg';
 import aboutUsMainImage from '../../assets/images/about-us-main-img.png';
-import aboutUsMobileImage from '../../assets/images/about-us-main-mobile-img.png.png';
+import aboutUsMobileImage from '../../assets/images/about-us-main-mobile-img.png';
 import { Link } from 'react-router-dom';
 import iconInfo from '../../assets/icons/icon-ache-info-dashboard.svg';
 import iconGlobe from '../../assets/icons/icon-globe.svg';
