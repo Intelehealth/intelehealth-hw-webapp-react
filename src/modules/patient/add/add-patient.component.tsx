@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import iconLocationGreenRoundedBordered from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
 import iconLocationGreenRoundedFilled from '../../../assets/icons/icon-location-green-rounded-filled.svg';
@@ -10,6 +10,11 @@ import iconUserGreenRoundedFilled from '../../../assets/icons/icon-user-green-ro
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
 import ROUTES from '../../../routes/paths';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
+import { storage } from '../../../utils/storage';
+import {
+  getResource,
+  upsertResource,
+} from '../../ayu/services/temp-storage.service';
 
 import {
   ADD_PATIENT_LABEL,
@@ -23,58 +28,140 @@ import PersonalInfo from './steps/personal-info/patient-personal-info.component'
 import PrivacyPolicy from './steps/privacy-policy/patient-privacy-policy.component';
 import Terms from './steps/terms/terms.component';
 
+interface TempPatientData {
+  formData: PatientFormData;
+  step: number;
+  patientUuid: string | null;
+}
+
+const TEMP_PATIENT_ID_KEY = 'temp_patient_id';
+
+function getOrCreateTempPatientId(): string {
+  const existing = storage.get(TEMP_PATIENT_ID_KEY);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  storage.set(TEMP_PATIENT_ID_KEY, id);
+  return id;
+}
+
+const EMPTY_FORM_DATA: PatientFormData = {
+  personalInfo: {
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    gender: '',
+    dateOfBirth: '',
+    age: '',
+    phoneNumber: '',
+    phoneNumberCountryCode: '+91',
+    contactType: '',
+    emergencyContactName: '',
+    emergencyContactNumber: '',
+    emergencyContactNumberCountryCode: '+91',
+    profilePhoto: null,
+  },
+  addressInfo: {
+    postalCode: '',
+    city: '',
+    state: '',
+    country: '',
+    district: '',
+    correspondingAddress1: '',
+    correspondingAddress2: '',
+  },
+  otherInfo: {
+    sonDaughterWifeOf: '',
+    occupation: '',
+    caste: '',
+    education: '',
+    economicStatus: '',
+  },
+};
+
 export default function AddPatientComponent() {
   const { handleAddPatient } = useAddPatient();
   const navigate = useNavigate();
+  const [tempPatientId] = useState(getOrCreateTempPatientId);
   const [step, setStep] = useState(0);
   const [patientUuid, setPatientUuid] = useState<string | null>(null);
-  const [formData, setFormData] = useState<PatientFormData>({
-    personalInfo: {
-      firstName: '',
-      middleName: '',
-      lastName: '',
-      gender: '',
-      dateOfBirth: '',
-      age: '',
-      phoneNumber: '',
-      phoneNumberCountryCode: '+91',
-      contactType: '',
-      emergencyContactName: '',
-      emergencyContactNumber: '',
-      emergencyContactNumberCountryCode: '+91',
-      profilePhoto: null,
+  const [formData, setFormData] = useState<PatientFormData>(EMPTY_FORM_DATA);
+  const [, setIsRestoring] = useState(true);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+
+  // Restore from temp-storage on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getResource<TempPatientData>(
+          'patient',
+          tempPatientId
+        );
+        if (cancelled || !res.data) return;
+        const saved = res.data.data;
+        if (saved.formData) setFormData(saved.formData);
+        if (saved.step != null) setStep(saved.step);
+        if (saved.patientUuid) setPatientUuid(saved.patientUuid);
+      } catch {
+        // No existing record — start fresh
+      } finally {
+        if (!cancelled) setIsRestoring(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tempPatientId]);
+
+  // Save patient form data to temp-storage
+  const savePatientToTemp = useCallback(
+    async (overrides: Partial<TempPatientData> = {}) => {
+      const payload: TempPatientData = {
+        formData: formDataRef.current,
+        step: step,
+        patientUuid,
+        ...overrides,
+      };
+      try {
+        let createdBy = null;
+        try {
+          const u = storage.getUser();
+          if (u) createdBy = JSON.parse(u).uuid ?? u;
+        } catch {
+          /* fallback */
+        }
+        await upsertResource<TempPatientData>({
+          resource_type: 'patient',
+          resource_id: tempPatientId,
+          data: payload,
+          created_by: createdBy,
+        });
+      } catch {
+        // Save failed — form state is still the source of truth
+      }
     },
-    addressInfo: {
-      postalCode: '',
-      city: '',
-      state: '',
-      country: '',
-      district: '',
-      correspondingAddress1: '',
-      correspondingAddress2: '',
-    },
-    otherInfo: {
-      sonDaughterWifeOf: '',
-      occupation: '',
-      caste: '',
-      education: '',
-      economicStatus: '',
-    },
-  });
+    [tempPatientId, step, patientUuid]
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nextStep = (data: any) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    const merged = { ...formDataRef.current, ...data };
+    setFormData(merged);
     if (step > 3) {
       handleSubmit(data);
     } else {
-      setStep(s => s + 1);
+      const nextIdx = step + 1;
+      setStep(nextIdx);
+      savePatientToTemp({ formData: merged, step: nextIdx });
     }
   };
 
   const prevStep = () => {
     if (step > 0) {
-      setStep(s => s - 1);
+      const prevIdx = step - 1;
+      setStep(prevIdx);
+      savePatientToTemp({ step: prevIdx });
       return;
     }
     navigate(ROUTES.DASHBOARD, { replace: true });
@@ -130,7 +217,9 @@ export default function AddPatientComponent() {
     const result = await handleAddPatient(mergedData);
     if (result) {
       setPatientUuid(result);
-      setStep(s => s + 1);
+      const nextIdx = step + 1;
+      setStep(nextIdx);
+      savePatientToTemp({ step: nextIdx, patientUuid: result });
     }
   };
 

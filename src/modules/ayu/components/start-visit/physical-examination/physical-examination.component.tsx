@@ -159,7 +159,7 @@ const QuestionCard = ({
 
 export const PhysicalExamination = (props: SectionProps) => {
   const { onNextQuestion: originalOnNext } = props;
-  const { data, setPhysicalExamData } = useStartVisitData();
+  const { data, setPhysicalExamData, saveSectionToTemp } = useStartVisitData();
   const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
   const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
@@ -223,10 +223,18 @@ export const PhysicalExamination = (props: SectionProps) => {
       cancelText: 'Back',
       onConfirm: () => {
         setPhysicalExamData(currentAnswers, details);
+        saveSectionToTemp({
+          physicalExam: { answers: answersRef.current, details },
+        });
         originalOnNext();
       },
     });
-  }, [originalOnNext, setPhysicalExamData, showVitalConfirmationModal]);
+  }, [
+    originalOnNext,
+    setPhysicalExamData,
+    showVitalConfirmationModal,
+    saveSectionToTemp,
+  ]);
 
   const {
     internalIndex,
@@ -244,7 +252,11 @@ export const PhysicalExamination = (props: SectionProps) => {
     goNext,
     goSkip,
     onPrevSection,
-  } = usePhysicalExam({ ...props, onNextQuestion: wrappedOnNextQuestion });
+  } = usePhysicalExam({
+    ...props,
+    onNextQuestion: wrappedOnNextQuestion,
+    initialAnswers: data.physicalExam?.answers,
+  });
 
   answersRef.current = answers;
   cameraImagesForRef.current = cameraImagesFor;

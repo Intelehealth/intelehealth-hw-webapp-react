@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../../components/common';
 import type { PatientFormData } from '../../../../../types/patient/add/add-patient.types';
+import { storage } from '../../../../../utils/storage';
 
 interface PatientPreviewComponentProps {
   data: PatientFormData;
@@ -51,11 +52,19 @@ export default function PatientPreviewComponent({
       .filter(Boolean)
       .join(' ');
 
+    const patientAge = data.personalInfo.age || data.personalInfo.dateOfBirth;
+    const patientGender = data.personalInfo.gender;
+
+    // Persist patient display info so it survives Ayu page refresh
+    storage.set('patientName', patientName);
+    storage.set('patientAge', patientAge);
+    storage.set('patientGender', patientGender);
+
+    // Clear patient temp data — patient creation is complete, visit flow takes over
+    storage.remove('temp_patient_id');
+
     navigate('/ayu', {
       state: {
-        patientName,
-        patientAge: data.personalInfo.age || data.personalInfo.dateOfBirth,
-        patientGender: data.personalInfo.gender,
         patientUuid,
       },
     });

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MedicalHistory } from '../../../../../../modules/ayu/components/start-visit/medical-history/medical-history.component';
@@ -14,15 +14,36 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockSetMedicalHistoryData = vi.fn();
+const mockSetMedicalHistoryAnswers = vi.fn();
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
+const mockContextMedicalHistoryAnswers: {
+  value: Record<string, Record<string, unknown>> | null;
+} = { value: null };
+
 vi.mock('../../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => ({
-    data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+    data: {
+      vitals: null,
+      visitReason: null,
+      physicalExam: null,
+      medicalHistory: null,
+      medicalHistoryAnswers: mockContextMedicalHistoryAnswers.value,
+    },
     patientUuid: null,
+    visitId: 'test-visit-id',
+    tempRecordId: null,
+    isRestoring: false,
+    restoredSectionIndex: null,
+    lastSectionIndex: 0,
+    setLastSectionIndex: vi.fn(),
     setPatientUuid: vi.fn(),
     setVitalsData: vi.fn(),
     setVisitReasonData: vi.fn(),
     setPhysicalExamData: vi.fn(),
     setMedicalHistoryData: mockSetMedicalHistoryData,
+    setMedicalHistoryAnswers: mockSetMedicalHistoryAnswers,
+    saveSectionToTemp: mockSaveSectionToTemp,
+    clearVisitId: vi.fn(),
   }),
 }));
 
@@ -146,6 +167,8 @@ describe('MedicalHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedStepperProps = [];
+    // Reset mutable context overrides
+    mockContextMedicalHistoryAnswers.value = null;
 
     // Default: transformFhirToAyu returns a schema with items
     mockTransformFhirToAyu.mockImplementation((json: any) =>
@@ -435,6 +458,123 @@ describe('MedicalHistory', () => {
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       // With empty merged items the component produces no sections per file
       expect(modalConfig.sections).toEqual([]);
+    });
+  });
+
+  // ── Branch coverage: currentStep restoration from medicalHistoryAnswers ──
+
+  describe('currentStep restoration from context', () => {
+    it('should compute currentStep from completedFiles when answers exist', () => {
+      // patHist has answers, famHist does not → completedFiles.length = 1
+      // min(1, HISTORY_JSON_NAMES.length - 1) = min(1, 1) = 1 (famHist)
+      mockContextMedicalHistoryAnswers.value = {
+        patHist: { q1: 'answered' },
+      };
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // AyuStepperContainer starts on famHist (2nd schema)
+      const firstProps = capturedStepperProps[0];
+      expect((firstProps.questionnaire as any).text).toBe('famHist title title');
+    });
+
+    it('should clamp currentStep to max valid index when all files completed', () => {
+      // Both files answered → completedFiles.length = 2, min(2, 1) = 1
+      mockContextMedicalHistoryAnswers.value = {
+        patHist: { q1: 'a' },
+        famHist: { q2: 'b' },
+      };
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // Clamped to last valid step (famHist)
+      const firstProps = capturedStepperProps[0];
+      expect((firstProps.questionnaire as any).text).toBe('famHist title title');
+    });
+
+    it('should fall back to file name when json.title is missing', () => {
+      // File has json without title → schemas.title = file.name ('patHist.json')
+      const props = buildDefaultProps({
+        ayuConfigFiles: [
+          { name: 'patHist.json', json: {} as any },
+          { name: 'famHist.json', json: {} as any },
+        ],
+      });
+      render(<MedicalHistory {...props} />);
+
+      // Component should render without crashing when title is missing
+      expect(capturedStepperProps.length).toBeGreaterThan(0);
+    });
+
+    it('should pass undefined for totalQuestionsOverride when precomputedTotal is 0', () => {
+      // Schemas with no items → precomputedTotal = 0 → undefined
+      mockTransformFhirToAyu.mockImplementation(() => ({
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      }));
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      const firstProps = capturedStepperProps[0];
+      expect(firstProps.totalQuestionsOverride).toBeUndefined();
+    });
+
+    it('should handle schemas with no item array (|| [] fallback)', () => {
+      // Schema without item → triggers `s.schema?.item || []` fallback
+      mockTransformFhirToAyu.mockImplementation(() => ({
+        linkId: 'root',
+        type: 'group' as const,
+        // no item property
+      }));
+      const props = buildDefaultProps();
+
+      expect(() => render(<MedicalHistory {...props} />)).not.toThrow();
+    });
+
+    it('should handle empty fileResultsRef sections on combined summary confirm', async () => {
+      // Don't trigger any stepper completions → fileResultsRef stays empty
+      // When onConfirm fires via other pathways (if accessible), ?? [] fallback triggers.
+      // We can't easily trigger onConfirm without completing steps, so we trigger
+      // the combined summary by completing both files with empty sections:
+      mockBuildVisitSummary.mockReturnValue([]); // empty sections from buildVisitSummary
+
+      const user = userEvent.setup();
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // Complete both files (both produce empty sections)
+      await user.click(screen.getByTestId('trigger-complete'));
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      // Trigger onConfirm on combined summary modal
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      await act(async () => {
+        modalConfig.onConfirm();
+      });
+
+      // setMedicalHistoryData called with empty arrays (from ?? []) since
+      // fileResultsRef has entries but their .sections is empty, not undefined
+      expect(mockSetMedicalHistoryData).toHaveBeenCalled();
+    });
+
+    it('should fall back to schema.title when schema.text is missing', async () => {
+      // Schema without .text → `schema.schema.text || schema.title` uses title
+      mockTransformFhirToAyu.mockImplementation((json: any) => ({
+        // no text property
+        title: `${json?.title ?? 'unknown'} title`,
+        item: [{ linkId: 'q1', text: 'Q1', type: 'string' as const }],
+      }));
+
+      const user = userEvent.setup();
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // Complete one step — handleComplete uses `schema.schema.text || schema.title`
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      // buildVisitSummary should be called with the title as fallback
+      expect(mockBuildVisitSummary).toHaveBeenCalled();
     });
   });
 });

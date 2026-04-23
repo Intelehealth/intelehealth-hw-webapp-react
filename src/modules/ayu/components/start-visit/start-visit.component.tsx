@@ -1,10 +1,19 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { storage } from '../../../../utils/storage';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
 import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
+import {
+  PATIENT_AGE_KEY,
+  PATIENT_GENDER_KEY,
+  PATIENT_NAME_KEY,
+  SECTION_MEDICAL_HISTORY,
+  SECTION_PHYSICAL_EXAM,
+  SECTION_VISIT_REASON,
+  SECTION_VITALS,
+} from '../../utils/ayu.constants';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
@@ -12,7 +21,7 @@ import { PhysicalExamination } from './physical-examination/physical-examination
 import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals/vitals.component';
 
-const getPhysicalExamFilter = (
+export const getPhysicalExamFilter = (
   questionnaire: typeof CoughQuestionnaire
 ): string => {
   const ext =
@@ -28,15 +37,18 @@ const getPhysicalExamFilter = (
 };
 
 export const StartVisit = () => {
-  const location = useLocation();
-  const { lastSectionIndex, setLastSectionIndex, data } = useStartVisitData();
-  const { patientName, patientAge, patientGender } =
-    (location.state as {
-      patientName?: string;
-      patientAge?: string;
-      patientGender?: string;
-    }) || {};
+  const { lastSectionIndex, data } = useStartVisitData();
 
+  const patientName = storage.get(PATIENT_NAME_KEY) ?? null;
+  const patientAge = storage.get(PATIENT_AGE_KEY) ?? null;
+  const patientGender = storage.get(PATIENT_GENDER_KEY) ?? null;
+
+  const {
+    data: restoredData,
+    isRestoring,
+    restoredSectionIndex,
+    saveSectionToTemp,
+  } = useStartVisitData();
   const visitReasons = useVisitReasons();
   const { ayuConfigFiles } = visitReasons;
   const [confirmedReasons, setConfirmedReasons] = useState<string[]>([]);
@@ -48,15 +60,15 @@ export const StartVisit = () => {
 
   const getSectionSubtitle = (sectionName: string): string => {
     switch (sectionName) {
-      case 'Visit Reason':
+      case SECTION_VISIT_REASON:
         return confirmedReasons.length > 0 ? confirmedReasons.join(', ') : '';
-      case 'Physical Examination': {
+      case SECTION_PHYSICAL_EXAM: {
         const physExam = ayuConfigFiles.find(
           f => f.name.replace(/\.json$/i, '') === 'physExam'
         );
         return physExam?.json?.title ?? '';
       }
-      case 'Medical History':
+      case SECTION_MEDICAL_HISTORY:
         return medicalHistorySubtitle;
       default:
         return '';
@@ -76,25 +88,25 @@ export const StartVisit = () => {
       {
         totalQuestions: vitalsTotal,
         answeredQuestions: data.vitals ? vitalsTotal : 1,
-        name: 'Vitals',
+        name: SECTION_VITALS,
         currentStepIndex: 0,
       },
       {
         totalQuestions: visitReasonTotal,
         answeredQuestions: data.visitReason ? visitReasonTotal : 0,
-        name: 'Visit Reason',
+        name: SECTION_VISIT_REASON,
         currentStepIndex: 0,
       },
       {
-        totalQuestions: physExamTotal, // updated by onProgressUpdate at runtime
+        totalQuestions: physExamTotal,
         answeredQuestions: data.physicalExam ? physExamTotal : 0,
-        name: 'Physical Examination',
+        name: SECTION_PHYSICAL_EXAM,
         currentStepIndex: 0,
       },
       {
         totalQuestions: medHistTotal,
         answeredQuestions: data.medicalHistory ? medHistTotal : 0,
-        name: 'Medical History',
+        name: SECTION_MEDICAL_HISTORY,
         currentStepIndex: 0,
       },
     ];
@@ -103,26 +115,82 @@ export const StartVisit = () => {
   const [currentSectionIndex, setCurrentSectionIndex] =
     useState(lastSectionIndex);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [hasRestored, setHasRestored] = useState(false);
 
-  /* ---------------- Question Navigation ---------------- */
+  // Restore section index from temp-storage data after context finishes loading
+  useEffect(() => {
+    if (isRestoring || hasRestored) return;
+    setHasRestored(true);
+
+    // Use the exact saved section index if available, otherwise compute from data
+    let restoreIndex: number;
+    if (restoredSectionIndex != null) {
+      restoreIndex = restoredSectionIndex;
+    } else {
+      restoreIndex = 0;
+      if (restoredData.vitals) restoreIndex = 1;
+      if (restoredData.visitReason) restoreIndex = 2;
+      if (restoredData.physicalExam) restoreIndex = 3;
+    }
+
+    if (restoredData.visitReason?.reasonNames?.length) {
+      setConfirmedReasons(restoredData.visitReason.reasonNames);
+    }
+
+    if (restoreIndex > 0) {
+      setCurrentSectionIndex(restoreIndex);
+    }
+
+    /*
+     * Mark any section as completed if its data exists in restoredData,
+     * independent of restoreIndex, so the section completion loader reflects
+     * the true saved state after refresh.
+     */
+    setSections(prev =>
+      prev.map(s => {
+        const hasData =
+          (s.name === SECTION_VITALS && !!restoredData.vitals) ||
+          (s.name === SECTION_VISIT_REASON && !!restoredData.visitReason) ||
+          (s.name === SECTION_PHYSICAL_EXAM && !!restoredData.physicalExam) ||
+          (s.name === SECTION_MEDICAL_HISTORY && !!restoredData.medicalHistory);
+        return hasData ? { ...s, answeredQuestions: s.totalQuestions } : s;
+      })
+    );
+  }, [isRestoring, hasRestored, restoredData, restoredSectionIndex]);
+
+  const isCurrentSectionCompleted = (): boolean => {
+    const completedBySectionIndex = [
+      !!data.vitals,
+      !!data.visitReason,
+      !!data.physicalExam,
+      !!data.medicalHistory,
+    ];
+    return !!completedBySectionIndex[currentSectionIndex];
+  };
 
   const goNextQuestion = () => {
     const section = sections[currentSectionIndex];
     const total = section.totalQuestions;
 
-    // Section already completed (e.g. Confirm on revisit) → go straight to next section
+    /*
+     * Section already completed in context (Confirm on revisit / after refresh);
+     * go straight to next section regardless of sections[] counters.
+     */
+    if (isCurrentSectionCompleted()) {
+      goNextSection();
+      return;
+    }
+
     if (section.answeredQuestions >= total) {
       goNextSection();
       return;
     }
 
-    //If NOT last question → just move forward
     if (currentQuestionIndex < total - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       return;
     }
 
-    // LAST QUESTION → mark section completed ONCE
     setSections(prev => {
       const copy = [...prev];
       copy[currentSectionIndex].answeredQuestions =
@@ -137,12 +205,10 @@ export const StartVisit = () => {
     setCurrentQuestionIndex(prev => Math.max(prev - 1, 0));
   };
 
-  /* ---------------- Section Navigation ---------------- */
-
   const goNextSection = () => {
     setCurrentSectionIndex(prev => {
       const next = Math.min(prev + 1, sections.length - 1);
-      setLastSectionIndex(next);
+      saveSectionToTemp({ currentSectionIndex: next });
       return next;
     });
     setCurrentQuestionIndex(0);
@@ -151,7 +217,7 @@ export const StartVisit = () => {
   const goPreviousSection = () => {
     setCurrentSectionIndex(prev => {
       const newIndex = Math.max(prev - 1, 0);
-      setLastSectionIndex(newIndex);
+      saveSectionToTemp({ currentSectionIndex: newIndex });
 
       setCurrentQuestionIndex(
         Math.max(sections[newIndex].answeredQuestions - 1, 0)
@@ -178,21 +244,21 @@ export const StartVisit = () => {
 
   const handleVisitReasonProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Visit Reason', total, answered);
+      updateSectionProgress(SECTION_VISIT_REASON, total, answered);
     },
     [updateSectionProgress]
   );
 
   const handlePhysicalExamProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Physical Exam', total, answered);
+      updateSectionProgress(SECTION_PHYSICAL_EXAM, total, answered);
     },
     [updateSectionProgress]
   );
 
   const handleMedicalHistoryProgress = useCallback(
     (total: number, answered: number) => {
-      updateSectionProgress('Medical History', total, answered);
+      updateSectionProgress(SECTION_MEDICAL_HISTORY, total, answered);
     },
     [updateSectionProgress]
   );
@@ -200,6 +266,14 @@ export const StartVisit = () => {
   const handleMedicalHistorySubtitleChange = useCallback((subtitle: string) => {
     setMedicalHistorySubtitle(subtitle);
   }, []);
+
+  if (isRestoring) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <p className="text-gray-500">Restoring visit data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white">

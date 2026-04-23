@@ -30,9 +30,14 @@ vi.mock('../../../../services/concept.service', () => ({
 
 // Mock useStartVisitData context
 const mockSetVitalsData = vi.fn();
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
 const mockStartVisitData = vi.fn(() => ({
-  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+  data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
   patientUuid: null,
+  visitId: 'test-visit-id',
+  tempRecordId: null,
+  isRestoring: false,
+  restoredSectionIndex: null,
   lastSectionIndex: 0,
   setLastSectionIndex: vi.fn(),
   setPatientUuid: vi.fn(),
@@ -40,6 +45,9 @@ const mockStartVisitData = vi.fn(() => ({
   setVisitReasonData: vi.fn(),
   setPhysicalExamData: vi.fn(),
   setMedicalHistoryData: vi.fn(),
+  setMedicalHistoryAnswers: vi.fn(),
+  saveSectionToTemp: mockSaveSectionToTemp,
+  clearVisitId: vi.fn(),
 }));
 
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
@@ -110,8 +118,12 @@ describe('useVitals', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockStartVisitData.mockReturnValue({
-      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null },
+      data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
       patientUuid: null,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
@@ -119,6 +131,9 @@ describe('useVitals', () => {
       setVisitReasonData: vi.fn(),
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: vi.fn(),
     });
     mockFetchConceptAnswers.mockResolvedValue([]);
     vi.mocked(useConfig).mockReturnValue({
@@ -1097,8 +1112,13 @@ describe('useVitals', () => {
           visitReason: null,
           physicalExam: null,
           medicalHistory: null,
+          medicalHistoryAnswers: null,
         },
         patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: null,
         lastSectionIndex: 0,
         setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
@@ -1106,6 +1126,9 @@ describe('useVitals', () => {
         setVisitReasonData: vi.fn(),
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
       });
 
       const TestComponent = () => {
@@ -1155,8 +1178,13 @@ describe('useVitals', () => {
           visitReason: null,
           physicalExam: null,
           medicalHistory: null,
+          medicalHistoryAnswers: null,
         },
         patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: null,
         lastSectionIndex: 0,
         setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
@@ -1164,6 +1192,9 @@ describe('useVitals', () => {
         setVisitReasonData: vi.fn(),
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
       });
 
       const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
@@ -1186,8 +1217,13 @@ describe('useVitals', () => {
           visitReason: null,
           physicalExam: null,
           medicalHistory: null,
+          medicalHistoryAnswers: null,
         },
         patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: null,
         lastSectionIndex: 0,
         setLastSectionIndex: vi.fn(),
         setPatientUuid: vi.fn(),
@@ -1195,6 +1231,9 @@ describe('useVitals', () => {
         setVisitReasonData: vi.fn(),
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
       });
 
       const TestComponent = () => {
@@ -1361,13 +1400,15 @@ describe('useVitals', () => {
 
       const TestComponent = () => {
         const hookResult = useVitals(mockOnNextQuestion);
-        const { register, onSubmit } = hookResult;
+        const { register, onSubmit, getCodedAnswers } = hookResult;
+        const answers = getCodedAnswers('blood_group');
 
         return (
           <form>
             <select {...register('blood_group')} data-testid="blood-group" defaultValue="uuid-a-pos">
               <option value="uuid-a-pos">A POSITIVE</option>
             </select>
+            <span data-testid="answer-count">{answers.length}</span>
             <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
           </form>
         );
@@ -1376,9 +1417,9 @@ describe('useVitals', () => {
       const Wrapper = createWrapper();
       render(<TestComponent />, { wrapper: Wrapper });
 
-      // Wait for concept answers to load
+      // Wait for concept answers to load into state (not just for the fetch call)
       await waitFor(() => {
-        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+        expect(screen.getByTestId('answer-count').textContent).toBe('2');
       });
 
       act(() => {
