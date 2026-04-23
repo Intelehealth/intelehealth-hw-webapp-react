@@ -55,7 +55,6 @@ import PrescriptionDetail from '../modules/prescription-detail/prescription-deta
 import ProfileRouteGuard from '../modules/profile/profile-route-guard.component';
 import VisitDetails from '../modules/visit-details/visit-details.component';
 import VisitSummary from '../modules/visit-summary/visit-summary.component';
-import HelpAndSupportComponent from '../modules/help-and-support/help-and-support';
 
 const PrescriptionPreviewPage = lazy(
   () => import('../pages/prescriptions/prescription-preview.page')
