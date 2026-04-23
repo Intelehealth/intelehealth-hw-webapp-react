@@ -44,9 +44,12 @@ export type ConfirmModalConfig = {
   size?: 'sm' | 'lg';
   note?: string;
   icon?: string;
+  iconElement?: React.ReactNode;
   cancelText?: string;
   confirmText?: string;
   items?: string[];
+  children?: React.ReactNode;
+  hideActions?: boolean;
 
   onConfirm?: () => void;
 };
@@ -131,16 +134,20 @@ export const GlobalModalProvider = ({
           note={'note' in modal ? modal.note : undefined}
           size={'size' in modal ? modal.size : undefined}
           icon={modal.icon}
+          iconElement={'iconElement' in modal ? modal.iconElement : undefined}
           cancelText={modal.cancelText || 'Cancel'}
           confirmText={modal.confirmText || 'Confirm'}
           items={modal.items || []}
+          hideActions={'hideActions' in modal ? modal.hideActions : undefined}
           onClose={closeModal}
           onConfirm={() => {
             modal.onConfirm?.();
             closeModal();
           }}
           type={'confirm'}
-        />
+        >
+          {'children' in modal ? modal.children : undefined}
+        </ConfirmationModal>
       )}
     </ModalContext.Provider>
   );

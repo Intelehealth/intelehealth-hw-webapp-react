@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { toast } from 'react-toastify';
 import ToastContent from '../components/toast';
 
@@ -15,6 +16,9 @@ export interface ToastOptions {
     | 'bottom-right'
     | 'bottom-center'
     | 'bottom-left';
+  closeButton?: boolean;
+  className?: string;
+  style?: CSSProperties;
 }
 
 export const showToast = (
