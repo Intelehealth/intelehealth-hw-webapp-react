@@ -53,7 +53,7 @@ export const VisitReason = ({
     selectedComplaints,
   } = visitReasons!;
 
-  const { data, setVisitReasonData } = useStartVisitData();
+  const { data, setVisitReasonData, saveSectionToTemp } = useStartVisitData();
   const savedAnswers = data.visitReason?.answers;
 
   // Restore stepper state from context so answers survive if the component
@@ -119,6 +119,10 @@ export const VisitReason = ({
       }
 
       setVisitReasonData(answers, selectedReasons, details);
+      saveSectionToTemp({
+        visitReason: { answers, reasonNames: selectedReasons, details },
+        confirmedReasons: selectedReasons,
+      });
 
       // Show wash-hands modal only on first navigation to Physical Exam
       if (savedAnswers) {
@@ -149,6 +153,7 @@ export const VisitReason = ({
       stableSchema,
       selectedReasons,
       setVisitReasonData,
+      saveSectionToTemp,
       showConfirmModal,
     ]
   );

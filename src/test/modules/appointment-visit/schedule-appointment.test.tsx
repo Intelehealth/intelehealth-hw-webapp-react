@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
+import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 
 const mockNavigate = vi.fn();
 let mockLocationState: { speciality?: string } | null = { speciality: 'General Physician' };
@@ -74,6 +74,13 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+/** Remaining days in the current month (including today) */
+const remainingDaysInMonth = (() => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return lastDay - now.getDate() + 1;
+})();
 
 /** Helper: get the date-buttons container (inner flex with gap-[8px]) */
 const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
@@ -166,7 +173,7 @@ describe('AppointmentScheduleComponent', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(5);
+      expect(buttons.length).toBe(Math.min(5, remainingDaysInMonth));
     });
 
     it('shows 10 date buttons on tablet (innerWidth=800)', () => {

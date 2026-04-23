@@ -12,6 +12,7 @@ describe('HttpService', () => {
     get: Mock;
     post: Mock;
     put: Mock;
+    patch: Mock;
     delete: Mock;
   };
 
@@ -22,6 +23,7 @@ describe('HttpService', () => {
       get: vi.fn(),
       post: vi.fn(),
       put: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn()
     };
 
@@ -150,6 +152,48 @@ describe('HttpService', () => {
       mockAxiosInstance.put.mockRejectedValue(mockError);
 
       await expect(httpService.put('/users/1', {})).rejects.toThrow('Update failed');
+    });
+  });
+
+  describe('patch', () => {
+    it('should make PATCH request and return data', async () => {
+      const mockData = { name: 'Patched User' };
+      const mockResponse = { data: { id: 1, name: 'Patched User' } };
+      mockAxiosInstance.patch.mockResolvedValue(mockResponse);
+
+      const result = await httpService.patch('/users/1', mockData);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith('/users/1', mockData, undefined);
+      expect(result).toEqual({ id: 1, name: 'Patched User' });
+    });
+
+    it('should make PATCH request with config', async () => {
+      const mockData = { name: 'Patched User' };
+      const config = { headers: { 'If-Match': 'etag123' } };
+      const mockResponse = { data: { id: 1, name: 'Patched User' } };
+      mockAxiosInstance.patch.mockResolvedValue(mockResponse);
+
+      const result = await httpService.patch('/users/1', mockData, config);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith('/users/1', mockData, config);
+      expect(result).toEqual({ id: 1, name: 'Patched User' });
+    });
+
+    it('should make PATCH request without data', async () => {
+      const mockResponse = { data: { success: true } };
+      mockAxiosInstance.patch.mockResolvedValue(mockResponse);
+
+      const result = await httpService.patch('/users/1/touch');
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith('/users/1/touch', undefined, undefined);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle PATCH request errors', async () => {
+      const mockError = new Error('Patch failed');
+      mockAxiosInstance.patch.mockRejectedValue(mockError);
+
+      await expect(httpService.patch('/users/1', {})).rejects.toThrow('Patch failed');
     });
   });
 

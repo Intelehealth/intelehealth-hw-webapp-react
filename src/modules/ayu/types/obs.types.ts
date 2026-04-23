@@ -1,7 +1,8 @@
-/** Captured image: keeps both the File (for upload) and base64 (for preview) */
+/** Captured image: keeps both the File (for upload) and base64/URL (for preview) */
 export interface CapturedImage {
-  file: File;
-  preview: string; // base64 data-URL for thumbnail display
+  file: File | null;
+  preview: string; // base64 data-URL or S3 URL for thumbnail display
+  assetRecordId?: number;
 }
 
 /** JSON part of the multipart obs image upload (matches Android ObsPushDTO) */

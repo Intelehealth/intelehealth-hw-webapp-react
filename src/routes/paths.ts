@@ -24,6 +24,7 @@ const ROUTES = {
   VISIT_SUMMARY: '/visit-summary/:visitId?',
   VISIT_DETAILS: '/visit-details/:visitId',
   ACHIEVEMENT_UI: '/achievement-ui',
+  ABOUT_US: '/about-us',
   HELP: '/help',
   SETTINGS: '/settings',
   PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',

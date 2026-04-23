@@ -17,9 +17,15 @@ const defaultData = {
   medicalHistory: null as any,
 };
 
+const mockClearVisitId = vi.fn();
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
 const mockUseStartVisitData = vi.fn(() => ({
   data: { ...defaultData },
   patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  visitId: 'test-visit-id',
+  tempRecordId: null as number | null,
+  isRestoring: false,
+  restoredSectionIndex: null,
   lastSectionIndex: 0,
   setLastSectionIndex: vi.fn(),
   setPatientUuid: vi.fn(),
@@ -27,6 +33,9 @@ const mockUseStartVisitData = vi.fn(() => ({
   setVisitReasonData: vi.fn(),
   setPhysicalExamData: vi.fn(),
   setMedicalHistoryData: vi.fn(),
+  setMedicalHistoryAnswers: vi.fn(),
+  saveSectionToTemp: mockSaveSectionToTemp,
+  clearVisitId: mockClearVisitId,
 }));
 
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
@@ -57,6 +66,8 @@ vi.mock('../../../../utils/storage', () => ({
   storage: {
     get: (key: string) => mockStorageGet(key),
     set: vi.fn(),
+    remove: vi.fn(),
+    getUser: vi.fn(() => JSON.stringify({ uuid: 'user-uuid' })),
     getLocationUuid: () => mockStorageGetLocationUuid(),
   },
 }));
@@ -105,7 +116,7 @@ const mockBuildPhysicalExamData = vi.fn((_a?: any, _b?: any) => 'physical-exam-d
 const mockBuildMedicalHistoryData = vi.fn((_a?: any) => 'medical-history-data');
 const mockBuildFamilyHistoryData = vi.fn((_a?: any) => 'family-history-data');
 const mockBuildVisitUploadPayload = vi.fn((_a?: any) => ({ payload: true }));
-const mockUploadVisit = vi.fn((_a?: any) => Promise.resolve());
+const mockUploadVisit = vi.fn((_a?: any): Promise<any> => Promise.resolve());
 
 vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
   buildVisitReasonHtml: (...args: any[]) => mockBuildVisitReasonHtml(...args),
@@ -114,6 +125,13 @@ vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
   buildFamilyHistoryData: (...args: any[]) => mockBuildFamilyHistoryData(...args),
   buildVisitUploadPayload: (...args: any[]) => mockBuildVisitUploadPayload(...args),
   uploadVisit: (...args: any[]) => mockUploadVisit(...args),
+}));
+
+/* ── Mock temp-storage service ──────────────────────────────────────────── */
+
+const mockBulkMarkSynced = vi.fn();
+vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
+  bulkMarkSynced: (...args: any[]) => mockBulkMarkSynced(...args),
 }));
 
 /* ── Mock icon imports ───────────────────────────────────────────────────── */
@@ -227,6 +245,10 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
   mockUseStartVisitData.mockReturnValue({
     data,
     patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    visitId: 'test-visit-id',
+    tempRecordId: null,
+    isRestoring: false,
+    restoredSectionIndex: null,
     lastSectionIndex: 0,
     setLastSectionIndex: vi.fn(),
     setPatientUuid: vi.fn(),
@@ -234,6 +256,9 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
     setVisitReasonData: vi.fn(),
     setPhysicalExamData: vi.fn(),
     setMedicalHistoryData: vi.fn(),
+    setMedicalHistoryAnswers: vi.fn(),
+    saveSectionToTemp: mockSaveSectionToTemp,
+    clearVisitId: mockClearVisitId,
   });
   return render(<VisitSummaryPage />);
 }
@@ -436,6 +461,10 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
@@ -443,6 +472,9 @@ describe('VisitSummaryPage', () => {
       setVisitReasonData: vi.fn(),
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
     });
     mockStorageGet.mockReturnValue(null);
 
@@ -464,6 +496,10 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: 'patient-uuid',
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
@@ -471,6 +507,9 @@ describe('VisitSummaryPage', () => {
       setVisitReasonData: vi.fn(),
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
     });
     mockStorageGetLocationUuid.mockReturnValue(null as any);
 
@@ -515,6 +554,10 @@ describe('VisitSummaryPage', () => {
     mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: null as any,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
       setPatientUuid: vi.fn(),
@@ -522,6 +565,9 @@ describe('VisitSummaryPage', () => {
       setVisitReasonData: vi.fn(),
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
     });
 
     render(<VisitSummaryPage />);
@@ -826,5 +872,74 @@ describe('VisitSummaryPage', () => {
 
     // details has the label but value is empty since answer IDs didn't match any option
     expect(screen.getByText('General Appearance')).toBeInTheDocument();
+  });
+
+  it('should call bulkMarkSynced when tempRecordId is set after successful upload', async () => {
+    mockUploadVisit.mockResolvedValue({ success: true });
+    mockBulkMarkSynced.mockResolvedValue({ data: { updatedCount: 1 } });
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: 42, // Non-null → triggers bulkMarkSynced branch
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBulkMarkSynced).toHaveBeenCalledWith([42]);
+    });
+  });
+
+  it('should swallow errors from bulkMarkSynced', async () => {
+    mockUploadVisit.mockResolvedValue({ success: true });
+    mockBulkMarkSynced.mockRejectedValue(new Error('sync failed'));
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: 99,
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    // Upload should still succeed even if mark-synced fails (caught silently)
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
   });
 });

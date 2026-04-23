@@ -1,16 +1,23 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { InferType } from 'yup';
 import iconRightArrow from '../../../assets/icons/icon-right-arrow.svg';
 import iconQuestionMark from '../../../assets/icons/icon-rounded-question-mark.svg';
-import { Button, Checkbox, Dropdown, Input } from '../../../components/common';
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Input,
+  ReCaptcha,
+} from '../../../components/common';
 import Card from '../../../components/common/card.component';
+import Tooltip from '../../../components/common/tooltip.component';
+import { env } from '../../../config/env';
 import { useLogin } from './login.hooks';
 import { loginSchema } from './login.validation';
-import Tooltip from '../../../components/common/tooltip.component';
 
 type LoginFormValues = InferType<typeof loginSchema>;
 
@@ -18,6 +25,19 @@ const LoginComponent: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { handleLogin, loading } = useLogin();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
+
+  const captchaSiteKey = useMemo(() => {
+    if (env.ENABLE_SITE_CAPTCHA !== 'true') return null;
+    const key = env.RECAPTCHA_SITE_KEY?.trim();
+    return key ? key : null;
+  }, []);
+
+  const handleCaptchaChange = useCallback((token: string | null) => {
+    setCaptchaToken(token);
+    if (token) setCaptchaError(null);
+  }, []);
 
   const {
     register,
@@ -37,6 +57,11 @@ const LoginComponent: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
+    if (captchaSiteKey && !captchaToken) {
+      setCaptchaError('Please verify that you are not a robot');
+      return;
+    }
+    setCaptchaError(null);
     await handleLogin({ username: data.username, password: data.password });
   };
 
@@ -154,6 +179,18 @@ const LoginComponent: React.FC = () => {
         </div>
         {errors.terms && (
           <p className="text-red-500 text-xs mt-1">{errors.terms.message}</p>
+        )}
+
+        {captchaSiteKey && (
+          <div className="mb-4">
+            <ReCaptcha
+              siteKey={captchaSiteKey}
+              onChange={handleCaptchaChange}
+            />
+            {captchaError && (
+              <p className="text-red-500 text-xs mt-1">{captchaError}</p>
+            )}
+          </div>
         )}
 
         {/* Login button */}

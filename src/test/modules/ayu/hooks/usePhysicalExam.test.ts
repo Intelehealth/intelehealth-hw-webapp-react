@@ -79,6 +79,31 @@ vi.mock('../../../../modules/profile/profile.helpers', () => ({
   fileToBase64: vi.fn().mockResolvedValue('data:image/png;base64,AAAA'),
 }));
 
+vi.mock('../../../../utils/storage', () => ({
+  storage: {
+    get: vi.fn(),
+    set: vi.fn(),
+    remove: vi.fn(),
+    getUser: vi.fn(() => JSON.stringify({ uuid: 'user-uuid' })),
+  },
+}));
+
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
+const mockGetChildResources = vi.fn().mockResolvedValue({ data: [] });
+const mockUpsertAssetResource = vi.fn().mockResolvedValue({ data: { id: 1 } });
+
+vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
+  getChildResources: (...args: unknown[]) => mockGetChildResources(...args),
+  upsertAssetResource: (...args: unknown[]) => mockUpsertAssetResource(...args),
+}));
+
+vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
+  useStartVisitData: () => ({
+    visitId: 'test-visit-id',
+    saveSectionToTemp: mockSaveSectionToTemp,
+  }),
+}));
+
 const mockAddPendingImage = vi.fn();
 const mockRemovePendingImage = vi.fn();
 const mockClearPendingImages = vi.fn();
@@ -99,6 +124,8 @@ import { usePhysicalExam } from '../../../../modules/ayu/hooks/usePhysicalExam';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+import type { PhysicalExamAnswers } from '../../../../modules/ayu/data/physical-exam.data';
+
 const defaultProps = {
   questionIndex: 0,
   onNextQuestion: vi.fn(),
@@ -107,7 +134,7 @@ const defaultProps = {
   onProgressUpdate: vi.fn(),
 };
 
-function setup(overrides: Partial<typeof defaultProps> = {}) {
+function setup(overrides: Partial<typeof defaultProps> & { initialAnswers?: PhysicalExamAnswers } = {}) {
   const props = { ...defaultProps, ...overrides };
   return renderHook(() => usePhysicalExam(props));
 }
@@ -699,6 +726,29 @@ describe('usePhysicalExam', () => {
       expect(mockRemovePendingImage).toHaveBeenCalledWith(2);
       expect(result.current.cameraImagesFor('q2')).toEqual([]);
     });
+
+    it('should count previous images with files when removing by index > 0', async () => {
+      const { result } = setup();
+      const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+      const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+      const file3 = new File(['c'], 'c.png', { type: 'image/png' });
+
+      // Add 3 images to q1 (all with files)
+      await act(async () => {
+        await result.current.addCameraImage('q1', file1);
+        await result.current.addCameraImage('q1', file2);
+        await result.current.addCameraImage('q1', file3);
+      });
+
+      mockRemovePendingImage.mockClear();
+
+      // Remove index 2 → loop increments flatIndex for i=0, i=1 (both have .file)
+      // flatIndex ends at 2 → removePendingImage(2)
+      act(() => result.current.removeCameraImage('q1', 2));
+
+      expect(mockRemovePendingImage).toHaveBeenCalledWith(2);
+      expect(result.current.cameraImagesFor('q1')).toHaveLength(2);
+    });
   });
 
   describe('clearCameraImages', () => {
@@ -769,12 +819,12 @@ describe('usePhysicalExam', () => {
   // ── onProgressUpdate ───────────────────────────────────────────────────
 
   describe('onProgressUpdate', () => {
-    it('should call onProgressUpdate when internalIndex changes', () => {
+    it('should call onProgressUpdate with answered count when an answer is added', () => {
       const onProgress = vi.fn();
       const { result } = setup({ onProgressUpdate: onProgress });
 
       onProgress.mockClear();
-      act(() => result.current.goNext());
+      act(() => result.current.selectAndAdvance('q1-a'));
       expect(onProgress).toHaveBeenCalledWith(3, 1);
     });
 
@@ -931,6 +981,217 @@ describe('usePhysicalExam', () => {
       act(() => result.current.goSkip());
 
       expect(mockClearPendingImages).toHaveBeenCalled();
+    });
+  });
+
+  // ── Temp-storage: initialAnswers restore ─────────────────────────────
+
+  describe('initialAnswers restore', () => {
+    it('should initialize answers from initialAnswers', () => {
+      const initialAnswers = { q1: ['q1-a'], q2: ['q2-a'] };
+      const { result } = setup({ initialAnswers });
+      expect(result.current.answers).toEqual(initialAnswers);
+    });
+
+    it('should compute internalIndex to last answered + 1', () => {
+      const initialAnswers = { q1: ['q1-a'], q2: ['q2-a'] };
+      const { result } = setup({ initialAnswers });
+      // q1 answered (index 0), q2 answered (index 1) → internalIndex = 2 (q3)
+      expect(result.current.internalIndex).toBe(2);
+    });
+
+    it('should clamp internalIndex to last question when all answered', () => {
+      const initialAnswers = { q1: ['q1-a'], q2: ['q2-a'], q3: ['q3-b'] };
+      const { result } = setup({ initialAnswers });
+      // All 3 visible questions answered → internalIndex = 2 (last)
+      expect(result.current.internalIndex).toBe(2);
+    });
+
+    it('should start at 0 when initialAnswers is empty', () => {
+      const { result } = setup({ initialAnswers: {} });
+      expect(result.current.internalIndex).toBe(0);
+    });
+
+    it('should return correct selectedOptionsFor with restored answers', () => {
+      const initialAnswers = { q1: ['q1-b'] };
+      const { result } = setup({ initialAnswers });
+      expect(result.current.selectedOptionsFor('q1')).toEqual(['q1-b']);
+      expect(result.current.selectedOptionsFor('q2')).toEqual([]);
+    });
+
+    it('should start at 0 when initialAnswers has keys but all arrays are empty', () => {
+      // Triggers `lastAnswered < 0` → `: 0` branch in the ternary
+      const { result } = setup({
+        initialAnswers: { q1: [], q2: [], q3: [] },
+      });
+      expect(result.current.internalIndex).toBe(0);
+    });
+  });
+
+  // ── Branch coverage for selectSingle: answers[id] ?? [] fallback ─────
+
+  describe('selectSingle branch coverage', () => {
+    it('should handle selectSingle when answers for the question are undefined', () => {
+      // No prior answers → answers[targetQuestionId] is undefined → `?? []` kicks in
+      const { result } = setup();
+
+      act(() => result.current.selectSingle('q1-a', 'q1'));
+
+      expect(result.current.selectedOptionsFor('q1')).toEqual(['q1-a']);
+    });
+  });
+
+  // ── Branch coverage for addCameraImage createdBy fallbacks ───────────
+
+  describe('addCameraImage createdBy fallbacks', () => {
+    it('should use fallback createdBy when parsed user has no uuid', async () => {
+      const { storage } = await import('../../../../utils/storage');
+      vi.mocked(storage.getUser).mockReturnValue('{"name":"no-uuid"}');
+
+      const { result } = setup();
+      const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(mockUpsertAssetResource).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ created_by: '{"name":"no-uuid"}' })
+      );
+    });
+
+    it('should use fallback createdBy when JSON.parse throws', async () => {
+      const { storage } = await import('../../../../utils/storage');
+      vi.mocked(storage.getUser).mockReturnValue('not-valid-json{{');
+
+      const { result } = setup();
+      const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(mockUpsertAssetResource).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ created_by: 'unknown' })
+      );
+    });
+
+    it('should use fallback createdBy when storage.getUser returns null', async () => {
+      const { storage } = await import('../../../../utils/storage');
+      vi.mocked(storage.getUser).mockReturnValue(null);
+
+      const { result } = setup();
+      const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(mockUpsertAssetResource).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ created_by: 'unknown' })
+      );
+    });
+  });
+
+  // ── Temp-storage: image upload on capture ────────────────────────────
+
+  describe('temp-storage image upload', () => {
+    it('should upload image as asset to temp-storage when captured', async () => {
+      const { result } = setup();
+      const file = new File(['img'], 'pic.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(mockUpsertAssetResource).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({
+          parent_type: 'visit',
+          parent_id: 'test-visit-id',
+          data: { questionId: 'q1' },
+        })
+      );
+    });
+
+    it('should still add to local state even if asset upload fails', async () => {
+      mockUpsertAssetResource.mockRejectedValueOnce(new Error('Upload failed'));
+      const { result } = setup();
+      const file = new File(['img'], 'pic.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.addCameraImage('q1', file);
+      });
+
+      expect(result.current.cameraImagesFor('q1')).toHaveLength(1);
+    });
+  });
+
+  // ── Temp-storage: image restore from assets ──────────────────────────
+
+  describe('temp-storage image restore', () => {
+    it('should fetch and restore camera images from child assets on init', async () => {
+      mockGetChildResources.mockResolvedValueOnce({
+        data: [
+          { id: 10, data: { questionId: 'q1' }, file_path: 'https://s3.example.com/img1.jpg' },
+          { id: 11, data: { questionId: 'q2' }, file_path: 'https://s3.example.com/img2.jpg' },
+        ],
+      });
+
+      const initialAnswers = { q1: ['q1-a'] };
+      const { result } = setup({ initialAnswers });
+
+      // Wait for async restore
+      await act(async () => {
+        await new Promise(r => setTimeout(r, 50));
+      });
+
+      expect(mockGetChildResources).toHaveBeenCalledWith('visit', 'test-visit-id', 'asset');
+      expect(result.current.cameraImagesFor('q1')).toEqual(['https://s3.example.com/img1.jpg']);
+      expect(result.current.cameraImagesFor('q2')).toEqual(['https://s3.example.com/img2.jpg']);
+    });
+
+    it('should not fetch assets when no initialAnswers', () => {
+      setup();
+      expect(mockGetChildResources).not.toHaveBeenCalled();
+    });
+
+    it('should handle asset fetch failure gracefully', async () => {
+      mockGetChildResources.mockRejectedValueOnce(new Error('Network error'));
+
+      const initialAnswers = { q1: ['q1-a'] };
+      const { result } = setup({ initialAnswers });
+
+      await act(async () => {
+        await new Promise(r => setTimeout(r, 50));
+      });
+
+      // Should not crash, images just empty
+      expect(result.current.cameraImagesFor('q1')).toEqual([]);
+    });
+
+    it('should skip records missing questionId or file_path', async () => {
+      mockGetChildResources.mockResolvedValueOnce({
+        data: [
+          { id: 1, data: {}, file_path: 'https://s3/a.jpg' }, // missing questionId
+          { id: 2, data: { questionId: 'q1' }, file_path: null }, // missing file_path
+          { id: 3, data: { questionId: 'q2' }, file_path: 'https://s3/c.jpg' }, // valid
+        ],
+      });
+
+      const initialAnswers = { q1: ['q1-a'] };
+      const { result } = setup({ initialAnswers });
+
+      await act(async () => {
+        await new Promise(r => setTimeout(r, 50));
+      });
+
+      // Only q2 gets the valid image; q1 has none (file_path was null)
+      expect(result.current.cameraImagesFor('q1')).toEqual([]);
+      expect(result.current.cameraImagesFor('q2')).toEqual(['https://s3/c.jpg']);
     });
   });
 });
