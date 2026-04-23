@@ -337,6 +337,28 @@ interface Column<T> {
 - `initialRowCount`: number — number of rows shown before "Show all" toggle (default: 6)
 - `onRowClick`: (row: T) => void — optional click handler; makes rows appear clickable
 
+### VideoCard
+
+A responsive video card component that displays a video thumbnail with a play button overlay and duration badge. Renders as a horizontal row on mobile and a vertical card on desktop.
+
+```tsx
+import VideoCard from './components/common/video-card.component';
+
+<VideoCard
+  title="Treat mild fever at home"
+  duration="2:30"
+  thumbnail="https://img.youtube.com/vi/TqNiRWOBNTs/hqdefault.jpg"
+  videoUrl="https://www.youtube.com/watch?v=TqNiRWOBNTs"
+/>;
+```
+
+**Props:**
+
+- `title`: string — video title displayed below the thumbnail
+- `duration`: string — duration badge shown on the thumbnail (e.g. '2:30')
+- `thumbnail`: string — thumbnail image URL
+- `videoUrl`: string — URL the card links to (opens in new tab)
+
 ## Styling
 
 All components use TailwindCSS for styling and support:

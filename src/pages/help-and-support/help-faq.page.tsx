@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import HelpAndSupportComponent from '../../modules/help-and-support/help-and-support';
 import HelpFaq from '../../modules/help-and-support/help-faq';
 import { HelpSearchHeader } from '../../modules/help-and-support/help-search';
-import HelpVideo from '../../modules/help-and-support/help-video';
 
-const HelpAndSupportPage: React.FC = () => {
+const HelpFaqPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -13,14 +12,13 @@ const HelpAndSupportPage: React.FC = () => {
         <HelpSearchHeader
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          placeholder="Search for help"
+          placeholder="Search FAQs"
         />
       }
     >
-      <HelpVideo searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <HelpFaq searchQuery={searchQuery} onSearchChange={setSearchQuery} />
     </HelpAndSupportComponent>
   );
 };
 
-export default HelpAndSupportPage;
+export default HelpFaqPage;

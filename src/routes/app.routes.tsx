@@ -74,6 +74,13 @@ const HelpAndSupportPage = lazy(
   () => import('../pages/help-and-support/help-and-support.page')
 );
 
+const HelpVideoPage = lazy(
+  () => import('../pages/help-and-support/help-video.page')
+);
+const HelpFaqPage = lazy(
+  () => import('../pages/help-and-support/help-faq.page')
+);
+
 // appointment module
 const AboutUsPage = lazy(() => import('../pages/about-us/about-us.page'));
 
@@ -300,6 +307,22 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <HelpAndSupportPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.HELP_VIDEOS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <HelpVideoPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.HELP_FAQ}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <HelpFaqPage />
                 </Suspense>
               }
             />
