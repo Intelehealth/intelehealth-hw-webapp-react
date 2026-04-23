@@ -22,7 +22,7 @@ const menuItems = [
   },
   { label: 'Help & Support', icon: iconInfo, path: '#' },
   { label: 'Educational Videos', icon: iconVideos, path: '#' },
-  { label: 'Settings', icon: iconSettings, path: '#' },
+  { label: 'Settings', icon: iconSettings, path: ROUTES.SETTINGS },
   { label: 'About us', icon: iconAbout, path: '#' },
 ];
 

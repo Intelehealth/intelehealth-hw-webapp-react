@@ -25,6 +25,7 @@ const ROUTES = {
   VISIT_DETAILS: '/visit-details/:visitId',
   ACHIEVEMENT_UI: '/achievement-ui',
   HELP: '/help',
+  SETTINGS: '/settings',
   PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',
   NOT_FOUND: '*', // catch-all
   PATIENT: {

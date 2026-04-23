@@ -46,6 +46,7 @@ const PatientProfilePage = lazy(
   () => import('../pages/patient/profile/patient-profile.page')
 );
 const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
+const SettingsPage = lazy(() => import('../pages/settings/settings.page'));
 
 // Profile Guard Components
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
@@ -238,6 +239,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <ProfilePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.SETTINGS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <SettingsPage />
                 </Suspense>
               }
             />
