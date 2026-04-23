@@ -6,7 +6,7 @@ import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { useConfig } from '../../../hooks/useConfig';
 import { fetchConceptAnswers } from '../../../services/concept.service';
 import type { ConceptAnswer } from '../../../types/config.types';
-import { useStartVisitData } from '../context/start-visit.context';
+import { VITAL_FIELD_KEYS } from '../components/start-visit/vitals/vitals.constants';
 import {
   calculateBMI,
   calculateWHR,
@@ -14,6 +14,7 @@ import {
   getBMIStatus,
   isBPHigh,
 } from '../components/start-visit/vitals/vitals.validation';
+import { useStartVisitData } from '../context/start-visit.context';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 // Fallback vitals configuration if API data is not available
 const FALLBACK_VITALS_CONFIG: VitalField[] = [
@@ -215,7 +216,7 @@ const FALLBACK_VITALS_CONFIG: VitalField[] = [
   },
   {
     name: 'Blood Group',
-    key: 'blood_group',
+    key: VITAL_FIELD_KEYS.BLOOD_GROUP,
     uuid: '9d2df0c6-538f-11e6-9cfe-86f436325720',
     is_mandatory: false,
     lang: null,
@@ -238,7 +239,12 @@ const VITAL_KEYS = [
 export const useVitals = (onNextQuestion: () => void) => {
   // Get vitals configuration from Redux store (populated by getPublishedConfig API)
   const { config } = useConfig();
-  const { data, setVitalsData } = useStartVisitData();
+  const {
+    data: visitData,
+    data,
+    setVitalsData,
+    saveSectionToTemp,
+  } = useStartVisitData();
   const savedVitals = data.vitals?.formValues;
 
   // Use patient_vitals from API config, fallback to hardcoded config if API data is not available
@@ -269,6 +275,8 @@ export const useVitals = (onNextQuestion: () => void) => {
     return createVitalsValidationSchema(vitalsConfig);
   }, [vitalsConfig]);
 
+  const restoredValues = visitData.vitals?.formValues;
+
   const {
     register,
     handleSubmit,
@@ -279,7 +287,7 @@ export const useVitals = (onNextQuestion: () => void) => {
   } = useForm<VitalsFormValues>({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     mode: 'onChange',
-    defaultValues: savedVitals || {},
+    defaultValues: restoredValues || savedVitals || {},
   });
 
   // Restore saved vitals data when navigating back to the vitals screen
@@ -296,7 +304,7 @@ export const useVitals = (onNextQuestion: () => void) => {
 
   useEffect(() => {
     const codedFields = vitalsConfig.filter(
-      f => f.datatype === 'Coded' && !f.answers?.length
+      f => f.key === VITAL_FIELD_KEYS.BLOOD_GROUP && !f.answers?.length
     );
     if (codedFields.length === 0) return;
 
@@ -423,7 +431,11 @@ export const useVitals = (onNextQuestion: () => void) => {
         { label: 'HbA1c', value: watch('hba1c') || null },
         {
           label: 'Blood Group',
-          value: getCodedDisplay('blood_group', watch('blood_group')) || null,
+          value:
+            getCodedDisplay(
+              VITAL_FIELD_KEYS.BLOOD_GROUP,
+              watch(VITAL_FIELD_KEYS.BLOOD_GROUP)
+            ) || null,
         },
       ],
       confirmText: 'Confirm',
@@ -433,6 +445,7 @@ export const useVitals = (onNextQuestion: () => void) => {
       onConfirm: () => {
         const formValues = watch() as VitalsFormValues;
         setVitalsData(formValues, vitalsConfig);
+        saveSectionToTemp({ vitals: { formValues, config: vitalsConfig } });
         onNextQuestion();
       },
     });

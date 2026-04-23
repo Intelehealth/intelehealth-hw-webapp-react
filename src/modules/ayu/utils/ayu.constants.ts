@@ -85,3 +85,19 @@ export const ITEM_TYPES = {
   LABEL_VALUE: 'labelValue',
   SUBHEADING: 'subheading',
 } as const;
+
+// ========================
+// Start Visit Section Names
+// ========================
+export const SECTION_VITALS = 'Vitals';
+export const SECTION_VISIT_REASON = 'Visit Reason';
+export const SECTION_PHYSICAL_EXAM = 'Physical Examination';
+export const SECTION_MEDICAL_HISTORY = 'Medical History';
+
+// ========================
+// Patient Storage Keys
+// ========================
+export const PATIENT_NAME_KEY = 'patientName';
+export const PATIENT_AGE_KEY = 'patientAge';
+export const PATIENT_GENDER_KEY = 'patientGender';
+export const PATIENT_UUID_KEY = 'patientUuid';

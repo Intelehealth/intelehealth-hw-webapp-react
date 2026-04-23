@@ -19,6 +19,18 @@ vi.mock('../../../../../../components/common', () => ({
   ),
 }));
 
+// Mock storage — patient display info now persists to localStorage before navigate
+const mockStorageSet = vi.fn();
+const mockStorageRemove = vi.fn();
+vi.mock('../../../../../../utils/storage', () => ({
+  storage: {
+    set: (...args: unknown[]) => mockStorageSet(...args),
+    remove: (...args: unknown[]) => mockStorageRemove(...args),
+    get: vi.fn(),
+    getUser: vi.fn(),
+  },
+}));
+
 describe('PatientPreviewComponent', () => {
   const completeData: PatientFormData = {
     personalInfo: {
@@ -346,20 +358,22 @@ describe('PatientPreviewComponent', () => {
       expect(startVisitButton).toBeInTheDocument();
     });
 
-    it('should navigate to /ayu with patient state when clicked', async () => {
+    it('should navigate to /ayu with patientUuid and persist display info to storage when clicked', async () => {
       const user = userEvent.setup();
       render(<PatientPreviewComponent patientUuid="test-uuid-123" data={completeData} />);
       const startVisitButton = screen.getByRole('button', { name: /Start Visit/i });
 
       await user.click(startVisitButton);
 
+      // Patient display info persisted to localStorage
+      expect(mockStorageSet).toHaveBeenCalledWith('patientName', 'John Michael Doe');
+      expect(mockStorageSet).toHaveBeenCalledWith('patientAge', '34');
+      expect(mockStorageSet).toHaveBeenCalledWith('patientGender', 'M');
+      // temp_patient_id cleared after patient creation
+      expect(mockStorageRemove).toHaveBeenCalledWith('temp_patient_id');
+      // Navigate state only carries patientUuid
       expect(mockNavigate).toHaveBeenCalledWith('/ayu', {
-        state: {
-          patientName: 'John Michael Doe',
-          patientAge: '34',
-          patientGender: 'M',
-          patientUuid: 'test-uuid-123',
-        },
+        state: { patientUuid: 'test-uuid-123' },
       });
       expect(mockNavigate).toHaveBeenCalledTimes(1);
     });
@@ -371,13 +385,11 @@ describe('PatientPreviewComponent', () => {
 
       await user.click(startVisitButton);
 
+      expect(mockStorageSet).toHaveBeenCalledWith('patientName', 'John Doe');
+      expect(mockStorageSet).toHaveBeenCalledWith('patientAge', '1990-01-01');
+      expect(mockStorageSet).toHaveBeenCalledWith('patientGender', 'M');
       expect(mockNavigate).toHaveBeenCalledWith('/ayu', {
-        state: {
-          patientName: 'John Doe',
-          patientAge: '1990-01-01',
-          patientGender: 'M',
-          patientUuid: 'test-uuid-123',
-        },
+        state: { patientUuid: 'test-uuid-123' },
       });
     });
   });

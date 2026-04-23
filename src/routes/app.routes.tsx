@@ -74,6 +74,9 @@ const HelpAndSupportPage = lazy(
   () => import('../pages/help-and-support/help-and-support.page')
 );
 
+// appointment module
+const AboutUsPage = lazy(() => import('../pages/about-us/about-us.page'));
+
 const AppRoutes = () => (
   <HashRouter>
     <Suspense fallback={<RouteLoader />}>
@@ -297,6 +300,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <HelpAndSupportPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.ABOUT_US}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AboutUsPage />
                 </Suspense>
               }
             />

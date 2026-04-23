@@ -1,11 +1,30 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { HashRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../../../../i18n'; // adjust path if needed
 
 const mockHandleLogin = vi.fn();
 let mockLoading = false;
+
+const { mockEnv } = vi.hoisted(() => ({
+  mockEnv: {
+    ENABLE_SITE_CAPTCHA: 'false' as string | undefined,
+    RECAPTCHA_SITE_KEY: undefined as string | undefined,
+  },
+}));
+
+// Mock env so captcha is disabled by default in tests; individual tests toggle
+// mockEnv to exercise captcha paths.
+vi.mock('../../../../config/env', () => ({
+  env: new Proxy(
+    {},
+    {
+      get: (_target, prop: string) =>
+        prop in mockEnv ? mockEnv[prop as keyof typeof mockEnv] : undefined,
+    }
+  ),
+}));
 
 // Mock useLogin hook
 vi.mock('../../../../modules/auth/login/login.hooks', () => ({
@@ -52,9 +71,24 @@ vi.mock('../../../../components/common', async importActual => {
       </div>
     );
   };
+  const MockReCaptcha = ({
+    onChange,
+  }: {
+    onChange: (t: string | null) => void;
+  }) => (
+    <div>
+      <button type="button" onClick={() => onChange('valid-token')}>
+        Mock: Verify Captcha
+      </button>
+      <button type="button" onClick={() => onChange(null)}>
+        Mock: Clear Captcha
+      </button>
+    </div>
+  );
   return {
     ...actual,
     Dropdown: MockDropdown,
+    ReCaptcha: MockReCaptcha,
   };
 });
 
@@ -308,6 +342,69 @@ describe('LoginComponent (Vite + Vitest)', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     await waitFor(() => {
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('when site captcha is enabled', () => {
+    beforeEach(() => {
+      mockEnv.ENABLE_SITE_CAPTCHA = 'true';
+      mockEnv.RECAPTCHA_SITE_KEY = 'test-site-key';
+      mockHandleLogin.mockClear();
+    });
+
+    afterEach(() => {
+      mockEnv.ENABLE_SITE_CAPTCHA = 'false';
+      mockEnv.RECAPTCHA_SITE_KEY = undefined;
+    });
+
+    it('renders the captcha widget', () => {
+      setup();
+      expect(
+        screen.getByRole('button', { name: /Mock: Verify Captcha/i })
+      ).toBeInTheDocument();
+    });
+
+    it('blocks submission and shows an error when captcha is not verified', async () => {
+      setup();
+
+      fireEvent.change(screen.getByPlaceholderText(/Enter your username/i), {
+        target: { value: 'john' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/Enter your password/i), {
+        target: { value: 'securePass123' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /^login$/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Please verify that you are not a robot/i)
+        ).toBeInTheDocument();
+      });
+      expect(mockHandleLogin).not.toHaveBeenCalled();
+    });
+
+    it('submits after captcha is verified', async () => {
+      setup();
+
+      fireEvent.change(screen.getByPlaceholderText(/Enter your username/i), {
+        target: { value: 'john' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/Enter your password/i), {
+        target: { value: 'securePass123' },
+      });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Mock: Verify Captcha/i })
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^login$/i }));
+
+      await waitFor(() => {
+        expect(mockHandleLogin).toHaveBeenCalledWith({
+          username: 'john',
+          password: 'securePass123',
+        });
+      });
     });
   });
 });
