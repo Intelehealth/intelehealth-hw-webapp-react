@@ -34,7 +34,6 @@ const toastError = (error: unknown, fallback: string) =>
 const toastOk = (message: string, opts?: ToastOptions) =>
   showToast('Success', message, 'success', opts);
 
-/* Change password */
 interface UseChangePasswordReturn {
   values: PasswordChangeValues;
   errors: PasswordChangeErrors;
@@ -104,7 +103,6 @@ export const useChangePassword = (): UseChangePasswordReturn => {
   };
 };
 
-/* Notification settings */
 interface UseNotificationSettingsReturn {
   notificationAlerts: boolean;
   blackoutEnabled: boolean;

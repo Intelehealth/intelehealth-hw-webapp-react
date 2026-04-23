@@ -13,9 +13,6 @@ export const randomString = (len: number): string => {
   return out;
 };
 
-// Mirrors Android StringUtils.isValidPassword:
-//   (?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=\S+$).{8,}
-// At least one digit, one lowercase, one uppercase, no whitespace, min 8 chars.
 const PASSWORD_PATTERN = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=\S+$).{8,}$/;
 
 export const isValidPassword = (password: string | null | undefined): boolean =>

@@ -10,7 +10,6 @@ export type PasswordChangeErrors = Partial<
   Record<keyof PasswordChangeValues, string>
 >;
 
-// Error messages — kept in sync with Android strings.
 const PASSWORD_ERRORS = {
   currentRequired: 'Enter current password',
   newRequired: 'Enter new password',
@@ -21,10 +20,6 @@ const PASSWORD_ERRORS = {
   sameAsOld: 'Old password and new password cannot be same',
 } as const;
 
-/**
- * Validate password-change form. Order mirrors the Android
- * areInputFieldsValid() so the first-failing rule is returned.
- */
 export const validatePasswordChange = (
   values: PasswordChangeValues
 ): PasswordChangeErrors => {
