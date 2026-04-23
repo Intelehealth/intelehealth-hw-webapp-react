@@ -24,7 +24,6 @@ const SettingsNotification: React.FC = () => {
           { ['--color-accent' as string]: '#34cc8b' } as React.CSSProperties
         }
       >
-        {/* Notification alerts */}
         <div className="flex flex-col gap-3.5">
           <p className="text-[13px] text-(--color-muted)">
             Notification alerts
@@ -40,7 +39,6 @@ const SettingsNotification: React.FC = () => {
           </p>
         </div>
 
-        {/* Blackout */}
         <div className="flex flex-col gap-3.5">
           <p className="text-[13px] text-(--color-muted)">
             Blackout (From 9:00 pm to 6:00 am)
@@ -58,7 +56,6 @@ const SettingsNotification: React.FC = () => {
         </div>
       </div>
 
-      {/* Actions — aligned with the Blackout (right) column */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 lg:gap-x-12 max-w-[650px] mt-4">
         <div className="hidden sm:block" />
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-3 sm:ml-16 lg:ml-20">

@@ -114,9 +114,8 @@ interface UseNotificationSettingsReturn {
 
 export const useNotificationSettings = (): UseNotificationSettingsReturn => {
   const { isEnabled, toggleNotifications } = useNotificationContext();
-  const persisted = settingsService.getNotificationSettings();
   const [blackoutEnabled, setBlackoutEnabled] = useState(
-    persisted?.blackoutEnabled ?? false
+    () => settingsService.getNotificationSettings()?.blackoutEnabled ?? false
   );
   const [isSaving, setIsSaving] = useState(false);
 

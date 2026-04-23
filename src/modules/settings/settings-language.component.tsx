@@ -4,16 +4,8 @@ import iconProtocolsWhite from '../../assets/icons/icon-protocols-white.svg';
 import { Button, Dropdown, Input } from '../../components/common';
 import { ConfirmationModal } from '../../components/modal/confirmation.modal';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
+import { LANGUAGE_OPTIONS } from '../../utils/constant';
 import { useLanguageSettings } from './settings.hooks';
-
-const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'hi', label: 'Hindi' },
-  { value: 'mr', label: 'Marathi' },
-  { value: 'ta', label: 'Tamil' },
-  { value: 'te', label: 'Telugu' },
-  { value: 'bn', label: 'Bengali' },
-];
 
 const SettingsLanguage: React.FC = () => {
   const { language, setLanguage, handleReset, handleUpdateProtocols } =
@@ -80,7 +72,6 @@ const SettingsLanguage: React.FC = () => {
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 lg:gap-x-12 gap-y-4 max-w-[750px]">
-        {/* Language section */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
@@ -127,7 +118,6 @@ const SettingsLanguage: React.FC = () => {
           </div>
         </div>
 
-        {/* Protocols section */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
@@ -160,7 +150,6 @@ const SettingsLanguage: React.FC = () => {
         </div>
       </div>
 
-      {/* Update-protocol form popup (reusable ConfirmationModal with form children) */}
       <ConfirmationModal
         open={isProtocolFormOpen}
         type="confirm"
@@ -192,7 +181,6 @@ const SettingsLanguage: React.FC = () => {
         </div>
       </ConfirmationModal>
 
-      {/* Loading popup (reusable ConfirmationModal with hideActions) */}
       <ConfirmationModal
         open={isUpdatingProtocols}
         type="confirm"

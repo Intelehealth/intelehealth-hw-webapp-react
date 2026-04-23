@@ -80,12 +80,10 @@ const SettingsAccount: React.FC = () => {
 
   return (
     <div className="flex-1 min-h-0">
-      {/* Section heading */}
       <h2 className="text-sm font-semibold text-[--color-dark] mb-2">
         Account
       </h2>
 
-      {/* Admin alert banner */}
       {showAdminAlert && (
         <div className="flex items-start justify-between bg-[#edf7f0] border border-[#b7e4c7] rounded-lg px-4 py-3 mb-5 gap-4">
           <span className="text-body-normal text-[--color-dark]">
@@ -102,7 +100,6 @@ const SettingsAccount: React.FC = () => {
         </div>
       )}
 
-      {/* Personal sub-tab */}
       <div className="flex items-center gap-2 mb-2">
         <div className="w-7 h-7 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
           <img src={iconPersonWhite} alt="Personal" className="w-4 h-4" />
@@ -112,14 +109,12 @@ const SettingsAccount: React.FC = () => {
         </span>
       </div>
 
-      {/* Form — compact: override Input's default label mb-3 */}
       <form
         onSubmit={handleSubmit(onSubmit)}
         noValidate
         className="[&_label]:!mb-1 [&_label]:!text-[13px] [&_.form-input-base]:!py-1.5 [&_.form-input-base]:!text-[13px]"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-          {/* Username */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Input
               label="Username"
@@ -131,7 +126,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* First Name */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Input
               label="First Name"
@@ -143,7 +137,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* Middle Name */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Input
               label="Middle Name"
@@ -155,7 +148,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* Last Name */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Input
               label="Last Name"
@@ -167,7 +159,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* Gender */}
           <div
             className="sm:col-span-2 cursor-pointer"
             onClick={handleReadOnlyClick}
@@ -208,7 +199,6 @@ const SettingsAccount: React.FC = () => {
             </div>
           </div>
 
-          {/* Date of Birth — left column */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Calendar
               label="Date of Birth"
@@ -226,7 +216,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* Age — right column */}
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <label className="form-label block mb-2">or Age</label>
             <input
@@ -238,7 +227,6 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          {/* Phone Number — left column (aligned with Date of Birth) */}
           <div>
             <label className="form-label block mb-2">Phone number</label>
             <div className="flex gap-2">
@@ -259,7 +247,6 @@ const SettingsAccount: React.FC = () => {
             </div>
           </div>
 
-          {/* Email — full width */}
           <div className="sm:col-span-2">
             <Input
               label="Email"
@@ -274,7 +261,6 @@ const SettingsAccount: React.FC = () => {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-2 mt-3">
           <Button
             type="button"

@@ -24,7 +24,6 @@ const SettingsLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Page title */}
       <div className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 border-b border-gray-200">
         <div className="w-8 h-8 rounded-full bg-(--color-primary-light) flex items-center justify-center flex-shrink-0">
           <img src={iconSettingsFilled} alt="Settings" className="w-4 h-4" />
@@ -35,7 +34,6 @@ const SettingsLayout: React.FC = () => {
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-        {/* Left nav — full sidebar on md+, horizontal scroll tabs on small screens */}
         <aside className="w-full md:w-52 lg:w-56 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 py-3 md:py-4 px-2 md:px-3">
           <p className="text-label text-(--color-muted) px-3 mb-2 hidden md:block">
             Personal
@@ -74,7 +72,6 @@ const SettingsLayout: React.FC = () => {
           </nav>
         </aside>
 
-        {/* Content */}
         <main className="flex-1 overflow-hidden px-3 sm:px-5 py-2 sm:py-3">
           {activeTab === 'account' && <SettingsAccount />}
           {activeTab === 'notification' && <SettingsNotification />}

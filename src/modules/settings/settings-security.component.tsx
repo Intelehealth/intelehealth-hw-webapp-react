@@ -72,7 +72,6 @@ const SettingsSecurity: React.FC = () => {
         />
       </div>
 
-      {/* Actions */}
       <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-3 mt-5 sm:mt-6">
         <Button
           type="button"

@@ -41,7 +41,6 @@ export const ConfirmationModal = ({
       <div
         className={`${size === 'lg' ? 'w-[90vw] sm:w-[550px] lg:w-[560px] min-h-[240px] sm:min-h-[240px]' : 'w-[400px] max-sm:w-[350px] p-4'} bg-white  p-5 sm:p-6 rounded-2xl flex flex-col`}
       >
-        {/* Icon */}
         {iconElement ? (
           <div className="flex justify-center mb-4">{iconElement}</div>
         ) : (
@@ -52,10 +51,8 @@ export const ConfirmationModal = ({
           )
         )}
 
-        {/* Title */}
         <h2 className="text-center font-semibold text-black-800">{title}</h2>
 
-        {/* Description */}
         {description && (
           <p
             className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 ${title ? 'text-gray-500' : 'font-semibold text-gray-800'} break-words px-2`}
@@ -82,10 +79,8 @@ export const ConfirmationModal = ({
           </div>
         )}
 
-        {/* Custom body content (e.g. form fields) */}
         {children && <div className="mt-3">{children}</div>}
 
-        {/* Divider + Actions */}
         {!hideActions && (
           <>
             <div className="mt-3 border-b border-gray-200" />
