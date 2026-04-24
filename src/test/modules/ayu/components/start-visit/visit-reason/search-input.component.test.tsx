@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ReasonSearchInput } from '../../../../../../modules/ayu/components/start-visit/visit-reason/search-input.component';
+import {
+  ReasonSearchInput,
+  highlightMatch,
+} from '../../../../../../modules/ayu/components/start-visit/visit-reason/search-input.component';
 
 describe('ReasonSearchInput', () => {
   const mockSetSearch = vi.fn();
@@ -190,5 +193,31 @@ describe('ReasonSearchInput', () => {
     );
 
     expect(screen.getByText('What is the reason for this visit?')).toBeInTheDocument();
+  });
+
+  it('highlightMatch returns the raw text when query is empty', () => {
+    expect(highlightMatch('Fever', '')).toBe('Fever');
+  });
+
+  it('renders disabled results with disabled styling and no click handler', async () => {
+    const user = userEvent.setup();
+    const addReason = vi.fn();
+    render(
+      <ReasonSearchInput
+        search="Fev"
+        setSearch={mockSetSearch}
+        filteredNames={['Fever']}
+        disabledReasons={new Set(['Fever'])}
+        addReason={addReason}
+      />
+    );
+
+    const row = document.querySelector('[aria-disabled="true"]') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(row).toHaveClass('cursor-not-allowed');
+    expect(row).toHaveClass('text-gray-300');
+
+    await user.click(row);
+    expect(addReason).not.toHaveBeenCalled();
   });
 });

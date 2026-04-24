@@ -113,6 +113,8 @@ vi.mock('../../../../../../components/modal/global-modal-context', () => ({
 
 vi.mock('../../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: vi.fn(),
+  parsePatientAgeYears: (raw: unknown) =>
+    raw == null || raw === '' ? null : Number(raw),
 }));
 
 vi.mock('../../../../../../modules/ayu/context/start-visit.context', () => ({
@@ -455,7 +457,10 @@ describe('VisitReason', () => {
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
-      expect(mockTransformFhirToAyu).toHaveBeenCalledWith(selectedComplaint.json);
+      expect(mockTransformFhirToAyu).toHaveBeenCalledWith(
+        selectedComplaint.json,
+        expect.objectContaining({ age: null })
+      );
     });
 
     it('should set ayuSchema state when modal is confirmed', async () => {
@@ -1508,6 +1513,51 @@ describe('VisitReason', () => {
 
       await user.click(screen.getByText('Back'));
       expect(mockOnPrevSection).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets stepper view on review-mode Back so next forward-entry shows selection', async () => {
+      const user = userEvent.setup();
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: {
+            answers: savedAnswers,
+            reasonNames: ['Fever'],
+            details: [],
+          },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        saveSectionToTemp: vi.fn().mockResolvedValue(undefined),
+      } as any);
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onPrevSection={mockOnPrevSection}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // Stepper renders immediately in review mode.
+      expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+
+      await user.click(screen.getByText('Back'));
+
+      expect(mockOnPrevSection).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });
 
     it('should call showSummary when Confirm is clicked in review mode', async () => {

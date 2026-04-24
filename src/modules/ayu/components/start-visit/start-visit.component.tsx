@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { storage } from '../../../../utils/storage';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
@@ -9,6 +10,7 @@ import {
   PATIENT_AGE_KEY,
   PATIENT_GENDER_KEY,
   PATIENT_NAME_KEY,
+  PATIENT_UUID_KEY,
   SECTION_MEDICAL_HISTORY,
   SECTION_PHYSICAL_EXAM,
   SECTION_VISIT_REASON,
@@ -38,10 +40,26 @@ export const getPhysicalExamFilter = (
 
 export const StartVisit = () => {
   const { lastSectionIndex, data } = useStartVisitData();
+  const { state } = useLocation();
 
-  const patientName = storage.get(PATIENT_NAME_KEY) ?? null;
-  const patientAge = storage.get(PATIENT_AGE_KEY) ?? null;
-  const patientGender = storage.get(PATIENT_GENDER_KEY) ?? null;
+  const patientName =
+    state?.patientName ?? storage.get(PATIENT_NAME_KEY) ?? null;
+  const patientAge = state?.patientAge ?? storage.get(PATIENT_AGE_KEY) ?? null;
+  const patientGender =
+    state?.patientGender ?? storage.get(PATIENT_GENDER_KEY) ?? null;
+
+  useEffect(() => {
+    if (state?.patientName) storage.set(PATIENT_NAME_KEY, state.patientName);
+    if (state?.patientAge) storage.set(PATIENT_AGE_KEY, state.patientAge);
+    if (state?.patientGender)
+      storage.set(PATIENT_GENDER_KEY, state.patientGender);
+    if (state?.patientUuid) storage.set(PATIENT_UUID_KEY, state.patientUuid);
+  }, [
+    state?.patientName,
+    state?.patientAge,
+    state?.patientGender,
+    state?.patientUuid,
+  ]);
 
   const {
     data: restoredData,
@@ -64,7 +82,7 @@ export const StartVisit = () => {
         return confirmedReasons.length > 0 ? confirmedReasons.join(', ') : '';
       case SECTION_PHYSICAL_EXAM: {
         const physExam = ayuConfigFiles.find(
-          f => f.name.replace(/\.json$/i, '') === 'physExam'
+          f => f.name.replace(/\.json$/i, '').trim() === 'physExam'
         );
         return physExam?.json?.title ?? '';
       }
@@ -135,6 +153,9 @@ export const StartVisit = () => {
 
     if (restoredData.visitReason?.reasonNames?.length) {
       setConfirmedReasons(restoredData.visitReason.reasonNames);
+      restoredData.visitReason.reasonNames.forEach(name =>
+        visitReasons.addReason(name)
+      );
     }
 
     if (restoreIndex > 0) {
@@ -156,6 +177,7 @@ export const StartVisit = () => {
         return hasData ? { ...s, answeredQuestions: s.totalQuestions } : s;
       })
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRestoring, hasRestored, restoredData, restoredSectionIndex]);
 
   const isCurrentSectionCompleted = (): boolean => {

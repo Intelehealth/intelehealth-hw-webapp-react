@@ -1,17 +1,48 @@
 import { useMemo, useState } from 'react';
+import { storage } from '../../../utils/storage';
 import {
   extractVisitReasonNames,
   filterNamesBySearch,
   groupByFirstLetter,
 } from '../../ayu-library/logic/visit-reasons.logic';
 import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
-import { AYU_JSON_KEY_NAME } from '../utils/ayu.constants';
+import {
+  parsePatientAgeYears,
+  questionnaireMatchesDemographics,
+} from '../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  AYU_JSON_KEY_NAME,
+  PATIENT_AGE_KEY,
+  PATIENT_GENDER_KEY,
+} from '../utils/ayu.constants';
 import { useAyuJsonList } from './useAyuJson.hook';
 
 export type VisitReasonsResult = ReturnType<typeof useVisitReasons>;
 
 export const useVisitReasons = () => {
   const ayuJsonList = useAyuJsonList(AYU_JSON_KEY_NAME);
+
+  const patientDemographics = useMemo(
+    () => ({
+      age: parsePatientAgeYears(storage.get(PATIENT_AGE_KEY)),
+      gender: storage.get(PATIENT_GENDER_KEY),
+    }),
+    []
+  );
+
+  // Protocols whose top-level gender/age extensions exclude the current
+  const disabledReasons = useMemo(() => {
+    const excludedSet = new Set(EXCLUDED_JSON_NAMES);
+    const disabled = new Set<string>();
+    for (const item of ayuJsonList) {
+      const name = item.name.replace(/\.json$/i, '').trim();
+      if (excludedSet.has(name)) continue;
+      if (!questionnaireMatchesDemographics(item.json, patientDemographics)) {
+        disabled.add(name);
+      }
+    }
+    return disabled;
+  }, [ayuJsonList, patientDemographics]);
 
   const names = useMemo(() => {
     return extractVisitReasonNames(ayuJsonList, EXCLUDED_JSON_NAMES);
@@ -25,6 +56,7 @@ export const useVisitReasons = () => {
   }, [search, names]);
 
   const addReason = (reason: string) => {
+    if (disabledReasons.has(reason)) return;
     setSelectedReasons(prev => {
       if (prev.includes(reason)) return prev;
       return [...prev, reason];
@@ -43,14 +75,14 @@ export const useVisitReasons = () => {
   const selectedComplaints = useMemo(() => {
     const set = new Set(selectedReasons);
     return ayuJsonList.filter(item =>
-      set.has(item.name.replace(/\.json$/i, ''))
+      set.has(item.name.replace(/\.json$/i, '').trim())
     );
   }, [ayuJsonList, selectedReasons]);
 
   const ayuConfigFiles = useMemo(() => {
     const excludedSet = new Set(EXCLUDED_JSON_NAMES);
     return ayuJsonList.filter(item =>
-      excludedSet.has(item.name.replace(/\.json$/i, ''))
+      excludedSet.has(item.name.replace(/\.json$/i, '').trim())
     );
   }, [ayuJsonList]);
 
@@ -59,6 +91,7 @@ export const useVisitReasons = () => {
     setSearch,
     filteredNames,
     selectedReasons,
+    disabledReasons,
     addReason,
     removeReason,
     grouped,

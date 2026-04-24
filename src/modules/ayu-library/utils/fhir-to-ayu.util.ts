@@ -5,9 +5,18 @@ import type {
 } from '../types/ayu.types';
 import type {
   FhirEnableWhen,
+  FhirExtension,
   FhirQuestionnaire,
 } from '../types/fhir-raw.types';
-import { EXT_URL_DISPLAY_TEXT } from './constants';
+import {
+  EXT_URL_AGE_MAX,
+  EXT_URL_AGE_MIN,
+  EXT_URL_DISPLAY_TEXT,
+  EXT_URL_GENDER,
+  GENDER_CODE_FEMALE,
+  GENDER_CODE_MALE,
+  GENDER_CODE_OTHER,
+} from './constants';
 
 const ALLOWED_TYPES: AyuQuestionType[] = [
   'group',
@@ -47,7 +56,120 @@ function normalizeEnableWhen(
   });
 }
 
-function transformItem(item: AyuQuestion): AyuQuestion {
+export interface PatientDemographics {
+  age?: number | null;
+  gender?: string | null;
+}
+
+export function parsePatientAgeYears(
+  raw: string | number | null | undefined
+): number | null {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+
+  const str = String(raw).trim();
+  if (!str) return null;
+
+  const numericMatch = str.match(
+    /^(\d+(?:\.\d+)?)(?:\s*(?:y|yr|yrs|year|years))?$/i
+  );
+  if (numericMatch) return Number(numericMatch[1]);
+
+  const date = new Date(str);
+  if (!Number.isNaN(date.getTime())) {
+    const now = new Date();
+    let age = now.getFullYear() - date.getFullYear();
+    const m = now.getMonth() - date.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < date.getDate())) age--;
+    return age >= 0 ? age : null;
+  }
+  return null;
+}
+
+/**
+ * Normalize any gender representation — patient storage ("M"/"F"/"O" or
+ * "Male"/"Female"/"Other") or FHIR extension valueString ("0"/"1"/"other" or
+ * "male"/"female") — to the canonical extension code. Returns null for values
+ * we cannot classify so callers can decide whether to fail open.
+ */
+export function normalizePatientGenderCode(
+  raw: string | null | undefined
+): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'f' || s === 'female' || s === GENDER_CODE_FEMALE)
+    return GENDER_CODE_FEMALE;
+  if (s === 'm' || s === 'male' || s === GENDER_CODE_MALE)
+    return GENDER_CODE_MALE;
+  if (s === 'o' || s === 'other') return GENDER_CODE_OTHER;
+  return null;
+}
+
+function readExt(
+  extensions: FhirExtension[] | undefined,
+  url: string
+): string | undefined {
+  return extensions?.find(e => e.url === url)?.valueString;
+}
+
+/**
+ * Evaluate gender / age-min / age-max extensions on a FHIR item against the
+ * current patient. Returns true when the item should be rendered. Missing
+ * demographics or missing constraints are treated as "no restriction".
+ */
+export function matchesDemographics(
+  extensions: FhirExtension[] | undefined,
+  demographics?: PatientDemographics
+): boolean {
+  if (!extensions || extensions.length === 0) return true;
+  if (!demographics) return true;
+
+  const requiredGenderRaw = readExt(extensions, EXT_URL_GENDER);
+  if (requiredGenderRaw !== undefined && requiredGenderRaw !== '') {
+    const requiredGender = normalizePatientGenderCode(requiredGenderRaw);
+    const patientGender = normalizePatientGenderCode(demographics.gender);
+    if (
+      requiredGender !== null &&
+      patientGender !== null &&
+      patientGender !== requiredGender
+    ) {
+      return false;
+    }
+  }
+
+  const ageMinRaw = readExt(extensions, EXT_URL_AGE_MIN);
+  const ageMaxRaw = readExt(extensions, EXT_URL_AGE_MAX);
+  if (
+    (ageMinRaw !== undefined && ageMinRaw !== '') ||
+    (ageMaxRaw !== undefined && ageMaxRaw !== '')
+  ) {
+    const age = demographics.age;
+    if (age != null) {
+      const min =
+        ageMinRaw !== undefined && ageMinRaw !== ''
+          ? Number(ageMinRaw)
+          : Number.NEGATIVE_INFINITY;
+      const max =
+        ageMaxRaw !== undefined && ageMaxRaw !== ''
+          ? Number(ageMaxRaw)
+          : Number.POSITIVE_INFINITY;
+      if (!Number.isNaN(min) && age < min) return false;
+      if (!Number.isNaN(max) && age > max) return false;
+    }
+  }
+
+  return true;
+}
+
+function transformItem(
+  item: AyuQuestion,
+  demographics?: PatientDemographics
+): AyuQuestion {
+  const children = item.item
+    ?.filter(child => matchesDemographics(child.extension, demographics))
+    .map(child => transformItem(child, demographics));
+
   return {
     linkId: item.linkId,
     text: item.text,
@@ -62,23 +184,41 @@ function transformItem(item: AyuQuestion): AyuQuestion {
     answerOption: item.answerOption,
     enableWhen: normalizeEnableWhen(item.enableWhen),
     extension: item.extension,
-    item: item.item?.map(transformItem),
+    item: children,
   };
 }
 
+/**
+ * True when a whole questionnaire (protocol) is applicable to the patient,
+ * based on its top-level gender/age-min/age-max extensions. Used to hide
+ * protocols from the visit-reason list.
+ */
+export function questionnaireMatchesDemographics(
+  questionnaire: FhirQuestionnaire | null | undefined,
+  demographics?: PatientDemographics
+): boolean {
+  if (!questionnaire) return true;
+  return matchesDemographics(questionnaire.extension, demographics);
+}
+
 export function transformFhirToAyu(
-  questionnaire: FhirQuestionnaire
+  questionnaire: FhirQuestionnaire,
+  demographics?: PatientDemographics
 ): AyuQuestion | null {
   if (!questionnaire.item || questionnaire.item.length === 0) {
     return null;
   }
 
   // Wrap root items into a single AYU root group
+  const items = questionnaire.item
+    .filter(item => matchesDemographics(item.extension, demographics))
+    .map(item => transformItem(item, demographics));
+
   return {
     linkId: 'root',
     type: 'group',
     text: questionnaire.title,
-    item: questionnaire.item.map(transformItem),
+    item: items,
   };
 }
 

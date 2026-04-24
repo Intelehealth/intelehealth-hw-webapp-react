@@ -60,7 +60,7 @@ export const AYU_JSON_KEY_NAME = 'IDA6';
 // ========================
 // Text Input
 // ========================
-export const ADDITIONAL_INFORMATION_LABEL = 'Additional Information';
+export const ADDITIONAL_INFORMATION_LABEL = 'Additional information';
 export const TEXT_INPUT_DEFAULT_PLACEHOLDER = 'Describe...';
 export const TEXT_INPUT_KEYWORD_DESCRIBE = 'describe';
 export const TEXT_INPUT_KEYWORD_OTHER = 'other';

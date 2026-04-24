@@ -127,6 +127,17 @@ function ContextUpdater() {
         onClick={() => ctx.saveSectionToTemp({ currentSectionIndex: 2 })}
       />
       <button
+        data-testid="btn-saveVitalsOnly"
+        onClick={() =>
+          ctx.saveSectionToTemp({
+            vitals: {
+              formValues: { height_cm: 170, weight_kg: 70 },
+              config: [],
+            },
+          })
+        }
+      />
+      <button
         data-testid="btn-clearVisitId"
         onClick={() => ctx.clearVisitId()}
       />
@@ -466,6 +477,30 @@ describe('StartVisitProvider', () => {
         }),
       })
     );
+  });
+
+  it('preserves currentSectionIndex across saves that do not pass it (refresh restore regression)', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    // First: caller persists the section index (e.g. goNextSection → 2).
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveVitalsOnly').click();
+    });
+
+    const lastCall = mockUpsertResource.mock.calls.at(-1)?.[0];
+    expect(lastCall.data.currentSectionIndex).toBe(2);
   });
 
   it('should include medicalHistoryAnswers in merge when saving another section', async () => {

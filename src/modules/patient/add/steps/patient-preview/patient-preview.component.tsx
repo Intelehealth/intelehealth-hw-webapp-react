@@ -62,6 +62,7 @@ export default function PatientPreviewComponent({
 
     // Clear patient temp data — patient creation is complete, visit flow takes over
     storage.remove('temp_patient_id');
+    storage.remove('temp_visit_id');
 
     navigate('/ayu', {
       state: {

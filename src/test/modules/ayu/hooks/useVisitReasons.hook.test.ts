@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { storage } from '../../../../utils/storage';
 import { useVisitReasons } from '../../../../modules/ayu/hooks/useVisitReasons.hook';
 
 // Mock the useAyuJsonList hook
@@ -172,6 +173,36 @@ describe('useVisitReasons', () => {
     expect(result.current.selectedComplaints).toHaveLength(0);
   });
 
+  it('resolves selectedComplaints when the source filename has trailing whitespace', () => {
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'Abdominal Pain .json' },
+    ] as any);
+
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.addReason('Abdominal Pain');
+    });
+
+    expect(result.current.selectedReasons).toEqual(['Abdominal Pain']);
+    expect(result.current.selectedComplaints).toHaveLength(1);
+    expect(result.current.selectedComplaints[0].name).toBe(
+      'Abdominal Pain .json'
+    );
+  });
+
+  it('matches ayuConfigFiles even when the source filename has trailing whitespace', () => {
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'physExam .json' },
+      { name: 'Fever.json' },
+    ] as any);
+
+    const { result } = renderHook(() => useVisitReasons());
+
+    expect(result.current.ayuConfigFiles).toHaveLength(1);
+    expect(result.current.ayuConfigFiles[0].name).toBe('physExam .json');
+  });
+
   it('should filter names case-insensitively', () => {
     const { result } = renderHook(() => useVisitReasons());
 
@@ -218,5 +249,69 @@ describe('useVisitReasons', () => {
 
     expect(result.current.filteredNames).toContain('Fever');
     expect(result.current.filteredNames).not.toContain('Cough');
+  });
+
+  describe('demographics filtering', () => {
+    const EXT_GENDER =
+      'https://intelehealth.org/fhir/StructureDefinition/gender';
+    const EXT_AGE_MIN =
+      'https://intelehealth.org/fhir/StructureDefinition/age-min';
+    const EXT_AGE_MAX =
+      'https://intelehealth.org/fhir/StructureDefinition/age-max';
+
+    const pregnancyItem = {
+      name: 'Pregnancy.json',
+      json: {
+        resourceType: 'Questionnaire',
+        extension: [
+          { url: EXT_GENDER, valueString: 'female' },
+          { url: EXT_AGE_MIN, valueString: '14' },
+          { url: EXT_AGE_MAX, valueString: '49' },
+        ],
+      },
+    };
+
+    const setPatient = (age: string | null, gender: string | null) => {
+      vi.spyOn(storage, 'get').mockImplementation((key: string) => {
+        if (key === 'patientAge') return age;
+        if (key === 'patientGender') return gender;
+        return null;
+      });
+    };
+
+    it('still lists protocols excluded by demographics but marks them disabled', () => {
+      mockUseAyuJsonList.mockReturnValue([
+        pregnancyItem,
+        { name: 'Fever.json', json: { resourceType: 'Questionnaire' } },
+      ] as any);
+      setPatient('30', 'M');
+
+      const { result } = renderHook(() => useVisitReasons());
+
+      expect(result.current.grouped['P']).toContain('Pregnancy');
+      expect(result.current.grouped['F']).toContain('Fever');
+      expect(result.current.disabledReasons.has('Pregnancy')).toBe(true);
+      expect(result.current.disabledReasons.has('Fever')).toBe(false);
+    });
+
+    it('does not disable protocols that match the patient demographics', () => {
+      mockUseAyuJsonList.mockReturnValue([pregnancyItem] as any);
+      setPatient('30', 'F');
+
+      const { result } = renderHook(() => useVisitReasons());
+      expect(result.current.grouped['P']).toContain('Pregnancy');
+      expect(result.current.disabledReasons.has('Pregnancy')).toBe(false);
+    });
+
+    it('addReason ignores disabled reasons', () => {
+      mockUseAyuJsonList.mockReturnValue([pregnancyItem] as any);
+      setPatient('30', 'M');
+
+      const { result } = renderHook(() => useVisitReasons());
+      act(() => {
+        result.current.addReason('Pregnancy');
+      });
+      expect(result.current.selectedReasons).toEqual([]);
+    });
   });
 });

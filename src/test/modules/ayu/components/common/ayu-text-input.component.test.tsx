@@ -270,23 +270,7 @@ describe('AyuTextInput', () => {
   });
 
   describe('Label Styling', () => {
-    it('should render label with primary CSS classes when text is "Additional Information"', () => {
-      const questionWithLabel: AyuQuestion = {
-        ...mockQuestion,
-        text: 'Additional Information',
-      };
-      render(
-        <AyuTextInput
-          question={questionWithLabel}
-          parent={undefined}
-          previousSibling={undefined}
-        />
-      );
-      const label = screen.getByText('Additional Information');
-      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
-    });
-
-    it('should render label with muted CSS classes for other labels', () => {
+    it('should render label with primary CSS classes when text matches ADDITIONAL_INFORMATION_LABEL', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
         text: 'Additional information',
@@ -299,6 +283,22 @@ describe('AyuTextInput', () => {
         />
       );
       const label = screen.getByText('Additional information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render label with muted CSS classes for other labels', () => {
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Some other label',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Some other label');
       expect(label).toHaveClass('block', 'text-base');
     });
   });
