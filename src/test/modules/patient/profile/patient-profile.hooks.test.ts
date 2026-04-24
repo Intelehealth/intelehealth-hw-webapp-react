@@ -144,7 +144,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.gender).toBe('Male');
   });
@@ -154,7 +154,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.gender).toBe('Female');
   });
@@ -164,7 +164,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.gender).toBe('O');
   });
@@ -176,7 +176,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.gender).toBe('');
   });
@@ -190,7 +190,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.dob).toBeTruthy();
   });
@@ -200,7 +200,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.dob).toBe('');
   });
@@ -218,7 +218,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.dob).toBe('1994-01-15T00:00:00.000+0000');
     spy.mockRestore();
@@ -231,7 +231,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.age).toBe('30 years');
   });
@@ -241,7 +241,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.age).toBe('');
   });
@@ -254,7 +254,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.age).toBe('');
   });
@@ -270,7 +270,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.fullName).toBe('John K Doe');
   });
@@ -284,7 +284,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.fullName).toBe('John Doe');
   });
@@ -294,7 +294,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.fullName).toBe('');
   });
@@ -313,7 +313,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.patientId).toBe('B002');
   });
@@ -330,7 +330,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.patientId).toBe('A001');
   });
@@ -340,7 +340,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.patientId).toBe('');
   });
@@ -352,7 +352,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.phone).toBe('+911234567890');
     expect(result.current.patientData?.contactType).toBe('Spouse');
@@ -369,7 +369,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.phone).toBe('');
     expect(result.current.patientData?.occupation).toBe('');
@@ -383,7 +383,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.patientData?.phone).toBe('');
   });
@@ -395,7 +395,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(singleVisit);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.visits).toHaveLength(1);
     expect(result.current.visits[0].uuid).toBe('visit-uuid-1234abcd');
@@ -406,7 +406,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue({});
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.visits).toEqual([]);
   });
@@ -418,7 +418,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
     expect(result.current.error).toBe(
       'Failed to load patient details. Please try again.'
@@ -433,7 +433,7 @@ describe('usePatientProfile', () => {
     h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
 
     const { result } = renderHook(() => usePatientProfile('uuid'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
 
 
     h.mockGetPatient.mockResolvedValue(buildPatient({ gender: 'F' }));

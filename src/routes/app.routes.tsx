@@ -4,14 +4,12 @@ import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
 
-// Simple loading fallback for code-split routes
 const RouteLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="spinner" />
   </div>
 );
 
-// Lazy load pages for code splitting
 const CommonUiComponent = lazy(
   () => import('../components/common/common-ui.component')
 );
@@ -48,7 +46,6 @@ const PatientProfilePage = lazy(
 const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 const SettingsPage = lazy(() => import('../pages/settings/settings.page'));
 
-// Profile Guard Components
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
 import MyAppointments from '../modules/appointment-visit/my-appointments.component';
@@ -65,11 +62,10 @@ const AchievementUiPage = lazy(
 );
 const AyuModule = lazy(() => import('../modules/ayu'));
 
-// appointment module
 const AppointmentVisitPage = lazy(
   () => import('../pages/appointment-visit/appointment-visit.page')
 );
-// appointment module
+
 const HelpAndSupportPage = lazy(
   () => import('../pages/help-and-support/help-and-support.page')
 );
@@ -81,14 +77,12 @@ const HelpFaqPage = lazy(
   () => import('../pages/help-and-support/help-faq.page')
 );
 
-// appointment module
 const AboutUsPage = lazy(() => import('../pages/about-us/about-us.page'));
 
 const AppRoutes = () => (
   <HashRouter>
     <Suspense fallback={<RouteLoader />}>
       <Routes>
-        {/* Auth routes (ignored) */}
         <Route
           path={ROUTES.AUTH.BASE}
           element={
@@ -137,7 +131,6 @@ const AppRoutes = () => (
           />
         </Route>
 
-        {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainContainer />}>
             <Route
@@ -353,7 +346,7 @@ const AppRoutes = () => (
             </Suspense>
           }
         />
-        {/* 404 fallback */}
+
         <Route
           path={ROUTES.NOT_FOUND}
           element={
