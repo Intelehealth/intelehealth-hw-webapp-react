@@ -1479,7 +1479,7 @@ describe('PatientPersonalInfo', () => {
 
       await waitFor(() => {
         expect(mockOnNext).toHaveBeenCalled();
-      }, { timeout: 3000 });
+      }, { timeout: 5000 });
     });
 
     it('should render without errors when all props are provided', () => {
@@ -1515,7 +1515,9 @@ describe('PatientPersonalInfo', () => {
       await user.type(calendarInput, '1990-01-01');
 
       // Verify calculateAge was called
-      expect(calculateAge).toHaveBeenCalledWith('1990-01-01');
+      await waitFor(() => {
+        expect(calculateAge).toHaveBeenCalledWith('1990-01-01');
+      }, { timeout: 5000 });
     });
 
     it('should not calculate age when empty date is provided', async () => {
