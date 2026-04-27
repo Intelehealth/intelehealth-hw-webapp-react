@@ -120,6 +120,8 @@ export const StartVisitProvider = ({
   const dataRef = useRef(data);
   dataRef.current = data;
 
+  const currentSectionIndexRef = useRef<number | undefined>(undefined);
+
   // Restore from temp-storage on mount
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +132,7 @@ export const StartVisitProvider = ({
         const saved = res.data.data;
         setTempRecordId(res.data.id);
         if (saved.currentSectionIndex != null) {
+          currentSectionIndexRef.current = saved.currentSectionIndex;
           setRestoredSectionIndex(saved.currentSectionIndex);
         }
         setData({
@@ -152,6 +155,9 @@ export const StartVisitProvider = ({
 
   const saveSectionToTemp = useCallback(
     async (sectionData: Partial<TempVisitData>) => {
+      if (sectionData.currentSectionIndex != null) {
+        currentSectionIndexRef.current = sectionData.currentSectionIndex;
+      }
       const current = dataRef.current;
       const merged: TempVisitData = {
         vitals: current.vitals,
@@ -159,6 +165,7 @@ export const StartVisitProvider = ({
         physicalExam: current.physicalExam,
         medicalHistory: current.medicalHistory,
         medicalHistoryAnswers: current.medicalHistoryAnswers ?? undefined,
+        currentSectionIndex: currentSectionIndexRef.current,
         ...sectionData,
       };
       try {

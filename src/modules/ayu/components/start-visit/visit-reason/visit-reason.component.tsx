@@ -2,12 +2,16 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
+import { storage } from '../../../../../utils/storage';
 import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  parsePatientAgeYears,
+  transformFhirToAyu,
+} from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import {
@@ -19,6 +23,8 @@ import {
   CONFIRM_MODAL_TITLE,
   CONFIRM_MODAL_YES,
   ITEM_TYPES,
+  PATIENT_AGE_KEY,
+  PATIENT_GENDER_KEY,
   PHYSCAL_EXAM_DESCRIPTION,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
@@ -47,6 +53,7 @@ export const VisitReason = ({
     setSearch,
     filteredNames,
     selectedReasons,
+    disabledReasons,
     addReason,
     removeReason,
     grouped,
@@ -56,12 +63,23 @@ export const VisitReason = ({
   const { data, setVisitReasonData, saveSectionToTemp } = useStartVisitData();
   const savedAnswers = data.visitReason?.answers;
 
+  const patientDemographics = useMemo(
+    () => ({
+      age: parsePatientAgeYears(storage.get(PATIENT_AGE_KEY)),
+      gender: storage.get(PATIENT_GENDER_KEY),
+    }),
+    []
+  );
+
   // Restore stepper state from context so answers survive if the component
   // remounts (e.g. React reconciliation). Same pattern as Medical History.
   const [showStepper, setShowStepper] = useState(() => !!savedAnswers);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(() => {
     if (savedAnswers && selectedComplaints.length > 0) {
-      return transformFhirToAyu(selectedComplaints[0].json);
+      return transformFhirToAyu(
+        selectedComplaints[0].json,
+        patientDemographics
+      );
     }
     return null;
   });
@@ -84,7 +102,10 @@ export const VisitReason = ({
       open: true,
       onConfirm: () => {
         onReasonsConfirmed?.(selectedReasons);
-        const schema = transformFhirToAyu(selectedComplaints[0].json);
+        const schema = transformFhirToAyu(
+          selectedComplaints[0].json,
+          patientDemographics
+        );
         setAyuSchema(schema);
         setShowStepper(true); //Switch UI
       },
@@ -184,7 +205,10 @@ export const VisitReason = ({
             <AyuButton
               type="button"
               variant="secondary"
-              onClick={() => onPrevSection?.()}
+              onClick={() => {
+                setShowStepper(false);
+                onPrevSection?.();
+              }}
               className="w-full md:w-[10%]"
             >
               <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
@@ -219,6 +243,7 @@ export const VisitReason = ({
               search={search}
               setSearch={setSearch}
               filteredNames={filteredNames}
+              disabledReasons={disabledReasons}
               addReason={addReason}
             />
           </QuestionLoader>
@@ -236,6 +261,7 @@ export const VisitReason = ({
           <ReasonAlphabetList
             grouped={grouped}
             selectedReasons={selectedReasons}
+            disabledReasons={disabledReasons}
             addReason={addReason}
           />
         </div>

@@ -107,6 +107,8 @@ vi.mock(
 const mockTransformFhirToAyu = vi.fn();
 vi.mock('../../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: (...args: unknown[]) => mockTransformFhirToAyu(...args),
+  parsePatientAgeYears: (raw: unknown) =>
+    raw == null || raw === '' ? null : Number(raw),
 }));
 
 const mockBuildVisitSummary = vi.fn();
@@ -124,6 +126,8 @@ vi.mock('../../../../../../modules/ayu/utils/ayu.constants', () => ({
   MEDICAL_HISTORY_SUMMARY_TITLE: '4/4. Medical history summary',
   SUMMARY_CONFIRM_TEXT: 'Confirm',
   SUMMARY_CANCEL_TEXT: 'Back',
+  PATIENT_AGE_KEY: 'patientAge',
+  PATIENT_GENDER_KEY: 'patientGender',
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────

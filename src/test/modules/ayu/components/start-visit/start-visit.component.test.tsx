@@ -259,6 +259,32 @@ describe('StartVisit', () => {
       renderWithRouter(<StartVisit />);
       expect(screen.getByText('Jane')).toBeInTheDocument();
     });
+
+    it('prefers router state over storage and persists state into storage', () => {
+      mockStorageStore.patientName = 'StaleName';
+      mockStorageStore.patientAge = 'StaleAge';
+      mockStorageStore.patientGender = 'StaleGender';
+
+      renderWithRouter(<StartVisit />, {
+        state: {
+          patientName: 'Priya',
+          patientAge: '28',
+          patientGender: 'F',
+          patientUuid: 'uuid-from-state',
+        },
+      });
+
+      // Header shows values from state, not storage.
+      expect(screen.getByText('Priya')).toBeInTheDocument();
+      expect(screen.getByText(/\(28/)).toBeInTheDocument();
+      expect(screen.getByText(/\| F\)/)).toBeInTheDocument();
+
+      // useEffect persists state into storage so a later refresh still sees it.
+      expect(mockStorageStore.patientName).toBe('Priya');
+      expect(mockStorageStore.patientAge).toBe('28');
+      expect(mockStorageStore.patientGender).toBe('F');
+      expect(mockStorageStore.patientUuid).toBe('uuid-from-state');
+    });
   });
 
   describe('Section Navigation - Vitals Section', () => {
@@ -1175,6 +1201,59 @@ describe('StartVisit', () => {
 
       // After restore, subtitle for Visit Reason joins reasonNames
       expect(screen.getByText(/Fever, Cough/)).toBeInTheDocument();
+    });
+
+    it('auto-selects restored visit reasons into the hook on mount', async () => {
+      const { useVisitReasons } = await import(
+        '../../../../../modules/ayu/hooks/useVisitReasons.hook'
+      );
+      const mockAddReason = vi.fn();
+      vi.mocked(useVisitReasons).mockReturnValue({
+        search: '',
+        setSearch: vi.fn(),
+        filteredNames: [],
+        selectedReasons: [],
+        addReason: mockAddReason,
+        removeReason: vi.fn(),
+        grouped: {},
+        selectedComplaints: [],
+        ayuConfigFiles: [],
+      } as any);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: {
+            answers: {},
+            reasonNames: ['Fever', 'Cough'],
+            details: [],
+          },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        } as any,
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: 1,
+        lastSectionIndex: 0,
+        setLastSectionIndex: mockSetLastSectionIndex,
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      });
+
+      renderWithRouter(<StartVisit />);
+
+      expect(mockAddReason).toHaveBeenCalledTimes(2);
+      expect(mockAddReason).toHaveBeenNthCalledWith(1, 'Fever');
+      expect(mockAddReason).toHaveBeenNthCalledWith(2, 'Cough');
     });
 
     it('should render Physical Examination subtitle from ayuConfigFiles when present', async () => {

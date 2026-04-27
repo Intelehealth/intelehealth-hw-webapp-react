@@ -6,7 +6,7 @@ export function extractVisitReasonNames(
   excludedNames: string[]
 ): string[] {
   return items
-    .map(item => item.name.replace(/\.json$/i, ''))
+    .map(item => item.name.replace(/\.json$/i, '').trim())
     .filter(item => !excludedNames.includes(item))
     .sort((a, b) => a.localeCompare(b));
 }
