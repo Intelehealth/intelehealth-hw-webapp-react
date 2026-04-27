@@ -86,12 +86,7 @@ export function parsePatientAgeYears(
   return null;
 }
 
-/**
- * Normalize any gender representation — patient storage ("M"/"F"/"O" or
- * "Male"/"Female"/"Other") or FHIR extension valueString ("0"/"1"/"other" or
- * "male"/"female") — to the canonical extension code. Returns null for values
- * we cannot classify so callers can decide whether to fail open.
- */
+// Normalize any gender representation to the canonical extension code; returns null when unclassifiable.
 export function normalizePatientGenderCode(
   raw: string | null | undefined
 ): string | null {
@@ -113,11 +108,7 @@ function readExt(
   return extensions?.find(e => e.url === url)?.valueString;
 }
 
-/**
- * Evaluate gender / age-min / age-max extensions on a FHIR item against the
- * current patient. Returns true when the item should be rendered. Missing
- * demographics or missing constraints are treated as "no restriction".
- */
+// True when an item's gender/age-min/age-max extensions allow the current patient; missing constraints fail open.
 export function matchesDemographics(
   extensions: FhirExtension[] | undefined,
   demographics?: PatientDemographics
@@ -188,11 +179,7 @@ function transformItem(
   };
 }
 
-/**
- * True when a whole questionnaire (protocol) is applicable to the patient,
- * based on its top-level gender/age-min/age-max extensions. Used to hide
- * protocols from the visit-reason list.
- */
+// True when the questionnaire's top-level demographic extensions match the patient.
 export function questionnaireMatchesDemographics(
   questionnaire: FhirQuestionnaire | null | undefined,
   demographics?: PatientDemographics

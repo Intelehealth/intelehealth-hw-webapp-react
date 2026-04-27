@@ -366,28 +366,48 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('next-dates slides to next page of dates', () => {
-      Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
-      renderComponent();
-      const firstDateBefore = getDateArea().querySelector('button')!.textContent;
-      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
-      const firstDateAfter = getDateArea().querySelector('button')!.textContent;
-      expect(firstDateAfter).not.toBe(firstDateBefore);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 0, 1));
+      try {
+        Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
+        renderComponent();
+        const firstDateBefore = getDateArea().querySelector('button')!.textContent;
+        fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+        const firstDateAfter = getDateArea().querySelector('button')!.textContent;
+        expect(firstDateAfter).not.toBe(firstDateBefore);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('prev-dates becomes enabled after sliding forward', () => {
-      renderComponent();
-      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
-      const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
-      expect(prevDatesBtn).not.toBeDisabled();
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 0, 1));
+      try {
+        Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
+        renderComponent();
+        fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+        const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
+        expect(prevDatesBtn).not.toBeDisabled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('prev-dates slides back to previous page of dates', () => {
-      renderComponent();
-      const firstDateOriginal = getDateArea().querySelector('button')!.textContent;
-      fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
-      fireEvent.click(screen.getByAltText('prev-dates').closest('button')!);
-      const firstDateBack = getDateArea().querySelector('button')!.textContent;
-      expect(firstDateBack).toBe(firstDateOriginal);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 0, 1));
+      try {
+        Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
+        renderComponent();
+        const firstDateOriginal = getDateArea().querySelector('button')!.textContent;
+        fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
+        fireEvent.click(screen.getByAltText('prev-dates').closest('button')!);
+        const firstDateBack = getDateArea().querySelector('button')!.textContent;
+        expect(firstDateBack).toBe(firstDateOriginal);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('next-dates is disabled when at the end of month dates', () => {
