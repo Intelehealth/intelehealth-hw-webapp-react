@@ -8,15 +8,13 @@ import {
   transformFhirToAyu,
   resolveLabel,
 } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import {
+  EXT_URL_AGE_MAX as EXT_AGE_MAX,
+  EXT_URL_AGE_MIN as EXT_AGE_MIN,
+  EXT_URL_GENDER as EXT_GENDER,
+} from '../../../../modules/ayu-library/utils/constants';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import type { FhirQuestionnaire } from '../../../../modules/ayu-library/types/fhir-raw.types';
-
-const EXT_GENDER =
-  'https://intelehealth.org/fhir/StructureDefinition/gender';
-const EXT_AGE_MIN =
-  'https://intelehealth.org/fhir/StructureDefinition/age-min';
-const EXT_AGE_MAX =
-  'https://intelehealth.org/fhir/StructureDefinition/age-max';
 
 describe('fhir-to-ayu.util', () => {
   describe('normalizeType', () => {
@@ -692,7 +690,6 @@ describe('fhir-to-ayu.util', () => {
       });
 
       it('returns the display-text extension valueString when present', () => {
-        // Covers the truthy branch of `valueString ? valueString : question.text`.
         const question: AyuQuestion = {
           linkId: 'q1',
           text: 'Raw Text',

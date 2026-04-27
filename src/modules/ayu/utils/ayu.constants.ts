@@ -1,6 +1,4 @@
-// ========================
 // Visit Reason Constants
-// ========================
 
 // --- Confirm Modal ---
 export const CONFIRM_MODAL_TITLE = 'Confirm visit reason?';
@@ -42,9 +40,7 @@ export const VALIDATION_ALL_COMPULSORY =
 export const VALIDATION_ENTER_VALUE = 'Please enter a value';
 export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 
-// ========================
 // FHIR Stepper Constants
-// ========================
 export const DEFAULT_VISIT_REASON_TEXT = 'Visit reason';
 export const ASSOCIATED_SYMPTOMS_LABEL = 'Associated symptoms';
 export const VISIT_REASON_SUMMARY_TITLE = '2/4. Visit reason summary';
@@ -52,14 +48,11 @@ export const PHYSICAL_EXAM_SUMMARY_TITLE = '3/4. Physical exam summary';
 export const MEDICAL_HISTORY_SUMMARY_TITLE = '4/4. Medical history summary';
 export const SUMMARY_CONFIRM_TEXT = 'Confirm';
 export const SUMMARY_CANCEL_TEXT = 'Back';
-// ========================
+
 // Visit Reasons Hook
-// ========================
 export const AYU_JSON_KEY_NAME = 'IDA6';
 
-// ========================
 // Text Input
-// ========================
 export const ADDITIONAL_INFORMATION_LABEL = 'Additional information';
 export const TEXT_INPUT_DEFAULT_PLACEHOLDER = 'Describe...';
 export const TEXT_INPUT_KEYWORD_DESCRIBE = 'describe';
@@ -71,32 +64,24 @@ export const TEXT_INPUT_DEFAULT_KEYWORDS = [
   ADDITIONAL_INFORMATION_LABEL.toLowerCase(),
 ];
 
-// ========================
 // Validation
-// ========================
 export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// ========================
 // Item Types
-// ========================
 export const ITEM_TYPES = {
   GROUP: 'group',
   LABEL_VALUE: 'labelValue',
   SUBHEADING: 'subheading',
 } as const;
 
-// ========================
 // Start Visit Section Names
-// ========================
 export const SECTION_VITALS = 'Vitals';
 export const SECTION_VISIT_REASON = 'Visit Reason';
 export const SECTION_PHYSICAL_EXAM = 'Physical Examination';
 export const SECTION_MEDICAL_HISTORY = 'Medical History';
 
-// ========================
 // Patient Storage Keys
-// ========================
 export const PATIENT_NAME_KEY = 'patientName';
 export const PATIENT_AGE_KEY = 'patientAge';
 export const PATIENT_GENDER_KEY = 'patientGender';

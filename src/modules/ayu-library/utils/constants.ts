@@ -14,8 +14,12 @@ export const EXT_URL_DISPLAY_TEXT =
 export const EXT_URL_LANGUGAE_TEXT =
   'https://intelehealth.org/fhir/StructureDefinition/language';
 
-// Demographic gating extensions: items with these are only shown when the
-// patient's gender/age fall within the declared constraints.
+/**
+ * Demographic gating extensions used by FHIR questionnaire items
+ * (see e.g. protocols/fhir-json/patHist.json). An item with these
+ * extensions is only rendered when the patient's gender/age fall within
+ * the declared constraints.
+ */
 export const EXT_URL_GENDER =
   'https://intelehealth.org/fhir/StructureDefinition/gender';
 export const EXT_URL_AGE_MIN =

@@ -2,6 +2,11 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { storage } from '../../../../utils/storage';
 import { useVisitReasons } from '../../../../modules/ayu/hooks/useVisitReasons.hook';
+import {
+  EXT_URL_AGE_MAX,
+  EXT_URL_AGE_MIN,
+  EXT_URL_GENDER,
+} from '../../../../modules/ayu-library/utils/constants';
 
 // Mock the useAyuJsonList hook
 vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
@@ -252,21 +257,14 @@ describe('useVisitReasons', () => {
   });
 
   describe('demographics filtering', () => {
-    const EXT_GENDER =
-      'https://intelehealth.org/fhir/StructureDefinition/gender';
-    const EXT_AGE_MIN =
-      'https://intelehealth.org/fhir/StructureDefinition/age-min';
-    const EXT_AGE_MAX =
-      'https://intelehealth.org/fhir/StructureDefinition/age-max';
-
     const pregnancyItem = {
       name: 'Pregnancy.json',
       json: {
         resourceType: 'Questionnaire',
         extension: [
-          { url: EXT_GENDER, valueString: 'female' },
-          { url: EXT_AGE_MIN, valueString: '14' },
-          { url: EXT_AGE_MAX, valueString: '49' },
+          { url: EXT_URL_GENDER, valueString: 'female' },
+          { url: EXT_URL_AGE_MIN, valueString: '14' },
+          { url: EXT_URL_AGE_MAX, valueString: '49' },
         ],
       },
     };

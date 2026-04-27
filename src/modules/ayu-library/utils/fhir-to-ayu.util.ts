@@ -117,34 +117,21 @@ export function matchesDemographics(
   if (!demographics) return true;
 
   const requiredGenderRaw = readExt(extensions, EXT_URL_GENDER);
-  if (requiredGenderRaw !== undefined && requiredGenderRaw !== '') {
+  if (requiredGenderRaw) {
     const requiredGender = normalizePatientGenderCode(requiredGenderRaw);
     const patientGender = normalizePatientGenderCode(demographics.gender);
-    if (
-      requiredGender !== null &&
-      patientGender !== null &&
-      patientGender !== requiredGender
-    ) {
+    if (requiredGender && patientGender && patientGender !== requiredGender) {
       return false;
     }
   }
 
   const ageMinRaw = readExt(extensions, EXT_URL_AGE_MIN);
   const ageMaxRaw = readExt(extensions, EXT_URL_AGE_MAX);
-  if (
-    (ageMinRaw !== undefined && ageMinRaw !== '') ||
-    (ageMaxRaw !== undefined && ageMaxRaw !== '')
-  ) {
+  if (ageMinRaw || ageMaxRaw) {
     const age = demographics.age;
     if (age != null) {
-      const min =
-        ageMinRaw !== undefined && ageMinRaw !== ''
-          ? Number(ageMinRaw)
-          : Number.NEGATIVE_INFINITY;
-      const max =
-        ageMaxRaw !== undefined && ageMaxRaw !== ''
-          ? Number(ageMaxRaw)
-          : Number.POSITIVE_INFINITY;
+      const min = ageMinRaw ? Number(ageMinRaw) : Number.NEGATIVE_INFINITY;
+      const max = ageMaxRaw ? Number(ageMaxRaw) : Number.POSITIVE_INFINITY;
       if (!Number.isNaN(min) && age < min) return false;
       if (!Number.isNaN(max) && age > max) return false;
     }
