@@ -15,10 +15,7 @@ export const EXT_URL_LANGUGAE_TEXT =
   'https://intelehealth.org/fhir/StructureDefinition/language';
 
 /**
- * Demographic gating extensions used by FHIR questionnaire items
- * (see e.g. protocols/fhir-json/patHist.json). An item with these
- * extensions is only rendered when the patient's gender/age fall within
- * the declared constraints.
+ * As discussed with Priya, There is no standard data element available for these attributes in HL7. These URLs will be generated in our IG (implementation guide) when we create for interoperability with other systems.
  */
 export const EXT_URL_GENDER =
   'https://intelehealth.org/fhir/StructureDefinition/gender';
