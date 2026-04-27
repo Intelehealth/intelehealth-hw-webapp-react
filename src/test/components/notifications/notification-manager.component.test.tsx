@@ -149,7 +149,9 @@ describe('NotificationManager', () => {
       );
 
       // Run all pending timers and wait for effects
-      await vi.runAllTimersAsync();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
 
       expect(screen.getByTestId('enabled-modal')).toBeInTheDocument();
       expect(mockOnPermissionGranted).toHaveBeenCalledWith(mockToken);
@@ -214,8 +216,10 @@ describe('NotificationManager', () => {
       expect(screen.queryByTestId('permission-modal')).not.toBeInTheDocument();
 
       // Fast-forward delay and wait for React to update
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.runAllTimersAsync();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        await vi.runAllTimersAsync();
+      });
 
       expect(screen.getByTestId('permission-modal')).toBeInTheDocument();
     });
@@ -236,13 +240,15 @@ describe('NotificationManager', () => {
       expect(screen.queryByTestId('permission-modal')).not.toBeInTheDocument();
 
       // Fast-forward less than delay
-      await vi.advanceTimersByTimeAsync(3000);
-      await vi.runAllTimersAsync();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
       expect(screen.queryByTestId('permission-modal')).not.toBeInTheDocument();
 
       // Fast-forward to delay
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.runAllTimersAsync();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
 
       expect(screen.getByTestId('permission-modal')).toBeInTheDocument();
     });

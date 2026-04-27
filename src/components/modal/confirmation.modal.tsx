@@ -1,3 +1,4 @@
+import React from 'react';
 import { Button } from '../common';
 type ConfirmModalConfig = {
   open: boolean;
@@ -7,9 +8,12 @@ type ConfirmModalConfig = {
   size?: 'sm' | 'lg';
   note?: string;
   icon?: string;
+  iconElement?: React.ReactNode;
   cancelText?: string;
   confirmText?: string;
   items?: string[];
+  children?: React.ReactNode;
+  hideActions?: boolean;
   onConfirm?: () => void;
   onClose: () => void;
 };
@@ -20,10 +24,13 @@ export const ConfirmationModal = ({
   description,
   note,
   icon,
+  iconElement,
   cancelText = 'Back',
   confirmText = 'Confirm',
   size = 'sm',
   items,
+  children,
+  hideActions = false,
   onConfirm,
   onClose,
 }: ConfirmModalConfig) => {
@@ -34,17 +41,18 @@ export const ConfirmationModal = ({
       <div
         className={`${size === 'lg' ? 'w-[90vw] sm:w-[550px] lg:w-[560px] min-h-[240px] sm:min-h-[240px]' : 'w-[400px] max-sm:w-[350px] p-4'} bg-white  p-5 sm:p-6 rounded-2xl flex flex-col`}
       >
-        {/* Icon */}
-        {icon && (
-          <div className="flex justify-center mb-4">
-            <img src={icon} className="w-12 h-12" />
-          </div>
+        {iconElement ? (
+          <div className="flex justify-center mb-4">{iconElement}</div>
+        ) : (
+          icon && (
+            <div className="flex justify-center mb-4">
+              <img src={icon} className="w-12 h-12" />
+            </div>
+          )
         )}
 
-        {/* Title */}
         <h2 className="text-center font-semibold text-black-800">{title}</h2>
 
-        {/* Description */}
         {description && (
           <p
             className={`${size === 'lg' ? 'text-left' : 'text-center'} mt-3 ${title ? 'text-gray-500' : 'font-semibold text-gray-800'} break-words px-2`}
@@ -70,28 +78,38 @@ export const ConfirmationModal = ({
             ))}
           </div>
         )}
-        {/* Divider */}
-        <div className="mt-3 border-b border-gray-200" />
-        {/* Footer Buttons Fixed */}
-        <div className="mt-3 flex justify-center gap-4 max-sm:mt-3 max-sm:pb-6">
-          {title && (
-            <Button
-              variant="primarylight"
-              size="sm"
-              type="button"
-              onClick={onClose}
-            >
-              <span className="mx-auto w-full font-semibold text-base">
-                {cancelText}
-              </span>
-            </Button>
-          )}
-          <Button variant="primary" size="sm" type="button" onClick={onConfirm}>
-            <span className="mx-auto w-full font-semibold text-base">
-              {confirmText}
-            </span>
-          </Button>
-        </div>
+
+        {children && <div className="mt-3">{children}</div>}
+
+        {!hideActions && (
+          <>
+            <div className="mt-3 border-b border-gray-200" />
+            <div className="mt-3 flex justify-center gap-4 max-sm:mt-3 max-sm:pb-6">
+              {title && (
+                <Button
+                  variant="primarylight"
+                  size="sm"
+                  type="button"
+                  onClick={onClose}
+                >
+                  <span className="mx-auto w-full font-semibold text-base">
+                    {cancelText}
+                  </span>
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                onClick={onConfirm}
+              >
+                <span className="mx-auto w-full font-semibold text-base">
+                  {confirmText}
+                </span>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

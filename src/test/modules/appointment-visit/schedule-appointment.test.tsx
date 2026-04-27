@@ -85,6 +85,13 @@ const remainingDaysInMonth = (() => {
 /** Helper: get the date-buttons container (inner flex with gap-[8px]) */
 const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
 
+/** Helper: how many dates remain from today through end-of-month (inclusive). */
+const remainingDaysInCurrentMonth = () => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return lastDay - now.getDate() + 1;
+};
+
 describe('AppointmentScheduleComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -173,14 +180,15 @@ describe('AppointmentScheduleComponent', () => {
       Object.defineProperty(window, 'innerWidth', { value: 800, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(Math.min(10, remainingDaysInMonth));
+      // `allDates` starts from today — if today is late in the month fewer dates remain.
+      expect(buttons.length).toBe(Math.min(10, remainingDaysInCurrentMonth()));
     });
 
     it('shows 13 date buttons on desktop (innerWidth=1200)', () => {
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true, configurable: true });
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
+      expect(buttons.length).toBe(Math.min(13, remainingDaysInCurrentMonth()));
     });
   });
 
@@ -198,7 +206,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
+        expect(buttons.length).toBe(Math.min(13, remainingDaysInCurrentMonth()));
       });
     });
 
@@ -217,7 +225,7 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
       await waitFor(() => {
         const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons.length).toBe(Math.min(13, remainingDaysInMonth));
+        expect(buttons.length).toBe(Math.min(13, remainingDaysInCurrentMonth()));
       });
     });
 
@@ -360,6 +368,8 @@ describe('AppointmentScheduleComponent', () => {
     it('next-dates slides to next page of dates', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
       renderComponent();
+      // Navigate to next month so all dates (1..30/31) are available for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       const firstDateBefore = getDateArea().querySelector('button')!.textContent;
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       const firstDateAfter = getDateArea().querySelector('button')!.textContent;
@@ -368,6 +378,8 @@ describe('AppointmentScheduleComponent', () => {
 
     it('prev-dates becomes enabled after sliding forward', () => {
       renderComponent();
+      // Navigate to next month so all dates (1..30/31) are available for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
       expect(prevDatesBtn).not.toBeDisabled();
@@ -375,6 +387,8 @@ describe('AppointmentScheduleComponent', () => {
 
     it('prev-dates slides back to previous page of dates', () => {
       renderComponent();
+      // Navigate to next month so all dates (1..30/31) are available for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       const firstDateOriginal = getDateArea().querySelector('button')!.textContent;
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       fireEvent.click(screen.getByAltText('prev-dates').closest('button')!);
