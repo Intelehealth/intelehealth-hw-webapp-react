@@ -42,3 +42,15 @@ export interface VisitUploadPayload {
   encounters: EncounterPayload[];
   visits: VisitPayload[];
 }
+
+/** Encounter reference returned after visit upload */
+export interface EncounterRef {
+  uuid: string;
+  encounterType?: { uuid: string };
+}
+
+/** Response from /push/visit-encounters */
+export interface VisitUploadResponse {
+  encounters?: EncounterRef[];
+  [key: string]: unknown;
+}

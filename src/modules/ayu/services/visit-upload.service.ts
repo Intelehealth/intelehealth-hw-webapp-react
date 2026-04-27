@@ -17,6 +17,7 @@ import type {
   EncounterObs,
   EncounterPayload,
   VisitUploadPayload,
+  VisitUploadResponse,
 } from '../types/visit-upload.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 
@@ -246,6 +247,7 @@ export interface BuildVisitUploadParams {
   familyHistory: { obsValue: string };
   speciality?: string;
   priorityVisit?: boolean;
+  doctorNotes?: string;
 }
 
 /**
@@ -323,7 +325,7 @@ export function buildVisitUploadPayload(
           },
           {
             attributeType: VISIT_ATTRIBUTE_TYPES.DOCTOR_NOTES,
-            value: 'No notes added for Doctor.',
+            value: params.doctorNotes || 'No notes added for Doctor.',
           },
         ],
         location: params.locationUuid,
@@ -344,6 +346,9 @@ const VISIT_UPLOAD_ENDPOINT = '/push/visit-encounters';
  */
 export async function uploadVisit(
   payload: VisitUploadPayload
-): Promise<unknown> {
-  return EmrMiddlewareApi.post(VISIT_UPLOAD_ENDPOINT, payload);
+): Promise<VisitUploadResponse> {
+  return EmrMiddlewareApi.post<VisitUploadResponse>(
+    VISIT_UPLOAD_ENDPOINT,
+    payload
+  );
 }

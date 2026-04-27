@@ -32,6 +32,17 @@ export interface ObsApiResponse {
   results: ObsResult[];
 }
 
+/** Captured document: keeps File for upload and preview for display */
+export interface CapturedDocument {
+  file: File;
+  preview: string; // base64 for images, empty string for non-image files
+  name: string;
+}
+
+/** Accepted file types for additional document upload */
+export const ACCEPTED_DOCUMENT_TYPES =
+  '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv';
+
 /** Concept UUIDs for physical exam image observations */
 export const OBS_CONCEPTS = {
   PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',
