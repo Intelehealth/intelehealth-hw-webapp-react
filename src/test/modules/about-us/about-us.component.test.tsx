@@ -138,4 +138,51 @@ describe('AboutusComponent', () => {
     );
     expect(aboutUsIcon).toBeDefined();
   });
+
+  it('should apply about-us-container class on root element', () => {
+    const { container } = renderComponent();
+    expect(container.querySelector('.about-us-container')).toBeInTheDocument();
+  });
+
+  it('should apply about-us-content class on content wrapper', () => {
+    const { container } = renderComponent();
+    expect(container.querySelector('.about-us-content')).toBeInTheDocument();
+  });
+
+  it('should apply about-us-main-image class on desktop image', () => {
+    const { container } = renderComponent();
+    const img = container.querySelector('.about-us-main-image');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'about-us-main-img.png');
+  });
+
+  it('should apply about-us-paragraph class on paragraph elements', () => {
+    const { container } = renderComponent();
+    const paragraphs = container.querySelectorAll('.about-us-paragraph');
+    expect(paragraphs.length).toBe(ABOUT_US_CONTENT.paragraphs.length);
+  });
+
+  it('should apply about-us-content-hr class on content divider', () => {
+    const { container } = renderComponent();
+    expect(container.querySelector('.about-us-content-hr')).toBeInTheDocument();
+  });
+
+  it('should apply about-us-header-hr class on header divider', () => {
+    const { container } = renderComponent();
+    expect(container.querySelector('.about-us-header-hr')).toBeInTheDocument();
+  });
+
+  it('should apply about-us-info-line class on info section', () => {
+    const { container } = renderComponent();
+    const infoLine = container.querySelector('.about-us-info-line');
+    expect(infoLine).toBeInTheDocument();
+    expect(infoLine).toHaveTextContent(ABOUT_US_CONTENT.checkOutLabel);
+  });
+
+  it('should apply about-us-btn class on desktop visit website button', () => {
+    const { container } = renderComponent();
+    const btn = container.querySelector('.about-us-btn');
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAttribute('href', ABOUT_US_CONTENT.visitWebsite.url);
+  });
 });
