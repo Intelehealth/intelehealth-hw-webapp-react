@@ -20,7 +20,10 @@ export const profileSchema = yup.object({
   email: yup
     .string()
     .trim()
-    .email('Email is invalid')
+    .matches(
+      /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+      'Email is invalid'
+    )
     .required('Email is required'),
   phone: yup
     .string()

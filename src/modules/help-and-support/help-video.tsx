@@ -45,17 +45,23 @@ const HelpVideo: React.FC<HelpVideoProps> = ({
           </button>
         )}
       </div>
-      <div className="flex flex-col md:grid md:grid-cols-4 md:gap-4">
-        {displayedVideos.map((video, index) => (
-          <VideoCard
-            key={index}
-            title={video.title}
-            duration={video.duration}
-            thumbnail={video.thumbnail}
-            videoUrl={video.videoUrl}
-          />
-        ))}
-      </div>
+      {displayedVideos.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">
+          No videos found
+        </p>
+      ) : (
+        <div className="flex flex-col md:grid md:grid-cols-4 md:gap-4">
+          {displayedVideos.map((video, index) => (
+            <VideoCard
+              key={index}
+              title={video.title}
+              duration={video.duration}
+              thumbnail={video.thumbnail}
+              videoUrl={video.videoUrl}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 };
