@@ -80,7 +80,7 @@ const SettingsAccount: React.FC = () => {
 
   return (
     <div className="flex-1 min-h-0">
-      <h2 className="text-sm font-semibold text-[--color-dark] mb-2">
+      <h2 className="text-sm font-semibold text-[--color-dark] mb-1">
         Account
       </h2>
 
@@ -100,11 +100,11 @@ const SettingsAccount: React.FC = () => {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-7 h-7 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
-          <img src={iconPersonWhite} alt="Personal" className="w-4 h-4" />
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-6 h-6 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
+          <img src={iconPersonWhite} alt="Personal" className="w-3.5 h-3.5" />
         </div>
-        <span className="text-sm font-semibold text-(--color-dark)">
+        <span className="text-[13px] font-semibold text-(--color-dark)">
           Personal
         </span>
       </div>
@@ -112,9 +112,9 @@ const SettingsAccount: React.FC = () => {
       <form
         onSubmit={handleSubmit(onSubmit)}
         noValidate
-        className="[&_label]:!mb-1 [&_label]:!text-[13px] [&_.form-input-base]:!py-1.5 [&_.form-input-base]:!text-[13px]"
+        className="[&_label]:!mb-0.5 [&_label]:!text-[12px] [&_.form-input-base]:!py-1 [&_.form-input-base]:!text-[12px]"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-[0.5rem]">
           <div onClick={handleReadOnlyClick} className="cursor-pointer">
             <Input
               label="Username"
@@ -229,8 +229,8 @@ const SettingsAccount: React.FC = () => {
 
           <div>
             <label className="form-label block mb-2">Phone number</label>
-            <div className="flex gap-2">
-              <div className="w-[90px]">
+            <div className="flex gap-1">
+              <div className="w-[80px]">
                 <CountryCodeDropdown onChange={() => {}} />
               </div>
               <div className="flex-1">
@@ -261,7 +261,7 @@ const SettingsAccount: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-2 mt-3">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-2 mt-2">
           <Button
             type="button"
             variant="secondary"

@@ -14,6 +14,21 @@ export const EXT_URL_DISPLAY_TEXT =
 export const EXT_URL_LANGUGAE_TEXT =
   'https://intelehealth.org/fhir/StructureDefinition/language';
 
+/**
+ * As discussed with Priya, There is no standard data element available for these attributes in HL7. These URLs will be generated in our IG (implementation guide) when we create for interoperability with other systems.
+ */
+export const EXT_URL_GENDER =
+  'https://intelehealth.org/fhir/StructureDefinition/gender';
+export const EXT_URL_AGE_MIN =
+  'https://intelehealth.org/fhir/StructureDefinition/age-min';
+export const EXT_URL_AGE_MAX =
+  'https://intelehealth.org/fhir/StructureDefinition/age-max';
+
+// Gender extension valueString codes
+export const GENDER_CODE_FEMALE = '0';
+export const GENDER_CODE_MALE = '1';
+export const GENDER_CODE_OTHER = 'other';
+
 // ========================
 // Associated Symptoms
 // ========================

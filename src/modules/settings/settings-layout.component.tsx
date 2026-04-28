@@ -24,7 +24,7 @@ const SettingsLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 border-b border-gray-200">
+      <div className="flex items-center gap-2 px-4 sm:px-6 py-1.5 sm:py-2 border-b border-gray-200">
         <div className="w-8 h-8 rounded-full bg-(--color-primary-light) flex items-center justify-center flex-shrink-0">
           <img src={iconSettingsFilled} alt="Settings" className="w-4 h-4" />
         </div>
@@ -72,7 +72,7 @@ const SettingsLayout: React.FC = () => {
           </nav>
         </aside>
 
-        <main className="flex-1 overflow-hidden px-3 sm:px-5 py-2 sm:py-3">
+        <main className="flex-1 min-h-0 px-3 sm:px-5 py-1.5 sm:py-2">
           {activeTab === 'account' && <SettingsAccount />}
           {activeTab === 'notification' && <SettingsNotification />}
           {activeTab === 'security' && <SettingsSecurity />}

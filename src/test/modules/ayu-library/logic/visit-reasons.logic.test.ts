@@ -41,6 +41,15 @@ describe('extractVisitReasonNames', () => {
   it('should return empty array for empty input', () => {
     expect(extractVisitReasonNames([], [])).toEqual([]);
   });
+
+  it('should trim surrounding whitespace from filenames', () => {
+    const items = [
+      { name: 'Abdominal Pain .json' },
+      { name: ' Fever.json' },
+    ];
+    const result = extractVisitReasonNames(items, []);
+    expect(result).toEqual(['Abdominal Pain', 'Fever']);
+  });
 });
 
 describe('filterNamesBySearch', () => {
