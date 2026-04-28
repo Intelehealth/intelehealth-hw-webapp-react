@@ -29,6 +29,7 @@ const ROUTES = {
   HELP_VIDEOS: '/help/videos',
   HELP_FAQ: '/help/faq',
   SETTINGS: '/settings',
+  EDUCATIONAL_VIDEOS: '/educational-videos',
   PRESCRIPTION_DETAIL: '/prescription-detail/:visitId',
   NOT_FOUND: '*', // catch-all
   PATIENT: {

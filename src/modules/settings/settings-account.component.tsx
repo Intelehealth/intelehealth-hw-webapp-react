@@ -12,11 +12,15 @@ import { Button, Input, Calendar } from '../../components/common';
 import { cn } from '../../utils/cn';
 import { calculateAge } from '../../utils/utils';
 import { useProfileContext } from '../../context/ProfileContext';
+import { showToast } from '../../services/toast';
 import {
   profileSchema,
   type ProfileFormValues,
 } from '../profile/profile.validation';
+import { SETTINGS_TOAST } from './settings.hooks';
 import type { RootState } from '../../store/store';
+
+const ADMIN_TOAST_DURATION = 3000;
 
 const SettingsAccount: React.FC = () => {
   const navigate = useNavigate();
@@ -62,8 +66,23 @@ const SettingsAccount: React.FC = () => {
   const selectedGender = watch('gender');
 
   const handleReadOnlyClick = useCallback(() => {
+    if (showAdminAlert) return;
     setShowAdminAlert(true);
-  }, []);
+    showToast(
+      '',
+      'Please contact your system administrator to change these profile details',
+      'default',
+      {
+        ...SETTINGS_TOAST,
+        autoClose: ADMIN_TOAST_DURATION,
+        style: {
+          ...SETTINGS_TOAST.style,
+          borderLeft: '4px solid #0fd197',
+        },
+      }
+    );
+    setTimeout(() => setShowAdminAlert(false), ADMIN_TOAST_DURATION);
+  }, [showAdminAlert]);
 
   const onSubmit = useCallback(
     async (data: ProfileFormValues) => {
@@ -84,22 +103,6 @@ const SettingsAccount: React.FC = () => {
         Account
       </h2>
 
-      {showAdminAlert && (
-        <div className="flex items-start justify-between bg-[#edf7f0] border border-[#b7e4c7] rounded-lg px-4 py-3 mb-5 gap-4">
-          <span className="text-body-normal text-[--color-dark]">
-            Please contact your system administrator to change these profile
-            details
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowAdminAlert(false)}
-            className="text-[--color-muted] hover:text-[--color-dark] flex-shrink-0 mt-0.5"
-          >
-            <i className="fa-solid fa-times text-sm" />
-          </button>
-        </div>
-      )}
-
       <div className="flex items-center gap-2 mb-1">
         <div className="w-6 h-6 rounded-full bg-[#0fd197] flex items-center justify-center flex-shrink-0">
           <img src={iconPersonWhite} alt="Personal" className="w-3.5 h-3.5" />
@@ -112,10 +115,10 @@ const SettingsAccount: React.FC = () => {
       <form
         onSubmit={handleSubmit(onSubmit)}
         noValidate
-        className="[&_label]:!mb-0.5 [&_label]:!text-[12px] [&_.form-input-base]:!py-1 [&_.form-input-base]:!text-[12px]"
+        className="[&_label]:!mb-0.5 [&_label]:!text-[12px] [&_.form-input-base]:!py-1 [&_.form-input-base]:!text-[12px] [&_.form-input-base:disabled]:pointer-events-none"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-[0.5rem]">
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <Input
               label="Username"
               {...register('username')}
@@ -126,7 +129,7 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <Input
               label="First Name"
               {...register('firstName')}
@@ -137,7 +140,7 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <Input
               label="Middle Name"
               {...register('middleName')}
@@ -148,7 +151,7 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <Input
               label="Last Name"
               {...register('lastName')}
@@ -160,7 +163,7 @@ const SettingsAccount: React.FC = () => {
           </div>
 
           <div
-            className="sm:col-span-2 cursor-pointer"
+            className="sm:col-span-2 cursor-not-allowed"
             onClick={handleReadOnlyClick}
           >
             <label className="form-label block mb-1">
@@ -199,7 +202,7 @@ const SettingsAccount: React.FC = () => {
             </div>
           </div>
 
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <Calendar
               label="Date of Birth"
               value={watch('dateOfBirth') || ''}
@@ -216,7 +219,7 @@ const SettingsAccount: React.FC = () => {
             />
           </div>
 
-          <div onClick={handleReadOnlyClick} className="cursor-pointer">
+          <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
             <label className="form-label block mb-2">or Age</label>
             <input
               type="text"

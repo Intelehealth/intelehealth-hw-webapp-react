@@ -21,7 +21,11 @@ const menuItems = [
     path: ROUTES.ACHIEVEMENT_UI,
   },
   { label: 'Help & Support', icon: iconInfo, path: ROUTES.HELP },
-  { label: 'Educational Videos', icon: iconVideos, path: '#' },
+  {
+    label: 'Educational Videos',
+    icon: iconVideos,
+    path: ROUTES.EDUCATIONAL_VIDEOS,
+  },
   { label: 'Settings', icon: iconSettings, path: ROUTES.SETTINGS },
   { label: 'About us', icon: iconAbout, path: ROUTES.ABOUT_US },
 ];

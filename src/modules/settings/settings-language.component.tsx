@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import iconLanguageWhite from '../../assets/icons/icon-language-white.svg';
 import iconProtocolsWhite from '../../assets/icons/icon-protocols-white.svg';
+import iconHourglass from '../../assets/icons/icon-hourglass.svg';
+import iconWarningDiamond from '../../assets/icons/icon-warning-diamond.svg';
 import { Button, Dropdown, Input } from '../../components/common';
 import { ConfirmationModal } from '../../components/modal/confirmation.modal';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
@@ -33,6 +35,7 @@ const SettingsLanguage: React.FC = () => {
       size: 'sm',
       title: 'Change language?',
       description: `Are you sure you want to change language to ${label}?`,
+      icon: iconWarningDiamond,
       cancelText: 'No',
       confirmText: 'Yes',
       onConfirm: () => setLanguage(code, label),
@@ -56,12 +59,6 @@ const SettingsLanguage: React.FC = () => {
   const greenCircleIcon = (src: string, alt: string) => (
     <div className="w-14 h-14 rounded-full bg-[#0fd197] flex items-center justify-center">
       <img src={src} alt={alt} className="w-7 h-7" />
-    </div>
-  );
-
-  const pinkCircleIcon = (iconClass: string) => (
-    <div className="w-14 h-14 rounded-full bg-[#fde2e2] flex items-center justify-center">
-      <i className={`${iconClass} text-[#e53e3e] text-lg`} />
     </div>
   );
 
@@ -186,7 +183,9 @@ const SettingsLanguage: React.FC = () => {
         type="confirm"
         title="Changing protocols"
         description="Please wait while the protocols are being changed."
-        iconElement={pinkCircleIcon('fa-solid fa-hourglass-half animate-pulse')}
+        iconElement={
+          <img src={iconHourglass} alt="" className="w-16 h-16 animate-pulse" />
+        }
         hideActions
         onClose={() => {}}
       />
