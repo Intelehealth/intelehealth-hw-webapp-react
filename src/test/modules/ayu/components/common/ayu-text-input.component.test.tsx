@@ -273,7 +273,7 @@ describe('AyuTextInput', () => {
     it('should render label with primary CSS classes when text matches ADDITIONAL_INFORMATION_LABEL', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
-        text: 'Additional information',
+        text: 'Additional Information',
       };
       render(
         <AyuTextInput
@@ -282,7 +282,7 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('Additional information');
+      const label = screen.getByText('Additional Information');
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 

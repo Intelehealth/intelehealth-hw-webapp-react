@@ -4,8 +4,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
 
 const mockNavigate = vi.fn();
+const mockLocation = { pathname: '/ayu/visit-summary' };
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => mockLocation,
 }));
 
 /* ── Mock context: useStartVisitData ─────────────────────────────────────── */
@@ -383,13 +385,66 @@ describe('VisitSummaryPage', () => {
 
   /* ── "Back to Edit" button ──────────────────────────────────────────── */
 
-  it('should navigate back when "Back to Edit" button is clicked', () => {
+  it('should navigate to start-visit Medical History when "Back to Edit" button is clicked', () => {
+    const setLastSectionIndex = vi.fn();
+    mockUseStartVisitData.mockReturnValueOnce({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
     renderWithData();
 
     const backButton = screen.getByText('Back to Edit');
     fireEvent.click(backButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(setLastSectionIndex).toHaveBeenCalledWith(3);
+    expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+  });
+
+  it('should fall back to /ayu when pathname strips to empty string on Back to Edit', () => {
+    const originalPathname = mockLocation.pathname;
+    mockLocation.pathname = '/visit-summary';
+    const setLastSectionIndex = vi.fn();
+    mockUseStartVisitData.mockReturnValueOnce({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
+
+    try {
+      renderWithData();
+      fireEvent.click(screen.getByText('Back to Edit'));
+      expect(setLastSectionIndex).toHaveBeenCalledWith(3);
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+    } finally {
+      mockLocation.pathname = originalPathname;
+    }
   });
 
   /* ── MedicalHistorySection: subheading items ──────────────────────── */

@@ -140,9 +140,10 @@ export const StartVisit = () => {
     if (isRestoring || hasRestored) return;
     setHasRestored(true);
 
-    // Use the exact saved section index if available, otherwise compute from data
     let restoreIndex: number;
-    if (restoredSectionIndex != null) {
+    if (lastSectionIndex > 0) {
+      restoreIndex = lastSectionIndex;
+    } else if (restoredSectionIndex != null) {
       restoreIndex = restoredSectionIndex;
     } else {
       restoreIndex = 0;

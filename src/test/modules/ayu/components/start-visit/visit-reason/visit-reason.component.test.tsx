@@ -132,6 +132,7 @@ import { useGlobalModal } from '../../../../../../components/modal/global-modal-
 import { transformFhirToAyu } from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../../../../modules/ayu/context/start-visit.context';
 import { buildVisitSummary } from '../../../../../../modules/ayu/utils/visit-summary.util';
+import { VisitReasonFooter } from '../../../../../../modules/ayu/components/start-visit/visit-reason/footer';
 const mockUseGlobalModal = vi.mocked(useGlobalModal);
 const mockTransformFhirToAyu = vi.mocked(transformFhirToAyu);
 const mockUseStartVisitData = vi.mocked(useStartVisitData);
@@ -337,10 +338,18 @@ describe('VisitReason', () => {
         />
       );
 
-      // Use fireEvent (not userEvent) to bypass the disabled attribute on the button
-      // This ensures handleNext is actually called and hits the !canSubmit early return
-      const nextButton = screen.getByTestId('footer-next-button');
-      fireEvent.click(nextButton);
+      // React swallows clicks on disabled buttons, so we directly invoke the
+      // onNextQuestion prop captured by the VisitReasonFooter mock to
+      // exercise handleNext's `!canSubmit` early-return branch.
+      const footerCalls = (
+        VisitReasonFooter as unknown as { mock: { calls: unknown[][] } }
+      ).mock.calls;
+      const lastFooterProps = footerCalls[footerCalls.length - 1][0] as {
+        onNextQuestion: () => void;
+        isNextDisabled?: boolean;
+      };
+      expect(lastFooterProps.isNextDisabled).toBe(true);
+      lastFooterProps.onNextQuestion();
 
       expect(mockShowConfirmModal).not.toHaveBeenCalled();
     });
@@ -1486,7 +1495,7 @@ describe('VisitReason', () => {
       expect(screen.getByText('Confirm')).toBeInTheDocument();
     });
 
-    it('should call onPrevSection when Back is clicked in review mode', async () => {
+    it('should switch to selection view (not previous section) when Back is clicked in review mode', async () => {
       const user = userEvent.setup();
       mockUseStartVisitData.mockReturnValue({
         data: { vitals: null, visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
@@ -1512,7 +1521,9 @@ describe('VisitReason', () => {
       );
 
       await user.click(screen.getByText('Back'));
-      expect(mockOnPrevSection).toHaveBeenCalledTimes(1);
+      expect(mockOnPrevSection).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });
 
     it('resets stepper view on review-mode Back so next forward-entry shows selection', async () => {
@@ -1555,7 +1566,7 @@ describe('VisitReason', () => {
 
       await user.click(screen.getByText('Back'));
 
-      expect(mockOnPrevSection).toHaveBeenCalledTimes(1);
+      expect(mockOnPrevSection).not.toHaveBeenCalled();
       expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
       expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });

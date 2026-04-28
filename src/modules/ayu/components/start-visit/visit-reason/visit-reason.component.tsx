@@ -207,7 +207,6 @@ export const VisitReason = ({
               variant="secondary"
               onClick={() => {
                 setShowStepper(false);
-                onPrevSection?.();
               }}
               className="w-full md:w-[10%]"
             >
