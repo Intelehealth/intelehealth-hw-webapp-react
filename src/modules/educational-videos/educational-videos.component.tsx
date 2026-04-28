@@ -3,13 +3,9 @@ import iconSearch from '../../assets/icons/icon-search.svg';
 import iconEducationalVideos from '../../assets/icons/icon-educational-videos.svg';
 import { videoList } from '../../assets/data/help.data';
 import VideoCard from '../../components/common/video-card.component';
+import VideoPopup from '../../components/common/video-popup.component';
 import { Input } from '../../components/common';
 import { cn } from '../../utils/cn';
-
-const toEmbedUrl = (url: string) => {
-  const match = url.match(/(?:v=|youtu\.be\/|embed\/)([\w-]+)/);
-  return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : url;
-};
 
 type VideoTab = 'health' | 'training' | 'about';
 
@@ -147,33 +143,12 @@ const EducationalVideos: React.FC = () => {
         <p className="text-sm text-(--color-muted)">No About-App videos yet.</p>
       )}
 
-      {playing && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex justify-center items-center px-4"
-          onClick={() => setPlaying(null)}
-        >
-          <div
-            className="relative w-full max-w-[720px] aspect-video rounded-lg overflow-hidden bg-black"
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setPlaying(null)}
-              aria-label="Close video"
-              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 text-(--color-dark) flex items-center justify-center hover:bg-white transition cursor-pointer"
-            >
-              <i className="fa-solid fa-times text-xs" />
-            </button>
-            <iframe
-              className="w-full h-full"
-              src={toEmbedUrl(playing.url)}
-              title={playing.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
+      <VideoPopup
+        open={!!playing}
+        title={playing?.title ?? ''}
+        url={playing?.url ?? ''}
+        onClose={() => setPlaying(null)}
+      />
     </div>
   );
 };
