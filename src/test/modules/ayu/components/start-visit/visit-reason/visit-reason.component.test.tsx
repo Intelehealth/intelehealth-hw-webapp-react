@@ -338,9 +338,11 @@ describe('VisitReason', () => {
         />
       );
 
-      // React swallows clicks on disabled buttons, so we directly invoke the
-      // onNextQuestion prop captured by the VisitReasonFooter mock to
-      // exercise handleNext's `!canSubmit` early-return branch.
+      /*
+       * React swallows clicks on disabled buttons, so we directly invoke the
+       * onNextQuestion prop captured by the VisitReasonFooter mock to
+       * exercise handleNext's `!canSubmit` early-return branch.
+       */
       const footerCalls = (
         VisitReasonFooter as unknown as { mock: { calls: unknown[][] } }
       ).mock.calls;

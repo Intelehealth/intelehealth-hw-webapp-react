@@ -437,12 +437,14 @@ describe('StartVisitProvider', () => {
       expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
     });
 
-    // Cross-patient data must NOT leak into Patient B's session.
+    /* Cross-patient data must NOT leak into Patient B's session. */
     expect(screen.getByTestId('vitals')).toHaveTextContent('null');
     expect(screen.getByTestId('tempRecordId')).toHaveTextContent('null');
     expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('null');
-    // Stale visitId for the current patient should be cleared so the next
-    // fetch creates a fresh record.
+    /*
+     * Stale visitId for the current patient should be cleared so the next
+     * fetch creates a fresh record.
+     */
     expect(mockStorageRemove).toHaveBeenCalledWith('temp_visit_id_patient-B');
   });
 
