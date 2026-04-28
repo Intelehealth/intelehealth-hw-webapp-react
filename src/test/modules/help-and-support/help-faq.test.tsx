@@ -145,6 +145,11 @@ describe('HelpFaq', () => {
         expect(screen.queryByText(item.question)).not.toBeInTheDocument();
       });
     });
+
+    it('should display "No FAQs found" message when category has no matches', () => {
+      renderWithProviders(<HelpFaq />, { category: 'Nonexistent' });
+      expect(screen.getByText('No FAQs found')).toBeInTheDocument();
+    });
   });
 
   describe('Search functionality', () => {
@@ -179,6 +184,13 @@ describe('HelpFaq', () => {
       const searchInput = screen.getByPlaceholderText('Search FAQ');
       fireEvent.change(searchInput, { target: { value: 'appointment' } });
       expect(screen.getByText('How to book an appointment?')).toBeInTheDocument();
+    });
+
+    it('should display "No FAQs found" message when search has no matches', () => {
+      renderWithProviders(
+        <HelpFaq searchQuery="xyznonexistent" onSearchChange={vi.fn()} />
+      );
+      expect(screen.getByText('No FAQs found')).toBeInTheDocument();
     });
 
     it('should call external onSearchChange when provided', () => {
