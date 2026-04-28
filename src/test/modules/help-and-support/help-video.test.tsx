@@ -108,6 +108,11 @@ describe('HelpVideo', () => {
         expect(screen.queryByText(video.title)).not.toBeInTheDocument();
       });
     });
+
+    it('should display "No videos found" message when category has no matches', () => {
+      renderWithProviders(<HelpVideo showAll />, { category: 'Nonexistent' });
+      expect(screen.getByText('No videos found')).toBeInTheDocument();
+    });
   });
 
   describe('Search functionality', () => {
@@ -136,6 +141,13 @@ describe('HelpVideo', () => {
       const searchInput = screen.getByPlaceholderText('Search for videos');
       fireEvent.change(searchInput, { target: { value: 'fever' } });
       expect(screen.getByText('Treat mild fever at home')).toBeInTheDocument();
+    });
+
+    it('should display "No videos found" message when search has no matches', () => {
+      renderWithProviders(
+        <HelpVideo searchQuery="xyznonexistent" onSearchChange={vi.fn()} showAll />
+      );
+      expect(screen.getByText('No videos found')).toBeInTheDocument();
     });
 
     it('should call external onSearchChange when provided', () => {

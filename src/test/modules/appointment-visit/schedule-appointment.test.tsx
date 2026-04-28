@@ -368,6 +368,8 @@ describe('AppointmentScheduleComponent', () => {
     it('next-dates slides to next page of dates', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500, writable: true, configurable: true });
       renderComponent();
+      // Navigate to next month to ensure enough dates for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       const firstDateBefore = getDateArea().querySelector('button')!.textContent;
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       const firstDateAfter = getDateArea().querySelector('button')!.textContent;
@@ -376,6 +378,8 @@ describe('AppointmentScheduleComponent', () => {
 
     it('prev-dates becomes enabled after sliding forward', () => {
       renderComponent();
+      // Navigate to next month to ensure enough dates for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       const prevDatesBtn = screen.getByAltText('prev-dates').closest('button')!;
       expect(prevDatesBtn).not.toBeDisabled();
@@ -383,6 +387,8 @@ describe('AppointmentScheduleComponent', () => {
 
     it('prev-dates slides back to previous page of dates', () => {
       renderComponent();
+      // Navigate to next month to ensure enough dates for sliding
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
       const firstDateOriginal = getDateArea().querySelector('button')!.textContent;
       fireEvent.click(screen.getByAltText('next-dates').closest('button')!);
       fireEvent.click(screen.getByAltText('prev-dates').closest('button')!);
