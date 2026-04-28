@@ -51,11 +51,18 @@ export interface TempVisitData {
 
 const VISIT_ID_STORAGE_KEY = 'temp_visit_id';
 
-function getOrCreateVisitId(): string {
-  const existing = storage.get(VISIT_ID_STORAGE_KEY);
+function visitIdStorageKey(patientUuid: string | null): string {
+  return patientUuid
+    ? `${VISIT_ID_STORAGE_KEY}_${patientUuid}`
+    : VISIT_ID_STORAGE_KEY;
+}
+
+function getOrCreateVisitId(patientUuid: string | null): string {
+  const key = visitIdStorageKey(patientUuid);
+  const existing = storage.get(key);
   if (existing) return existing;
   const id = crypto.randomUUID();
-  storage.set(VISIT_ID_STORAGE_KEY, id);
+  storage.set(key, id);
   return id;
 }
 
@@ -102,7 +109,9 @@ export const StartVisitProvider = ({
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
   );
-  const [visitId] = useState(getOrCreateVisitId);
+  const [visitId] = useState(() =>
+    getOrCreateVisitId(initialPatientUuid ?? null)
+  );
   const [tempRecordId, setTempRecordId] = useState<number | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [restoredSectionIndex, setRestoredSectionIndex] = useState<
@@ -129,6 +138,11 @@ export const StartVisitProvider = ({
       try {
         const res = await getResource<TempVisitData>('visit', visitId);
         if (cancelled || !res.data) return;
+        const recordPatientId = res.data.parent_id ?? null;
+        if (patientUuid && recordPatientId && recordPatientId !== patientUuid) {
+          storage.remove(visitIdStorageKey(patientUuid));
+          return;
+        }
         const saved = res.data.data;
         setTempRecordId(res.data.id);
         if (saved.currentSectionIndex != null) {
@@ -151,7 +165,7 @@ export const StartVisitProvider = ({
     return () => {
       cancelled = true;
     };
-  }, [visitId]);
+  }, [visitId, patientUuid]);
 
   const saveSectionToTemp = useCallback(
     async (sectionData: Partial<TempVisitData>) => {
@@ -193,8 +207,8 @@ export const StartVisitProvider = ({
   );
 
   const clearVisitId = useCallback(() => {
-    storage.remove(VISIT_ID_STORAGE_KEY);
-  }, []);
+    storage.remove(visitIdStorageKey(patientUuid));
+  }, [patientUuid]);
 
   const setVitalsData = (
     formValues: VitalsFormValues,

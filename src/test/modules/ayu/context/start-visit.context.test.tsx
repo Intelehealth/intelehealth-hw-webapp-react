@@ -411,6 +411,102 @@ describe('StartVisitProvider', () => {
     expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('2');
   });
 
+  it('should not populate data when restored record belongs to a different patient and should clear stale visitId', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 99,
+        parent_id: 'patient-A',
+        data: {
+          vitals: { formValues: { height_cm: 180 }, config: [] },
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+          currentSectionIndex: 1,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialPatientUuid="patient-B">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    /* Cross-patient data must NOT leak into Patient B's session. */
+    expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    expect(screen.getByTestId('tempRecordId')).toHaveTextContent('null');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('null');
+    /*
+     * Stale visitId for the current patient should be cleared so the next
+     * fetch creates a fresh record.
+     */
+    expect(mockStorageRemove).toHaveBeenCalledWith('temp_visit_id_patient-B');
+  });
+
+  it('should populate data when restored record parent_id matches current patient', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 7,
+        parent_id: 'patient-A',
+        data: {
+          vitals: { formValues: { height_cm: 180 }, config: [] },
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+          currentSectionIndex: 1,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialPatientUuid="patient-A">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('set');
+    expect(screen.getByTestId('tempRecordId')).toHaveTextContent('7');
+  });
+
+  it('should populate data when there is no current patientUuid (parent_id check fails open)', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 8,
+        parent_id: 'patient-A',
+        data: {
+          vitals: { formValues: {}, config: [] },
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('set');
+    expect(screen.getByTestId('tempRecordId')).toHaveTextContent('8');
+  });
+
   it('should set isRestoring to false even when fetch fails', async () => {
     mockGetResource.mockRejectedValue(new Error('Network error'));
 
@@ -536,7 +632,7 @@ describe('StartVisitProvider', () => {
 
   // ── clearVisitId ────────────────────────────────────────────────────────
 
-  it('should call storage.remove when clearVisitId is invoked', async () => {
+  it('should call storage.remove with the global visit-id key when clearVisitId is invoked without a patient', async () => {
     render(
       <StartVisitProvider>
         <ContextUpdater />
@@ -552,6 +648,50 @@ describe('StartVisitProvider', () => {
     });
 
     expect(mockStorageRemove).toHaveBeenCalledWith('temp_visit_id');
+  });
+
+  it('should call storage.remove with the patient-scoped visit-id key when clearVisitId is invoked with a patient', async () => {
+    render(
+      <StartVisitProvider initialPatientUuid="patient-xyz">
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    act(() => {
+      screen.getByTestId('btn-clearVisitId').click();
+    });
+
+    expect(mockStorageRemove).toHaveBeenCalledWith('temp_visit_id_patient-xyz');
+  });
+
+  it('should generate a patient-scoped visit ID when initialPatientUuid is provided and none exists in storage', async () => {
+    mockStorageGet.mockReturnValue(null);
+    const randomUUIDSpy = vi
+      .spyOn(crypto, 'randomUUID')
+      .mockReturnValue(
+        'pid-uuid-1111-2222-3333-444444444444' as `${string}-${string}-${string}-${string}-${string}`
+      );
+
+    render(
+      <StartVisitProvider initialPatientUuid="patient-xyz">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(mockStorageSet).toHaveBeenCalledWith(
+      'temp_visit_id_patient-xyz',
+      'pid-uuid-1111-2222-3333-444444444444'
+    );
+
+    randomUUIDSpy.mockRestore();
   });
 
   // ── Branch coverage: visit ID generation + createdBy fallbacks ────────
