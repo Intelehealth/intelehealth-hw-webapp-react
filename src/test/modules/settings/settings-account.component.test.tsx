@@ -14,6 +14,12 @@ vi.mock('../../../context/ProfileContext', () => ({
   useProfileContext: () => mockUseProfile(),
 }));
 
+vi.mock('../../../services/toast', () => ({
+  showToast: vi.fn(),
+}));
+import { showToast } from '../../../services/toast';
+const mockedShowToast = vi.mocked(showToast);
+
 // Mock Calendar so we can invoke its onChange callback from the test
 // (the real component disables the calendar UI, so we can't trigger it via clicks).
 vi.mock('../../../components/common', async orig => {
@@ -157,32 +163,34 @@ describe('SettingsAccount', () => {
     expect(firstName.disabled).toBe(true);
   });
 
-  it('shows admin alert when a disabled field wrapper is clicked', () => {
+  it('shows admin toast when a disabled field wrapper is clicked', () => {
     renderAccount();
     const usernameWrapper = screen
       .getByPlaceholderText('Username')
-      .closest('div')!.parentElement!;
+      .closest('div')!.parentElement!.parentElement!;
     fireEvent.click(usernameWrapper);
-    expect(
-      screen.getByText(
-        /Please contact your system administrator to change these profile details/i
-      )
-    ).toBeInTheDocument();
+    expect(mockedShowToast).toHaveBeenCalledWith(
+      '',
+      'Please contact your system administrator to change these profile details',
+      'default',
+      expect.objectContaining({ position: 'top-right' })
+    );
   });
 
-  it('dismisses the admin alert when the close icon is clicked', () => {
+  it('does not show toast more than once when multiple disabled fields are clicked', () => {
     renderAccount();
-    fireEvent.click(
-      screen.getByPlaceholderText('Username').closest('div')!.parentElement!
-    );
-    const alert = screen.getByText(
-      /Please contact your system administrator/i
-    );
-    const closeBtn = alert.parentElement!.querySelector('button')!;
-    fireEvent.click(closeBtn);
-    expect(
-      screen.queryByText(/Please contact your system administrator/i)
-    ).not.toBeInTheDocument();
+    const usernameWrapper = screen
+      .getByPlaceholderText('Username')
+      .closest('div')!.parentElement!.parentElement!;
+    const firstNameWrapper = screen
+      .getByPlaceholderText('First name')
+      .closest('div')!.parentElement!.parentElement!;
+
+    fireEvent.click(usernameWrapper);
+    fireEvent.click(firstNameWrapper);
+    fireEvent.click(usernameWrapper);
+
+    expect(mockedShowToast).toHaveBeenCalledTimes(1);
   });
 
   it('renders Gender options (Male / Female / Other)', () => {
