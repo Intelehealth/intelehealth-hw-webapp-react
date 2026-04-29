@@ -15,6 +15,11 @@ import {
   getObsByPatientAndConcept,
   removePendingImage,
   uploadAllPhysicalExamImages,
+  addPendingDocument,
+  clearPendingDocuments,
+  getPendingDocuments,
+  removePendingDocument,
+  uploadAllAdditionalDocuments,
 } from '../../../../modules/ayu/services/obs.service';
 import { OBS_CONCEPTS } from '../../../../modules/ayu/types/obs.types';
 
@@ -25,6 +30,7 @@ describe('obs.service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearPendingImages();
+    clearPendingDocuments();
   });
 
   // ── Pending image queue ─────────────────────────────────────────────────
@@ -194,6 +200,175 @@ describe('obs.service', () => {
       await expect(
         getObsByPatientAndConcept('patient-uuid', 'concept-uuid')
       ).rejects.toThrow('Not found');
+    });
+  });
+
+  // ── Pending document queue ──────────────────────────────────────────────
+
+  describe('pending document queue', () => {
+    it('should start with empty queue', () => {
+      expect(getPendingDocuments()).toHaveLength(0);
+    });
+
+    it('should add documents to queue', () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      expect(getPendingDocuments()).toHaveLength(1);
+      expect(getPendingDocuments()[0].file).toBe(file);
+      expect(getPendingDocuments()[0].comment).toBe('Lab report');
+    });
+
+    it('should add multiple documents to queue', () => {
+      const file1 = new File(['doc1'], 'report1.pdf', {
+        type: 'application/pdf',
+      });
+      const file2 = new File(['doc2'], 'report2.pdf', {
+        type: 'application/pdf',
+      });
+
+      addPendingDocument(file1, 'Lab report');
+      addPendingDocument(file2, 'X-ray');
+
+      expect(getPendingDocuments()).toHaveLength(2);
+    });
+
+    it('should remove document at given index', () => {
+      const file1 = new File(['doc1'], 'report1.pdf', {
+        type: 'application/pdf',
+      });
+      const file2 = new File(['doc2'], 'report2.pdf', {
+        type: 'application/pdf',
+      });
+
+      addPendingDocument(file1, 'Lab report');
+      addPendingDocument(file2, 'X-ray');
+
+      removePendingDocument(0);
+
+      expect(getPendingDocuments()).toHaveLength(1);
+      expect(getPendingDocuments()[0].comment).toBe('X-ray');
+    });
+
+    it('should clear all pending documents', () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+      addPendingDocument(file, 'X-ray');
+
+      clearPendingDocuments();
+
+      expect(getPendingDocuments()).toHaveLength(0);
+    });
+  });
+
+  // ── uploadAllAdditionalDocuments ────────────────────────────────────────
+
+  describe('uploadAllAdditionalDocuments', () => {
+    it('should do nothing when no pending documents', async () => {
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it('should upload each pending document via POST /obs with FormData', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      expect(mockPost).toHaveBeenCalledTimes(1);
+      const [endpoint, formData, config] = mockPost.mock.calls[0];
+      expect(endpoint).toBe('/obs');
+      expect(formData).toBeInstanceOf(FormData);
+      expect(config).toEqual({
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    });
+
+    it('should include correct JSON metadata in FormData', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      const formData = mockPost.mock.calls[0][1] as FormData;
+      const jsonString = formData.get('json') as string;
+      const json = JSON.parse(jsonString);
+
+      expect(json.concept).toBe(OBS_CONCEPTS.ADDITIONAL_DOCUMENT);
+      expect(json.encounter).toBe('enc-uuid');
+      expect(json.person).toBe('patient-uuid');
+      expect(json.comment).toBe('Lab report');
+      expect(json.obsDatetime).toBeDefined();
+    });
+
+    it('should include file in FormData', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      const formData = mockPost.mock.calls[0][1] as FormData;
+      expect(formData.get('file')).toBe(file);
+    });
+
+    it('should upload multiple documents in parallel', async () => {
+      const file1 = new File(['doc1'], 'report1.pdf', {
+        type: 'application/pdf',
+      });
+      const file2 = new File(['doc2'], 'report2.pdf', {
+        type: 'application/pdf',
+      });
+
+      addPendingDocument(file1, 'Lab report');
+      addPendingDocument(file2, 'X-ray');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      expect(mockPost).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear pending documents after successful upload', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      expect(getPendingDocuments()).toHaveLength(0);
+    });
+
+    it('should reject when an upload fails', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid')
+      ).rejects.toThrow('Network error');
     });
   });
 });

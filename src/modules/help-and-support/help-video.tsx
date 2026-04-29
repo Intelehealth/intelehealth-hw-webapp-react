@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { videoList, type HelpVideoProps } from '../../assets/data/help.data';
 import { HelpSearchMobile } from './help-search';
 import VideoCard from '../../components/common/video-card.component';
+import VideoPopup from '../../components/common/video-popup.component';
 import { useHelpCategory } from './context/help-category.context';
+
+interface PlayingVideo {
+  title: string;
+  url: string;
+}
 
 const HelpVideo: React.FC<HelpVideoProps> = ({
   searchQuery: externalQuery,
@@ -13,6 +19,7 @@ const HelpVideo: React.FC<HelpVideoProps> = ({
   const activeCategory = useHelpCategory();
   const navigate = useNavigate();
   const [internalQuery, setInternalQuery] = React.useState('');
+  const [playing, setPlaying] = useState<PlayingVideo | null>(null);
   const searchQuery = externalQuery ?? internalQuery;
   const setSearchQuery = onSearchChange ?? setInternalQuery;
 
@@ -45,17 +52,33 @@ const HelpVideo: React.FC<HelpVideoProps> = ({
           </button>
         )}
       </div>
-      <div className="flex flex-col md:grid md:grid-cols-4 md:gap-4">
-        {displayedVideos.map((video, index) => (
-          <VideoCard
-            key={index}
-            title={video.title}
-            duration={video.duration}
-            thumbnail={video.thumbnail}
-            videoUrl={video.videoUrl}
-          />
-        ))}
-      </div>
+      {displayedVideos.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">
+          No videos found
+        </p>
+      ) : (
+        <div className="flex flex-col md:grid md:grid-cols-4 md:gap-4">
+          {displayedVideos.map((video, index) => (
+            <VideoCard
+              key={index}
+              title={video.title}
+              duration={video.duration}
+              thumbnail={video.thumbnail}
+              videoUrl={video.videoUrl}
+              onClick={() =>
+                setPlaying({ title: video.title, url: video.videoUrl })
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      <VideoPopup
+        open={!!playing}
+        title={playing?.title ?? ''}
+        url={playing?.url ?? ''}
+        onClose={() => setPlaying(null)}
+      />
     </>
   );
 };

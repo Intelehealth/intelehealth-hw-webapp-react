@@ -55,20 +55,17 @@ const PatientHeader: React.FC<{ patient: Patient }> = ({ patient }) => {
 
   return (
     <>
-      {/* Mobile: bullet-style list with only CHW worker & Visit ID */}
       <div className="md:hidden space-y-1">
         <LabelValueRow label="CHW worker" value={patient.chwWorker} compact />
         <LabelValueRow label="Visit ID" value={patient.visitId} compact />
       </div>
 
-      {/* Tablet: single column */}
       <div className="hidden md:block lg:hidden space-y-1">
         {desktopItems.map(({ label, value }) => (
           <LabelValueRow key={label} label={label} value={value} compact />
         ))}
       </div>
 
-      {/* Desktop: 3-column layout with vertical dividers */}
       <div className="hidden lg:flex text-sm">
         {columns.map((col, idx) => (
           <React.Fragment key={idx}>
@@ -131,14 +128,12 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
 
   return (
     <>
-      {/* Mobile: single column */}
       <div className="md:hidden">
         {items.map(({ label, value }) => (
           <LabelValueRow key={label} label={label} value={value} />
         ))}
       </div>
 
-      {/* Desktop: two columns */}
       <div className="hidden md:grid grid-cols-2 gap-x-10">
         {[leftItems, rightItems].map((column, colIdx) => (
           <div key={colIdx}>
@@ -286,7 +281,6 @@ const VisitSummaryComponent: React.FC = () => {
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
-      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 bg-white z-10">
         <div className="flex items-center gap-3">
           <button className="p-1">
@@ -304,7 +298,6 @@ const VisitSummaryComponent: React.FC = () => {
         </div>
       </div>
 
-      {/* Desktop Header */}
       <div className="hidden md:flex items-center gap-3 mb-2">
         <img src={iconVisitSummary} alt="icon" />
         <span className="text-sm font-medium text-[#2E1E91]">
@@ -314,7 +307,6 @@ const VisitSummaryComponent: React.FC = () => {
       <hr className="hidden md:block border-t border-gray-200 mt-2 mb-3 md:-mx-4" />
 
       <div className="px-4 md:px-0">
-        {/* Mobile "Close all / Open all" toggle */}
         <div className="md:hidden flex justify-end py-2">
           <button
             className="flex items-center gap-1 text-xs text-gray-500"
@@ -330,7 +322,6 @@ const VisitSummaryComponent: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          {/* Patient Info — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconPatientImage}
@@ -343,7 +334,6 @@ const VisitSummaryComponent: React.FC = () => {
             </CollapsedComponent>
           </div>
 
-          {/* Vitals — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconVitals}
@@ -356,7 +346,6 @@ const VisitSummaryComponent: React.FC = () => {
             </CollapsedComponent>
           </div>
 
-          {/* Check-up reason */}
           <CollapsedComponent
             icon={iconVisitReason}
             title="Check-up reason"
@@ -373,7 +362,6 @@ const VisitSummaryComponent: React.FC = () => {
             )}
           </CollapsedComponent>
 
-          {/* Physical examination */}
           <CollapsedComponent
             icon={iconPhysicalExam}
             title="Physical examination"

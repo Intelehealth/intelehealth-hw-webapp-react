@@ -1,4 +1,18 @@
+import * as yup from 'yup';
+import {
+  emailValidation,
+  phoneValidation,
+} from '../profile/profile.validation';
 import { isValidPassword } from './settings.helpers';
+
+export const settingsAccountSchema = yup.object({
+  email: emailValidation,
+  phone: phoneValidation,
+});
+
+export type SettingsAccountFormValues = yup.InferType<
+  typeof settingsAccountSchema
+>;
 
 export interface PasswordChangeValues {
   currentPassword: string;

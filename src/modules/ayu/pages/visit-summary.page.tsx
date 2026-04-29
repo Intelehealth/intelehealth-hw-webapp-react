@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -23,6 +23,10 @@ import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.comp
 import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
+import {
+  uploadAllAdditionalDocuments,
+  clearPendingDocuments,
+} from '../services/obs.service';
 import { bulkMarkSynced } from '../services/temp-storage.service';
 import {
   buildFamilyHistoryData,
@@ -32,6 +36,9 @@ import {
   buildVisitUploadPayload,
   uploadVisit,
 } from '../services/visit-upload.service';
+import type { CapturedDocument } from '../types/obs.types';
+import { ACCEPTED_DOCUMENT_TYPES } from '../types/obs.types';
+import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { VitalsFormValues } from '../types/vitals.types';
 import {
   ITEM_TYPES,
@@ -42,8 +49,6 @@ import {
 } from '../utils/ayu.constants';
 
 const PRIMARY_COLOR = '#0fd197';
-
-/* ── Reusable row (same as visit-summary.component.tsx) ─────────────────── */
 
 const LabelValueRow: React.FC<{
   label: string;
@@ -61,8 +66,6 @@ const LabelValueRow: React.FC<{
     </span>
   </div>
 );
-
-/* ── Data mappers ───────────────────────────────────────────────────────── */
 
 const mapVitals = (formValues: VitalsFormValues): Vitals => {
   const v = (val?: number) => ({
@@ -84,8 +87,6 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
     respiratoryRate: v(formValues.respiratory_rate),
   };
 };
-
-/* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
   const getVitalDisplay = (val: number | null, note = 'No information') =>
@@ -214,15 +215,15 @@ const MedicalHistorySection: React.FC<{
   </div>
 );
 
-/* ── Page ────────────────────────────────────────────────────────────────── */
-
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     data,
     patientUuid: ctxPatientUuid,
     tempRecordId,
     clearVisitId,
+    setLastSectionIndex,
   } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const [allOpen, setAllOpen] = useState(true);
@@ -230,8 +231,52 @@ const VisitSummaryPage = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [speciality, setSpeciality] = useState('General Physician');
   const [priorityVisit, setPriorityVisit] = useState(false);
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [additionalDocuments, setAdditionalDocuments] = useState<
+    CapturedDocument[]
+  >([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
+
+  const isImageFile = (file: File) => file.type.startsWith('image/');
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+
+      Array.from(files).forEach(file => {
+        if (isImageFile(file)) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setAdditionalDocuments(prev => [
+              ...prev,
+              { file, preview: reader.result as string, name: file.name },
+            ]);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          setAdditionalDocuments(prev => [
+            ...prev,
+            { file, preview: '', name: file.name },
+          ]);
+        }
+      });
+
+      e.target.value = '';
+    },
+    []
+  );
+
+  const handleRemoveDocument = useCallback((index: number) => {
+    setAdditionalDocuments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+  const handleBackToEdit = useCallback(() => {
+    setLastSectionIndex(3);
+    const basePath = location.pathname.replace(/\/visit-summary\/?$/, '');
+    navigate(basePath || '/ayu');
+  }, [location.pathname, navigate, setLastSectionIndex]);
 
   const handleUploadVisit = useCallback(async () => {
     if (
@@ -292,9 +337,26 @@ const VisitSummaryPage = () => {
         familyHistory,
         speciality,
         priorityVisit,
+        doctorNotes: additionalNotes,
       });
 
-      await uploadVisit(payload);
+      const response = await uploadVisit(payload);
+
+      if (additionalDocuments.length > 0 && response?.encounters) {
+        const adultInitialEnc = response.encounters.find(
+          enc => enc.encounterType?.uuid === ENCOUNTER_TYPES.ADULT_INITIAL
+        );
+        if (adultInitialEnc?.uuid) {
+          clearPendingDocuments();
+          for (const doc of additionalDocuments) {
+            const { addPendingDocument } = await import(
+              '../services/obs.service'
+            );
+            addPendingDocument(doc.file, doc.name);
+          }
+          await uploadAllAdditionalDocuments(adultInitialEnc.uuid, patientUuid);
+        }
+      }
 
       if (tempRecordId) {
         bulkMarkSynced([tempRecordId]).catch(() => {});
@@ -321,6 +383,8 @@ const VisitSummaryPage = () => {
     priorityVisit,
     tempRecordId,
     clearVisitId,
+    additionalNotes,
+    additionalDocuments,
   ]);
 
   const confirmAndUpload = useCallback(() => {
@@ -354,7 +418,6 @@ const VisitSummaryPage = () => {
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <img src={iconVisitSummary} alt="icon" />
         <span className="text-sm font-medium text-[#2E1E91]">
@@ -364,7 +427,6 @@ const VisitSummaryPage = () => {
       <hr className="border-t border-gray-200 mt-2 mb-3 md:-mx-4" />
 
       <div className="px-4 md:px-0">
-        {/* Toggle all */}
         <div className="flex justify-end py-2">
           <button
             className="flex items-center gap-1 text-xs text-gray-500"
@@ -380,7 +442,6 @@ const VisitSummaryPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          {/* Vitals — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconVitals}
@@ -399,7 +460,6 @@ const VisitSummaryPage = () => {
             </CollapsedComponent>
           </div>
 
-          {/* Check-up reason */}
           <CollapsedComponent
             icon={iconVisitReason}
             title="Check-up reason"
@@ -415,7 +475,6 @@ const VisitSummaryPage = () => {
             )}
           </CollapsedComponent>
 
-          {/* Physical examination */}
           <CollapsedComponent
             icon={iconPhysicalExam}
             title="Physical examination"
@@ -434,7 +493,6 @@ const VisitSummaryPage = () => {
             )}
           </CollapsedComponent>
 
-          {/* Medical History — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconVisitSummary}
@@ -460,6 +518,77 @@ const VisitSummaryPage = () => {
         </div>
       </div>
 
+      <div className="flex flex-col md:flex-row md:items-start gap-4 mt-4 px-4 mb-4 md:px-0">
+        <div className="w-full md:w-1/2">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Additional notes
+          </p>
+          <textarea
+            rows={2}
+            placeholder="Leave a note for doctor"
+            value={additionalNotes}
+            onChange={e => setAdditionalNotes(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-400 resize-none outline-none focus:border-[#2E1E91]"
+          />
+        </div>
+        <div className="w-full md:w-1/2">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Add additional document{' '}
+            {additionalDocuments.length > 0 && (
+              <span className="text-gray-500">
+                ({additionalDocuments.length})
+              </span>
+            )}
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPTED_DOCUMENT_TYPES}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <div className="flex items-start gap-3 flex-wrap">
+            {additionalDocuments.map((doc, index) => (
+              <div
+                key={index}
+                className="flex flex-col items-center w-16 relative"
+              >
+                <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                  {doc.preview ? (
+                    <img
+                      src={doc.preview}
+                      alt={doc.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <i className="fa-solid fa-file-pdf text-red-500 text-2xl" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDocument(index)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] leading-none hover:bg-red-600"
+                >
+                  ✕
+                </button>
+                <span className="text-xs text-gray-600 mt-1 truncate w-full text-center">
+                  {doc.name}
+                </span>
+              </div>
+            ))}
+            <div className="flex flex-col items-center w-16">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-16 h-16 rounded-lg bg-[#2E1E91] text-white flex items-center justify-center text-2xl hover:bg-[#241776] transition-colors"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="flex flex-col md:flex-row md:items-end gap-4 mt-4 px-4 mb-4 md:px-0">
         <div className="w-full md:w-1/2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none">
           <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
@@ -496,11 +625,10 @@ const VisitSummaryPage = () => {
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={handleBackToEdit}
           className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Back to Edit
@@ -516,7 +644,6 @@ const VisitSummaryPage = () => {
         </button>
       </div>
 
-      {/* Send Visit confirmation */}
       {showConfirm && (
         <ConfirmationModal
           open={showConfirm}

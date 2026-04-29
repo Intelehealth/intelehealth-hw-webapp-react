@@ -83,13 +83,17 @@ const HelpFaq: React.FC<HelpFaqProps> = ({
         onSearchChange={setSearchQuery}
         placeholder="Search FAQ"
       />
-      {filteredFaqs.map((item, index) => (
-        <QuestionAnswerCard
-          key={index}
-          Question={item.question}
-          Answer={item.answer}
-        />
-      ))}
+      {filteredFaqs.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">No FAQs found</p>
+      ) : (
+        filteredFaqs.map((item, index) => (
+          <QuestionAnswerCard
+            key={index}
+            Question={item.question}
+            Answer={item.answer}
+          />
+        ))
+      )}
     </div>
   );
 };

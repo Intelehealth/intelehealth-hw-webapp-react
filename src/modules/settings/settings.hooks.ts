@@ -16,9 +16,10 @@ import {
   type PasswordChangeValues,
 } from './settings.validation';
 
-const SETTINGS_TOAST: ToastOptions = {
+export const SETTINGS_TOAST: ToastOptions = {
   position: 'top-right',
   closeButton: false,
+  hideProgressBar: true,
   style: { marginTop: '48px' },
 };
 

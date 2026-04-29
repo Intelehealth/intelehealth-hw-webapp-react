@@ -61,7 +61,7 @@ const HelpAndSupportComponent: React.FC<{
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-medium border transition-colors ${
+                className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-medium border transition-colors cursor-pointer ${
                   activeCategory === category
                     ? 'bg-[#2E1E91] text-white border-[#2E1E91]'
                     : 'bg-[#EFE8FF] text-[#2E1E91] border-[#EFE8FF]'

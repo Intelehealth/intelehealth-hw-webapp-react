@@ -1,11 +1,13 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
 
 const mockNavigate = vi.fn();
+const mockLocation = { pathname: '/ayu/visit-summary' };
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => mockLocation,
 }));
 
 /* ── Mock context: useStartVisitData ─────────────────────────────────────── */
@@ -132,6 +134,18 @@ vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
 const mockBulkMarkSynced = vi.fn();
 vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
   bulkMarkSynced: (...args: any[]) => mockBulkMarkSynced(...args),
+}));
+
+/* ── Mock obs.service ──────────────────────────────────────────────────── */
+
+const mockUploadAllAdditionalDocuments = vi.fn().mockResolvedValue(undefined);
+const mockClearPendingDocuments = vi.fn();
+const mockAddPendingDocument = vi.fn();
+
+vi.mock('../../../../modules/ayu/services/obs.service', () => ({
+  uploadAllAdditionalDocuments: (...args: any[]) => mockUploadAllAdditionalDocuments(...args),
+  clearPendingDocuments: (...args: any[]) => mockClearPendingDocuments(...args),
+  addPendingDocument: (...args: any[]) => mockAddPendingDocument(...args),
 }));
 
 /* ── Mock icon imports ───────────────────────────────────────────────────── */
@@ -271,6 +285,7 @@ beforeEach(() => {
   mockStorageGetLocationUuid.mockReturnValue('location-uuid-5678');
   mockUploadVisit.mockResolvedValue(undefined);
   mockUseConfig.mockReturnValue({ config: defaultMockConfig });
+  mockUploadAllAdditionalDocuments.mockResolvedValue(undefined);
 });
 
 describe('VisitSummaryPage', () => {
@@ -383,13 +398,66 @@ describe('VisitSummaryPage', () => {
 
   /* ── "Back to Edit" button ──────────────────────────────────────────── */
 
-  it('should navigate back when "Back to Edit" button is clicked', () => {
+  it('should navigate to start-visit Medical History when "Back to Edit" button is clicked', () => {
+    const setLastSectionIndex = vi.fn();
+    mockUseStartVisitData.mockReturnValueOnce({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
     renderWithData();
 
     const backButton = screen.getByText('Back to Edit');
     fireEvent.click(backButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(setLastSectionIndex).toHaveBeenCalledWith(3);
+    expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+  });
+
+  it('should fall back to /ayu when pathname strips to empty string on Back to Edit', () => {
+    const originalPathname = mockLocation.pathname;
+    mockLocation.pathname = '/visit-summary';
+    const setLastSectionIndex = vi.fn();
+    mockUseStartVisitData.mockReturnValueOnce({
+      data: { ...fullData },
+      patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex,
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
+
+    try {
+      renderWithData();
+      fireEvent.click(screen.getByText('Back to Edit'));
+      expect(setLastSectionIndex).toHaveBeenCalledWith(3);
+      expect(mockNavigate).toHaveBeenCalledWith('/ayu');
+    } finally {
+      mockLocation.pathname = originalPathname;
+    }
   });
 
   /* ── MedicalHistorySection: subheading items ──────────────────────── */
@@ -941,5 +1009,231 @@ describe('VisitSummaryPage', () => {
         'success'
       );
     });
+  });
+
+  /* ── Additional notes textarea ───────────────────────────────────── */
+
+  it('should update additional notes when typing in the textarea', () => {
+    renderWithData(fullData);
+
+    const textarea = screen.getByPlaceholderText('Leave a note for doctor');
+    fireEvent.change(textarea, { target: { value: 'Patient needs follow-up' } });
+
+    expect(textarea).toHaveValue('Patient needs follow-up');
+  });
+
+  it('should pass additional notes to buildVisitUploadPayload', async () => {
+    renderWithData(fullData);
+
+    const textarea = screen.getByPlaceholderText('Leave a note for doctor');
+    fireEvent.change(textarea, { target: { value: 'Test doctor note' } });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBuildVisitUploadPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ doctorNotes: 'Test doctor note' })
+      );
+    });
+  });
+
+  /* ── Add document button ─────────────────────────────────────────── */
+
+  it('should trigger file input when "+" button is clicked', () => {
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const clickSpy = vi.spyOn(fileInput, 'click');
+
+    const addButton = screen.getByText('+');
+    fireEvent.click(addButton);
+
+    expect(clickSpy).toHaveBeenCalled();
+    clickSpy.mockRestore();
+  });
+
+  /* ── File selection: image file ──────────────────────────────────── */
+
+  it('should add an image document with preview on file selection', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,testdata',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const imageFile = new File(['test'], 'photo.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [imageFile] } });
+    });
+
+    expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(imageFile);
+    expect(screen.getByText('photo.png')).toBeInTheDocument();
+    expect(screen.getByAltText('photo.png')).toBeInTheDocument();
+
+    globalThis.FileReader = OriginalFileReader;
+  });
+
+  /* ── File selection: non-image file ──────────────────────────────── */
+
+  it('should add a non-image document without preview on file selection', async () => {
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['test'], 'report.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    expect(screen.getByText('report.pdf')).toBeInTheDocument();
+    const icon = document.querySelector('.fa-file-pdf');
+    expect(icon).toBeInTheDocument();
+  });
+
+  /* ── File selection: null files ──────────────────────────────────── */
+
+  it('should handle file input change with null files', () => {
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: null } });
+
+    // No documents should be added
+    expect(screen.queryByText('✕')).not.toBeInTheDocument();
+  });
+
+  /* ── Remove document ─────────────────────────────────────────────── */
+
+  it('should remove a document when remove button is clicked', async () => {
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['test'], 'to-remove.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    expect(screen.getByText('to-remove.pdf')).toBeInTheDocument();
+
+    const removeButton = screen.getByText('✕');
+    await act(async () => {
+      fireEvent.click(removeButton);
+    });
+
+    expect(screen.queryByText('to-remove.pdf')).not.toBeInTheDocument();
+  });
+
+  /* ── Document count display ──────────────────────────────────────── */
+
+  it('should show document count when documents are added', async () => {
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'doc1.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [file] } });
+    });
+
+    expect(screen.getByText('(1)')).toBeInTheDocument();
+  });
+
+  /* ── Additional documents upload during visit upload ─────────────── */
+
+  it('should upload additional documents after successful visit upload', async () => {
+    const ADULT_INITIAL_UUID = '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f';
+    mockUploadVisit.mockResolvedValue({
+      encounters: [
+        { uuid: 'enc-uuid-123', encounterType: { uuid: ADULT_INITIAL_UUID } },
+      ],
+    });
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['test'], 'upload-doc.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockClearPendingDocuments).toHaveBeenCalled();
+      expect(mockAddPendingDocument).toHaveBeenCalledWith(pdfFile, 'upload-doc.pdf');
+      expect(mockUploadAllAdditionalDocuments).toHaveBeenCalledWith(
+        'enc-uuid-123',
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
+    });
+  });
+
+  it('should skip additional documents upload when no matching encounter type', async () => {
+    mockUploadVisit.mockResolvedValue({
+      encounters: [
+        { uuid: 'enc-uuid-456', encounterType: { uuid: 'some-other-type' } },
+      ],
+    });
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['test'], 'skip-doc.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+
+    expect(mockClearPendingDocuments).not.toHaveBeenCalled();
+    expect(mockUploadAllAdditionalDocuments).not.toHaveBeenCalled();
+  });
+
+  it('should skip additional documents upload when response has no encounters', async () => {
+    mockUploadVisit.mockResolvedValue({});
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['test'], 'no-enc.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+
+    expect(mockClearPendingDocuments).not.toHaveBeenCalled();
   });
 });

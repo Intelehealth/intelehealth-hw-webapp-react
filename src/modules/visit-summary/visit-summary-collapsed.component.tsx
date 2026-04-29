@@ -35,7 +35,6 @@ const CollapsedComponent: FC<CollapsedComponentProps> = ({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200">
-      {/* Header */}
       <button
         type="button"
         className="w-full flex items-center justify-between px-3 py-3 md:px-4 md:py-2.5 cursor-pointer"
@@ -59,7 +58,6 @@ const CollapsedComponent: FC<CollapsedComponentProps> = ({
         </div>
       </button>
 
-      {/* Content */}
       {isOpen && (
         <>
           <hr className="border-t border-gray-200" />

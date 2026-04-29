@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import iconSettingsFilled from '../../assets/icons/icon-settings-filled.svg';
-import iconNotification from '../../assets/icons/icon-notification.svg';
+import iconNotification from '../../assets/icons/icon-notification-plain.svg';
 import iconLock from '../../assets/icons/icon-security-filled.svg';
 import iconAccount from '../../assets/icons/icon-account-outline.svg';
 import iconSliders from '../../assets/icons/icon-sliders.svg';

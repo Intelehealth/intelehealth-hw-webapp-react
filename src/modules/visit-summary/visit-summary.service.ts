@@ -35,8 +35,6 @@ interface CloseVisitPayload {
   stopDatetime: string;
 }
 
-// --- Helper functions ---
-
 export function getObsNumericValue(
   encounters: VisitDetailsEncounter[],
   conceptUuid: string
