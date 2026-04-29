@@ -7,6 +7,16 @@ import {
   PHYSCAL_EXAM_DESCRIPTION,
 } from '../../../../../../modules/ayu/utils/ayu.constants';
 
+vi.mock('react-router-dom', () => ({
+  useLocation: () => ({
+    pathname: '/ayu',
+    search: '',
+    hash: '',
+    state: null,
+    key: 'default',
+  }),
+}));
+
 // Mock all child components
 vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
   QuestionLoader: vi.fn(({ children, question }) => (

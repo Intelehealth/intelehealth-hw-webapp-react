@@ -33,8 +33,10 @@ describe('resolveAyuComponent', () => {
       expect(resolveAyuComponent(makeQuestion({ type: 'integer' }))).toBe('number');
     });
 
-    it('should return "number" for decimal type', () => {
-      expect(resolveAyuComponent(makeQuestion({ type: 'decimal' }))).toBe('number');
+    it('should return "decimal" for decimal type', () => {
+      expect(resolveAyuComponent(makeQuestion({ type: 'decimal' }))).toBe(
+        'decimal'
+      );
     });
 
     it('should return "date" for date type', () => {
@@ -53,6 +55,55 @@ describe('resolveAyuComponent', () => {
 
     it('should return "text" for unknown types (default)', () => {
       expect(resolveAyuComponent(makeQuestion({ type: 'unknown' }))).toBe('text');
+    });
+  });
+
+  describe('integer with min/max extensions', () => {
+    const minMax = (min: number, max: number) => [
+      {
+        url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+        valueInteger: min,
+      },
+      {
+        url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+        valueInteger: max,
+      },
+    ];
+
+    it('returns "frequency" when max <= 10', () => {
+      const q = makeQuestion({ type: 'integer', extension: minMax(0, 10) });
+      expect(resolveAyuComponent(q)).toBe('frequency');
+    });
+
+    it('returns "range" when max > 10', () => {
+      const q = makeQuestion({ type: 'integer', extension: minMax(0, 100) });
+      expect(resolveAyuComponent(q)).toBe('range');
+    });
+
+    it('returns "number" when only minValue is present', () => {
+      const q = makeQuestion({
+        type: 'integer',
+        extension: [
+          {
+            url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+            valueInteger: 0,
+          },
+        ],
+      });
+      expect(resolveAyuComponent(q)).toBe('number');
+    });
+
+    it('returns "number" when only maxValue is present', () => {
+      const q = makeQuestion({
+        type: 'integer',
+        extension: [
+          {
+            url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+            valueInteger: 10,
+          },
+        ],
+      });
+      expect(resolveAyuComponent(q)).toBe('number');
     });
   });
 
@@ -144,12 +195,16 @@ describe('resolveAyuComponent', () => {
         'text',
         'repeatable-text',
         'number',
+        'decimal',
         'date',
         'select',
         'multi-select',
         'radio',
         'selectableOptionGroup',
         'quantity',
+        'area',
+        'frequency',
+        'range',
         'associatedSymptoms',
       ];
 

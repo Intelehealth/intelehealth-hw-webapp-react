@@ -7,6 +7,7 @@ export interface FhirExtension {
   valueBoolean?: boolean;
   valueString?: string;
   valueCode?: string;
+  valueInteger?: number;
   extension?: FhirExtension[];
 }
 

@@ -2,18 +2,15 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import { storage } from '../../../../../utils/storage';
 import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import {
-  parsePatientAgeYears,
-  transformFhirToAyu,
-} from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
+import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
@@ -23,8 +20,6 @@ import {
   CONFIRM_MODAL_TITLE,
   CONFIRM_MODAL_YES,
   ITEM_TYPES,
-  PATIENT_AGE_KEY,
-  PATIENT_GENDER_KEY,
   PHYSCAL_EXAM_DESCRIPTION,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
@@ -63,16 +58,8 @@ export const VisitReason = ({
   const { data, setVisitReasonData, saveSectionToTemp } = useStartVisitData();
   const savedAnswers = data.visitReason?.answers;
 
-  const patientDemographics = useMemo(
-    () => ({
-      age: parsePatientAgeYears(storage.get(PATIENT_AGE_KEY)),
-      gender: storage.get(PATIENT_GENDER_KEY),
-    }),
-    []
-  );
+  const patientDemographics = usePatientDemographics();
 
-  // Restore stepper state from context so answers survive if the component
-  // remounts (e.g. React reconciliation). Same pattern as Medical History.
   const [showStepper, setShowStepper] = useState(() => !!savedAnswers);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(() => {
     if (savedAnswers && selectedComplaints.length > 0) {
@@ -116,7 +103,6 @@ export const VisitReason = ({
 
   const handleStepperComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
-      // Use buildVisitSummary to properly resolve answer codes to display text
       const topLevelItems = (stableSchema?.item ?? []).filter(
         q => q.type !== ITEM_TYPES.GROUP
       );
@@ -150,7 +136,6 @@ export const VisitReason = ({
         onProgressUpdate?.(1, 1);
         onNextQuestion();
       } else {
-        // Defer so the summary modal's closeModal() finishes before opening the next modal
         setTimeout(() => {
           showConfirmModal({
             icon: iconWashHand,
