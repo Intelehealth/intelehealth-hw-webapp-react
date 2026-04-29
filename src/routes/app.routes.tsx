@@ -45,6 +45,9 @@ const PatientProfilePage = lazy(
 );
 const ProfilePage = lazy(() => import('../pages/profile/profile.page'));
 const SettingsPage = lazy(() => import('../pages/settings/settings.page'));
+const EducationalVideosPage = lazy(
+  () => import('../pages/educational-videos/educational-videos.page')
+);
 
 import { ProfileGuardProvider } from '../context/ProfileGuardContext';
 import AppointmentDetails from '../modules/appointment-visit/appointment-details.component';
@@ -254,6 +257,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <SettingsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.EDUCATIONAL_VIDEOS}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <EducationalVideosPage />
                 </Suspense>
               }
             />
