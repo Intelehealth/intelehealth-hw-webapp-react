@@ -10,9 +10,10 @@ interface Props {
   search: string;
   setSearch: (v: string) => void;
   filteredNames: string[];
+  disabledReasons?: Set<string>;
   addReason: (reason: string) => void;
 }
-const highlightMatch = (text: string, query: string) => {
+export const highlightMatch = (text: string, query: string) => {
   if (!query) return text;
 
   const regex = new RegExp(`(${query})`, 'gi');
@@ -32,6 +33,7 @@ export const ReasonSearchInput = ({
   search,
   setSearch,
   filteredNames,
+  disabledReasons,
   addReason,
 }: Props) => {
   return (
@@ -62,15 +64,23 @@ export const ReasonSearchInput = ({
           style={{ scrollbarWidth: 'none' }}
         >
           {filteredNames.length > 0 ? (
-            filteredNames.slice(0, MAX_FILTERED_RESULTS).map(reason => (
-              <div
-                key={reason}
-                onClick={() => addReason(reason)}
-                className="px-4 py-2 cursor-pointer border-gray-200  text-gray-400 hover:bg-gray-100 border-b last:border-none"
-              >
-                {highlightMatch(reason, search)}
-              </div>
-            ))
+            filteredNames.slice(0, MAX_FILTERED_RESULTS).map(reason => {
+              const isDisabled = disabledReasons?.has(reason) ?? false;
+              return (
+                <div
+                  key={reason}
+                  onClick={isDisabled ? undefined : () => addReason(reason)}
+                  aria-disabled={isDisabled}
+                  className={`px-4 py-2 border-gray-200 border-b last:border-none ${
+                    isDisabled
+                      ? 'cursor-not-allowed text-gray-300 bg-gray-50'
+                      : 'cursor-pointer text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  {highlightMatch(reason, search)}
+                </div>
+              );
+            })
           ) : (
             <p className="px-4 py-3 text-sm text-gray-400">
               {NO_MATCHING_COMPLAINTS}

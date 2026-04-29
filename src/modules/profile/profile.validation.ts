@@ -1,4 +1,5 @@
 import * as yup from 'yup';
+import { VALID_TLDS } from '../../utils/valid-tlds';
 
 export const profileSchema = yup.object({
   username: yup.string().trim().defined(),
@@ -20,8 +21,16 @@ export const profileSchema = yup.object({
   email: yup
     .string()
     .trim()
-    .email('Email is invalid')
-    .required('Email is required'),
+    .required('Email is required')
+    .matches(/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, {
+      message: 'Email is invalid',
+      excludeEmptyString: true,
+    })
+    .test('valid-tld', 'Email is invalid', value => {
+      if (!value) return true;
+      const tld = value.split('.').pop()?.toLowerCase();
+      return !!tld && VALID_TLDS.has(tld);
+    }),
   phone: yup
     .string()
     .trim()

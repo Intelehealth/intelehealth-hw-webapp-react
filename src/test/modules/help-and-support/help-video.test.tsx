@@ -108,6 +108,11 @@ describe('HelpVideo', () => {
         expect(screen.queryByText(video.title)).not.toBeInTheDocument();
       });
     });
+
+    it('should display "No videos found" message when category has no matches', () => {
+      renderWithProviders(<HelpVideo showAll />, { category: 'Nonexistent' });
+      expect(screen.getByText('No videos found')).toBeInTheDocument();
+    });
   });
 
   describe('Search functionality', () => {
@@ -138,6 +143,13 @@ describe('HelpVideo', () => {
       expect(screen.getByText('Treat mild fever at home')).toBeInTheDocument();
     });
 
+    it('should display "No videos found" message when search has no matches', () => {
+      renderWithProviders(
+        <HelpVideo searchQuery="xyznonexistent" onSearchChange={vi.fn()} showAll />
+      );
+      expect(screen.getByText('No videos found')).toBeInTheDocument();
+    });
+
     it('should call external onSearchChange when provided', () => {
       const onSearchChange = vi.fn();
       renderWithProviders(
@@ -153,6 +165,25 @@ describe('HelpVideo', () => {
     it('should export HelpVideo as default', () => {
       expect(HelpVideo).toBeDefined();
       expect(typeof HelpVideo).toBe('function');
+    });
+  });
+
+  describe('Video popup', () => {
+    it('opens the video popup when a video card is clicked', () => {
+      renderWithProviders(<HelpVideo showAll />);
+      const firstVideo = videoList[0];
+      fireEvent.click(screen.getByText(firstVideo.title));
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement;
+      expect(iframe).toBeInTheDocument();
+      expect(iframe.title).toBe(firstVideo.title);
+    });
+
+    it('closes the video popup when the close button is clicked', () => {
+      renderWithProviders(<HelpVideo showAll />);
+      fireEvent.click(screen.getByText(videoList[0].title));
+      expect(document.querySelector('iframe')).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText('Close video'));
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
     });
   });
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -217,11 +217,13 @@ const MedicalHistorySection: React.FC<{
 
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     data,
     patientUuid: ctxPatientUuid,
     tempRecordId,
     clearVisitId,
+    setLastSectionIndex,
   } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const [allOpen, setAllOpen] = useState(true);
@@ -270,6 +272,11 @@ const VisitSummaryPage = () => {
   const handleRemoveDocument = useCallback((index: number) => {
     setAdditionalDocuments(prev => prev.filter((_, i) => i !== index));
   }, []);
+  const handleBackToEdit = useCallback(() => {
+    setLastSectionIndex(3);
+    const basePath = location.pathname.replace(/\/visit-summary\/?$/, '');
+    navigate(basePath || '/ayu');
+  }, [location.pathname, navigate, setLastSectionIndex]);
 
   const handleUploadVisit = useCallback(async () => {
     if (
@@ -621,7 +628,7 @@ const VisitSummaryPage = () => {
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={handleBackToEdit}
           className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Back to Edit

@@ -327,6 +327,14 @@ export const useVitals = (onNextQuestion: () => void) => {
     };
   }, [vitalsConfig]);
 
+  useEffect(() => {
+    const savedBloodGroup = savedVitals?.[VITAL_FIELD_KEYS.BLOOD_GROUP];
+    if (!savedBloodGroup) return;
+    const options = codedAnswers[VITAL_FIELD_KEYS.BLOOD_GROUP];
+    if (!options?.some(o => o.uuid === savedBloodGroup)) return;
+    setValue(VITAL_FIELD_KEYS.BLOOD_GROUP, savedBloodGroup);
+  }, [codedAnswers, savedVitals, setValue]);
+
   /** Get the dropdown answers for a coded vital field. */
   const getCodedAnswers = useCallback(
     (fieldKey: string): ConceptAnswer[] => {

@@ -1433,6 +1433,73 @@ describe('useVitals', () => {
       expect(bgItem.value).toBe('A POSITIVE');
     });
 
+    it('re-applies a restored blood_group once async <option> list arrives', async () => {
+      mockFetchConceptAnswers.mockResolvedValue(mockAnswers);
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: codedConfig },
+      } as any);
+
+      mockStartVisitData.mockReturnValue({
+        data: {
+          vitals: {
+            formValues: { blood_group: 'uuid-b-pos' },
+            config: codedConfig,
+          },
+          visitReason: null,
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        patientUuid: null,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        isRestoring: false,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: mockSetVitalsData,
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: vi.fn(),
+      } as any);
+
+      const TestComponent = () => {
+        const { register, getCodedAnswers, watch } = useVitals(mockOnNextQuestion);
+        const options = getCodedAnswers('blood_group');
+        return (
+          <form>
+            <select {...register('blood_group')} data-testid="bg">
+              <option value="">Select</option>
+              {options.map(o => (
+                <option key={o.uuid} value={o.uuid}>
+                  {o.display}
+                </option>
+              ))}
+            </select>
+            <span data-testid="watched">{watch('blood_group') ?? ''}</span>
+          </form>
+        );
+      };
+
+      render(<TestComponent />, { wrapper: createWrapper() });
+
+      // Wait for the async-fetched options to populate the <select>.
+      await waitFor(() => {
+        expect(screen.getAllByRole('option').length).toBe(3);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('watched').textContent).toBe('uuid-b-pos');
+      });
+      expect((screen.getByTestId('bg') as HTMLSelectElement).value).toBe(
+        'uuid-b-pos'
+      );
+    });
+
     it('should handle API fetch failure gracefully', async () => {
       mockFetchConceptAnswers.mockRejectedValue(new Error('Network error'));
       vi.mocked(useConfig).mockReturnValue({

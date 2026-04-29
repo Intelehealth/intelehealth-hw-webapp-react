@@ -77,4 +77,26 @@ describe('ReasonAlphabetList', () => {
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('disables and styles reasons listed in disabledReasons', async () => {
+    const user = userEvent.setup();
+    const addReason = vi.fn();
+    render(
+      <ReasonAlphabetList
+        grouped={mockGrouped}
+        selectedReasons={[]}
+        disabledReasons={new Set(['Fever'])}
+        addReason={addReason}
+      />
+    );
+
+    const feverButton = screen.getByRole('button', { name: 'Fever' });
+    expect(feverButton).toBeDisabled();
+    expect(feverButton).toHaveAttribute('aria-disabled', 'true');
+    expect(feverButton).toHaveClass('cursor-not-allowed');
+
+    // Clicking a disabled button is a no-op (userEvent respects `disabled`).
+    await user.click(feverButton);
+    expect(addReason).not.toHaveBeenCalled();
+  });
 });

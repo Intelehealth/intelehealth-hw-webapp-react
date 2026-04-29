@@ -1,12 +1,14 @@
 interface Props {
   grouped: Record<string, string[]>;
   selectedReasons: string[];
+  disabledReasons?: Set<string>;
   addReason: (reason: string) => void;
 }
 
 export const ReasonAlphabetList = ({
   grouped,
   selectedReasons,
+  disabledReasons,
   addReason,
 }: Props) => {
   return (
@@ -26,20 +28,29 @@ export const ReasonAlphabetList = ({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {grouped[letter].map(reason => (
-                <button
-                  key={reason}
-                  onClick={() => addReason(reason)}
-                  className={`px-3 py-1 rounded-sm border border-gray-200  text-sm transition
+              {grouped[letter].map(reason => {
+                const isDisabled = disabledReasons?.has(reason) ?? false;
+                const isSelected = selectedReasons.includes(reason);
+                return (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => addReason(reason)}
+                    disabled={isDisabled}
+                    aria-disabled={isDisabled}
+                    className={`px-3 py-1 rounded-sm border border-gray-200  text-sm transition
                     ${
-                      selectedReasons.includes(reason)
-                        ? 'bg-[#2E1E91] text-white border-[#2E1E91]'
-                        : 'hover:bg-[#2E1E91] hover:text-white'
+                      isDisabled
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-[#2E1E91] text-white border-[#2E1E91]'
+                          : 'hover:bg-[#2E1E91] hover:text-white'
                     }`}
-                >
-                  {reason}
-                </button>
-              ))}
+                  >
+                    {reason}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}

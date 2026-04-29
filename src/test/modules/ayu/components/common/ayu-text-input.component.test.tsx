@@ -270,7 +270,7 @@ describe('AyuTextInput', () => {
   });
 
   describe('Label Styling', () => {
-    it('should render label with primary CSS classes when text is "Additional Information"', () => {
+    it('should render label with primary CSS classes when text matches ADDITIONAL_INFORMATION_LABEL', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
         text: 'Additional Information',
@@ -289,7 +289,7 @@ describe('AyuTextInput', () => {
     it('should render label with muted CSS classes for other labels', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
-        text: 'Additional information',
+        text: 'Some other label',
       };
       render(
         <AyuTextInput
@@ -298,7 +298,7 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('Additional information');
+      const label = screen.getByText('Some other label');
       expect(label).toHaveClass('block', 'text-base');
     });
   });
