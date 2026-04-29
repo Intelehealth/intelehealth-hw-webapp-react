@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import iconLanguageWhite from '../../assets/icons/icon-language-white.svg';
 import iconProtocolsWhite from '../../assets/icons/icon-protocols-white.svg';
-import iconHourglass from '../../assets/icons/icon-hourglass.svg';
+import iconHourglassCircle from '../../assets/icons/icon-hourglass-circle.svg';
 import iconWarningDiamond from '../../assets/icons/icon-warning-diamond.svg';
 import { Button, Dropdown, Input } from '../../components/common';
 import { ConfirmationModal } from '../../components/modal/confirmation.modal';
@@ -47,10 +47,13 @@ const SettingsLanguage: React.FC = () => {
     setIsProtocolFormOpen(false);
     setIsUpdatingProtocols(true);
     try {
-      await handleUpdateProtocols({
-        serverUrl: serverUrl.trim(),
-        licenseKey: licenseKey.trim(),
-      });
+      await Promise.all([
+        handleUpdateProtocols({
+          serverUrl: serverUrl.trim(),
+          licenseKey: licenseKey.trim(),
+        }),
+        new Promise(resolve => setTimeout(resolve, 1500)),
+      ]);
     } finally {
       setIsUpdatingProtocols(false);
     }
@@ -184,7 +187,11 @@ const SettingsLanguage: React.FC = () => {
         title="Changing protocols"
         description="Please wait while the protocols are being changed."
         iconElement={
-          <img src={iconHourglass} alt="" className="w-16 h-16 animate-pulse" />
+          <img
+            src={iconHourglassCircle}
+            alt="Updating"
+            className="w-16 h-16 animate-pulse"
+          />
         }
         hideActions
         onClose={() => {}}
