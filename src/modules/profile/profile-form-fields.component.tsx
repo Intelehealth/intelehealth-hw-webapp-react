@@ -222,7 +222,7 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               disabled={!!watch('dateOfBirth')}
             />
           </div>
-          <div className="w-20">
+          <div className="w-20 cursor-not-allowed">
             <label className="form-label block mb-3 text-sm">
               Age <span className="text-red-500">*</span>
             </label>
@@ -230,8 +230,9 @@ const ProfileFormFields: React.FC<ProfileFormFieldsProps> = ({
               type="text"
               value={calculatedAge || ''}
               readOnly
+              disabled
               placeholder="Age"
-              className="form-input-base w-full text-center bg-gray-50 text-sm"
+              className="form-input-base w-full text-center bg-gray-50 text-sm caret-transparent cursor-not-allowed select-none"
             />
           </div>
         </div>

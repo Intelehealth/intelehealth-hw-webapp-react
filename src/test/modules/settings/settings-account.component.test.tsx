@@ -146,7 +146,7 @@ describe('SettingsAccount', () => {
     expect(screen.getByText('Last Name')).toBeInTheDocument();
     expect(screen.getByText(/Gender/)).toBeInTheDocument();
     expect(screen.getByText(/Date of Birth/)).toBeInTheDocument();
-    expect(screen.getByText('or Age')).toBeInTheDocument();
+    expect(screen.getByText('Age')).toBeInTheDocument();
     expect(screen.getByText('Phone number')).toBeInTheDocument();
     expect(screen.getByText('Email')).toBeInTheDocument();
   });
