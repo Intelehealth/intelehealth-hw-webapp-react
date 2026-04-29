@@ -21,9 +21,6 @@ import type {
 } from '../types/visit-upload.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Format a Date to ISO string with timezone offset (e.g. +0530) */
 function formatDatetime(date: Date): string {
   return date.toISOString().replace('Z', '+0000');
 }
@@ -32,12 +29,6 @@ function makeObs(concept: string, value: string): EncounterObs {
   return { comments: '', concept, value };
 }
 
-// ─── Vitals Encounter Builder ─────────────────────────────────────────────────
-
-/**
- * Build obs array for the Vitals encounter from form values and config.
- * Only includes vitals that have a non-empty value.
- */
 function buildVitalsObs(
   formValues: VitalsFormValues,
   vitalsConfig: VitalField[]
@@ -53,8 +44,6 @@ function buildVitalsObs(
 
   return obs;
 }
-
-// ─── Visit Reason HTML Builder ────────────────────────────────────────────────
 
 export interface VisitReasonData {
   obsValue: string;
@@ -81,21 +70,10 @@ export function buildVisitReasonHtml(
   };
 }
 
-// ─── Physical Exam HTML Builder ───────────────────────────────────────────────
-
 export interface PhysicalExamData {
   obsValue: string;
 }
 
-/**
- * Build physical exam display HTML and raw JSON from answers.
- *
- * Display format example:
- *   <b>General exams: </b><br/>• Eyes: Jaundice-no jaundice seen. <br/>
- *
- * Raw format example:
- *   ►<b>General exams: </b><br/>• Eyes: Jaundice-● Is there jaundice?*<br/>•No-<br/>
- */
 export function buildPhysicalExamData(
   answers: PhysicalExamAnswers,
   questions: PhysicalExamQuestion[]
@@ -138,11 +116,6 @@ export function buildPhysicalExamData(
   };
 }
 
-// ─── Medical History HTML Builder ─────────────────────────────────────────────
-
-/**
- * Build medical history display HTML and raw JSON from summary sections.
- */
 export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
   obsValue: string;
 } {
@@ -172,11 +145,6 @@ export function buildMedicalHistoryData(sections: MedicalHistorySummary[]): {
   };
 }
 
-// ─── Family History HTML Builder ──────────────────────────────────────────────
-
-/**
- * Build family history display HTML and raw JSON from summary sections.
- */
 export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
   obsValue: string;
 } {
@@ -202,8 +170,6 @@ export function buildFamilyHistoryData(sections: MedicalHistorySummary[]): {
     }),
   };
 }
-
-// ─── Adult Initial Encounter Builder ──────────────────────────────────────────
 
 interface AdultInitialData {
   visitReason: VisitReasonData;
@@ -233,8 +199,6 @@ function buildAdultInitialObs(data: AdultInitialData): EncounterObs[] {
   ];
 }
 
-// ─── Full Payload Builder ─────────────────────────────────────────────────────
-
 export interface BuildVisitUploadParams {
   patientUuid: string;
   providerUuid: string;
@@ -250,15 +214,6 @@ export interface BuildVisitUploadParams {
   doctorNotes?: string;
 }
 
-/**
- * Builds the complete visit upload payload matching the OpenMRS API format.
- *
- * Structure:
- * - encounters[0]: Vitals encounter (encounterType: VITALS)
- * - encounters[1]: Adult Initial encounter (encounterType: ADULT_INITIAL) with HTML obs
- * - encounters[2]: Visit Complete encounter (encounterType: VISIT_COMPLETE)
- * - visits[0]: Visit with attributes (speciality, datetime, doctor notes)
- */
 export function buildVisitUploadPayload(
   params: BuildVisitUploadParams
 ): VisitUploadPayload {
@@ -280,7 +235,6 @@ export function buildVisitUploadPayload(
     voided: 0,
   };
 
-  // Encounter 1: Vitals
   const vitalsEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime,
@@ -288,7 +242,6 @@ export function buildVisitUploadPayload(
     obs: buildVitalsObs(params.vitalsFormValues, params.vitalsConfig),
   };
 
-  // Encounter 2: Adult Initial (visit reason + physical exam + medical history + family history)
   const adultInitialEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime,
@@ -301,7 +254,6 @@ export function buildVisitUploadPayload(
     }),
   };
 
-  // Encounter 3: Visit Priority
   const visitPriorityEncounter: EncounterPayload = {
     ...baseEncounter,
     encounterDatetime: visitCompleteDatetime,
@@ -337,13 +289,8 @@ export function buildVisitUploadPayload(
   };
 }
 
-// ─── API Call ─────────────────────────────────────────────────────────────────
-
 const VISIT_UPLOAD_ENDPOINT = '/push/visit-encounters';
 
-/**
- * Upload the complete visit payload via the EMR Middleware.
- */
 export async function uploadVisit(
   payload: VisitUploadPayload
 ): Promise<VisitUploadResponse> {

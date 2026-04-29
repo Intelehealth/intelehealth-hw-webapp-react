@@ -4,7 +4,6 @@ import { OBS_CONCEPTS } from '../types/obs.types';
 
 const OBS_ENDPOINT = '/obs';
 
-// The hook pushes images here as the user captures them.
 let pendingImages: Array<{ file: File; comment: string }> = [];
 
 export const addPendingImage = (file: File, comment: string) => {
@@ -21,10 +20,6 @@ export const clearPendingImages = () => {
 
 export const getPendingImages = () => pendingImages;
 
-/**
- * Upload all pending physical exam images in bulk via Promise.all.
- * Call after visit + encounter creation.
- */
 export const uploadAllPhysicalExamImages = async (
   encounterUuid: string,
   patientUuid: string
@@ -53,8 +48,6 @@ export const uploadAllPhysicalExamImages = async (
   pendingImages = [];
 };
 
-// ─── Additional Documents ────────────────────────────────────────────────────
-
 let pendingDocuments: Array<{ file: File; comment: string }> = [];
 
 export const addPendingDocument = (file: File, comment: string) => {
@@ -71,10 +64,6 @@ export const clearPendingDocuments = () => {
 
 export const getPendingDocuments = () => pendingDocuments;
 
-/**
- * Upload all pending additional documents in bulk via Promise.all.
- * Call after visit + encounter creation.
- */
 export const uploadAllAdditionalDocuments = async (
   encounterUuid: string,
   patientUuid: string
@@ -103,10 +92,6 @@ export const uploadAllAdditionalDocuments = async (
   pendingDocuments = [];
 };
 
-/**
- * GET /obs?patient={patientUuid}&concept={conceptUuid}
- *       &v=custom:(uuid,comment,value,encounter:(visit:(uuid)))
- */
 export const getObsByPatientAndConcept = async (
   patientUuid: string,
   conceptUuid: string

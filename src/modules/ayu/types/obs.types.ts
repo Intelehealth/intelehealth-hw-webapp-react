@@ -1,11 +1,9 @@
-/** Captured image: keeps both the File (for upload) and base64/URL (for preview) */
 export interface CapturedImage {
   file: File | null;
-  preview: string; // base64 data-URL or S3 URL for thumbnail display
+  preview: string;
   assetRecordId?: number;
 }
 
-/** JSON part of the multipart obs image upload (matches Android ObsPushDTO) */
 export interface ObsPushDTO {
   concept: string;
   encounter: string;
@@ -14,7 +12,6 @@ export interface ObsPushDTO {
   comment: string;
 }
 
-/** Single obs result from GET /obs */
 export interface ObsResult {
   uuid: string;
   comment: string;
@@ -27,23 +24,19 @@ export interface ObsResult {
   } | null;
 }
 
-/** Response from GET /obs */
 export interface ObsApiResponse {
   results: ObsResult[];
 }
 
-/** Captured document: keeps File for upload and preview for display */
 export interface CapturedDocument {
   file: File;
-  preview: string; // base64 for images, empty string for non-image files
+  preview: string;
   name: string;
 }
 
-/** Accepted file types for additional document upload */
 export const ACCEPTED_DOCUMENT_TYPES =
   '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv';
 
-/** Concept UUIDs for physical exam image observations */
 export const OBS_CONCEPTS = {
   PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',
   ADDITIONAL_DOCUMENT: '07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba',

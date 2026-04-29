@@ -50,8 +50,6 @@ import {
 
 const PRIMARY_COLOR = '#0fd197';
 
-/* ── Reusable row (same as visit-summary.component.tsx) ─────────────────── */
-
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
@@ -68,8 +66,6 @@ const LabelValueRow: React.FC<{
     </span>
   </div>
 );
-
-/* ── Data mappers ───────────────────────────────────────────────────────── */
 
 const mapVitals = (formValues: VitalsFormValues): Vitals => {
   const v = (val?: number) => ({
@@ -91,8 +87,6 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
     respiratoryRate: v(formValues.respiratory_rate),
   };
 };
-
-/* ── Section renderers (same UI as visit-summary.component.tsx) ─────────── */
 
 const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
   const getVitalDisplay = (val: number | null, note = 'No information') =>
@@ -221,8 +215,6 @@ const MedicalHistorySection: React.FC<{
   </div>
 );
 
-/* ── Page ────────────────────────────────────────────────────────────────── */
-
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
   const {
@@ -270,7 +262,6 @@ const VisitSummaryPage = () => {
         }
       });
 
-      // Reset input so same file can be re-selected
       e.target.value = '';
     },
     []
@@ -344,13 +335,11 @@ const VisitSummaryPage = () => {
 
       const response = await uploadVisit(payload);
 
-      // Upload additional documents using the Adult Initial encounter UUID
       if (additionalDocuments.length > 0 && response?.encounters) {
         const adultInitialEnc = response.encounters.find(
           enc => enc.encounterType?.uuid === ENCOUNTER_TYPES.ADULT_INITIAL
         );
         if (adultInitialEnc?.uuid) {
-          // Buffer documents into obs service pending list
           clearPendingDocuments();
           for (const doc of additionalDocuments) {
             const { addPendingDocument } = await import(
@@ -422,7 +411,6 @@ const VisitSummaryPage = () => {
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <img src={iconVisitSummary} alt="icon" />
         <span className="text-sm font-medium text-[#2E1E91]">
@@ -432,7 +420,6 @@ const VisitSummaryPage = () => {
       <hr className="border-t border-gray-200 mt-2 mb-3 md:-mx-4" />
 
       <div className="px-4 md:px-0">
-        {/* Toggle all */}
         <div className="flex justify-end py-2">
           <button
             className="flex items-center gap-1 text-xs text-gray-500"
@@ -448,7 +435,6 @@ const VisitSummaryPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          {/* Vitals — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconVitals}
@@ -467,7 +453,6 @@ const VisitSummaryPage = () => {
             </CollapsedComponent>
           </div>
 
-          {/* Check-up reason */}
           <CollapsedComponent
             icon={iconVisitReason}
             title="Check-up reason"
@@ -483,7 +468,6 @@ const VisitSummaryPage = () => {
             )}
           </CollapsedComponent>
 
-          {/* Physical examination */}
           <CollapsedComponent
             icon={iconPhysicalExam}
             title="Physical examination"
@@ -502,7 +486,6 @@ const VisitSummaryPage = () => {
             )}
           </CollapsedComponent>
 
-          {/* Medical History — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
               icon={iconVisitSummary}
@@ -635,7 +618,6 @@ const VisitSummaryPage = () => {
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
         <button
           type="button"
@@ -655,7 +637,6 @@ const VisitSummaryPage = () => {
         </button>
       </div>
 
-      {/* Send Visit confirmation */}
       {showConfirm && (
         <ConfirmationModal
           open={showConfirm}
