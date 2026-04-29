@@ -101,6 +101,13 @@ export interface HistorySection {
   details: Detail[];
 }
 
+export interface AdditionalDocument {
+  uuid: string;
+  name: string;
+  fileUrl: string;
+  isImage: boolean;
+}
+
 // ═══════════════════════════════════════════════════════════
 // MAIN TYPE
 // ═══════════════════════════════════════════════════════════
@@ -114,6 +121,8 @@ export interface VisitData {
   medicalHistory?: HistorySection[];
   speciality?: string;
   priorityVisit?: boolean;
+  doctorNotes?: string;
+  additionalDocuments?: AdditionalDocument[];
 }
 
 export const visitSummaryData: VisitData[] = [

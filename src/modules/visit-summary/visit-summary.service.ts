@@ -10,6 +10,7 @@ import type {
   GeneralExam,
   AssociatedSymptom,
   HistorySection,
+  AdditionalDocument,
 } from '../../assets/data/visit-summary.data';
 import {
   CONCEPT_UUIDS,
@@ -19,12 +20,18 @@ import {
 /** Visit attribute type UUID for specialty */
 const VISIT_ATTR_SPECIALITY = '3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d';
 
+/** Visit attribute type UUID for doctor notes */
+const VISIT_ATTR_DOCTOR_NOTES = '64aa50c8-e913-48c6-b8ad-dfa0bccb202b';
+
 /** Encounter type UUID indicating a priority visit */
 const ENCOUNTER_TYPE_PRIORITY = 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c';
 
 /** Concept UUIDs for medical / family history observations */
 const MEDICAL_HISTORY_CONCEPT = '62bff84b-795a-45ad-aae1-80e7f5163a82';
 const FAMILY_HISTORY_CONCEPT = 'd63ae965-47fb-40e8-8f08-1f46a8a60b2b';
+
+/** Concept UUID for additional documents */
+const ADDITIONAL_DOCUMENT_CONCEPT = '07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba';
 
 export { CONCEPT_UUIDS, VISIT_SUMMARY_CUSTOM_REP };
 
@@ -404,6 +411,12 @@ export function transformVisitSummaryResponse(
   );
   const speciality = specialityAttr?.value ?? undefined;
 
+  // Extract doctor notes from visit attributes
+  const doctorNotesAttr = response.attributes?.find(
+    attr => attr.attributeType?.uuid === VISIT_ATTR_DOCTOR_NOTES
+  );
+  const doctorNotes = doctorNotesAttr?.value || undefined;
+
   // Check if a priority-visit encounter exists
   const priorityVisit = encounters.some(
     enc => enc.encounterType?.uuid === ENCOUNTER_TYPE_PRIORITY
@@ -445,7 +458,50 @@ export function transformVisitSummaryResponse(
     medicalHistory: medicalHistory.length > 0 ? medicalHistory : undefined,
     speciality,
     priorityVisit,
+    doctorNotes,
   };
+}
+
+interface ObsDocResult {
+  uuid: string;
+  comment: string;
+  value: {
+    display: string;
+    links: { rel: string; uri: string };
+  };
+  encounter: {
+    visit: { uuid: string };
+  } | null;
+}
+
+interface ObsDocResponse {
+  results: ObsDocResult[];
+}
+
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+function isImageFilename(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext));
+}
+
+export function transformObsToDocuments(
+  results: ObsDocResult[],
+  visitUuid: string
+): AdditionalDocument[] {
+  return results
+    .filter(obs => obs.encounter?.visit?.uuid === visitUuid)
+    .map(obs => ({
+      uuid: obs.uuid,
+      name: obs.comment || 'Untitled document',
+      fileUrl:
+        obs.value?.links &&
+        typeof obs.value.links === 'object' &&
+        'uri' in obs.value.links
+          ? String(obs.value.links.uri)
+          : '',
+      isImage: isImageFilename(obs.comment || ''),
+    }));
 }
 
 export const visitSummaryService = {
@@ -454,6 +510,16 @@ export const visitSummaryService = {
       `${API_ENDPOINTS.VISIT}/${visitUuid}?v=${VISIT_SUMMARY_CUSTOM_REP}`
     );
     return transformVisitSummaryResponse(response);
+  },
+
+  getAdditionalDocuments: async (
+    patientUuid: string,
+    visitUuid: string
+  ): Promise<AdditionalDocument[]> => {
+    const response = await OpenMRSApi.get<ObsDocResponse>(
+      `/obs?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${ADDITIONAL_DOCUMENT_CONCEPT}`
+    );
+    return transformObsToDocuments(response.results ?? [], visitUuid);
   },
 
   closeVisit: async (visitUuid: string) => {

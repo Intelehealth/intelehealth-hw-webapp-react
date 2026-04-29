@@ -9,6 +9,7 @@ import type {
   CheckupReason,
   PhysicalExamination,
   HistorySection,
+  AdditionalDocument,
 } from '../../assets/data/visit-summary.data';
 import CollapsedComponent from './visit-summary-collapsed.component';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
@@ -230,6 +231,9 @@ const VisitSummaryComponent: React.FC = () => {
   const [data, setData] = useState<VisitData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocument[]>(
+    []
+  );
 
   useEffect(() => {
     if (!visitId) {
@@ -246,6 +250,15 @@ const VisitSummaryComponent: React.FC = () => {
       .catch(() => setError('Failed to load visit summary'))
       .finally(() => setLoading(false));
   }, [visitId]);
+
+  useEffect(() => {
+    if (!data?.patient?.patientUuid || !data?.visitUuid) return;
+
+    visitSummaryService
+      .getAdditionalDocuments(data.patient.patientUuid, data.visitUuid)
+      .then(setAdditionalDocs)
+      .catch(() => setAdditionalDocs([]));
+  }, [data?.patient?.patientUuid, data?.visitUuid]);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -277,6 +290,7 @@ const VisitSummaryComponent: React.FC = () => {
     medicalHistory,
     speciality,
     priorityVisit,
+    doctorNotes,
   } = data;
 
   return (
@@ -391,6 +405,61 @@ const VisitSummaryComponent: React.FC = () => {
               )}
             </CollapsedComponent>
           </div>
+        </div>
+      </div>
+
+      {/* Additional Notes & Documents — read-only */}
+      <div className="flex flex-col md:flex-row md:items-start gap-4 mt-4 px-4 mb-4 md:px-0">
+        <div className="w-full md:w-1/2">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Additional notes
+          </p>
+          {doctorNotes ? (
+            <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-gray-50 min-h-[3rem]">
+              {doctorNotes}
+            </div>
+          ) : (
+            <p className="text-gray-400 italic text-sm">
+              No notes added for Doctor.
+            </p>
+          )}
+        </div>
+
+        <div className="w-full md:w-1/2">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Additional documents{' '}
+            {additionalDocs.length > 0 && (
+              <span className="text-gray-500 font-normal">
+                ({additionalDocs.length})
+              </span>
+            )}
+          </p>
+          {additionalDocs.length > 0 ? (
+            <div className="flex items-start gap-3 flex-wrap">
+              {additionalDocs.map(doc => (
+                <div key={doc.uuid} className="flex flex-col items-center w-16">
+                  <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {doc.isImage && doc.fileUrl ? (
+                      <img
+                        src={doc.fileUrl}
+                        alt={doc.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <i className="fa-solid fa-file-pdf text-red-500 text-2xl" />
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-600 mt-1 truncate w-full text-center">
+                    {doc.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400 italic text-sm">
+              No documents attached
+            </p>
+          )}
         </div>
       </div>
 

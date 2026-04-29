@@ -9,6 +9,7 @@ import { visitSummaryService } from '../../../modules/visit-summary/visit-summar
 vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
   visitSummaryService: {
     getVisitSummary: vi.fn(),
+    getAdditionalDocuments: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -645,6 +646,189 @@ describe('VisitSummaryComponent', () => {
       });
       const mobileSection = container.querySelector('.md\\:hidden.space-y-1');
       expect(mobileSection!.children.length).toBe(2);
+    });
+  });
+
+  describe('Additional Notes section', () => {
+    it('should render Additional notes label', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Additional notes')).toBeInTheDocument();
+      });
+    });
+
+    it('should show empty state when no notes', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(
+          screen.getByText('No notes added for Doctor.')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('should render doctor notes text when present', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue({
+        ...data,
+        doctorNotes: 'Please check blood pressure regularly',
+      });
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Please check blood pressure regularly')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('should not render a textarea (read-only)', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Additional notes')).toBeInTheDocument();
+      });
+      expect(screen.queryByPlaceholderText('Leave a note for doctor')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Additional Documents section', () => {
+    it('should render Additional documents label', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText(/Additional documents/)).toBeInTheDocument();
+      });
+    });
+
+    it('should show empty state when no documents', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(
+          screen.getByText('No documents attached')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('should not render file input (read-only)', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText(/Additional documents/)).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: '+' })).not.toBeInTheDocument();
+    });
+
+    it('should fetch and render additional documents after data loads', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        {
+          uuid: 'doc-1',
+          name: 'lab-report.pdf',
+          fileUrl: 'http://example.com/file',
+          isImage: false,
+        },
+      ]);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('lab-report.pdf')).toBeInTheDocument();
+      });
+    });
+
+    it('should show document count when documents exist', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        { uuid: 'doc-1', name: 'file1.pdf', fileUrl: '', isImage: false },
+        { uuid: 'doc-2', name: 'file2.pdf', fileUrl: '', isImage: false },
+      ]);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('(2)')).toBeInTheDocument();
+      });
+    });
+
+    it('should render image thumbnail for image documents', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        {
+          uuid: 'doc-1',
+          name: 'photo.jpg',
+          fileUrl: 'http://example.com/photo.jpg',
+          isImage: true,
+        },
+      ]);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        const img = screen.getByAltText('photo.jpg');
+        expect(img).toBeInTheDocument();
+        expect(img).toHaveAttribute('src', 'http://example.com/photo.jpg');
+      });
+    });
+
+    it('should render file icon for non-image documents', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        {
+          uuid: 'doc-1',
+          name: 'report.pdf',
+          fileUrl: 'http://example.com/report.pdf',
+          isImage: false,
+        },
+      ]);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('report.pdf')).toBeInTheDocument();
+        expect(container.querySelector('.fa-file-pdf')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle document fetch failure gracefully', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('No documents attached')).toBeInTheDocument();
+      });
+    });
+
+    it('should call getAdditionalDocuments with patient UUID and visit UUID', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([]);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalledWith(
+          data.patient.patientUuid,
+          data.visitUuid
+        );
+      });
+    });
+
+    it('should render file icon when image has no fileUrl', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        {
+          uuid: 'doc-1',
+          name: 'photo.jpg',
+          fileUrl: '',
+          isImage: true,
+        },
+      ]);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('photo.jpg')).toBeInTheDocument();
+        expect(container.querySelector('.fa-file-pdf')).toBeInTheDocument();
+      });
     });
   });
 });

@@ -9,6 +9,7 @@ import {
   extractPhysicalExamination,
   extractMedicalHistory,
   transformVisitSummaryResponse,
+  transformObsToDocuments,
 } from '../../../modules/visit-summary/visit-summary.service';
 import { OpenMRSApi } from '../../../services/openmrs';
 import type { VisitDetailsResponse, VisitDetailsEncounter } from '../../../modules/visit-details/visit-details.types';
@@ -1209,6 +1210,201 @@ describe('visitSummaryService', () => {
     it('should return undefined medicalHistory when no history obs present', () => {
       const result = transformVisitSummaryResponse(makeResponse());
       expect(result.medicalHistory).toBeUndefined();
+    });
+
+    it('should extract doctorNotes from visit attributes', () => {
+      const response = makeResponse({
+        attributes: [
+          {
+            uuid: 'attr-uuid',
+            display: 'Doctor Notes',
+            attributeType: {
+              uuid: '64aa50c8-e913-48c6-b8ad-dfa0bccb202b',
+              display: 'Doctor Notes',
+            },
+            value: 'Patient should follow up in 2 weeks',
+          },
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.doctorNotes).toBe('Patient should follow up in 2 weeks');
+    });
+
+    it('should return undefined doctorNotes when no notes attribute exists', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.doctorNotes).toBeUndefined();
+    });
+
+    it('should return undefined doctorNotes when notes attribute has empty value', () => {
+      const response = makeResponse({
+        attributes: [
+          {
+            uuid: 'attr-uuid',
+            display: 'Doctor Notes',
+            attributeType: {
+              uuid: '64aa50c8-e913-48c6-b8ad-dfa0bccb202b',
+              display: 'Doctor Notes',
+            },
+            value: '',
+          },
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.doctorNotes).toBeUndefined();
+    });
+  });
+
+  describe('transformObsToDocuments', () => {
+    it('should filter documents by visit UUID', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'report.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/1/value' } },
+          encounter: { visit: { uuid: 'visit-123' } },
+        },
+        {
+          uuid: 'obs-2',
+          comment: 'other.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/2/value' } },
+          encounter: { visit: { uuid: 'different-visit' } },
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'visit-123');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].name).toBe('report.pdf');
+    });
+
+    it('should identify image files correctly', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'photo.jpg',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/1' } },
+          encounter: { visit: { uuid: 'visit-1' } },
+        },
+        {
+          uuid: 'obs-2',
+          comment: 'document.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/2' } },
+          encounter: { visit: { uuid: 'visit-1' } },
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'visit-1');
+      expect(docs[0].isImage).toBe(true);
+      expect(docs[1].isImage).toBe(false);
+    });
+
+    it('should recognize all image extensions', () => {
+      const extensions = ['photo.jpg', 'img.jpeg', 'pic.png', 'anim.gif', 'modern.webp'];
+      const results = extensions.map((name, i) => ({
+        uuid: `obs-${i}`,
+        comment: name,
+        value: { display: 'file', links: { rel: 'self', uri: `http://example.com/${i}` } },
+        encounter: { visit: { uuid: 'v1' } },
+      }));
+      const docs = transformObsToDocuments(results, 'v1');
+      docs.forEach(doc => expect(doc.isImage).toBe(true));
+    });
+
+    it('should handle missing comment with fallback name', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: '',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com' } },
+          encounter: { visit: { uuid: 'visit-1' } },
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'visit-1');
+      expect(docs[0].name).toBe('Untitled document');
+      expect(docs[0].isImage).toBe(false);
+    });
+
+    it('should handle null encounter gracefully', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'file.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com' } },
+          encounter: null,
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'visit-1');
+      expect(docs).toHaveLength(0);
+    });
+
+    it('should return empty array for empty results', () => {
+      const docs = transformObsToDocuments([], 'visit-1');
+      expect(docs).toHaveLength(0);
+    });
+
+    it('should extract fileUrl from value.links.uri', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'file.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://server/obs/1/value' } },
+          encounter: { visit: { uuid: 'v1' } },
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'v1');
+      expect(docs[0].fileUrl).toBe('http://server/obs/1/value');
+    });
+
+    it('should return empty fileUrl when value.links is undefined', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'file.pdf',
+          value: { display: 'file', links: undefined as unknown as { rel: string; uri: string } },
+          encounter: { visit: { uuid: 'v1' } },
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'v1');
+      expect(docs[0].fileUrl).toBe('');
+    });
+  });
+
+  describe('getAdditionalDocuments', () => {
+    it('should call OpenMRSApi.get with correct URL', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({ results: [] });
+      await visitSummaryService.getAdditionalDocuments('patient-uuid', 'visit-uuid');
+      expect(OpenMRSApi.get).toHaveBeenCalledWith(
+        expect.stringContaining('/obs?patient=patient-uuid')
+      );
+      expect(OpenMRSApi.get).toHaveBeenCalledWith(
+        expect.stringContaining('concept=07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba')
+      );
+    });
+
+    it('should return transformed documents filtered by visit UUID', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-1',
+            comment: 'test.jpg',
+            value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/1' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-2',
+            comment: 'other.pdf',
+            value: { display: 'file', links: { rel: 'self', uri: 'http://example.com/obs/2' } },
+            encounter: { visit: { uuid: 'other-visit' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getAdditionalDocuments('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].name).toBe('test.jpg');
+      expect(docs[0].isImage).toBe(true);
+    });
+
+    it('should handle undefined results in response', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({});
+      const docs = await visitSummaryService.getAdditionalDocuments('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(0);
     });
   });
 });
