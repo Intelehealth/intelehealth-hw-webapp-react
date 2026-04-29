@@ -38,9 +38,24 @@ describe('componentMap', () => {
       });
     });
 
-    it('should have exactly 11 component mappings', () => {
+    it('should have exactly 14 component mappings', () => {
       const keys = Object.keys(componentMap);
-      expect(keys).toHaveLength(11);
+      expect(keys).toHaveLength(14);
+    });
+
+    it('should have decimal component mapping', () => {
+      expect(componentMap).toHaveProperty('decimal');
+      expect(componentMap.decimal).toBeDefined();
+    });
+
+    it('should have frequency component mapping', () => {
+      expect(componentMap).toHaveProperty('frequency');
+      expect(componentMap.frequency).toBeDefined();
+    });
+
+    it('should have range component mapping', () => {
+      expect(componentMap).toHaveProperty('range');
+      expect(componentMap.range).toBeDefined();
     });
 
     it('should have group component mapping', () => {

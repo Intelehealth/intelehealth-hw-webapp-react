@@ -1,0 +1,140 @@
+.ayu-range-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ayu-range-hint {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.ayu-range-card {
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ecfdf5;
+  padding: 12px;
+  padding-top: 32px;
+}
+
+.ayu-range-track-wrapper {
+  position: relative;
+  height: 32px;
+  width: 100%;
+}
+
+.ayu-range-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  pointer-events: none;
+}
+
+.ayu-range-track-filled {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: #3a2a8a;
+  left: calc(var(--ayu-range-low, 0) * 1%);
+  right: calc((100 - var(--ayu-range-high, 100)) * 1%);
+}
+
+.ayu-range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  pointer-events: none;
+  outline: none;
+}
+
+.ayu-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #d1d5db;
+  cursor: grab;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.ayu-range-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #d1d5db;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.ayu-range-input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.ayu-range-input:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+.ayu-range-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ayu-range-bubble {
+  position: absolute;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  background: #20c997;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ayu-range-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #20c997;
+}
+
+.ayu-range-bubble--low {
+  left: calc(var(--ayu-range-low, 0) * 1%);
+}
+
+.ayu-range-bubble--high {
+  left: calc(var(--ayu-range-high, 100) * 1%);
+}
+
+.ayu-range-summary-pill {
+  align-self: flex-start;
+  border: 1px solid #20c997;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #ffffff;
+  color: #3a2a8a;
+}

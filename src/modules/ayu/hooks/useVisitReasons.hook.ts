@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { storage } from '../../../utils/storage';
 import {
   extractVisitReasonNames,
@@ -7,6 +8,7 @@ import {
 } from '../../ayu-library/logic/visit-reasons.logic';
 import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
 import {
+  type PatientDemographics,
   parsePatientAgeYears,
   questionnaireMatchesDemographics,
 } from '../../ayu-library/utils/fhir-to-ayu.util';
@@ -19,16 +21,31 @@ import { useAyuJsonList } from './useAyuJson.hook';
 
 export type VisitReasonsResult = ReturnType<typeof useVisitReasons>;
 
+interface NavigationPatientState {
+  patientAge?: number | string | null;
+  patientGender?: string | null;
+}
+
+export const usePatientDemographics = (): PatientDemographics => {
+  const { state } = useLocation();
+  const navState = state as NavigationPatientState | null;
+
+  const age = navState?.patientAge ?? storage.get(PATIENT_AGE_KEY);
+  const gender = navState?.patientGender ?? storage.get(PATIENT_GENDER_KEY);
+
+  return useMemo(
+    () => ({
+      age: parsePatientAgeYears(age),
+      gender,
+    }),
+    [age, gender]
+  );
+};
+
 export const useVisitReasons = () => {
   const ayuJsonList = useAyuJsonList(AYU_JSON_KEY_NAME);
 
-  const patientDemographics = useMemo(
-    () => ({
-      age: parsePatientAgeYears(storage.get(PATIENT_AGE_KEY)),
-      gender: storage.get(PATIENT_GENDER_KEY),
-    }),
-    []
-  );
+  const patientDemographics = usePatientDemographics();
 
   // Protocols whose top-level gender/age extensions exclude the current
   const disabledReasons = useMemo(() => {

@@ -24,6 +24,17 @@ export const EXT_URL_AGE_MIN =
 export const EXT_URL_AGE_MAX =
   'https://intelehealth.org/fhir/StructureDefinition/age-max';
 
+export const EXT_URL_MIN_VALUE =
+  'http://hl7.org/fhir/StructureDefinition/minValue';
+export const EXT_URL_MAX_VALUE =
+  'http://hl7.org/fhir/StructureDefinition/maxValue';
+
+/*
+ * Threshold that distinguishes a Frequency (occurrences) from a Range
+ * component when both share the same FHIR shape (integer + minValue/maxValue).
+ */
+export const FREQUENCY_MAX_VALUE = 10;
+
 // Gender extension valueString codes
 export const GENDER_CODE_FEMALE = '0';
 export const GENDER_CODE_MALE = '1';
