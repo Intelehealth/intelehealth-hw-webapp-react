@@ -4,22 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import { visitSummaryService } from '../../../modules/visit-summary/visit-summary.service';
-import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
-
-const mockNavigate = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
 
 // Mock the service
 vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
   visitSummaryService: {
-    closeVisit: vi.fn().mockResolvedValue({}),
     getVisitSummary: vi.fn(),
   },
 }));
@@ -52,37 +40,43 @@ vi.mock('../../../assets/icons/icon-chevron-down.svg', () => ({
 vi.mock('../../../assets/icons/edit.svg', () => ({
   default: 'icon-edit.svg',
 }));
-vi.mock('../../../assets/icons/icon-send-visit.svg', () => ({
-  default: 'icon-send-visit.svg',
+vi.mock('../../../assets/icons/icon-info.svg', () => ({
+  default: 'icon-info.svg',
+}));
+
+// Mock Dropdown and Toggle components
+vi.mock('../../../components/common/dropdown.component', () => ({
+  default: ({ value, placeholder, disabled }: { value?: string; placeholder?: string; disabled?: boolean }) => (
+    <div data-testid="dropdown" data-disabled={disabled} data-value={value}>
+      {value || placeholder || ''}
+    </div>
+  ),
+}));
+vi.mock('../../../components/common/toggle.component', () => ({
+  default: ({ checked, disabled, ...props }: { checked?: boolean; disabled?: boolean }) => (
+    <input type="checkbox" data-testid="toggle" checked={checked} disabled={disabled} readOnly {...props} />
+  ),
 }));
 
 /* Render without visitId — uses mock data fallback via useEffect */
-const renderWithMockData = (action?: string) => {
-  const path = action ? `/visit-summary/${action}` : '/visit-summary';
+const renderWithMockData = () => {
   return render(
-    <GlobalModalProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/visit-summary/:action?" element={<VisitSummaryComponent />} />
-        </Routes>
-      </MemoryRouter>
-    </GlobalModalProvider>
+    <MemoryRouter initialEntries={['/visit-summary']}>
+      <Routes>
+        <Route path="/visit-summary" element={<VisitSummaryComponent />} />
+      </Routes>
+    </MemoryRouter>
   );
 };
 
 /* Render with visitId — fetches data from API */
-const renderWithVisitId = (visitId = 'test-visit-123', action?: string) => {
-  const path = action
-    ? `/visit-summary/${visitId}/${action}`
-    : `/visit-summary/${visitId}`;
+const renderWithVisitId = (visitId = 'test-visit-123') => {
   return render(
-    <GlobalModalProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/visit-summary/:visitId/:action?" element={<VisitSummaryComponent />} />
-        </Routes>
-      </MemoryRouter>
-    </GlobalModalProvider>
+    <MemoryRouter initialEntries={[`/visit-summary/${visitId}`]}>
+      <Routes>
+        <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
+      </Routes>
+    </MemoryRouter>
   );
 };
 
@@ -312,11 +306,48 @@ describe('VisitSummaryComponent', () => {
       });
     });
 
-    it('should render Change button for complaint', async () => {
+    it('should render associated symptoms when present', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        checkupReason: {
+          chiefComplaints: ['Fever'],
+          details: [{ label: 'Duration', value: '3 days' }],
+          associatedSymptoms: [
+            { heading: 'Patient reports', values: ['Chills', 'Sweating'] },
+            { heading: 'Patient denies', values: ['Nausea'] },
+          ],
+        },
+      };
+
       renderWithMockData();
       await waitFor(() => {
-        expect(screen.getAllByText('Change').length).toBeGreaterThan(0);
+        expect(screen.getByText('Associated symptoms')).toBeInTheDocument();
+        expect(screen.getByText('Patient reports:')).toBeInTheDocument();
+        expect(screen.getByText('Chills')).toBeInTheDocument();
+        expect(screen.getByText('Sweating')).toBeInTheDocument();
+        expect(screen.getByText('Patient denies:')).toBeInTheDocument();
+        expect(screen.getByText('Nausea')).toBeInTheDocument();
       });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
+    it('should show empty state when no checkup reason', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        checkupReason: { chiefComplaints: ['No information'], details: [] },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('No visit reason recorded')).toBeInTheDocument();
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
   });
 
@@ -343,235 +374,153 @@ describe('VisitSummaryComponent', () => {
     });
   });
 
-  describe('Action buttons', () => {
-    it('should render Appointment and Send visit buttons by default', async () => {
+  describe('MedicalHistorySection', () => {
+    it('should render Medical History section title', async () => {
       renderWithMockData();
       await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Send visit').length).toBeGreaterThan(0);
+        expect(screen.getByText('Medical History')).toBeInTheDocument();
       });
     });
 
-    it('should render Close visit button when action is close', async () => {
-      renderWithMockData('close');
+    it('should show empty state when no medical history', async () => {
+      renderWithMockData();
       await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
+        expect(screen.getByText('No medical history recorded')).toBeInTheDocument();
       });
     });
 
-    it('should not render Appointment button when action is close', async () => {
-      renderWithMockData('close');
+    it('should render medical history details when present', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        medicalHistory: [
+          {
+            title: 'Patient History',
+            details: [
+              { label: 'Diabetes', value: 'Type 2' },
+              { label: 'Hypertension', value: 'Controlled' },
+            ],
+          },
+          {
+            title: 'Family History',
+            details: [
+              { label: 'Diabetes', value: 'Father' },
+            ],
+          },
+        ],
+      };
+
+      renderWithMockData();
       await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
+        expect(screen.getByText('Patient History')).toBeInTheDocument();
+        expect(screen.getAllByText('Diabetes').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText('Type 2')).toBeInTheDocument();
+        expect(screen.getByText('Hypertension')).toBeInTheDocument();
+        expect(screen.getByText('Controlled')).toBeInTheDocument();
+        expect(screen.getByText('Family History')).toBeInTheDocument();
+        expect(screen.getByText('Father')).toBeInTheDocument();
       });
-      expect(screen.queryByText('Appointment')).not.toBeInTheDocument();
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
   });
 
-  describe('Toggle all', () => {
-    it('should render Close all button', async () => {
+  describe('Doctor\'s Specialty and Priority Visit', () => {
+    it('should render Doctor\'s specialty label', async () => {
       renderWithMockData();
       await waitFor(() => {
-        expect(screen.getByText('Close all')).toBeInTheDocument();
+        expect(screen.getByText("Doctor's specialty")).toBeInTheDocument();
       });
     });
 
-    it('should toggle to Open all on click', async () => {
+    it('should show placeholder when specialty is not set', async () => {
       renderWithMockData();
       await waitFor(() => {
-        expect(screen.getByText('Close all')).toBeInTheDocument();
+        expect(screen.getByText('General physician')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByText('Close all'));
-      expect(screen.getByText('Open all')).toBeInTheDocument();
+    });
+
+    it('should render specialty value when present', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        speciality: 'Cardiologist',
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Cardiologist')).toBeInTheDocument();
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
+    it('should render Priority Visit label', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Priority Visit')).toBeInTheDocument();
+      });
+    });
+
+    it('should render toggle unchecked when priority visit is false or undefined', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        const toggle = screen.getByRole('checkbox', { hidden: true });
+        expect(toggle).not.toBeChecked();
+      });
+    });
+
+    it('should render toggle checked when priority visit is true', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        priorityVisit: true,
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        const toggle = screen.getByRole('checkbox', { hidden: true });
+        expect(toggle).toBeChecked();
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
   });
 
-  describe('handleCloseVisit', () => {
-    it('should call visitSummaryService.closeVisit when desktop Close visit button is clicked', async () => {
-      renderWithMockData('close');
-      await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
-      });
-      const closeButtons = screen.getAllByText('Close visit');
-      fireEvent.click(closeButtons[0]);
-
-      await waitFor(() => {
-        expect(visitSummaryService.closeVisit).toHaveBeenCalledWith(data.patient.visitId);
-      });
-    });
-
-    it('should call visitSummaryService.closeVisit when mobile Close visit button is clicked', async () => {
-      renderWithMockData('close');
-      await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
-      });
-      const closeButtons = screen.getAllByText('Close visit');
-      fireEvent.click(closeButtons[closeButtons.length - 1]);
-
-      await waitFor(() => {
-        expect(visitSummaryService.closeVisit).toHaveBeenCalledWith(data.patient.visitId);
-      });
-    });
-
-    it('should handle closeVisit API error gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(visitSummaryService.closeVisit).mockRejectedValueOnce(new Error('API error'));
-
-      renderWithMockData('close');
-      await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
-      });
-      const closeButtons = screen.getAllByText('Close visit');
-      fireEvent.click(closeButtons[0]);
-
-      await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to close visit:', expect.any(Error));
-      });
-
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('handleAppointment', () => {
-    it('should show appointment confirmation modal when desktop Appointment button is clicked', async () => {
+  describe('View-only mode', () => {
+    it('should not render any Change buttons', async () => {
       renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-      });
-      const appointmentButtons = screen.getAllByText('Appointment');
-      fireEvent.click(appointmentButtons[0]);
-      expect(screen.getByText('Book appointment?')).toBeInTheDocument();
-      expect(screen.getByText('Are you sure you want to book an appointment for this patient?')).toBeInTheDocument();
-    });
-
-    it('should show appointment confirmation modal when mobile Appointment button is clicked', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-      });
-      const appointmentButtons = screen.getAllByText('Appointment');
-      fireEvent.click(appointmentButtons[appointmentButtons.length - 1]);
-      expect(screen.getByText('Book appointment?')).toBeInTheDocument();
-    });
-
-    it('should navigate to appointment schedule on confirm', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-      });
-      const appointmentButtons = screen.getAllByText('Appointment');
-      fireEvent.click(appointmentButtons[0]);
-      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(mockNavigate).toHaveBeenCalledWith('/appointment-schedule/00000000-0000-0000-0000-000000000000', {
-        state: { speciality: 'General Physician' },
-      });
-    });
-
-    it('should dismiss modal on cancel', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-      });
-      const appointmentButtons = screen.getAllByText('Appointment');
-      fireEvent.click(appointmentButtons[0]);
-      expect(screen.getByText('Book appointment?')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'No' }));
-      expect(screen.queryByText('Book appointment?')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('handleSendVisit', () => {
-    it('should show send visit confirmation modal when desktop Send visit button is clicked', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Send visit').length).toBeGreaterThan(0);
-      });
-      const sendButtons = screen.getAllByText('Send visit');
-      fireEvent.click(sendButtons[0]);
-      expect(screen.getByText('Send visit', { selector: 'h2' })).toBeInTheDocument();
-      expect(screen.getByText('Are you sure you want to send the visit to the doctor?')).toBeInTheDocument();
-    });
-
-    it('should show send visit confirmation modal when mobile Send visit button is clicked', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Send visit').length).toBeGreaterThan(0);
-      });
-      const sendButtons = screen.getAllByText('Send visit');
-      fireEvent.click(sendButtons[sendButtons.length - 1]);
-      expect(screen.getByText('Are you sure you want to send the visit to the doctor?')).toBeInTheDocument();
-    });
-
-    it('should dismiss modal when No is clicked', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Send visit').length).toBeGreaterThan(0);
-      });
-      const sendButtons = screen.getAllByText('Send visit');
-      fireEvent.click(sendButtons[0]);
-      expect(screen.getByText('Are you sure you want to send the visit to the doctor?')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'No' }));
-      expect(screen.queryByText('Are you sure you want to send the visit to the doctor?')).not.toBeInTheDocument();
-    });
-
-    it('should close modal when Yes is clicked', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Send visit').length).toBeGreaterThan(0);
-      });
-      const sendButtons = screen.getAllByText('Send visit');
-      fireEvent.click(sendButtons[0]);
-      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
-      expect(screen.queryByText('Are you sure you want to send the visit to the doctor?')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Change buttons in sections', () => {
-    it('should render Change buttons for Vitals and Physical examination', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        const changeButtons = screen.getAllByText('Change');
-        expect(changeButtons.length).toBeGreaterThanOrEqual(3);
-      });
-    });
-
-    it('should handle Change button click in Vitals section', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getByText('Details')).toBeInTheDocument();
-      });
-      const detailsLabel = screen.getByText('Details');
-      const vitalsChangeBtn = detailsLabel.parentElement!.querySelector('[role="button"]') as HTMLElement;
-      expect(vitalsChangeBtn).toBeInTheDocument();
-      fireEvent.click(vitalsChangeBtn);
-      expect(screen.getByText('Details')).toBeInTheDocument();
-    });
-
-    it('should handle Change button click in Physical examination section', async () => {
-      renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getByText('General exams')).toBeInTheDocument();
-      });
-      const generalExamsLabel = screen.getByText('General exams');
-      const physicalChangeBtn = generalExamsLabel.parentElement!.querySelector('[role="button"]') as HTMLElement;
-      expect(physicalChangeBtn).toBeInTheDocument();
-      fireEvent.click(physicalChangeBtn);
-      expect(screen.getByText('General exams')).toBeInTheDocument();
-    });
-
-    it('should invoke all onChangeClick callbacks when Change buttons are clicked', async () => {
-      const { container } = renderWithMockData();
       await waitFor(() => {
         expect(screen.getByText('Vitals')).toBeInTheDocument();
       });
-      const allChangeButtons = container.querySelectorAll('[role="button"]');
-      allChangeButtons.forEach(btn => {
-        if (btn.textContent?.includes('Change')) {
-          fireEvent.click(btn);
-        }
+      expect(screen.queryByText('Change')).not.toBeInTheDocument();
+    });
+
+    it('should not render Appointment button', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Vitals')).toBeInTheDocument();
       });
-      expect(screen.getByText('Vitals')).toBeInTheDocument();
-      expect(screen.getByText('Physical examination')).toBeInTheDocument();
+      expect(screen.queryByText('Appointment')).not.toBeInTheDocument();
+    });
+
+    it('should not render Send visit button', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Vitals')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Send visit')).not.toBeInTheDocument();
+    });
+
+    it('should not render Close visit button', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Vitals')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Close visit')).not.toBeInTheDocument();
     });
   });
 
@@ -598,7 +547,23 @@ describe('VisitSummaryComponent', () => {
     });
   });
 
-  describe('Toggle all round-trip', () => {
+  describe('Toggle all', () => {
+    it('should render Close all button', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Close all')).toBeInTheDocument();
+      });
+    });
+
+    it('should toggle to Open all on click', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Close all')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Close all'));
+      expect(screen.getByText('Open all')).toBeInTheDocument();
+    });
+
     it('should toggle from Open all back to Close all', async () => {
       renderWithMockData();
       await waitFor(() => {
@@ -671,38 +636,6 @@ describe('VisitSummaryComponent', () => {
       const toggleWrapper = screen.getByText('Open all').closest('button');
       const chevronImg = toggleWrapper!.querySelector('img');
       expect(chevronImg).not.toHaveClass('rotate-180');
-    });
-
-    it('should render mobile Appointment and Send visit buttons by default', async () => {
-      const { container } = renderWithMockData();
-      await waitFor(() => {
-        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
-      });
-      const mobileBar = container.querySelector('.fixed.bottom-\\[70px\\]');
-      expect(mobileBar).toBeInTheDocument();
-      const buttons = mobileBar!.querySelectorAll('button');
-      expect(buttons.length).toBe(2);
-      expect(buttons[0].textContent).toBe('Appointment');
-      expect(buttons[1].textContent).toBe('Send visit');
-    });
-
-    it('should render mobile Close visit button when action is close', async () => {
-      const { container } = renderWithMockData('close');
-      await waitFor(() => {
-        expect(screen.getAllByText('Close visit').length).toBeGreaterThan(0);
-      });
-      const mobileBar = container.querySelector('.fixed.bottom-\\[70px\\]');
-      expect(mobileBar).toBeInTheDocument();
-      const buttons = mobileBar!.querySelectorAll('button');
-      expect(buttons.length).toBe(1);
-      expect(buttons[0].textContent).toBe('Close visit');
-    });
-
-    it('should render bottom spacer for mobile', async () => {
-      const { container } = renderWithMockData();
-      await waitFor(() => {
-        expect(container.querySelector('.h-36.md\\:hidden')).toBeInTheDocument();
-      });
     });
 
     it('should render mobile PatientHeader with only CHW worker and Visit ID', async () => {

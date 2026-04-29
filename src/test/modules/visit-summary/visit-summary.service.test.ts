@@ -7,6 +7,7 @@ import {
   extractDetailsFromHtml,
   extractChiefComplaints,
   extractPhysicalExamination,
+  extractMedicalHistory,
   transformVisitSummaryResponse,
 } from '../../../modules/visit-summary/visit-summary.service';
 import { OpenMRSApi } from '../../../services/openmrs';
@@ -564,6 +565,27 @@ describe('visitSummaryService', () => {
   });
 
   describe('getObsNumericValue edge cases', () => {
+    it('should return numeric obs.value directly when type is number', () => {
+      const encounters: VisitDetailsEncounter[] = [
+        {
+          uuid: 'enc-uuid',
+          display: 'encounter',
+          encounterDatetime: '2026-01-15T10:00:00.000+0000',
+          encounterType: { uuid: 'et-uuid', display: 'ADULTINITIAL' },
+          encounterProviders: [],
+          obs: [
+            {
+              uuid: 'obs-uuid',
+              display: 'obs-display',
+              concept: { uuid: 'concept-1', display: 'concept' },
+              value: 42 as unknown as string,
+            },
+          ],
+        },
+      ];
+      expect(getObsNumericValue(encounters, 'concept-1')).toBe(42);
+    });
+
     it('should return null when obs value is null-like object display', () => {
       const encounters = [
         makeEncounter([
@@ -745,6 +767,448 @@ describe('visitSummaryService', () => {
       });
       const result = transformVisitSummaryResponse(response);
       expect(result.patient.chwWorker).toBe('Unknown');
+    });
+  });
+
+  describe('extractDetailsFromHtml — fallback line-by-line parser', () => {
+    it('should parse colon-separated items from <br> delimited HTML', () => {
+      const html = '<b>General exams: </b><br/>? Eyes: Jaundice<br/>? Arm: Swollen';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([
+        { label: 'Eyes', value: 'Jaundice' },
+        { label: 'Arm', value: 'Swollen' },
+      ]);
+    });
+
+    it('should parse dash-separated items from <br> delimited HTML', () => {
+      const html = '? In-person consultation.<br/>? Arm-Pinch skin*<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([
+        { label: 'In', value: 'person consultation' },
+        { label: 'Arm', value: 'Pinch skin*' },
+      ]);
+    });
+
+    it('should strip trailing dots and dashes from values', () => {
+      const html = '? Eyes: Jaundice-<br/>? Ankle--<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result[0].value).toBe('Jaundice');
+      expect(result[1].label).toBe('Ankle');
+      expect(result[1].value).toBe('No information');
+    });
+
+    it('should skip header lines ending with colon', () => {
+      const html = '<b>General exams: </b><br/>? Eyes: Normal<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([{ label: 'Eyes', value: 'Normal' }]);
+    });
+
+    it('should handle single value items with no separator', () => {
+      const html = '? Some finding<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([{ label: 'Some finding', value: 'No information' }]);
+    });
+
+    it('should skip lines that are only non-word characters after cleaning', () => {
+      const html = '? •••<br/>? Eyes: Normal<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([{ label: 'Eyes', value: 'Normal' }]);
+    });
+
+    it('should not activate fallback when no <br> tags present', () => {
+      expect(extractDetailsFromHtml('plain text')).toEqual([]);
+    });
+
+    it('should skip empty lines after splitting', () => {
+      const html = '<br/><br/>? Eyes: Normal<br/><br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([{ label: 'Eyes', value: 'Normal' }]);
+    });
+
+    it('should use "No information" when colon value is empty after stripping', () => {
+      const html = '? Label: ...<br/>';
+      const result = extractDetailsFromHtml(html);
+      expect(result).toEqual([{ label: 'Label', value: 'No information' }]);
+    });
+  });
+
+  describe('extractChiefComplaints — associated symptoms', () => {
+    it('should separate associated symptoms from details', () => {
+      const html = '<b>Fever</b>: <br/>• Duration - 3 days.<br/>• Patient reports - Chills.<br/>• Patient denies - Nausea.';
+      const jsonValue = JSON.stringify({ en: html });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.details).toEqual([{ label: 'Duration', value: '3 days' }]);
+      expect(result.associatedSymptoms).toEqual([
+        { heading: 'Patient reports', values: ['Chills'] },
+        { heading: 'Patient denies', values: ['Nausea'] },
+      ]);
+    });
+
+    it('should not include associatedSymptoms when none exist', () => {
+      const html = '<b>Cough</b>: <br/>• Duration - 2 days.';
+      const jsonValue = JSON.stringify({ en: html });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.associatedSymptoms).toBeUndefined();
+    });
+
+    it('should handle numeric obs value for chief complaint', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, 12345 as unknown as string),
+        ]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.chiefComplaints).toEqual(['12345']);
+    });
+  });
+
+  describe('extractPhysicalExamination — en/l-en JSON format', () => {
+    it('should parse HTML from en key in JSON', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Eyes - Normal.<br/>• Arm - Swollen.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAM_DISPLAY, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Eyes', value: 'Normal' },
+        { label: 'Arm', value: 'Swollen' },
+      ]);
+    });
+
+    it('should fallback to l-en key when en is absent', () => {
+      const jsonValue = JSON.stringify({
+        'l-en': '• Eyes - Normal.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([{ label: 'Eyes', value: 'Normal' }]);
+    });
+
+    it('should handle numeric obs value for physical exam', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, 99 as unknown as string),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      // JSON.parse('99') succeeds but returns a number (not an object), so nothing is pushed
+      expect(result.generalExams).toEqual([
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
+    it('should handle non-JSON raw text with bullet details', () => {
+      const html = '• Eyes - Normal.<br/>• Arm - Swollen.';
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, html)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Eyes', value: 'Normal' },
+        { label: 'Arm', value: 'Swollen' },
+      ]);
+    });
+
+    it('should also match PHYSICAL_EXAM_DISPLAY concept UUID', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.PHYSICAL_EXAM_DISPLAY, 'Some exam text'),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'concept-display', value: 'Some exam text' },
+      ]);
+    });
+  });
+
+  describe('extractMedicalHistory', () => {
+    const MEDICAL_HISTORY_UUID = '62bff84b-795a-45ad-aae1-80e7f5163a82';
+    const FAMILY_HISTORY_UUID = 'd63ae965-47fb-40e8-8f08-1f46a8a60b2b';
+
+    it('should return empty array when no history obs found', () => {
+      const result = extractMedicalHistory([makeEncounter()]);
+      expect(result).toEqual([]);
+    });
+
+    it('should parse JSON-wrapped patient history with bullet format', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Diabetes - Type 2.<br/>• Hypertension - Controlled.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(MEDICAL_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Patient History',
+          details: [
+            { label: 'Diabetes', value: 'Type 2' },
+            { label: 'Hypertension', value: 'Controlled' },
+          ],
+        },
+      ]);
+    });
+
+    it('should filter out "None" entries from patient history', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Medical History - None.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(MEDICAL_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([]);
+    });
+
+    it('should parse family history with "Question : • items" format', () => {
+      const jsonValue = JSON.stringify({
+        en: 'Do you have a family history of any of the following? : • Diabetes (Father), Hypertension (Mother).',
+      });
+      const encounters = [
+        makeEncounter([makeObs(FAMILY_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Family History',
+          details: [
+            { label: 'Diabetes', value: 'Father' },
+            { label: 'Hypertension', value: 'Mother' },
+          ],
+        },
+      ]);
+    });
+
+    it('should skip family history when content is "None"', () => {
+      const jsonValue = JSON.stringify({
+        en: 'Do you have a family history of any of the following? : • None.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(FAMILY_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle family history items without relation parentheses', () => {
+      const jsonValue = JSON.stringify({
+        en: 'Family history : • Diabetes, Asthma.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(FAMILY_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Family History',
+          details: [
+            { label: 'Diabetes', value: '' },
+            { label: 'Asthma', value: '' },
+          ],
+        },
+      ]);
+    });
+
+    it('should handle non-JSON obs values', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(MEDICAL_HISTORY_UUID, '• Asthma - Childhood onset.'),
+        ]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Patient History',
+          details: [{ label: 'Asthma', value: 'Childhood onset' }],
+        },
+      ]);
+    });
+
+    it('should handle numeric obs value for medical history', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(MEDICAL_HISTORY_UUID, 42 as unknown as string),
+        ]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle object obs value for medical history', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(MEDICAL_HISTORY_UUID, { uuid: 'u', display: '• Asthma - Mild.' }),
+        ]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Patient History',
+          details: [{ label: 'Asthma', value: 'Mild' }],
+        },
+      ]);
+    });
+
+    it('should return both patient and family history sections', () => {
+      const patJson = JSON.stringify({ en: '• Diabetes - Type 2.' });
+      const famJson = JSON.stringify({
+        en: 'Family : • Hypertension (Mother).',
+      });
+      const encounters = [
+        makeEncounter([
+          makeObs(MEDICAL_HISTORY_UUID, patJson),
+          makeObs(FAMILY_HISTORY_UUID, famJson),
+        ]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result.length).toBe(2);
+      expect(result[0].title).toBe('Patient History');
+      expect(result[1].title).toBe('Family History');
+    });
+
+    it('should use extractDetailsFromHtml when family history has bullet format with br tags', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Diabetes - Father.<br/>• Hypertension - Mother.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(FAMILY_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Family History',
+          details: [
+            { label: 'Diabetes', value: 'Father' },
+            { label: 'Hypertension', value: 'Mother' },
+          ],
+        },
+      ]);
+    });
+
+    it('should handle family history with no bullet character', () => {
+      const jsonValue = JSON.stringify({ en: 'No relevant family history' });
+      const encounters = [
+        makeEncounter([makeObs(FAMILY_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle object obs value with undefined display for medical history', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(MEDICAL_HISTORY_UUID, { uuid: 'u', display: undefined as unknown as string }),
+        ]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle JSON with neither en nor l-en in resolveObsHtml', () => {
+      const jsonValue = JSON.stringify({ other: 'value' });
+      const encounters = [
+        makeEncounter([makeObs(MEDICAL_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      // resolveObsHtml returns original string since neither en nor l-en exist
+      // extractDetailsFromHtml on the JSON string returns empty (no bullets/br tags)
+      expect(result).toEqual([]);
+    });
+
+    it('should use l-en key when en is absent in JSON', () => {
+      const jsonValue = JSON.stringify({
+        'l-en': '• Asthma - Chronic.',
+      });
+      const encounters = [
+        makeEncounter([makeObs(MEDICAL_HISTORY_UUID, jsonValue)]),
+      ];
+      const result = extractMedicalHistory(encounters);
+      expect(result).toEqual([
+        {
+          title: 'Patient History',
+          details: [{ label: 'Asthma', value: 'Chronic' }],
+        },
+      ]);
+    });
+  });
+
+  describe('transformVisitSummaryResponse — speciality and priorityVisit', () => {
+    it('should extract speciality from visit attributes', () => {
+      const response = makeResponse({
+        attributes: [
+          {
+            uuid: 'attr-uuid',
+            display: 'Speciality',
+            attributeType: {
+              uuid: '3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d',
+              display: 'Speciality',
+            },
+            value: 'Cardiology',
+          },
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.speciality).toBe('Cardiology');
+    });
+
+    it('should return undefined when no speciality attribute', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.speciality).toBeUndefined();
+    });
+
+    it('should detect priority visit from encounter type', () => {
+      const response = makeResponse({
+        encounters: [
+          {
+            uuid: 'enc-uuid',
+            display: 'Priority',
+            encounterDatetime: '2026-01-15T10:00:00.000+0000',
+            encounterType: {
+              uuid: 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c',
+              display: 'PRIORITY',
+            },
+            encounterProviders: [],
+            obs: [],
+          },
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.priorityVisit).toBe(true);
+    });
+
+    it('should return false for priorityVisit when no priority encounter', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.priorityVisit).toBe(false);
+    });
+
+    it('should include medicalHistory when history obs are present', () => {
+      const response = makeResponse({
+        encounters: [
+          makeEncounter([
+            makeObs('62bff84b-795a-45ad-aae1-80e7f5163a82', '• Diabetes - Type 2.'),
+          ]),
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.medicalHistory).toBeDefined();
+      expect(result.medicalHistory!.length).toBeGreaterThan(0);
+      expect(result.medicalHistory![0].title).toBe('Patient History');
+    });
+
+    it('should return undefined medicalHistory when no history obs present', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.medicalHistory).toBeUndefined();
     });
   });
 });

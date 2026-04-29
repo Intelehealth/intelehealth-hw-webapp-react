@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
 import { visitSummaryService } from './visit-summary.service';
-import { useGlobalModal } from '../../components/modal/global-modal-context';
 import type {
   VisitData,
   Patient,
   Vitals,
   CheckupReason,
   PhysicalExamination,
+  HistorySection,
 } from '../../assets/data/visit-summary.data';
 import CollapsedComponent from './visit-summary-collapsed.component';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
@@ -19,8 +19,9 @@ import iconVisitReason from '../../assets/icons/visit-reason.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import iconThreeDot from '../../assets/icons/icon-more-horizontal.svg';
 import iconChevronDown from '../../assets/icons/icon-chevron-down.svg';
-import iconEdit from '../../assets/icons/edit.svg';
-import iconSendVisit from '../../assets/icons/icon-send-visit.svg';
+import iconInfo from '../../assets/icons/icon-info.svg';
+import Dropdown from '../../components/common/dropdown.component';
+import Toggle from '../../components/common/toggle.component';
 
 const LabelValueRow: React.FC<{
   label: string;
@@ -28,10 +29,7 @@ const LabelValueRow: React.FC<{
   compact?: boolean;
 }> = ({ label, value, compact = false }) => (
   <div className={`flex items-center text-sm ${compact ? '' : 'py-1'}`}>
-    <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
-      <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
-      {label}
-    </span>
+    <span className="text-[#7F7B92] w-1/2 shrink-0">{label}</span>
     <span
       className={`font-medium ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
     >
@@ -165,32 +163,44 @@ const CheckupReasonSection: React.FC<{ checkupReason: CheckupReason }> = ({
       {checkupReason.chiefComplaints.map(complaint => (
         <span
           key={complaint}
-          className="inline-flex items-center justify-center w-[105px] h-[26px] bg-[#2E1E91] text-white text-xs font-semibold rounded-[4px] mr-2 gap-1 py-1 px-2 whitespace-nowrap"
+          className="inline-flex items-center justify-center min-w-[105px] h-[26px] bg-[#2E1E91] text-white text-xs font-semibold rounded-[4px] mr-2 gap-1 py-1 px-2 whitespace-nowrap"
         >
           {complaint}
         </span>
       ))}
     </div>
-    {checkupReason.chiefComplaints.map(complaint => (
-      <div key={complaint}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-bold text-gray-800">{complaint}</span>
-          <span
-            role="button"
-            tabIndex={0}
-            className="flex items-center gap-1.5 text-xs text-[#2F1E91] font-medium cursor-pointer border border-[#E1DCFF] rounded-md px-3 py-1 hover:bg-[#E1DCFF] transition-colors"
-          >
-            <img src={iconEdit} alt="" className="w-3.5 h-3.5" />
-            Change
-          </span>
-        </div>
-        <div>
-          {checkupReason.details.map(({ label, value }) => (
-            <LabelValueRow key={label} label={label} value={value} />
+    {checkupReason.details.length > 0 && (
+      <div>
+        {checkupReason.details.map(({ label, value }) => (
+          <LabelValueRow key={label} label={label} value={value} />
+        ))}
+      </div>
+    )}
+    {checkupReason.associatedSymptoms &&
+      checkupReason.associatedSymptoms.length > 0 && (
+        <div className="mt-3">
+          <p className="text-sm font-bold text-gray-800 mb-2">
+            Associated symptoms
+          </p>
+          {checkupReason.associatedSymptoms.map((symptom, idx) => (
+            <div key={idx} className="ml-1 mb-2">
+              <p className="text-sm text-gray-600 font-medium">
+                {symptom.heading}:
+              </p>
+              <div className="ml-3 mt-1 space-y-1">
+                {symptom.values.map((val, vIdx) => (
+                  <div key={vIdx} className="flex items-start gap-2 text-sm">
+                    <span className="text-gray-500 font-bold mt-0.5">
+                      &#8226;
+                    </span>
+                    <span className="text-gray-900">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-      </div>
-    ))}
+      )}
   </>
 );
 
@@ -204,11 +214,23 @@ const PhysicalExaminationSection: React.FC<{
   </div>
 );
 
+const MedicalHistorySection: React.FC<{ sections: HistorySection[] }> = ({
+  sections,
+}) => (
+  <div>
+    {sections.map((section, sIdx) => (
+      <div key={sIdx} className={sIdx > 0 ? 'mt-3' : ''}>
+        <p className="text-sm font-bold text-gray-800 mb-2">{section.title}</p>
+        {section.details.map(({ label, value }, idx) => (
+          <LabelValueRow key={idx} label={label} value={value} />
+        ))}
+      </div>
+    ))}
+  </div>
+);
+
 const VisitSummaryComponent: React.FC = () => {
-  const { visitId, action } = useParams<{ visitId: string; action: string }>();
-  const navigate = useNavigate();
-  const { showConfirmModal } = useGlobalModal();
-  const isCloseVisit = action === 'close';
+  const { visitId } = useParams<{ visitId: string }>();
   const [allOpen, setAllOpen] = useState(true);
   const [data, setData] = useState<VisitData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -232,48 +254,6 @@ const VisitSummaryComponent: React.FC = () => {
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
-  const handleCloseVisit = useCallback(async (visitUuid: string) => {
-    try {
-      await visitSummaryService.closeVisit(visitUuid);
-    } catch (error) {
-      console.error('Failed to close visit:', error);
-    }
-  }, []);
-
-  const handleAppointment = useCallback(() => {
-    showConfirmModal({
-      icon: iconVisitSummary,
-      title: 'Book appointment?',
-      description:
-        'Are you sure you want to book an appointment for this patient?',
-      confirmText: 'Yes',
-      cancelText: 'No',
-      type: 'confirm',
-      open: true,
-      onConfirm: () => {
-        const uuid = visitId ?? data?.visitUuid ?? '';
-        navigate(`/appointment-schedule/${uuid}`, {
-          state: { speciality: 'General Physician' },
-        });
-      },
-    });
-  }, [showConfirmModal, navigate, data?.visitUuid, visitId]);
-
-  const handleSendVisit = useCallback(() => {
-    showConfirmModal({
-      icon: iconSendVisit,
-      title: 'Send visit',
-      description: 'Are you sure you want to send the visit to the doctor?',
-      confirmText: 'Yes',
-      cancelText: 'No',
-      type: 'confirm',
-      open: true,
-      onConfirm: () => {
-        // TODO: Add send visit API call
-      },
-    });
-  }, [showConfirmModal]);
-
   if (loading) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -294,7 +274,15 @@ const VisitSummaryComponent: React.FC = () => {
     );
   }
 
-  const { patient, vitals, checkupReason, physicalExamination } = data;
+  const {
+    patient,
+    vitals,
+    checkupReason,
+    physicalExamination,
+    medicalHistory,
+    speciality,
+    priorityVisit,
+  } = data;
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
@@ -361,7 +349,6 @@ const VisitSummaryComponent: React.FC = () => {
               icon={iconVitals}
               title="Vitals"
               contentLabel="Details"
-              onChangeClick={() => {}}
               defaultOpen={allOpen}
               key={`vitals-${allOpen}`}
             >
@@ -376,7 +363,14 @@ const VisitSummaryComponent: React.FC = () => {
             defaultOpen={allOpen}
             key={`checkup-${allOpen}`}
           >
-            <CheckupReasonSection checkupReason={checkupReason} />
+            {checkupReason.chiefComplaints.length > 0 &&
+            checkupReason.chiefComplaints[0] !== 'No information' ? (
+              <CheckupReasonSection checkupReason={checkupReason} />
+            ) : (
+              <p className="text-gray-400 italic text-sm">
+                No visit reason recorded
+              </p>
+            )}
           </CollapsedComponent>
 
           {/* Physical examination */}
@@ -384,7 +378,6 @@ const VisitSummaryComponent: React.FC = () => {
             icon={iconPhysicalExam}
             title="Physical examination"
             contentLabel="General exams"
-            onChangeClick={() => {}}
             defaultOpen={allOpen}
             key={`physical-${allOpen}`}
           >
@@ -392,65 +385,56 @@ const VisitSummaryComponent: React.FC = () => {
               physicalExamination={physicalExamination}
             />
           </CollapsedComponent>
+
+          {/* Medical History — full width */}
+          <div className="md:col-span-2">
+            <CollapsedComponent
+              icon={iconVisitSummary}
+              title="Medical History"
+              defaultOpen={allOpen}
+              key={`medical-${allOpen}`}
+            >
+              {medicalHistory && medicalHistory.length > 0 ? (
+                <MedicalHistorySection sections={medicalHistory} />
+              ) : (
+                <p className="text-gray-400 italic text-sm">
+                  No medical history recorded
+                </p>
+              )}
+            </CollapsedComponent>
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons — desktop */}
-      <div className="hidden md:flex justify-end gap-3 mt-3">
-        {isCloseVisit ? (
-          <button
-            className="rounded-lg bg-[#2E1E91] px-5 py-2 text-sm font-medium text-white hover:bg-gray-100"
-            onClick={() => handleCloseVisit(patient.visitId)}
-          >
-            Close visit
-          </button>
-        ) : (
-          <>
-            <button
-              className="rounded-lg bg-[#2E1E91] px-5 py-2 text-sm font-medium text-white hover:bg-gray-100"
-              onClick={handleAppointment}
-            >
-              Appointment
-            </button>
-            <button
-              className="rounded-lg bg-[#2E1E91] px-5 py-2 text-sm font-medium text-white hover:bg-[#241878]"
-              onClick={handleSendVisit}
-            >
-              Send visit
-            </button>
-          </>
-        )}
-      </div>
+      {/* Doctor's Specialty & Priority Visit — view only (disabled) */}
+      <div className="flex flex-col md:flex-row md:items-end gap-4 mt-4 px-4 mb-4 md:px-0">
+        <div className="w-full md:w-1/2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none">
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
+            Doctor&apos;s specialty
+          </p>
+          <Dropdown
+            options={
+              speciality ? [{ value: speciality, label: speciality }] : []
+            }
+            value={speciality || ''}
+            placeholder="General physician"
+            size="sm"
+            disabled
+          />
+        </div>
 
-      {/* Action Buttons — mobile fixed above DownMenu */}
-      <div className="fixed bottom-[70px] left-0 right-0 z-50 flex gap-3 bg-white border-t border-gray-200 px-4 py-3 md:hidden">
-        {isCloseVisit ? (
-          <button
-            className="w-1/2 h-[48px] rounded-[8px] bg-[#2E1E91] text-sm font-semibold text-white"
-            onClick={() => handleCloseVisit(patient.visitId)}
-          >
-            Close visit
-          </button>
-        ) : (
-          <>
-            <button
-              className="flex-1 h-[48px] rounded-[8px] border border-[#2E1E91] bg-[#2E1E91]  text-sm font-semibold text-white"
-              onClick={handleAppointment}
-            >
-              Appointment
-            </button>
-            <button
-              className="flex-1 h-[48px] rounded-[8px] bg-[#2E1E91] text-sm font-semibold text-white"
-              onClick={handleSendVisit}
-            >
-              Send visit
-            </button>
-          </>
-        )}
+        <div className="w-full md:w-1/2 flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-4 md:border-0 md:p-0 md:rounded-none md:mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[#2E1E91]">
+              Priority Visit
+            </span>
+            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+          </div>
+          <div className="w-12">
+            <Toggle checked={!!priorityVisit} size="md" disabled />
+          </div>
+        </div>
       </div>
-
-      {/* Spacer for fixed bottom bar + DownMenu on mobile */}
-      <div className="h-36 md:hidden" />
     </div>
   );
 };
