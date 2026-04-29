@@ -467,6 +467,42 @@ describe('VisitSummaryComponent', () => {
       });
     });
 
+    it('should use visitId from route params when navigating to appointment', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      renderWithVisitId('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
+      });
+      const appointmentButtons = screen.getAllByText('Appointment');
+      fireEvent.click(appointmentButtons[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      expect(mockNavigate).toHaveBeenCalledWith('/appointment-schedule/test-visit-uuid', {
+        state: { speciality: 'General Physician' },
+      });
+    });
+
+    it('should fall back to empty string when visitId and visitUuid are both absent', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        visitUuid: undefined as unknown as string,
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getAllByText('Appointment').length).toBeGreaterThan(0);
+      });
+      const appointmentButtons = screen.getAllByText('Appointment');
+      fireEvent.click(appointmentButtons[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      expect(mockNavigate).toHaveBeenCalledWith('/appointment-schedule/', {
+        state: { speciality: 'General Physician' },
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
     it('should dismiss modal on cancel', async () => {
       renderWithMockData();
       await waitFor(() => {
