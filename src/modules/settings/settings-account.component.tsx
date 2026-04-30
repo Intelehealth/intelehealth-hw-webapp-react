@@ -1,24 +1,24 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import IconMale from '../../assets/icons/icon-male.svg';
+import { useNavigate } from 'react-router-dom';
 import IconFemale from '../../assets/icons/icon-female.svg';
 import IconGenderOther from '../../assets/icons/icon-gender-other.svg';
+import IconMale from '../../assets/icons/icon-male.svg';
 import iconPersonWhite from '../../assets/icons/icon-person-white.svg';
+import { Button, Calendar, Input } from '../../components/common';
 import CountryCodeDropdown from '../../components/common/contry-code-dropdown.component';
-import { Button, Input, Calendar } from '../../components/common';
-import { cn } from '../../utils/cn';
-import { calculateAge } from '../../utils/utils';
 import { useProfileContext } from '../../context/ProfileContext';
 import { showToast } from '../../services/toast';
+import type { RootState } from '../../store/store';
+import { cn } from '../../utils/cn';
+import { calculateAge } from '../../utils/utils';
 import { SETTINGS_TOAST } from './settings.hooks';
 import {
   settingsAccountSchema,
   type SettingsAccountFormValues,
 } from './settings.validation';
-import type { RootState } from '../../store/store';
 
 const ADMIN_TOAST_DURATION = 3000;
 
@@ -210,13 +210,14 @@ const SettingsAccount: React.FC = () => {
           </div>
 
           <div onClick={handleReadOnlyClick} className="cursor-not-allowed">
-            <label className="form-label block mb-2">or Age</label>
+            <label className="form-label block mb-2">Age</label>
             <input
               type="text"
               value={calculatedAge || ''}
               readOnly
+              disabled
               placeholder="Age"
-              className="form-input-base w-full bg-gray-50 text-body-normal"
+              className="form-input-base w-full bg-gray-50 text-body-normal pl-4 caret-transparent cursor-not-allowed select-none"
             />
           </div>
 
