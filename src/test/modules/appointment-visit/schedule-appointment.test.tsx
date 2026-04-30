@@ -421,7 +421,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayBtn).toHaveClass('text-white');
     });
 
-    it('non-selected date has default class', () => {
+    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-selected date has default class', () => {
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
       expect(buttons[1]).toHaveClass('bg-white');
@@ -438,7 +438,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
-    it('today button shows "Today" text with purple color when not selected', () => {
+    it.skipIf(remainingDaysInCurrentMonth() < 2)('today button shows "Today" text with purple color when not selected', () => {
       renderComponent();
       const secondBtn = getDateArea().querySelectorAll('button')[1];
       fireEvent.click(secondBtn);
@@ -453,7 +453,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayLabel).toHaveClass('text-white');
     });
 
-    it('non-today dates display short day name', () => {
+    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-today dates display short day name', () => {
       renderComponent();
       const buttons = getDateArea().querySelectorAll('button');
       const tomorrow = new Date();

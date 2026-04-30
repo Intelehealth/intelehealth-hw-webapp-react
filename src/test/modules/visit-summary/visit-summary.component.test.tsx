@@ -546,6 +546,51 @@ describe('VisitSummaryComponent', () => {
       visitSummaryDataModule.visitSummaryData.length = 0;
       visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
+
+    it('should show "No information" for BP when both systolic and diastolic are 0', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        vitals: {
+          ...originalData[0].vitals,
+          bp: { systolic: 0, diastolic: 0 },
+        },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getAllByText('BP').length).toBeGreaterThan(0);
+        // BP row should display "No information" since both values are 0
+        const noInfoElements = screen.getAllByText('No information');
+        expect(noInfoElements.length).toBeGreaterThan(0);
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
+    it('should show "No information" for BMI when value is 0', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        vitals: {
+          ...originalData[0].vitals,
+          bmi: { value: 0 },
+        },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getAllByText('BMI').length).toBeGreaterThan(0);
+        const noInfoElements = screen.getAllByText('No information');
+        expect(noInfoElements.length).toBeGreaterThan(0);
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
   });
 
   describe('Toggle all', () => {

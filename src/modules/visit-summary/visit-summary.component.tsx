@@ -101,8 +101,17 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
       label: 'Weight(kg)',
       value: getVitalDisplay(vitals.weight.value, vitals.weight.note),
     },
-    { label: 'BMI', value: vitals.bmi.value.toString() },
-    { label: 'BP', value: `${vitals.bp.systolic}/${vitals.bp.diastolic}` },
+    {
+      label: 'BMI',
+      value: vitals.bmi.value ? vitals.bmi.value.toString() : 'No information',
+    },
+    {
+      label: 'BP',
+      value:
+        vitals.bp.systolic || vitals.bp.diastolic
+          ? `${vitals.bp.systolic}/${vitals.bp.diastolic}`
+          : 'No information',
+    },
     {
       label: 'Pulse',
       value: getVitalDisplay(vitals.pulse.value, vitals.pulse.note),
