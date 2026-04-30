@@ -76,9 +76,11 @@ function getDoctorInfo(encounters: VisitDetailsResponse['encounters']): {
 }
 
 function getObsValue(obs: {
-  value: string | { uuid: string; display: string };
+  value: string | number | { uuid: string; display: string };
 }): string {
-  return typeof obs.value === 'string' ? obs.value : (obs.value?.display ?? '');
+  if (typeof obs.value === 'string') return obs.value;
+  if (typeof obs.value === 'number') return String(obs.value);
+  return obs.value?.display ?? '';
 }
 
 function parseDiagnosisValue(raw: string): string {

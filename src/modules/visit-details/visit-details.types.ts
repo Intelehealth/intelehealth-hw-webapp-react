@@ -36,6 +36,7 @@ export interface VisitDetailsEncounter {
     };
     value:
       | string
+      | number
       | {
           uuid: string;
           display: string;

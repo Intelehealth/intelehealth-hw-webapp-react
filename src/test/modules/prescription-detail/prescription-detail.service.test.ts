@@ -417,6 +417,14 @@ describe('prescriptionDetailService', () => {
       expect(result.diagnosis).toBe('Object Diagnosis');
     });
 
+    it('should handle obs value as number', async () => {
+      const resp = buildVisitResponse();
+      resp.encounters[0].obs[0].value = 42 as any;
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.diagnosis).toBe('42');
+    });
+
     it('should handle empty encounters', async () => {
       const resp = buildVisitResponse();
       resp.encounters = [];
