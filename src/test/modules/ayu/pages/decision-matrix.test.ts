@@ -152,7 +152,7 @@ describe('decision-matrix', () => {
     });
 
     describe('Decimal Type Resolution', () => {
-      it('should return "number" for decimal type questions', () => {
+      it('should return "decimal" for decimal type questions', () => {
         const question: AyuQuestion = {
           linkId: 'q9',
           type: 'decimal',
@@ -160,10 +160,10 @@ describe('decision-matrix', () => {
         };
 
         const result = resolveAyuComponent(question);
-        expect(result).toBe('number');
+        expect(result).toBe('decimal');
       });
 
-      it('should return "number" for decimal type with required flag', () => {
+      it('should return "decimal" for decimal type with required flag', () => {
         const question: AyuQuestion = {
           linkId: 'q10',
           type: 'decimal',
@@ -172,7 +172,66 @@ describe('decision-matrix', () => {
         };
 
         const result = resolveAyuComponent(question);
-        expect(result).toBe('number');
+        expect(result).toBe('decimal');
+      });
+    });
+
+    describe('Range Type Resolution', () => {
+      it('should return "range" for integer with min/max extensions where max > 10', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-range',
+          type: 'integer',
+          text: 'Cycle length (weeks)',
+          extension: [
+            {
+              url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+              valueInteger: 0,
+            },
+            {
+              url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+              valueInteger: 100,
+            },
+          ],
+        };
+
+        expect(resolveAyuComponent(question)).toBe('range');
+      });
+
+      it('should still return "number" for integer with only minValue extension', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-min-only',
+          type: 'integer',
+          extension: [
+            {
+              url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+              valueInteger: 0,
+            },
+          ],
+        };
+
+        expect(resolveAyuComponent(question)).toBe('number');
+      });
+    });
+
+    describe('Frequency Type Resolution', () => {
+      it('should return "frequency" for integer with min/max extensions where max <= 10', () => {
+        const question: AyuQuestion = {
+          linkId: 'q-frequency',
+          type: 'integer',
+          text: 'Frequency',
+          extension: [
+            {
+              url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+              valueInteger: 0,
+            },
+            {
+              url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+              valueInteger: 10,
+            },
+          ],
+        };
+
+        expect(resolveAyuComponent(question)).toBe('frequency');
       });
     });
 
@@ -624,7 +683,7 @@ describe('decision-matrix', () => {
         expect(resolveAyuComponent(questionWithoutRepeats)).toBe('text');
       });
 
-      it('should treat integer and decimal the same way', () => {
+      it('should map integer to "number" and decimal to "decimal" when no min/max extensions are present', () => {
         const integerQuestion: AyuQuestion = {
           linkId: 'q33',
           type: 'integer',
@@ -636,10 +695,7 @@ describe('decision-matrix', () => {
         };
 
         expect(resolveAyuComponent(integerQuestion)).toBe('number');
-        expect(resolveAyuComponent(decimalQuestion)).toBe('number');
-        expect(resolveAyuComponent(integerQuestion)).toBe(
-          resolveAyuComponent(decimalQuestion)
-        );
+        expect(resolveAyuComponent(decimalQuestion)).toBe('decimal');
       });
 
       it('should always return selectableOptionGroup for choice type regardless of repeats', () => {
@@ -701,7 +757,7 @@ describe('decision-matrix', () => {
           { type: 'display', expected: 'display' },
           { type: 'string', expected: 'text' },
           { type: 'integer', expected: 'number' },
-          { type: 'decimal', expected: 'number' },
+          { type: 'decimal', expected: 'decimal' },
           { type: 'date', expected: 'date' },
           { type: 'choice', expected: 'selectableOptionGroup' },
           { type: 'quantity', expected: 'quantity' },
@@ -743,12 +799,16 @@ describe('decision-matrix', () => {
         'text',
         'repeatable-text',
         'number',
+        'decimal',
         'date',
         'select',
         'multi-select',
         'radio',
         'selectableOptionGroup',
         'quantity',
+        'area',
+        'frequency',
+        'range',
         'associatedSymptoms',
       ];
 

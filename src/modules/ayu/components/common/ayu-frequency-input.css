@@ -1,0 +1,130 @@
+.ayu-frequency-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ayu-frequency-hint {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.ayu-frequency-card {
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ecfdf5;
+  padding: 12px;
+}
+
+.ayu-frequency-row {
+  display: grid;
+  grid-template-columns: repeat(
+    var(--ayu-frequency-levels, 10),
+    minmax(0, 1fr)
+  );
+}
+
+.ayu-frequency-cell {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ayu-frequency-cell:disabled {
+  cursor: not-allowed;
+}
+
+.ayu-frequency-number {
+  text-align: center;
+  font-size: 14px;
+  color: #374151;
+}
+
+.ayu-frequency-number--selected {
+  color: #20c997;
+  font-weight: 600;
+}
+
+.ayu-frequency-face {
+  display: flex;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.ayu-frequency-face--selected {
+  color: #20c997;
+}
+
+.ayu-frequency-face-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.ayu-frequency-slider-wrapper {
+  padding: 12px 4px;
+}
+
+.ayu-frequency-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    #3a2a8a 0%,
+    #3a2a8a calc(var(--ayu-frequency-percent, 0) * 1%),
+    #e5e7eb calc(var(--ayu-frequency-percent, 0) * 1%),
+    #e5e7eb 100%
+  );
+}
+
+.ayu-frequency-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+  cursor: grab;
+  margin-top: -6px;
+}
+
+.ayu-frequency-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+  cursor: grab;
+}
+
+.ayu-frequency-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.ayu-frequency-slider:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+.ayu-frequency-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ayu-frequency-level-pill {
+  align-self: flex-start;
+  border: 1px solid #20c997;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #ffffff;
+  color: #20c997;
+}

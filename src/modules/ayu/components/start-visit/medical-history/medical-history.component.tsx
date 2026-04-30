@@ -4,20 +4,15 @@ import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReasonSummary from '../../../../../assets/icons/visit-reason.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import { storage } from '../../../../../utils/storage';
 import type { AyuAnswerValue } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import {
-  parsePatientAgeYears,
-  transformFhirToAyu,
-} from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
+import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
   MEDICAL_HISTORY_SUMMARY_TITLE,
-  PATIENT_AGE_KEY,
-  PATIENT_GENDER_KEY,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
 } from '../../../utils/ayu.constants';
@@ -69,13 +64,7 @@ export const MedicalHistory = ({
     ).filter(Boolean);
   }, [ayuConfigFiles]);
 
-  const patientAgeAndGender = useMemo(
-    () => ({
-      age: parsePatientAgeYears(storage.get(PATIENT_AGE_KEY)),
-      gender: storage.get(PATIENT_GENDER_KEY),
-    }),
-    []
-  );
+  const patientAgeAndGender = usePatientDemographics();
 
   const schemas = useMemo(() => {
     return historyFiles.map(file => ({

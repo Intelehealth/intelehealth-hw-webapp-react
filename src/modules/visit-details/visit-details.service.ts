@@ -77,14 +77,18 @@ function getChiefComplaint(encounters: VisitDetailsResponse['encounters']): {
         const raw =
           typeof obs.value === 'string'
             ? obs.value
-            : (obs.value?.display ?? '');
+            : typeof obs.value === 'number'
+              ? String(obs.value)
+              : (obs.value?.display ?? '');
         return parseChiefComplaintValue(raw);
       }
       if (obs.concept?.display?.toLowerCase().includes('chief complaint')) {
         const raw =
           typeof obs.value === 'string'
             ? obs.value
-            : (obs.value?.display ?? '');
+            : typeof obs.value === 'number'
+              ? String(obs.value)
+              : (obs.value?.display ?? '');
         return parseChiefComplaintValue(raw);
       }
     }
@@ -102,7 +106,11 @@ function getFollowUpDate(
         obs.concept?.display?.toLowerCase().includes('follow')
       ) {
         const val =
-          typeof obs.value === 'string' ? obs.value : obs.value?.display;
+          typeof obs.value === 'string'
+            ? obs.value
+            : typeof obs.value === 'number'
+              ? String(obs.value)
+              : obs.value?.display;
         return val ?? null;
       }
     }

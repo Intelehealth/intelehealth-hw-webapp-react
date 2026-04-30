@@ -121,6 +121,7 @@ describe('SettingsLanguage', () => {
   });
 
   it('shows the Changing protocols loader while isUpdatingProtocols is true', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     let resolveUpdate: () => void = () => {};
     mockHook.handleUpdateProtocols = vi.fn(
       () => new Promise<void>(r => { resolveUpdate = r; })
@@ -149,11 +150,13 @@ describe('SettingsLanguage', () => {
 
     await act(async () => {
       resolveUpdate();
+      vi.advanceTimersByTime(1500);
     });
 
     await waitFor(() =>
       expect(screen.queryByText('Changing protocols')).not.toBeInTheDocument()
     );
+    vi.useRealTimers();
   });
 
   it('shows "Change language?" confirm modal when a different language is picked', () => {

@@ -304,6 +304,16 @@ describe('visit-details service', () => {
       expect(r.chiefComplaintHtml).toBe('Headache');
     });
 
+    it('should find by concept UUID with number value', async () => {
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce', display: 'CC' }, value: 99 as any }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('99');
+      expect(r.chiefComplaintHtml).toBe('99');
+    });
+
     it('should find by display containing "chief complaint" with string value', async () => {
       const enc = makeEncounter({
         obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: 'other-uuid', display: 'Chief Complaint' }, value: 'Cough' }],
@@ -322,6 +332,16 @@ describe('visit-details service', () => {
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.chiefComplaint).toBe('Cold');
       expect(r.chiefComplaintHtml).toBe('Cold');
+    });
+
+    it('should find by display containing "chief complaint" with number value', async () => {
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'CC', concept: { uuid: 'other-uuid', display: 'Chief Complaint' }, value: 7 as any }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.chiefComplaint).toBe('7');
+      expect(r.chiefComplaintHtml).toBe('7');
     });
 
     it('should return "Not available" when no matching obs', async () => {
@@ -464,6 +484,15 @@ describe('visit-details service', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [] }));
       const r = await visitDetailsService.getVisitDetails('x');
       expect(r.followUpDate).toBeNull();
+    });
+
+    it('should handle number value for follow-up date', async () => {
+      const enc = makeEncounter({
+        obs: [{ uuid: 'o1', display: 'FU', concept: { uuid: 'e8caffd6-5571-11e7-907b-a6006ad3dba0', display: 'FU' }, value: 20260203 as any }],
+      });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [enc] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.followUpDate).toBe('Invalid Date');
     });
 
     it('should return null when object value has no display', async () => {

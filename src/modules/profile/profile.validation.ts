@@ -1,6 +1,26 @@
 import * as yup from 'yup';
 import { VALID_TLDS } from '../../utils/valid-tlds';
 
+export const emailValidation = yup
+  .string()
+  .trim()
+  .required('Email is required')
+  .matches(/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, {
+    message: 'Email is invalid',
+    excludeEmptyString: true,
+  })
+  .test('valid-tld', 'Email is invalid', value => {
+    if (!value) return true;
+    const tld = value.split('.').pop()?.toLowerCase();
+    return !!tld && VALID_TLDS.has(tld);
+  });
+
+export const phoneValidation = yup
+  .string()
+  .trim()
+  .matches(/^\d{10}$/g, 'Phone must be 10 digits')
+  .required('Phone number is required');
+
 export const profileSchema = yup.object({
   username: yup.string().trim().defined(),
   firstName: yup
@@ -18,24 +38,8 @@ export const profileSchema = yup.object({
     .trim()
     .required('Last name is required')
     .matches(/^[A-Za-z\s]+$/, 'Enter alphabets only'),
-  email: yup
-    .string()
-    .trim()
-    .required('Email is required')
-    .matches(/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, {
-      message: 'Email is invalid',
-      excludeEmptyString: true,
-    })
-    .test('valid-tld', 'Email is invalid', value => {
-      if (!value) return true;
-      const tld = value.split('.').pop()?.toLowerCase();
-      return !!tld && VALID_TLDS.has(tld);
-    }),
-  phone: yup
-    .string()
-    .trim()
-    .matches(/^\d{10}$/g, 'Phone must be 10 digits')
-    .required('Phone number is required'),
+  email: emailValidation,
+  phone: phoneValidation,
   dateOfBirth: yup.string().trim().required('Date of birth is required'),
   gender: yup
     .mixed<'male' | 'female' | 'other'>()

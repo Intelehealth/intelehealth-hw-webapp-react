@@ -413,6 +413,16 @@ describe('AppointmentScheduleComponent', () => {
   });
 
   describe('Date selection', () => {
+    // Today rendered as non-selected is only reachable when the current month
+    // has at least one extra day after today (so we can click a sibling).
+    const isLastDayOfMonth = (() => {
+      const n = new Date();
+      return (
+        n.getDate() ===
+        new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()
+      );
+    })();
+
     it('clicking a date selects it (applies selected class)', () => {
       renderComponent();
       const todayBtn = screen.getByText('Today').closest('button')!;
@@ -421,14 +431,17 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayBtn).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)(
-      'non-selected date has default class',
-      () => {
-        renderComponent();
-        const buttons = getDateArea().querySelectorAll('button');
-        expect(buttons[1]).toHaveClass('bg-white');
+    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-selected date has default class', () => {
+      renderComponent();
+      let buttons = getDateArea().querySelectorAll('button');
+      // If today is end-of-month, current view has only 1 button — go to next
+      // month and use buttons[1] (the 1st is auto-selected in handleNextMonth).
+      if (buttons.length < 2) {
+        fireEvent.click(screen.getByAltText('next').closest('button')!);
+        buttons = getDateArea().querySelectorAll('button');
       }
-    );
+      expect(buttons[1]).toHaveClass('bg-white');
+    });
 
     it('clicking a date resets selected time', () => {
       renderComponent();
@@ -441,7 +454,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)(
+    it.skipIf(isLastDayOfMonth)(
       'today button shows "Today" text with purple color when not selected',
       () => {
         renderComponent();
@@ -459,11 +472,23 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayLabel).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)(
-      'non-today dates display short day name',
-      () => {
-        renderComponent();
-        const buttons = getDateArea().querySelectorAll('button');
+    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-today dates display short day name', () => {
+      renderComponent();
+      let buttons = getDateArea().querySelectorAll('button');
+      if (buttons.length < 2) {
+        // End-of-month: navigate to next month and check its first day instead.
+        fireEvent.click(screen.getByAltText('next').closest('button')!);
+        buttons = getDateArea().querySelectorAll('button');
+        const nextMonthFirst = new Date(
+          new Date().getFullYear(),
+          new Date().getMonth() + 1,
+          1
+        );
+        const expectedDay = nextMonthFirst.toLocaleDateString('en-US', {
+          weekday: 'short',
+        });
+        expect(buttons[0].textContent).toContain(expectedDay);
+      } else {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const expectedDay = tomorrow.toLocaleDateString('en-US', {
@@ -471,7 +496,7 @@ describe('AppointmentScheduleComponent', () => {
         });
         expect(buttons[1].textContent).toContain(expectedDay);
       }
-    );
+    });
 
     it('displays correct day number for each date', () => {
       renderComponent();
