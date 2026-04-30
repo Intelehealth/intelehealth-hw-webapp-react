@@ -20,6 +20,7 @@ import {
   getPendingDocuments,
   removePendingDocument,
   uploadAllAdditionalDocuments,
+  getLatestEncounterUuid,
 } from '../../../../modules/ayu/services/obs.service';
 import { OBS_CONCEPTS } from '../../../../modules/ayu/types/obs.types';
 
@@ -352,9 +353,9 @@ describe('obs.service', () => {
       expect(getPendingDocuments()).toHaveLength(0);
     });
 
-    it('should reject when an upload fails', async () => {
-      const file = new File(['doc'], 'report.pdf', {
-        type: 'application/pdf',
+    it('should not reject when an individual upload fails', async () => {
+      const file = new File(['doc'], 'report.png', {
+        type: 'image/png',
       });
       addPendingDocument(file, 'Lab report');
 
@@ -362,6 +363,129 @@ describe('obs.service', () => {
 
       await expect(
         uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid')
+      ).resolves.toBeUndefined();
+      expect(getPendingDocuments()).toHaveLength(0);
+    });
+
+    it('should omit encounter from JSON when encounterUuid is undefined', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments(undefined, 'patient-uuid');
+
+      const formData = mockPost.mock.calls[0][1] as FormData;
+      const jsonString = formData.get('json') as string;
+      const json = JSON.parse(jsonString);
+
+      expect(json.encounter).toBeUndefined();
+      expect(json.person).toBe('patient-uuid');
+      expect(json.concept).toBe(OBS_CONCEPTS.ADDITIONAL_DOCUMENT);
+    });
+
+    it('should include encounter in JSON when encounterUuid is provided', async () => {
+      const file = new File(['doc'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      addPendingDocument(file, 'Lab report');
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
+
+      const formData = mockPost.mock.calls[0][1] as FormData;
+      const jsonString = formData.get('json') as string;
+      const json = JSON.parse(jsonString);
+
+      expect(json.encounter).toBe('enc-uuid');
+    });
+  });
+
+  // ── getLatestEncounterUuid ────────────────────────────────────────────
+
+  describe('getLatestEncounterUuid', () => {
+    it('should call GET /visit with correct query params', async () => {
+      mockGet.mockResolvedValue({
+        results: [
+          {
+            encounters: [
+              { uuid: 'enc-1', encounterType: { uuid: 'type-a' } },
+              { uuid: 'enc-2', encounterType: { uuid: 'type-b' } },
+            ],
+          },
+        ],
+      });
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-b');
+
+      expect(mockGet).toHaveBeenCalledWith(
+        '/visit?patient=patient-uuid&v=custom:(encounters:(uuid,encounterType:(uuid)))&limit=1&order=desc'
+      );
+      expect(result).toBe('enc-2');
+    });
+
+    it('should return matching encounter UUID', async () => {
+      mockGet.mockResolvedValue({
+        results: [
+          {
+            encounters: [
+              { uuid: 'enc-1', encounterType: { uuid: 'type-a' } },
+              { uuid: 'enc-2', encounterType: { uuid: 'type-b' } },
+            ],
+          },
+        ],
+      });
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-a');
+      expect(result).toBe('enc-1');
+    });
+
+    it('should return undefined when no visit found', async () => {
+      mockGet.mockResolvedValue({ results: [] });
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-a');
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when results is undefined', async () => {
+      mockGet.mockResolvedValue({});
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-a');
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when no matching encounter type found', async () => {
+      mockGet.mockResolvedValue({
+        results: [
+          {
+            encounters: [
+              { uuid: 'enc-1', encounterType: { uuid: 'type-a' } },
+            ],
+          },
+        ],
+      });
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-z');
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when encounters array is empty', async () => {
+      mockGet.mockResolvedValue({
+        results: [{ encounters: [] }],
+      });
+
+      const result = await getLatestEncounterUuid('patient-uuid', 'type-a');
+      expect(result).toBeUndefined();
+    });
+
+    it('should propagate API errors', async () => {
+      mockGet.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        getLatestEncounterUuid('patient-uuid', 'type-a')
       ).rejects.toThrow('Network error');
     });
   });

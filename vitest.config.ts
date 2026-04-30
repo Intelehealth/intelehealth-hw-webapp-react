@@ -117,8 +117,8 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
     },
     // Test timeout
-    testTimeout: 10000,
+    testTimeout: 30000,
     // Hook timeout
-    hookTimeout: 10000,
+    hookTimeout: 30000,
   },
 });

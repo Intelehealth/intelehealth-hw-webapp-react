@@ -1321,7 +1321,7 @@ describe('visitSummaryService', () => {
       expect(docs[0].isImage).toBe(false);
     });
 
-    it('should handle null encounter gracefully', () => {
+    it('should include documents with null encounter', () => {
       const results = [
         {
           uuid: 'obs-1',
@@ -1331,7 +1331,22 @@ describe('visitSummaryService', () => {
         },
       ];
       const docs = transformObsToDocuments(results, 'visit-1');
-      expect(docs).toHaveLength(0);
+      expect(docs).toHaveLength(1);
+      expect(docs[0].name).toBe('file.pdf');
+    });
+
+    it('should include documents with undefined encounter', () => {
+      const results = [
+        {
+          uuid: 'obs-1',
+          comment: 'report.pdf',
+          value: { display: 'file', links: { rel: 'self', uri: 'http://example.com' } },
+          encounter: undefined as unknown as { visit: { uuid: string } } | null,
+        },
+      ];
+      const docs = transformObsToDocuments(results, 'visit-1');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].name).toBe('report.pdf');
     });
 
     it('should return empty array for empty results', () => {
@@ -1405,6 +1420,20 @@ describe('visitSummaryService', () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue({});
       const docs = await visitSummaryService.getAdditionalDocuments('patient-uuid', 'visit-uuid');
       expect(docs).toHaveLength(0);
+    });
+  });
+
+  describe('getDocumentFile', () => {
+    it('should call OpenMRSApi.get with correct URL and blob responseType', async () => {
+      const mockBlob = new Blob(['data'], { type: 'image/png' });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(mockBlob);
+
+      const result = await visitSummaryService.getDocumentFile('obs-uuid-123');
+
+      expect(OpenMRSApi.get).toHaveBeenCalledWith('/obs/obs-uuid-123/value', {
+        responseType: 'blob',
+      });
+      expect(result).toBe(mockBlob);
     });
   });
 });

@@ -457,7 +457,7 @@ export function transformObsToDocuments(
   visitUuid: string
 ): AdditionalDocument[] {
   return results
-    .filter(obs => obs.encounter?.visit?.uuid === visitUuid)
+    .filter(obs => obs.encounter?.visit?.uuid === visitUuid || !obs.encounter)
     .map(obs => ({
       uuid: obs.uuid,
       name: obs.comment || 'Untitled document',
@@ -483,10 +483,15 @@ export const visitSummaryService = {
     patientUuid: string,
     visitUuid: string
   ): Promise<AdditionalDocument[]> => {
-    const response = await OpenMRSApi.get<ObsDocResponse>(
-      `/obs?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${ADDITIONAL_DOCUMENT_CONCEPT}`
-    );
+    const url = `/obs?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${ADDITIONAL_DOCUMENT_CONCEPT}`;
+    const response = await OpenMRSApi.get<ObsDocResponse>(url);
     return transformObsToDocuments(response.results ?? [], visitUuid);
+  },
+
+  getDocumentFile: async (obsUuid: string): Promise<Blob> => {
+    return OpenMRSApi.get<Blob>(`/obs/${obsUuid}/value`, {
+      responseType: 'blob',
+    });
   },
 
   closeVisit: async (visitUuid: string) => {

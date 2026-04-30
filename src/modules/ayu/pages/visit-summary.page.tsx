@@ -20,13 +20,15 @@ import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
 import { storage } from '../../../utils/storage';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
+import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
 import {
   addPendingDocument,
-  uploadAllAdditionalDocuments,
   clearPendingDocuments,
+  getLatestEncounterUuid,
+  uploadAllAdditionalDocuments,
 } from '../services/obs.service';
 import { bulkMarkSynced } from '../services/temp-storage.service';
 import {
@@ -39,7 +41,6 @@ import {
 } from '../services/visit-upload.service';
 import type { CapturedDocument } from '../types/obs.types';
 import { ACCEPTED_DOCUMENT_TYPES } from '../types/obs.types';
-import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { VitalsFormValues } from '../types/vitals.types';
 import {
   ITEM_TYPES,
@@ -240,29 +241,20 @@ const VisitSummaryPage = () => {
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
-  const isImageFile = (file: File) => file.type.startsWith('image/');
-
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
 
       Array.from(files).forEach(file => {
-        if (isImageFile(file)) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setAdditionalDocuments(prev => [
-              ...prev,
-              { file, preview: reader.result as string, name: file.name },
-            ]);
-          };
-          reader.readAsDataURL(file);
-        } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
           setAdditionalDocuments(prev => [
             ...prev,
-            { file, preview: '', name: file.name },
+            { file, preview: reader.result as string, name: file.name },
           ]);
-        }
+        };
+        reader.readAsDataURL(file);
       });
 
       e.target.value = '';
@@ -343,25 +335,28 @@ const VisitSummaryPage = () => {
 
       const response = await uploadVisit(payload);
 
-      if (additionalDocuments.length > 0 && response?.encounters) {
-        const adultInitialEnc = response.encounters.find(
-          enc => enc.encounterType?.uuid === ENCOUNTER_TYPES.ADULT_INITIAL
-        );
-        const encounterUuid =
-          adultInitialEnc?.uuid ?? response.encounters[1]?.uuid;
+      if (additionalDocuments.length > 0) {
+        let encounterUuid: string | undefined;
+
+        if (response?.encounters) {
+          const adultInitialEnc = response.encounters.find(
+            enc => enc.encounterType?.uuid === ENCOUNTER_TYPES.ADULT_INITIAL
+          );
+          encounterUuid = adultInitialEnc?.uuid ?? response.encounters[1]?.uuid;
+        }
+
         if (!encounterUuid) {
-          console.warn(
-            'Additional documents: could not resolve ADULT_INITIAL encounter from response',
-            response.encounters
+          encounterUuid = await getLatestEncounterUuid(
+            patientUuid,
+            ENCOUNTER_TYPES.ADULT_INITIAL
           );
         }
-        if (encounterUuid) {
-          clearPendingDocuments();
-          for (const doc of additionalDocuments) {
-            addPendingDocument(doc.file, doc.name);
-          }
-          await uploadAllAdditionalDocuments(encounterUuid, patientUuid);
+
+        clearPendingDocuments();
+        for (const doc of additionalDocuments) {
+          addPendingDocument(doc.file, doc.name);
         }
+        await uploadAllAdditionalDocuments(encounterUuid, patientUuid);
       }
 
       if (tempRecordId) {
@@ -539,7 +534,7 @@ const VisitSummaryPage = () => {
         </div>
         <div className="w-full md:w-1/2">
           <p className="text-sm font-semibold text-[#2E1E91] mb-1.5">
-            Add additional document{' '}
+            Add Additional document{' '}
             {additionalDocuments.length > 0 && (
               <span className="text-gray-500">
                 ({additionalDocuments.length})
@@ -561,15 +556,11 @@ const VisitSummaryPage = () => {
                 className="flex flex-col items-center w-16 relative"
               >
                 <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
-                  {doc.preview ? (
-                    <img
-                      src={doc.preview}
-                      alt={doc.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <i className="fa-solid fa-file-pdf text-red-500 text-2xl" />
-                  )}
+                  <img
+                    src={doc.preview}
+                    alt={doc.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <button
                   type="button"

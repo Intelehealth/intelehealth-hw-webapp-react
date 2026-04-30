@@ -24,6 +24,11 @@ class OpenMRSService extends HttpService {
         config.headers.Authorization = atob(authHeader);
       }
 
+      // Remove Content-Type for FormData so the browser sets multipart boundary
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
+
       // Handle loader: default showLoader is true, can be disabled with showLoader: false
       const showLoader = config.headers?.loader !== false;
       if (showLoader) {
