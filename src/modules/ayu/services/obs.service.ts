@@ -39,9 +39,7 @@ export const uploadAllPhysicalExamImages = async (
         comment: img.comment,
       })
     );
-    return OpenMRSApi.post(OBS_ENDPOINT, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return OpenMRSApi.post(OBS_ENDPOINT, formData);
   });
 
   await Promise.all(uploads);
@@ -83,9 +81,7 @@ export const uploadAllAdditionalDocuments = async (
         comment: doc.comment,
       })
     );
-    return OpenMRSApi.post(OBS_ENDPOINT, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return OpenMRSApi.post(OBS_ENDPOINT, formData);
   });
 
   await Promise.all(uploads);

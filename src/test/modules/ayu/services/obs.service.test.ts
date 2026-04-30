@@ -100,12 +100,9 @@ describe('obs.service', () => {
       await uploadAllPhysicalExamImages('enc-uuid', 'patient-uuid');
 
       expect(mockPost).toHaveBeenCalledTimes(1);
-      const [endpoint, formData, config] = mockPost.mock.calls[0];
+      const [endpoint, formData] = mockPost.mock.calls[0];
       expect(endpoint).toBe('/obs');
       expect(formData).toBeInstanceOf(FormData);
-      expect(config).toEqual({
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
     });
 
     it('should include correct JSON metadata in FormData', async () => {
@@ -284,12 +281,9 @@ describe('obs.service', () => {
       await uploadAllAdditionalDocuments('enc-uuid', 'patient-uuid');
 
       expect(mockPost).toHaveBeenCalledTimes(1);
-      const [endpoint, formData, config] = mockPost.mock.calls[0];
+      const [endpoint, formData] = mockPost.mock.calls[0];
       expect(endpoint).toBe('/obs');
       expect(formData).toBeInstanceOf(FormData);
-      expect(config).toEqual({
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
     });
 
     it('should include correct JSON metadata in FormData', async () => {

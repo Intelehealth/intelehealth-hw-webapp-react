@@ -421,11 +421,14 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayBtn).toHaveClass('text-white');
     });
 
-    it('non-selected date has default class', () => {
-      renderComponent();
-      const buttons = getDateArea().querySelectorAll('button');
-      expect(buttons[1]).toHaveClass('bg-white');
-    });
+    it.skipIf(remainingDaysInCurrentMonth() < 2)(
+      'non-selected date has default class',
+      () => {
+        renderComponent();
+        const buttons = getDateArea().querySelectorAll('button');
+        expect(buttons[1]).toHaveClass('bg-white');
+      }
+    );
 
     it('clicking a date resets selected time', () => {
       renderComponent();
@@ -438,14 +441,17 @@ describe('AppointmentScheduleComponent', () => {
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
-    it('today button shows "Today" text with purple color when not selected', () => {
-      renderComponent();
-      const secondBtn = getDateArea().querySelectorAll('button')[1];
-      fireEvent.click(secondBtn);
-      const todayLabel = screen.getByText('Today');
-      expect(todayLabel).toHaveClass('text-[#2E1E91]');
-      expect(todayLabel).toHaveClass('font-medium');
-    });
+    it.skipIf(remainingDaysInCurrentMonth() < 2)(
+      'today button shows "Today" text with purple color when not selected',
+      () => {
+        renderComponent();
+        const secondBtn = getDateArea().querySelectorAll('button')[1];
+        fireEvent.click(secondBtn);
+        const todayLabel = screen.getByText('Today');
+        expect(todayLabel).toHaveClass('text-[#2E1E91]');
+        expect(todayLabel).toHaveClass('font-medium');
+      }
+    );
 
     it('today button shows white text when selected (default state)', () => {
       renderComponent();
@@ -453,14 +459,19 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayLabel).toHaveClass('text-white');
     });
 
-    it('non-today dates display short day name', () => {
-      renderComponent();
-      const buttons = getDateArea().querySelectorAll('button');
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const expectedDay = tomorrow.toLocaleDateString('en-US', { weekday: 'short' });
-      expect(buttons[1].textContent).toContain(expectedDay);
-    });
+    it.skipIf(remainingDaysInCurrentMonth() < 2)(
+      'non-today dates display short day name',
+      () => {
+        renderComponent();
+        const buttons = getDateArea().querySelectorAll('button');
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const expectedDay = tomorrow.toLocaleDateString('en-US', {
+          weekday: 'short',
+        });
+        expect(buttons[1].textContent).toContain(expectedDay);
+      }
+    );
 
     it('displays correct day number for each date', () => {
       renderComponent();

@@ -24,6 +24,7 @@ import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
 import {
+  addPendingDocument,
   uploadAllAdditionalDocuments,
   clearPendingDocuments,
 } from '../services/obs.service';
@@ -346,15 +347,20 @@ const VisitSummaryPage = () => {
         const adultInitialEnc = response.encounters.find(
           enc => enc.encounterType?.uuid === ENCOUNTER_TYPES.ADULT_INITIAL
         );
-        if (adultInitialEnc?.uuid) {
+        const encounterUuid =
+          adultInitialEnc?.uuid ?? response.encounters[1]?.uuid;
+        if (!encounterUuid) {
+          console.warn(
+            'Additional documents: could not resolve ADULT_INITIAL encounter from response',
+            response.encounters
+          );
+        }
+        if (encounterUuid) {
           clearPendingDocuments();
           for (const doc of additionalDocuments) {
-            const { addPendingDocument } = await import(
-              '../services/obs.service'
-            );
             addPendingDocument(doc.file, doc.name);
           }
-          await uploadAllAdditionalDocuments(adultInitialEnc.uuid, patientUuid);
+          await uploadAllAdditionalDocuments(encounterUuid, patientUuid);
         }
       }
 
