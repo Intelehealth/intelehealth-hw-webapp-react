@@ -17,20 +17,11 @@ import {
   VISIT_SUMMARY_CUSTOM_REP,
 } from '../../assets/data/visit-summary.data';
 
-/** Visit attribute type UUID for specialty */
 const VISIT_ATTR_SPECIALITY = '3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d';
-
-/** Visit attribute type UUID for doctor notes */
 const VISIT_ATTR_DOCTOR_NOTES = '64aa50c8-e913-48c6-b8ad-dfa0bccb202b';
-
-/** Encounter type UUID indicating a priority visit */
 const ENCOUNTER_TYPE_PRIORITY = 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c';
-
-/** Concept UUIDs for medical / family history observations */
 const MEDICAL_HISTORY_CONCEPT = '62bff84b-795a-45ad-aae1-80e7f5163a82';
 const FAMILY_HISTORY_CONCEPT = 'd63ae965-47fb-40e8-8f08-1f46a8a60b2b';
-
-/** Concept UUID for additional documents */
 const ADDITIONAL_DOCUMENT_CONCEPT = '07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba';
 
 export { CONCEPT_UUIDS, VISIT_SUMMARY_CUSTOM_REP };
@@ -84,7 +75,6 @@ function parseChiefComplaintValue(value: string): {
 export function extractDetailsFromHtml(html: string): Detail[] {
   const details: Detail[] = [];
 
-  // First pass: try the original bullet regex (handles • and ► with dash separator)
   const bulletRegex = /[•►]\s*([^-<]+?)\s*-\s*([^<.]+)/g;
   let match;
   while ((match = bulletRegex.exec(html)) !== null) {
@@ -95,8 +85,6 @@ export function extractDetailsFromHtml(html: string): Detail[] {
   }
   if (details.length > 0) return details;
 
-  // Fallback: line-by-line parsing for other bullet/separator formats
-  // Only activate when the HTML has <br> tags (structured multi-line content)
   if (!/<br\s*\/?>/i.test(html)) return details;
 
   const lines = html.split(/<br\s*\/?>/gi);
@@ -104,14 +92,11 @@ export function extractDetailsFromHtml(html: string): Detail[] {
     const clean = line.replace(/<[^>]*>/g, '').trim();
     if (!clean) continue;
 
-    // Strip leading non-word characters (bullets like ?, •, ►, ●, *, etc.)
     const stripped = clean.replace(/^[^\w]+/, '').trim();
     if (!stripped) continue;
 
-    // Skip header lines that end with colon only (e.g. "General exams:")
     if (/^[^:]+:\s*$/.test(stripped)) continue;
 
-    // Try "Label: Value" pattern (colon separator)
     const colonMatch = stripped.match(/^([^:]+?):\s+(.+)$/);
     if (colonMatch) {
       const value = colonMatch[2].replace(/[-.\s]+$/, '').trim();
@@ -122,7 +107,6 @@ export function extractDetailsFromHtml(html: string): Detail[] {
       continue;
     }
 
-    // Try "Label - Value" or "Label-Value" pattern (dash separator)
     const dashMatch = stripped.match(/^(.+?)\s*-\s*(.*)$/);
     if (dashMatch) {
       const value = dashMatch[2].replace(/[-.\s]+$/, '').trim();
@@ -133,7 +117,6 @@ export function extractDetailsFromHtml(html: string): Detail[] {
       continue;
     }
 
-    // Single value with no separator — use as label
     const singleValue = stripped.replace(/[-.\s]+$/, '').trim();
     if (singleValue) {
       details.push({ label: singleValue, value: 'No information' });
@@ -212,7 +195,6 @@ export function extractPhysicalExamination(
         try {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {
-            // Handle ayu format: { en: "<html>", "l-en": "<html>" }
             const html = parsed.en || parsed['l-en'];
             if (html) {
               const details = extractDetailsFromHtml(html);
@@ -226,7 +208,6 @@ export function extractPhysicalExamination(
             }
           }
         } catch {
-          // Not valid JSON — try extracting from raw HTML/text
           const details = extractDetailsFromHtml(raw);
           if (details.length > 0) {
             for (const detail of details) {
@@ -251,10 +232,6 @@ export function extractPhysicalExamination(
   };
 }
 
-/**
- * Extract HTML content from an obs value, handling JSON wrapper format.
- * OpenMRS obs values for history may be stored as JSON: {"en":"<html>","l-en":"<html>"}
- */
 function resolveObsHtml(obsValue: string): string {
   try {
     const parsed = JSON.parse(obsValue);
@@ -262,18 +239,14 @@ function resolveObsHtml(obsValue: string): string {
       return parsed.en || parsed['l-en'] || obsValue;
     }
   } catch {
-    // Not JSON, use as-is
+    // not JSON
   }
   return obsValue;
 }
 
-/**
- * Parse family history format: "Do you have a family history...? : • Item1 (Relation), Item2 (Relation)."
- */
 function extractFamilyHistoryItems(html: string): Detail[] {
   const text = html.replace(/<[^>]*>/g, '').trim();
 
-  // Find content after a bullet character (•, ►, ●)
   const bulletIdx = text.search(/[•►●]/);
   if (bulletIdx < 0) return [];
 
@@ -283,7 +256,6 @@ function extractFamilyHistoryItems(html: string): Detail[] {
     .trim();
   if (!content || content.toLowerCase() === 'none') return [];
 
-  // Split by comma for multiple items: "Diabetes (Father), Hypertension (Mother)"
   return content
     .split(',')
     .map(s => s.trim())
@@ -314,12 +286,10 @@ export function extractMedicalHistory(
 
       if (obs.concept?.uuid === MEDICAL_HISTORY_CONCEPT) {
         const details = extractDetailsFromHtml(html);
-        // Filter out generic "None" entries (e.g. "Medical History - None")
         patientHistoryDetails.push(
           ...details.filter(d => d.value.toLowerCase() !== 'none')
         );
       } else if (obs.concept?.uuid === FAMILY_HISTORY_CONCEPT) {
-        // Try standard bullet format first, then family-specific format
         const details = extractDetailsFromHtml(html);
         const filtered = details.filter(d => d.value.toLowerCase() !== 'none');
         if (filtered.length > 0) {
@@ -405,19 +375,16 @@ export function transformVisitSummaryResponse(
   const physicalExamination = extractPhysicalExamination(encounters);
   const medicalHistory = extractMedicalHistory(encounters);
 
-  // Extract specialty from visit attributes
   const specialityAttr = response.attributes?.find(
     attr => attr.attributeType?.uuid === VISIT_ATTR_SPECIALITY
   );
   const speciality = specialityAttr?.value ?? undefined;
 
-  // Extract doctor notes from visit attributes
   const doctorNotesAttr = response.attributes?.find(
     attr => attr.attributeType?.uuid === VISIT_ATTR_DOCTOR_NOTES
   );
   const doctorNotes = doctorNotesAttr?.value || undefined;
 
-  // Check if a priority-visit encounter exists
   const priorityVisit = encounters.some(
     enc => enc.encounterType?.uuid === ENCOUNTER_TYPE_PRIORITY
   );
