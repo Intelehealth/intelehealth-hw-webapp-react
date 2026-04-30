@@ -86,3 +86,51 @@ export const PATIENT_NAME_KEY = 'patientName';
 export const PATIENT_AGE_KEY = 'patientAge';
 export const PATIENT_GENDER_KEY = 'patientGender';
 export const PATIENT_UUID_KEY = 'patientUuid';
+
+// Frequency Input
+export const FREQUENCY_DEFAULT_MIN = 0;
+export const FREQUENCY_DEFAULT_MAX = 10;
+export const FREQUENCY_HINT_TEMPLATE = 'Drag anywhere from {min} to {max}';
+export const FREQUENCY_LEVEL_LABEL = 'Level';
+
+/*
+ * SVG mouth paths indexed 0 (happiest) → 9 (most distressed).
+ * Each path is rendered inside the FaceIcon's 22x22 viewBox.
+ */
+export const FREQUENCY_FACE_MOUTH_PATHS = [
+  'M7 13 Q11 17 15 13',
+  'M7 13 Q11 16 15 13',
+  'M7 13.5 Q11 15.5 15 13.5',
+  'M7 13.5 Q11 14.5 15 13.5',
+  'M7 14 H15',
+  'M7 14 Q11 13.5 15 14',
+  'M7 14.5 Q11 13 15 14.5',
+  'M7 15 Q11 12 15 15',
+  'M7 16 Q11 11 15 16',
+  'M7 16.5 Q11 10.5 15 16.5',
+] as const;
+
+export type FrequencyEyeStyle = 'closed' | 'normal' | 'cross';
+
+/*
+ * Eye style for each face level. Aligned 1:1 with FREQUENCY_FACE_MOUTH_PATHS.
+ * Level 0 squints with joy, level 9 has crossed-out eyes.
+ */
+export const FREQUENCY_FACE_EYE_VARIANTS: readonly FrequencyEyeStyle[] = [
+  'closed',
+  'normal',
+  'normal',
+  'normal',
+  'normal',
+  'normal',
+  'normal',
+  'normal',
+  'normal',
+  'cross',
+];
+
+// Range Input
+export const RANGE_DEFAULT_MIN = 0;
+export const RANGE_DEFAULT_MAX = 100;
+export const RANGE_HINT_TEMPLATE = 'Drag two capture range from {min} to {max}';
+export const RANGE_TO_LABEL = 'To';

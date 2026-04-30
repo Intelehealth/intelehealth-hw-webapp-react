@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { storage } from '../../../../utils/storage';
-import { useVisitReasons } from '../../../../modules/ayu/hooks/useVisitReasons.hook';
+import {
+  usePatientDemographics,
+  useVisitReasons,
+} from '../../../../modules/ayu/hooks/useVisitReasons.hook';
 import {
   EXT_URL_AGE_MAX,
   EXT_URL_AGE_MIN,
@@ -15,6 +18,13 @@ vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
     { name: 'Cough.json' },
     { name: 'Headache.json' },
   ]),
+}));
+
+// Stub useLocation so the hook can run without a Router; demographics fall
+// back to storage which existing tests already mock.
+const mockUseLocation = vi.fn(() => ({ state: null as unknown }));
+vi.mock('react-router-dom', () => ({
+  useLocation: () => mockUseLocation(),
 }));
 
 import { useAyuJsonList } from '../../../../modules/ayu/hooks/useAyuJson.hook';
@@ -311,5 +321,100 @@ describe('useVisitReasons', () => {
       });
       expect(result.current.selectedReasons).toEqual([]);
     });
+  });
+});
+
+describe('usePatientDemographics', () => {
+  beforeEach(() => {
+    mockUseLocation.mockReturnValue({ state: null });
+    vi.spyOn(storage, 'get').mockReturnValue(null);
+  });
+
+  it('reads patientAge and patientGender from location state when present', () => {
+    mockUseLocation.mockReturnValue({
+      state: { patientAge: '34', patientGender: 'F' },
+    });
+
+    const { result } = renderHook(() => usePatientDemographics());
+
+    expect(result.current.age).toBe(34);
+    expect(result.current.gender).toBe('F');
+  });
+
+  it('falls back to storage when location state is null', () => {
+    mockUseLocation.mockReturnValue({ state: null });
+    vi.spyOn(storage, 'get').mockImplementation((key: string) => {
+      if (key === 'patientAge') return '50';
+      if (key === 'patientGender') return 'M';
+      return null;
+    });
+
+    const { result } = renderHook(() => usePatientDemographics());
+
+    expect(result.current.age).toBe(50);
+    expect(result.current.gender).toBe('M');
+  });
+
+  it('falls back to storage when location state lacks patient fields', () => {
+    mockUseLocation.mockReturnValue({ state: { someOther: 'thing' } });
+    vi.spyOn(storage, 'get').mockImplementation((key: string) =>
+      key === 'patientAge' ? '12' : key === 'patientGender' ? 'F' : null
+    );
+
+    const { result } = renderHook(() => usePatientDemographics());
+
+    expect(result.current.age).toBe(12);
+    expect(result.current.gender).toBe('F');
+  });
+
+  it('returns null age when neither source provides one', () => {
+    mockUseLocation.mockReturnValue({ state: null });
+    vi.spyOn(storage, 'get').mockReturnValue(null);
+
+    const { result } = renderHook(() => usePatientDemographics());
+
+    expect(result.current.age).toBeNull();
+  });
+
+  it('prefers location state over storage', () => {
+    mockUseLocation.mockReturnValue({
+      state: { patientAge: '40', patientGender: 'F' },
+    });
+    vi.spyOn(storage, 'get').mockImplementation((key: string) =>
+      key === 'patientAge' ? '99' : key === 'patientGender' ? 'M' : null
+    );
+
+    const { result } = renderHook(() => usePatientDemographics());
+
+    expect(result.current.age).toBe(40);
+    expect(result.current.gender).toBe('F');
+  });
+
+  it('returns the same object reference between renders when inputs are unchanged', () => {
+    mockUseLocation.mockReturnValue({
+      state: { patientAge: '30', patientGender: 'F' },
+    });
+
+    const { result, rerender } = renderHook(() => usePatientDemographics());
+    const first = result.current;
+    rerender();
+    expect(result.current).toBe(first);
+  });
+
+  it('returns a new object when location state changes', () => {
+    mockUseLocation.mockReturnValue({
+      state: { patientAge: '30', patientGender: 'F' },
+    });
+    const { result, rerender } = renderHook(() => usePatientDemographics());
+    const first = result.current;
+
+    mockUseLocation.mockReturnValue({
+      state: { patientAge: '50', patientGender: 'M' },
+    });
+    rerender();
+
+    expect(result.current).not.toBe(first);
+    expect(result.current.age).toBe(50);
+    expect(result.current.gender).toBe('M');
   });
 });

@@ -1,5 +1,11 @@
 import type { AyuQuestion } from '../types/ayu.types';
-import { ASSOCIATED_SYMPTOMS_TEXT } from '../utils/constants';
+import type { FhirExtension } from '../types/fhir-raw.types';
+import {
+  ASSOCIATED_SYMPTOMS_TEXT,
+  EXT_URL_MAX_VALUE,
+  EXT_URL_MIN_VALUE,
+  FREQUENCY_MAX_VALUE,
+} from '../utils/constants';
 
 export type AyuComponentType =
   | 'group'
@@ -7,12 +13,16 @@ export type AyuComponentType =
   | 'text'
   | 'repeatable-text'
   | 'number'
+  | 'decimal'
   | 'date'
   | 'select'
   | 'multi-select'
   | 'radio'
   | 'selectableOptionGroup'
   | 'quantity'
+  | 'area'
+  | 'frequency'
+  | 'range'
   | 'associatedSymptoms';
 
 export const ASSOCIATED_SYMPTOMS_COMPONENT: Extract<
@@ -53,11 +63,20 @@ export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
       return 'display';
 
     case 'string':
+    case 'area':
       return q.repeats ? 'repeatable-text' : 'text';
 
-    case 'integer':
-    case 'decimal':
+    case 'integer': {
+      const min = findExtValueInteger(q.extension, EXT_URL_MIN_VALUE);
+      const max = findExtValueInteger(q.extension, EXT_URL_MAX_VALUE);
+      if (min !== undefined && max !== undefined) {
+        return max <= FREQUENCY_MAX_VALUE ? 'frequency' : 'range';
+      }
       return 'number';
+    }
+
+    case 'decimal':
+      return 'decimal';
 
     case 'date':
       return 'date';
@@ -71,4 +90,11 @@ export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
     default:
       return 'text';
   }
+}
+
+function findExtValueInteger(
+  extensions: FhirExtension[] | undefined,
+  url: string
+): number | undefined {
+  return extensions?.find(e => e.url === url)?.valueInteger;
 }

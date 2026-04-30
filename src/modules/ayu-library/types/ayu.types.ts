@@ -36,12 +36,18 @@ export interface QuantityAnswer {
   unit?: string;
 }
 
+export interface RangeAnswer {
+  low?: number;
+  high?: number;
+}
+
 export type AyuAnswerValue =
   | string
   | number
   | boolean
   | DurationAnswer
   | QuantityAnswer
+  | RangeAnswer
   | string[]
   | null
   | undefined;
