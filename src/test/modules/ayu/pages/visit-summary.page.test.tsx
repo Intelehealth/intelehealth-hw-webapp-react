@@ -26,7 +26,7 @@ const mockUseStartVisitData = vi.fn(() => ({
   patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
   visitId: 'test-visit-id',
   tempRecordId: null as number | null,
-  isRestoring: false,
+
   restoredSectionIndex: null,
   lastSectionIndex: 0,
   setLastSectionIndex: vi.fn(),
@@ -141,11 +141,13 @@ vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
 const mockUploadAllAdditionalDocuments = vi.fn().mockResolvedValue(undefined);
 const mockClearPendingDocuments = vi.fn();
 const mockAddPendingDocument = vi.fn();
+const mockGetLatestEncounterUuid = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   uploadAllAdditionalDocuments: (...args: any[]) => mockUploadAllAdditionalDocuments(...args),
   clearPendingDocuments: (...args: any[]) => mockClearPendingDocuments(...args),
   addPendingDocument: (...args: any[]) => mockAddPendingDocument(...args),
+  getLatestEncounterUuid: (...args: any[]) => mockGetLatestEncounterUuid(...args),
 }));
 
 /* ── Mock icon imports ───────────────────────────────────────────────────── */
@@ -261,7 +263,7 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
     patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     visitId: 'test-visit-id',
     tempRecordId: null,
-    isRestoring: false,
+  
     restoredSectionIndex: null,
     lastSectionIndex: 0,
     setLastSectionIndex: vi.fn(),
@@ -405,7 +407,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: null,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex,
@@ -436,7 +438,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: null,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex,
@@ -531,7 +533,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: null as any,
       visitId: 'test-visit-id',
       tempRecordId: null,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
@@ -566,7 +568,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: 'patient-uuid',
       visitId: 'test-visit-id',
       tempRecordId: null,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
@@ -624,7 +626,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: null as any,
       visitId: 'test-visit-id',
       tempRecordId: null,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
@@ -950,7 +952,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: 42, // Non-null → triggers bulkMarkSynced branch
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
@@ -982,7 +984,7 @@ describe('VisitSummaryPage', () => {
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: 99,
-      isRestoring: false,
+    
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex: vi.fn(),
@@ -1084,19 +1086,30 @@ describe('VisitSummaryPage', () => {
 
   /* ── File selection: non-image file ──────────────────────────────── */
 
-  it('should add a non-image document without preview on file selection', async () => {
+  it('should add an image document with preview on file selection', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/jpeg;base64,testjpeg',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const pdfFile = new File(['test'], 'report.pdf', { type: 'application/pdf' });
+    const imgFile = new File(['test'], 'report.jpg', { type: 'image/jpeg' });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
-    expect(screen.getByText('report.pdf')).toBeInTheDocument();
-    const icon = document.querySelector('.fa-file-pdf');
-    expect(icon).toBeInTheDocument();
+    expect(screen.getByText('report.jpg')).toBeInTheDocument();
+    expect(screen.getByAltText('report.jpg')).toBeInTheDocument();
+
+    globalThis.FileReader = OriginalFileReader;
   });
 
   /* ── File selection: null files ──────────────────────────────────── */
@@ -1114,43 +1127,77 @@ describe('VisitSummaryPage', () => {
   /* ── Remove document ─────────────────────────────────────────────── */
 
   it('should remove a document when remove button is clicked', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,removetest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const pdfFile = new File(['test'], 'to-remove.pdf', { type: 'application/pdf' });
+    const imgFile = new File(['test'], 'to-remove.png', { type: 'image/png' });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
-    expect(screen.getByText('to-remove.pdf')).toBeInTheDocument();
+    expect(screen.getByText('to-remove.png')).toBeInTheDocument();
 
     const removeButton = screen.getByText('✕');
     await act(async () => {
       fireEvent.click(removeButton);
     });
 
-    expect(screen.queryByText('to-remove.pdf')).not.toBeInTheDocument();
+    expect(screen.queryByText('to-remove.png')).not.toBeInTheDocument();
+
+    globalThis.FileReader = OriginalFileReader;
   });
 
   /* ── Document count display ──────────────────────────────────────── */
 
   it('should show document count when documents are added', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,counttest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(['test'], 'doc1.pdf', { type: 'application/pdf' });
+    const file = new File(['test'], 'doc1.png', { type: 'image/png' });
 
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } });
     });
 
     expect(screen.getByText('(1)')).toBeInTheDocument();
+
+    globalThis.FileReader = OriginalFileReader;
   });
 
   /* ── Additional documents upload during visit upload ─────────────── */
 
   it('should upload additional documents after successful visit upload', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,uploadtest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     const ADULT_INITIAL_UUID = '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f';
     mockUploadVisit.mockResolvedValue({
       encounters: [
@@ -1161,10 +1208,10 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const pdfFile = new File(['test'], 'upload-doc.pdf', { type: 'application/pdf' });
+    const imgFile = new File(['test'], 'upload-doc.png', { type: 'image/png' });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
     fireEvent.click(screen.getByText('Upload Visit'));
@@ -1172,15 +1219,27 @@ describe('VisitSummaryPage', () => {
 
     await waitFor(() => {
       expect(mockClearPendingDocuments).toHaveBeenCalled();
-      expect(mockAddPendingDocument).toHaveBeenCalledWith(pdfFile, 'upload-doc.pdf');
+      expect(mockAddPendingDocument).toHaveBeenCalledWith(imgFile, 'upload-doc.png');
       expect(mockUploadAllAdditionalDocuments).toHaveBeenCalledWith(
         'enc-uuid-123',
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
       );
     });
+
+    globalThis.FileReader = OriginalFileReader;
   });
 
-  it('should skip additional documents upload when no matching encounter type', async () => {
+  it('should upload documents with fallback encounter when no matching encounter type', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,skiptest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     mockUploadVisit.mockResolvedValue({
       encounters: [
         { uuid: 'enc-uuid-456', encounterType: { uuid: 'some-other-type' } },
@@ -1190,10 +1249,10 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const pdfFile = new File(['test'], 'skip-doc.pdf', { type: 'application/pdf' });
+    const imgFile = new File(['test'], 'skip-doc.png', { type: 'image/png' });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
     fireEvent.click(screen.getByText('Upload Visit'));
@@ -1207,20 +1266,32 @@ describe('VisitSummaryPage', () => {
       );
     });
 
-    expect(mockClearPendingDocuments).not.toHaveBeenCalled();
-    expect(mockUploadAllAdditionalDocuments).not.toHaveBeenCalled();
+    expect(mockClearPendingDocuments).toHaveBeenCalled();
+    expect(mockUploadAllAdditionalDocuments).toHaveBeenCalled();
+
+    globalThis.FileReader = OriginalFileReader;
   });
 
-  it('should skip additional documents upload when response has no encounters', async () => {
+  it('should upload documents with fallback encounter when response has no encounters', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,noenctest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
     mockUploadVisit.mockResolvedValue({});
 
     renderWithData(fullData);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const pdfFile = new File(['test'], 'no-enc.pdf', { type: 'application/pdf' });
+    const imgFile = new File(['test'], 'no-enc.png', { type: 'image/png' });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
     fireEvent.click(screen.getByText('Upload Visit'));
@@ -1234,6 +1305,201 @@ describe('VisitSummaryPage', () => {
       );
     });
 
+    expect(mockClearPendingDocuments).toHaveBeenCalled();
+    expect(mockUploadAllAdditionalDocuments).toHaveBeenCalled();
+
+    globalThis.FileReader = OriginalFileReader;
+  });
+
+  /* ── Additional edge cases ──────────────────────────────────────────── */
+
+  it('should render Uploading state on button during upload', async () => {
+    let resolveUpload!: (value: any) => void;
+    mockUploadVisit.mockReturnValue(
+      new Promise(resolve => {
+        resolveUpload = resolve;
+      })
+    );
+
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Uploading...')).toBeInTheDocument();
+    });
+
+    // The upload button should be disabled during upload
+    const uploadBtn = screen.getByText('Uploading...');
+    expect(uploadBtn).toBeDisabled();
+
+    resolveUpload({ success: true });
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('Success', 'Visit uploaded successfully', 'success');
+    });
+  });
+
+  it('should pass patient UUID from storage when ctxPatientUuid is falsy', async () => {
+    mockStorageGet.mockImplementation((key: string) =>
+      key === 'patientUuid' ? 'fallback-patient-uuid' : null
+    );
+    mockUseStartVisitData.mockReturnValue({
+      data: { ...fullData },
+      patientUuid: null as any,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+    
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+    });
+
+    render(<VisitSummaryPage />);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBuildVisitUploadPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patientUuid: 'fallback-patient-uuid',
+        })
+      );
+    });
+  });
+
+  it('should show error toast when provider UUID is missing', async () => {
+    vi.mocked(mockHwProfile as any).providerUuid = undefined;
+
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Missing patient, location, or provider information',
+        'error'
+      );
+    });
+
+    // Restore
+    (mockHwProfile as any).providerUuid = 'provider-uuid-1234';
+  });
+
+  it('should upload documents using getLatestEncounterUuid fallback when response encounters is undefined', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,fallbacktest',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
+    mockUploadVisit.mockResolvedValue(undefined);
+    mockGetLatestEncounterUuid.mockResolvedValue('latest-enc-uuid');
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const imgFile = new File(['test'], 'fallback.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
+    });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockGetLatestEncounterUuid).toHaveBeenCalledWith(
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f'
+      );
+      expect(mockUploadAllAdditionalDocuments).toHaveBeenCalledWith(
+        'latest-enc-uuid',
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
+    });
+
+    globalThis.FileReader = OriginalFileReader;
+  });
+
+  it('should not upload documents when additionalDocuments is empty', async () => {
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('Success', 'Visit uploaded successfully', 'success');
+    });
+
     expect(mockClearPendingDocuments).not.toHaveBeenCalled();
+    expect(mockAddPendingDocument).not.toHaveBeenCalled();
+    expect(mockUploadAllAdditionalDocuments).not.toHaveBeenCalled();
+  });
+
+  it('should render file input with correct accept attribute for images only', () => {
+    renderWithData(fullData);
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeInTheDocument();
+    expect(fileInput.getAttribute('accept')).toBeTruthy();
+    expect(fileInput.getAttribute('multiple')).not.toBeNull();
+  });
+
+  it('should use encounters[1] as fallback when adultInitialEnc is not found but other encounters exist', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    const mockFileReader = {
+      result: 'data:image/png;base64,enc1test',
+      onloadend: null as (() => void) | null,
+      readAsDataURL: vi.fn(function (this: any) {
+        this.onloadend?.();
+      }),
+    };
+    globalThis.FileReader = vi.fn(() => mockFileReader) as any;
+
+    // Two encounters, neither matches ADULT_INITIAL
+    mockUploadVisit.mockResolvedValue({
+      encounters: [
+        { uuid: 'enc-0-uuid', encounterType: { uuid: 'other-type-1' } },
+        { uuid: 'enc-1-uuid', encounterType: { uuid: 'other-type-2' } },
+      ],
+    });
+
+    renderWithData(fullData);
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const imgFile = new File(['test'], 'enc1-test.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [imgFile] } });
+    });
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      // encounters[1].uuid should be used as fallback
+      expect(mockUploadAllAdditionalDocuments).toHaveBeenCalledWith(
+        'enc-1-uuid',
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
+    });
+
+    globalThis.FileReader = OriginalFileReader;
   });
 });

@@ -34,8 +34,7 @@ export interface CapturedDocument {
   name: string;
 }
 
-export const ACCEPTED_DOCUMENT_TYPES =
-  '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv';
+export const ACCEPTED_DOCUMENT_TYPES = 'image/*,.jpg,.jpeg,.png,.gif,.webp';
 
 export const OBS_CONCEPTS = {
   PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',

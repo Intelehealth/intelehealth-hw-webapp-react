@@ -24,13 +24,77 @@ import iconInfo from '../../assets/icons/icon-info.svg';
 import Dropdown from '../../components/common/dropdown.component';
 import Toggle from '../../components/common/toggle.component';
 
+function getFileIcon(filename: string): { icon: string; color: string } {
+  const ext = filename.toLowerCase().split('.').pop() ?? '';
+  if (['pdf'].includes(ext))
+    return { icon: 'fa-file-pdf', color: 'text-red-500' };
+  if (['doc', 'docx'].includes(ext))
+    return { icon: 'fa-file-word', color: 'text-blue-500' };
+  if (['xls', 'xlsx', 'csv'].includes(ext))
+    return { icon: 'fa-file-excel', color: 'text-green-600' };
+  if (['txt'].includes(ext))
+    return { icon: 'fa-file-lines', color: 'text-gray-500' };
+  return { icon: 'fa-file', color: 'text-gray-500' };
+}
+
+const DocumentThumbnail: React.FC<{
+  obsUuid: string;
+  name: string;
+  isImage: boolean;
+}> = ({ obsUuid, name, isImage }) => {
+  const [blobUrl, setBlobUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let url = '';
+    visitSummaryService
+      .getDocumentFile(obsUuid)
+      .then(blob => {
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [obsUuid]);
+
+  const handleClick = () => {
+    if (!blobUrl) return;
+    window.open(blobUrl, '_blank');
+  };
+
+  const { icon, color } = getFileIcon(name);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={!blobUrl}
+      className="w-full h-full flex items-center justify-center cursor-pointer disabled:cursor-default"
+    >
+      {loading ? (
+        <div className="w-full h-full bg-gray-100 animate-pulse" />
+      ) : isImage && blobUrl ? (
+        <img src={blobUrl} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        <i className={`fa-solid ${icon} ${color} text-2xl`} />
+      )}
+    </button>
+  );
+};
+
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
   compact?: boolean;
 }> = ({ label, value, compact = false }) => (
   <div className={`flex items-center text-sm ${compact ? '' : 'py-1'}`}>
-    <span className="text-[#7F7B92] w-1/2 shrink-0">{label}</span>
+    <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
+      <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
+      {label}
+    </span>
     <span
       className={`font-medium ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
     >
@@ -238,7 +302,7 @@ const VisitSummaryComponent: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
   const [allOpen, setAllOpen] = useState(true);
   const [data, setData] = useState<VisitData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!visitId);
   const [error, setError] = useState<string | null>(null);
   const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocument[]>(
     []
@@ -247,26 +311,47 @@ const VisitSummaryComponent: React.FC = () => {
   useEffect(() => {
     if (!visitId) {
       setData(visitSummaryData[0] ?? null);
+      setLoading(false);
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
     visitSummaryService
       .getVisitSummary(visitId)
-      .then(setData)
-      .catch(() => setError('Failed to load visit summary'))
-      .finally(() => setLoading(false));
+      .then(result => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Failed to load visit summary');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [visitId]);
 
   useEffect(() => {
     if (!data?.patient?.patientUuid || !data?.visitUuid) return;
 
+    let cancelled = false;
     visitSummaryService
       .getAdditionalDocuments(data.patient.patientUuid, data.visitUuid)
-      .then(setAdditionalDocs)
-      .catch(() => setAdditionalDocs([]));
+      .then(docs => {
+        if (!cancelled) setAdditionalDocs(docs);
+      })
+      .catch(() => {
+        if (!cancelled) setAdditionalDocs([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [data?.patient?.patientUuid, data?.visitUuid]);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
@@ -448,15 +533,11 @@ const VisitSummaryComponent: React.FC = () => {
               {additionalDocs.map(doc => (
                 <div key={doc.uuid} className="flex flex-col items-center w-16">
                   <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
-                    {doc.isImage && doc.fileUrl ? (
-                      <img
-                        src={doc.fileUrl}
-                        alt={doc.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <i className="fa-solid fa-file-pdf text-red-500 text-2xl" />
-                    )}
+                    <DocumentThumbnail
+                      obsUuid={doc.uuid}
+                      name={doc.name}
+                      isImage={doc.isImage}
+                    />
                   </div>
                   <span className="text-xs text-gray-600 mt-1 truncate w-full text-center">
                     {doc.name}

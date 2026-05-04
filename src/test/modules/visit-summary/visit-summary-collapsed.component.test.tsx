@@ -135,4 +135,69 @@ describe('CollapsedComponent', () => {
     expect(screen.getByText('General exams')).toBeInTheDocument();
     expect(screen.getByText('Change')).toBeInTheDocument();
   });
+
+  it('should not render contentLabel header when neither contentLabel nor onChangeClick is provided and open', () => {
+    render(<CollapsedComponent {...defaultProps} defaultOpen={true} />);
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+    expect(screen.queryByText('Change')).not.toBeInTheDocument();
+  });
+
+  it('should stop event propagation when Change button is clicked', () => {
+    const onChangeClick = vi.fn();
+    render(
+      <CollapsedComponent
+        {...defaultProps}
+        onChangeClick={onChangeClick}
+        defaultOpen={true}
+      />
+    );
+
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Change'));
+    expect(onChangeClick).toHaveBeenCalledTimes(1);
+    // Content should still be visible (stopPropagation prevented toggle)
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
+
+  it('should not call onChangeClick on non-Enter key press', () => {
+    const onChangeClick = vi.fn();
+    render(
+      <CollapsedComponent
+        {...defaultProps}
+        onChangeClick={onChangeClick}
+        defaultOpen={true}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByText('Change'), { key: 'Space' });
+    expect(onChangeClick).not.toHaveBeenCalled();
+  });
+
+  it('should render only Change button without contentLabel', () => {
+    const onChangeClick = vi.fn();
+    render(
+      <CollapsedComponent
+        {...defaultProps}
+        onChangeClick={onChangeClick}
+        defaultOpen={true}
+      />
+    );
+    expect(screen.getByText('Change')).toBeInTheDocument();
+  });
+
+  it('should render chevron with rotation when open', () => {
+    const { container } = render(
+      <CollapsedComponent {...defaultProps} defaultOpen={true} />
+    );
+    const chevron = container.querySelector('img.w-5.h-5');
+    expect(chevron).toHaveClass('rotate-180');
+  });
+
+  it('should render chevron without rotation when closed', () => {
+    const { container } = render(
+      <CollapsedComponent {...defaultProps} defaultOpen={false} />
+    );
+    const chevron = container.querySelector('img.w-5.h-5');
+    expect(chevron).not.toHaveClass('rotate-180');
+  });
 });

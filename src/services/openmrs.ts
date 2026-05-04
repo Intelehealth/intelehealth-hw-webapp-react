@@ -1,5 +1,6 @@
 import { startLoading, stopLoading } from '../reducers/loader.reducer';
 import { store } from '../store/store';
+import { storage } from '../utils/storage';
 import { HttpService } from './http';
 
 class OpenMRSService extends HttpService {
@@ -17,6 +18,16 @@ class OpenMRSService extends HttpService {
     // Request interceptor - ensure credentials are sent and handle loader
     this.axiosInstance.interceptors.request.use(config => {
       config.withCredentials = true;
+
+      const authHeader = storage.getBasicAuthHeader();
+      if (authHeader) {
+        config.headers.Authorization = atob(authHeader);
+      }
+
+      // Remove Content-Type for FormData so the browser sets multipart boundary
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
 
       // Handle loader: default showLoader is true, can be disabled with showLoader: false
       const showLoader = config.headers?.loader !== false;
