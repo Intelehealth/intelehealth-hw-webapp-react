@@ -14,11 +14,13 @@ export const CONCEPT_UUIDS = {
   RESPIRATORY_RATE: '5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   CHIEF_COMPLAINT: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce',
   PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',
+  PHYSICAL_EXAM_DISPLAY: 'e1761e85-9b50-48ae-8c4d-e6b7eeeba084',
 } as const;
 
 export const VISIT_SUMMARY_CUSTOM_REP =
   'custom:(uuid,display,startDatetime,stopDatetime,' +
-  'encounters:(display,uuid,encounterDatetime,encounterType:(display),' +
+  'attributes:(display,uuid,value,attributeType:(uuid,display)),' +
+  'encounters:(display,uuid,encounterDatetime,encounterType:(uuid,display),' +
   'obs:(display,uuid,value,concept:(uuid,display)),' +
   'encounterProviders:(display,provider:(uuid,display,person:(uuid,display)))),' +
   'patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),' +
@@ -74,9 +76,15 @@ export interface Detail {
   value: string;
 }
 
+export interface AssociatedSymptom {
+  heading: string;
+  values: string[];
+}
+
 export interface CheckupReason {
   chiefComplaints: string[];
   details: Detail[];
+  associatedSymptoms?: AssociatedSymptom[];
 }
 
 export interface GeneralExam {
@@ -86,6 +94,18 @@ export interface GeneralExam {
 
 export interface PhysicalExamination {
   generalExams: GeneralExam[];
+}
+
+export interface HistorySection {
+  title: string;
+  details: Detail[];
+}
+
+export interface AdditionalDocument {
+  uuid: string;
+  name: string;
+  fileUrl: string;
+  isImage: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -98,6 +118,11 @@ export interface VisitData {
   vitals: Vitals;
   checkupReason: CheckupReason;
   physicalExamination: PhysicalExamination;
+  medicalHistory?: HistorySection[];
+  speciality?: string;
+  priorityVisit?: boolean;
+  doctorNotes?: string;
+  additionalDocuments?: AdditionalDocument[];
 }
 
 export const visitSummaryData: VisitData[] = [

@@ -8,11 +8,21 @@ import type {
   VisitData,
   Detail,
   GeneralExam,
+  AssociatedSymptom,
+  HistorySection,
+  AdditionalDocument,
 } from '../../assets/data/visit-summary.data';
 import {
   CONCEPT_UUIDS,
   VISIT_SUMMARY_CUSTOM_REP,
 } from '../../assets/data/visit-summary.data';
+
+const VISIT_ATTR_SPECIALITY = '3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d';
+const VISIT_ATTR_DOCTOR_NOTES = '64aa50c8-e913-48c6-b8ad-dfa0bccb202b';
+const ENCOUNTER_TYPE_PRIORITY = 'ca5f5dc3-4f0b-4097-9cae-5cf2eb44a09c';
+const MEDICAL_HISTORY_CONCEPT = '62bff84b-795a-45ad-aae1-80e7f5163a82';
+const FAMILY_HISTORY_CONCEPT = 'd63ae965-47fb-40e8-8f08-1f46a8a60b2b';
+const ADDITIONAL_DOCUMENT_CONCEPT = '07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba';
 
 export { CONCEPT_UUIDS, VISIT_SUMMARY_CUSTOM_REP };
 
@@ -30,6 +40,7 @@ export function getObsNumericValue(
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
       if (obs.concept?.uuid === conceptUuid) {
+        if (typeof obs.value === 'number') return obs.value;
         const raw =
           typeof obs.value === 'string' ? obs.value : obs.value?.display;
         if (raw == null) return null;
@@ -63,6 +74,7 @@ function parseChiefComplaintValue(value: string): {
 
 export function extractDetailsFromHtml(html: string): Detail[] {
   const details: Detail[] = [];
+
   const bulletRegex = /[•►]\s*([^-<]+?)\s*-\s*([^<.]+)/g;
   let match;
   while ((match = bulletRegex.exec(html)) !== null) {
@@ -71,15 +83,57 @@ export function extractDetailsFromHtml(html: string): Detail[] {
       value: match[2].trim(),
     });
   }
+  if (details.length > 0) return details;
+
+  if (!/<br\s*\/?>/i.test(html)) return details;
+
+  const lines = html.split(/<br\s*\/?>/gi);
+  for (const line of lines) {
+    const clean = line.replace(/<[^>]*>/g, '').trim();
+    if (!clean) continue;
+
+    const stripped = clean.replace(/^[^\w]+/, '').trim();
+    if (!stripped) continue;
+
+    if (/^[^:]+:\s*$/.test(stripped)) continue;
+
+    const colonMatch = stripped.match(/^([^:]+?):\s+(.+)$/);
+    if (colonMatch) {
+      const value = colonMatch[2].replace(/[-.\s]+$/, '').trim();
+      details.push({
+        label: colonMatch[1].trim(),
+        value: value || 'No information',
+      });
+      continue;
+    }
+
+    const dashMatch = stripped.match(/^(.+?)\s*-\s*(.*)$/);
+    if (dashMatch) {
+      const value = dashMatch[2].replace(/[-.\s]+$/, '').trim();
+      details.push({
+        label: dashMatch[1].trim(),
+        value: value || 'No information',
+      });
+      continue;
+    }
+
+    const singleValue = stripped.replace(/[-.\s]+$/, '').trim();
+    if (singleValue) {
+      details.push({ label: singleValue, value: 'No information' });
+    }
+  }
   return details;
 }
+
+const ASSOCIATED_SYMPTOM_LABELS = ['Patient reports', 'Patient denies'];
 
 export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
   chiefComplaints: string[];
   details: Detail[];
+  associatedSymptoms?: AssociatedSymptom[];
 } {
   const complaints: string[] = [];
-  const details: Detail[] = [];
+  const allDetails: Detail[] = [];
 
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
@@ -87,19 +141,33 @@ export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
         const raw =
           typeof obs.value === 'string'
             ? obs.value
-            : (obs.value?.display ?? '');
+            : typeof obs.value === 'number'
+              ? String(obs.value)
+              : (obs.value?.display ?? '');
         const parsed = parseChiefComplaintValue(raw);
         if (parsed.name && !complaints.includes(parsed.name)) {
           complaints.push(parsed.name);
         }
-        details.push(...extractDetailsFromHtml(parsed.html));
+        allDetails.push(...extractDetailsFromHtml(parsed.html));
       }
     }
   }
 
+  const details = allDetails.filter(
+    d => !ASSOCIATED_SYMPTOM_LABELS.includes(d.label)
+  );
+  const symptomDetails = allDetails.filter(d =>
+    ASSOCIATED_SYMPTOM_LABELS.includes(d.label)
+  );
+  const associatedSymptoms: AssociatedSymptom[] = symptomDetails.map(d => ({
+    heading: d.label,
+    values: [d.value],
+  }));
+
   return {
     chiefComplaints: complaints.length > 0 ? complaints : ['No information'],
     details,
+    ...(associatedSymptoms.length > 0 ? { associatedSymptoms } : {}),
   };
 }
 
@@ -107,23 +175,45 @@ export function extractPhysicalExamination(
   encounters: VisitDetailsEncounter[]
 ): { generalExams: GeneralExam[] } {
   const generalExams: GeneralExam[] = [];
+  const physicalExamConcepts: string[] = [
+    CONCEPT_UUIDS.PHYSICAL_EXAM_DISPLAY,
+    CONCEPT_UUIDS.PHYSICAL_EXAMINATION,
+  ];
 
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
-      if (obs.concept?.uuid === CONCEPT_UUIDS.PHYSICAL_EXAMINATION) {
+      if (
+        obs.concept?.uuid &&
+        physicalExamConcepts.includes(obs.concept.uuid)
+      ) {
         const raw =
           typeof obs.value === 'string'
             ? obs.value
-            : (obs.value?.display ?? '');
+            : typeof obs.value === 'number'
+              ? String(obs.value)
+              : (obs.value?.display ?? '');
         try {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {
-            for (const [key, val] of Object.entries(parsed)) {
-              generalExams.push({ label: key, value: String(val) });
+            const html = parsed.en || parsed['l-en'];
+            if (html) {
+              const details = extractDetailsFromHtml(html);
+              for (const detail of details) {
+                generalExams.push({ label: detail.label, value: detail.value });
+              }
+            } else {
+              for (const [key, val] of Object.entries(parsed)) {
+                generalExams.push({ label: key, value: String(val) });
+              }
             }
           }
         } catch {
-          if (raw) {
+          const details = extractDetailsFromHtml(raw);
+          if (details.length > 0) {
+            for (const detail of details) {
+              generalExams.push({ label: detail.label, value: detail.value });
+            }
+          } else if (raw) {
             generalExams.push({
               label: obs.concept?.display ?? 'Exam',
               value: raw,
@@ -140,6 +230,85 @@ export function extractPhysicalExamination(
         ? generalExams
         : [{ label: 'No information', value: 'No physical examination data' }],
   };
+}
+
+function resolveObsHtml(obsValue: string): string {
+  try {
+    const parsed = JSON.parse(obsValue);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed.en || parsed['l-en'] || obsValue;
+    }
+  } catch {
+    // not JSON
+  }
+  return obsValue;
+}
+
+function extractFamilyHistoryItems(html: string): Detail[] {
+  const text = html.replace(/<[^>]*>/g, '').trim();
+
+  const bulletIdx = text.search(/[•►●]/);
+  if (bulletIdx < 0) return [];
+
+  const content = text
+    .substring(bulletIdx + 1)
+    .replace(/[.\s]+$/, '')
+    .trim();
+  if (!content || content.toLowerCase() === 'none') return [];
+
+  return content
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(item => {
+      const match = item.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if (match) return { label: match[1].trim(), value: match[2].trim() };
+      return { label: item, value: '' };
+    });
+}
+
+export function extractMedicalHistory(
+  encounters: VisitDetailsEncounter[]
+): HistorySection[] {
+  const patientHistoryDetails: Detail[] = [];
+  const familyHistoryDetails: Detail[] = [];
+
+  for (const encounter of encounters) {
+    for (const obs of encounter.obs) {
+      const rawValue =
+        typeof obs.value === 'string'
+          ? obs.value
+          : typeof obs.value === 'number'
+            ? String(obs.value)
+            : (obs.value?.display ?? '');
+
+      const html = resolveObsHtml(rawValue);
+
+      if (obs.concept?.uuid === MEDICAL_HISTORY_CONCEPT) {
+        const details = extractDetailsFromHtml(html);
+        patientHistoryDetails.push(
+          ...details.filter(d => d.value.toLowerCase() !== 'none')
+        );
+      } else if (obs.concept?.uuid === FAMILY_HISTORY_CONCEPT) {
+        const details = extractDetailsFromHtml(html);
+        const filtered = details.filter(d => d.value.toLowerCase() !== 'none');
+        if (filtered.length > 0) {
+          familyHistoryDetails.push(...filtered);
+        } else {
+          familyHistoryDetails.push(...extractFamilyHistoryItems(html));
+        }
+      }
+    }
+  }
+
+  const sections: HistorySection[] = [];
+  if (patientHistoryDetails.length > 0) {
+    sections.push({ title: 'Patient History', details: patientHistoryDetails });
+  }
+  if (familyHistoryDetails.length > 0) {
+    sections.push({ title: 'Family History', details: familyHistoryDetails });
+  }
+  return sections;
 }
 
 function getChwWorker(encounters: VisitDetailsEncounter[]): string {
@@ -204,6 +373,21 @@ export function transformVisitSummaryResponse(
 
   const chiefComplaintData = extractChiefComplaints(encounters);
   const physicalExamination = extractPhysicalExamination(encounters);
+  const medicalHistory = extractMedicalHistory(encounters);
+
+  const specialityAttr = response.attributes?.find(
+    attr => attr.attributeType?.uuid === VISIT_ATTR_SPECIALITY
+  );
+  const speciality = specialityAttr?.value ?? undefined;
+
+  const doctorNotesAttr = response.attributes?.find(
+    attr => attr.attributeType?.uuid === VISIT_ATTR_DOCTOR_NOTES
+  );
+  const doctorNotes = doctorNotesAttr?.value || undefined;
+
+  const priorityVisit = encounters.some(
+    enc => enc.encounterType?.uuid === ENCOUNTER_TYPE_PRIORITY
+  );
 
   return {
     visitUuid: response.uuid,
@@ -238,7 +422,53 @@ export function transformVisitSummaryResponse(
     },
     checkupReason: chiefComplaintData,
     physicalExamination,
+    medicalHistory: medicalHistory.length > 0 ? medicalHistory : undefined,
+    speciality,
+    priorityVisit,
+    doctorNotes,
   };
+}
+
+interface ObsDocResult {
+  uuid: string;
+  comment: string;
+  value: {
+    display: string;
+    links: { rel: string; uri: string };
+  };
+  encounter: {
+    visit: { uuid: string };
+  } | null;
+}
+
+interface ObsDocResponse {
+  results: ObsDocResult[];
+}
+
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+function isImageFilename(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext));
+}
+
+export function transformObsToDocuments(
+  results: ObsDocResult[],
+  visitUuid: string
+): AdditionalDocument[] {
+  return results
+    .filter(obs => obs.encounter?.visit?.uuid === visitUuid || !obs.encounter)
+    .map(obs => ({
+      uuid: obs.uuid,
+      name: obs.comment || 'Untitled document',
+      fileUrl:
+        obs.value?.links &&
+        typeof obs.value.links === 'object' &&
+        'uri' in obs.value.links
+          ? String(obs.value.links.uri)
+          : '',
+      isImage: isImageFilename(obs.comment || ''),
+    }));
 }
 
 export const visitSummaryService = {
@@ -247,6 +477,21 @@ export const visitSummaryService = {
       `${API_ENDPOINTS.VISIT}/${visitUuid}?v=${VISIT_SUMMARY_CUSTOM_REP}`
     );
     return transformVisitSummaryResponse(response);
+  },
+
+  getAdditionalDocuments: async (
+    patientUuid: string,
+    visitUuid: string
+  ): Promise<AdditionalDocument[]> => {
+    const url = `/obs?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${ADDITIONAL_DOCUMENT_CONCEPT}`;
+    const response = await OpenMRSApi.get<ObsDocResponse>(url);
+    return transformObsToDocuments(response.results ?? [], visitUuid);
+  },
+
+  getDocumentFile: async (obsUuid: string): Promise<Blob> => {
+    return OpenMRSApi.get<Blob>(`/obs/${obsUuid}/value`, {
+      responseType: 'blob',
+    });
   },
 
   closeVisit: async (visitUuid: string) => {

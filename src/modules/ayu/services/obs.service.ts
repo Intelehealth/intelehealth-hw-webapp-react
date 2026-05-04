@@ -39,9 +39,7 @@ export const uploadAllPhysicalExamImages = async (
         comment: img.comment,
       })
     );
-    return OpenMRSApi.post(OBS_ENDPOINT, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return OpenMRSApi.post(OBS_ENDPOINT, formData);
   });
 
   await Promise.all(uploads);
@@ -65,30 +63,28 @@ export const clearPendingDocuments = () => {
 export const getPendingDocuments = () => pendingDocuments;
 
 export const uploadAllAdditionalDocuments = async (
-  encounterUuid: string,
+  encounterUuid: string | undefined,
   patientUuid: string
 ): Promise<void> => {
   if (pendingDocuments.length === 0) return;
 
   const uploads = pendingDocuments.map(doc => {
+    const obsJson: Record<string, string> = {
+      concept: OBS_CONCEPTS.ADDITIONAL_DOCUMENT,
+      person: patientUuid,
+      obsDatetime: new Date().toISOString(),
+      comment: doc.comment,
+    };
+    if (encounterUuid) {
+      obsJson.encounter = encounterUuid;
+    }
     const formData = new FormData();
     formData.append('file', doc.file);
-    formData.append(
-      'json',
-      JSON.stringify({
-        concept: OBS_CONCEPTS.ADDITIONAL_DOCUMENT,
-        encounter: encounterUuid,
-        person: patientUuid,
-        obsDatetime: new Date().toISOString(),
-        comment: doc.comment,
-      })
-    );
-    return OpenMRSApi.post(OBS_ENDPOINT, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    formData.append('json', JSON.stringify(obsJson));
+    return OpenMRSApi.post(OBS_ENDPOINT, formData);
   });
 
-  await Promise.all(uploads);
+  await Promise.allSettled(uploads);
   pendingDocuments = [];
 };
 
@@ -98,4 +94,22 @@ export const getObsByPatientAndConcept = async (
 ): Promise<ObsApiResponse> => {
   const url = `${OBS_ENDPOINT}?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${conceptUuid}`;
   return OpenMRSApi.get<ObsApiResponse>(url);
+};
+
+export const getLatestEncounterUuid = async (
+  patientUuid: string,
+  encounterTypeUuid: string
+): Promise<string | undefined> => {
+  const response = await OpenMRSApi.get<{
+    results: Array<{
+      encounters: Array<{ uuid: string; encounterType: { uuid: string } }>;
+    }>;
+  }>(
+    `/visit?patient=${patientUuid}&v=custom:(encounters:(uuid,encounterType:(uuid)))&limit=1&order=desc`
+  );
+  const visit = response.results?.[0];
+  if (!visit) return undefined;
+  return visit.encounters?.find(
+    enc => enc.encounterType?.uuid === encounterTypeUuid
+  )?.uuid;
 };
