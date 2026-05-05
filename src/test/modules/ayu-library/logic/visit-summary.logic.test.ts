@@ -1864,7 +1864,7 @@ describe('buildVisitSummary', () => {
   });
 
   describe('branch coverage for fallback paths', () => {
-    it('should handle getExtensionLabel when language is percent but no display ext', () => {
+    it('should fall back to item.text when language is percent but no display ext', () => {
       const questions: AyuQuestion[] = [
         makeQuestion({
           type: 'string',
@@ -1874,13 +1874,13 @@ describe('buildVisitSummary', () => {
               url: 'https://intelehealth.org/fhir/StructureDefinition/language',
               valueString: '%',
             },
-            // No display extension → falls back to ''
+            // No display extension → falls back to item.text
           ],
         }),
       ];
       const answers = new Map<string, AyuAnswerValue>([['q1', 'answer']]);
       const result = buildVisitSummary(questions, answers, 'Visit');
-      expect((result[0].items[0] as any).label).toBe('');
+      expect((result[0].items[0] as any).label).toBe('Fallback text');
     });
 
     it('should handle getDisplay when opt has no display and no valueString', () => {

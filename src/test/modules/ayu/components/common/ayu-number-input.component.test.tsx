@@ -115,6 +115,35 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       expect(input).toHaveClass('border', 'bg-white', 'border-solid', 'border-[#20c997]', 'rounded', 'px-3', 'py-2');
     });
+
+    it('should render top-level label with primary CSS classes when no parent', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Enter your age');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render nested label with muted CSS classes when parent is provided', () => {
+      const parent: AyuQuestion = {
+        linkId: 'parent-1',
+        text: 'Parent Question',
+        type: 'choice',
+      };
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Enter your age');
+      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+    });
   });
 
   describe('Input ID', () => {

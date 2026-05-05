@@ -131,6 +131,25 @@ describe('AyuSelectableOptionGroup', () => {
       const label = screen.getByText('Select an option');
       expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
     });
+
+    it('should have muted label classes when any parent is provided (nested question)', () => {
+      // Any parent (not just associated symptoms) means this is a nested
+      // question and should adopt the muted style.
+      const parent: AyuQuestion = {
+        linkId: 'parent-1',
+        text: 'Some other parent',
+        type: 'choice',
+      };
+      render(
+        <AyuSelectableOptionGroup
+          question={mockQuestion}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText('Select an option');
+      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+    });
   });
 
   describe('Answer Options Handling', () => {

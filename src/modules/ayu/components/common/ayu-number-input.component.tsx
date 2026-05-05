@@ -3,6 +3,7 @@ import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 
 export function AyuNumberInput({
   question,
+  parent,
   value,
   onChange,
 }: AyuRendererBaseProps) {
@@ -21,7 +22,15 @@ export function AyuNumberInput({
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label
+          className={
+            parent
+              ? 'block text-base text-(--color-muted)'
+              : 'text-md font-medium text-black-500'
+          }
+        >
+          {label}
+        </label>
       )}
       <input
         id={inputId}

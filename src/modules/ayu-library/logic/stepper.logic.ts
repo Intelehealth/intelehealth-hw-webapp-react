@@ -5,6 +5,7 @@ import type {
 } from '../types/ayu.types';
 import { EXT_URL_MUTUALLY_EXCLUSIVE } from '../utils/constants';
 import { findMatchingOptionCode } from '../utils/question.utils';
+import { isStrictAssociatedSymptoms } from './decision-matrix';
 import { evaluateEnableWhen } from './enable-when.logic';
 
 export const isDurationAnswer = (value: unknown): value is DurationAnswer => {
@@ -76,6 +77,16 @@ export const isTopLevelComplete = (
       : !parentAnswer
   ) {
     return false;
+  }
+
+  if (isStrictAssociatedSymptoms(question)) {
+    if (!Array.isArray(parentAnswer) || parentAnswer.length === 0) return false;
+    const codes = parentAnswer as string[];
+    const hasExclusive = codes.some(code =>
+      isMutuallyExclusiveOption(question, code)
+    );
+    const totalOptions = question.answerOption?.length ?? 0;
+    if (!hasExclusive && codes.length < totalOptions) return false;
   }
 
   // Recursively check all nested children for incomplete duration structure

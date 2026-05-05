@@ -655,6 +655,47 @@ describe('AyuStepperContainer', () => {
 
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
+
+    it('should show submit button for associated symptoms (Yes/No grid) even when repeats is false', () => {
+      const question: AyuQuestion = {
+        linkId: 'as1',
+        text: 'Associated symptoms',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+          { valueCoding: { code: 'cough', display: 'Cough' } },
+        ],
+      };
+
+      // AS questions have repeats: undefined/false in the FHIR JSON, but the
+      // AyuAssociatedSymptoms renderer stores answers as an array. The submit
+      // button must still render so the user can explicitly submit.
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { as1: ['fever'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
   });
 
   describe('Skip Button', () => {

@@ -333,6 +333,8 @@ export const AyuStepperContainer = forwardRef<
                             question.type === 'date' ||
                             question.type === 'integer' ||
                             (question.type === 'choice' && question.repeats) ||
+                            resolveAyuComponent(question) ===
+                              ASSOCIATED_SYMPTOMS_COMPONENT ||
                             isDurationChoice ||
                             hasNestedDuration ||
                             hasNestedRepeats ||

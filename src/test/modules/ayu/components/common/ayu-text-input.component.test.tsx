@@ -273,7 +273,7 @@ describe('AyuTextInput', () => {
     it('should render label with primary CSS classes when text matches ADDITIONAL_INFORMATION_LABEL', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
-        text: 'Additional Information',
+        text: 'Additional information',
       };
       render(
         <AyuTextInput
@@ -282,7 +282,28 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      const label = screen.getByText('Additional Information');
+      const label = screen.getByText('Additional information');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render label with primary CSS classes when text contains ADDITIONAL_INFORMATION_LABEL with extra hint', () => {
+      // Real JSON often pairs "Additional information" with a placeholder hint,
+      // e.g. "Additional information - [Enter additional information]". The
+      // label class check uses .includes() so the styling still applies.
+      const questionWithLabel: AyuQuestion = {
+        ...mockQuestion,
+        text: 'Additional information - [Enter additional information]',
+      };
+      render(
+        <AyuTextInput
+          question={questionWithLabel}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const label = screen.getByText(
+        'Additional information - [Enter additional information]'
+      );
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 
