@@ -6,6 +6,7 @@ import { AyuDropdown } from './ayu-dropdown.component';
 export function AyuDuration({
   question,
   value,
+  parent,
   onChange,
 }: AyuRendererBaseProps) {
   // Parse the value from parent (nested structure with dropdownValues)
@@ -34,11 +35,22 @@ export function AyuDuration({
   return (
     <div className="space-y-3">
       {label && (
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label
+          className={
+            parent
+              ? 'block text-base text-(--color-muted)'
+              : 'text-md font-medium text-black-500'
+          }
+        >
+          {label}
+          {question?.required && !label.includes('*') && (
+            <span className="text-error-500 ml-1">*</span>
+          )}
+        </label>
       )}
       {/* Duration Dropdowns */}
       {DURATION_DROPDOWN_CONFIGS && DURATION_DROPDOWN_CONFIGS.length > 0 && (
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-2">
           {DURATION_DROPDOWN_CONFIGS.map(config => (
             <AyuDropdown
               key={config.id}

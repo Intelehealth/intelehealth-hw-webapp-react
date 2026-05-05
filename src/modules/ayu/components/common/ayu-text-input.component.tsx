@@ -38,17 +38,17 @@ export function AyuTextInput({
         <label
           htmlFor={inputId}
           className={
-            label === ADDITIONAL_INFORMATION_LABEL
+            label.includes(ADDITIONAL_INFORMATION_LABEL)
               ? 'text-md font-medium text-black-500'
               : 'block text-base text-(--color-muted)'
           }
         >
           {isAssociatedSymptomsParent
-            ? label === ADDITIONAL_INFORMATION_LABEL ||
+            ? label.includes(ADDITIONAL_INFORMATION_LABEL) ||
               !label.toLowerCase().includes(TEXT_INPUT_KEYWORD_OTHER)
               ? label
               : null
-            : label === ADDITIONAL_INFORMATION_LABEL ||
+            : label.includes(ADDITIONAL_INFORMATION_LABEL) ||
                 !label.toLowerCase().includes(TEXT_INPUT_KEYWORD_DESCRIBE)
               ? label
               : null}

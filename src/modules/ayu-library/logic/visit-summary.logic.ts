@@ -47,7 +47,7 @@ export function buildVisitSummary(
     const ext = item.extension?.find(e => e.url === EXT_URL_DISPLAY_TEXT);
     return item.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT)
       ?.valueString === '%'
-      ? ext?.valueString || ''
+      ? ext?.valueString || item.text || ''
       : item.text || '';
   }
 

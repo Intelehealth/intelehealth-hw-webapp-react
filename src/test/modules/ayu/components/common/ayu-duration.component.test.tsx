@@ -367,5 +367,53 @@ describe('AyuDuration', () => {
       const mainContainer = container.querySelector('.space-y-3');
       expect(mainContainer).toBeInTheDocument();
     });
+
+    it('should render top-level label with primary CSS classes when no parent', () => {
+      render(<AyuDuration question={mockQuestion} />);
+      const label = screen.getByText('How long?');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+    });
+
+    it('should render nested label with muted CSS classes when parent is provided', () => {
+      const parent = {
+        linkId: 'parent-1',
+        text: 'Parent question',
+        type: 'choice',
+      };
+      render(<AyuDuration question={mockQuestion} parent={parent} />);
+      const label = screen.getByText('How long?');
+      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+    });
+
+    it('should append required asterisk when question.required is true and label has none', () => {
+      const requiredQuestion = { ...mockQuestion, required: true };
+      const { container } = render(<AyuDuration question={requiredQuestion} />);
+      const asterisk = container.querySelector('.text-error-500');
+      expect(asterisk).toBeInTheDocument();
+      expect(asterisk?.textContent).toBe('*');
+    });
+
+    it('should not append required asterisk when label already includes *', () => {
+      const requiredQuestion = {
+        ...mockQuestion,
+        text: 'How long?*',
+        required: true,
+      };
+      const { container } = render(<AyuDuration question={requiredQuestion} />);
+      const asterisk = container.querySelector('.text-error-500');
+      expect(asterisk).not.toBeInTheDocument();
+    });
+
+    it('should not append required asterisk when question is not required', () => {
+      const { container } = render(<AyuDuration question={mockQuestion} />);
+      const asterisk = container.querySelector('.text-error-500');
+      expect(asterisk).not.toBeInTheDocument();
+    });
+
+    it('should render dropdowns with mt-2 spacing under the label', () => {
+      const { container } = render(<AyuDuration question={mockQuestion} />);
+      const flexContainer = container.querySelector('.flex.gap-3.mt-2');
+      expect(flexContainer).toBeInTheDocument();
+    });
   });
 });

@@ -29,7 +29,7 @@ export function AyuSelectableOptionGroup({
         {label && (
           <label
             className={
-              isAssociatedSymptomsParent
+              isAssociatedSymptomsParent || parent
                 ? 'block text-base text-(--color-muted)'
                 : 'text-md font-medium text-black-500'
             }

@@ -516,4 +516,74 @@ describe('isTopLevelComplete', () => {
       ).toBe(true);
     });
   });
+
+  describe('strict Associated Symptoms', () => {
+    const makeAssociatedSymptoms = (): AyuQuestion => ({
+      linkId: 'as1',
+      type: 'choice',
+      text: 'Associated symptoms',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+        { valueCoding: { code: 'cough', display: 'Cough' } },
+        { valueCoding: { code: 'rash', display: 'Rash' } },
+      ],
+    });
+
+    it('should return false when only some options are answered', () => {
+      const q = makeAssociatedSymptoms();
+      expect(isTopLevelComplete(q, { as1: ['fever'] })).toBe(false);
+      expect(isTopLevelComplete(q, { as1: ['fever', 'NO_cough'] })).toBe(false);
+    });
+
+    it('should return true when every option has Yes or No answer', () => {
+      const q = makeAssociatedSymptoms();
+      expect(
+        isTopLevelComplete(q, { as1: ['fever', 'NO_cough', 'NO_rash'] })
+      ).toBe(true);
+    });
+
+    it('should return true when an exclusive option is selected', () => {
+      const q: AyuQuestion = {
+        linkId: 'as1',
+        type: 'choice',
+        text: 'Associated symptoms',
+        answerOption: [
+          {
+            valueCoding: { code: 'none', display: 'None' },
+            extension: [
+              {
+                url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+                valueString: 'True',
+              },
+            ],
+          },
+          { valueCoding: { code: 'fever', display: 'Fever' } },
+          { valueCoding: { code: 'cough', display: 'Cough' } },
+        ],
+      };
+      // Only the exclusive option selected → complete even though others unanswered
+      expect(isTopLevelComplete(q, { as1: ['none'] })).toBe(true);
+    });
+
+    it('should return false when answer is not an array', () => {
+      const q = makeAssociatedSymptoms();
+      expect(isTopLevelComplete(q, { as1: 'fever' as unknown as string })).toBe(
+        false
+      );
+    });
+
+    it('should not apply strict rule to non-AS choice questions with same shape', () => {
+      // Same shape but text doesn't match — should fall back to default behavior (any non-empty array → complete)
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        text: 'Some other question',
+        answerOption: [
+          { valueCoding: { code: 'a', display: 'A' } },
+          { valueCoding: { code: 'b', display: 'B' } },
+        ],
+      };
+      expect(isTopLevelComplete(q, { q1: ['a'] })).toBe(true);
+    });
+  });
 });
