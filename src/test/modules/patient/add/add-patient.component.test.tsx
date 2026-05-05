@@ -65,7 +65,7 @@ vi.mock('../../../../modules/patient/add/steps/terms/terms.component', () => ({
   ),
 }));
 
-vi.mock('../../../../modules/patient/add/steps/personal-info/patient-personal-info.component', () => ({
+vi.mock('../../../../modules/patient/add/steps/patient-info/patient-info.component', () => ({
   default: ({
     onNext,
     onPrev,
@@ -75,12 +75,12 @@ vi.mock('../../../../modules/patient/add/steps/personal-info/patient-personal-in
     onPrev: () => void;
     defaultValues: any;
   }) => (
-    <div data-testid="personal-info">
-      <div data-testid="personal-default-values">
+    <div data-testid="patient-info">
+      <div data-testid="patient-info-default-values">
         {JSON.stringify(defaultValues)}
       </div>
       <button
-        data-testid="personal-next"
+        data-testid="patient-info-next"
         onClick={() =>
           onNext({
             personalInfo: {
@@ -98,36 +98,6 @@ vi.mock('../../../../modules/patient/add/steps/personal-info/patient-personal-in
               emergencyContactNumberCountryCode: '+91',
               profilePhoto: 'base64string',
             },
-          })
-        }
-      >
-        Next
-      </button>
-      <button data-testid="personal-prev" onClick={onPrev}>
-        Previous
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../../../../modules/patient/add/steps/address-info/patient-address-info.component', () => ({
-  default: ({
-    onNext,
-    onPrev,
-    defaultValues,
-  }: {
-    onNext: (data: any) => void;
-    onPrev: () => void;
-    defaultValues: any;
-  }) => (
-    <div data-testid="address-info">
-      <div data-testid="address-default-values">
-        {JSON.stringify(defaultValues)}
-      </div>
-      <button
-        data-testid="address-next"
-        onClick={() =>
-          onNext({
             addressInfo: {
               postalCode: '123456',
               city: 'Mumbai',
@@ -137,34 +107,6 @@ vi.mock('../../../../modules/patient/add/steps/address-info/patient-address-info
               correspondingAddress1: 'Address Line 1',
               correspondingAddress2: 'Address Line 2',
             },
-          })
-        }
-      >
-        Next
-      </button>
-      <button data-testid="address-prev" onClick={onPrev}>
-        Previous
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../../../../modules/patient/add/steps/other-info/patient-other-info.component', () => ({
-  default: ({
-    onNext,
-    onPrev,
-    defaultValues,
-  }: {
-    onNext: (data: any) => void;
-    onPrev: () => void;
-    defaultValues: any;
-  }) => (
-    <div data-testid="other-info">
-      <div data-testid="other-default-values">{JSON.stringify(defaultValues)}</div>
-      <button
-        data-testid="other-next"
-        onClick={() =>
-          onNext({
             otherInfo: {
               sonDaughterWifeOf: 'Parent Name',
               occupation: 'Engineer',
@@ -177,7 +119,7 @@ vi.mock('../../../../modules/patient/add/steps/other-info/patient-other-info.com
       >
         Next
       </button>
-      <button data-testid="other-prev" onClick={onPrev}>
+      <button data-testid="patient-info-prev" onClick={onPrev}>
         Previous
       </button>
     </div>
@@ -193,27 +135,6 @@ vi.mock('../../../../modules/patient/add/steps/patient-preview/patient-preview.c
 }));
 
 // Mock asset imports
-vi.mock('../../../../assets/icons/icon-location-green-rounded-bordered.svg', () => ({
-  default: 'icon-location-green-rounded-bordered.svg',
-}));
-vi.mock('../../../../assets/icons/icon-location-green-rounded-filled.svg', () => ({
-  default: 'icon-location-green-rounded-filled.svg',
-}));
-vi.mock('../../../../assets/icons/icon-location-green-rounded.svg', () => ({
-  default: 'icon-location-green-rounded.svg',
-}));
-vi.mock('../../../../assets/icons/icon-three-dot-green-rounded-bordered.svg', () => ({
-  default: 'icon-three-dot-green-rounded-bordered.svg',
-}));
-vi.mock('../../../../assets/icons/icon-three-dot-green-rounded.svg', () => ({
-  default: 'icon-three-dot-green-rounded.svg',
-}));
-vi.mock('../../../../assets/icons/icon-user-green-rounded-bordered.svg', () => ({
-  default: 'icon-user-green-rounded-bordered.svg',
-}));
-vi.mock('../../../../assets/icons/icon-user-green-rounded-filled.svg', () => ({
-  default: 'icon-user-green-rounded-filled.svg',
-}));
 vi.mock('../../../../assets/icons/icon-user-plus-green-rounded.svg', () => ({
   default: 'icon-user-plus-green-rounded.svg',
 }));
@@ -272,12 +193,8 @@ describe('AddPatientComponent', () => {
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
@@ -296,15 +213,6 @@ describe('AddPatientComponent', () => {
         expect(icon).toBeInTheDocument();
       });
     });
-
-    it('should not show step indicator on Privacy Policy step', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      await waitFor(() => {
-        const stepIndicators = screen.queryByAltText('Personal');
-        expect(stepIndicators).not.toBeInTheDocument();
-      });
-    });
   });
 
   describe('Step Navigation', () => {
@@ -319,17 +227,17 @@ describe('AddPatientComponent', () => {
       });
     });
 
-    it('should navigate from Terms to Personal Info', async () => {
+    it('should navigate from Terms to Patient Info', async () => {
       await renderWithRouter(<AddPatientComponent />);
 
       // Go to Terms step
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
-      // Go to Personal Info step
+      // Go to Patient Info step
       fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
       });
     });
 
@@ -365,256 +273,55 @@ describe('AddPatientComponent', () => {
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
 
-      // Terms -> Personal Info
+      // Terms -> Patient Info
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-
-      // Personal Info -> Address Info
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-
-      // Address Info -> Other Info
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-    });
-  });
-
-  describe('Step Indicator', () => {
-    it('should show step indicator when on Personal Info step (step 2)', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-
-      // Step indicator should be visible
-      expect(screen.getByAltText('Personal')).toBeInTheDocument();
-      expect(screen.getByAltText('Address')).toBeInTheDocument();
-      expect(screen.getByAltText('Other')).toBeInTheDocument();
-    });
-
-    it('should show step indicator when on Address Info step (step 3)', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Address Info
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-
-      // Step indicator should be visible
-      expect(screen.getByAltText('Personal')).toBeInTheDocument();
-      expect(screen.getByAltText('Address')).toBeInTheDocument();
-      expect(screen.getByAltText('Other')).toBeInTheDocument();
-    });
-
-    it('should show step indicator when on Other Info step (step 4)', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Other Info
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-
-      // Step indicator should be visible
-      expect(screen.getByAltText('Personal')).toBeInTheDocument();
-      expect(screen.getByAltText('Address')).toBeInTheDocument();
-      expect(screen.getByAltText('Other')).toBeInTheDocument();
-    });
-
-    it('should not show step indicator on Privacy Policy step (step 0)', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      const personalIndicator = screen.queryByAltText('Personal');
-      expect(personalIndicator).not.toBeInTheDocument();
-    });
-
-    it('should not show step indicator on Terms step (step 1)', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-
-      const personalIndicator = screen.queryByAltText('Personal');
-      expect(personalIndicator).not.toBeInTheDocument();
-    });
-
-    it('should not show step indicator on Preview step (step 5)', async () => {
-      mockHandleAddPatient.mockResolvedValue(true);
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate through all steps
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('preview')).toBeInTheDocument();
-      });
-
-      const personalIndicator = screen.queryByAltText('Personal');
-      expect(personalIndicator).not.toBeInTheDocument();
-    });
-
-    it('should show correct icon for current step', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info step
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-
-      const personalIcon = screen.getByAltText('Personal');
-      expect(personalIcon).toHaveAttribute('src', 'icon-user-green-rounded-bordered.svg');
-    });
-
-    it('should show filled icon for completed steps', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Address Info step (Personal should be filled)
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-
-      const personalIcon = screen.getByAltText('Personal');
-      expect(personalIcon).toHaveAttribute('src', 'icon-user-green-rounded-filled.svg');
-    });
-
-    it('should show unfilled icon for future steps', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info step
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-
-      const addressIcon = screen.getByAltText('Address');
-      expect(addressIcon).toHaveAttribute('src', 'icon-location-green-rounded.svg');
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
     });
   });
 
   describe('Form Data Management', () => {
-    it('should update formData when moving to next step', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info and fill data
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-
-      // Move to Address Info
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => {
-        expect(screen.getByTestId('address-info')).toBeInTheDocument();
-      });
-
-      // Address info should receive empty default values initially
-      const addressDefaults = screen.getByTestId('address-default-values');
-      expect(addressDefaults).toBeInTheDocument();
-    });
-
     it('should preserve form data when navigating backwards', async () => {
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Address Info
+      // Navigate to Patient Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
-      // Go back to Personal Info
-      fireEvent.click(screen.getByTestId('address-prev'));
-      await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
-      });
-
-      // Default values should contain previously entered data
-      const personalDefaults = screen.getByTestId('personal-default-values');
-      const defaultValues = JSON.parse(personalDefaults.textContent || '{}');
-      expect(defaultValues.firstName).toBe('John');
+      // Combined step should receive default values
+      const defaults = screen.getByTestId('patient-info-default-values');
+      expect(defaults).toBeInTheDocument();
     });
 
-    it('should handle profilePhoto as string in defaultValues', async () => {
+    it('should handle profilePhoto as null in initial defaultValues', async () => {
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Personal Info and submit
+      // Navigate to Patient Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
-      // Go back to Personal Info
-      fireEvent.click(screen.getByTestId('address-prev'));
-      await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
-      });
-
-      // profilePhoto should be converted to string
-      const personalDefaults = screen.getByTestId('personal-default-values');
-      const defaultValues = JSON.parse(personalDefaults.textContent || '{}');
-      expect(defaultValues.profilePhoto).toBe('base64string');
-    });
-
-    it('should handle profilePhoto as non-string (null) in defaultValues', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info (no data submitted yet)
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
-      });
-
-      // profilePhoto should be null initially
-      const personalDefaults = screen.getByTestId('personal-default-values');
-      const defaultValues = JSON.parse(personalDefaults.textContent || '{}');
+      const defaults = screen.getByTestId('patient-info-default-values');
+      const defaultValues = JSON.parse(defaults.textContent || '{}');
       expect(defaultValues.profilePhoto).toBeNull();
     });
   });
 
   describe('Form Submission', () => {
-    it('should call handleAddPatient when submitting from Other Info step', async () => {
+    it('should call handleAddPatient when submitting from Patient Info step', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Other Info
+      // Navigate to Patient Info
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
-      // Submit from Other Info
-      fireEvent.click(screen.getByTestId('other-next'));
+      // Submit
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(mockHandleAddPatient).toHaveBeenCalled();
@@ -625,16 +332,11 @@ describe('AddPatientComponent', () => {
       mockHandleAddPatient.mockResolvedValue(true);
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
@@ -645,23 +347,18 @@ describe('AddPatientComponent', () => {
       mockHandleAddPatient.mockResolvedValue(false);
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Other Info and submit
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(mockHandleAddPatient).toHaveBeenCalled();
       });
 
-      // Should stay on Other Info step
-      expect(screen.getByTestId('other-info')).toBeInTheDocument();
+      // Should stay on Patient Info step
+      expect(screen.getByTestId('patient-info')).toBeInTheDocument();
       expect(screen.queryByTestId('preview')).not.toBeInTheDocument();
     });
 
@@ -673,12 +370,8 @@ describe('AddPatientComponent', () => {
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(mockHandleAddPatient).toHaveBeenCalledWith(
@@ -707,12 +400,8 @@ describe('AddPatientComponent', () => {
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('other-next'));
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
@@ -745,36 +434,6 @@ describe('AddPatientComponent', () => {
       await waitFor(() => {
         expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       });
-    });
-
-    it('should render dividers between step indicators', async () => {
-      const { container } = await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info to see step indicators
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
-      });
-
-      const hrs = container.querySelectorAll('hr.border-dashed');
-      expect(hrs.length).toBeGreaterThan(0);
-    });
-
-    it('should apply correct CSS classes to step labels', async () => {
-      await renderWithRouter(<AddPatientComponent />);
-
-      // Navigate to Personal Info
-      fireEvent.click(screen.getByTestId('privacy-accept'));
-      await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => {
-        expect(screen.getByTestId('personal-info')).toBeInTheDocument();
-      });
-
-      const personalLabel = screen.getByText('Personal');
-      expect(personalLabel).toHaveClass('text-sm', 'mt-2');
     });
   });
 
@@ -822,33 +481,29 @@ describe('AddPatientComponent', () => {
       // Privacy Policy step
       expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       expect(screen.queryByTestId('terms')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('personal-info')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('patient-info')).not.toBeInTheDocument();
 
       // Navigate to Terms
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => {
         expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
         expect(screen.getByTestId('terms')).toBeInTheDocument();
-        expect(screen.queryByTestId('personal-info')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('patient-info')).not.toBeInTheDocument();
       });
     });
 
-    it('should handle step > 3 condition in nextStep', async () => {
+    it('should trigger handleSubmit when advancing past Patient Info step', async () => {
       mockHandleAddPatient.mockResolvedValue(true);
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Other Info (step 4)
+      // Navigate to Patient Info (step 2)
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
-      // Clicking next from step 4 should trigger handleSubmit
-      fireEvent.click(screen.getByTestId('other-next'));
+      // Clicking next from step 2 should trigger handleSubmit
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(mockHandleAddPatient).toHaveBeenCalled();
@@ -902,7 +557,7 @@ describe('AddPatientComponent', () => {
                 economicStatus: '',
               },
             },
-            step: 3,
+            step: 2,
             patientUuid: null,
           },
         },
@@ -910,9 +565,9 @@ describe('AddPatientComponent', () => {
 
       await renderWithRouter(<AddPatientComponent />);
 
-      // Should restore to step 3 (Address Info)
+      // Should restore to step 2 (Patient Info)
       await waitFor(() => {
-        expect(screen.getByTestId('address-info')).toBeInTheDocument();
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
       });
     });
 
@@ -954,7 +609,7 @@ describe('AddPatientComponent', () => {
                 economicStatus: '',
               },
             },
-            step: 5,
+            step: 3,
             patientUuid: 'real-patient-uuid-123',
           },
         },
@@ -1023,19 +678,15 @@ describe('AddPatientComponent', () => {
       mockHandleAddPatient.mockResolvedValue('new-patient-uuid');
       await renderWithRouter(<AddPatientComponent />);
 
-      // Navigate to Other Info and submit
+      // Navigate to Patient Info and submit
       await waitFor(() => expect(screen.getByTestId('privacy-policy')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('privacy-accept'));
       await waitFor(() => expect(screen.getByTestId('terms')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('terms-accept'));
-      await waitFor(() => expect(screen.getByTestId('personal-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('personal-next'));
-      await waitFor(() => expect(screen.getByTestId('address-info')).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId('address-next'));
-      await waitFor(() => expect(screen.getByTestId('other-info')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
       mockUpsertResource.mockClear();
-      fireEvent.click(screen.getByTestId('other-next'));
+      fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
@@ -1045,7 +696,7 @@ describe('AddPatientComponent', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             patientUuid: 'new-patient-uuid',
-            step: 5,
+            step: 3,
           }),
         })
       );
