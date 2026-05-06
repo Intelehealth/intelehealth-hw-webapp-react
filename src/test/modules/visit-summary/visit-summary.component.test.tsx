@@ -45,6 +45,9 @@ vi.mock('../../../assets/icons/edit.svg', () => ({
 vi.mock('../../../assets/icons/icon-info.svg', () => ({
   default: 'icon-info.svg',
 }));
+vi.mock('../../../assets/icons/icon-medical-history-green-rounded-bordered.svg', () => ({
+  default: 'icon-medical-history.svg',
+}));
 
 // Mock Dropdown and Toggle components
 vi.mock('../../../components/common/dropdown.component', () => ({
@@ -1182,6 +1185,37 @@ describe('VisitSummaryComponent', () => {
         expect(container.querySelector('.fa-file-excel')).toBeInTheDocument();
       });
     });
+
+    it('should render text icon for .txt extension', async () => {
+      const mockBlob = new Blob(['text'], { type: 'text/plain' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        { uuid: 'doc-1', name: 'readme.txt', fileUrl: '', isImage: false },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(container.querySelector('.fa-file-lines')).toBeInTheDocument();
+        expect(container.querySelector('.text-gray-500')).toBeInTheDocument();
+      });
+    });
+
+    it('should render generic file icon for unknown extension', async () => {
+      const mockBlob = new Blob(['data']);
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        { uuid: 'doc-1', name: 'archive.zip', fileUrl: '', isImage: false },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(container.querySelector('.fa-file')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('documents not fetched without required UUIDs', () => {
@@ -1286,6 +1320,28 @@ describe('VisitSummaryComponent', () => {
       const docContainer = docLabel.closest('.flex.flex-col')!;
       const button = docContainer.querySelector('button')!;
       expect(button).toBeDisabled();
+    });
+
+    it('should not open window when clicking button with no blob URL', async () => {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockResolvedValue([
+        { uuid: 'doc-1', name: 'no-blob.pdf', fileUrl: '', isImage: false },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockRejectedValue(new Error('fail'));
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('no-blob.pdf')).toBeInTheDocument();
+      });
+
+      const docLabel = screen.getByText('no-blob.pdf');
+      const button = docLabel.closest('.flex.flex-col')!.querySelector('button')!;
+      fireEvent.click(button);
+
+      expect(openSpy).not.toHaveBeenCalled();
+      openSpy.mockRestore();
     });
 
     it('should enable button when blob URL is set', async () => {
