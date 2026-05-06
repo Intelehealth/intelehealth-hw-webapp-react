@@ -338,7 +338,9 @@ describe('PatientProfileComponent', () => {
     });
     render(<PatientProfileComponent />);
     await userEvent.click(screen.getByRole('button', { name: /Visit ID/i }));
-    expect(h.mockNavigate).toHaveBeenCalledWith('/visit-summary');
+    expect(h.mockNavigate).toHaveBeenCalledWith('/visit-summary/vis-uuid-abcd5678', {
+      state: { visitUuid: 'vis-uuid-abcd5678' },
+    });
   });
 
  

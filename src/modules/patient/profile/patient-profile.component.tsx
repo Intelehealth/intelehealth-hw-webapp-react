@@ -211,7 +211,11 @@ const PatientProfileComponent: React.FC = () => {
                 <button
                   key={visit.uuid}
                   className="w-full flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3 hover:bg-gray-100 text-left"
-                  onClick={() => navigate('/visit-summary')}
+                  onClick={() =>
+                    navigate(`/visit-summary/${visit.uuid}`, {
+                      state: { visitUuid: visit.uuid },
+                    })
+                  }
                 >
                   <div>
                     {getVisitTitle(visit) && (
