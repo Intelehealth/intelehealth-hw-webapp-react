@@ -351,6 +351,45 @@ describe('MedicalHistory', () => {
         expect(section.onChange).toBeInstanceOf(Function);
       });
     });
+
+    it('should backfill earlier file sections from restored answers after refresh', async () => {
+      mockContextMedicalHistoryAnswers.value = {
+        patHist: { q1: 'patAnswer' },
+        famHist: { q1: 'famAnswer' },
+      };
+
+      mockBuildVisitSummary.mockImplementation((_items, _map, sectionTitle) => [
+        {
+          title: sectionTitle,
+          items: [
+            {
+              type: 'labelValue' as const,
+              label: 'Q1',
+              value: `value-from-${sectionTitle}`,
+            },
+          ],
+        },
+      ]);
+
+      const user = userEvent.setup();
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections.length).toBe(2);
+
+      const titles = modalConfig.sections.map((s: any) => s.title);
+      expect(titles).toEqual(['patHist title title', 'famHist title title']);
+
+      expect(modalConfig.sections[0].items[0].value).toBe(
+        'value-from-patHist title title'
+      );
+      expect(modalConfig.sections[1].items[0].value).toBe(
+        'value-from-famHist title title'
+      );
+    });
   });
 
   // ── Progress tracking ─────────────────────────────────────────────
