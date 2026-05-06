@@ -156,28 +156,42 @@ export const MedicalHistory = ({
         medicalHistoryAnswers: updatedAnswers,
       });
 
-      const topLevelItems = (schema.schema.item || []).filter(
-        item => item.type !== 'group'
-      );
-      const answersMap = new Map(Object.entries(answers));
-      const rawSections = buildVisitSummary(
-        topLevelItems,
-        answersMap,
-        schema.schema.text || schema.title,
-        { useLabeledFormat: true }
-      );
+      const buildResult = (
+        s: (typeof schemas)[number],
+        a: Record<string, AyuAnswerValue>
+      ): FileResult => {
+        const items = (s.schema?.item || []).filter(
+          item => item.type !== 'group'
+        );
+        const map = new Map(Object.entries(a));
+        const rawSections = buildVisitSummary(
+          items,
+          map,
+          s.schema?.text || s.title,
+          { useLabeledFormat: true }
+        );
+        const mergedItems = rawSections.flatMap(rs => rs.items);
+        const sections: ModalSection[] =
+          mergedItems.length > 0
+            ? [{ title: s.schema?.text || s.title, items: mergedItems }]
+            : [];
+        return { title: s.title, sections };
+      };
 
-      // Merge all sections (main items + associated symptoms) into one section per file
-      const mergedItems = rawSections.flatMap(s => s.items);
-      const sections: ModalSection[] =
-        mergedItems.length > 0
-          ? [{ title: schema.schema.text || schema.title, items: mergedItems }]
-          : [];
-
-      fileResultsRef.current = [
-        ...fileResultsRef.current.slice(0, currentStep),
-        { title: schema.title, sections },
-      ];
+      const next: FileResult[] = [];
+      for (let i = 0; i <= currentStep; i++) {
+        const s = schemas[i];
+        if (!s?.schema) continue;
+        if (i === currentStep) {
+          next[i] = buildResult(s, answers);
+        } else if (fileResultsRef.current[i]) {
+          next[i] = fileResultsRef.current[i];
+        } else {
+          const restored = fileAnswersRef.current[s.name];
+          if (restored) next[i] = buildResult(s, restored);
+        }
+      }
+      fileResultsRef.current = next;
 
       if (currentStep < schemas.length - 1) {
         setCurrentStep(prev => prev + 1);

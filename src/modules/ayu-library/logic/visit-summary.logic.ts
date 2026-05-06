@@ -326,6 +326,21 @@ export function buildVisitSummary(
                 positiveCodes.push(code);
               }
             });
+            if (
+              !exclusiveNoDisplay &&
+              positiveCodes.length === 0 &&
+              answerValue.length > 0
+            ) {
+              const exclusiveOpt = item.answerOption?.find(opt => {
+                const c = opt.valueCoding?.code || opt.valueString;
+                return !!c && isMutuallyExclusiveOption(item, c);
+              });
+              const exclusiveCode =
+                exclusiveOpt?.valueCoding?.code || exclusiveOpt?.valueString;
+              if (exclusiveCode) {
+                exclusiveNoDisplay = getDisplay(item, exclusiveCode);
+              }
+            }
 
             // Family history: show question text as subheading
             if (isPercentLabel && item.text) {
@@ -441,8 +456,7 @@ export function buildVisitSummary(
               }
             });
 
-            // Show the exclusive (None) option only when no other items are selected
-            if (exclusiveNoDisplay && positiveCodes.length === 0) {
+            if (exclusiveNoDisplay) {
               if (isPercentLabel) {
                 mainItems.push({
                   type: 'labelValue',
