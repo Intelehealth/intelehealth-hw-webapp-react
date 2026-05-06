@@ -9,6 +9,7 @@ import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
+import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconVisitReason from '../../../assets/icons/visit-reason.svg';
 import iconVitals from '../../../assets/icons/vitals.svg';
 import type { DropdownOption } from '../../../components/common';
@@ -496,7 +497,7 @@ const VisitSummaryPage = () => {
 
           <div className="md:col-span-2">
             <CollapsedComponent
-              icon={iconVisitSummary}
+              icon={iconMedicalHistory}
               title="Medical History"
               contentLabel="Family History"
               defaultOpen={allOpen}

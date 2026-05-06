@@ -14,6 +14,7 @@ import type {
 import CollapsedComponent from './visit-summary-collapsed.component';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconVisitSummary from '../../assets/icons/icon-visit-summery.svg';
+import iconMedicalHistory from '../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconPhysicalExam from '../../assets/icons/icon-physical-examination.svg';
 import iconVitals from '../../assets/icons/vitals.svg';
 import iconVisitReason from '../../assets/icons/visit-reason.svg';
@@ -25,6 +26,7 @@ import Dropdown from '../../components/common/dropdown.component';
 import Toggle from '../../components/common/toggle.component';
 
 function getFileIcon(filename: string): { icon: string; color: string } {
+  /* v8 ignore next -- .split() never returns an empty array */
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   if (['pdf'].includes(ext))
     return { icon: 'fa-file-pdf', color: 'text-red-500' };
@@ -61,6 +63,7 @@ const DocumentThumbnail: React.FC<{
   }, [obsUuid]);
 
   const handleClick = () => {
+    /* v8 ignore next -- button is disabled when blobUrl is empty */
     if (!blobUrl) return;
     window.open(blobUrl, '_blank');
   };
@@ -485,7 +488,7 @@ const VisitSummaryComponent: React.FC = () => {
           {/* Medical History — full width */}
           <div className="md:col-span-2">
             <CollapsedComponent
-              icon={iconVisitSummary}
+              icon={iconMedicalHistory}
               title="Medical History"
               defaultOpen={allOpen}
               key={`medical-${allOpen}`}
