@@ -170,6 +170,9 @@ vi.mock('../../../../assets/icons/vitals.svg', () => ({
 vi.mock('../../../../assets/icons/icon-info.svg', () => ({
   default: 'icon-info.svg',
 }));
+vi.mock('../../../../assets/icons/icon-medical-history-green-rounded-bordered.svg', () => ({
+  default: 'icon-medical-history.svg',
+}));
 
 /* ── Mock useConfig ────────────────────────────────────────────────────── */
 
