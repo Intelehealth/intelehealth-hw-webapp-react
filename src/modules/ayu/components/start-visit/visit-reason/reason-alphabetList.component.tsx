@@ -13,7 +13,7 @@ export const ReasonAlphabetList = ({
 }: Props) => {
   return (
     <div
-      className="rounded-sm p-3 h-[350px] overflow-y-auto hide-scroll"
+      className="rounded-sm h-[350px] overflow-y-auto hide-scroll"
       style={{ scrollbarWidth: 'none' }}
     >
       {Object.keys(grouped)

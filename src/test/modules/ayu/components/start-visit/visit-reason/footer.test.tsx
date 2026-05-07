@@ -21,7 +21,7 @@ describe('VisitReasonFooter', () => {
     vi.clearAllMocks();
   });
 
-  it('should render Back and Next buttons', () => {
+  it('should render Back and Start Assessment buttons', () => {
     render(
       <VisitReasonFooter
         questionIndex={0}
@@ -32,10 +32,10 @@ describe('VisitReasonFooter', () => {
     );
 
     expect(screen.getByText('Back')).toBeInTheDocument();
-    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Start Assessment')).toBeInTheDocument();
   });
 
-  it('should show "Next" on last question (no Confirm button)', () => {
+  it('should show "Start Assessment" on last question (no Confirm button)', () => {
     render(
       <VisitReasonFooter
         questionIndex={5}
@@ -45,7 +45,7 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Start Assessment')).toBeInTheDocument();
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 
@@ -80,7 +80,7 @@ describe('VisitReasonFooter', () => {
     expect(mockOnPrevQuestion).toHaveBeenCalled();
   });
 
-  it('should call onNextQuestion when Next is clicked', async () => {
+  it('should call onNextQuestion when Start Assessment is clicked', async () => {
     const user = userEvent.setup();
     render(
       <VisitReasonFooter
@@ -91,7 +91,7 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    await user.click(screen.getByText('Next'));
+    await user.click(screen.getByText('Start Assessment'));
     expect(mockOnNextQuestion).toHaveBeenCalled();
   });
 

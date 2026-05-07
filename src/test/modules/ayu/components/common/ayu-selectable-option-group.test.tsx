@@ -129,7 +129,7 @@ describe('AyuSelectableOptionGroup', () => {
         />
       );
       const label = screen.getByText('Select an option');
-      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+      expect(label).toHaveClass('block', 'text-large-label', 'text-(--color-dark)');
     });
 
     it('should have muted label classes when any parent is provided (nested question)', () => {
@@ -148,7 +148,7 @@ describe('AyuSelectableOptionGroup', () => {
         />
       );
       const label = screen.getByText('Select an option');
-      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+      expect(label).toHaveClass('block', 'text-large-label', 'text-(--color-dark)');
     });
   });
 

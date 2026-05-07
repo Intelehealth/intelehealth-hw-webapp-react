@@ -32,14 +32,28 @@ describe('QuestionLoader', () => {
       expect(icon).toHaveAttribute('src');
     });
 
-    it('should render question counter correctly', () => {
+    it('should render question counter correctly after loading completes', async () => {
       render(<QuestionLoader {...defaultProps} />);
-      expect(screen.getByText('1 of 5 questions')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.getByText('Question 1/5')).toBeInTheDocument();
     });
 
-    it('should calculate question counter correctly for different indices', () => {
+    it('should calculate question counter correctly for different indices', async () => {
       render(<QuestionLoader {...defaultProps} questionIndex={2} totalQuestions={10} />);
-      expect(screen.getByText('3 of 10 questions')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.getByText('Question 3/10')).toBeInTheDocument();
+    });
+
+    it('should hide question counter when isShowQuestionNumber is false', async () => {
+      render(<QuestionLoader {...defaultProps} isShowQuestionNumber={false} />);
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.queryByText(/Question 1\/5/)).not.toBeInTheDocument();
     });
   });
 
@@ -108,19 +122,28 @@ describe('QuestionLoader', () => {
   });
 
   describe('Question Counter Edge Cases', () => {
-    it('should handle questionIndex of 0', () => {
+    it('should handle questionIndex of 0', async () => {
       render(<QuestionLoader {...defaultProps} questionIndex={0} />);
-      expect(screen.getByText('1 of 5 questions')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.getByText('Question 1/5')).toBeInTheDocument();
     });
 
-    it('should handle last question index', () => {
+    it('should handle last question index', async () => {
       render(<QuestionLoader {...defaultProps} questionIndex={4} totalQuestions={5} />);
-      expect(screen.getByText('5 of 5 questions')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.getByText('Question 5/5')).toBeInTheDocument();
     });
 
-    it('should handle single question', () => {
+    it('should handle single question', async () => {
       render(<QuestionLoader {...defaultProps} questionIndex={0} totalQuestions={1} />);
-      expect(screen.getByText('1 of 1 questions')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(screen.getByText('Question 1/1')).toBeInTheDocument();
     });
   });
 
@@ -139,7 +162,7 @@ describe('QuestionLoader', () => {
   describe('Component Structure', () => {
     it('should have emerald green comment box', () => {
       const { container } = render(<QuestionLoader {...defaultProps} />);
-      const commentBox = container.querySelector('.bg-emerald-50');
+      const commentBox = container.querySelector('.bg-\\[\\#E5FFF3\\]');
       expect(commentBox).toBeInTheDocument();
     });
 

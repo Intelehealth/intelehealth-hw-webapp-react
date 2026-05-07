@@ -16,7 +16,6 @@ import {
   SECTION_VISIT_REASON,
   SECTION_VITALS,
 } from '../../utils/ayu.constants';
-import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
@@ -308,18 +307,18 @@ export const StartVisit = () => {
         />
         Start Visit
       </div>
-      <div className="mt-2">
+      <div className="mt-2 border-b border-gray-200">
         {patientName && (
-          <span className="text-gray-700 font-semibold">
+          <span className="text-gray-700 font-medium text-lg">
             {patientName}
-            <span className="text-gray-700 text-sm font-normal">
-              {patientAge ? ` (${patientAge}` : ''}
-              {patientGender ? ` | ${patientGender})` : ''}
+            <span className="text-[#7f7b92] text-sm font-medium ml-2">
+              {patientAge}
+              {patientGender ? ` • ${patientGender}` : ''}
             </span>
           </span>
         )}
         <div
-          className="font-medium text-xs md:text-sm"
+          className="mb-2 font-medium text-lg md:text-sm"
           style={{ color: '#2e1e91' }}
         >
           {currentSectionIndex + 1}/{sections.length}{' '}
@@ -330,12 +329,12 @@ export const StartVisit = () => {
         </div>
       </div>
       {/* Top Loader */}
-      <div className="pt-3">
+      {/* <div className="pt-3">
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={currentSectionIndex}
         />
-      </div>
+      </div> */}
 
       {/* Side Loader */}
       {sections[currentSectionIndex]?.totalQuestions > 1 && (
@@ -349,7 +348,7 @@ export const StartVisit = () => {
       )}
 
       {/* Active Section */}
-      <div className="pt-4">
+      <div className="mx-auto max-w-[996px]">
         {currentSectionIndex === 0 && (
           <Vitals
             questionIndex={currentQuestionIndex}

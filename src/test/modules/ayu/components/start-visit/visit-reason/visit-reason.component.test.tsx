@@ -48,12 +48,6 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/reaso
   )),
 }));
 
-vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/reason-categoryList.component', () => ({
-  ReasonCategoryList: vi.fn(() => (
-    <div data-testid="reason-category-list">Category List</div>
-  )),
-}));
-
 vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/search-input.component', () => ({
   ReasonSearchInput: vi.fn(() => (
     <div data-testid="reason-search-input">Search Input</div>
@@ -228,7 +222,6 @@ describe('VisitReason', () => {
       expect(screen.getByTestId('question-loader')).toBeInTheDocument();
       expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
       expect(screen.getByTestId('selected-reasons')).toBeInTheDocument();
-      expect(screen.getByTestId('reason-category-list')).toBeInTheDocument();
       expect(screen.getByTestId('reason-alphabet-list')).toBeInTheDocument();
       expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });
@@ -1063,7 +1056,7 @@ describe('VisitReason', () => {
       expect(mainContainer).toBeInTheDocument();
     });
 
-    it('should render grid layout for default UI', () => {
+    it('should render single-column layout for default UI', () => {
       const { container } = render(
         <VisitReason
           questionIndex={0}
@@ -1073,8 +1066,8 @@ describe('VisitReason', () => {
         />
       );
 
-      const gridContainer = container.querySelector('.grid.grid-cols-1.md\\:grid-cols-2');
-      expect(gridContainer).toBeInTheDocument();
+      const stackContainer = container.querySelector('.flex.flex-col.gap-4.mt-4');
+      expect(stackContainer).toBeInTheDocument();
     });
   });
 

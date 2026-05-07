@@ -1,10 +1,10 @@
 import searchIcon from '../../../assets/icon-search.svg';
 import {
-  VISIT_REASON_QUESTION,
-  VISIT_REASON_HINT,
-  SEARCH_PLACEHOLDER,
-  NO_MATCHING_COMPLAINTS,
   MAX_FILTERED_RESULTS,
+  NO_MATCHING_COMPLAINTS,
+  SEARCH_PLACEHOLDER,
+  VISIT_REASON_HINT,
+  VISIT_REASON_QUESTION,
 } from '../../../utils/ayu.constants';
 interface Props {
   search: string;
