@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PhysicalExamQuestion } from '../../../../../modules/ayu/data/physical-exam.data';
+import type { PhysicalExamQuestion } from '../../../../../modules/ayu/types/physical-exam.types';
 
 // ── Mock questions ──────────────────────────────────────────────────────────
 
@@ -76,31 +76,6 @@ const mockHookReturn = {
   onPrevSection: vi.fn(),
   allRequiredAnswered: true,
 };
-
-const { hoistedMockQuestions } = vi.hoisted(() => {
-  const hoistedMockQuestions = [
-    {
-      id: 'q1', sectionLabel: 'General:', categoryLabel: 'Jaundice', questionText: 'Is there jaundice?',
-      isRequired: true, isMultiChoice: false, sectionKey: 'General', jobAidType: 'image', jobAidFile: 'jaundice',
-      options: [{ id: 'q1-yes', text: 'Yes' }, { id: 'q1-no', text: 'No' }, { id: 'q1-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true }],
-    },
-    {
-      id: 'q2', sectionLabel: 'General:', categoryLabel: 'Pallor', questionText: 'Is there pallor?',
-      isRequired: true, isMultiChoice: true, sectionKey: 'General', jobAidType: 'video', jobAidFile: 'pallor',
-      options: [{ id: 'q2-normal', text: 'Normal', excludeFromMulti: true }, { id: 'q2-a', text: 'Option A' }, { id: 'q2-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true }],
-    },
-    {
-      id: 'q3', sectionLabel: 'Head:', categoryLabel: 'Injury', questionText: 'Any injuries?',
-      isRequired: false, isMultiChoice: false, sectionKey: 'Head',
-      options: [{ id: 'q3-yes', text: 'Yes' }, { id: 'q3-other', text: 'Maybe' }],
-    },
-  ];
-  return { hoistedMockQuestions };
-});
-
-vi.mock('../../../../../modules/ayu/data/physical-exam.data', () => ({
-  PHYSICAL_EXAM_QUESTIONS: hoistedMockQuestions,
-}));
 
 let capturedHookProps: any = {};
 vi.mock('../../../../../modules/ayu/hooks/usePhysicalExam', () => ({

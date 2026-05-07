@@ -9,7 +9,7 @@ import {
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { storage } from '../../../utils/storage';
 import type { AyuAnswerValue } from '../../ayu-library/types/ayu.types';
-import type { PhysicalExamAnswers } from '../data/physical-exam.data';
+import type { PhysicalExamAnswers } from '../types/physical-exam.types';
 import { getResource, upsertResource } from '../services/temp-storage.service';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 

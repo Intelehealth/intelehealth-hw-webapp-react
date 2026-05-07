@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PhysicalExamQuestion } from '../../../../modules/ayu/data/physical-exam.data';
+import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 
 // ── Mock data ───────────────────────────────────────────────────────────────
 
@@ -70,8 +70,7 @@ const { mockQuestions } = vi.hoisted(() => {
 
 const mockFilterFn = vi.fn();
 
-vi.mock('../../../../modules/ayu/data/physical-exam.data', () => ({
-  PHYSICAL_EXAM_QUESTIONS: mockQuestions,
+vi.mock('../../../../modules/ayu/utils/physical-exam.utils', () => ({
   filterPhysicalExamQuestions: (...args: unknown[]) => mockFilterFn(...args),
 }));
 
@@ -114,17 +113,34 @@ vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   clearPendingImages: (...args: unknown[]) => mockClearPendingImages(...args),
 }));
 
-const mockUseAyuJsonList = vi.fn().mockReturnValue([]);
+const mockUseAyuJsonList = vi
+  .fn()
+  .mockReturnValue([{ name: 'physExam.json', json: '__use_mock_questions__' }]);
 
 vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
   useAyuJsonList: (...args: unknown[]) => mockUseAyuJsonList(...args),
 }));
 
+vi.mock('../../../../modules/ayu/utils/parseFhirPhysExamQuestionnaire', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../../modules/ayu/utils/parseFhirPhysExamQuestionnaire')
+  >('../../../../modules/ayu/utils/parseFhirPhysExamQuestionnaire');
+  return {
+    ...actual,
+    parseFhirPhysExamQuestionnaire: (raw: unknown) =>
+      raw === '__use_mock_questions__'
+        ? mockQuestions
+        : actual.parseFhirPhysExamQuestionnaire(
+            raw as Parameters<typeof actual.parseFhirPhysExamQuestionnaire>[0]
+          ),
+  };
+});
+
 import { usePhysicalExam } from '../../../../modules/ayu/hooks/usePhysicalExam';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-import type { PhysicalExamAnswers } from '../../../../modules/ayu/data/physical-exam.data';
+import type { PhysicalExamAnswers } from '../../../../modules/ayu/types/physical-exam.types';
 
 const defaultProps = {
   questionIndex: 0,
@@ -144,7 +160,12 @@ function setup(overrides: Partial<typeof defaultProps> & { initialAnswers?: Phys
 describe('usePhysicalExam', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFilterFn.mockImplementation((questions: PhysicalExamQuestion[]) => questions);
+    mockFilterFn.mockImplementation(
+      (questions: PhysicalExamQuestion[]) => questions
+    );
+    mockUseAyuJsonList.mockReturnValue([
+      { name: 'physExam.json', json: '__use_mock_questions__' },
+    ]);
   });
 
   // ── Initial state ──────────────────────────────────────────────────────
@@ -200,33 +221,47 @@ describe('usePhysicalExam', () => {
 
   describe('serverQuestions via useAyuJsonList', () => {
     afterEach(() => {
-      mockUseAyuJsonList.mockReturnValue([]);
+      mockUseAyuJsonList.mockReturnValue([
+        { name: 'physExam.json', json: '__use_mock_questions__' },
+      ]);
     });
 
-    it('should use parsePhysExamJson result when physExam.json is found', () => {
+    it('should fall back to empty list when physExam.json is not in ayuList', () => {
+      mockUseAyuJsonList.mockReturnValue([]);
+      mockFilterFn.mockImplementation((q: PhysicalExamQuestion[]) => q);
+
+      const { result } = setup();
+
+      expect(result.current.totalQuestions).toBe(0);
+      expect(mockFilterFn).toHaveBeenLastCalledWith([], '');
+    });
+
+    it('should use parseFhirPhysExamQuestionnaire when physExam.json is found', () => {
       const rawPhysExam = {
-        id: 'root',
-        text: 'Physical Exam',
-        options: [
+        resourceType: 'Questionnaire',
+        item: [
           {
-            id: 'sec1',
+            linkId: 'sec1',
             text: 'general exams',
-            language: 'General Exams:',
-            options: [
+            type: 'group',
+            extension: [
               {
-                id: 'cat1',
-                text: 'Pallor',
-                options: [
-                  {
-                    id: 'server-q1',
-                    text: 'Check pallor*',
-                    isRequired: 'true',
-                    'multi-choice': false,
-                    options: [
-                      { id: 'sq1-a', text: 'Yes' },
-                      { id: 'sq1-b', text: 'No' },
-                    ],
-                  },
+                url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+                valueString: 'General Exams:',
+              },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'pallor-tag', display: 'Pallor' } },
+            ],
+            item: [
+              {
+                linkId: 'server-q1',
+                text: 'Check pallor*',
+                type: 'choice',
+                required: true,
+                answerOption: [
+                  { valueCoding: { code: 'sq1-a', display: 'Yes' } },
+                  { valueCoding: { code: 'sq1-b', display: 'No' } },
                 ],
               },
             ],
@@ -248,30 +283,74 @@ describe('usePhysicalExam', () => {
     });
 
     it('should handle camera, exclusive, and excludeFromMulti options from server', () => {
+      const IH = 'https://intelehealth.org/fhir/StructureDefinition';
       const rawPhysExam = {
-        id: 'root',
-        text: 'Physical Exam',
-        options: [
+        resourceType: 'Questionnaire',
+        item: [
           {
-            id: 'sec1',
+            linkId: 'sec1',
             text: 'hands',
-            options: [
+            type: 'group',
+            item: [
               {
-                id: 'cat1',
-                text: 'Nails',
-                options: [
+                linkId: 'sq2',
+                text: 'Check nails',
+                type: 'choice',
+                required: true,
+                extension: [
                   {
-                    id: 'sq2',
-                    text: 'Check nails',
-                    isRequired: true,
-                    'multi-choice': true,
-                    'job-aid-type': 'image' as const,
-                    'job-aid-file': 'nails.png',
-                    options: [
-                      { id: 'sq2-n', text: 'Normal', 'exclude-from-multi-choice': true },
-                      { id: 'sq2-a', text: 'Cyanosis' },
-                      { id: 'sq2-cam', text: 'Camera', 'input-type': 'camera', 'is-exclusive-option': 'true' },
-                      { id: 'sq2-exc', text: 'Exclusive bool', 'is-exclusive-option': true },
+                    url: 'http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl',
+                    valueCodeableConcept: {
+                      coding: [
+                        {
+                          system:
+                            'http://hl7.org/fhir/questionnaire-item-control',
+                          code: 'check-box',
+                        },
+                      ],
+                    },
+                  },
+                  { url: `${IH}/job-aid-type`, valueString: 'image' },
+                  { url: `${IH}/job-aid-file`, valueString: 'nails.png' },
+                ],
+                answerOption: [
+                  {
+                    valueCoding: { code: 'sq2-n', display: 'Normal' },
+                    extension: [
+                      {
+                        url: `${IH}/exclude-from-multi-choice`,
+                        valueString: 'true',
+                      },
+                    ],
+                  },
+                  { valueCoding: { code: 'sq2-a', display: 'Cyanosis' } },
+                  {
+                    valueCoding: { code: 'sq2-exc', display: 'Exclusive' },
+                    extension: [
+                      {
+                        url: `${IH}/is-exclusive-option`,
+                        valueString: 'true',
+                      },
+                    ],
+                  },
+                ],
+                item: [
+                  {
+                    linkId: 'sq2-cam-link',
+                    text: 'Take a picture',
+                    type: 'attachment',
+                    enableWhen: [
+                      {
+                        question: 'sq2',
+                        operator: '=',
+                        answerCoding: { code: 'sq2-cam' },
+                      },
+                    ],
+                    extension: [
+                      {
+                        url: `${IH}/is-exclusive-option`,
+                        valueString: 'true',
+                      },
                     ],
                   },
                 ],
@@ -302,14 +381,19 @@ describe('usePhysicalExam', () => {
 
     it('should handle section with language set to "%"', () => {
       const rawPhysExam = {
-        id: 'root',
-        text: 'Physical Exam',
-        options: [
+        resourceType: 'Questionnaire',
+        item: [
           {
-            id: 'sec1',
+            linkId: 'sec1',
             text: 'feet',
-            language: '%',
-            options: [],
+            type: 'group',
+            extension: [
+              {
+                url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+                valueString: '%',
+              },
+            ],
+            item: [],
           },
         ],
       };
