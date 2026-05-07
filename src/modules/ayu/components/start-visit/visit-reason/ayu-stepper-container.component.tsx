@@ -51,9 +51,7 @@ interface AyuStepperContainerProps {
   summaryTitle?: string;
   skipSummary?: boolean;
   initialAnswers?: Record<string, AyuAnswerValue>;
-  /** Offset added to question index for display (used when multiple files share one section) */
   questionIndexOffset?: number;
-  /** Override total questions count for display (used to show combined total across files) */
   totalQuestionsOverride?: number;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
@@ -112,10 +110,6 @@ export const AyuStepperContainer = forwardRef<
 
     const totalSteps = topLevelItems.length;
     const lastQuestionRef = useRef<HTMLDivElement | null>(null);
-
-    // When remounting with initialAnswers (e.g. returning via "Change" in
-    // medical-history combined summary), reconstruct submitted/skipped sets
-    // so tick-mark icons are preserved — matching Visit Reason behaviour.
     const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(
       () => {
         if (!initialAnswers || Object.keys(initialAnswers).length === 0)

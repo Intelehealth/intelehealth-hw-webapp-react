@@ -9,27 +9,25 @@ export const CONFIRM_MODAL_NO = 'No';
 
 export const PHYSCAL_EXAM_DESCRIPTION = 'Please wash/sanitize your hands';
 export const CONFIRM_MODAL_OK = 'Okay';
-// --- Category List ---
-export const RECENTLY_SEARCHED_LABEL = 'Recently searched';
-export const MOST_COMMON_REASONS_LABEL = 'Most common reasons';
+// --- Selected Reasons ---
+export const SELECTED_REASONS_LABEL = 'Selected reasons';
+
+// --- All Reasons Heading ---
 export const ALL_REASONS_LABEL = 'All reasons';
-export const RECENTLY_SEARCHED_ITEMS = ['Headache', 'Fever', 'Diarrhea'];
-export const MOST_COMMON_REASONS_ITEMS = ['Dizziness', 'Leg pain', 'Cough'];
 
 // --- Search Input ---
 export const VISIT_REASON_QUESTION = 'What is the reason for this visit?';
-export const VISIT_REASON_HINT = 'Select one or multiple reasons';
+export const VISIT_REASON_HINT =
+  'Search a symptom or pick from the most common reasons.';
 export const SEARCH_PLACEHOLDER = 'Type or select reason eg. Fever';
 export const NO_MATCHING_COMPLAINTS = 'No matching complaints found';
 export const MAX_FILTERED_RESULTS = 8;
 
-// --- Selected Reasons ---
-export const SELECTED_REASONS_LABEL = 'Selected reasons';
-
 // --- Footer ---
 export const BUTTON_BACK = 'Back';
 export const BUTTON_CONFIRM = 'Confirm';
-export const BUTTON_NEXT = 'Next';
+export const BUTTON_START_ASSESSMENT = 'Start Assessment';
+export const BUTTON_SAVE_NEXT = 'Save & Next';
 
 // --- Stepper ---
 export const BUTTON_SUBMIT = 'Submit';

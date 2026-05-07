@@ -12,6 +12,7 @@ import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
 import {
+  ALL_REASONS_LABEL,
   BUTTON_BACK,
   BUTTON_CONFIRM,
   CONFIRM_MODAL_DESCRIPTION,
@@ -30,7 +31,6 @@ import type { AyuStepperContainerHandle } from './ayu-stepper-container.componen
 import { AyuStepperContainer } from './ayu-stepper-container.component';
 import { VisitReasonFooter } from './footer';
 import { ReasonAlphabetList } from './reason-alphabetList.component';
-import { ReasonCategoryList } from './reason-categoryList.component';
 import { ReasonSearchInput } from './search-input.component';
 import { SelectedReasons } from './selected-reasons.component';
 
@@ -215,39 +215,39 @@ export const VisitReason = ({
   // DEFAULT VISIT REASON UI
   return (
     <div className="w-full flex flex-col h-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-4">
-        {/* LEFT SIDE */}
-        <div>
-          <QuestionLoader
-            questionIndex={questionIndex}
-            totalQuestions={1}
-            isShowQuestionNumber={false}
-          >
-            <ReasonSearchInput
-              search={search}
-              setSearch={setSearch}
-              filteredNames={filteredNames}
-              disabledReasons={disabledReasons}
-              addReason={addReason}
-            />
-          </QuestionLoader>
+      <div className="flex flex-col gap-4 mt-4 w-full max-w-[996px]">
+        <QuestionLoader
+          questionIndex={questionIndex}
+          totalQuestions={1}
+          isShowQuestionNumber={false}
+        >
+          <ReasonSearchInput
+            search={search}
+            setSearch={setSearch}
+            filteredNames={filteredNames}
+            disabledReasons={disabledReasons}
+            addReason={addReason}
+          />
+        </QuestionLoader>
 
+        <div className="flex flex-col gap-4 pl-[80px]">
           <SelectedReasons
             selectedReasons={selectedReasons}
             removeReason={removeReason}
           />
-        </div>
 
-        {/* RIGHT SIDE */}
-        <div className="flex flex-col">
-          <ReasonCategoryList addReason={addReason} />
+          <div className="flex flex-col">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">
+              {ALL_REASONS_LABEL}
+            </h3>
 
-          <ReasonAlphabetList
-            grouped={grouped}
-            selectedReasons={selectedReasons}
-            disabledReasons={disabledReasons}
-            addReason={addReason}
-          />
+            <ReasonAlphabetList
+              grouped={grouped}
+              selectedReasons={selectedReasons}
+              disabledReasons={disabledReasons}
+              addReason={addReason}
+            />
+          </div>
         </div>
       </div>
 
