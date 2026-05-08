@@ -8,8 +8,8 @@ import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
-import { PHYSICAL_EXAM_QUESTIONS } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
+import type { PhysicalExamQuestion } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_CONFIRM,
@@ -163,7 +163,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
   const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
-  const visibleQuestionsRef = useRef<typeof PHYSICAL_EXAM_QUESTIONS>([]);
+  const visibleQuestionsRef = useRef<PhysicalExamQuestion[]>([]);
 
   const wrappedOnNextQuestion = useCallback(() => {
     const currentAnswers = answersRef.current;

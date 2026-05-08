@@ -3,12 +3,12 @@ import type { SectionProps } from '../../ayu-library/types/start-visit.types';
 import { fileToBase64 } from '../../profile/profile.helpers';
 import { storage } from '../../../utils/storage';
 import { useStartVisitData } from '../context/start-visit.context';
-import {
-  filterPhysicalExamQuestions,
-  PHYSICAL_EXAM_QUESTIONS,
-  type PhysicalExamAnswers,
-  type PhysicalExamOption,
-} from '../data/physical-exam.data';
+import type {
+  PhysicalExamAnswers,
+  PhysicalExamOption,
+  PhysicalExamQuestion,
+} from '../types/physical-exam.types';
+import { filterPhysicalExamQuestions } from '../utils/physical-exam.utils';
 import {
   addPendingImage,
   clearPendingImages,
@@ -21,13 +21,13 @@ import {
 import type { CapturedImage } from '../types/obs.types';
 import { AYU_JSON_KEY_NAME } from '../utils/ayu.constants';
 import {
-  parsePhysExamJson,
-  type PhysExamRawRoot,
-} from '../utils/parsePhysExamJson';
+  parseFhirPhysExamQuestionnaire,
+  type FhirQuestionnaire,
+} from '../utils/parseFhirPhysExamQuestionnaire';
 import { useAyuJsonList } from './useAyuJson.hook';
 
 const computeVisible = (
-  base: typeof PHYSICAL_EXAM_QUESTIONS,
+  base: PhysicalExamQuestion[],
   answers: PhysicalExamAnswers
 ) =>
   base.filter(
@@ -37,15 +37,12 @@ const computeVisible = (
   );
 
 const allReqMet = (
-  questions: typeof PHYSICAL_EXAM_QUESTIONS,
+  questions: PhysicalExamQuestion[],
   ans: PhysicalExamAnswers
 ) =>
   questions.filter(q => q.isRequired).every(q => (ans[q.id] ?? []).length > 0);
 
-const sectionComment = (
-  questions: typeof PHYSICAL_EXAM_QUESTIONS,
-  qId: string
-) =>
+const sectionComment = (questions: PhysicalExamQuestion[], qId: string) =>
   questions.find(q => q.id === qId)?.sectionLabel?.replace(/:$/, '') ??
   'General exams';
 
@@ -61,14 +58,16 @@ export const usePhysicalExam = ({
   const serverQuestions = useMemo(() => {
     const item = ayuList.find(i => i.name === 'physExam.json');
     return item
-      ? parsePhysExamJson(item.json as unknown as PhysExamRawRoot)
+      ? parseFhirPhysExamQuestionnaire(
+          item.json as unknown as FhirQuestionnaire
+        )
       : null;
   }, [ayuList]);
 
   const baseQuestions = useMemo(
     () =>
       filterPhysicalExamQuestions(
-        serverQuestions ?? PHYSICAL_EXAM_QUESTIONS,
+        serverQuestions ?? [],
         physicalExamFilter ?? ''
       ),
     [physicalExamFilter, serverQuestions]

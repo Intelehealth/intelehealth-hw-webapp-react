@@ -12,7 +12,7 @@ import {
 import type {
   PhysicalExamAnswers,
   PhysicalExamQuestion,
-} from '../data/physical-exam.data';
+} from '../types/physical-exam.types';
 import type {
   EncounterObs,
   EncounterPayload,

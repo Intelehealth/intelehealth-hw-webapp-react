@@ -190,24 +190,21 @@ vi.mock('../../../../hooks/useConfig', () => ({
   useConfig: () => mockUseConfig(),
 }));
 
-/* ── Mock physical-exam data ─────────────────────────────────────────────── */
+/* ── Mock useAyuJsonList (provides physExam.json) ────────────────────────── */
 
-vi.mock('../../../../modules/ayu/data/physical-exam.data', () => ({
-  PHYSICAL_EXAM_QUESTIONS: [
-    {
-      id: 'pe1',
-      sectionLabel: 'General',
-      categoryLabel: 'General Appearance',
-      questionText: 'General appearance?',
-      isRequired: false,
-      isMultiChoice: true,
-      options: [
-        { id: 'opt1', text: 'Normal' },
-        { id: 'opt2', text: 'Abnormal' },
-      ],
-    },
-  ],
+let mockAyuJsonList: Array<{ name: string; json: unknown }> = [
+  { name: 'physExam.json', json: {} },
+];
+vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
+  useAyuJsonList: () => mockAyuJsonList,
 }));
+
+vi.mock(
+  '../../../../modules/ayu/utils/parseFhirPhysExamQuestionnaire',
+  () => ({
+    parseFhirPhysExamQuestionnaire: () => [],
+  })
+);
 
 /* ── Import the component under test (after all mocks) ───────────────────── */
 
@@ -294,9 +291,19 @@ beforeEach(() => {
 });
 
 describe('VisitSummaryPage', () => {
+  beforeEach(() => {
+    mockAyuJsonList = [{ name: 'physExam.json', json: {} }];
+  });
+
   /* ── Header ──────────────────────────────────────────────────────────── */
 
   it('should render the "Visit Summary" header', () => {
+    renderWithData();
+    expect(screen.getByText('Visit Summary')).toBeInTheDocument();
+  });
+
+  it('should render when ayuList has no physExam.json item', () => {
+    mockAyuJsonList = [];
     renderWithData();
     expect(screen.getByText('Visit Summary')).toBeInTheDocument();
   });

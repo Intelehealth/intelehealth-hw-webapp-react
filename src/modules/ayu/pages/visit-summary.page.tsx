@@ -24,7 +24,7 @@ import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.comp
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
-import { PHYSICAL_EXAM_QUESTIONS } from '../data/physical-exam.data';
+import { useAyuJsonList } from '../hooks/useAyuJson.hook';
 import {
   addPendingDocument,
   clearPendingDocuments,
@@ -44,12 +44,17 @@ import type { CapturedDocument } from '../types/obs.types';
 import { ACCEPTED_DOCUMENT_TYPES } from '../types/obs.types';
 import type { VitalsFormValues } from '../types/vitals.types';
 import {
+  AYU_JSON_KEY_NAME,
   ITEM_TYPES,
   PATIENT_AGE_KEY,
   PATIENT_GENDER_KEY,
   PATIENT_NAME_KEY,
   PATIENT_UUID_KEY,
 } from '../utils/ayu.constants';
+import {
+  parseFhirPhysExamQuestionnaire,
+  type FhirQuestionnaire,
+} from '../utils/parseFhirPhysExamQuestionnaire';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -229,6 +234,15 @@ const VisitSummaryPage = () => {
     setLastSectionIndex,
   } = useStartVisitData();
   const { hwProfile } = useProfileContext();
+  const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
+  const physicalExamQuestions = useMemo(() => {
+    const item = ayuList.find(i => i.name === 'physExam.json');
+    return item
+      ? parseFhirPhysExamQuestionnaire(
+          item.json as unknown as FhirQuestionnaire
+        )
+      : [];
+  }, [ayuList]);
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -309,7 +323,7 @@ const VisitSummaryPage = () => {
 
       const physicalExam = buildPhysicalExamData(
         data.physicalExam.answers,
-        PHYSICAL_EXAM_QUESTIONS
+        physicalExamQuestions
       );
 
       const medicalHistory = buildMedicalHistoryData(
@@ -387,6 +401,7 @@ const VisitSummaryPage = () => {
     clearVisitId,
     additionalNotes,
     additionalDocuments,
+    physicalExamQuestions,
   ]);
 
   const confirmAndUpload = useCallback(() => {
