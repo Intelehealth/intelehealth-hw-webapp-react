@@ -91,13 +91,19 @@ const DashboardComponent = ({
           />
         </div>
         <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
-          <DashboardCard
-            title="Appointments"
-            subtitle="<strong>0</strong> Upcoming"
-            bg="bg-white"
-            iconBg="bg-purple-200"
-            icon={iconCalenderBlue}
-          />
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate(ROUTES.APPOINTMENT_LIST)}
+          >
+            <DashboardCard
+              title="Appointments"
+              subtitle="<strong>0</strong> Upcoming"
+              bg="bg-white"
+              iconBg="bg-purple-200"
+              icon={iconCalenderBlue}
+            />
+          </div>
+
           <div
             className="cursor-pointer"
             onClick={() => navigate('/followup-visits')}

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { appointmentsListData } from '../../../assets/data/appointments.data';
 import MyAppointments from '../../../modules/appointment-visit/my-appointments.component';
 
 const mockNavigate = vi.fn();
@@ -11,6 +12,14 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => mockNavigate,
   };
 });
+
+vi.mock('../../../hooks/useAppointmentList', () => ({
+  useAppointmentList: () => ({
+    data: appointmentsListData,
+    loading: false,
+    error: null,
+  }),
+}));
 
 const renderComponent = () => render(<MyAppointments />);
 

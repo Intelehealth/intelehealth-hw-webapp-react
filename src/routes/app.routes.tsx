@@ -33,6 +33,9 @@ const PrescriptionsPage = lazy(
 const OpenVisitsPage = lazy(
   () => import('../pages/open-visits/open-visits.page')
 );
+const AppointmentListPage = lazy(
+  () => import('../pages/appointment-list/appointment-list.page')
+);
 const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
 const FollowupVisitsPage = lazy(
   () => import('../pages/followup-visits/followup-visits.page')
@@ -185,6 +188,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <OpenVisitsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.APPOINTMENT_LIST}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AppointmentListPage />
                 </Suspense>
               }
             />

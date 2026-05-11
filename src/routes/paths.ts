@@ -16,6 +16,7 @@ const ROUTES = {
   ADD_PATIENT: '/add-patient',
   COMMON_UI: '/common-ui',
   TEST_PROFILE_GUARD: '/test-profile-guard',
+  APPOINTMENT_LIST: '/appointment-lists',
   MY_APPOINTMENTS: '/my-appointments',
   APPOINTMENT_VISIT_SHEDULE: '/appointment-schedule/:visitUuid?',
   APPOINTMENT_DETAILS: '/my-appointments/:id',
