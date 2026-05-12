@@ -101,9 +101,10 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('Prescriptions')).toBeInTheDocument();
     });
 
-    it('renders filter icon', () => {
+    it('renders sort icons next to search', () => {
       renderComponent();
-      expect(screen.getByAltText('filter')).toBeInTheDocument();
+      expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
+      expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
     });
 
     it('renders search input with placeholder', () => {
@@ -342,6 +343,120 @@ describe('PrescriptionsReceived', () => {
       const input = screen.getByPlaceholderText('Find patient');
       fireEvent.change(input, { target: { value: 'nonexistent' } });
       expect(screen.getByText('No pending prescriptions found.')).toBeInTheDocument();
+    });
+  });
+
+  describe('Sorting by column header', () => {
+    it('clicking Patient header sorts received data ascending', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+
+      // Nikita < Sarrah < Suresh alphabetically
+      const rows = document.querySelectorAll('.rounded-xl');
+      const patientTexts = Array.from(rows)
+        .map(r => r.textContent ?? '')
+        .filter(t => t.includes('Nikita') || t.includes('Sarrah') || t.includes('Suresh'));
+      if (patientTexts.length >= 2) {
+        const nikitaIndex = patientTexts.findIndex(t => t.includes('Nikita'));
+        const sureshIndex = patientTexts.findIndex(t => t.includes('Suresh'));
+        expect(nikitaIndex).toBeLessThan(sureshIndex);
+      }
+    });
+
+    it('second click sorts received data descending', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+      fireEvent.click(patientHeaders[0]); // desc
+
+      const descIcons = screen.getAllByAltText('sort-desc');
+      expect(descIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+    });
+
+    it('third click removes sort', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+      fireEvent.click(patientHeaders[0]); // desc
+      fireEvent.click(patientHeaders[0]); // null
+
+      const allSortIcons = [
+        ...screen.getAllByAltText('sort-asc'),
+        ...screen.getAllByAltText('sort-desc'),
+      ];
+      allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
+    });
+
+    it('sorts pending data ascending when Pending tab is active', () => {
+      mockUsePrescriptionsPending.mockReturnValue({
+        data: [
+          { visitUuid: 'p-2', patientName: 'Zara Malik', gender: 'F', age: 29, visitCreatedDate: '2025-04-22', clinicName: 'TM Clinic 2', uploadTimestamp: '10 min ago' },
+          { visitUuid: 'p-1', patientName: 'Aarav Shah', gender: 'M', age: 40, visitCreatedDate: '2025-04-21', clinicName: 'TM Clinic 1', uploadTimestamp: '30 min ago' },
+        ],
+        loading: false,
+        error: null,
+        totalCount: 2,
+      });
+      renderComponent();
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+
+      const rows = document.querySelectorAll('.rounded-xl');
+      const rowTexts = Array.from(rows)
+        .map(r => r.textContent ?? '')
+        .filter(t => t.includes('Aarav') || t.includes('Zara'));
+      if (rowTexts.length >= 2) {
+        const aaravIndex = rowTexts.findIndex(t => t.includes('Aarav'));
+        const zaraIndex = rowTexts.findIndex(t => t.includes('Zara'));
+        expect(aaravIndex).toBeLessThan(zaraIndex);
+      }
+    });
+
+    it('clicking Age header sorts by age', () => {
+      renderComponent();
+      const ageHeaders = screen.getAllByText('Age');
+      fireEvent.click(ageHeaders[0]); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+    });
+  });
+
+  describe('Name sort button (search area)', () => {
+    it('first click sorts ascending — sort-asc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
+
+      expect(sortAscIcon).toHaveClass('opacity-100');
+    });
+
+    it('second click sorts descending — sort-desc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+
+      expect(sortDescIcon).toHaveClass('opacity-100');
+      expect(sortAscIcon).toHaveClass('opacity-70');
+    });
+
+    it('third click clears sort — both icons inactive', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+      fireEvent.click(sortAscIcon); // null
+
+      expect(sortAscIcon).toHaveClass('opacity-70');
+      expect(sortDescIcon).toHaveClass('opacity-70');
     });
   });
 

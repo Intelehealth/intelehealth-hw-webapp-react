@@ -113,11 +113,108 @@ describe('FollowupVisitsComponent', () => {
   });
 
 
+  describe('Sorting by column header', () => {
+    it('clicking Patient header sorts ascending — Priya before Ravi', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+
+      const rows = document.querySelectorAll('.rounded-xl');
+      const rowTexts = Array.from(rows)
+        .map(r => r.textContent ?? '')
+        .filter(t => t.includes('Priya') || t.includes('Ravi'));
+      if (rowTexts.length >= 2) {
+        const priyaIndex = rowTexts.findIndex(t => t.includes('Priya'));
+        const raviIndex = rowTexts.findIndex(t => t.includes('Ravi'));
+        expect(priyaIndex).toBeLessThan(raviIndex);
+      }
+    });
+
+    it('second click sorts descending — Ravi before Priya', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+      fireEvent.click(patientHeaders[0]); // desc
+
+      const descIcons = screen.getAllByAltText('sort-desc');
+      expect(descIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+
+      const rows = document.querySelectorAll('.rounded-xl');
+      const rowTexts = Array.from(rows)
+        .map(r => r.textContent ?? '')
+        .filter(t => t.includes('Priya') || t.includes('Ravi'));
+      if (rowTexts.length >= 2) {
+        const raviIndex = rowTexts.findIndex(t => t.includes('Ravi'));
+        const priyaIndex = rowTexts.findIndex(t => t.includes('Priya'));
+        expect(raviIndex).toBeLessThan(priyaIndex);
+      }
+    });
+
+    it('third click removes sort icon', () => {
+      renderComponent();
+      const patientHeaders = screen.getAllByText('Patient');
+      fireEvent.click(patientHeaders[0]); // asc
+      fireEvent.click(patientHeaders[0]); // desc
+      fireEvent.click(patientHeaders[0]); // null
+
+      const allSortIcons = [
+        ...screen.getAllByAltText('sort-asc'),
+        ...screen.getAllByAltText('sort-desc'),
+      ];
+      allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
+    });
+
+    it('clicking Age header sorts by age', () => {
+      renderComponent();
+      const ageHeaders = screen.getAllByText('Age');
+      fireEvent.click(ageHeaders[0]); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+    });
+  });
+
+  describe('Name sort button (search area)', () => {
+    it('first click sorts ascending — sort-asc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
+
+      expect(sortAscIcon).toHaveClass('opacity-100');
+    });
+
+    it('second click sorts descending — sort-desc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+
+      expect(sortDescIcon).toHaveClass('opacity-100');
+      expect(sortAscIcon).toHaveClass('opacity-70');
+    });
+
+    it('third click clears sort — both icons inactive', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+      fireEvent.click(sortAscIcon); // null
+
+      expect(sortAscIcon).toHaveClass('opacity-70');
+      expect(sortDescIcon).toHaveClass('opacity-70');
+    });
+  });
+
   it('navigates to visit details on row click', () => {
     renderComponent();
-  
+
     const raviNodes = screen.getAllByText('Ravi Kumar');
-  
+
     const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
     if (clickable) fireEvent.click(clickable);
     expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
