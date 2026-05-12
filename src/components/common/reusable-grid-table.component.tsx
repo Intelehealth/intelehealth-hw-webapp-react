@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import iconSortAsc from '../../assets/icons/icon-sort-asc.svg';
+import iconSortDesc from '../../assets/icons/icon-sort-desc.svg';
 
 const DEFAULT_ROW_COUNT = 6;
 
@@ -13,6 +15,9 @@ interface ResponsiveTableProps<T> {
   data: T[];
   initialRowCount?: number;
   onRowClick?: (row: T) => void;
+  sortKey?: string | null;
+  sortOrder?: 'asc' | 'desc' | null;
+  onSort?: (key: string) => void;
 }
 
 export function ReusableGridTable<T>({
@@ -20,6 +25,9 @@ export function ReusableGridTable<T>({
   data,
   initialRowCount = DEFAULT_ROW_COUNT,
   onRowClick,
+  sortKey,
+  sortOrder,
+  onSort,
 }: ResponsiveTableProps<T>) {
   const [showAll, setShowAll] = useState(false);
 
@@ -30,9 +38,31 @@ export function ReusableGridTable<T>({
     <div className="flex flex-col min-h-0 flex-1">
       {/* Desktop Header – fixed at top */}
       <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500 bg-white z-10 py-2 shrink-0">
-        {columns.map((col, index) => (
-          <span key={index}>{col.header}</span>
-        ))}
+        {columns.map((col, index) => {
+          const isActive = sortKey === String(col.accessor);
+          return (
+            <span
+              key={index}
+              className={`inline-flex items-center gap-1${onSort ? ' cursor-pointer select-none' : ''}`}
+              onClick={() => onSort?.(String(col.accessor))}
+            >
+              {col.header}
+              {onSort && (
+                <img
+                  src={
+                    isActive && sortOrder === 'desc'
+                      ? iconSortDesc
+                      : iconSortAsc
+                  }
+                  alt={
+                    isActive && sortOrder === 'desc' ? 'sort-desc' : 'sort-asc'
+                  }
+                  className={`${isActive && sortOrder ? 'opacity-100' : 'opacity-30'}`}
+                />
+              )}
+            </span>
+          );
+        })}
       </div>
 
       {/*  Rows – scrollable area */}
