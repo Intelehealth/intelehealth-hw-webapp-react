@@ -21,9 +21,11 @@ export const useAppointmentList = () => {
     const today = new Date();
     const from = new Date(today);
     from.setMonth(from.getMonth() - 6);
+    const to = new Date(today);
+    to.setMonth(to.getMonth() + 6);
 
     appointmentService
-      .getUserAppointments(toISODate(from), toISODate(today))
+      .getUserAppointments(toISODate(from), toISODate(to))
       .then(setData)
       .catch((err: unknown) => {
         const message =

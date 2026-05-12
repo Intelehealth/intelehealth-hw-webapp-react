@@ -222,7 +222,10 @@ export const appointmentService = {
     const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(apiFrom)}&toDate=${encodeURIComponent(apiTo)}&speciality=${encodeURIComponent(speciality)}`;
     const res = await AppointmentApi.get<AppointmentSlotsApiResponse>(url);
     console.warn('[getUserAppointments] url:', url, 'response:', res);
-    const appointments = res.bookedAppointments ?? [];
+    const appointments = [
+      ...(res.bookedAppointments ?? []),
+      ...(res.rescheduledAppointments ?? []),
+    ];
     console.warn(
       '[getUserAppointments] appointments count:',
       appointments.length

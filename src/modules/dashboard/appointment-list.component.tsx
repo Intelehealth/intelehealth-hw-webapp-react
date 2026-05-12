@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 
 import type { AppointmentListItem } from '../../assets/data/appointments.data';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { useAppointmentList } from '../../hooks/useAppointmentList';
@@ -32,10 +33,24 @@ export const AppointmentListComponent = ({
 }: AppointmentListProps = {}) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const { data, loading, error } = useAppointmentList();
 
-  const filtered = data.filter(p =>
-    p.patientName.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(() => {
+    return data.filter(
+      p =>
+        p.type === activeTab &&
+        p.patientName.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [data, activeTab, search]);
+
+  const upcomingCount = useMemo(
+    () => data.filter(a => a.type === 'upcoming').length,
+    [data]
+  );
+  const pastCount = useMemo(
+    () => data.filter(a => a.type === 'past').length,
+    [data]
   );
 
   const columns: Column[] = [
@@ -78,7 +93,7 @@ export const AppointmentListComponent = ({
           {/* Main Card */}
           <div className="rounded-2xl bg-white shadow-sm flex flex-col flex-1 min-h-0">
             {/* Header */}
-            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:flex-row lg:items-center lg:justify-between shrink-0">
+            <div className="flex flex-col gap-4 rounded-t-2xl border border-[#ECEEFF] p-4 lg:p-3 lg:flex-row lg:items-center lg:justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex items-center">
                   <img
@@ -114,6 +129,35 @@ export const AppointmentListComponent = ({
                     className="w-full sm:w-[247px] h-[37px] border border-gray-300 rounded-lg pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="px-2 py-0.5 shrink-0">
+              <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('upcoming')}
+                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex items-center gap-1 whitespace-nowrap ${
+                    activeTab === 'upcoming'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
+                  }`}
+                >
+                  <img src={iconsPatientRecevied} alt="" />
+                  Upcoming ({upcomingCount})
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('past')}
+                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex items-center gap-1 whitespace-nowrap ${
+                    activeTab === 'past'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
+                  }`}
+                >
+                  <img src={iconsPatientRecevied} alt="" />
+                  Past ({pastCount})
+                </button>
               </div>
             </div>
 
