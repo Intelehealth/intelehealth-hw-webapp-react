@@ -242,7 +242,7 @@ export const MedicalHistory = ({
   return (
     <div className="w-full flex flex-col">
       <div className="flex-1 flex items-center justify-center">
-        <div className="w-full max-w-[800px]">
+        <div className="w-full max-w-[996px]">
           <AyuStepperContainer
             ref={stepperRef}
             key={currentSchema.name}
@@ -264,7 +264,7 @@ export const MedicalHistory = ({
           <AyuButton
             type="button"
             variant="primarylight"
-            size="sm"
+            size="md"
             onClick={() => {
               if (currentStep > 0) {
                 setCurrentStep(prev => prev - 1);
@@ -272,7 +272,7 @@ export const MedicalHistory = ({
                 onPrevSection?.();
               }
             }}
-            className="w-full md:w-[11%]"
+            className="w-full md:w-[9%]"
           >
             <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
@@ -280,11 +280,11 @@ export const MedicalHistory = ({
             <AyuButton
               type="button"
               variant="primary"
-              size="sm"
+              size="md"
               onClick={() => {
                 stepperRef.current?.confirm();
               }}
-              className="w-full md:w-[11%]"
+              className="w-full md:w-[9%]"
             >
               <span className="mx-auto w-full text-base">
                 {BUTTON_SAVE_NEXT}

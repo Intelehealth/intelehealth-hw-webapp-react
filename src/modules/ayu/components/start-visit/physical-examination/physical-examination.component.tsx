@@ -316,9 +316,9 @@ export const PhysicalExamination = (props: SectionProps) => {
           <AyuButton
             type="button"
             variant="primarylight"
-            size="sm"
+            size="md"
             onClick={() => onPrevSection?.()}
-            className="w-full md:w-[11%]"
+            className="w-full md:w-[9%]"
           >
             <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
@@ -326,9 +326,9 @@ export const PhysicalExamination = (props: SectionProps) => {
             <AyuButton
               type="button"
               variant="primary"
-              size="sm"
+              size="md"
               onClick={() => wrappedOnNextQuestion()}
-              className="w-full md:w-[11%]"
+              className="w-full md:w-[9%]"
             >
               <span className="mx-auto w-full text-base">
                 {BUTTON_SAVE_NEXT}

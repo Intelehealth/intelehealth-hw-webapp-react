@@ -193,20 +193,20 @@ export const VisitReason = ({
               <AyuButton
                 type="button"
                 variant="primarylight"
-                size="sm"
+                size="md"
                 onClick={() => {
                   setShowStepper(false);
                 }}
-                className="w-full md:w-[11%]"
+                className="w-full md:w-[9%]"
               >
                 <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
               </AyuButton>
               <AyuButton
                 type="button"
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => stepperRef.current?.showSummary()}
-                className="w-full md:w-[11%]"
+                className="w-full md:w-[9%]"
               >
                 <span className="mx-auto w-full text-base">
                   {BUTTON_SAVE_NEXT}
