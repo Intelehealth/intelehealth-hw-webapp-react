@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 import { QuestionLoader } from '../../../../../modules/ayu/components/loaders/question-loader.component';
 
 describe('QuestionLoader', () => {
@@ -93,13 +93,11 @@ describe('QuestionLoader', () => {
         vi.advanceTimersByTime(800);
       });
 
-      // Loading should be complete
       let dots = container.querySelectorAll('.bg-emerald-500');
       expect(dots).toHaveLength(0);
 
       rerender(<QuestionLoader {...defaultProps} questionIndex={1} />);
 
-      // Loading should restart
       dots = container.querySelectorAll('.bg-emerald-500');
       expect(dots).toHaveLength(3);
     });
@@ -170,6 +168,70 @@ describe('QuestionLoader', () => {
       const { container } = render(<QuestionLoader {...defaultProps} />);
       const wrapper = container.firstChild as HTMLElement;
       expect(wrapper).toHaveClass('max-w-[950px]');
+    });
+  });
+
+  describe('Answered State', () => {
+    it('should render the green answered icon when isAnswered is true', () => {
+      render(<QuestionLoader {...defaultProps} isAnswered={true} />);
+      const answeredIcon = screen.getByAltText('Answered');
+      expect(answeredIcon).toBeInTheDocument();
+
+      const circle = answeredIcon.parentElement as HTMLElement;
+      expect(circle).toHaveClass('bg-[#0FD197]');
+      expect(circle).toHaveClass('rounded-full');
+    });
+
+    it('should not render the question icon when isAnswered is true', () => {
+      render(<QuestionLoader {...defaultProps} isAnswered={true} />);
+      expect(screen.queryByAltText('Question Icon')).not.toBeInTheDocument();
+    });
+
+    it('should render the white-card variant when isAnswered is true', () => {
+      const { container } = render(
+        <QuestionLoader {...defaultProps} isAnswered={true} />
+      );
+
+      expect(container.querySelector('.bg-white')).toBeInTheDocument();
+      expect(container.querySelector('.bg-\\[\\#E5FFF3\\]')).not.toBeInTheDocument();
+    });
+
+    it('should skip the loading delay when isAnswered is true', () => {
+      const { container } = render(
+        <QuestionLoader {...defaultProps} isAnswered={true} />
+      );
+
+      expect(container.querySelectorAll('.bg-emerald-500')).toHaveLength(0);
+    });
+
+    it('should render the edit affordance when isAnswered and onEdit are provided', () => {
+      const onEdit = vi.fn();
+      render(<QuestionLoader {...defaultProps} isAnswered={true} onEdit={onEdit} />);
+      const editButton = screen.getByRole('button', { name: /edit answer/i });
+      expect(editButton).toBeInTheDocument();
+    });
+
+    it('should call onEdit when the edit affordance is clicked', () => {
+      const onEdit = vi.fn();
+      render(<QuestionLoader {...defaultProps} isAnswered={true} onEdit={onEdit} />);
+      fireEvent.click(screen.getByRole('button', { name: /edit answer/i }));
+      expect(onEdit).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not render the edit affordance when onEdit is not provided', () => {
+      render(<QuestionLoader {...defaultProps} isAnswered={true} />);
+      expect(screen.queryByRole('button', { name: /edit answer/i })).not.toBeInTheDocument();
+    });
+
+    it('should not render the edit affordance when isAnswered is false even if onEdit is provided', async () => {
+      render(
+        <QuestionLoader {...defaultProps} isAnswered={false} onEdit={vi.fn()} />
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+
+      expect(screen.queryByRole('button', { name: /edit answer/i })).not.toBeInTheDocument();
     });
   });
 });

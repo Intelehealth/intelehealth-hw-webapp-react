@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReasonSummary from '../../../../../assets/icons/visit-reason.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
@@ -11,7 +10,7 @@ import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
 import {
   BUTTON_BACK,
-  BUTTON_CONFIRM,
+  BUTTON_SAVE_NEXT,
   MEDICAL_HISTORY_SUMMARY_TITLE,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
@@ -241,50 +240,58 @@ export const MedicalHistory = ({
   }
 
   return (
-    <div className="w-full flex flex-col h-full">
-      <AyuStepperContainer
-        ref={stepperRef}
-        key={currentSchema.name}
-        questionnaire={currentSchema.schema}
-        summaryTitle={MEDICAL_HISTORY_SUMMARY_TITLE}
-        skipSummary
-        initialAnswers={fileAnswersRef.current[currentSchema.name]}
-        questionIndexOffset={questionIndexOffset}
-        totalQuestionsOverride={
-          precomputedTotal > 0 ? precomputedTotal : undefined
-        }
-        onComplete={handleComplete}
-        onProgressUpdate={handleProgressUpdate}
-      />
-      {/* Navigation buttons — pinned to bottom */}
-      <div className="sticky bottom-0 bg-white pt-2 pb-4 flex gap-3 md:justify-end">
-        <AyuButton
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            if (currentStep > 0) {
-              setCurrentStep(prev => prev - 1);
-            } else {
-              onPrevSection?.();
+    <div className="w-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-full max-w-[996px]">
+          <AyuStepperContainer
+            ref={stepperRef}
+            key={currentSchema.name}
+            questionnaire={currentSchema.schema}
+            summaryTitle={MEDICAL_HISTORY_SUMMARY_TITLE}
+            skipSummary
+            initialAnswers={fileAnswersRef.current[currentSchema.name]}
+            questionIndexOffset={questionIndexOffset}
+            totalQuestionsOverride={
+              precomputedTotal > 0 ? precomputedTotal : undefined
             }
-          }}
-          className="w-full md:w-[10%]"
-        >
-          <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
-        </AyuButton>
-        {isReviewMode && (
+            onComplete={handleComplete}
+            onProgressUpdate={handleProgressUpdate}
+          />
+        </div>
+      </div>
+      <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 pt-3">
+        <div className="flex gap-3 md:justify-end">
           <AyuButton
             type="button"
-            variant="primary"
-            rightIcon={<img src={iconRightArrow} alt="yes" />}
+            variant="primarylight"
+            size="md"
             onClick={() => {
-              stepperRef.current?.confirm();
+              if (currentStep > 0) {
+                setCurrentStep(prev => prev - 1);
+              } else {
+                onPrevSection?.();
+              }
             }}
-            className="w-full md:w-[10%]"
+            className="w-full md:w-[9%]"
           >
-            <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
+            <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
-        )}
+          {isReviewMode && (
+            <AyuButton
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={() => {
+                stepperRef.current?.confirm();
+              }}
+              className="w-full md:w-[9%]"
+            >
+              <span className="mx-auto w-full text-base">
+                {BUTTON_SAVE_NEXT}
+              </span>
+            </AyuButton>
+          )}
+        </div>
       </div>
     </div>
   );

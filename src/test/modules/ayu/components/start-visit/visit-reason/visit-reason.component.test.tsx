@@ -17,7 +17,6 @@ vi.mock('react-router-dom', () => ({
   }),
 }));
 
-// Mock all child components
 vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
   QuestionLoader: vi.fn(({ children, question }) => (
     <div data-testid="question-loader">
@@ -131,7 +130,6 @@ vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', () => ({
   buildVisitSummary: vi.fn(() => []),
 }));
 
-// Import mocked functions after mocks are set up
 import { useGlobalModal } from '../../../../../../components/modal/global-modal-context';
 import { transformFhirToAyu } from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../../../../modules/ayu/context/start-visit.context';
@@ -143,7 +141,6 @@ const mockUseStartVisitData = vi.mocked(useStartVisitData);
 const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
 const mockShowConfirmModal = vi.fn();
 
-// Helper function to create mock AyuJsonItem
 const createMockAyuJsonItem = (overrides = {}) => ({
   id: 1,
   name: 'Mock Complaint',
@@ -341,11 +338,6 @@ describe('VisitReason', () => {
         />
       );
 
-      /*
-       * React swallows clicks on disabled buttons, so we directly invoke the
-       * onNextQuestion prop captured by the VisitReasonFooter mock to
-       * exercise handleNext's `!canSubmit` early-return branch.
-       */
       const footerCalls = (
         VisitReasonFooter as unknown as { mock: { calls: unknown[][] } }
       ).mock.calls;
@@ -467,7 +459,6 @@ describe('VisitReason', () => {
       const nextButton = screen.getByTestId('footer-next-button');
       await user.click(nextButton);
 
-      // Get the onConfirm callback
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
@@ -512,7 +503,6 @@ describe('VisitReason', () => {
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
-      // Schema is set, which triggers stepper rendering
       await waitFor(() => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
@@ -584,11 +574,9 @@ describe('VisitReason', () => {
       const nextButton = screen.getByTestId('footer-next-button');
       await user.click(nextButton);
 
-      // Trigger the onConfirm callback
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
-      // Wait for stepper to render
       await waitFor(() => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
@@ -626,16 +614,13 @@ describe('VisitReason', () => {
       const nextButton = screen.getByTestId('footer-next-button');
       await user.click(nextButton);
 
-      // Trigger the onConfirm callback
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
-      // Wait for stepper to render
       await waitFor(() => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
 
-      // Default UI should not be visible
       expect(screen.queryByTestId('reason-search-input')).not.toBeInTheDocument();
       expect(screen.queryByTestId('visit-reason-footer')).not.toBeInTheDocument();
     });
@@ -676,7 +661,7 @@ describe('VisitReason', () => {
       onConfirm();
 
       await waitFor(() => {
-        const wrapper = container.querySelector('.w-full.flex.flex-col.h-full');
+        const wrapper = container.querySelector('.w-full.flex.flex-col');
         expect(wrapper).toBeInTheDocument();
       });
     });
@@ -727,7 +712,6 @@ describe('VisitReason', () => {
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
-      // Wait for the setTimeout(0) to fire and show the wash-hands modal
       await waitFor(() => {
         expect(mockShowConfirmModal).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -740,7 +724,6 @@ describe('VisitReason', () => {
         );
       });
 
-      // onProgressUpdate and onNextQuestion should NOT be called yet
       expect(mockOnProgressUpdate).not.toHaveBeenCalled();
       expect(mockOnNextQuestion).not.toHaveBeenCalled();
     });
@@ -789,12 +772,10 @@ describe('VisitReason', () => {
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
-      // Wait for the setTimeout(0) wash-hands modal
       await waitFor(() => {
         expect(mockShowConfirmModal).toHaveBeenCalled();
       });
 
-      // Simulate confirming the wash-hands modal
       const washHandsOnConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       washHandsOnConfirm();
 
@@ -845,7 +826,6 @@ describe('VisitReason', () => {
       const progressButton = screen.getByTestId('stepper-progress-button');
       await user.click(progressButton);
 
-      // When not complete (3 out of 5), should pass actual progress
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 3);
     });
 
@@ -892,7 +872,6 @@ describe('VisitReason', () => {
       const progressCompleteButton = screen.getByTestId('stepper-progress-complete');
       await user.click(progressCompleteButton);
 
-      // When complete (5 out of 5), should pass actual progress
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(5, 5);
     });
 
@@ -929,11 +908,9 @@ describe('VisitReason', () => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
 
-      // Click the progress button (not complete) without onProgressUpdate prop
       const progressButton = screen.getByTestId('stepper-progress-button');
       await user.click(progressButton);
 
-      // Should not throw — handleStepperProgress uses optional chaining
       expect(mockOnNextQuestion).not.toHaveBeenCalled();
     });
 
@@ -1024,7 +1001,6 @@ describe('VisitReason', () => {
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
-      // Wait for the setTimeout(0) wash-hands modal
       await waitFor(() => {
         expect(mockShowConfirmModal).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1033,7 +1009,6 @@ describe('VisitReason', () => {
         );
       });
 
-      // Simulate confirming wash-hands modal
       const washHandsOnConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       washHandsOnConfirm();
 
@@ -1052,7 +1027,7 @@ describe('VisitReason', () => {
         />
       );
 
-      const mainContainer = container.querySelector('.w-full.flex.flex-col.h-full');
+      const mainContainer = container.querySelector('.w-full.flex.flex-col');
       expect(mainContainer).toBeInTheDocument();
     });
 
@@ -1235,19 +1210,16 @@ describe('VisitReason', () => {
         />
       );
 
-      // Trigger modal
       const nextButton = screen.getByTestId('footer-next-button');
       await user.click(nextButton);
 
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
       onConfirm();
 
-      // Wait for stepper to render
       await waitFor(() => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
 
-      // Click complete button to trigger handleStepperComplete
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
@@ -1319,7 +1291,6 @@ describe('VisitReason', () => {
     it('should handle schema with no item property (stableSchema?.item ?? [])', async () => {
       const user = userEvent.setup();
 
-      // Schema with no item property — covers the ?? [] fallback
       const schemaWithoutItems = {
         linkId: 'root',
         type: 'group' as const,
@@ -1355,7 +1326,6 @@ describe('VisitReason', () => {
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
-      // buildVisitSummary should be called with empty array (from ?? [])
       expect(mockBuildVisitSummary).toHaveBeenCalledWith([], expect.any(Map), '');
     });
 
@@ -1412,8 +1382,6 @@ describe('VisitReason', () => {
     });
   });
 
-  // ── Review Mode (savedAnswers from context) ─────────────────────────
-
   describe('Review Mode', () => {
     const savedAnswers = { q1: 'answer1', q2: 'answer2' };
 
@@ -1440,9 +1408,8 @@ describe('VisitReason', () => {
         />
       );
 
-      // Stepper should render immediately without needing modal confirm
       expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
-      // Default UI should not be shown
+
       expect(screen.queryByTestId('visit-reason-footer')).not.toBeInTheDocument();
     });
 
@@ -1497,7 +1464,7 @@ describe('VisitReason', () => {
       );
 
       expect(screen.getByText('Back')).toBeInTheDocument();
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByText('Save & Next')).toBeInTheDocument();
     });
 
     it('should switch to selection view (not previous section) when Back is clicked in review mode', async () => {
@@ -1566,7 +1533,6 @@ describe('VisitReason', () => {
         />
       );
 
-      // Stepper renders immediately in review mode.
       expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
 
       await user.click(screen.getByText('Back'));
@@ -1600,7 +1566,7 @@ describe('VisitReason', () => {
         />
       );
 
-      await user.click(screen.getByText('Confirm'));
+      await user.click(screen.getByText('Save & Next'));
       expect(mockShowSummary).toHaveBeenCalledTimes(1);
     });
 
@@ -1623,7 +1589,6 @@ describe('VisitReason', () => {
         />
       );
 
-      // Enter stepper via normal flow
       const nextButton = screen.getByTestId('footer-next-button');
       await user.click(nextButton);
       const onConfirm = mockShowConfirmModal.mock.calls[0][0].onConfirm;
@@ -1633,7 +1598,6 @@ describe('VisitReason', () => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
 
-      // No Back/Confirm buttons in first-pass mode (savedAnswers is null)
       expect(screen.queryByText('Back')).not.toBeInTheDocument();
       expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
     });
@@ -1664,17 +1628,15 @@ describe('VisitReason', () => {
         />
       );
 
-      // Stepper renders immediately in review mode
       expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
 
       mockShowConfirmModal.mockClear();
       const completeButton = screen.getByTestId('stepper-complete-button');
       await user.click(completeButton);
 
-      // In review mode, should directly navigate without wash-hands modal
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 1);
       expect(mockOnNextQuestion).toHaveBeenCalled();
-      // showConfirmModal should NOT be called for wash-hands
+
       expect(mockShowConfirmModal).not.toHaveBeenCalled();
     });
 
@@ -1687,7 +1649,7 @@ describe('VisitReason', () => {
 
       defaultVisitReasons = createDefaultVisitReasons({
         selectedReasons: ['Fever'],
-        selectedComplaints: [], // empty
+        selectedComplaints: [],
       });
 
       render(
@@ -1699,7 +1661,6 @@ describe('VisitReason', () => {
         />
       );
 
-      // No schema can be built, so default UI should render
       expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
       expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
     });

@@ -224,8 +224,7 @@ export function resolveLabel(
 }
 
 function getLabel(question: AyuQuestion) {
-  const valueString = question?.extension?.find(
-    ext => ext.url === EXT_URL_DISPLAY_TEXT
-  )?.valueString;
-  return valueString ? valueString : question.text;
+  if (question.text) return question.text;
+  return question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
+    ?.valueString;
 }

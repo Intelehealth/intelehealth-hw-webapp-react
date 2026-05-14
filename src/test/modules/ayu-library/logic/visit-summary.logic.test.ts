@@ -86,6 +86,81 @@ describe('buildVisitSummary', () => {
       });
     });
 
+    it('should format integer answer with both low and high as a range', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { low: 5, high: 10 } as unknown as AyuAnswerValue],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Question 1',
+        value: '5 - 10',
+      });
+    });
+
+    it('should format integer answer with only low value', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { low: 5 } as unknown as AyuAnswerValue],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Question 1',
+        value: '5',
+      });
+    });
+
+    it('should format integer answer with only high value', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { high: 10 } as unknown as AyuAnswerValue],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Question 1',
+        value: '10',
+      });
+    });
+
+    it('should skip integer range with both low and high null', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { low: null, high: null } as unknown as AyuAnswerValue],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should stringify a numeric string answer for integer type', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([['q1', '42']]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result[0].items[0]).toEqual({
+        type: 'labelValue',
+        label: 'Question 1',
+        value: '42',
+      });
+    });
+
+    it('should skip integer answer when value is an object without low/high', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', { foo: 'bar' } as unknown as AyuAnswerValue],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result).toEqual([]);
+    });
+
     it('should skip when string answer equals label (display-only)', () => {
       const questions = [makeQuestion({ type: 'string', text: 'Question 1' })];
       const answers = new Map<string, AyuAnswerValue>([

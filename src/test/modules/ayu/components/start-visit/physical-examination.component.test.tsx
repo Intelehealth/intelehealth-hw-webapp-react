@@ -3,8 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PhysicalExamQuestion } from '../../../../../modules/ayu/types/physical-exam.types';
 
-// ── Mock questions ──────────────────────────────────────────────────────────
-
 const MOCK_QUESTIONS: PhysicalExamQuestion[] = [
   {
     id: 'q1',
@@ -52,8 +50,6 @@ const MOCK_QUESTIONS: PhysicalExamQuestion[] = [
     ],
   },
 ];
-
-// ── Mocks ───────────────────────────────────────────────────────────────────
 
 const mockHookReturn = {
   internalIndex: 0,
@@ -182,8 +178,6 @@ vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
 
 import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 const defaultProps = {
   questionIndex: 0,
   onNextQuestion: vi.fn(),
@@ -215,10 +209,7 @@ function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
   });
 }
 
-// Mock scrollIntoView (not implemented in jsdom)
 Element.prototype.scrollIntoView = vi.fn();
-
-// ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('PhysicalExamination', () => {
   beforeEach(() => {
@@ -227,8 +218,6 @@ describe('PhysicalExamination', () => {
     capturedHookProps = {};
     mockContextData = { physicalExam: null };
   });
-
-  // ── Rendering ──────────────────────────────────────────────────────────
 
   describe('rendering', () => {
     it('should render the first question as active', () => {
@@ -254,7 +243,7 @@ describe('PhysicalExamination', () => {
 
     it('should render only visited questions (internalIndex+1)', () => {
       render(<PhysicalExamination {...defaultProps} />);
-      // Only q1 (index 0) is visited
+
       expect(screen.getByText('Is there jaundice?')).toBeInTheDocument();
       expect(screen.queryByText('Is there pallor?')).not.toBeInTheDocument();
       expect(screen.queryByText('Any injuries?')).not.toBeInTheDocument();
@@ -263,7 +252,7 @@ describe('PhysicalExamination', () => {
     it('should render multiple visited questions when internalIndex > 0', () => {
       resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
       render(<PhysicalExamination {...defaultProps} />);
-      // q1 and q2 are both visited
+
       expect(screen.getByText('Is there jaundice?')).toBeInTheDocument();
       expect(screen.getByText('Is there pallor?')).toBeInTheDocument();
     });
@@ -275,14 +264,11 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── Active vs inactive question cards ──────────────────────────────────
-
   describe('active vs inactive cards', () => {
     it('should show options only for the active question', () => {
       resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
       render(<PhysicalExamination {...defaultProps} />);
 
-      // q2 is active — should show "Select any" for multi-choice
       expect(screen.getByText('Select one or more')).toBeInTheDocument();
     });
 
@@ -297,7 +283,7 @@ describe('PhysicalExamination', () => {
         selectedOptionsFor: selFn,
       });
       render(<PhysicalExamination {...defaultProps} />);
-      // q1 is inactive with selection — shows answered badge
+
       expect(screen.getByText('Yes')).toBeInTheDocument();
     });
 
@@ -308,7 +294,7 @@ describe('PhysicalExamination', () => {
         selectedOptionsFor: vi.fn().mockReturnValue([]),
       });
       render(<PhysicalExamination {...defaultProps} />);
-      // q1 is inactive with no selections — no badge
+
       const q1Section = screen.getByText('Is there jaundice?').closest('div[data-testid="question-loader"]');
       const badges = q1Section?.querySelectorAll('.bg-emerald-500');
       expect(badges?.length ?? 0).toBe(0);
@@ -324,18 +310,16 @@ describe('PhysicalExamination', () => {
         currentQuestion: MOCK_QUESTIONS[1],
         selectedOptionsFor: selFn,
       });
-      // Component renders normally — unknown ids are simply not matched to any option
+
       expect(() => render(<PhysicalExamination {...defaultProps} />)).not.toThrow();
     });
   });
-
-  // ── getOptionIcon ──────────────────────────────────────────────────────
 
   describe('getOptionIcon', () => {
     it('should render CheckIcon for "Yes" option', () => {
       render(<PhysicalExamination {...defaultProps} />);
       const yesIcon = screen.getByTestId('icon-q1-yes');
-      // CheckIcon is an SVG with a specific path
+
       const svg = yesIcon.querySelector('svg');
       expect(svg).toBeInTheDocument();
       expect(svg?.querySelector('path')?.getAttribute('d')).toContain('2 7l3.5');
@@ -352,12 +336,10 @@ describe('PhysicalExamination', () => {
     it('should not render icon for other option text', () => {
       resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
       render(<PhysicalExamination {...defaultProps} />);
-      // "Maybe" should have no icon
+
       expect(screen.queryByTestId('icon-q3-other')).not.toBeInTheDocument();
     });
   });
-
-  // ── Job aid references ─────────────────────────────────────────────────
 
   describe('job aid references', () => {
     it('should not show references when asset files are not available', () => {
@@ -374,7 +356,7 @@ describe('PhysicalExamination', () => {
 
     it('should render image reference when jobAidType is image and asset exists', () => {
       mockGetJobAidUrl.mockReturnValue('/assets/jaundice.jpg');
-      // q1 has jobAidType 'image'
+
       render(<PhysicalExamination {...defaultProps} />);
       expect(screen.getByText('References:')).toBeInTheDocument();
       const img = screen.getByAltText('Jaundice');
@@ -384,7 +366,7 @@ describe('PhysicalExamination', () => {
 
     it('should render video reference when jobAidType is video and asset exists', () => {
       mockGetJobAidUrl.mockReturnValue('/assets/pallor.mp4');
-      // Show only q2 (video type) by setting it as the only visible question
+
       const q2Only = [MOCK_QUESTIONS[1]];
       resetHookReturn({
         internalIndex: 0,
@@ -400,8 +382,6 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── Multi-choice vs single-choice label ────────────────────────────────
-
   describe('choice type label', () => {
     it('should show "Select any one" for single-choice questions', () => {
       render(<PhysicalExamination {...defaultProps} />);
@@ -414,8 +394,6 @@ describe('PhysicalExamination', () => {
       expect(screen.getByText('Select one or more')).toBeInTheDocument();
     });
   });
-
-  // ── Skip button ────────────────────────────────────────────────────────
 
   describe('skip button', () => {
     it('should show Skip for non-required questions', () => {
@@ -438,8 +416,6 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.goSkip).toHaveBeenCalledTimes(1);
     });
   });
-
-  // ── Camera option ──────────────────────────────────────────────────────
 
   describe('camera option', () => {
     it('should render camera option button', () => {
@@ -484,8 +460,6 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── Option interactions ────────────────────────────────────────────────
-
   describe('option interactions', () => {
     it('should call selectAndAdvance when regular option is clicked', async () => {
       const user = userEvent.setup();
@@ -497,7 +471,7 @@ describe('PhysicalExamination', () => {
 
     it('should call toggleOption when regular option clicked on previous question', async () => {
       const user = userEvent.setup();
-      // q1 is previous (index 0), q2 is active (index 1)
+
       resetHookReturn({
         internalIndex: 1,
         currentQuestion: MOCK_QUESTIONS[1],
@@ -508,13 +482,10 @@ describe('PhysicalExamination', () => {
       });
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Click q1's "No" option (on the previous/inactive card) — single-choice uses selectSingle
       await user.click(screen.getByTestId('option-q1-no'));
       expect(mockHookReturn.selectSingle).toHaveBeenCalledWith('q1-no', 'q1');
     });
   });
-
-  // ── Back button ────────────────────────────────────────────────────────
 
   describe('back button', () => {
     it('should call onPrevSection when clicked', async () => {
@@ -525,8 +496,6 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.onPrevSection).toHaveBeenCalledTimes(1);
     });
   });
-
-  // ── Image capture callbacks ────────────────────────────────────────────
 
   describe('image capture callbacks', () => {
     beforeEach(() => {
@@ -563,12 +532,10 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── multi-choice toggle (line 151) ──────────────────────────────────
-
   describe('multi-choice option click', () => {
     it('should call toggleOption when clicking a regular option on a multi-choice question (line 151)', async () => {
       const user = userEvent.setup();
-      // q2 is multi-choice, render it as active
+
       resetHookReturn({
         internalIndex: 1,
         currentQuestion: MOCK_QUESTIONS[1],
@@ -580,8 +547,6 @@ describe('PhysicalExamination', () => {
       expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q2-a', 'q2');
     });
   });
-
-  // ── onUploadImages / Submit button (lines 269-272) ─────────────────────
 
   describe('Submit button (onUploadImages)', () => {
     it('should call goNext and track submitted answers when Submit is clicked (lines 269-272)', async () => {
@@ -602,8 +567,6 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── Upload button with tick icon ──────────────────────────────────────
-
   describe('Upload button with tick icon', () => {
     it('should show Upload with image count and tick icon when camera images are uploaded and submitted', async () => {
       const user = userEvent.setup();
@@ -617,21 +580,16 @@ describe('PhysicalExamination', () => {
       });
       render(<PhysicalExamination {...defaultProps} />);
 
-      // Button should show "Upload (2)"
       const uploadBtn = screen.getByText('Upload (2)');
       expect(uploadBtn).toBeInTheDocument();
 
-      // Click to submit
       await user.click(uploadBtn);
 
-      // After submit, tick icon should appear
       const tickIcon = screen.getByAltText('yes');
       expect(tickIcon).toBeInTheDocument();
       expect(tickIcon).toHaveAttribute('src', 'yes-icon.svg');
     });
   });
-
-  // ── scrollIntoView ────────────────────────────────────────────────────
 
   describe('scrollIntoView', () => {
     it('should call scrollIntoView on the active question card', () => {
@@ -640,19 +598,16 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── wrappedOnNextQuestion ───────────────────────────────────────────
-
   describe('wrappedOnNextQuestion', () => {
     it('should show summary modal with sections grouped by sectionKey and call setPhysicalExamData on confirm', () => {
       const originalOnNext = vi.fn();
-      // Set answers so section-building logic is exercised
+
       mockHookReturn.answers = { q1: ['q1-yes'], q2: ['q2-normal'], q3: ['q3-yes'] };
       render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
 
       expect(capturedHookProps.onNextQuestion).toBeDefined();
       expect(capturedHookProps.onNextQuestion).not.toBe(originalOnNext);
 
-      // Call the wrapped function — should open modal with sections
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.open).toBe(true);
@@ -674,11 +629,9 @@ describe('PhysicalExamination', () => {
         ])
       );
 
-      // Verify sections have onChange callbacks and invoke them
       expect(modalConfig.sections[0].onChange).toBeInstanceOf(Function);
       modalConfig.sections[0].onChange();
 
-      // Simulate modal confirm
       modalConfig.onConfirm();
 
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
@@ -707,7 +660,7 @@ describe('PhysicalExamination', () => {
 
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      // No sections because selectedTexts filter(Boolean) removes undefined
+
       expect(modalConfig.sections).toEqual([]);
     });
 
@@ -731,12 +684,12 @@ describe('PhysicalExamination', () => {
 
       capturedHookProps.onNextQuestion();
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      // Empty string is filtered out by .filter(Boolean), so no sections
+
       expect(modalConfig.sections).toEqual([]);
     });
 
     it('should use visibleQuestions from hook (not static PHYSICAL_EXAM_QUESTIONS)', () => {
-      // Override visibleQuestions with a custom question that has different IDs
+
       const serverQuestion = {
         id: 'server-q1',
         sectionLabel: 'Custom:',
@@ -770,22 +723,20 @@ describe('PhysicalExamination', () => {
     it('should update answersRef immediately in onSelectSingle so last question answer appears in summary', async () => {
       const user = userEvent.setup();
       const originalOnNext = vi.fn();
-      // Simulate: selectAndAdvance triggers wrappedOnNextQuestion (last question)
-      // The mock selectAndAdvance should call wrappedOnNextQuestion
+
       resetHookReturn({
         selectAndAdvance: vi.fn(() => {
-          // Simulate the hook calling onNextQuestion after selectAndAdvance
+
           capturedHookProps.onNextQuestion();
         }),
       });
       mockHookReturn.answers = {};
       render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
 
-      // Click "Yes" on q1 — this triggers onSelectSingle which updates answersRef immediately
       await user.click(screen.getByTestId('option-q1-yes'));
 
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      // The summary should include q1's answer even though answers state hadn't re-rendered
+
       expect(modalConfig.sections).toHaveLength(1);
       expect(modalConfig.sections[0].items[0]).toEqual(
         expect.objectContaining({ label: 'Jaundice', value: 'Yes' })
@@ -793,21 +744,19 @@ describe('PhysicalExamination', () => {
     });
   });
 
-  // ── Confirm button (review mode) ─────────────────────────────────────
-
   describe('confirm button', () => {
     it('should not show Confirm button when data.physicalExam is null', () => {
       mockContextData = { physicalExam: null };
       render(<PhysicalExamination {...defaultProps} />);
 
-      expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
+      expect(screen.queryByText('Save & Next')).not.toBeInTheDocument();
     });
 
     it('should show Confirm button when data.physicalExam is truthy', () => {
       mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
       render(<PhysicalExamination {...defaultProps} />);
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByText('Save & Next')).toBeInTheDocument();
     });
 
     it('should show summary modal and call setPhysicalExamData on confirm when Confirm is clicked', async () => {
@@ -816,10 +765,9 @@ describe('PhysicalExamination', () => {
       mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
       render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
 
-      await user.click(screen.getByText('Confirm'));
+      await user.click(screen.getByText('Save & Next'));
       expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
 
-      // Simulate modal confirm
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       modalConfig.onConfirm();
 

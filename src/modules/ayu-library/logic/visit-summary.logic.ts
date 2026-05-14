@@ -44,11 +44,12 @@ export function buildVisitSummary(
   const processed = new Set<string>();
 
   function getExtensionLabel(item: AyuQuestion): string {
-    const ext = item.extension?.find(e => e.url === EXT_URL_DISPLAY_TEXT);
-    return item.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT)
-      ?.valueString === '%'
-      ? ext?.valueString || item.text || ''
-      : item.text || '';
+    // Summary surfaces prefer the short EXT_URL_DISPLAY_TEXT extension
+    // (e.g. "Site"); fall back to the canonical question text when absent.
+    const ext = item.extension?.find(
+      e => e.url === EXT_URL_DISPLAY_TEXT
+    )?.valueString;
+    return ext || item.text || '';
   }
 
   function getAnswerValue(item: AyuQuestion) {
@@ -74,7 +75,20 @@ export function buildVisitSummary(
 
     switch (item.type) {
       case 'integer':
-        return String(answer);
+        if (
+          typeof answer === 'object' &&
+          !Array.isArray(answer) &&
+          ('low' in answer || 'high' in answer)
+        ) {
+          const { low, high } = answer as { low?: number; high?: number };
+          if (low != null && high != null) return `${low} - ${high}`;
+          if (low != null) return String(low);
+          if (high != null) return String(high);
+          return null;
+        }
+        return typeof answer === 'number' || typeof answer === 'string'
+          ? String(answer)
+          : null;
 
       case 'string':
         return typeof answer === 'string' ? answer : null;
