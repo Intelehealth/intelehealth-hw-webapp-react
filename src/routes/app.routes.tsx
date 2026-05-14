@@ -27,6 +27,7 @@ const VerifyOtpPage = lazy(
   () => import('../pages/auth/verify-otp/verify-otp.page')
 );
 const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
+const VideoCallPage = lazy(() => import('../pages/video-call/video-call.page'));
 const PrescriptionsPage = lazy(
   () => import('../pages/prescriptions/prescriptions.page')
 );
@@ -153,6 +154,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.VIDEO_CALL}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <VideoCallPage />
                 </Suspense>
               }
             />
