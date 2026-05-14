@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import type {
@@ -14,7 +13,7 @@ import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
 import {
   ALL_REASONS_LABEL,
   BUTTON_BACK,
-  BUTTON_CONFIRM,
+  BUTTON_SAVE_NEXT,
   CONFIRM_MODAL_DESCRIPTION,
   CONFIRM_MODAL_NO,
   CONFIRM_MODAL_OK,
@@ -175,37 +174,45 @@ export const VisitReason = ({
   if (showStepper && stableSchema) {
     const isReviewMode = !!savedAnswers;
     return (
-      <div className="w-full flex flex-col h-full">
-        <AyuStepperContainer
-          ref={stepperRef}
-          questionnaire={stableSchema}
-          summaryTitle={VISIT_REASON_SUMMARY_TITLE}
-          initialAnswers={savedAnswers}
-          onComplete={handleStepperComplete}
-          onProgressUpdate={handleStepperProgress}
-        />
-        {/* Navigation buttons — pinned to bottom (same pattern as Medical History) */}
+      <div className="w-full flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-[996px]">
+            <AyuStepperContainer
+              ref={stepperRef}
+              questionnaire={stableSchema}
+              summaryTitle={VISIT_REASON_SUMMARY_TITLE}
+              initialAnswers={savedAnswers}
+              onComplete={handleStepperComplete}
+              onProgressUpdate={handleStepperProgress}
+            />
+          </div>
+        </div>
         {isReviewMode && (
-          <div className="sticky bottom-0 bg-white pt-2 pb-4 flex gap-3 md:justify-end">
-            <AyuButton
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setShowStepper(false);
-              }}
-              className="w-full md:w-[10%]"
-            >
-              <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
-            </AyuButton>
-            <AyuButton
-              type="button"
-              variant="primary"
-              rightIcon={<img src={iconRightArrow} alt="yes" />}
-              onClick={() => stepperRef.current?.showSummary()}
-              className="w-full md:w-[10%]"
-            >
-              <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
-            </AyuButton>
+          <div className="border-t border-gray-200 pt-3">
+            <div className="flex gap-3 md:justify-end">
+              <AyuButton
+                type="button"
+                variant="primarylight"
+                size="sm"
+                onClick={() => {
+                  setShowStepper(false);
+                }}
+                className="w-full md:w-[11%]"
+              >
+                <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
+              </AyuButton>
+              <AyuButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => stepperRef.current?.showSummary()}
+                className="w-full md:w-[11%]"
+              >
+                <span className="mx-auto w-full text-base">
+                  {BUTTON_SAVE_NEXT}
+                </span>
+              </AyuButton>
+            </div>
           </div>
         )}
       </div>
@@ -214,39 +221,41 @@ export const VisitReason = ({
 
   // DEFAULT VISIT REASON UI
   return (
-    <div className="w-full flex flex-col h-full">
-      <div className="flex flex-col gap-4 mt-4 w-full max-w-[996px]">
-        <QuestionLoader
-          questionIndex={questionIndex}
-          totalQuestions={1}
-          isShowQuestionNumber={false}
-        >
-          <ReasonSearchInput
-            search={search}
-            setSearch={setSearch}
-            filteredNames={filteredNames}
-            disabledReasons={disabledReasons}
-            addReason={addReason}
-          />
-        </QuestionLoader>
-
-        <div className="flex flex-col gap-4 pl-[80px]">
-          <SelectedReasons
-            selectedReasons={selectedReasons}
-            removeReason={removeReason}
-          />
-
-          <div className="flex flex-col">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">
-              {ALL_REASONS_LABEL}
-            </h3>
-
-            <ReasonAlphabetList
-              grouped={grouped}
-              selectedReasons={selectedReasons}
+    <div className="w-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col gap-4 mt-4 w-full max-w-[996px]">
+          <QuestionLoader
+            questionIndex={questionIndex}
+            totalQuestions={1}
+            isShowQuestionNumber={false}
+          >
+            <ReasonSearchInput
+              search={search}
+              setSearch={setSearch}
+              filteredNames={filteredNames}
               disabledReasons={disabledReasons}
               addReason={addReason}
             />
+          </QuestionLoader>
+
+          <div className="flex flex-col gap-4 pl-[80px]">
+            <SelectedReasons
+              selectedReasons={selectedReasons}
+              removeReason={removeReason}
+            />
+
+            <div className="flex flex-col">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                {ALL_REASONS_LABEL}
+              </h3>
+
+              <ReasonAlphabetList
+                grouped={grouped}
+                selectedReasons={selectedReasons}
+                disabledReasons={disabledReasons}
+                addReason={addReason}
+              />
+            </div>
           </div>
         </div>
       </div>

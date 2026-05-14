@@ -224,8 +224,10 @@ export function resolveLabel(
 }
 
 function getLabel(question: AyuQuestion) {
-  const valueString = question?.extension?.find(
-    ext => ext.url === EXT_URL_DISPLAY_TEXT
-  )?.valueString;
-  return valueString ? valueString : question.text;
+  // Active-question rendering uses the canonical FHIR question text;
+  // the EXT_URL_DISPLAY_TEXT extension is a short summary label reserved for
+  // condensed surfaces (visit summary modal, answered-card review rows).
+  if (question.text) return question.text;
+  return question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
+    ?.valueString;
 }

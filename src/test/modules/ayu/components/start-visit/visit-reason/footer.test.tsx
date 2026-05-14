@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VisitReasonFooter } from '../../../../../../modules/ayu/components/start-visit/visit-reason/footer';
 
-// Mock AyuButton component
 vi.mock('../../../../../../modules/ayu/components/common/ayu-button.component', () => ({
   default: ({ children, onClick, variant, disabled }: any) => (
     <button data-testid={`button-${variant}`} onClick={onClick} disabled={disabled}>
@@ -165,8 +164,6 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    // When onPrevSection is not provided and it's the first question,
-    // clicking Back should call onPrevSection (undefined), not onPrevQuestion
     await user.click(screen.getByText('Back'));
     expect(mockOnPrevQuestion).not.toHaveBeenCalled();
   });
