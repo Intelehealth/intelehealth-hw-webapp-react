@@ -1,5 +1,7 @@
-import iconRightArrow from '../../../assets/arrow-right.svg';
-import { BUTTON_BACK, BUTTON_NEXT } from '../../../utils/ayu.constants';
+import {
+  BUTTON_BACK,
+  BUTTON_START_ASSESSMENT,
+} from '../../../utils/ayu.constants';
 import AyuButton from '../../common/ayu-button.component';
 
 interface Props {
@@ -22,22 +24,23 @@ export const VisitReasonFooter = ({
   const isFirst = questionIndex === 0;
 
   return (
-    <div className="flex gap-3 md:justify-end">
+    <div className="border-t border-gray-200 pt-3 flex gap-3 md:justify-end">
       <AyuButton
         variant="primarylight"
         onClick={isFirst ? onPrevSection : onPrevQuestion}
       >
-        {BUTTON_BACK}
+        <span className="mx-auto w-full text-lg">{BUTTON_BACK}</span>
       </AyuButton>
 
       <AyuButton
         variant="primary"
-        size="sm"
-        rightIcon={<img src={iconRightArrow} alt="yes" />}
+        size="md"
         disabled={isNextDisabled}
         onClick={onNextQuestion}
       >
-        {BUTTON_NEXT}
+        <span className="mx-auto w-full text-lg">
+          {BUTTON_START_ASSESSMENT}
+        </span>
       </AyuButton>
     </div>
   );

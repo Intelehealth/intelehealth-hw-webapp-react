@@ -118,7 +118,7 @@ describe('fhir-to-ayu.util', () => {
         const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
         expect(result).not.toBeNull();
-        // Single root items are now also wrapped in a root group
+
         expect(result?.linkId).toBe('root');
         expect(result?.type).toBe('group');
         expect(result?.item).toHaveLength(1);
@@ -280,10 +280,9 @@ describe('fhir-to-ayu.util', () => {
 
         const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
 
-        // Root wrapper group
         expect(result?.type).toBe('group');
         expect(result?.linkId).toBe('root');
-        // Inner group
+
         const innerGroup = result?.item?.[0];
         expect(innerGroup?.type).toBe('group');
         expect(innerGroup?.item).toHaveLength(2);
@@ -577,7 +576,7 @@ describe('fhir-to-ayu.util', () => {
           };
 
           const result = transformFhirToAyu(questionnaire as unknown as FhirQuestionnaire);
-          // Single items are wrapped in root group
+
           expect(result?.item?.[0]?.type).toBe(type);
         });
       });
@@ -689,10 +688,26 @@ describe('fhir-to-ayu.util', () => {
         expect(resolveLabel(question)).toBe('Fallback Text');
       });
 
-      it('returns the display-text extension valueString when present', () => {
+      it('prefers question.text over the display-text extension when both are present', () => {
+
         const question: AyuQuestion = {
           linkId: 'q1',
           text: 'Raw Text',
+          type: 'string',
+          extension: [
+            {
+              url: 'https://intelehealth.org/fhir/StructureDefinition/display',
+              valueString: 'Display Override',
+            },
+          ],
+        };
+
+        expect(resolveLabel(question)).toBe('Raw Text');
+      });
+
+      it('returns the display-text extension valueString when question.text is absent', () => {
+        const question: AyuQuestion = {
+          linkId: 'q1',
           type: 'string',
           extension: [
             {
@@ -737,7 +752,6 @@ describe('fhir-to-ayu.util', () => {
 
         const label = resolveLabel(question, undefined, previousSibling);
 
-        // getLabel(question) is called, returns question.text since no display ext on question
         expect(label).toBe('Question Text');
       });
 
@@ -794,7 +808,6 @@ describe('fhir-to-ayu.util', () => {
 
         const label = resolveLabel(question, parent, previousSibling);
 
-        // getLabel(question) returns question.text
         expect(label).toBe('Question Text');
       });
     });
@@ -924,7 +937,6 @@ describe('fhir-to-ayu.util', () => {
 
         const label = resolveLabel(question, parent);
 
-        // getLabel(question) returns question.text since question has no display ext
         expect(label).toBe('Integer Q');
       });
 
@@ -941,7 +953,6 @@ describe('fhir-to-ayu.util', () => {
 
         const label = resolveLabel(question, undefined, previousSibling);
 
-        // No extension on sibling, falls through to question?.text which is undefined
         expect(label).toBeUndefined();
       });
 
@@ -972,22 +983,19 @@ describe('fhir-to-ayu.util', () => {
 
     describe('Label Resolution Priority', () => {
       it('should follow correct priority order', () => {
-        // Test 1: Question with extension (highest priority) - returns question's own label
+
         const q1: AyuQuestion = { linkId: 'q1', text: 'Q Text', type: 'string', extension: [{ url: 'ext', valueString: 'val' }] };
         const parent: AyuQuestion = { linkId: 'p', text: 'P Text', type: 'group', extension: [{ url: 'ext', valueString: 'val' }] };
         const sibling: AyuQuestion = { linkId: 's', text: 'S Text', type: 'display', extension: [{ url: 'ext', valueString: 'val' }] };
 
         expect(resolveLabel(q1, parent, sibling)).toBe('Q Text');
 
-        // Test 2: Previous display with extension (second priority) - returns getLabel(question)
         const q2: AyuQuestion = { linkId: 'q2', text: 'Q2 Text', type: 'string' };
         expect(resolveLabel(q2, parent, sibling)).toBe('Q2 Text');
 
-        // Test 3: Parent group with extension (third priority) - returns getLabel(question)
         const q3: AyuQuestion = { linkId: 'q3', text: 'Q3 Text', type: 'string' };
         expect(resolveLabel(q3, parent, undefined)).toBe('Q3 Text');
 
-        // Test 4: None available - returns question?.text
         const q4: AyuQuestion = { linkId: 'q4', type: 'string' };
         expect(resolveLabel(q4)).toBeUndefined();
       });
@@ -1144,7 +1152,7 @@ describe('fhir-to-ayu.util', () => {
     });
 
     it('treats missing age-min as negative infinity (only age-max enforced)', () => {
-      // age-min absent, age-max present → uses Number.NEGATIVE_INFINITY floor.
+
       const ext = [{ url: EXT_AGE_MAX, valueString: '10' }];
       expect(matchesDemographics(ext, { age: 0 })).toBe(true);
       expect(matchesDemographics(ext, { age: 10 })).toBe(true);
@@ -1152,7 +1160,7 @@ describe('fhir-to-ayu.util', () => {
     });
 
     it('treats missing age-max as positive infinity (only age-min enforced)', () => {
-      // age-min present, age-max absent → uses Number.POSITIVE_INFINITY ceiling.
+
       const ext = [{ url: EXT_AGE_MIN, valueString: '18' }];
       expect(matchesDemographics(ext, { age: 17 })).toBe(false);
       expect(matchesDemographics(ext, { age: 18 })).toBe(true);

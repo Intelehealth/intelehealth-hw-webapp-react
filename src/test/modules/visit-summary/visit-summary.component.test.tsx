@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
+import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
 import { visitSummaryService } from '../../../modules/visit-summary/visit-summary.service';
 
 // Mock the service
@@ -1297,7 +1297,8 @@ describe('VisitSummaryComponent', () => {
         expect(screen.getByText('report.pdf')).toBeInTheDocument();
         expect(screen.getByText('notes.docx')).toBeInTheDocument();
         expect(screen.getByText('(3)')).toBeInTheDocument();
-        // Check mixed file type icons (rendered after blob fetch resolves)
+      });
+      await waitFor(() => {
         expect(container.querySelector('.fa-file-pdf')).toBeInTheDocument();
         expect(container.querySelector('.fa-file-word')).toBeInTheDocument();
       });

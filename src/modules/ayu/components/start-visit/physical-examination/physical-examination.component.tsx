@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import iconCamera from '../../../../../assets/icons/icon-camera.svg';
 import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
-import iconRightArrow from '../../../../../assets/icons/icon-right-arrow.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import iconYes from '../../../assets/yes.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
-import { PHYSICAL_EXAM_QUESTIONS } from '../../../data/physical-exam.data';
 import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
+import type { PhysicalExamQuestion } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
-  BUTTON_CONFIRM,
+  BUTTON_SAVE_NEXT,
   BUTTON_SUBMIT,
   BUTTON_UPLOAD,
 } from '../../../utils/ayu.constants';
@@ -163,7 +162,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   const { showVitalConfirmationModal } = useGlobalModal();
   const answersRef = useRef<Record<string, string[]>>({});
   const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
-  const visibleQuestionsRef = useRef<typeof PHYSICAL_EXAM_QUESTIONS>([]);
+  const visibleQuestionsRef = useRef<PhysicalExamQuestion[]>([]);
 
   const wrappedOnNextQuestion = useCallback(() => {
     const currentAnswers = answersRef.current;
@@ -312,26 +311,31 @@ export const PhysicalExamination = (props: SectionProps) => {
           />
         );
       })}
-      <div className="flex gap-3 md:justify-end my-2">
-        <AyuButton
-          type="button"
-          variant="secondary"
-          onClick={() => onPrevSection?.()}
-          className="w-full md:w-[10%]"
-        >
-          <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
-        </AyuButton>
-        {!!data.physicalExam && (
+      <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 pt-3">
+        <div className="flex gap-3 md:justify-end">
           <AyuButton
             type="button"
-            variant="primary"
-            rightIcon={<img src={iconRightArrow} alt="yes" />}
-            onClick={() => wrappedOnNextQuestion()}
+            variant="primarylight"
+            size="md"
+            onClick={() => onPrevSection?.()}
             className="w-full md:w-[10%]"
           >
-            <span className="mx-auto w-full text-base">{BUTTON_CONFIRM}</span>
+            <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
-        )}
+          {!!data.physicalExam && (
+            <AyuButton
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={() => wrappedOnNextQuestion()}
+              className="w-full md:w-[10%]"
+            >
+              <span className="mx-auto w-full text-base">
+                {BUTTON_SAVE_NEXT}
+              </span>
+            </AyuButton>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -60,10 +60,10 @@ describe('MyAppointments', () => {
       expect(screen.getByPlaceholderText('Find patient')).toBeInTheDocument();
     });
 
-    it('renders filter and sort icons', () => {
+    it('renders sort icons next to search', () => {
       renderComponent();
-      expect(screen.getByAltText('filter')).toBeInTheDocument();
-      expect(screen.getByAltText('sort')).toBeInTheDocument();
+      expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
+      expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
     });
 
     it('renders search icon', () => {
@@ -261,6 +261,115 @@ describe('MyAppointments', () => {
       // In past tab, all timeUntil are empty strings so no clock icon
       const clockImgs = document.querySelectorAll('img[alt="clock"]');
       expect(clockImgs.length).toBe(0);
+    });
+  });
+
+  describe('Sorting by column header', () => {
+    it('clicking Patient header sorts ascending — Shantaram before Vimla in past tab', () => {
+      renderComponent();
+      const patientHeader = screen.getByText('Patient');
+      fireEvent.click(patientHeader); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+
+      const desktopRows = document.querySelectorAll('[class*="h-[56px]"]');
+      expect(desktopRows.length).toBe(2);
+      expect(desktopRows[0].textContent).toContain('Shantaram Rathod');
+      expect(desktopRows[1].textContent).toContain('Vimla Jadhav');
+    });
+
+    it('second click sorts descending — Vimla before Shantaram in past tab', () => {
+      renderComponent();
+      const patientHeader = screen.getByText('Patient');
+      fireEvent.click(patientHeader); // asc
+      fireEvent.click(patientHeader); // desc
+
+      const descIcons = screen.getAllByAltText('sort-desc');
+      expect(descIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+
+      const desktopRows = document.querySelectorAll('[class*="h-[56px]"]');
+      expect(desktopRows[0].textContent).toContain('Vimla Jadhav');
+      expect(desktopRows[1].textContent).toContain('Shantaram Rathod');
+    });
+
+    it('third click removes sort — back to original order', () => {
+      renderComponent();
+      const patientHeader = screen.getByText('Patient');
+      fireEvent.click(patientHeader); // asc
+      fireEvent.click(patientHeader); // desc
+      fireEvent.click(patientHeader); // null
+
+      const allSortIcons = [
+        ...screen.getAllByAltText('sort-asc'),
+        ...screen.getAllByAltText('sort-desc'),
+      ];
+      allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
+    });
+
+    it('sorts upcoming tab ascending — Bapu before Ramesh', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText(/Upcoming/));
+      const patientHeader = screen.getByText('Patient');
+      fireEvent.click(patientHeader); // asc
+
+      const desktopRows = document.querySelectorAll('[class*="h-[56px]"]');
+      expect(desktopRows[0].textContent).toContain('Bapu Mali');
+      expect(desktopRows[1].textContent).toContain('Ramesh Patil');
+    });
+
+    it('sorts upcoming tab descending — Ramesh before Bapu', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText(/Upcoming/));
+      const patientHeader = screen.getByText('Patient');
+      fireEvent.click(patientHeader); // asc
+      fireEvent.click(patientHeader); // desc
+
+      const desktopRows = document.querySelectorAll('[class*="h-[56px]"]');
+      expect(desktopRows[0].textContent).toContain('Ramesh Patil');
+      expect(desktopRows[1].textContent).toContain('Bapu Mali');
+    });
+
+    it('clicking Clinic header sorts by clinic', () => {
+      renderComponent();
+      const clinicHeader = screen.getByText('Clinic');
+      fireEvent.click(clinicHeader); // asc
+
+      const ascIcons = screen.getAllByAltText('sort-asc');
+      expect(ascIcons.some(el => el.classList.contains('opacity-100'))).toBe(true);
+    });
+  });
+
+  describe('Name sort button (search area)', () => {
+    it('first click sorts ascending — sort-asc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
+
+      expect(sortAscIcon).toHaveClass('opacity-100');
+    });
+
+    it('second click sorts descending — sort-desc icon becomes active', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+
+      expect(sortDescIcon).toHaveClass('opacity-100');
+      expect(sortAscIcon).toHaveClass('opacity-70');
+    });
+
+    it('third click clears sort — both icons inactive', () => {
+      renderComponent();
+      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
+      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
+      fireEvent.click(sortAscIcon); // asc
+      fireEvent.click(sortAscIcon); // desc
+      fireEvent.click(sortAscIcon); // null
+
+      expect(sortAscIcon).toHaveClass('opacity-70');
+      expect(sortDescIcon).toHaveClass('opacity-70');
     });
   });
 

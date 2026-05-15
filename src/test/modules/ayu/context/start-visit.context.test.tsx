@@ -6,7 +6,7 @@ import {
 } from '../../../../modules/ayu/context/start-visit.context';
 import type { VitalsFormValues } from '../../../../modules/ayu/types/vitals.types';
 import type { VitalField } from '../../../../modules/ayu/types/vitals.types';
-import type { PhysicalExamAnswers } from '../../../../modules/ayu/data/physical-exam.data';
+import type { PhysicalExamAnswers } from '../../../../modules/ayu/types/physical-exam.types';
 import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
 import type { AyuAnswerValue } from '../../../../modules/ayu-library/types/ayu.types';
 

@@ -660,7 +660,7 @@ describe('AyuAssociatedSymptoms', () => {
         />
       );
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('bg-emerald-50', 'p-4', 'rounded-xl');
+      expect(wrapper).toHaveClass('bg-emerald-50', 'rounded-xl');
     });
 
     it('should apply selected class to Yes button when option is selected yes', () => {

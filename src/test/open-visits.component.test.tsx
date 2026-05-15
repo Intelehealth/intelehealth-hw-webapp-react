@@ -128,9 +128,10 @@ describe('OpenVisitsComponent', () => {
     expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
   });
 
-  it('renders filter icon', () => {
+  it('renders sort icons next to search', () => {
     renderComponent();
-    expect(screen.getByAltText('filter')).toBeInTheDocument();
+    expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
   });
 
   it('renders search icon', () => {

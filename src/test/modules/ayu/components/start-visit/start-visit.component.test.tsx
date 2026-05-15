@@ -212,11 +212,6 @@ describe('StartVisit', () => {
       expect(screen.getByText('1/4 Vitals')).toBeInTheDocument();
     });
 
-    it('should render SectionCompletionLoader', () => {
-      renderWithRouter(<StartVisit />);
-      expect(screen.getByTestId('section-completion-loader')).toBeInTheDocument();
-    });
-
     it('should not render SideLoader for sections with single question', () => {
       renderWithRouter(<StartVisit />);
       // Vitals section has only 1 question, so SideLoader should not render
@@ -245,13 +240,12 @@ describe('StartVisit', () => {
       mockStorageStore.patientGender = 'M';
       renderWithRouter(<StartVisit />);
       expect(screen.getByText('John Doe')).toBeInTheDocument();
-      expect(screen.getByText(/\(34/)).toBeInTheDocument();
-      expect(screen.getByText(/\| M\)/)).toBeInTheDocument();
+      expect(screen.getByText(/34\s*•\s*M/)).toBeInTheDocument();
     });
 
     it('should not render patient info when storage is empty', () => {
       renderWithRouter(<StartVisit />);
-      expect(screen.queryByText(/\|/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/•/)).not.toBeInTheDocument();
     });
 
     it('should handle partial patient info (name only)', () => {
@@ -276,8 +270,7 @@ describe('StartVisit', () => {
 
       // Header shows values from state, not storage.
       expect(screen.getByText('Priya')).toBeInTheDocument();
-      expect(screen.getByText(/\(28/)).toBeInTheDocument();
-      expect(screen.getByText(/\| F\)/)).toBeInTheDocument();
+      expect(screen.getByText(/28\s*•\s*F/)).toBeInTheDocument();
 
       // useEffect persists state into storage so a later refresh still sees it.
       expect(mockStorageStore.patientName).toBe('Priya');
@@ -578,13 +571,6 @@ describe('StartVisit', () => {
   });
 
   describe('Loader Components Integration', () => {
-    it('should pass correct props to SectionCompletionLoader', () => {
-      renderWithRouter(<StartVisit />);
-
-      const loader = screen.getByTestId('section-completion-loader');
-      expect(loader).toHaveTextContent('Section: 1, Question: 1');
-    });
-
     it('should pass correct props to SideLoader', async () => {
       const user = userEvent.setup();
       renderWithRouter(<StartVisit />);
@@ -798,9 +784,8 @@ describe('StartVisit', () => {
         (capturedOnProgressUpdate as (total: number, answered: number) => void)(5, 3);
       }
 
-      // Verify the section state is updated (indirectly through loader props)
-      const sectionLoader = screen.getByTestId('section-completion-loader');
-      expect(sectionLoader).toBeInTheDocument();
+      // Verify the visit reason section is still rendered after progress update
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
     });
 
     it('should update section progress when onProgressUpdate is called from PhysicalExamination', async () => {
@@ -826,9 +811,8 @@ describe('StartVisit', () => {
         (capturedOnProgressUpdate as (total: number, answered: number) => void)(8, 4);
       }
 
-      // Verify the section state is updated
-      const sectionLoader = screen.getByTestId('section-completion-loader');
-      expect(sectionLoader).toBeInTheDocument();
+      // Verify the physical exam section is still rendered after progress update
+      expect(screen.getByText(/3\s*\/\s*4\s+Physical Examination/)).toBeInTheDocument();
     });
 
     it('should update section progress when onProgressUpdate is called from MedicalHistory', async () => {
@@ -858,9 +842,8 @@ describe('StartVisit', () => {
         (capturedOnProgressUpdate as (total: number, answered: number) => void)(5, 2);
       }
 
-      // Verify the section state is updated
-      const sectionLoader = screen.getByTestId('section-completion-loader');
-      expect(sectionLoader).toBeInTheDocument();
+      // Verify the medical history section is still rendered after progress update
+      expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
     });
 
     it('should update totalQuestions and answeredQuestions for matching section', async () => {
@@ -882,8 +865,8 @@ describe('StartVisit', () => {
       const updateButton = screen.getByText('Update Progress');
       await user.click(updateButton);
 
-      // The section should be updated, which affects the loader display
-      expect(screen.getByTestId('section-completion-loader')).toBeInTheDocument();
+      // The visit reason section should still be rendered after the progress update
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
     });
 
     it('should handle multiple progress updates for the same section', async () => {
@@ -988,8 +971,8 @@ describe('StartVisit', () => {
       const completeButton = screen.getByText('Complete Visit Reason');
       await user.click(completeButton);
 
-      // Section completion loader should still be rendering correctly
-      expect(screen.getByTestId('section-completion-loader')).toBeInTheDocument();
+      // Visit Reason section should still be rendered after the progress update
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
       // SideLoader not rendered for Visit Reason (only 1 question)
       expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
     });
@@ -1154,19 +1137,17 @@ describe('StartVisit', () => {
 
       renderWithRouter(<StartVisit />);
 
-      // The SectionCompletionLoader should reflect completed sections
-      const loader = screen.getByTestId('section-completion-loader');
-      expect(loader).toBeInTheDocument();
-      // Medical History section (index 3) should show answered = totalQuestions
+      // Medical History section (index 3) should be displayed after restore
       expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
+      expect(screen.getByTestId('medical-history-component')).toBeVisible();
     });
 
     it('should leave sections as incomplete when no data in context', () => {
       renderWithRouter(<StartVisit />);
 
-      // The SectionCompletionLoader shows vitals as answered (default 1)
-      const loader = screen.getByTestId('section-completion-loader');
-      expect(loader).toHaveTextContent('Section: 1, Question: 1');
+      // Without context data, app starts on Vitals (section 1)
+      expect(screen.getByText('1/4 Vitals')).toBeInTheDocument();
+      expect(screen.getByTestId('vitals-component')).toBeVisible();
     });
   });
 

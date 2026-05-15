@@ -30,7 +30,7 @@ export function AyuSelectableOptionGroup({
           <label
             className={
               isAssociatedSymptomsParent || parent
-                ? 'block text-base text-(--color-muted)'
+                ? 'block text-large-label text-(--color-dark)'
                 : 'text-md font-medium text-black-500'
             }
           >
@@ -40,7 +40,7 @@ export function AyuSelectableOptionGroup({
             )} */}
           </label>
         )}
-        <div className="text-sm text-gray-500 -mt-3">
+        <div className="text-sm text-gray-500 -mt-1">
           {question?.repeats ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
         </div>
       </>

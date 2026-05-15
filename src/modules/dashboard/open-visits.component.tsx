@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
+import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
+import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
 
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { useOpenVisits } from '../../hooks/useOpenVisits';
+import { useColumnSort } from '../../hooks/useColumnSort';
+import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
 
 interface Column {
@@ -25,11 +28,20 @@ export const OpenVisitsComponent = ({
 }: OpenVisitsProps = {}) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
+  const {
+    sortOrder: nameSortOrder,
+    toggleSort: toggleNameSort,
+    applySort: applyNameSort,
+  } = useSortByName();
   const { data, loading, error } = useOpenVisits();
 
-  const filtered = data.filter(p =>
-    p.patientName.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const result = data.filter(p =>
+      p.patientName.toLowerCase().includes(search.toLowerCase())
+    );
+    return applySort(applyNameSort(result));
+  }, [data, search, applySort, applyNameSort]);
 
   const columns: Column[] = [
     {
@@ -82,11 +94,19 @@ export const OpenVisitsComponent = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3 shrink-0">
+                <div
+                  className="flex items-center gap-0.5 cursor-pointer"
+                  onClick={toggleNameSort}
+                >
                   <img
-                    src={iconFilter}
-                    alt="filter"
-                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    src={iconAscSorted}
+                    alt="sort-asc"
+                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-70'}`}
+                  />
+                  <img
+                    src={iconDescSorted}
+                    alt="sort-desc"
+                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-70'}`}
                   />
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
@@ -111,6 +131,9 @@ export const OpenVisitsComponent = ({
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
               onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              sortKey={sortKey}
+              sortOrder={sortOrder}
+              onSort={toggleSort}
             />
             {loading && (
               <p className="text-center text-gray-400 py-4">Loading...</p>

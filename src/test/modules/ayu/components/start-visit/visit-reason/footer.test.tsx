@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VisitReasonFooter } from '../../../../../../modules/ayu/components/start-visit/visit-reason/footer';
 
-// Mock AyuButton component
 vi.mock('../../../../../../modules/ayu/components/common/ayu-button.component', () => ({
   default: ({ children, onClick, variant, disabled }: any) => (
     <button data-testid={`button-${variant}`} onClick={onClick} disabled={disabled}>
@@ -21,7 +20,7 @@ describe('VisitReasonFooter', () => {
     vi.clearAllMocks();
   });
 
-  it('should render Back and Next buttons', () => {
+  it('should render Back and Start Assessment buttons', () => {
     render(
       <VisitReasonFooter
         questionIndex={0}
@@ -32,10 +31,10 @@ describe('VisitReasonFooter', () => {
     );
 
     expect(screen.getByText('Back')).toBeInTheDocument();
-    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Start Assessment')).toBeInTheDocument();
   });
 
-  it('should show "Next" on last question (no Confirm button)', () => {
+  it('should show "Start Assessment" on last question (no Confirm button)', () => {
     render(
       <VisitReasonFooter
         questionIndex={5}
@@ -45,7 +44,7 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Start Assessment')).toBeInTheDocument();
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 
@@ -80,7 +79,7 @@ describe('VisitReasonFooter', () => {
     expect(mockOnPrevQuestion).toHaveBeenCalled();
   });
 
-  it('should call onNextQuestion when Next is clicked', async () => {
+  it('should call onNextQuestion when Start Assessment is clicked', async () => {
     const user = userEvent.setup();
     render(
       <VisitReasonFooter
@@ -91,7 +90,7 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    await user.click(screen.getByText('Next'));
+    await user.click(screen.getByText('Start Assessment'));
     expect(mockOnNextQuestion).toHaveBeenCalled();
   });
 
@@ -165,8 +164,6 @@ describe('VisitReasonFooter', () => {
       />
     );
 
-    // When onPrevSection is not provided and it's the first question,
-    // clicking Back should call onPrevSection (undefined), not onPrevQuestion
     await user.click(screen.getByText('Back'));
     expect(mockOnPrevQuestion).not.toHaveBeenCalled();
   });

@@ -35,7 +35,9 @@ describe('ReasonSearchInput', () => {
       />
     );
 
-    expect(screen.getByText('Select one or multiple reasons')).toBeInTheDocument();
+    expect(
+      screen.getByText('Search a symptom or pick from the most common reasons.')
+    ).toBeInTheDocument();
   });
 
   it('should call setSearch when input value changes', async () => {

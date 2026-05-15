@@ -8,7 +8,7 @@ import {
   uploadVisit,
 } from '../../../../modules/ayu/services/visit-upload.service';
 import type { BuildVisitUploadParams } from '../../../../modules/ayu/services/visit-upload.service';
-import type { PhysicalExamQuestion } from '../../../../modules/ayu/data/physical-exam.data';
+import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
 import type { VisitUploadPayload } from '../../../../modules/ayu/types/visit-upload.types';
 import {

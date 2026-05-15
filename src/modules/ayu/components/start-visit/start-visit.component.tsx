@@ -16,7 +16,6 @@ import {
   SECTION_VISIT_REASON,
   SECTION_VITALS,
 } from '../../utils/ayu.constants';
-import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
@@ -300,56 +299,56 @@ export const StartVisit = () => {
 
   return (
     <div className="bg-white">
-      <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
-        <img
-          src={iconStartVisit}
-          className="object-cover rounded-full"
-          alt="Ayu Loader"
-        />
-        Start Visit
-      </div>
-      <div className="mt-2">
-        {patientName && (
-          <span className="text-gray-700 font-semibold">
-            {patientName}
-            <span className="text-gray-700 text-sm font-normal">
-              {patientAge ? ` (${patientAge}` : ''}
-              {patientGender ? ` | ${patientGender})` : ''}
-            </span>
-          </span>
-        )}
-        <div
-          className="font-medium text-xs md:text-sm"
-          style={{ color: '#2e1e91' }}
-        >
-          {currentSectionIndex + 1}/{sections.length}{' '}
-          {sections[currentSectionIndex].name}
-          {getSectionSubtitle(sections[currentSectionIndex].name) && (
-            <> : {getSectionSubtitle(sections[currentSectionIndex].name)}</>
-          )}
+      <div className="mx-auto">
+        <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
+          <img
+            src={iconStartVisit}
+            className="object-cover rounded-full"
+            alt="Ayu Loader"
+          />
+          Start Visit
         </div>
-      </div>
-      {/* Top Loader */}
-      <div className="pt-3">
+        <div className="mt-2 border-b border-gray-200">
+          {patientName && (
+            <span className="text-gray-700 font-medium text-lg">
+              {patientName}
+              <span className="text-[#7f7b92] text-sm font-medium ml-2">
+                {patientAge}
+                {patientGender ? ` • ${patientGender}` : ''}
+              </span>
+            </span>
+          )}
+          <div
+            className="mb-2 font-medium text-lg md:text-sm"
+            style={{ color: '#2e1e91' }}
+          >
+            {currentSectionIndex + 1}/{sections.length}{' '}
+            {sections[currentSectionIndex].name}
+            {getSectionSubtitle(sections[currentSectionIndex].name) && (
+              <> : {getSectionSubtitle(sections[currentSectionIndex].name)}</>
+            )}
+          </div>
+        </div>
+        {/* Top Loader */}
+        {/* <div className="pt-3">
         <SectionCompletionLoader
           sections={sections}
           currentSectionIndex={currentSectionIndex}
         />
-      </div>
+      </div> */}
 
-      {/* Side Loader */}
-      {sections[currentSectionIndex]?.totalQuestions > 1 && (
-        <div className="hidden md:block">
-          <SideLoader
-            sections={sections}
-            currentSectionIndex={currentSectionIndex}
-            currentQuestionIndex={currentQuestionIndex}
-          />
-        </div>
-      )}
+        {/* Side Loader */}
+        {sections[currentSectionIndex]?.totalQuestions > 1 && (
+          <div className="hidden md:block">
+            <SideLoader
+              sections={sections}
+              currentSectionIndex={currentSectionIndex}
+              currentQuestionIndex={currentQuestionIndex}
+            />
+          </div>
+        )}
 
-      {/* Active Section */}
-      <div className="pt-4">
+        {/* Active Section */}
         {currentSectionIndex === 0 && (
           <Vitals
             questionIndex={currentQuestionIndex}

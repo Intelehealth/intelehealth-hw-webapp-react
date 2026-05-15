@@ -1,4 +1,4 @@
-import type { PhysicalExamQuestion } from '../../../data/physical-exam.data';
+import type { PhysicalExamQuestion } from '../../../types/physical-exam.types';
 
 export interface QuestionCardProps {
   question: PhysicalExamQuestion;

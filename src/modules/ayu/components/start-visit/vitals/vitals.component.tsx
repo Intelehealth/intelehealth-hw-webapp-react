@@ -180,7 +180,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
     if (fields.length === 0) return null;
     return (
       <div key={key}>
-        <h3 className="text-base font-semibold text-[--color-primary] mb-4">
+        <h3 className="text-base font-semibold text-[--color-primary] mt-2 mb-4">
           {title}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -208,7 +208,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
           className="w-full md:w-[10%]"
           type="submit"
         >
-          <span className="mx-auto w-full text-base">
+          <span className="mx-auto w-full text-lg">
             {isLast ? 'Confirm' : 'Next'}
           </span>
         </AyuButton>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { achievementReducer } from '../../reducers/achievement.reducer';
 import { authReducer } from '../../reducers/auth.reducer';
 import { rootReducer, type RootState } from '../../reducers/index';
 import loaderReducer from '../../reducers/loader.reducer';
@@ -7,17 +8,25 @@ describe('rootReducer', () => {
   describe('Initial State', () => {
     it('should have correct initial state structure', () => {
       const state = rootReducer(undefined, { type: 'unknown' });
-      
+
+      expect(state).toHaveProperty('achievement');
       expect(state).toHaveProperty('auth');
       expect(state).toHaveProperty('loader');
-      
+
+      expect(state.achievement).toBeDefined();
       expect(state.auth).toBeDefined();
       expect(state.loader).toBeDefined();
     });
 
     it('should initialize with correct default values', () => {
       const state = rootReducer(undefined, { type: 'unknown' });
-      
+
+      // Achievement state
+      expect(state.achievement.rawData).toBeNull();
+      expect(state.achievement.loading).toBe(false);
+      expect(state.achievement.error).toBeNull();
+      expect(state.achievement.localPatients).toEqual([]);
+
       // Auth state
       expect(state.auth.user).toBe(null);
       expect(state.auth.token).toBe(null);
@@ -141,7 +150,13 @@ describe('rootReducer', () => {
   describe('Type Safety', () => {
     it('should have correct RootState type', () => {
       const state: RootState = rootReducer(undefined, { type: 'unknown' });
-      
+
+      // Achievement state type checking
+      expect(state.achievement.rawData).toBeNull();
+      expect(typeof state.achievement.loading).toBe('boolean');
+      expect(state.achievement.error).toBeNull();
+      expect(Array.isArray(state.achievement.localPatients)).toBe(true);
+
       // Auth state type checking
       expect(typeof state.auth.user).toBe('object');
       expect(typeof state.auth.token).toBe('object');
@@ -157,8 +172,9 @@ describe('rootReducer', () => {
 
     it('should maintain type safety across all state properties', () => {
       const state = rootReducer(undefined, { type: 'unknown' });
-      
+
       // Ensure all required properties exist
+      expect(state).toHaveProperty('achievement');
       expect(state).toHaveProperty('auth');
       expect(state).toHaveProperty('loader');
       
@@ -228,8 +244,16 @@ describe('rootReducer', () => {
     it('should use loaderReducer for loader state', () => {
       const rootState = rootReducer(undefined, { type: 'loader/startLoading' });
       const loaderState = loaderReducer(undefined, { type: 'loader/startLoading' });
-      
+
       expect(rootState.loader).toEqual(loaderState);
+    });
+
+    it('should use achievementReducer for achievement state', () => {
+      const action = { type: 'achievement/fetchAchievementStart' };
+      const rootState = rootReducer(undefined, action);
+      const achievementState = achievementReducer(undefined, action);
+
+      expect(rootState.achievement).toEqual(achievementState);
     });
 
     it('should maintain reducer independence', () => {

@@ -1,24 +1,34 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
-import iconSortFilter from '../../assets/icons/appointment/icon-apm-sortasd-filter.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
+import iconSortAsc from '../../assets/icons/icon-sort-asc.svg';
+import iconSortDesc from '../../assets/icons/icon-sort-desc.svg';
+import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
+import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
 import iconClock from '../../assets/icons/appointment/icon-apm-clocktime.svg';
 import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconAngleSmallRight from '../../assets/icons/appointment/icon-angle-small-right.svg';
 import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
-import { useAppointmentList } from '../../hooks/useAppointmentList';
+import { appointmentsListData } from '../../assets/data/appointments.data';
+import { useColumnSort } from '../../hooks/useColumnSort';
+import { useSortByName } from '../../hooks/useSortByName';
 
 export default function MyAppointments() {
   const [activeTab, setActiveTab] = useState('past');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
+  const {
+    sortOrder: nameSortOrder,
+    toggleSort: toggleNameSort,
+    applySort: applyNameSort,
+  } = useSortByName();
   const navigate = useNavigate();
   const { data: appointments, loading, error } = useAppointmentList();
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter(item => {
+    const filtered = appointmentsListData.filter(item => {
       const matchTab = item.type === activeTab;
       const matchSearch = item.patientName
         .toLowerCase()
@@ -27,7 +37,8 @@ export default function MyAppointments() {
       const matchStatus = statusFilter ? item.status === statusFilter : true;
       return matchTab && matchSearch && matchStatus;
     });
-  }, [appointments, activeTab, search, statusFilter]);
+    return applySort(applyNameSort(filtered));
+  }, [activeTab, search, statusFilter, applySort, applyNameSort]);
 
   const upcomingCount = useMemo(
     () =>
@@ -117,6 +128,21 @@ export default function MyAppointments() {
 
       {/* Search + Icons — all screen sizes, right-aligned on desktop */}
       <div className="flex items-center gap-3 mb-3 md:justify-end">
+        <div
+          className="flex items-center gap-0.5 cursor-pointer"
+          onClick={toggleNameSort}
+        >
+          <img
+            src={iconAscSorted}
+            alt="sort-asc"
+            className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-70'}`}
+          />
+          <img
+            src={iconDescSorted}
+            alt="sort-desc"
+            className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-70'}`}
+          />
+        </div>
         <div className="relative flex items-center flex-1 md:flex-none">
           <img
             src={iconSearch}
@@ -131,16 +157,6 @@ export default function MyAppointments() {
             className="w-full md:w-[247px] h-[37px] border border-gray-300 rounded-lg pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
         </div>
-        <img
-          src={iconFilter}
-          alt="filter"
-          className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
-        />
-        <img
-          src={iconSortFilter}
-          alt="sort"
-          className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
-        />
       </div>
 
       {/* Active filter badge */}
@@ -201,6 +217,43 @@ export default function MyAppointments() {
 
       {/* Desktop / Tablet View */}
       <div className="hidden md:block w-full">
+        {/* Column Headers */}
+        <div className="grid md:grid-cols-[2fr_0.8fr_1fr_1.2fr_1.5fr_1fr_1.5fr_auto] gap-4 px-4 py-2 text-sm font-medium text-gray-500">
+          {(
+            [
+              { label: 'Patient', key: 'patientName' },
+              { label: 'Age', key: 'age' },
+              { label: 'Clinic', key: 'clinic' },
+              { label: 'Symptom', key: 'symptom' },
+              { label: 'Date/Time', key: 'dateTime' },
+              { label: 'Status', key: 'status' },
+              { label: 'Time Until', key: 'timeUntil' },
+            ] as const
+          ).map(col => (
+            <span
+              key={col.key}
+              className="inline-flex items-center gap-1 cursor-pointer select-none"
+              onClick={() => toggleSort(col.key)}
+            >
+              {col.label}
+              <img
+                src={
+                  sortKey === col.key && sortOrder === 'desc'
+                    ? iconSortDesc
+                    : iconSortAsc
+                }
+                alt={
+                  sortKey === col.key && sortOrder === 'desc'
+                    ? 'sort-desc'
+                    : 'sort-asc'
+                }
+                className={`${sortKey === col.key && sortOrder ? 'opacity-100' : 'opacity-30'}`}
+              />
+            </span>
+          ))}
+          <span />
+        </div>
+
         <div className="space-y-2">
           {filteredAppointments.map(item => (
             <div

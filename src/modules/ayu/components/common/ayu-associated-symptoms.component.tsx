@@ -41,7 +41,7 @@ export const AyuAssociatedSymptoms = ({
   };
 
   return (
-    <div className="bg-emerald-50 p-4 rounded-xl">
+    <div className="bg-emerald-50 rounded-xl">
       <div className="text-lg font-medium">
         {question?.extension &&
         question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
