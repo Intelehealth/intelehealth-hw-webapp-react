@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentListComponent } from '../../../modules/dashboard/appointment-list.component';
+import * as useAppointmentListModule from '../../../hooks/useAppointmentList';
 
 const mockNavigate = vi.fn();
 
@@ -226,6 +227,32 @@ describe('AppointmentListComponent', () => {
       renderComponent({ initialRowCount: 1 });
       const rows = document.querySelectorAll('[class*="rounded-xl border"]');
       expect(rows.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Loading state', () => {
+    it('shows loading text when loading is true', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [],
+        loading: true,
+        error: null,
+      });
+      renderComponent();
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+  });
+
+  describe('Error state', () => {
+    it('shows error message when error is present', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [],
+        loading: false,
+        error: 'Failed to load appointments',
+      });
+      renderComponent();
+      expect(
+        screen.getByText('Failed to load appointments')
+      ).toBeInTheDocument();
     });
   });
 });
