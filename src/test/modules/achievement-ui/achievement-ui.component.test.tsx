@@ -21,6 +21,18 @@ vi.mock('../../../components/common/calendar.component', () => ({
   ),
 }));
 
+// Mock useAchievements hook
+const mockRefresh = vi.fn();
+const mockUseAchievements = vi.fn();
+vi.mock('../../../hooks/useAchievements', () => ({
+  useAchievements: (...args: unknown[]) => mockUseAchievements(...args),
+}));
+
+// Mock useTimeSpent hook
+vi.mock('../../../hooks/useTimeSpent', () => ({
+  useTimeSpent: () => '0h 0m',
+}));
+
 // Mock SVG imports
 vi.mock('../../../assets/icons/icon-achievements-clock.svg', () => ({ default: 'icon-clock' }));
 vi.mock('../../../assets/icons/icon-achievements-level1.svg', () => ({ default: 'icon-level1' }));
@@ -34,6 +46,12 @@ vi.mock('../../../assets/icons/icon-three-dot-green-rounded.svg', () => ({ defau
 
 import { AchievementUiComponent } from '../../../modules/achievement-ui/achievement-ui.component';
 
+const mockAchievementsData = {
+  patientsCreatedToday: 24,
+  visitsEndedToday: 22,
+  averagePatientSatisfactionScore: 0.3,
+};
+
 const renderComponent = () =>
   render(
     <MemoryRouter>
@@ -44,6 +62,12 @@ const renderComponent = () =>
 describe('AchievementUiComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAchievements.mockReturnValue({
+      data: mockAchievementsData,
+      loading: false,
+      error: null,
+      refresh: mockRefresh,
+    });
   });
 
   describe('rendering', () => {
@@ -111,12 +135,42 @@ describe('AchievementUiComponent', () => {
       expect(screen.getByText('Patients added by you')).toBeInTheDocument();
     });
 
-    it('should render achievement card values', () => {
+    it('should render achievement card values from API data', () => {
       renderComponent();
       expect(screen.getByText('0.3')).toBeInTheDocument();
       expect(screen.getByText('0h 0m')).toBeInTheDocument();
       expect(screen.getByText('22')).toBeInTheDocument();
       expect(screen.getByText('24')).toBeInTheDocument();
+    });
+
+    it('should call useAchievements with overall period', () => {
+      renderComponent();
+      expect(mockUseAchievements).toHaveBeenCalledWith({ period: 'overall' });
+    });
+  });
+
+  describe('loading state', () => {
+    it('should show loading indicator when loading', () => {
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        loading: true,
+        error: null,
+      });
+      renderComponent();
+      const loadingIndicators = screen.getAllByText('...');
+      expect(loadingIndicators.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('error state', () => {
+    it('should show error message when error occurs', () => {
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        loading: false,
+        error: 'Failed to fetch achievements',
+      });
+      renderComponent();
+      expect(screen.getByText('Failed to fetch achievements')).toBeInTheDocument();
     });
   });
 
@@ -146,6 +200,12 @@ describe('AchievementUiComponent', () => {
       fireEvent.click(screen.getByText('Daily'));
       fireEvent.click(screen.getByText('Overall'));
       expect(screen.getByText('Overall')).toHaveClass('text-indigo-600');
+    });
+
+    it('should call useAchievements with undefined for Daily tab', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Daily'));
+      expect(mockUseAchievements).toHaveBeenCalledWith(undefined);
     });
   });
 
@@ -255,6 +315,53 @@ describe('AchievementUiComponent', () => {
       expect(container.querySelector('.bg-\\[\\#EFE8FF\\]')).toBeInTheDocument();
       expect(container.querySelector('.bg-\\[\\#FFEADE\\]')).toBeInTheDocument();
       expect(container.querySelector('.bg-\\[\\#FAF9FF\\]')).toBeInTheDocument();
+    });
+  });
+
+  describe('sync / refresh', () => {
+    it('should call refresh when sync button is clicked', () => {
+      const { container } = renderComponent();
+      const syncBtn = container.querySelector('img[alt="sync"]')?.closest('button');
+      expect(syncBtn).toBeTruthy();
+      if (syncBtn) {
+        fireEvent.click(syncBtn);
+        expect(mockRefresh).toHaveBeenCalledTimes(1);
+      }
+    });
+  });
+
+  describe('Date Range tab — useAchievements params', () => {
+    it('should call useAchievements with undefined when Date Range tab has no dates', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Date Range'));
+      // Without fromDate and toDate, params should be undefined
+      expect(mockUseAchievements).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call useAchievements with fromDate and toDate when both are set', () => {
+      renderComponent();
+      fireEvent.click(screen.getByText('Date Range'));
+      const [fromInput, toInput] = screen.getAllByTestId('calendar-input');
+      fireEvent.change(fromInput, { target: { value: '2026-01-01' } });
+      fireEvent.change(toInput, { target: { value: '2026-01-31' } });
+      expect(mockUseAchievements).toHaveBeenCalledWith({
+        fromDate: '2026-01-01',
+        toDate: '2026-01-31',
+      });
+    });
+  });
+
+  describe('null data fallback', () => {
+    it('should render 0 values when data is null', () => {
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        loading: false,
+        error: null,
+        refresh: mockRefresh,
+      });
+      renderComponent();
+      const zeros = screen.getAllByText('0');
+      expect(zeros.length).toBe(3); // satisfaction, visits, patients
     });
   });
 });
