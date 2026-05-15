@@ -47,10 +47,8 @@ export interface UseAchievementsParams {
   toDate?: string;
 }
 
-/** Patient created locally (before middleware syncs). */
 export interface LocalPatient {
   patientuuid: string;
   providerUuid: string;
-  /** YYYY-MM-DD */
   createdDate: string;
 }

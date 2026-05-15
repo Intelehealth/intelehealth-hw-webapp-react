@@ -5,7 +5,6 @@ interface AchievementState {
   rawData: PullRawData | null;
   loading: boolean;
   error: string | null;
-  /** Patients created locally before middleware syncs. */
   localPatients: LocalPatient[];
 }
 
@@ -28,7 +27,6 @@ const achievementSlice = createSlice({
       state.rawData = action.payload;
       state.loading = false;
       state.error = null;
-      // Remove local patients that now exist in pulldata
       const pulledUuids = new Set(
         action.payload.patientAttributesList.map(a => a.patientuuid)
       );
@@ -41,7 +39,6 @@ const achievementSlice = createSlice({
       state.error = action.payload;
     },
     addLocalPatient: (state, action: PayloadAction<LocalPatient>) => {
-      // Avoid duplicates
       if (
         !state.localPatients.some(
           lp => lp.patientuuid === action.payload.patientuuid

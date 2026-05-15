@@ -36,11 +36,6 @@ function formatTime(ms: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-/**
- * Tracks how long the user has the app open today.
- * Uses Page Visibility API to pause tracking when the tab is hidden.
- * Persists accumulated time in localStorage per day.
- */
 export const useTimeSpent = (): string => {
   const [display, setDisplay] = useState(() => formatTime(loadStoredMs()));
   const accumulatedRef = useRef(loadStoredMs());

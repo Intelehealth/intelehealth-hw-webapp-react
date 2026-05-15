@@ -8,10 +8,6 @@ import {
 import { startLoading, stopLoading } from '../reducers/loader.reducer';
 import type { RootState } from '../reducers';
 
-/**
- * Fetch raw achievement data once.
- * Skips fetch if data is already in the store.
- */
 export const fetchAchievementData = (locationUuid: string) => {
   return async (dispatch: Dispatch, getState: () => RootState) => {
     const { achievement } = getState();
@@ -30,10 +26,6 @@ export const fetchAchievementData = (locationUuid: string) => {
   };
 };
 
-/**
- * Force re-fetch achievement data (e.g. after adding a patient).
- * Clears the cache and fetches fresh data from the API.
- */
 export const refreshAchievementData = (locationUuid: string) => {
   return async (dispatch: Dispatch, getState: () => RootState) => {
     const { achievement } = getState();

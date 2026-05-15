@@ -27,7 +27,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
     patientData: PatientFormData
   ): Promise<string | false> => {
     try {
-      // Encode OpenMRS basic auth
       const formattedPatientData = mapPatientFormData(patientData);
       formattedPatientData.identifiers[0].identifier =
         await generateIdentifier();
@@ -42,10 +41,8 @@ export const useAddPatient = (): UseAddPatientReturn => {
         });
       }
 
-      // Store patient UUID for visit upload
       storage.set('patientUuid', patient.uuid);
 
-      // Track locally so achievement counts update immediately
       const providerUuid = hwProfile?.providerUuid;
       if (providerUuid) {
         const d = new Date();
@@ -59,7 +56,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
         );
       }
 
-      //show toast message
       showToast(
         'Patient Added Successfully',
         `Patient has been added successfully`,
@@ -67,7 +63,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
       );
       return patient.uuid;
     } catch (error: unknown) {
-      //show toast message
       showToast(
         'Add Patient Failed',
         error instanceof Error ? error.message : 'An unknown error occurred',
@@ -78,7 +73,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
   };
 
   const generateIdentifier = async (): Promise<string> => {
-    // Logic to generate a unique patient identifier
     const response = await patientService.genratePatientIdentifier();
     return response.identifiers[0];
   };
@@ -86,7 +80,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
   const mapPatientFormData = (data: PatientFormData): AddPatientData => {
     const attributes = [];
 
-    // Map phone number
     if (data.personalInfo.phoneNumber) {
       attributes.push({
         value: `${data.personalInfo.phoneNumberCountryCode}${data.personalInfo.phoneNumber}`,
@@ -94,7 +87,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
       });
     }
 
-    // Map emergency contact type
     if (data.personalInfo.contactType) {
       attributes.push({
         value: data.personalInfo.contactType,
@@ -102,7 +94,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
       });
     }
 
-    // Map emergency contact name
     if (data.personalInfo.emergencyContactName) {
       attributes.push({
         value: data.personalInfo.emergencyContactName,
@@ -110,7 +101,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
       });
     }
 
-    // Map emergency contact number
     if (data.personalInfo.emergencyContactNumber) {
       attributes.push({
         value: `${data.personalInfo.emergencyContactNumberCountryCode}${data.personalInfo.emergencyContactNumber}`,
@@ -118,7 +108,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
       });
     }
 
-    // Map other info
     if (data.otherInfo.sonDaughterWifeOf) {
       attributes.push({
         value: data.otherInfo.sonDaughterWifeOf,

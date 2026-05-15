@@ -23,7 +23,6 @@ import type {
 } from '../types/achievement.types';
 import type { RootState } from '../reducers';
 
-/** Get today's date as YYYY-MM-DD */
 function getTodayStr(): string {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -58,20 +57,12 @@ const MONTH_MAP: Record<string, string> = {
   dec: '12',
 };
 
-/**
- * Parse date strings to YYYY-MM-DD.
- * Handles: "2024-07-22", "22 July, 2024", "22 Jul 2024", "July 22, 2024",
- * and any format JS Date can parse as fallback.
- * Returns empty string if unparseable.
- */
 function toISODate(value: string): string {
   if (!value) return '';
   const trimmed = value.trim();
 
-  // Already YYYY-MM-DD (or starts with it, e.g. ISO datetime)
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
 
-  // "22 July, 2024" or "22 Jul 2024" format (DD Month YYYY)
   const ddMonYyyy = trimmed.match(/^(\d{1,2})\s+(\w+),?\s+(\d{4})$/);
   if (ddMonYyyy) {
     const day = ddMonYyyy[1].padStart(2, '0');
@@ -80,7 +71,6 @@ function toISODate(value: string): string {
     if (month) return `${year}-${month}-${day}`;
   }
 
-  // "July 22, 2024" or "Jul 22 2024" format (Month DD YYYY)
   const monDdYyyy = trimmed.match(/^(\w+)\s+(\d{1,2}),?\s+(\d{4})$/);
   if (monDdYyyy) {
     const month = MONTH_MAP[monDdYyyy[1].toLowerCase()];
@@ -89,7 +79,6 @@ function toISODate(value: string): string {
     if (month) return `${year}-${month}-${day}`;
   }
 
-  // Fallback: try JS Date constructor
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
     const yyyy = d.getFullYear();
@@ -101,10 +90,6 @@ function toISODate(value: string): string {
   return '';
 }
 
-/**
- * Extract YYYY-MM-DD from encounter_time.
- * encounter_time may be a datetime string or timestamp.
- */
 function getEncounterDate(e: Encounter): string {
   const t = e.encounter_time ?? '';
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
@@ -129,10 +114,6 @@ function isDateInRange(
   return true;
 }
 
-/**
- * Count patients created by this provider, optionally within a date range.
- * Merges pulldata patients with locally tracked patients (not yet synced to middleware).
- */
 function countPatientsCreated(
   attrs: PatientAttribute[],
   providerUuid: string,
@@ -140,7 +121,6 @@ function countPatientsCreated(
   fromDate?: string,
   toDate?: string
 ): number {
-  // Patients from pulldata API
   const providerPatients = new Set(
     (attrs ?? [])
       .filter(
@@ -151,7 +131,6 @@ function countPatientsCreated(
       .map(a => a.patientuuid)
   );
 
-  // Merge locally tracked patients (not yet in pulldata)
   const localForProvider = localPatients.filter(
     lp =>
       lp.providerUuid === providerUuid && !providerPatients.has(lp.patientuuid)
@@ -171,7 +150,6 @@ function countPatientsCreated(
       .map(a => a.patientuuid)
   );
 
-  // Add local patients that match the date range
   for (const lp of localForProvider) {
     if (isDateInRange(lp.createdDate, fromDate, toDate)) {
       dateFiltered.add(lp.patientuuid);
@@ -181,9 +159,6 @@ function countPatientsCreated(
   return dateFiltered.size;
 }
 
-/**
- * Count visits ended by this provider, optionally within a date range.
- */
 function countVisitsEnded(
   encounters: Encounter[],
   providerUuid: string,
@@ -208,9 +183,6 @@ function countVisitsEnded(
   return visitUuids.size;
 }
 
-/**
- * Average satisfaction score for this provider's encounters, optionally within a date range.
- */
 function calcAverageSatisfactionScore(
   obslist: Obs[],
   encounters: Encounter[],
@@ -296,13 +268,11 @@ export const useAchievements = (params?: UseAchievementsParams) => {
     (state: RootState) => state.achievement
   );
 
-  // Dispatch fetch only once — action guards against duplicates
   useEffect(() => {
     if (!locationUuid || !providerUuid) return;
     dispatch(fetchAchievementData(locationUuid));
   }, [dispatch, locationUuid, providerUuid]);
 
-  // Compute metrics client-side whenever tab/params change
   const data = useMemo<AchievementsData | null>(() => {
     if (!rawData || !providerUuid) return null;
     return computeMetrics(rawData, providerUuid, localPatients, params);

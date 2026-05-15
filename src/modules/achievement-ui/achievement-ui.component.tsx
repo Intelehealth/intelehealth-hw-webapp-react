@@ -74,7 +74,6 @@ export const AchievementUiComponent = () => {
 
   return (
     <div className="w-full bg-white rounded-xl px-3 pb-3 md:py-3 md:bg-transparent md:rounded-none md:px-3 lg:px-4 flex flex-col">
-      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between py-3 sticky top-0 bg-white z-10">
         <div className="flex items-center gap-3">
           <button className="p-1" onClick={() => navigate(ROUTES.DASHBOARD)}>
@@ -92,7 +91,6 @@ export const AchievementUiComponent = () => {
         </div>
       </div>
 
-      {/* Desktop Header */}
       <div className="hidden md:flex gap-3 items-center mb-4">
         <div className="flex items-center justify-center">
           <img src={iconAchievement} alt="achievement" />
@@ -119,7 +117,6 @@ export const AchievementUiComponent = () => {
         </div>
       </div>
 
-      {/* Tabs — border spans full width */}
       <div className="w-full md:w-fit border-b-2 border-[#FBE9E9] mb-5">
         <div className="flex text-sm md:text-base font-medium">
           <button
