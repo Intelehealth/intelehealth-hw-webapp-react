@@ -25,7 +25,6 @@ export default function MyAppointments() {
     applySort: applyNameSort,
   } = useSortByName();
   const navigate = useNavigate();
-  const { data: appointments, loading, error } = useAppointmentList();
 
   const filteredAppointments = useMemo(() => {
     const filtered = appointmentsListData.filter(item => {
@@ -42,7 +41,7 @@ export default function MyAppointments() {
 
   const upcomingCount = useMemo(
     () =>
-      appointments.filter(a => {
+      appointmentsListData.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -50,12 +49,12 @@ export default function MyAppointments() {
         const matchStatus = statusFilter ? a.status === statusFilter : true;
         return a.type === 'upcoming' && matchSearch && matchStatus;
       }).length,
-    [appointments, search, statusFilter]
+    [search, statusFilter]
   );
 
   const pastCount = useMemo(
     () =>
-      appointments.filter(a => {
+      appointmentsListData.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -63,7 +62,7 @@ export default function MyAppointments() {
         const matchStatus = statusFilter ? a.status === statusFilter : true;
         return a.type === 'past' && matchSearch && matchStatus;
       }).length,
-    [appointments, search, statusFilter]
+    [search, statusFilter]
   );
 
   /* c8 ignore next */
@@ -312,11 +311,7 @@ export default function MyAppointments() {
         </div>
       </div>
 
-      {loading && <p className="text-center text-gray-400 py-10">Loading...</p>}
-      {!loading && error && (
-        <p className="text-center text-red-500 py-10">{error}</p>
-      )}
-      {!loading && !error && filteredAppointments.length === 0 && (
+      {filteredAppointments.length === 0 && (
         <div className="text-center text-gray-500 text-sm py-10">
           No appointments found
         </div>
