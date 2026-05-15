@@ -1,40 +1,11 @@
-import { useEffect, useState } from 'react';
-import { appointmentService } from '../modules/appointment-visit/appointment.service';
+import { useState } from 'react';
 import type { AppointmentListItem } from '../assets/data/appointments.data';
-
-function toISODate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+import { appointmentsListData } from '../assets/data/appointments.data';
 
 export const useAppointmentList = () => {
-  const [data, setData] = useState<AppointmentListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-
-    const today = new Date();
-    const from = new Date(today);
-    from.setMonth(from.getMonth() - 6);
-    const to = new Date(today);
-    to.setMonth(to.getMonth() + 6);
-
-    appointmentService
-      .getUserAppointments(toISODate(from), toISODate(to))
-      .then(setData)
-      .catch((err: unknown) => {
-        const message =
-          err instanceof Error ? err.message : 'Failed to fetch appointments';
-        console.error('[useAppointmentList]', message, err);
-        setError(message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const [data] = useState<AppointmentListItem[]>(appointmentsListData);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   return { data, loading, error };
 };

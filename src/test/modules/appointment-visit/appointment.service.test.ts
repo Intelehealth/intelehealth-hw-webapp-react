@@ -197,7 +197,7 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[0].period).toBe('Morning'); // 9:00 AM
+      expect(result[0].period).toBe('Morning');
     });
 
     it('classifies Afternoon period correctly (12:00 PM to 6:00 PM inclusive)', async () => {
@@ -207,8 +207,8 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[1].period).toBe('Afternoon'); // 2:00 PM
-      expect(result[3].period).toBe('Afternoon'); // 6:00 PM (boundary)
+      expect(result[1].period).toBe('Afternoon');
+      expect(result[3].period).toBe('Afternoon');
     });
 
     it('classifies Evening period correctly (after 6:00 PM)', async () => {
@@ -218,7 +218,7 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[2].period).toBe('Evening'); // 7:00 PM
+      expect(result[2].period).toBe('Evening');
     });
 
     it('sets isAvailable to true for all slots', async () => {
@@ -328,6 +328,24 @@ describe('appointmentService', () => {
           'General Physician'
         )
       ).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('getVisitForPushData', () => {
+    it('calls OpenMRSApi.get with the correct visit URL and custom rep', async () => {
+      mockOpenMRSGet.mockResolvedValue(mockRawVisit);
+      const result = await appointmentService.getVisitForPushData('visit-uuid-1');
+      expect(mockOpenMRSGet).toHaveBeenCalledWith(
+        expect.stringContaining('/visit/visit-uuid-1?v=custom:')
+      );
+      expect(result).toEqual(mockRawVisit);
+    });
+
+    it('throws when OpenMRS API call fails', async () => {
+      mockOpenMRSGet.mockRejectedValue(new Error('Visit not found'));
+      await expect(
+        appointmentService.getVisitForPushData('invalid-uuid')
+      ).rejects.toThrow('Visit not found');
     });
   });
 
@@ -527,113 +545,4 @@ describe('appointmentService', () => {
     });
   });
 
-  describe('getUserAppointments', () => {
-    const mockRawAppointment = {
-      appointmentId: 54,
-      slotDay: 'Friday',
-      slotDate: '08/05/2026',
-      slotDuration: 30,
-      slotDurationUnit: 'minutes',
-      slotTime: '9:00 PM',
-      speciality: 'General Physician',
-      userUuid: 'user-uuid-1',
-      drName: 'Dr. Test',
-      visitUuid: 'visit-uuid-abc',
-      patientName: 'Ayu One',
-      openMrsId: 'omrs-1',
-      patientId: 'patient-1',
-      locationUuid: 'loc-uuid-1',
-      hwUUID: 'hw-uuid-1',
-      reason: null,
-      voided: null,
-      syncd: false,
-      patientGender: 'M',
-      patientAge: '36',
-      hwName: 'HW Test',
-      hwAge: '0',
-      hwGender: '',
-    };
-
-    const mockAppointmentListResponse = {
-      status: true,
-      dates: [],
-      bookedAppointments: [mockRawAppointment],
-      rescheduledAppointments: [],
-    };
-
-    it('calls the API with zero-padded DD/MM/YYYY dates and speciality', async () => {
-      mockGet.mockResolvedValue(mockAppointmentListResponse);
-      await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      const url: string = mockGet.mock.calls[0][0];
-      expect(url).toContain('/appointment/getAppointmentSlots');
-      expect(url).toContain('fromDate=08%2F05%2F2026');
-      expect(url).toContain('toDate=08%2F05%2F2026');
-      expect(url).toContain('speciality=General%20Physician');
-    });
-
-    it('maps API response to AppointmentListItem array', async () => {
-      mockGet.mockResolvedValue(mockAppointmentListResponse);
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        id: 54,
-        patientName: 'Ayu One',
-        gender: 'M',
-        age: '36',
-        visitId: 'visit-uuid-abc',
-        openMrsId: 'omrs-1',
-        symptom: '',
-        slotDay: 'Friday',
-        clinic: '',
-        prescription: false,
-        status: 'Scheduled',
-        speciality: 'General Physician',
-        drName: 'Dr. Test',
-        hwName: 'HW Test',
-      });
-    });
-
-    it('formats dateTime from slotDate and slotTime', async () => {
-      mockGet.mockResolvedValue(mockAppointmentListResponse);
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result[0].dateTime).toBe('8 May 2026, at 9:00 pm');
-    });
-
-    it('sets status to Completed when syncd is true', async () => {
-      const syncdResponse = {
-        ...mockAppointmentListResponse,
-        bookedAppointments: [{ ...mockRawAppointment, syncd: true }],
-      };
-      mockGet.mockResolvedValue(syncdResponse);
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result[0].status).toBe('Completed');
-    });
-
-    it('returns empty array when bookedAppointments is empty', async () => {
-      mockGet.mockResolvedValue({
-        status: true,
-        dates: [],
-        bookedAppointments: [],
-        rescheduledAppointments: [],
-      });
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result).toEqual([]);
-    });
-
-    it('returns empty array when bookedAppointments is undefined', async () => {
-      mockGet.mockResolvedValue({ status: true, dates: [] });
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result).toEqual([]);
-    });
-
-    it('uses reason as symptom when present', async () => {
-      const withReason = {
-        ...mockAppointmentListResponse,
-        bookedAppointments: [{ ...mockRawAppointment, reason: 'Headache' }],
-      };
-      mockGet.mockResolvedValue(withReason);
-      const result = await appointmentService.getUserAppointments('2026-05-08', '2026-05-08');
-      expect(result[0].symptom).toBe('Headache');
-    });
-  });
 });

@@ -3,10 +3,8 @@ import { EmrMiddlewareApi } from '../../services/patient.service';
 import { OpenMRSApi } from '../../services/openmrs';
 import { storage } from '../../utils/storage';
 import type {
-  AppointmentListItem,
   AppointmentSlot,
   AppointmentSlotsApiResponse,
-  RawUserAppointment,
   RawVisitResponse,
   SlotPeriod,
 } from '../../assets/data/appointments.data';
@@ -35,23 +33,13 @@ class AppointmentApiService extends HttpService {
 
 const AppointmentApi = new AppointmentApiService();
 
-// Re-export types for consumers
-export type {
-  SlotPeriod,
-  AppointmentSlot,
-  AppointmentListItem,
-  RawVisitResponse,
-};
+export type { SlotPeriod, AppointmentSlot, RawVisitResponse };
 
-// ─── Date / time helpers ─────────────────────────────────────────────────────
-
-/** Converts DD/MM/YYYY (API format) → YYYY-MM-DD */
 function fromApiDate(ddmmyyyy: string): string {
   const [day, month, year] = ddmmyyyy.split('/');
   return `${year}-${month}-${day}`;
 }
 
-/** Determines Morning / Afternoon / Evening from a time string like "5:00 PM" */
 function getPeriod(slotTime: string): SlotPeriod {
   const lower = slotTime.toLowerCase();
   const [time, meridiem] = lower.split(' ');
@@ -65,62 +53,6 @@ function getPeriod(slotTime: string): SlotPeriod {
   if (totalMinutes <= 18 * 60) return 'Afternoon';
   return 'Evening';
 }
-
-const MONTH_NAMES = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-/** Converts YYYY-MM-DD → DD/MM/YYYY (API query param format, zero-padded) */
-function toApiDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  return `${day}/${month}/${year}`;
-}
-
-/** Parses a slot date from the API response using slotDate (DD/MM/YYYY) + slotTime */
-function parseSlotDate(raw: RawUserAppointment): Date {
-  const isoDate = fromApiDate(raw.slotDate);
-  const timePart = raw.slotTime || '12:00 PM';
-  return new Date(`${isoDate} ${timePart}`);
-}
-
-/** Formats "DD/MM/YYYY" + "5:00 PM" → "10 Oct 2025, at 5:00 pm" */
-function formatDateTime(slotDate: string, slotTime: string): string {
-  const [day, month, year] = slotDate.split('/');
-  const monthIdx = parseInt(month, 10) - 1;
-  const monthName = MONTH_NAMES[monthIdx] || month;
-  const time = slotTime.toLowerCase();
-  return `${parseInt(day, 10)} ${monthName} ${year}, at ${time}`;
-}
-
-/** Calculates a human-readable time-until string for upcoming appointments */
-function formatTimeUntil(slotDate: Date, now: Date, slotTime: string): string {
-  const diff = slotDate.getTime() - now.getTime();
-  if (diff <= 0) return '';
-
-  const totalMinutes = Math.floor(diff / 60000);
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-  const time = slotTime.toLowerCase();
-
-  if (days > 0) return `in ${days} Day${days > 1 ? 's' : ''} at ${time}`;
-  if (hours > 0)
-    return `in ${hours} Hour${hours > 1 ? 's' : ''} ${minutes} min at ${time}`;
-  return `in ${minutes} min at ${time}`;
-}
-
-// ─── Payload Builder ──────────────────────────────────────────────────────────
 
 export function buildPushDataPayload(
   visit: RawVisitResponse,
@@ -155,7 +87,6 @@ export function buildPushDataPayload(
         : attr.value,
   }));
 
-  // Add appointment schedule attribute if not already present
   if (
     !attributes.some(a => a.attributeType === APPOINTMENT_SCHEDULE_ATTR_TYPE)
   ) {
@@ -185,8 +116,6 @@ export function buildPushDataPayload(
   };
 }
 
-// ─── API Endpoints ────────────────────────────────────────────────────────────
-
 export const appointmentService = {
   async getAppointmentSlots(
     fromDate: string,
@@ -210,50 +139,6 @@ export const appointmentService = {
     return OpenMRSApi.get<RawVisitResponse>(
       `/visit/${visitUuid}?v=${PUSHDATA_CUSTOM_REP}`
     );
-  },
-
-  async getUserAppointments(
-    fromDate: string,
-    toDate: string
-  ): Promise<AppointmentListItem[]> {
-    const apiFrom = toApiDate(fromDate);
-    const apiTo = toApiDate(toDate);
-    const speciality = 'General Physician';
-    const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(apiFrom)}&toDate=${encodeURIComponent(apiTo)}&speciality=${encodeURIComponent(speciality)}`;
-    const res = await AppointmentApi.get<AppointmentSlotsApiResponse>(url);
-    console.warn('[getUserAppointments] url:', url, 'response:', res);
-    const appointments = [
-      ...(res.bookedAppointments ?? []),
-      ...(res.rescheduledAppointments ?? []),
-    ];
-    console.warn(
-      '[getUserAppointments] appointments count:',
-      appointments.length
-    );
-    const now = new Date();
-    return appointments.map((raw, index) => {
-      const slotDate = parseSlotDate(raw);
-      const isPast = slotDate.getTime() <= now.getTime();
-      return {
-        id: raw.appointmentId ?? index + 1,
-        patientName: raw.patientName,
-        gender: raw.patientGender,
-        age: raw.patientAge,
-        visitId: raw.visitUuid,
-        openMrsId: raw.openMrsId,
-        symptom: raw.reason || '',
-        dateTime: formatDateTime(raw.slotDate, raw.slotTime),
-        slotDay: raw.slotDay,
-        clinic: '',
-        prescription: false,
-        status: raw.syncd ? 'Completed' : 'Scheduled',
-        speciality: raw.speciality,
-        drName: raw.drName,
-        hwName: raw.hwName,
-        type: isPast ? 'past' : 'upcoming',
-        timeUntil: isPast ? '' : formatTimeUntil(slotDate, now, raw.slotTime),
-      };
-    });
   },
 
   async bookAppointment(
