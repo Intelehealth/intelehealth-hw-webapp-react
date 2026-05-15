@@ -9,6 +9,7 @@ const ROUTES = {
     RESET_PASSWORD: 'reset-password',
   },
   DASHBOARD: '/dashboard',
+  VIDEO_CALL: '/video-call',
   PRESCRIPTIONS: '/prescriptions',
   OPEN_VISITS: '/open-visits',
   PROFILE: '/profile',

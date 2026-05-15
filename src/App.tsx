@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { fetchConfig } from './actions/config.actions';
 import './App.css';
 import { GlobalModalProvider } from './components/modal/global-modal-context';
+import { IncomingCallProvider } from './context/IncomingCallContext';
 import './i18n';
 import AppRoutes from './routes/app.routes';
 import { useAppDispatch } from './store/hooks';
@@ -18,9 +19,11 @@ function App() {
 
   return (
     <>
-      <GlobalModalProvider>
-        <AppRoutes />
-      </GlobalModalProvider>
+      <IncomingCallProvider>
+        <GlobalModalProvider>
+          <AppRoutes />
+        </GlobalModalProvider>
+      </IncomingCallProvider>
       <ToastContainer
         position="bottom-right"
         autoClose={3000}
