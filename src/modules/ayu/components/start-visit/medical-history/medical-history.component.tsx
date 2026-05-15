@@ -272,7 +272,7 @@ export const MedicalHistory = ({
                 onPrevSection?.();
               }
             }}
-            className="w-full md:w-[9%]"
+            className="w-full md:w-[10%]"
           >
             <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
@@ -284,7 +284,7 @@ export const MedicalHistory = ({
               onClick={() => {
                 stepperRef.current?.confirm();
               }}
-              className="w-full md:w-[9%]"
+              className="w-full md:w-[10%]"
             >
               <span className="mx-auto w-full text-base">
                 {BUTTON_SAVE_NEXT}
