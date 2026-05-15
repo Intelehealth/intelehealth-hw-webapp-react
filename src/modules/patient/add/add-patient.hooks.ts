@@ -3,7 +3,10 @@ import {
   patientAttributes,
   patientIdentifierType,
 } from '../../../assets/data/openmrs_uuids';
+import { useProfileContext } from '../../../context/ProfileContext';
+import { addLocalPatient } from '../../../reducers/achievement.reducer';
 import { showToast } from '../../../services/toast';
+import { useAppDispatch } from '../../../store/hooks';
 import type {
   AddPatientData,
   PatientFormData,
@@ -17,6 +20,9 @@ interface UseAddPatientReturn {
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
+  const dispatch = useAppDispatch();
+  const { hwProfile } = useProfileContext();
+
   const handleAddPatient = async (
     patientData: PatientFormData
   ): Promise<string | false> => {
@@ -38,6 +44,20 @@ export const useAddPatient = (): UseAddPatientReturn => {
 
       // Store patient UUID for visit upload
       storage.set('patientUuid', patient.uuid);
+
+      // Track locally so achievement counts update immediately
+      const providerUuid = hwProfile?.providerUuid;
+      if (providerUuid) {
+        const d = new Date();
+        const createdDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        dispatch(
+          addLocalPatient({
+            patientuuid: patient.uuid,
+            providerUuid,
+            createdDate,
+          })
+        );
+      }
 
       //show toast message
       showToast(

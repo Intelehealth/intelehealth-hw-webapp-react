@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ROUTES from '../../routes/paths';
-import { ACHIEVEMENT_TABS } from '../../assets/data/achievements_ui.data';
+import Calendar from '../../components/common/calendar.component';
+import { ACHIEVEMENT_TABS } from '../../utils/achievement.constants';
+import { useAchievements } from '../../hooks/useAchievements';
+import { useTimeSpent } from '../../hooks/useTimeSpent';
+import type { UseAchievementsParams } from '../../types/achievement.types';
 import iconAchievementClock from '../../assets/icons/icon-achievements-clock.svg';
 import iconAchievementLevel1 from '../../assets/icons/icon-achievements-level1.svg';
 import iconAchievementStar from '../../assets/icons/icon-achievements-star.svg';
@@ -11,20 +15,20 @@ import iconAchievementVisitAdded from '../../assets/icons/icon-achievements-vist
 import iconCalendarBlue from '../../assets/icons/icon-calendar-blue.svg';
 import iconSync from '../../assets/icons/icon-sync.svg';
 import iconThreeDot from '../../assets/icons/icon-three-dot-green-rounded.svg';
-import Calendar from '../../components/common/calendar.component';
 
 const AchievementCard = ({
   icon,
   label,
   value,
   bgColor,
+  loading,
 }: {
   icon: string;
   label?: string;
   value?: string | number;
   bgColor?: string;
+  loading?: boolean;
 }) => {
-  //{icon,title,value}
   return (
     <div
       className={`${bgColor} rounded-lg p-4 md:p-5 w-full min-h-[140px] md:min-h-[160px] flex flex-col`}
@@ -37,12 +41,13 @@ const AchievementCard = ({
           {label}
         </div>
         <div className="text-lg md:text-xl font-bold text-[#1A1A5E]">
-          {value}
+          {loading ? '...' : value}
         </div>
       </div>
     </div>
   );
 };
+
 export const AchievementUiComponent = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<
@@ -50,6 +55,23 @@ export const AchievementUiComponent = () => {
   >(ACHIEVEMENT_TABS.OVERALL);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  const achievementParams = useMemo<UseAchievementsParams | undefined>(() => {
+    if (activeTab === ACHIEVEMENT_TABS.OVERALL) {
+      return { period: 'overall' };
+    }
+    if (activeTab === ACHIEVEMENT_TABS.DAILY) {
+      return undefined;
+    }
+    if (activeTab === ACHIEVEMENT_TABS.DATA_RANGE && fromDate && toDate) {
+      return { fromDate, toDate };
+    }
+    return undefined;
+  }, [activeTab, fromDate, toDate]);
+
+  const { data, loading, error, refresh } = useAchievements(achievementParams);
+  const timeSpent = useTimeSpent();
+
   return (
     <div className="w-full bg-white rounded-xl px-3 pb-3 md:py-3 md:bg-transparent md:rounded-none md:px-3 lg:px-4 flex flex-col">
       {/* Mobile Header */}
@@ -61,7 +83,7 @@ export const AchievementUiComponent = () => {
           <h2 className="text-lg font-bold text-gray-900">My achievements</h2>
         </div>
         <div className="flex items-center gap-3">
-          <button className="p-1">
+          <button className="p-1" onClick={refresh}>
             <img src={iconSync} alt="sync" className="w-5 h-5" />
           </button>
           <button className="p-1">
@@ -177,30 +199,35 @@ export const AchievementUiComponent = () => {
         </div>
       )}
 
+      {error && <div className="text-sm text-red-500 mb-4">{error}</div>}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <AchievementCard
           icon={iconAchievementStar}
           label="Your patient satisfactions score"
-          value={0.3}
+          value={data?.averagePatientSatisfactionScore ?? 0}
           bgColor={'bg-[#E5FFF3]'}
+          loading={loading}
         />
         <AchievementCard
           icon={iconAchievementClock}
           label="Daily average time spent by you"
-          value={'0h 0m'}
+          value={timeSpent}
           bgColor={'bg-[#EFE8FF]'}
         />
         <AchievementCard
           icon={iconAchievementVisitCompleted}
           label="Visits completed by you"
-          value={22}
+          value={data?.visitsEndedToday ?? 0}
           bgColor={'bg-[#FFEADE]'}
+          loading={loading}
         />
         <AchievementCard
           icon={iconAchievementVisitAdded}
           label="Patients added by you"
-          value={24}
+          value={data?.patientsCreatedToday ?? 0}
           bgColor={'bg-[#FAF9FF]'}
+          loading={loading}
         />
       </div>
     </div>
