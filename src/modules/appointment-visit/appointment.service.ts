@@ -33,24 +33,13 @@ class AppointmentApiService extends HttpService {
 
 const AppointmentApi = new AppointmentApiService();
 
-// Re-export types for consumers
 export type { SlotPeriod, AppointmentSlot, RawVisitResponse };
 
-// ─── Date / time helpers ─────────────────────────────────────────────────────
-
-/** Converts YYYY-MM-DD → DD/MM/YYYY (API format) */
-function toApiDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  return `${day}/${month}/${year}`;
-}
-
-/** Converts DD/MM/YYYY (API format) → YYYY-MM-DD */
 function fromApiDate(ddmmyyyy: string): string {
   const [day, month, year] = ddmmyyyy.split('/');
   return `${year}-${month}-${day}`;
 }
 
-/** Determines Morning / Afternoon / Evening from a time string like "5:00 PM" */
 function getPeriod(slotTime: string): SlotPeriod {
   const lower = slotTime.toLowerCase();
   const [time, meridiem] = lower.split(' ');
@@ -64,8 +53,6 @@ function getPeriod(slotTime: string): SlotPeriod {
   if (totalMinutes <= 18 * 60) return 'Afternoon';
   return 'Evening';
 }
-
-// ─── Payload Builder ──────────────────────────────────────────────────────────
 
 export function buildPushDataPayload(
   visit: RawVisitResponse,
@@ -100,7 +87,6 @@ export function buildPushDataPayload(
         : attr.value,
   }));
 
-  // Add appointment schedule attribute if not already present
   if (
     !attributes.some(a => a.attributeType === APPOINTMENT_SCHEDULE_ATTR_TYPE)
   ) {
@@ -130,18 +116,15 @@ export function buildPushDataPayload(
   };
 }
 
-// ─── API Endpoints ────────────────────────────────────────────────────────────
-
 export const appointmentService = {
   async getAppointmentSlots(
     fromDate: string,
     toDate: string,
     speciality: string
   ): Promise<AppointmentSlot[]> {
-    const apiFrom = toApiDate(fromDate);
-    const apiTo = toApiDate(toDate);
-    const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(apiFrom)}&toDate=${encodeURIComponent(apiTo)}&speciality=${encodeURIComponent(speciality)}`;
+    const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&speciality=${encodeURIComponent(speciality)}`;
     const res = await AppointmentApi.get<AppointmentSlotsApiResponse>(url);
+    console.warn('[getAppointmentSlots] url:', url, 'response:', res);
     return (res.dates ?? []).map(slot => ({
       slotId: `${slot.slotDate}-${slot.slotTime.replace(/\s+/g, '-')}`,
       date: fromApiDate(slot.slotDate),

@@ -25,8 +25,8 @@ export interface RawAppointmentSlot {
 export interface AppointmentSlotsApiResponse {
   status: boolean;
   dates: RawAppointmentSlot[];
-  bookedAppointments: unknown[];
-  rescheduledAppointments: unknown[];
+  bookedAppointments: RawUserAppointment[];
+  rescheduledAppointments: RawUserAppointment[];
 }
 
 export interface RawEncounterProvider {
@@ -84,6 +84,43 @@ export const APPOINTMENT_SCHEDULE_ATTR_TYPE =
 // API endpoints
 export const PUSH_DATA_ENDPOINT = '/push/pushdata';
 
+// ─── Appointment List API Types ───────────────────────────────────────────────
+
+export interface RawUserAppointment {
+  appointmentId: number;
+  slotDay: string;
+  slotDate: string; // DD/MM/YYYY
+  slotDuration: number;
+  slotDurationUnit: string;
+  slotTime: string; // e.g. "9:00 PM"
+  speciality: string;
+  userUuid: string;
+  drName: string;
+  visitUuid: string;
+  patientName: string;
+  openMrsId: string;
+  patientId: string;
+  locationUuid: string;
+  hwUUID: string;
+  reason: string | null;
+  voided: boolean | null;
+  syncd: boolean;
+  patientGender: string;
+  patientAge: string;
+  hwName: string;
+  hwAge: string;
+  hwGender: string;
+}
+
+export interface AppointmentListApiResponse {
+  status: string;
+  message: string;
+  data: {
+    AppointmentList: RawUserAppointment[];
+  };
+  label: string;
+}
+
 // ─── Appointment List Types ───────────────────────────────────────────────────
 
 export interface AppointmentListItem {
@@ -92,12 +129,16 @@ export interface AppointmentListItem {
   gender: string;
   age: string;
   visitId: string;
+  openMrsId: string;
   symptom: string;
   dateTime: string;
+  slotDay: string;
   clinic: string;
   prescription: boolean;
   status: string;
   speciality: string;
+  drName: string;
+  hwName: string;
   type: 'upcoming' | 'past';
   timeUntil: string;
 }
@@ -125,12 +166,16 @@ export const appointmentsListData: AppointmentListItem[] = [
     gender: 'M',
     age: '73y',
     visitId: '987654JK',
+    openMrsId: '100GL-1',
     symptom: 'Headache and body pain',
     dateTime: '10 Oct 2025, at 10:00 am',
+    slotDay: 'Friday',
     clinic: 'TM Clinic 1',
     prescription: false,
     status: 'PRIORITY',
     speciality: 'General physician',
+    drName: 'Dr. Sharma',
+    hwName: 'Nurse One',
     type: 'upcoming',
     timeUntil: 'in 4 Hours 54 min at 10:00 am',
   },
@@ -140,12 +185,16 @@ export const appointmentsListData: AppointmentListItem[] = [
     gender: 'F',
     age: '75y 2m',
     visitId: '12345AB',
+    openMrsId: '100GL-2',
     symptom: 'Cough',
     dateTime: '24 May 2025, at 3:15 pm',
+    slotDay: 'Saturday',
     clinic: 'TM Clinic 2',
     prescription: true,
     status: 'Completed',
     speciality: 'General physician',
+    drName: 'Dr. Patel',
+    hwName: 'Nurse Two',
     type: 'past',
     timeUntil: '',
   },
@@ -154,30 +203,38 @@ export const appointmentsListData: AppointmentListItem[] = [
     patientName: 'Shantaram Rathod',
     gender: 'M',
     age: '76y 2m',
-    clinic: 'TM Clinic 2',
-    dateTime: '26 May, at 11:00 am',
-    prescription: false,
+    visitId: 'RPT78901',
+    openMrsId: '100GL-3',
     symptom: 'Fever',
+    dateTime: '26 May, at 11:00 am',
+    slotDay: 'Monday',
+    clinic: 'TM Clinic 2',
+    prescription: false,
     status: 'Completed',
+    speciality: 'General physician',
+    drName: 'Dr. Sharma',
+    hwName: 'Nurse One',
     type: 'past',
     timeUntil: '',
-    visitId: 'RPT78901',
-    speciality: 'General physician',
   },
   {
     id: 4,
     patientName: 'Ramesh Patil',
     gender: 'M',
     age: '55y',
-    clinic: 'TM Clinic 1',
-    dateTime: '28 May, at 10:30 am',
-    prescription: false,
+    visitId: 'RPT78902',
+    openMrsId: '100GL-4',
     symptom: 'Headache',
+    dateTime: '28 May, at 10:30 am',
+    slotDay: 'Wednesday',
+    clinic: 'TM Clinic 1',
+    prescription: false,
     status: 'Scheduled',
+    speciality: 'General physician',
+    drName: 'Dr. Patel',
+    hwName: 'Nurse Two',
     type: 'upcoming',
     timeUntil: 'in 2 Days at 10:30 am',
-    visitId: 'RPT78902',
-    speciality: 'General physician',
   },
 ];
 
