@@ -318,7 +318,7 @@ export const PhysicalExamination = (props: SectionProps) => {
             variant="primarylight"
             size="md"
             onClick={() => onPrevSection?.()}
-            className="w-full md:w-[9%]"
+            className="w-full md:w-[10%]"
           >
             <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
           </AyuButton>
@@ -328,7 +328,7 @@ export const PhysicalExamination = (props: SectionProps) => {
               variant="primary"
               size="md"
               onClick={() => wrappedOnNextQuestion()}
-              className="w-full md:w-[9%]"
+              className="w-full md:w-[10%]"
             >
               <span className="mx-auto w-full text-base">
                 {BUTTON_SAVE_NEXT}
