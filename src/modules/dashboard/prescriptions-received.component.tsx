@@ -125,12 +125,15 @@ export const PrescriptionsReceived = ({
     { header: 'Gender', accessor: 'gender' },
     {
       header: 'Uploaded',
-      accessor: 'uploadTimestamp',
+      /* Backend only emits visitCreatedDate; uploadTimestamp is never
+       * populated. Surface the same date here so the Uploaded column is not
+       * blank. */
+      accessor: 'visitCreatedDate',
       render: (row: PrescriptionPendingVisit) => (
         <div className="flex items-center justify-center">
           <img src={iconSummaryList} className="w-[22px] h-[22px]" />
           <p className="text-orange-500 ml-1 text-xs truncate">
-            {row.uploadTimestamp}
+            {row.visitCreatedDate}
           </p>
         </div>
       ),

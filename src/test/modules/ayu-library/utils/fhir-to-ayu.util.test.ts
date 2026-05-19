@@ -1,20 +1,37 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
+import { resolveAyuComponent } from '../../../../modules/ayu-library/logic/decision-matrix';
+import { isMutuallyExclusiveOption } from '../../../../modules/ayu-library/logic/stepper.logic';
 import {
   matchesDemographics,
   normalizePatientGenderCode,
   normalizeType,
   parsePatientAgeYears,
   questionnaireMatchesDemographics,
-  transformFhirToAyu,
   resolveLabel,
+  transformFhirPhysExamToAyu,
+  transformFhirToAyu,
 } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 import {
   EXT_URL_AGE_MAX as EXT_AGE_MAX,
   EXT_URL_AGE_MIN as EXT_AGE_MIN,
   EXT_URL_GENDER as EXT_GENDER,
+  EXT_URL_IS_EXCLUSIVE_OPTION,
+  EXT_URL_ITEM_CONTROL,
+  EXT_URL_JOB_AID_FILE,
+  EXT_URL_JOB_AID_TYPE,
+  EXT_URL_LANGUGAE_TEXT,
+  EXT_URL_MUTUALLY_EXCLUSIVE,
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_QUESTION_KEY,
+  EXT_URL_PE_SECTION_KEY,
+  PE_OPTION_KIND_CAMERA,
 } from '../../../../modules/ayu-library/utils/constants';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
-import type { FhirQuestionnaire } from '../../../../modules/ayu-library/types/fhir-raw.types';
+import type {
+  FhirItem,
+  FhirQuestionnaire,
+} from '../../../../modules/ayu-library/types/fhir-raw.types';
 
 describe('fhir-to-ayu.util', () => {
   describe('normalizeType', () => {
@@ -1256,5 +1273,848 @@ describe('fhir-to-ayu.util', () => {
       const parent = schema?.item?.[0];
       expect(parent?.item?.map(q => q.linkId)).toEqual(['any-child']);
     });
+  });
+});
+
+describe('transformFhirPhysExamToAyu', () => {
+  const makeSection = (
+    sectionText: string,
+    conceptTags: string[],
+    children: FhirItem[]
+  ): FhirItem => ({
+    linkId: `sec-${sectionText.toLowerCase()}`,
+    text: sectionText,
+    type: 'group',
+    answerOption: conceptTags.map(tag => ({
+      valueCoding: { code: tag.toLowerCase().replace(/\s+/g, '-'), display: tag },
+    })),
+    item: children,
+  });
+
+  const makeChoiceQuestion = (overrides: Partial<FhirItem> = {}): FhirItem => ({
+    linkId: 'q-jaundice',
+    text: 'Is there jaundice?*',
+    type: 'choice',
+    required: true,
+    answerOption: [
+      { valueCoding: { code: 'yes', display: 'Yes' } },
+      { valueCoding: { code: 'no', display: 'No' } },
+    ],
+    ...overrides,
+  });
+
+  it('returns null for an empty questionnaire', () => {
+    expect(transformFhirPhysExamToAyu({ resourceType: 'Questionnaire' })).toBeNull();
+    expect(
+      transformFhirPhysExamToAyu({ resourceType: 'Questionnaire', item: [] })
+    ).toBeNull();
+  });
+
+  it('flattens sections into a single root group of choice questions', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      title: 'Physical exam',
+      item: [
+        makeSection('Hands', ['Jaundice', 'Pallor'], [
+          makeChoiceQuestion({ linkId: 'q1', text: 'Jaundice?' }),
+          makeChoiceQuestion({ linkId: 'q2', text: 'Pallor?' }),
+        ]),
+        makeSection('Throat', ['Tonsils'], [
+          makeChoiceQuestion({ linkId: 'q3', text: 'Tonsils swollen?' }),
+        ]),
+      ],
+    });
+
+    expect(root).not.toBeNull();
+    expect(root?.linkId).toBe('root');
+    expect(root?.type).toBe('group');
+    expect(root?.text).toBe('Physical exam');
+    expect(root?.item?.map(q => q.linkId)).toEqual(['q1', 'q2', 'q3']);
+  });
+
+  it('attaches PE section/category/question key extensions to each question', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({ linkId: 'q1' }),
+        ]),
+      ],
+    });
+    const q = root?.item?.[0];
+    expect(q?.extension).toEqual(
+      expect.arrayContaining([
+        { url: EXT_URL_PE_SECTION_KEY, valueString: 'Hands' },
+        { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Jaundice' },
+        { url: EXT_URL_PE_QUESTION_KEY, valueString: 'Jaundice' },
+      ])
+    );
+  });
+
+  it('title-cases multi-word section names', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('general exams', ['Jaundice'], [makeChoiceQuestion()]),
+      ],
+    });
+    const sectionExt = root?.item?.[0]?.extension?.find(
+      e => e.url === EXT_URL_PE_SECTION_KEY
+    );
+    expect(sectionExt?.valueString).toBe('General Exams');
+  });
+
+  it('falls back to question text when concept tags run out', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({ linkId: 'q1', text: 'Jaundice?' }),
+          makeChoiceQuestion({ linkId: 'q2', text: 'Pallor?' }),
+        ]),
+      ],
+    });
+    const q2 = root?.item?.find(q => q.linkId === 'q2');
+    const categoryExt = q2?.extension?.find(
+      e => e.url === EXT_URL_PE_CATEGORY_LABEL
+    );
+    expect(categoryExt?.valueString).toBe('Pallor?');
+  });
+
+  it('strips trailing asterisks from question text', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({ text: 'Jaundice?**' }),
+        ]),
+      ],
+    });
+    expect(root?.item?.[0]?.text).toBe('Jaundice?');
+  });
+
+  it('translates check-box itemControl to repeats=true', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Pallor'], [
+          makeChoiceQuestion({
+            extension: [
+              {
+                url: EXT_URL_ITEM_CONTROL,
+                valueCodeableConcept: {
+                  coding: [{ code: 'check-box' }],
+                },
+              },
+            ],
+          }),
+        ]),
+      ],
+    });
+    expect(root?.item?.[0]?.repeats).toBe(true);
+  });
+
+  it('leaves repeats unset for non-check-box questions', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [makeChoiceQuestion()]),
+      ],
+    });
+    expect(root?.item?.[0]?.repeats).toBe(false);
+  });
+
+  it('appends an attachment child as a camera-marked answerOption', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({
+            item: [
+              {
+                linkId: 'attach-1',
+                type: 'attachment',
+                enableWhen: [
+                  {
+                    question: 'q-jaundice',
+                    operator: '=',
+                    answerCoding: { code: 'CAMERA' },
+                  },
+                ],
+                extension: [
+                  { url: EXT_URL_LANGUGAE_TEXT, valueString: 'Take a picture' },
+                ],
+              },
+            ],
+          }),
+        ]),
+      ],
+    });
+    const camera = root?.item?.[0]?.answerOption?.find(
+      o => o.valueCoding?.code === 'CAMERA'
+    );
+    expect(camera?.valueCoding?.display).toBe('Take a picture');
+    expect(camera?.extension).toEqual(
+      expect.arrayContaining([
+        { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+      ])
+    );
+  });
+
+  it('falls back to attachment linkId as camera code when enableWhen is missing', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({
+            item: [
+              { linkId: 'attach-fallback', type: 'attachment' },
+            ],
+          }),
+        ]),
+      ],
+    });
+    const camera = root?.item?.[0]?.answerOption?.find(
+      o =>
+        !!o.extension?.some(
+          e => e.url === EXT_URL_PE_OPTION_KIND
+        )
+    );
+    expect(camera?.valueCoding?.code).toBe('attach-fallback');
+  });
+
+  it('marks the camera option as exclusive when is-exclusive-option=true', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({
+            item: [
+              {
+                linkId: 'attach-x',
+                type: 'attachment',
+                extension: [
+                  { url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' },
+                ],
+              },
+            ],
+          }),
+        ]),
+      ],
+    });
+    const camera = root?.item?.[0]?.answerOption?.find(
+      o =>
+        !!o.extension?.some(
+          e => e.url === EXT_URL_PE_OPTION_KIND
+        )
+    );
+    expect(camera?.extension).toEqual(
+      expect.arrayContaining([
+        { url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' },
+      ])
+    );
+  });
+
+  it('passes job-aid extensions through to the question', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice'], [
+          makeChoiceQuestion({
+            extension: [
+              { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+              { url: EXT_URL_JOB_AID_FILE, valueString: 'jaundice.png' },
+            ],
+          }),
+        ]),
+      ],
+    });
+    expect(root?.item?.[0]?.extension).toEqual(
+      expect.arrayContaining([
+        { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+        { url: EXT_URL_JOB_AID_FILE, valueString: 'jaundice.png' },
+      ])
+    );
+  });
+
+  it('skips section items whose type is not choice', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        {
+          linkId: 'sec1',
+          text: 'Hands',
+          type: 'group',
+          answerOption: [
+            { valueCoding: { code: 'jaundice', display: 'Jaundice' } },
+          ],
+          item: [
+            { linkId: 'note', type: 'display', text: 'A note' },
+            makeChoiceQuestion({ linkId: 'q1' }),
+          ],
+        },
+      ],
+    });
+    expect(root?.item?.map(q => q.linkId)).toEqual(['q1']);
+  });
+
+  it('filters out questions whose demographics do not match the patient', () => {
+    const root = transformFhirPhysExamToAyu(
+      {
+        resourceType: 'Questionnaire',
+        item: [
+          makeSection('Pelvis', ['Pelvic exam'], [
+            makeChoiceQuestion({
+              linkId: 'q1',
+              extension: [
+                {
+                  url: 'https://intelehealth.org/fhir/StructureDefinition/gender',
+                  valueString: '0',
+                },
+              ],
+            }),
+          ]),
+        ],
+      },
+      { gender: 'M' }
+    );
+    expect(root?.item).toEqual([]);
+  });
+
+  it('returns required=true only for required questions', () => {
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Jaundice', 'Pallor'], [
+          makeChoiceQuestion({ linkId: 'r', required: true }),
+          makeChoiceQuestion({ linkId: 'nr', required: false }),
+        ]),
+      ],
+    });
+    expect(root?.item?.[0]?.required).toBe(true);
+    expect(root?.item?.[1]?.required).toBe(false);
+  });
+
+  /* The real physExam.json wraps each question one level deep: a "concept-tag"
+   * choice (text = "Eyes: Jaundice") whose single answerOption matches the
+   * linkId of an inner choice (the real question, with real Yes/No options
+   * and an attachment camera child). The transform must drill into the inner
+   * choice or only the wrapper's concept-tag option will be shown to users. */
+  describe('wrapped-question pattern (matches physExam.json shape)', () => {
+    const makeWrappedQuestion = (
+      wrapperLinkId: string,
+      wrapperText: string,
+      innerLinkId: string,
+      innerText: string,
+      innerOverrides: Partial<FhirItem> = {}
+    ): FhirItem => ({
+      linkId: wrapperLinkId,
+      text: wrapperText,
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: innerLinkId, display: innerText } },
+      ],
+      item: [
+        {
+          linkId: innerLinkId,
+          text: innerText,
+          type: 'choice',
+          required: true,
+          enableWhen: [
+            {
+              question: wrapperLinkId,
+              operator: '=',
+              answerCoding: { code: innerLinkId },
+            },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'no', display: 'No' } },
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+          ],
+          ...innerOverrides,
+        },
+      ],
+    });
+
+    it('unwraps the wrapper and uses the inner choice as the real question', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-jaundice',
+                'Eyes: Jaundice',
+                'inner-jaundice',
+                'Is there jaundice?*'
+              ),
+            ],
+          },
+        ],
+      });
+      // linkId is the inner question's, not the wrapper's
+      expect(root?.item?.[0]?.linkId).toBe('inner-jaundice');
+      // text comes from the inner choice (asterisk stripped)
+      expect(root?.item?.[0]?.text).toBe('Is there jaundice?');
+      // real Yes/No options are surfaced — the wrapper's single concept-tag
+      // answerOption is NOT what users select against
+      const codes = root?.item?.[0]?.answerOption?.map(
+        o => o.valueCoding?.code
+      );
+      expect(codes).toEqual(['no', 'yes']);
+    });
+
+    it('uses the wrapper text as the category label for the summary', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-jaundice',
+                'Eyes: Jaundice',
+                'inner-jaundice',
+                'Is there jaundice?*'
+              ),
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Eyes: Jaundice' },
+          { url: EXT_URL_PE_QUESTION_KEY, valueString: 'Eyes: Jaundice' },
+        ])
+      );
+    });
+
+    it('appends the inner attachment child as a camera answerOption', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-jaundice',
+                'Eyes: Jaundice',
+                'inner-jaundice',
+                'Is there jaundice?*',
+                {
+                  item: [
+                    {
+                      linkId: 'inner-jaundice_ID_cam',
+                      type: 'attachment',
+                      enableWhen: [
+                        {
+                          question: 'inner-jaundice',
+                          operator: '=',
+                          answerCoding: { code: 'CAM' },
+                        },
+                      ],
+                    },
+                  ],
+                }
+              ),
+            ],
+          },
+        ],
+      });
+      const camera = root?.item?.[0]?.answerOption?.find(o =>
+        o.extension?.some(e => e.url === EXT_URL_PE_OPTION_KIND)
+      );
+      expect(camera).toBeDefined();
+      expect(camera?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+        ])
+      );
+    });
+
+    it('honors check-box itemControl on the inner question (repeats=true)', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-nails',
+                'Nail abnormality',
+                'inner-nails',
+                'Is there any nail abnormality?*',
+                {
+                  repeats: true,
+                  extension: [
+                    {
+                      url: EXT_URL_ITEM_CONTROL,
+                      valueCodeableConcept: {
+                        coding: [{ code: 'check-box' }],
+                      },
+                    },
+                  ],
+                }
+              ),
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.repeats).toBe(true);
+    });
+
+    it('unwraps even when the wrapper code uses underscores and the inner linkId uses hyphens (real physExam.json shape — "Nail anemia")', () => {
+      // Real data has wrapper.answerOption[0].code="ID_1109515145" vs.
+      // inner.linkId="ID-1109515145" — a literal-string match misses this,
+      // so detection must use the inner's enableWhen back-reference instead.
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              {
+                linkId: 'ID-888899761',
+                text: 'Nail anemia',
+                type: 'choice',
+                answerOption: [
+                  {
+                    valueCoding: {
+                      code: 'ID_1109515145', // underscore
+                      display: 'Are the nails pale?*',
+                    },
+                  },
+                ],
+                item: [
+                  {
+                    linkId: 'ID-1109515145', // hyphen — does NOT match the code above
+                    text: 'Are the nails pale?*',
+                    type: 'choice',
+                    required: true,
+                    enableWhen: [
+                      {
+                        question: 'ID-888899761',
+                        operator: '=',
+                        answerCoding: { code: 'ID_1109515145' },
+                      },
+                    ],
+                    answerOption: [
+                      { valueCoding: { code: 'normal', display: 'Nails are normal' } },
+                      { valueCoding: { code: 'pale', display: 'Nails are pale' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.linkId).toBe('ID-1109515145');
+      expect(root?.item?.[0]?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'normal',
+        'pale',
+      ]);
+      expect(root?.item?.[0]?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Nail anemia' },
+        ])
+      );
+    });
+
+    it('treats a single-answerOption choice without a matching inner child as a plain question (no unwrap)', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              {
+                linkId: 'plain',
+                text: 'Plain question',
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'only', display: 'Only option' } },
+                ],
+                // no nested choice item whose linkId matches 'only'
+              },
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.linkId).toBe('plain');
+      expect(root?.item?.[0]?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'only',
+      ]);
+    });
+
+    it('uses an empty category label when the wrapper has no text', () => {
+      // Covers the `q.text ?? ''` fallback inside the forEach when unwrapping.
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-no-text',
+                // wrapper has NO text — falls through to '' for categoryLabel
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'inner-x', display: 'prompt' } },
+                ],
+                item: [
+                  {
+                    linkId: 'inner-x',
+                    text: 'Inner question',
+                    type: 'choice',
+                    enableWhen: [
+                      {
+                        question: 'wrap-no-text',
+                        operator: '=',
+                        answerCoding: { code: 'inner-x' },
+                      },
+                    ],
+                    answerOption: [
+                      { valueCoding: { code: 'a', display: 'A' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: '' },
+        ])
+      );
+    });
+
+    it('uses an empty question text when the (non-wrapped) target has no text', () => {
+      // Covers the `target.text ?? ''` fallback path.
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Hands',
+            type: 'group',
+            answerOption: [
+              { valueCoding: { code: 'tag', display: 'Jaundice' } },
+            ],
+            item: [
+              {
+                linkId: 'q-no-text',
+                // no text on the question itself
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'a', display: 'A' } },
+                  { valueCoding: { code: 'b', display: 'B' } },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.text).toBe('');
+    });
+
+    it('skips sections whose demographic extensions do not match the patient', () => {
+      // Covers the truthy branch of `!matchesDemographics(section.extension, demographics)`
+      // → continue. Section-level filtering, distinct from question-level filtering.
+      const root = transformFhirPhysExamToAyu(
+        {
+          resourceType: 'Questionnaire',
+          item: [
+            {
+              linkId: 'sec-female-only',
+              text: 'Pelvis',
+              type: 'group',
+              extension: [
+                {
+                  url: 'https://intelehealth.org/fhir/StructureDefinition/gender',
+                  valueString: '0', // female-only
+                },
+              ],
+              item: [makeChoiceQuestion({ linkId: 'q1' })],
+            },
+          ],
+        },
+        { gender: 'M' }
+      );
+      expect(root?.item).toEqual([]);
+    });
+
+    it('survives a choice question with no answerOption (uses [] fallback)', () => {
+      // Covers the `q.answerOption ?? []` fallback in buildPhysExamQuestion
+      // when an inner question has no answerOption.
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Hands',
+            type: 'group',
+            item: [
+              {
+                linkId: 'q-no-options',
+                text: 'Bare question',
+                type: 'choice',
+                // no answerOption
+              },
+            ],
+          },
+        ],
+      });
+      expect(root?.item?.[0]?.answerOption).toEqual([]);
+    });
+
+    it('handles a section with no text and no item array', () => {
+      // Covers `section.text ?? ''` (titleCasePhysExam(""))
+      // and `section.item ?? []` fallback paths inside the for-loop.
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-bare',
+            // no text, no item
+            type: 'group',
+          },
+        ],
+      });
+      expect(root?.item).toEqual([]);
+    });
+
+    it('skips non-attachment children inside the inner question (does not produce a camera option for them)', () => {
+      // Covers buildPhysExamCameraOption's `child.type !== 'attachment'` early
+      // return path: the inner choice's item[] contains both an attachment
+      // (becomes camera) and a non-attachment display child (skipped).
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-general',
+            text: 'General exams',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap',
+                text: 'Wrap',
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'inner', display: 'prompt' } },
+                ],
+                item: [
+                  {
+                    linkId: 'inner',
+                    text: 'Inner',
+                    type: 'choice',
+                    enableWhen: [
+                      {
+                        question: 'wrap',
+                        operator: '=',
+                        answerCoding: { code: 'inner' },
+                      },
+                    ],
+                    answerOption: [
+                      { valueCoding: { code: 'yes', display: 'Yes' } },
+                    ],
+                    item: [
+                      // attachment → becomes the camera answer option
+                      {
+                        linkId: 'inner_cam',
+                        type: 'attachment',
+                        enableWhen: [
+                          {
+                            question: 'inner',
+                            operator: '=',
+                            answerCoding: { code: 'CAM' },
+                          },
+                        ],
+                      },
+                      // non-attachment → must NOT contribute a camera option
+                      {
+                        linkId: 'inner_note',
+                        type: 'display',
+                        text: 'A note',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const cameraOptions = root?.item?.[0]?.answerOption?.filter(o =>
+        o.extension?.some(e => e.url === EXT_URL_PE_OPTION_KIND)
+      );
+      // Exactly one camera option — the attachment — and nothing for the
+      // display sibling.
+      expect(cameraOptions).toHaveLength(1);
+    });
+  });
+});
+
+describe('resolveAyuComponent - physicalExamOptions', () => {
+  it('resolves choice questions with PE section-key marker to physicalExamOptions', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      text: 'Jaundice?',
+      extension: [{ url: EXT_URL_PE_SECTION_KEY, valueString: 'Hands' }],
+    };
+    expect(resolveAyuComponent(q)).toBe('physicalExamOptions');
+  });
+
+  it('does not trigger physicalExamOptions for plain choice questions', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      text: 'Jaundice?',
+    };
+    expect(resolveAyuComponent(q)).toBe('selectableOptionGroup');
+  });
+});
+
+describe('isMutuallyExclusiveOption - case insensitivity', () => {
+  const makeQuestion = (valueString: string): AyuQuestion => ({
+    linkId: 'q1',
+    type: 'choice',
+    answerOption: [
+      {
+        valueCoding: { code: 'none' },
+        extension: [{ url: EXT_URL_MUTUALLY_EXCLUSIVE, valueString }],
+      },
+    ],
+  });
+
+  it('treats valueString="True" as mutually exclusive', () => {
+    expect(isMutuallyExclusiveOption(makeQuestion('True'), 'none')).toBe(true);
+  });
+
+  it('treats valueString="true" as mutually exclusive (PE FHIR)', () => {
+    expect(isMutuallyExclusiveOption(makeQuestion('true'), 'none')).toBe(true);
+  });
+
+  it('does not treat valueString="false" as mutually exclusive', () => {
+    expect(isMutuallyExclusiveOption(makeQuestion('false'), 'none')).toBe(false);
   });
 });

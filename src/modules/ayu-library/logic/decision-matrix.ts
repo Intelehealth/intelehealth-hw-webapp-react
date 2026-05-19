@@ -4,6 +4,7 @@ import {
   ASSOCIATED_SYMPTOMS_TEXT,
   EXT_URL_MAX_VALUE,
   EXT_URL_MIN_VALUE,
+  EXT_URL_PE_SECTION_KEY,
   FREQUENCY_MAX_VALUE,
 } from '../utils/constants';
 
@@ -23,12 +24,30 @@ export type AyuComponentType =
   | 'area'
   | 'frequency'
   | 'range'
-  | 'associatedSymptoms';
+  | 'associatedSymptoms'
+  | 'physicalExamOptions';
 
 export const ASSOCIATED_SYMPTOMS_COMPONENT: Extract<
   AyuComponentType,
   'associatedSymptoms'
 > = 'associatedSymptoms';
+
+export const PHYSICAL_EXAM_OPTIONS_COMPONENT: Extract<
+  AyuComponentType,
+  'physicalExamOptions'
+> = 'physicalExamOptions';
+
+/**
+ * Detect a Physical Exam question by the EXT_URL_PE_SECTION_KEY marker that
+ * transformFhirPhysExamToAyu attaches. Visit Reason questionnaires never carry
+ * this extension, so this is a safe no-op for them.
+ */
+export function isPhysicalExamOptionsQuestion(q: AyuQuestion): boolean {
+  return (
+    q.type === 'choice' &&
+    !!q.extension?.some(ext => ext.url === EXT_URL_PE_SECTION_KEY)
+  );
+}
 
 /**
  * Returns true only for the actual "Associated symptoms" question,
@@ -40,6 +59,10 @@ export function isStrictAssociatedSymptoms(q: AyuQuestion): boolean {
 }
 
 export function resolveAyuComponent(q: AyuQuestion): AyuComponentType {
+  if (isPhysicalExamOptionsQuestion(q)) {
+    return 'physicalExamOptions';
+  }
+
   const isAssociatedSymptoms =
     q.type === 'choice' &&
     (q.text === ASSOCIATED_SYMPTOMS_TEXT ||
