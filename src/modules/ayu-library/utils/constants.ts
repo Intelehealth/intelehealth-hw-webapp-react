@@ -29,6 +29,30 @@ export const EXT_URL_MIN_VALUE =
 export const EXT_URL_MAX_VALUE =
   'http://hl7.org/fhir/StructureDefinition/maxValue';
 
+// FHIR core itemControl extension (e.g. check-box = multi-choice in PE)
+export const EXT_URL_ITEM_CONTROL =
+  'http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl';
+
+// Physical Examination FHIR extensions
+export const EXT_URL_JOB_AID_TYPE =
+  'https://intelehealth.org/fhir/StructureDefinition/job-aid-type';
+export const EXT_URL_JOB_AID_FILE =
+  'https://intelehealth.org/fhir/StructureDefinition/job-aid-file';
+export const EXT_URL_IS_EXCLUSIVE_OPTION =
+  'https://intelehealth.org/fhir/StructureDefinition/is-exclusive-option';
+
+// Physical Examination markers attached by transformFhirPhysExamToAyu so the
+// resolver/renderer can tell PE questions apart from Visit Reason ones.
+export const EXT_URL_PE_SECTION_KEY =
+  'urn:intelehealth:physical-exam/section-key';
+export const EXT_URL_PE_CATEGORY_LABEL =
+  'urn:intelehealth:physical-exam/category-label';
+export const EXT_URL_PE_QUESTION_KEY =
+  'urn:intelehealth:physical-exam/question-key';
+export const EXT_URL_PE_OPTION_KIND =
+  'urn:intelehealth:physical-exam/option-kind';
+export const PE_OPTION_KIND_CAMERA = 'camera';
+
 /*
  * Threshold that distinguishes a Frequency (occurrences) from a Range
  * component when both share the same FHIR shape (integer + minValue/maxValue).

@@ -6,6 +6,7 @@ import { AyuFrequencyInput } from '../components/common/ayu-frequency-input.comp
 import { AyuGroup } from '../components/common/ayu-group.component';
 import { AyuMultiSelect } from '../components/common/ayu-multiselect.component';
 import { AyuNumberInput } from '../components/common/ayu-number-input.component';
+import { AyuPhysicalExamOptions } from '../components/common/ayu-physical-exam-options.component';
 import { AyuRangeInput } from '../components/common/ayu-range-input.component';
 import { AyuRepeatableText } from '../components/common/ayu-repeatable-text.component';
 import { AyuSelect } from '../components/common/ayu-select.component';
@@ -27,4 +28,5 @@ export const componentMap = {
   associatedSymptoms: AyuAssociatedSymptoms,
   frequency: AyuFrequencyInput,
   range: AyuRangeInput,
+  physicalExamOptions: AyuPhysicalExamOptions,
 };

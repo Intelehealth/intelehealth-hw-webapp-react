@@ -38,9 +38,14 @@ describe('componentMap', () => {
       });
     });
 
-    it('should have exactly 14 component mappings', () => {
+    it('should have exactly 15 component mappings', () => {
       const keys = Object.keys(componentMap);
-      expect(keys).toHaveLength(14);
+      expect(keys).toHaveLength(15);
+    });
+
+    it('should have physicalExamOptions component mapping', () => {
+      expect(componentMap).toHaveProperty('physicalExamOptions');
+      expect(componentMap.physicalExamOptions).toBeDefined();
     });
 
     it('should have decimal component mapping', () => {

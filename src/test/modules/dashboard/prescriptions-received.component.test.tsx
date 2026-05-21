@@ -203,10 +203,12 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getAllByText('Uploaded').length).toBeGreaterThan(0);
     });
 
-    it('renders pending upload timestamp with custom render', () => {
+    it('renders the visit date in the pending Uploaded column (backend only emits visitCreatedDate)', () => {
       renderComponent();
       fireEvent.click(screen.getByText('Pending').closest('button')!);
-      expect(screen.getAllByText('30 min ago').length).toBeGreaterThan(0);
+      // Uploaded column now sources from visitCreatedDate, so the date is the
+      // visible value — the Pending row has visitCreatedDate '2025-04-21'.
+      expect(screen.getAllByText('2025-04-21').length).toBeGreaterThan(0);
     });
   });
 

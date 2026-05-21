@@ -6,12 +6,20 @@ import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
 
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
+import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { useOpenVisits } from '../../hooks/useOpenVisits';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
+
+export const OPEN_VISITS_TABS = {
+  OPEN: 'Open Visits',
+  PRIORITY: 'Priority Visits',
+} as const;
+
+type OpenVisitsTab = (typeof OPEN_VISITS_TABS)[keyof typeof OPEN_VISITS_TABS];
 
 interface Column {
   header: string;
@@ -27,6 +35,9 @@ export const OpenVisitsComponent = ({
   initialRowCount,
 }: OpenVisitsProps = {}) => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<OpenVisitsTab>(
+    OPEN_VISITS_TABS.OPEN
+  );
   const [search, setSearch] = useState('');
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const {
@@ -36,12 +47,17 @@ export const OpenVisitsComponent = ({
   } = useSortByName();
   const { data, loading, error } = useOpenVisits();
 
+  const isPriorityTab = activeTab === OPEN_VISITS_TABS.PRIORITY;
+
   const filtered = useMemo(() => {
-    const result = data.filter(p =>
+    const byTab = isPriorityTab
+      ? data.filter(p => p.isPriority === true)
+      : data;
+    const result = byTab.filter(p =>
       p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(result));
-  }, [data, search, applySort, applyNameSort]);
+  }, [data, isPriorityTab, search, applySort, applyNameSort]);
 
   const columns: Column[] = [
     {
@@ -60,12 +76,15 @@ export const OpenVisitsComponent = ({
     { header: 'Gender', accessor: 'gender' },
     {
       header: 'Uploaded',
-      accessor: 'uploadTimestamp',
+      /* Backend only emits visitCreatedDate; uploadTimestamp is never
+       * populated. Surface the same date here so the Uploaded column is not
+       * blank. */
+      accessor: 'visitCreatedDate',
       render: (row: OpenVisit) => (
         <div className="flex items-center justify-center">
           <img src={iconSummaryList} alt="" className="w-[22px] h-[22px]" />
           <p className="text-orange-500 ml-1 text-xs truncate">
-            {row.uploadTimestamp}
+            {row.visitCreatedDate}
           </p>
         </div>
       ),
@@ -126,6 +145,35 @@ export const OpenVisitsComponent = ({
               </div>
             </div>
 
+            {/* Tabs */}
+            <div className="px-2 py-0.5 shrink-0">
+              <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab(OPEN_VISITS_TABS.OPEN)}
+                  className={`p-3 lg:px-4 lg:py-2 border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
+                    activeTab === OPEN_VISITS_TABS.OPEN
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
+                  }`}
+                >
+                  <img src={iconPatientRecevied} alt="" />
+                  {OPEN_VISITS_TABS.OPEN}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab(OPEN_VISITS_TABS.PRIORITY)}
+                  className={`p-3 lg:px-4 lg:py-2 border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
+                    activeTab === OPEN_VISITS_TABS.PRIORITY
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
+                  }`}
+                >
+                  <img src={iconPatientRecevied} alt="" />
+                  {OPEN_VISITS_TABS.PRIORITY}
+                </button>
+              </div>
+            </div>
+
             <ReusableGridTable
               columns={columns}
               data={loading ? [] : filtered}
@@ -143,7 +191,9 @@ export const OpenVisitsComponent = ({
             )}
             {!loading && !error && filtered.length === 0 && (
               <p className="text-center text-gray-400 py-4">
-                No open visits found.
+                {isPriorityTab
+                  ? 'No priority visits found.'
+                  : 'No open visits found.'}
               </p>
             )}
           </div>

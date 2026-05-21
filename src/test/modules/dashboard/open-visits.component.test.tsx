@@ -34,6 +34,7 @@ const mockData = [
     visitCreatedDate: '2025-04-20',
     clinicName: 'TM Clinic 2',
     uploadTimestamp: '1 hr ago',
+    isPriority: true,
   },
   {
     visitUuid: 'ov-3',
@@ -73,7 +74,9 @@ describe('OpenVisitsComponent', () => {
 
     it('renders the Open Visits heading', () => {
       renderComponent();
-      expect(screen.getByText('Open Visits')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Open Visits' })
+      ).toBeInTheDocument();
     });
 
     it('renders sort icons next to search', () => {
@@ -129,10 +132,13 @@ describe('OpenVisitsComponent', () => {
       expect(screen.getAllByText('TM Clinic 2').length).toBeGreaterThan(0);
     });
 
-    it('renders upload timestamps', () => {
+    it('renders the visit date in the Uploaded column (backend only emits visitCreatedDate)', () => {
       renderComponent();
-      expect(screen.getAllByText('30 min ago').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('1 hr ago').length).toBeGreaterThan(0);
+      // visitCreatedDate now powers both the "Visit created" and "Uploaded"
+      // columns since the API does not emit uploadTimestamp. Each date should
+      // appear at least twice in the row.
+      expect(screen.getAllByText('2025-04-21').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText('2025-04-20').length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -312,6 +318,83 @@ describe('OpenVisitsComponent', () => {
     it('shows Show all footer when data exceeds initialRowCount', () => {
       renderComponent({ initialRowCount: 2 });
       expect(screen.getByText('Show all →')).toBeInTheDocument();
+    });
+  });
+
+  describe('Tabs (Open Visits / Priority Visits)', () => {
+    it('renders both tab buttons', () => {
+      renderComponent();
+      const openTab = screen
+        .getAllByText('Open Visits')
+        .find(el => el.closest('button'));
+      const priorityTab = screen.getByText('Priority Visits').closest('button');
+      expect(openTab).toBeDefined();
+      expect(priorityTab).toBeInTheDocument();
+    });
+
+    it('Open Visits tab is active by default', () => {
+      renderComponent();
+      const openTab = screen
+        .getAllByText('Open Visits')
+        .map(el => el.closest('button'))
+        .find((b): b is HTMLButtonElement => b !== null)!;
+      expect(openTab).toHaveClass('border-indigo-600');
+      expect(openTab).toHaveClass('text-indigo-600');
+    });
+
+    it('clicking Priority Visits filters to only priority rows', () => {
+      renderComponent();
+      const priorityTab = screen
+        .getByText('Priority Visits')
+        .closest('button')!;
+      fireEvent.click(priorityTab);
+      // Anita is the only priority visit in mockData
+      expect(screen.getAllByText('Anita Desai').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Ravi Kumar')).not.toBeInTheDocument();
+      expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
+    });
+
+    it('shows "No priority visits found." when Priority tab has no rows', () => {
+      mockUseOpenVisits.mockReturnValue({
+        data: [
+          {
+            visitUuid: 'ov-only',
+            patientName: 'Plain Patient',
+            gender: 'M',
+            age: 40,
+            visitCreatedDate: '2025-04-21',
+            clinicName: 'TM Clinic 1',
+            uploadTimestamp: '5 min ago',
+          },
+        ],
+        loading: false,
+        error: null,
+        totalCount: 1,
+      });
+      renderComponent();
+      fireEvent.click(screen.getByText('Priority Visits').closest('button')!);
+      expect(
+        screen.getByText('No priority visits found.')
+      ).toBeInTheDocument();
+    });
+
+    it('switching tabs toggles active styling', () => {
+      renderComponent();
+      const openTab = screen
+        .getAllByText('Open Visits')
+        .map(el => el.closest('button'))
+        .find((b): b is HTMLButtonElement => b !== null)!;
+      const priorityTab = screen
+        .getByText('Priority Visits')
+        .closest('button')!;
+
+      fireEvent.click(priorityTab);
+      expect(priorityTab).toHaveClass('border-indigo-600');
+      expect(openTab).toHaveClass('border-transparent');
+
+      fireEvent.click(openTab);
+      expect(openTab).toHaveClass('border-indigo-600');
+      expect(priorityTab).toHaveClass('border-transparent');
     });
   });
 });

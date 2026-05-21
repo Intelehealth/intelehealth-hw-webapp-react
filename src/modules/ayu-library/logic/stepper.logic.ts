@@ -26,7 +26,9 @@ export const isMutuallyExclusiveOption = (
   );
 
   return !!option?.extension?.some(
-    ext => ext.url === EXT_URL_MUTUALLY_EXCLUSIVE && ext.valueString === 'True'
+    ext =>
+      ext.url === EXT_URL_MUTUALLY_EXCLUSIVE &&
+      ext.valueString?.toLowerCase() === 'true'
   );
 };
 
