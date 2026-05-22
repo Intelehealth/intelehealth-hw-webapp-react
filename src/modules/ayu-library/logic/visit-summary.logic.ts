@@ -75,6 +75,7 @@ export function buildVisitSummary(
       case 'integer':
         if (
           typeof answer === 'object' &&
+          answer !== null &&
           !Array.isArray(answer) &&
           ('low' in answer || 'high' in answer)
         ) {
@@ -92,7 +93,11 @@ export function buildVisitSummary(
         return typeof answer === 'string' ? answer : null;
 
       case 'quantity':
-        if (typeof answer === 'object' && !Array.isArray(answer)) {
+        if (
+          typeof answer === 'object' &&
+          answer !== null &&
+          !Array.isArray(answer)
+        ) {
           if ('dropdownValues' in answer) {
             const { number, days } = answer.dropdownValues || {};
             if (number) return days ? `${number} ${days}` : String(number);
@@ -322,7 +327,7 @@ export function buildVisitSummary(
             const isPercentLabel = langExt?.valueString === '%';
             const summaryLabel = isPercentLabel
               ? ''
-              : langExt?.valueString || item.text;
+              : ((langExt?.valueString || item.text) as string);
 
             // Separate positive codes and negated "None" (exclusive) option
             const positiveCodes: string[] = [];

@@ -319,7 +319,7 @@ describe('PrescriptionPreviewPage', () => {
     });
 
     it('shows "No data" when service resolves null (line 233)', async () => {
-      mockGetData.mockResolvedValue(null);
+      mockGetData.mockResolvedValue(null as any);
       renderWithParams();
       await waitFor(() => {
         expect(screen.getByText('No data')).toBeInTheDocument();

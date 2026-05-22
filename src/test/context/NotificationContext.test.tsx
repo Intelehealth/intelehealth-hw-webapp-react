@@ -924,7 +924,7 @@ describe('NotificationContext', () => {
     mockRequestPermission.mockClear();
     mockRegisterFCMToken.mockClear();
 
-    const { result } = renderHook(() => useNotificationContext(), { wrapper });
+    renderHook(() => useNotificationContext(), { wrapper });
 
     await waitFor(() => {
       expect(mockInitialize).toHaveBeenCalled();
