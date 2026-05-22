@@ -738,6 +738,32 @@ describe('AppointmentScheduleComponent', () => {
       });
     });
 
+    it('correctly handles 12:00 AM (midnight) by converting hour to 0', async () => {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      const midnightSlot = {
+        slotId: `${todayStr}-12:00-am`,
+        date: todayStr,
+        time: '12:00 am',
+        isAvailable: true,
+        period: 'Morning' as const,
+        speciality: 'General Physician',
+      };
+      mockSlotsReturn = { data: [...defaultSlots, midnightSlot], loading: false, error: null };
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('12:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00\.000\+0530$/)
+        );
+      });
+    });
+
     it('clicking Book does nothing when no time selected', () => {
       renderComponent();
       const btn = screen.getByRole('button', { name: 'Book Appointment' });

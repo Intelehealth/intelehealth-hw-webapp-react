@@ -103,13 +103,11 @@ export default function AppointmentScheduleComponent() {
     const isCurrentMonth =
       year === now.getFullYear() && month === now.getMonth();
     const startDate = isCurrentMonth ? new Date(now) : new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0).getDate();
     const dates: string[] = [];
     const cursor = new Date(startDate);
     while (cursor.getMonth() === month || dates.length === 0) {
       dates.push(cursor.toLocaleDateString('en-CA'));
       cursor.setDate(cursor.getDate() + 1);
-      if (cursor.getDate() > lastDay && cursor.getMonth() !== month) break;
     }
     return dates;
   }, [year, month]);
@@ -228,7 +226,6 @@ export default function AppointmentScheduleComponent() {
   };
 
   const bookAppointment = () => {
-    if (!selectedDate || !selectedTime) return;
     showConfirmModal({
       icon: iconCalendar,
       title: 'Confirm appointment?',
@@ -266,8 +263,6 @@ export default function AppointmentScheduleComponent() {
         return iconAfternoon;
       case 'Evening':
         return iconSunset;
-      default:
-        return iconSunrise;
     }
   };
 
