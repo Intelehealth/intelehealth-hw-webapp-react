@@ -39,16 +39,8 @@ describe('AyuRangeInput', () => {
     });
 
     it('initializes both thumbs to min/max when no value is provided', () => {
-      const lower = screen.queryAllByRole('slider')[0] as HTMLInputElement;
-      const upper = screen.queryAllByRole('slider')[1] as HTMLInputElement;
-      // Need a fresh render — the previous test rendered too.
       render(<AyuRangeInput question={baseQuestion} />);
-      const all = screen.getAllByRole('slider');
-      const low = all[all.length - 2] as HTMLInputElement;
-      const high = all[all.length - 1] as HTMLInputElement;
-      // Reference unused locals so eslint is happy without disabling.
-      void lower;
-      void upper;
+      const [low, high] = screen.getAllByRole('slider') as HTMLInputElement[];
       expect(low.value).toBe('0');
       expect(high.value).toBe('100');
     });
@@ -191,6 +183,47 @@ describe('AyuRangeInput', () => {
         target: { value: '20' },
       });
       expect(onChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Label', () => {
+    it('renders the question label from question.text', () => {
+      const { container } = render(<AyuRangeInput question={baseQuestion} />);
+      const label = container.querySelector('label');
+      expect(label).not.toBeNull();
+      expect(label!.textContent).toBe('How many episodes?');
+    });
+
+    it('uses the non-parent label classes by default', () => {
+      const { container } = render(<AyuRangeInput question={baseQuestion} />);
+      const label = container.querySelector('label');
+      expect(label).toHaveClass(
+        'block',
+        'text-base',
+        'text-(--color-muted)'
+      );
+      expect(label).not.toHaveClass('font-medium');
+    });
+
+    it('uses the parent label classes when rendered as a nested child', () => {
+      const parent: AyuQuestion = {
+        linkId: 'parent',
+        type: 'group',
+        text: 'Parent group',
+      };
+      const { container } = render(
+        <AyuRangeInput question={baseQuestion} parent={parent} />
+      );
+      const label = container.querySelector('label');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
+      expect(label).not.toHaveClass('text-(--color-muted)');
+    });
+
+    it('does not render a label element when question text and label-bearing extension are absent', () => {
+      const { container } = render(
+        <AyuRangeInput question={{ linkId: 'r', type: 'integer' }} />
+      );
+      expect(container.querySelector('label')).toBeNull();
     });
   });
 

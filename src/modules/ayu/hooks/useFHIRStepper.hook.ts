@@ -38,6 +38,7 @@ interface UseFHIRStepperProps {
   skipSummary?: boolean;
   initialAnswers?: Record<string, AyuAnswerValue>;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
+  onSummaryShown?: () => void;
 }
 
 interface UseFHIRStepperReturn {
@@ -65,6 +66,7 @@ export const useFHIRStepper = (
     skipSummary,
     initialAnswers,
     onComplete,
+    onSummaryShown,
   } = props;
   const hasInitialAnswers =
     initialAnswers && Object.keys(initialAnswers).length > 0;
@@ -178,6 +180,8 @@ export const useFHIRStepper = (
         onComplete?.(answersRef.current);
       },
     });
+
+    onSummaryShown?.();
   };
 
   const clearAnswers = (linkIds: string[]) => {

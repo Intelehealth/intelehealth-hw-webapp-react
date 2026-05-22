@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { resolveLabel } from '../../../ayu-library';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import type { RangeAnswer } from '../../../ayu-library/types/ayu.types';
 import {
@@ -31,6 +32,7 @@ function isRangeAnswer(value: unknown): value is RangeAnswer {
 
 export function AyuRangeInput({
   question,
+  parent,
   value,
   onChange,
 }: AyuRendererBaseProps) {
@@ -68,8 +70,21 @@ export function AyuRangeInput({
     '--ayu-range-high': highPercent,
   } as CSSProperties;
 
+  const label = question ? resolveLabel(question, question, question) : null;
+
   return (
     <div className="ayu-range-root">
+      {label && (
+        <label
+          className={
+            parent
+              ? 'text-md font-medium text-black-500'
+              : 'block text-base text-(--color-muted)'
+          }
+        >
+          {label}
+        </label>
+      )}
       <span className="ayu-range-hint">
         {RANGE_HINT_TEMPLATE.replace('{min}', String(min)).replace(
           '{max}',
