@@ -100,94 +100,97 @@ export const VitalConfirmationModal = ({
           {hasSections ? (
             /* ---- SECTIONS MODE ---- */
             <div className="mt-4 space-y-5 sm:max-h-[350px] sm:overflow-y-auto sm:pr-2">
-              {sections.map((section, sIdx) => (
-                <div key={sIdx}>
-                  {/* Section header: title + Change button */}
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-bold text-black-500">
-                      {section.title}
-                    </p>
-                    {section.onChange && (
-                      <button
-                        onClick={() => {
-                          section.onChange?.();
-                          onClose();
-                        }}
-                        className="flex items-center gap-1 text-sm text-purple-700 border border-gray-200 font-medium rounded-lg px-2 py-1 hover:bg-purple-50 cursor-pointer"
-                      >
-                        <img
-                          src={changeIcon}
-                          alt="Change Icon"
-                          className="w-4 h-4"
-                        />
-                        <h2
-                          className="text-center text-xs"
-                          style={{ color: '#2e1e91' }}
+              {(() => {
+                const firstChangeIdx = sections.findIndex(s => !!s.onChange);
+                return sections.map((section, sIdx) => (
+                  <div key={sIdx}>
+                    {/* Section header: title + Change button (shown once, on the first section with onChange) */}
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-bold text-black-500">
+                        {section.title}
+                      </p>
+                      {sIdx === firstChangeIdx && (
+                        <button
+                          onClick={() => {
+                            section.onChange?.();
+                            onClose();
+                          }}
+                          className="flex items-center gap-1 text-sm text-purple-700 border border-gray-200 font-medium rounded-lg px-2 py-1 hover:bg-purple-50 cursor-pointer"
                         >
-                          Change
-                        </h2>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Section items */}
-                  <div className="mt-2 space-y-2">
-                    {section.items.map((item, iIdx) => {
-                      if (item.type === 'labelValue') {
-                        return (
-                          <div
-                            key={iIdx}
-                            className={`  ${size === 'lg' ? 'grid grid-cols-[0px_240px_260px] gap-4 ' : 'grid grid-cols-[0px 150px 1fr] gap-2'} items-center text-sm w-full`}
+                          <img
+                            src={changeIcon}
+                            alt="Change Icon"
+                            className="w-4 h-4"
+                          />
+                          <h2
+                            className="text-center text-xs"
+                            style={{ color: '#2e1e91' }}
                           >
-                            <span className="text-gray-500 font-bold">
-                              &#8226;
-                            </span>
-                            <span className="text-gray-500 font-medium">
-                              {item.label}
-                            </span>
-                            <span className="break-words">
-                              {item.value ? (
-                                <span className="text-gray-900">
-                                  {String(item.value)}
-                                </span>
-                              ) : (
-                                <span className="text-gray-500">
-                                  No information
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        );
-                      }
+                            Change
+                          </h2>
+                        </button>
+                      )}
+                    </div>
 
-                      if (item.type === 'subheading') {
-                        return (
-                          <div key={iIdx} className="ml-1">
-                            <p className="text-sm text-gray-600 font-medium mt-1">
-                              {item.heading}:
-                            </p>
-                            <div className="ml-3 mt-1 space-y-1">
-                              {item.values.map((val, vIdx) => (
-                                <div
-                                  key={vIdx}
-                                  className="flex items-start gap-2 text-sm"
-                                >
-                                  <span className="text-gray-500 font-bold mt-0.5">
-                                    &#8226;
+                    {/* Section items */}
+                    <div className="mt-2 space-y-2">
+                      {section.items.map((item, iIdx) => {
+                        if (item.type === 'labelValue') {
+                          return (
+                            <div
+                              key={iIdx}
+                              className={`  ${size === 'lg' ? 'grid grid-cols-[0px_240px_260px] gap-4 ' : 'grid grid-cols-[0px 150px 1fr] gap-2'} items-center text-sm w-full`}
+                            >
+                              <span className="text-gray-500 font-bold">
+                                &#8226;
+                              </span>
+                              <span className="text-gray-500 font-medium">
+                                {item.label}
+                              </span>
+                              <span className="break-words">
+                                {item.value ? (
+                                  <span className="text-gray-900">
+                                    {String(item.value)}
                                   </span>
-                                  <span className="text-gray-900">{val}</span>
-                                </div>
-                              ))}
+                                ) : (
+                                  <span className="text-gray-500">
+                                    No information
+                                  </span>
+                                )}
+                              </span>
                             </div>
-                          </div>
-                        );
-                      }
+                          );
+                        }
 
-                      return null;
-                    })}
+                        if (item.type === 'subheading') {
+                          return (
+                            <div key={iIdx} className="ml-1">
+                              <p className="text-sm text-gray-600 font-medium mt-1">
+                                {item.heading}:
+                              </p>
+                              <div className="ml-3 mt-1 space-y-1">
+                                {item.values.map((val, vIdx) => (
+                                  <div
+                                    key={vIdx}
+                                    className="flex items-start gap-2 text-sm"
+                                  >
+                                    <span className="text-gray-500 font-bold mt-0.5">
+                                      &#8226;
+                                    </span>
+                                    <span className="text-gray-900">{val}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           ) : (
             /* ---- LEGACY FLAT MODE ---- */

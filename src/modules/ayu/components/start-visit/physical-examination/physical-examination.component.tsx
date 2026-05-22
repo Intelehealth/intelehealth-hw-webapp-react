@@ -1,342 +1,361 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import iconCamera from '../../../../../assets/icons/icon-camera.svg';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
-import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../../ayu-library';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import iconYes from '../../../assets/yes.svg';
+import {
+  EXT_URL_JOB_AID_FILE,
+  EXT_URL_JOB_AID_TYPE,
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_SECTION_KEY,
+  PE_OPTION_KIND_CAMERA,
+} from '../../../../ayu-library/utils/constants';
+import { transformFhirPhysExamToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
-import { usePhysicalExam } from '../../../hooks/usePhysicalExam';
-import type { PhysicalExamQuestion } from '../../../types/physical-exam.types';
+import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
+import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
-  BUTTON_SUBMIT,
-  BUTTON_UPLOAD,
+  PHYSICAL_EXAM_SUMMARY_TITLE,
+  SUMMARY_CANCEL_TEXT,
+  SUMMARY_CONFIRM_TEXT,
 } from '../../../utils/ayu.constants';
+import {
+  filterAyuQuestionsForPhysExam,
+  parsePhysicalExamFilter,
+} from '../../../utils/physical-exam.utils';
 import { getJobAidUrl } from '../../../utils/physExamAssets';
 import AyuButton from '../../common/ayu-button.component';
-import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
-import { QuestionLoader } from '../../loaders/question-loader.component';
-import { PhysicalExamImageCapture } from './physical-exam-image-capture.component';
-import type { QuestionCardProps } from './physical-examination.types';
-import { arraysEqual, getOptionIcon } from './physical-examination.utils';
+import type { AyuStepperContainerHandle } from '../visit-reason/ayu-stepper-container.component';
+import { AyuStepperContainer } from '../visit-reason/ayu-stepper-container.component';
+import {
+  PhysicalExamCameraProvider,
+  usePhysicalExamCamera,
+} from './physical-exam-camera-context';
 
-const QuestionCard = ({
-  question,
-  index,
-  totalQuestions,
-  isActive,
-  selectedOptions,
-  cameraImages,
-  onSelectSingle,
-  onSelectSinglePast,
-  onToggleMulti,
-  onSkip,
-  onAddCameraImage,
-  onRemoveCameraImage,
-  onClearCameraImages,
-  onUploadImages,
-  activeRef,
-  isSubmitted,
-}: QuestionCardProps) => {
-  const regularOptions = question.options.filter(o => !o.isCamera);
-  const cameraOption = question.options.find(o => o.isCamera);
-  const isCameraSelected = cameraOption
-    ? selectedOptions.includes(cameraOption.id)
-    : false;
-  const jobAidUrl = question.jobAidFile
-    ? getJobAidUrl(question.jobAidFile)
-    : null;
+interface AyuFhirShape {
+  resourceType?: string;
+  text?: string;
+  item?: AyuQuestion[];
+}
 
-  const handleOptionClick = (optionId: string) => {
-    if (question.isMultiChoice) onToggleMulti(optionId);
-    else if (isActive) onSelectSingle(optionId);
-    else onSelectSinglePast(optionId);
-  };
+/**
+ * Boundary adapter: convert AyuStepperContainer's rich answer map back to
+ * PhysicalExamAnswers (Record<string, string[]>) so visit-upload's
+ * buildPhysicalExamData — which still consumes the legacy shape — works
+ * without modification.
+ */
+const ayuAnswersToPhysicalExamAnswers = (
+  answers: Record<string, AyuAnswerValue>
+): PhysicalExamAnswers => {
+  const out: PhysicalExamAnswers = {};
+  for (const [linkId, value] of Object.entries(answers)) {
+    if (Array.isArray(value)) {
+      out[linkId] = value.filter((v): v is string => typeof v === 'string');
+    } else if (typeof value === 'string') {
+      out[linkId] = [value];
+    } else {
+      out[linkId] = [];
+    }
+  }
+  return out;
+};
 
+const readExt = (q: AyuQuestion, url: string): string | undefined =>
+  q.extension?.find(e => e.url === url)?.valueString;
+
+const isCameraOption = (
+  opt: NonNullable<AyuQuestion['answerOption']>[number]
+): boolean =>
+  !!opt.extension?.some(
+    ext =>
+      ext.url === EXT_URL_PE_OPTION_KIND &&
+      ext.valueString === PE_OPTION_KIND_CAMERA
+  );
+
+export const PhysicalExamination = (props: SectionProps) => {
+  const {
+    onNextQuestion: originalOnNext,
+    onPrevSection,
+    onProgressUpdate,
+    physicalExamFilter,
+    ayuConfigFiles,
+  } = props;
+  const { data, visitId, setPhysicalExamData, saveSectionToTemp } =
+    useStartVisitData();
+  const { showVitalConfirmationModal } = useGlobalModal();
+  const patientDemographics = usePatientDemographics();
+  const stepperRef = useRef<AyuStepperContainerHandle>(null);
+  const [isReviewMode, setIsReviewMode] = useState(() => !!data.physicalExam);
+
+  const physExamJson = useMemo(
+    () =>
+      ayuConfigFiles?.find(
+        f => f.name.replace(/\.json$/i, '').trim() === 'physExam'
+      )?.json ?? null,
+    [ayuConfigFiles]
+  );
+
+  const ayuRoot = useMemo<AyuFhirShape | null>(() => {
+    if (!physExamJson) return null;
+    const root = transformFhirPhysExamToAyu(
+      physExamJson as unknown as Parameters<
+        typeof transformFhirPhysExamToAyu
+      >[0],
+      patientDemographics
+    );
+    if (!root) return null;
+    const filteredItems = filterAyuQuestionsForPhysExam(
+      /* v8 ignore next */
+      root.item ?? [],
+      physicalExamFilter ?? ''
+    );
+    return {
+      resourceType: 'Questionnaire',
+      text: root.text,
+      item: filteredItems,
+    };
+  }, [physExamJson, patientDemographics, physicalExamFilter]);
+
+  const topLevelItems = useMemo(() => ayuRoot?.item ?? [], [ayuRoot]);
+
+  // Keep a stable lookup so context callbacks below don't allocate per render
+  const questionByLinkIdRef = useRef(new Map<string, AyuQuestion>());
+  useMemo(() => {
+    const map = new Map<string, AyuQuestion>();
+    for (const q of topLevelItems) map.set(q.linkId, q);
+    questionByLinkIdRef.current = map;
+  }, [topLevelItems]);
+
+  const sectionCommentFor = useCallback((questionId: string): string => {
+    const q = questionByLinkIdRef.current.get(questionId);
+    return (
+      readExt(q ?? ({} as AyuQuestion), EXT_URL_PE_SECTION_KEY) ??
+      'General Exams'
+    );
+  }, []);
+
+  const jobAidUrlFor = useCallback((questionId: string): string | null => {
+    const q = questionByLinkIdRef.current.get(questionId);
+    if (!q) return null;
+    const file = readExt(q, EXT_URL_JOB_AID_FILE);
+    if (!file) return null;
+    return getJobAidUrl(file) ?? null;
+  }, []);
+
+  const jobAidTypeFor = useCallback(
+    (questionId: string): 'image' | 'video' | null => {
+      const q = questionByLinkIdRef.current.get(questionId);
+      if (!q) return null;
+      const t = readExt(q, EXT_URL_JOB_AID_TYPE);
+      if (t === 'image' || t === 'video') return t;
+      return null;
+    },
+    []
+  );
+
+  /*
+   * Track which questions have captured camera images. Read by the section
+   * builder below so a camera answer can be displayed as "Picture taken".
+   * Mutated via a context-bridge (see jobAidUrlFor closure won't suffice —
+   * we need a stable ref because cameraImagesFor is provider-owned).
+   */
+  const cameraImagesForRef = useRef<((qId: string) => string[]) | null>(null);
+
+  const handleStepperComplete = useCallback(
+    (answers: Record<string, AyuAnswerValue>) => {
+      const physExamAnswers = ayuAnswersToPhysicalExamAnswers(answers);
+      const cameraImagesFor = cameraImagesForRef.current ?? (() => []);
+
+      // Build the per-question detail list (label/value) — used by the
+      // start-visit context as a quick summary. Mirrors the old shape.
+      const details: Array<{ label: string; value: string }> = [];
+      const sectionMap = new Map<string, ModalSection>();
+
+      for (const q of topLevelItems) {
+        const selectedCodes = physExamAnswers[q.linkId] ?? [];
+        if (selectedCodes.length === 0) continue;
+
+        /* PE section + category extensions are always attached by
+         * buildPhysExamQuestion, so the `?? ''` / `?? q.text` fallbacks are
+         * defensive against future shape changes — never hit today. */
+        /* v8 ignore next */
+        const sectionKey = readExt(q, EXT_URL_PE_SECTION_KEY) ?? '';
+        const categoryLabel =
+          /* v8 ignore next */
+          readExt(q, EXT_URL_PE_CATEGORY_LABEL) ?? q.text ?? '';
+
+        const selectedTexts: string[] = [];
+        const summaryTexts: string[] = [];
+        for (const code of selectedCodes) {
+          const opt = q.answerOption?.find(o => o.valueCoding?.code === code);
+          if (!opt) continue;
+          const display = opt.valueCoding?.display ?? '';
+          if (isCameraOption(opt)) {
+            const hasImages = cameraImagesFor(q.linkId).length > 0;
+            if (hasImages) summaryTexts.push('Picture taken');
+            // Cameras don't contribute to the plain details list (matches the
+            // old PhysicalExamination behaviour).
+          } else {
+            if (display) {
+              selectedTexts.push(display);
+              summaryTexts.push(display);
+            }
+          }
+        }
+
+        if (selectedTexts.length > 0) {
+          details.push({
+            label: categoryLabel,
+            value: selectedTexts.join(', '),
+          });
+        }
+
+        if (summaryTexts.length === 0) continue;
+
+        if (!sectionMap.has(sectionKey)) {
+          sectionMap.set(sectionKey, {
+            title: sectionKey,
+            items: [],
+            onChange: () => setIsReviewMode(true),
+          });
+        }
+        sectionMap.get(sectionKey)!.items.push({
+          type: 'labelValue',
+          label: categoryLabel,
+          value: summaryTexts.join(', '),
+        });
+      }
+
+      const sections = Array.from(sectionMap.values());
+
+      setIsReviewMode(true);
+      showVitalConfirmationModal({
+        open: true,
+        type: 'vitalConfirm',
+        icon: iconPhysicalExam,
+        title: PHYSICAL_EXAM_SUMMARY_TITLE,
+        sections,
+        size: 'lg',
+        confirmText: SUMMARY_CONFIRM_TEXT,
+        cancelText: SUMMARY_CANCEL_TEXT,
+        onConfirm: () => {
+          setPhysicalExamData(physExamAnswers, details);
+          saveSectionToTemp({
+            physicalExam: { answers: physExamAnswers, details },
+          });
+          originalOnNext();
+        },
+      });
+    },
+    [
+      topLevelItems,
+      showVitalConfirmationModal,
+      setPhysicalExamData,
+      saveSectionToTemp,
+      originalOnNext,
+    ]
+  );
+
+  const handleProgressUpdate = useCallback(
+    (total: number, answered: number) => {
+      onProgressUpdate?.(total, answered);
+    },
+    [onProgressUpdate]
+  );
+
+  const initialAnswers = useMemo(() => {
+    const raw = data.physicalExam?.answers;
+    if (!raw) return undefined;
+    // PhysicalExamAnswers is Record<string, string[]>, which is a valid
+    // Record<string, AyuAnswerValue>. Cast for the stricter typed prop.
+    return raw as unknown as Record<string, AyuAnswerValue>;
+  }, [data.physicalExam]);
+
+  if (!ayuRoot || topLevelItems.length === 0) {
+    return <div>Loading physical exam...</div>;
+  }
+
+  /* Camera context wraps the stepper so AyuPhysicalExamOptions can reach
+   * camera handlers and job-aid resolvers via context. The protocol filter
+   * has already pruned topLevelItems above, so the questionByLinkId map
+   * here is the post-filter set. */
   return (
-    <div ref={isActive ? activeRef : null}>
-      <QuestionLoader questionIndex={index} totalQuestions={totalQuestions}>
-        <div className="px-3 pt-3 pb-1">
-          <span className="text-xs font-semibold text-gray-500">
-            {question.sectionLabel}
-          </span>
-          <span className="text-xs font-semibold text-gray-500 ml-1">
-            {question.categoryLabel}
-          </span>
-        </div>
-        <p className="text-base font-semibold text-gray-900 px-3 pb-2">
-          {question.questionText}
-          {question.isRequired && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
-        </p>
-        {jobAidUrl && (
-          <div className="px-3 pb-2">
-            <p className="text-xs text-gray-500 mb-1">References:</p>
-            {question.jobAidType === 'video' ? (
-              <video src={jobAidUrl} controls className="rounded-md" />
-            ) : (
-              <img
-                src={jobAidUrl}
-                alt={question.categoryLabel}
-                className="rounded-md"
-              />
-            )}
-          </div>
-        )}
-        <hr className="mx-3 border-gray-200" />
-        <p className="px-3 pt-2 text-xs text-gray-500">
-          {question.isMultiChoice ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
-        </p>
-        <div className="flex flex-wrap gap-3 px-3 pt-2 pb-3">
-          {regularOptions.map(option => (
-            <AyuSelectableOption
-              key={option.id}
-              label={option.text}
-              value={option.id}
-              selected={selectedOptions.includes(option.id)}
-              leftIcon={getOptionIcon(option.text)}
-              onClick={() => handleOptionClick(option.id)}
-            />
-          ))}
-          {isActive && !question.isRequired && (
-            <AyuSelectableOption
-              label="Skip"
-              value="skip"
-              selected={false}
-              onClick={onSkip}
-            />
-          )}
-          {cameraOption && (
-            <AyuSelectableOption
-              label="Take a picture"
-              value={cameraOption.id}
-              selected={isCameraSelected}
-              leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
-              onClick={() => {
-                if (isCameraSelected) onClearCameraImages();
-                onToggleMulti(cameraOption.id);
-              }}
-            />
-          )}
-        </div>
-        {isCameraSelected && (
-          <div className="px-3 pb-3">
-            <PhysicalExamImageCapture
-              images={cameraImages}
-              onAdd={onAddCameraImage}
-              onRemove={onRemoveCameraImage}
+    <PhysicalExamCameraProvider
+      visitId={visitId ?? null}
+      sectionCommentFor={sectionCommentFor}
+      jobAidUrlFor={jobAidUrlFor}
+      jobAidTypeFor={jobAidTypeFor}
+    >
+      <CameraImagesForCapture cameraImagesForRef={cameraImagesForRef} />
+      <div className="w-full flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-[996px]">
+            <AyuStepperContainer
+              ref={stepperRef}
+              questionnaire={ayuRoot as never}
+              summaryTitle={PHYSICAL_EXAM_SUMMARY_TITLE}
+              skipSummary
+              initialAnswers={initialAnswers}
+              onComplete={handleStepperComplete}
+              onProgressUpdate={handleProgressUpdate}
             />
           </div>
-        )}
-        {selectedOptions.length > 0 &&
-          (!isCameraSelected || cameraImages.length > 0) &&
-          (question.isMultiChoice || isCameraSelected) && (
-            <div className="flex justify-end px-3 pb-3">
+        </div>
+        <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 pt-3">
+          <div className="flex gap-3 md:justify-end">
+            <AyuButton
+              type="button"
+              variant="primarylight"
+              size="md"
+              onClick={() => onPrevSection?.()}
+              className="w-full md:w-[10%]"
+            >
+              <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
+            </AyuButton>
+            {isReviewMode && (
               <AyuButton
                 type="button"
                 variant="primary"
-                size="sm"
-                onClick={onUploadImages}
+                size="md"
+                onClick={() => stepperRef.current?.confirm()}
+                className="w-full md:w-[10%]"
               >
-                {isCameraSelected && cameraImages.length > 0
-                  ? `${BUTTON_UPLOAD} (${cameraImages.length})`
-                  : BUTTON_SUBMIT}
-                {isCameraSelected && cameraImages.length > 0 && isSubmitted && (
-                  <img src={iconYes} alt="yes" />
-                )}
+                <span className="mx-auto w-full text-base">
+                  {BUTTON_SAVE_NEXT}
+                </span>
               </AyuButton>
-            </div>
-          )}
-      </QuestionLoader>
-    </div>
-  );
-};
-
-export const PhysicalExamination = (props: SectionProps) => {
-  const { onNextQuestion: originalOnNext } = props;
-  const { data, setPhysicalExamData, saveSectionToTemp } = useStartVisitData();
-  const { showVitalConfirmationModal } = useGlobalModal();
-  const answersRef = useRef<Record<string, string[]>>({});
-  const cameraImagesForRef = useRef<(qId: string) => string[]>(() => []);
-  const visibleQuestionsRef = useRef<PhysicalExamQuestion[]>([]);
-
-  const wrappedOnNextQuestion = useCallback(() => {
-    const currentAnswers = answersRef.current;
-    const questions = visibleQuestionsRef.current;
-    const details = questions
-      .filter(q => (currentAnswers[q.id] ?? []).length > 0)
-      .map(q => {
-        const selectedTexts = currentAnswers[q.id]
-          .map(id => {
-            const opt = q.options.find(o => o.id === id);
-            if (opt?.isCamera) return undefined;
-            return opt?.text;
-          })
-          .filter(Boolean);
-        return { label: q.categoryLabel, value: selectedTexts.join(', ') };
-      })
-      .filter(d => d.value);
-
-    // Group details by sectionKey for modal sections
-    const sectionMap = new Map<string, ModalSection>();
-    for (const q of questions) {
-      if ((currentAnswers[q.id] ?? []).length === 0) continue;
-      const selectedTexts = currentAnswers[q.id]
-        .map(id => {
-          const opt = q.options.find(o => o.id === id);
-          if (opt?.isCamera) {
-            const hasImages = cameraImagesForRef.current(q.id).length > 0;
-            return hasImages ? 'Picture taken' : '';
-          }
-          return opt?.text;
-        })
-        .filter(Boolean);
-      if (!selectedTexts.length) continue;
-      if (!sectionMap.has(q.sectionKey)) {
-        sectionMap.set(q.sectionKey, {
-          title: q.sectionKey,
-          items: [],
-          onChange: () => {},
-        });
-      }
-      sectionMap.get(q.sectionKey)!.items.push({
-        type: 'labelValue',
-        label: q.categoryLabel,
-        value: selectedTexts.join(', '),
-      });
-    }
-    const sections = Array.from(sectionMap.values());
-
-    showVitalConfirmationModal({
-      open: true,
-      type: 'vitalConfirm',
-      icon: iconPhysicalExam,
-      title: 'Physical Examination Summary',
-      sections,
-      size: 'lg',
-      confirmText: 'Confirm',
-      cancelText: 'Back',
-      onConfirm: () => {
-        setPhysicalExamData(currentAnswers, details);
-        saveSectionToTemp({
-          physicalExam: { answers: answersRef.current, details },
-        });
-        originalOnNext();
-      },
-    });
-  }, [
-    originalOnNext,
-    setPhysicalExamData,
-    showVitalConfirmationModal,
-    saveSectionToTemp,
-  ]);
-
-  const {
-    internalIndex,
-    visibleQuestions,
-    totalQuestions,
-    answers,
-    selectedOptionsFor,
-    cameraImagesFor,
-    addCameraImage,
-    removeCameraImage,
-    clearCameraImages,
-    selectAndAdvance,
-    selectSingle,
-    toggleOption,
-    goNext,
-    goSkip,
-    onPrevSection,
-  } = usePhysicalExam({
-    ...props,
-    onNextQuestion: wrappedOnNextQuestion,
-    initialAnswers: data.physicalExam?.answers,
-  });
-
-  answersRef.current = answers;
-  cameraImagesForRef.current = cameraImagesFor;
-  visibleQuestionsRef.current = visibleQuestions;
-
-  const activeRef = useRef<HTMLDivElement | null>(null);
-  const [submittedAnswers, setSubmittedAnswers] = useState<
-    Record<string, string[]>
-  >({});
-
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [internalIndex]);
-
-  return (
-    <div className="flex flex-col gap-6">
-      {visibleQuestions.slice(0, internalIndex + 1).map((question, index) => {
-        const isActive = index === internalIndex;
-        const opts = selectedOptionsFor(question.id);
-        return (
-          <QuestionCard
-            key={question.id}
-            question={question}
-            index={index}
-            totalQuestions={totalQuestions}
-            isActive={isActive}
-            selectedOptions={opts}
-            cameraImages={cameraImagesFor(question.id)}
-            onSelectSingle={id => {
-              setSubmittedAnswers(p => ({ ...p, [question.id]: [id] }));
-              // Update ref immediately so wrappedOnNextQuestion sees the latest answer
-              answersRef.current = {
-                ...answersRef.current,
-                [question.id]: [id],
-              };
-              selectAndAdvance(id);
-            }}
-            onSelectSinglePast={id => selectSingle(id, question.id)}
-            onToggleMulti={id => toggleOption(id, question.id)}
-            onSkip={goSkip}
-            onAddCameraImage={f => addCameraImage(question.id, f)}
-            onRemoveCameraImage={i => removeCameraImage(question.id, i)}
-            onClearCameraImages={() => clearCameraImages(question.id)}
-            onUploadImages={() => {
-              setSubmittedAnswers(p => ({ ...p, [question.id]: opts }));
-              goNext();
-            }}
-            activeRef={activeRef}
-            isSubmitted={
-              !!submittedAnswers[question.id] &&
-              arraysEqual(opts, submittedAnswers[question.id])
-            }
-          />
-        );
-      })}
-      <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 pt-3">
-        <div className="flex gap-3 md:justify-end">
-          <AyuButton
-            type="button"
-            variant="primarylight"
-            size="md"
-            onClick={() => onPrevSection?.()}
-            className="w-full md:w-[10%]"
-          >
-            <span className="mx-auto w-full text-base">{BUTTON_BACK}</span>
-          </AyuButton>
-          {!!data.physicalExam && (
-            <AyuButton
-              type="button"
-              variant="primary"
-              size="md"
-              onClick={() => wrappedOnNextQuestion()}
-              className="w-full md:w-[10%]"
-            >
-              <span className="mx-auto w-full text-base">
-                {BUTTON_SAVE_NEXT}
-              </span>
-            </AyuButton>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </PhysicalExamCameraProvider>
   );
 };
+
+/**
+ * Bridges the camera context's cameraImagesFor reader into the outer
+ * component's ref so handleStepperComplete (computed outside the provider)
+ * can ask whether a question has captured images when building the modal.
+ */
+const CameraImagesForCapture = ({
+  cameraImagesForRef,
+}: {
+  cameraImagesForRef: React.MutableRefObject<
+    ((qId: string) => string[]) | null
+  >;
+}) => {
+  const camera = usePhysicalExamCamera();
+  cameraImagesForRef.current = camera?.cameraImagesFor ?? null;
+  return null;
+};
+
+// Re-export to keep parsePhysicalExamFilter available where the protocol
+// filter is consumed from this module path historically.
+export { parsePhysicalExamFilter };

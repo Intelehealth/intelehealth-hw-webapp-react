@@ -1,148 +1,120 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PhysicalExamQuestion } from '../../../../../modules/ayu/types/physical-exam.types';
+import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import {
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_SECTION_KEY,
+  PE_OPTION_KIND_CAMERA,
+} from '../../../../../modules/ayu-library/utils/constants';
 
-const MOCK_QUESTIONS: PhysicalExamQuestion[] = [
-  {
-    id: 'q1',
-    sectionLabel: 'General:',
-    categoryLabel: 'Jaundice',
-    questionText: 'Is there jaundice?',
-    isRequired: true,
-    isMultiChoice: false,
-    sectionKey: 'General',
-    jobAidType: 'image',
-    jobAidFile: 'jaundice',
-    options: [
-      { id: 'q1-yes', text: 'Yes' },
-      { id: 'q1-no', text: 'No' },
-      { id: 'q1-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true },
-    ],
-  },
-  {
-    id: 'q2',
-    sectionLabel: 'General:',
-    categoryLabel: 'Pallor',
-    questionText: 'Is there pallor?',
-    isRequired: true,
-    isMultiChoice: true,
-    sectionKey: 'General',
-    jobAidType: 'video',
-    jobAidFile: 'pallor',
-    options: [
-      { id: 'q2-normal', text: 'Normal', excludeFromMulti: true },
-      { id: 'q2-a', text: 'Option A' },
-      { id: 'q2-cam', text: 'Take a picture', isCamera: true, isExclusiveOption: true },
-    ],
-  },
-  {
-    id: 'q3',
-    sectionLabel: 'Head:',
-    categoryLabel: 'Injury',
-    questionText: 'Any injuries?',
-    isRequired: false,
-    isMultiChoice: false,
-    sectionKey: 'Head',
-    options: [
-      { id: 'q3-yes', text: 'Yes' },
-      { id: 'q3-other', text: 'Maybe' },
-    ],
-  },
-];
-
-const mockHookReturn = {
-  internalIndex: 0,
-  visibleQuestions: MOCK_QUESTIONS,
-  totalQuestions: 3,
-  currentQuestion: MOCK_QUESTIONS[0],
-  isLastQuestion: false,
-  answers: {} as Record<string, string[]>,
-  selectedOptionsFor: vi.fn().mockReturnValue([]),
-  cameraImagesFor: vi.fn().mockReturnValue([]),
-  addCameraImage: vi.fn(),
-  removeCameraImage: vi.fn(),
-  clearCameraImages: vi.fn(),
-  selectAndAdvance: vi.fn(),
-  selectSingle: vi.fn(),
-  toggleOption: vi.fn(),
-  goNext: vi.fn(),
-  goSkip: vi.fn(),
-  goBack: vi.fn(),
-  onPrevSection: vi.fn(),
-  allRequiredAnswered: true,
-};
-
-let capturedHookProps: any = {};
-vi.mock('../../../../../modules/ayu/hooks/usePhysicalExam', () => ({
-  usePhysicalExam: (props: any) => { capturedHookProps = props; return mockHookReturn; },
-}));
-
-vi.mock('../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
-  QuestionLoader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="question-loader">{children}</div>
-  ),
-}));
-
-vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () => ({
-  default: ({ children, onClick, ...rest }: any) => (
-    <button onClick={onClick} {...rest}>{children}</button>
-  ),
-}));
-
-vi.mock('../../../../../modules/ayu/components/common/ayu-selectable-option.component', () => ({
-  AyuSelectableOption: ({ label, value, onClick, leftIcon, selected }: any) => (
-    <button
-      data-testid={`option-${value}`}
-      data-selected={selected}
-      onClick={onClick}
-    >
-      {leftIcon && <span data-testid={`icon-${value}`}>{leftIcon}</span>}
-      {label}
-    </button>
-  ),
-}));
-
-vi.mock('../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-image-capture.component', () => ({
-  PhysicalExamImageCapture: ({ onAdd, onRemove, images }: any) => (
-    <div data-testid="image-capture">
-      <button data-testid="capture-add" onClick={() => onAdd(new File([''], 'test.jpg'))}>
-        Add
-      </button>
-      <button data-testid="capture-remove" onClick={() => onRemove(0)}>Remove</button>
-      <span data-testid="capture-count">{images.length}</span>
-    </div>
-  ),
-}));
-
-vi.mock('../../../../../assets/icons/icon-camera.svg', () => ({
-  default: 'camera-icon.svg',
-}));
-
-vi.mock('../../../../../assets/icons/icon-physical-examination.svg', () => ({
-  default: 'physical-exam-icon.svg',
-}));
-
-vi.mock('../../../../../assets/icons/icon-right-arrow.svg', () => ({
-  default: 'right-arrow-icon.svg',
-}));
+/*
+ * The new PhysicalExamination component is a thin orchestrator on top of
+ * AyuStepperContainer. We mock the stepper to capture props and drive its
+ * callbacks; that gives us clean assertions on the boundary the component
+ * actually owns (modal sections, adapter output, review-mode toggles).
+ */
 
 const mockShowVitalConfirmationModal = vi.fn();
+const mockSetPhysicalExamData = vi.fn();
+const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
+const mockStepperConfirm = vi.fn();
+const mockStepperShowSummary = vi.fn();
+
+let capturedStepperProps: any = {};
+
+vi.mock(
+  '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component',
+  async () => {
+    const ReactModule = await vi.importActual<typeof import('react')>('react');
+    return {
+      AyuStepperContainer: ReactModule.forwardRef((props: any, ref: any) => {
+        capturedStepperProps = props;
+        ReactModule.useImperativeHandle(ref, () => ({
+          confirm: mockStepperConfirm,
+          showSummary: mockStepperShowSummary,
+        }));
+        return (
+          <div data-testid="ayu-stepper-container">
+            <button
+              data-testid="trigger-complete"
+              onClick={() =>
+                props.onComplete?.((capturedStepperProps._completeAnswers as
+                  | Record<string, unknown>
+                  | undefined) ?? {})
+              }
+            >
+              Trigger Complete
+            </button>
+          </div>
+        );
+      }),
+    };
+  }
+);
+
+// Captures the props passed to PhysicalExamCameraProvider so tests can
+// invoke the resolver callbacks the orchestrator wires up
+// (sectionCommentFor, jobAidUrlFor, jobAidTypeFor).
+const capturedProviderProps: {
+  current: Record<string, unknown> | null;
+} = { current: null };
+// When set to true the mocked usePhysicalExamCamera hook returns null so
+// CameraImagesForCapture exercises its `camera == null` fallback branch.
+const cameraConsumerReturnsNull = { value: false };
+
+vi.mock(
+  '../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-camera-context',
+  () => {
+    const cameraImagesFor = vi.fn((qId: string) =>
+      qId === 'with-images' ? ['data:image/png;base64,xxx'] : []
+    );
+    return {
+      PhysicalExamCameraProvider: (props: {
+        children: React.ReactNode;
+        [k: string]: unknown;
+      }) => {
+        capturedProviderProps.current = props;
+        return <div data-testid="camera-provider">{props.children}</div>;
+      },
+      usePhysicalExamCamera: () =>
+        cameraConsumerReturnsNull.value
+          ? null
+          : {
+              cameraImagesFor,
+              addCameraImage: vi.fn(),
+              removeCameraImage: vi.fn(),
+              clearCameraImages: vi.fn(),
+              jobAidUrlFor: () => null,
+              jobAidTypeFor: () => null,
+            },
+    };
+  }
+);
+
+vi.mock('../../../../../modules/ayu/hooks/useVisitReasons.hook', () => ({
+  usePatientDemographics: vi.fn(() => ({ age: 30, gender: 'M' })),
+}));
+
 vi.mock('../../../../../components/modal/global-modal-context', () => ({
   useGlobalModal: () => ({
-    showConfirmModal: vi.fn(),
     showVitalConfirmationModal: mockShowVitalConfirmationModal,
+    showConfirmModal: vi.fn(),
     closeModal: vi.fn(),
   }),
 }));
 
-vi.mock('../../../../../modules/ayu/assets/yes.svg', () => ({
-  default: 'yes-icon.svg',
-}));
+let mockContextData: {
+  physicalExam: {
+    answers: Record<string, string[]>;
+    details: Array<{ label: string; value: string }>;
+  } | null;
+} = { physicalExam: null };
+const mockVisitId: { value: string | null | undefined } = {
+  value: 'test-visit-id',
+};
 
-const mockSetPhysicalExamData = vi.fn();
-const mockSaveSectionToTempPE = vi.fn().mockResolvedValue(undefined);
-let mockContextData: { physicalExam: { answers: Record<string, string[]>; details: Array<{ label: string; value: string }> } | null } = { physicalExam: null };
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => ({
     data: {
@@ -153,7 +125,7 @@ vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
       medicalHistoryAnswers: null,
     },
     patientUuid: null,
-    visitId: 'test-visit-id',
+    visitId: mockVisitId.value,
     tempRecordId: null,
     isRestoring: false,
     restoredSectionIndex: null,
@@ -165,617 +137,868 @@ vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
     setPhysicalExamData: mockSetPhysicalExamData,
     setMedicalHistoryData: vi.fn(),
     setMedicalHistoryAnswers: vi.fn(),
-    saveSectionToTemp: mockSaveSectionToTempPE,
+    saveSectionToTemp: mockSaveSectionToTemp,
     clearVisitId: vi.fn(),
   }),
 }));
 
-const mockGetJobAidUrl = vi.fn().mockReturnValue(undefined);
-
+// Stub getJobAidUrl so jobAidUrlFor returns a predictable URL when the
+// orchestrator wires it through the provider. Returns null for the magic
+// filename "missing" so we can exercise the `?? null` fallback branch.
 vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
-  getJobAidUrl: (...args: unknown[]) => mockGetJobAidUrl(...args),
+  getJobAidUrl: (file: string) =>
+    file === 'missing' ? null : `assets/${file}.png`,
+}));
+
+vi.mock('../../../../../assets/icons/icon-physical-examination.svg', () => ({
+  default: 'physical-exam-icon.svg',
+}));
+
+vi.mock('../../../../../assets/icons/icon-right-arrow.svg', () => ({
+  default: 'right-arrow-icon.svg',
+}));
+
+vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () => ({
+  default: ({ children, onClick }: any) => (
+    <button onClick={onClick}>{children}</button>
+  ),
 }));
 
 import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
+
+const makeQuestion = (
+  linkId: string,
+  sectionKey: string,
+  categoryLabel: string,
+  options: Array<{ code: string; display: string; camera?: boolean }>
+): AyuQuestion => ({
+  linkId,
+  text: `${categoryLabel}?`,
+  type: 'choice',
+  required: true,
+  repeats: false,
+  extension: [
+    { url: EXT_URL_PE_SECTION_KEY, valueString: sectionKey },
+    { url: EXT_URL_PE_CATEGORY_LABEL, valueString: categoryLabel },
+  ],
+  answerOption: options.map(o => ({
+    valueCoding: { code: o.code, display: o.display },
+    extension: o.camera
+      ? [{ url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA }]
+      : undefined,
+  })),
+});
+
+const makeAyuConfigFiles = (questions: AyuQuestion[]) => [
+  {
+    id: 1,
+    name: 'physExam.json',
+    keyName: 'physExam',
+    isActive: true,
+    json: {
+      resourceType: 'Questionnaire' as const,
+      title: 'Physical exam',
+      // We feed the transformed-shape directly under the section-group structure
+      // expected by transformFhirPhysExamToAyu. Sections wrap choice items with
+      // concept-tag answerOptions.
+      item: [
+        {
+          linkId: 'sec-general',
+          text: 'General',
+          type: 'group',
+          answerOption: questions
+            .filter(q => {
+              const sk = q.extension?.find(
+                e => e.url === EXT_URL_PE_SECTION_KEY
+              )?.valueString;
+              return sk === 'General';
+            })
+            .map(q => ({
+              valueCoding: {
+                code: q.linkId,
+                display:
+                  q.extension?.find(e => e.url === EXT_URL_PE_CATEGORY_LABEL)
+                    ?.valueString ?? q.linkId,
+              },
+            })),
+          item: questions
+            .filter(q => {
+              const sk = q.extension?.find(
+                e => e.url === EXT_URL_PE_SECTION_KEY
+              )?.valueString;
+              return sk === 'General';
+            })
+            .map(q => ({
+              linkId: q.linkId,
+              text: q.text,
+              type: 'choice',
+              required: q.required,
+              // Forward job-aid extensions so the orchestrator's resolver
+              // callbacks (jobAidUrlFor / jobAidTypeFor) can find them on the
+              // transformed AyuQuestion.
+              extension: q.extension?.filter(
+                e =>
+                  e.url ===
+                    'https://intelehealth.org/fhir/StructureDefinition/job-aid-file' ||
+                  e.url ===
+                    'https://intelehealth.org/fhir/StructureDefinition/job-aid-type'
+              ),
+              answerOption: q.answerOption?.filter(
+                o =>
+                  !o.extension?.some(e => e.url === EXT_URL_PE_OPTION_KIND)
+              ),
+              item: q.answerOption
+                ?.filter(o =>
+                  o.extension?.some(
+                    e =>
+                      e.url === EXT_URL_PE_OPTION_KIND &&
+                      e.valueString === PE_OPTION_KIND_CAMERA
+                  )
+                )
+                .map(o => ({
+                  linkId: `${q.linkId}-cam`,
+                  type: 'attachment',
+                  enableWhen: [
+                    {
+                      question: q.linkId,
+                      operator: '=',
+                      answerCoding: { code: o.valueCoding?.code },
+                    },
+                  ],
+                  text: o.valueCoding?.display,
+                })),
+            })),
+        },
+        {
+          linkId: 'sec-head',
+          text: 'Head',
+          type: 'group',
+          answerOption: questions
+            .filter(q => {
+              const sk = q.extension?.find(
+                e => e.url === EXT_URL_PE_SECTION_KEY
+              )?.valueString;
+              return sk === 'Head';
+            })
+            .map(q => ({
+              valueCoding: {
+                code: q.linkId,
+                display:
+                  q.extension?.find(e => e.url === EXT_URL_PE_CATEGORY_LABEL)
+                    ?.valueString ?? q.linkId,
+              },
+            })),
+          item: questions
+            .filter(q => {
+              const sk = q.extension?.find(
+                e => e.url === EXT_URL_PE_SECTION_KEY
+              )?.valueString;
+              return sk === 'Head';
+            })
+            .map(q => ({
+              linkId: q.linkId,
+              text: q.text,
+              type: 'choice',
+              required: q.required,
+              answerOption: q.answerOption,
+            })),
+        },
+      ],
+    },
+  },
+];
 
 const defaultProps = {
   questionIndex: 0,
   onNextQuestion: vi.fn(),
   onPrevQuestion: vi.fn(),
   onPrevSection: vi.fn(),
+  onProgressUpdate: vi.fn(),
 };
 
-function resetHookReturn(overrides: Partial<typeof mockHookReturn> = {}) {
-  Object.assign(mockHookReturn, {
-    internalIndex: 0,
-    visibleQuestions: MOCK_QUESTIONS,
-    totalQuestions: 3,
-    currentQuestion: MOCK_QUESTIONS[0],
-    isLastQuestion: false,
-    answers: {},
-    selectedOptionsFor: vi.fn().mockReturnValue([]),
-    cameraImagesFor: vi.fn().mockReturnValue([]),
-    addCameraImage: vi.fn(),
-    removeCameraImage: vi.fn(),
-    clearCameraImages: vi.fn(),
-    selectAndAdvance: vi.fn(),
-    selectSingle: vi.fn(),
-    toggleOption: vi.fn(),
-    goNext: vi.fn(),
-    goSkip: vi.fn(),
-    goBack: vi.fn(),
-    onPrevSection: vi.fn(),
-    ...overrides,
-  });
-}
-
-Element.prototype.scrollIntoView = vi.fn();
-
-describe('PhysicalExamination', () => {
+describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetHookReturn();
-    capturedHookProps = {};
+    capturedStepperProps = {};
+    capturedProviderProps.current = null;
+    cameraConsumerReturnsNull.value = false;
     mockContextData = { physicalExam: null };
+    mockVisitId.value = 'test-visit-id';
   });
 
-  describe('rendering', () => {
-    it('should render the first question as active', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('Is there jaundice?')).toBeInTheDocument();
-    });
-
-    it('should render section and category labels', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('General:')).toBeInTheDocument();
-      expect(screen.getByText('Jaundice')).toBeInTheDocument();
-    });
-
-    it('should show required asterisk for required questions', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('*')).toBeInTheDocument();
-    });
-
-    it('should render Back button', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('Back')).toBeInTheDocument();
-    });
-
-    it('should render only visited questions (internalIndex+1)', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.getByText('Is there jaundice?')).toBeInTheDocument();
-      expect(screen.queryByText('Is there pallor?')).not.toBeInTheDocument();
-      expect(screen.queryByText('Any injuries?')).not.toBeInTheDocument();
-    });
-
-    it('should render multiple visited questions when internalIndex > 0', () => {
-      resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.getByText('Is there jaundice?')).toBeInTheDocument();
-      expect(screen.getByText('Is there pallor?')).toBeInTheDocument();
-    });
-
-    it('should render QuestionLoader for each visited question', () => {
-      resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getAllByTestId('question-loader')).toHaveLength(2);
-    });
+  it('renders a loading placeholder when physExam.json is missing', () => {
+    render(<PhysicalExamination {...defaultProps} ayuConfigFiles={[]} />);
+    expect(screen.getByText(/Loading physical exam/i)).toBeInTheDocument();
   });
 
-  describe('active vs inactive cards', () => {
-    it('should show options only for the active question', () => {
-      resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.getByText('Select one or more')).toBeInTheDocument();
-    });
-
-    it('should show answered summary for inactive questions with selections', () => {
-      const selFn = vi.fn((qId: string) => {
-        if (qId === 'q1') return ['q1-yes'];
-        return [];
-      });
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        selectedOptionsFor: selFn,
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.getByText('Yes')).toBeInTheDocument();
-    });
-
-    it('should not show answered summary for inactive questions without selections', () => {
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        selectedOptionsFor: vi.fn().mockReturnValue([]),
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      const q1Section = screen.getByText('Is there jaundice?').closest('div[data-testid="question-loader"]');
-      const badges = q1Section?.querySelectorAll('.bg-emerald-500');
-      expect(badges?.length ?? 0).toBe(0);
-    });
-
-    it('should not crash when selectedOptionsFor returns unknown option ids', () => {
-      const selFn = vi.fn((qId: string) => {
-        if (qId === 'q1') return ['unknown-opt-id'];
-        return [];
-      });
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        selectedOptionsFor: selFn,
-      });
-
-      expect(() => render(<PhysicalExamination {...defaultProps} />)).not.toThrow();
-    });
+  it('renders the stepper inside the camera provider when physExam.json is present', () => {
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(screen.getByTestId('camera-provider')).toBeInTheDocument();
+    expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
   });
 
-  describe('getOptionIcon', () => {
-    it('should render CheckIcon for "Yes" option', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      const yesIcon = screen.getByTestId('icon-q1-yes');
+  it('passes skipSummary=true and the configured summaryTitle to the stepper', () => {
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(capturedStepperProps.skipSummary).toBe(true);
+    expect(capturedStepperProps.summaryTitle).toBe(
+      '3/4. Physical examination summary'
+    );
+  });
 
-      const svg = yesIcon.querySelector('svg');
-      expect(svg).toBeInTheDocument();
-      expect(svg?.querySelector('path')?.getAttribute('d')).toContain('2 7l3.5');
-    });
+  it('does not show Save & Next button initially when data.physicalExam is null', () => {
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(screen.queryByText('Save & Next')).not.toBeInTheDocument();
+  });
 
-    it('should render XIcon for "No" option', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      const noIcon = screen.getByTestId('icon-q1-no');
-      const svg = noIcon.querySelector('svg');
-      expect(svg).toBeInTheDocument();
-      expect(svg?.querySelector('path')?.getAttribute('d')).toContain('2 2l10 10');
-    });
+  it('shows Save & Next when data.physicalExam exists (review mode)', () => {
+    mockContextData = {
+      physicalExam: {
+        answers: { q1: ['yes'] },
+        details: [{ label: 'Jaundice', value: 'Yes' }],
+      },
+    };
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(screen.getByText('Save & Next')).toBeInTheDocument();
+  });
 
-    it('should not render icon for other option text', () => {
-      resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.queryByTestId('icon-q3-other')).not.toBeInTheDocument();
+  it('forwards initialAnswers from data.physicalExam to the stepper', () => {
+    mockContextData = {
+      physicalExam: {
+        answers: { q1: ['yes'], q2: ['normal'] },
+        details: [],
+      },
+    };
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+      makeQuestion('q1', 'General', 'Pallor', [
+        { code: 'normal', display: 'Normal' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(capturedStepperProps.initialAnswers).toEqual({
+      q1: ['yes'],
+      q2: ['normal'],
     });
   });
 
-  describe('job aid references', () => {
-    it('should not show references when asset files are not available', () => {
-      mockGetJobAidUrl.mockReturnValue(undefined);
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.queryByText('References:')).not.toBeInTheDocument();
-    });
-
-    it('should not show references when no jobAidFile', () => {
-      resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.queryByText('References:')).not.toBeInTheDocument();
-    });
-
-    it('should render image reference when jobAidType is image and asset exists', () => {
-      mockGetJobAidUrl.mockReturnValue('/assets/jaundice.jpg');
-
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('References:')).toBeInTheDocument();
-      const img = screen.getByAltText('Jaundice');
-      expect(img).toBeInTheDocument();
-      expect(img.getAttribute('src')).toBe('/assets/jaundice.jpg');
-    });
-
-    it('should render video reference when jobAidType is video and asset exists', () => {
-      mockGetJobAidUrl.mockReturnValue('/assets/pallor.mp4');
-
-      const q2Only = [MOCK_QUESTIONS[1]];
-      resetHookReturn({
-        internalIndex: 0,
-        visibleQuestions: q2Only,
-        totalQuestions: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('References:')).toBeInTheDocument();
-      const video = document.querySelector('video');
-      expect(video).toBeInTheDocument();
-      expect(video?.getAttribute('src')).toBe('/assets/pallor.mp4');
-    });
+  it('calls onPrevSection when the Back button is clicked', async () => {
+    const user = userEvent.setup();
+    const onPrev = vi.fn();
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        onPrevSection={onPrev}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    await user.click(screen.getByText('Back'));
+    expect(onPrev).toHaveBeenCalledTimes(1);
   });
 
-  describe('choice type label', () => {
-    it('should show "Select any one" for single-choice questions', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('Select any one')).toBeInTheDocument();
-    });
-
-    it('should show "Select any" for multi-choice questions', () => {
-      resetHookReturn({ internalIndex: 1, currentQuestion: MOCK_QUESTIONS[1] });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByText('Select one or more')).toBeInTheDocument();
-    });
+  it('Save & Next triggers the stepper.confirm() handle', async () => {
+    const user = userEvent.setup();
+    mockContextData = {
+      physicalExam: {
+        answers: { q1: ['yes'] },
+        details: [],
+      },
+    };
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    await user.click(screen.getByText('Save & Next'));
+    expect(mockStepperConfirm).toHaveBeenCalledTimes(1);
   });
 
-  describe('skip button', () => {
-    it('should show Skip for non-required questions', () => {
-      resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByTestId('option-skip')).toBeInTheDocument();
-    });
-
-    it('should not show Skip for required questions', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.queryByTestId('option-skip')).not.toBeInTheDocument();
-    });
-
-    it('should call goSkip when Skip is clicked', async () => {
+  describe('handleStepperComplete -> summary modal', () => {
+    it('shows the modal grouped by section key with display labels', async () => {
       const user = userEvent.setup();
-      resetHookReturn({ internalIndex: 2, currentQuestion: MOCK_QUESTIONS[2] });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-skip'));
-      expect(mockHookReturn.goSkip).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('camera option', () => {
-    it('should render camera option button', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByTestId('option-q1-cam')).toBeInTheDocument();
-    });
-
-    it('should call toggleOption when camera clicked and not selected', async () => {
-      const user = userEvent.setup();
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-q1-cam'));
-      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q1-cam', 'q1');
-    });
-
-    it('should call clearCameraImages when camera clicked and already selected', async () => {
-      const user = userEvent.setup();
-      resetHookReturn({
-        selectedOptionsFor: vi.fn((qId: string) =>
-          qId === 'q1' ? ['q1-cam'] : []
-        ),
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-q1-cam'));
-      expect(mockHookReturn.clearCameraImages).toHaveBeenCalledWith('q1');
-    });
-
-    it('should show PhysicalExamImageCapture when camera is selected', () => {
-      resetHookReturn({
-        selectedOptionsFor: vi.fn((qId: string) =>
-          qId === 'q1' ? ['q1-cam'] : []
-        ),
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.getByTestId('image-capture')).toBeInTheDocument();
-    });
-
-    it('should not show PhysicalExamImageCapture when camera is not selected', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.queryByTestId('image-capture')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('option interactions', () => {
-    it('should call selectAndAdvance when regular option is clicked', async () => {
-      const user = userEvent.setup();
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-q1-yes'));
-      expect(mockHookReturn.selectAndAdvance).toHaveBeenCalledWith('q1-yes');
-    });
-
-    it('should call toggleOption when regular option clicked on previous question', async () => {
-      const user = userEvent.setup();
-
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        selectedOptionsFor: vi.fn((qId: string) => {
-          if (qId === 'q1') return ['q1-yes'];
-          return [];
-        }),
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-q1-no'));
-      expect(mockHookReturn.selectSingle).toHaveBeenCalledWith('q1-no', 'q1');
-    });
-  });
-
-  describe('back button', () => {
-    it('should call onPrevSection when clicked', async () => {
-      const user = userEvent.setup();
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByText('Back'));
-      expect(mockHookReturn.onPrevSection).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('image capture callbacks', () => {
-    beforeEach(() => {
-      resetHookReturn({
-        selectedOptionsFor: vi.fn((qId: string) =>
-          qId === 'q1' ? ['q1-cam'] : []
-        ),
-        cameraImagesFor: vi.fn().mockReturnValue(['img1']),
-      });
-    });
-
-    it('should call addCameraImage with question id', async () => {
-      const user = userEvent.setup();
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('capture-add'));
-      expect(mockHookReturn.addCameraImage).toHaveBeenCalledWith(
-        'q1',
-        expect.any(File)
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+          { code: 'no', display: 'No' },
+        ]),
+        makeQuestion('q2', 'General', 'Pallor', [
+          { code: 'normal', display: 'Normal' },
+        ]),
+        makeQuestion('q3', 'Head', 'Injury', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
       );
-    });
-
-    it('should call removeCameraImage with question id and index', async () => {
-      const user = userEvent.setup();
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('capture-remove'));
-      expect(mockHookReturn.removeCameraImage).toHaveBeenCalledWith('q1', 0);
-    });
-
-    it('should not show upload button in image capture (handled by Submit)', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(screen.queryByTestId('capture-upload')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('multi-choice option click', () => {
-    it('should call toggleOption when clicking a regular option on a multi-choice question (line 151)', async () => {
-      const user = userEvent.setup();
-
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        visibleQuestions: MOCK_QUESTIONS,
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      await user.click(screen.getByTestId('option-q2-a'));
-      expect(mockHookReturn.toggleOption).toHaveBeenCalledWith('q2-a', 'q2');
-    });
-  });
-
-  describe('Submit button (onUploadImages)', () => {
-    it('should call goNext and track submitted answers when Submit is clicked (lines 269-272)', async () => {
-      const user = userEvent.setup();
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        visibleQuestions: MOCK_QUESTIONS,
-        selectedOptionsFor: vi.fn((qId: string) => qId === 'q2' ? ['q2-a'] : []),
-        allRequiredAnswered: true,
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      const submitBtn = screen.getByText('Submit');
-      await user.click(submitBtn);
-
-      expect(mockHookReturn.goNext).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('Upload button with tick icon', () => {
-    it('should show Upload with image count and tick icon when camera images are uploaded and submitted', async () => {
-      const user = userEvent.setup();
-      resetHookReturn({
-        internalIndex: 1,
-        currentQuestion: MOCK_QUESTIONS[1],
-        visibleQuestions: MOCK_QUESTIONS,
-        selectedOptionsFor: vi.fn((qId: string) => qId === 'q2' ? ['q2-a', 'q2-cam'] : []),
-        cameraImagesFor: vi.fn((qId: string) => qId === 'q2' ? ['img1.jpg', 'img2.jpg'] : []),
-        allRequiredAnswered: true,
-      });
-      render(<PhysicalExamination {...defaultProps} />);
-
-      const uploadBtn = screen.getByText('Upload (2)');
-      expect(uploadBtn).toBeInTheDocument();
-
-      await user.click(uploadBtn);
-
-      const tickIcon = screen.getByAltText('yes');
-      expect(tickIcon).toBeInTheDocument();
-      expect(tickIcon).toHaveAttribute('src', 'yes-icon.svg');
-    });
-  });
-
-  describe('scrollIntoView', () => {
-    it('should call scrollIntoView on the active question card', () => {
-      render(<PhysicalExamination {...defaultProps} />);
-      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-    });
-  });
-
-  describe('wrappedOnNextQuestion', () => {
-    it('should show summary modal with sections grouped by sectionKey and call setPhysicalExamData on confirm', () => {
-      const originalOnNext = vi.fn();
-
-      mockHookReturn.answers = { q1: ['q1-yes'], q2: ['q2-normal'], q3: ['q3-yes'] };
-      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
-
-      expect(capturedHookProps.onNextQuestion).toBeDefined();
-      expect(capturedHookProps.onNextQuestion).not.toBe(originalOnNext);
-
-      capturedHookProps.onNextQuestion();
+      capturedStepperProps._completeAnswers = {
+        q1: ['yes'],
+        q2: ['normal'],
+        q3: ['yes'],
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.open).toBe(true);
-      expect(modalConfig.type).toBe('vitalConfirm');
-      expect(modalConfig.title).toBe('Physical Examination Summary');
+      expect(modalConfig.title).toBe('3/4. Physical examination summary');
       expect(modalConfig.size).toBe('lg');
       expect(modalConfig.sections).toHaveLength(2);
-      expect(modalConfig.sections[0].title).toBe('General');
-      expect(modalConfig.sections[0].items).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: 'labelValue', label: 'Jaundice', value: 'Yes' }),
-          expect.objectContaining({ type: 'labelValue', label: 'Pallor', value: 'Normal' }),
-        ])
+      const general = modalConfig.sections.find(
+        (s: { title: string }) => s.title === 'General'
       );
-      expect(modalConfig.sections[1].title).toBe('Head');
-      expect(modalConfig.sections[1].items).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: 'labelValue', label: 'Injury', value: 'Yes' }),
-        ])
-      );
-
-      expect(modalConfig.sections[0].onChange).toBeInstanceOf(Function);
-      modalConfig.sections[0].onChange();
-
-      modalConfig.onConfirm();
-
-      expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
-        expect.any(Object),
+      expect(general.items).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
           expect.objectContaining({ label: 'Pallor', value: 'Normal' }),
+        ])
+      );
+      const head = modalConfig.sections.find(
+        (s: { title: string }) => s.title === 'Head'
+      );
+      expect(head.items).toEqual(
+        expect.arrayContaining([
           expect.objectContaining({ label: 'Injury', value: 'Yes' }),
         ])
       );
-      expect(originalOnNext).toHaveBeenCalled();
     });
 
-    it('should show empty sections when no answers are provided', () => {
-      mockHookReturn.answers = {};
-      render(<PhysicalExamination {...defaultProps} />);
-
-      capturedHookProps.onNextQuestion();
-      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.sections).toEqual([]);
-    });
-
-    it('should skip questions with non-matching option IDs', () => {
-      mockHookReturn.answers = { q1: ['nonexistent-id'] };
-      render(<PhysicalExamination {...defaultProps} />);
-
-      capturedHookProps.onNextQuestion();
-      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-
-      expect(modalConfig.sections).toEqual([]);
-    });
-
-    it('should show "Picture taken" when camera option selected and images exist', () => {
-      mockHookReturn.answers = { q1: ['q1-cam'] };
-      mockHookReturn.cameraImagesFor = vi.fn((qId: string) =>
-        qId === 'q1' ? ['img1.jpg'] : []
+    it('skips questions with no committed answer', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
       );
-      render(<PhysicalExamination {...defaultProps} />);
-
-      capturedHookProps.onNextQuestion();
+      capturedStepperProps._completeAnswers = {};
+      await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.sections).toHaveLength(1);
+      expect(modalConfig.sections).toEqual([]);
+    });
+
+    it('shows "Picture taken" when a camera answer has captured images', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('with-images', 'General', 'Skin', [
+          { code: 'CAM', display: 'Take a picture', camera: true },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { 'with-images': ['CAM'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections[0].items[0].value).toBe('Picture taken');
     });
 
-    it('should produce empty sections when camera option selected but no images uploaded', () => {
-      mockHookReturn.answers = { q1: ['q1-cam'] };
-      mockHookReturn.cameraImagesFor = vi.fn().mockReturnValue([]);
-      render(<PhysicalExamination {...defaultProps} />);
-
-      capturedHookProps.onNextQuestion();
+    it('omits camera answers when there are no captured images', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('no-images', 'General', 'Skin', [
+          { code: 'CAM', display: 'Take a picture', camera: true },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { 'no-images': ['CAM'] };
+      await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-
       expect(modalConfig.sections).toEqual([]);
     });
 
-    it('should use visibleQuestions from hook (not static PHYSICAL_EXAM_QUESTIONS)', () => {
-
-      const serverQuestion = {
-        id: 'server-q1',
-        sectionLabel: 'Custom:',
-        categoryLabel: 'Custom Check',
-        questionText: 'Custom question?',
-        isRequired: true,
-        isMultiChoice: false,
-        sectionKey: 'Custom Section',
-        options: [
-          { id: 'server-opt-yes', text: 'Yes' },
-          { id: 'server-opt-no', text: 'No' },
-        ],
-      };
-      resetHookReturn({
-        visibleQuestions: [serverQuestion] as any,
-        totalQuestions: 1,
-        currentQuestion: serverQuestion as any,
-      });
-      mockHookReturn.answers = { 'server-q1': ['server-opt-yes'] };
-      render(<PhysicalExamination {...defaultProps} />);
-
-      capturedHookProps.onNextQuestion();
+    it('on Confirm: calls setPhysicalExamData with PhysicalExamAnswers shape and originalOnNext', async () => {
+      const user = userEvent.setup();
+      const originalOnNext = vi.fn();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          onNextQuestion={originalOnNext}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: ['yes'] };
+      await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.sections).toHaveLength(1);
-      expect(modalConfig.sections[0].title).toBe('Custom Section');
-      expect(modalConfig.sections[0].items[0]).toEqual(
-        expect.objectContaining({ label: 'Custom Check', value: 'Yes' })
+      modalConfig.onConfirm();
+      expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
+        { q1: ['yes'] },
+        expect.arrayContaining([
+          expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
+        ])
+      );
+      expect(originalOnNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists answers to temp-storage on Confirm', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: ['yes'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      modalConfig.onConfirm();
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith({
+        physicalExam: {
+          answers: { q1: ['yes'] },
+          details: expect.any(Array),
+        },
+      });
+    });
+
+    it('coerces a single-string AyuAnswerValue into [string] for the upload-shaped output', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: 'yes' };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      modalConfig.onConfirm();
+      expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
+        { q1: ['yes'] },
+        expect.any(Array)
       );
     });
 
-    it('should update answersRef immediately in onSelectSingle so last question answer appears in summary', async () => {
+    it('first section.onChange flips the component into review mode (shows Save & Next)', async () => {
       const user = userEvent.setup();
-      const originalOnNext = vi.fn();
-
-      resetHookReturn({
-        selectAndAdvance: vi.fn(() => {
-
-          capturedHookProps.onNextQuestion();
-        }),
-      });
-      mockHookReturn.answers = {};
-      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
-
-      await user.click(screen.getByTestId('option-q1-yes'));
-
-      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-
-      expect(modalConfig.sections).toHaveLength(1);
-      expect(modalConfig.sections[0].items[0]).toEqual(
-        expect.objectContaining({ label: 'Jaundice', value: 'Yes' })
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
       );
+      capturedStepperProps._completeAnswers = { q1: ['yes'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      // wrappedOnNextQuestion already toggled review mode when the modal
+      // opened, but exercising the per-section onChange callback should not
+      // throw and should keep review mode on.
+      expect(typeof modalConfig.sections[0].onChange).toBe('function');
+      modalConfig.sections[0].onChange();
+      expect(screen.getByText('Save & Next')).toBeInTheDocument();
     });
   });
 
-  describe('confirm button', () => {
-    it('should not show Confirm button when data.physicalExam is null', () => {
-      mockContextData = { physicalExam: null };
-      render(<PhysicalExamination {...defaultProps} />);
+  describe('orchestrator resolver callbacks', () => {
+    const renderForCallbacks = (questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]),
+    ]) =>
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
 
-      expect(screen.queryByText('Save & Next')).not.toBeInTheDocument();
+    it('sectionCommentFor returns the question\'s PE_SECTION_KEY when known', () => {
+      renderForCallbacks();
+      const fn = capturedProviderProps.current?.sectionCommentFor as (
+        id: string
+      ) => string;
+      expect(fn('q1')).toBe('General');
     });
 
-    it('should show Confirm button when data.physicalExam is truthy', () => {
-      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
-      render(<PhysicalExamination {...defaultProps} />);
-
-      expect(screen.getByText('Save & Next')).toBeInTheDocument();
+    it('sectionCommentFor falls back to "General Exams" for unknown question ids', () => {
+      renderForCallbacks();
+      const fn = capturedProviderProps.current?.sectionCommentFor as (
+        id: string
+      ) => string;
+      expect(fn('unknown')).toBe('General Exams');
     });
 
-    it('should show summary modal and call setPhysicalExamData on confirm when Confirm is clicked', async () => {
+    it('jobAidUrlFor returns null when the question has no job-aid file extension', () => {
+      renderForCallbacks();
+      const fn = capturedProviderProps.current?.jobAidUrlFor as (
+        id: string
+      ) => string | null;
+      expect(fn('q1')).toBeNull();
+    });
+
+    it('jobAidUrlFor returns null for unknown question ids', () => {
+      renderForCallbacks();
+      const fn = capturedProviderProps.current?.jobAidUrlFor as (
+        id: string
+      ) => string | null;
+      expect(fn('unknown')).toBeNull();
+    });
+
+    it('jobAidUrlFor returns the resolved URL when the question has a job-aid file', () => {
+      const q = makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      q.extension = [
+        ...(q.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-file',
+          valueString: 'jaundiceexample',
+        },
+      ];
+      renderForCallbacks([q]);
+      const fn = capturedProviderProps.current?.jobAidUrlFor as (
+        id: string
+      ) => string | null;
+      expect(fn('q1')).toBe('assets/jaundiceexample.png');
+    });
+
+    it('jobAidUrlFor returns null when getJobAidUrl yields no asset for the file', () => {
+      const q = makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      q.extension = [
+        ...(q.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-file',
+          valueString: 'missing', // the mock returns null for this filename
+        },
+      ];
+      renderForCallbacks([q]);
+      const fn = capturedProviderProps.current?.jobAidUrlFor as (
+        id: string
+      ) => string | null;
+      expect(fn('q1')).toBeNull();
+    });
+
+    it('jobAidTypeFor returns null for unknown question ids', () => {
+      renderForCallbacks();
+      const fn = capturedProviderProps.current?.jobAidTypeFor as (
+        id: string
+      ) => 'image' | 'video' | null;
+      expect(fn('unknown')).toBeNull();
+    });
+
+    it('jobAidTypeFor returns null when the type extension is missing or invalid', () => {
+      const q = makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      // No job-aid-type extension at all
+      renderForCallbacks([q]);
+      const fn = capturedProviderProps.current?.jobAidTypeFor as (
+        id: string
+      ) => 'image' | 'video' | null;
+      expect(fn('q1')).toBeNull();
+    });
+
+    it('jobAidTypeFor returns the valid type when set to "image" or "video"', () => {
+      const qImage = makeQuestion('q-img', 'General', 'Eyes', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      qImage.extension = [
+        ...(qImage.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-type',
+          valueString: 'image',
+        },
+      ];
+      const qVideo = makeQuestion('q-vid', 'General', 'Pallor', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      qVideo.extension = [
+        ...(qVideo.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-type',
+          valueString: 'video',
+        },
+      ];
+      const qBad = makeQuestion('q-bad', 'General', 'Other', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      qBad.extension = [
+        ...(qBad.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-type',
+          valueString: 'audio', // not image/video → null
+        },
+      ];
+      renderForCallbacks([qImage, qVideo, qBad]);
+      const fn = capturedProviderProps.current?.jobAidTypeFor as (
+        id: string
+      ) => 'image' | 'video' | null;
+      expect(fn('q-img')).toBe('image');
+      expect(fn('q-vid')).toBe('video');
+      expect(fn('q-bad')).toBeNull();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('passes null visitId to the camera provider when no visit is in context', () => {
+      mockVisitId.value = undefined;
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      expect(capturedProviderProps.current?.visitId).toBeNull();
+    });
+
+    it('renders the loading placeholder when transformFhirPhysExamToAyu yields no items', () => {
+      // physExam.json has the right shape but no section items → transform
+      // returns root with empty item[] → topLevelItems is empty → loader
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={[
+            {
+              id: 1,
+              name: 'physExam.json',
+              keyName: 'physExam',
+              isActive: true,
+              json: {
+                resourceType: 'Questionnaire' as const,
+                title: 'Empty',
+                item: [],
+              },
+            },
+          ]}
+        />
+      );
+      expect(screen.getByText(/Loading physical exam/i)).toBeInTheDocument();
+    });
+
+    it('forwards onProgressUpdate from the stepper to the parent', () => {
+      const onProgressUpdate = vi.fn();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          onProgressUpdate={onProgressUpdate}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps.onProgressUpdate?.(5, 2);
+      expect(onProgressUpdate).toHaveBeenCalledWith(5, 2);
+    });
+
+    it('applies the protocol filter when physicalExamFilter is set', () => {
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+        makeQuestion('q2', 'Head', 'Injury', [{ code: 'yes', display: 'Yes' }]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          physicalExamFilter="Head:Injury"
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      // Filter "Head:Injury" keeps q2 (matches) and drops q1 since its
+      // section "General" isn't in the filter and isn't the always-included
+      // section ("General Exams").
+      const items = (
+        capturedStepperProps.questionnaire as { item: { linkId: string }[] }
+      ).item;
+      expect(items.map(i => i.linkId)).toEqual(['q2']);
+    });
+
+    it('treats non-string, non-array answer values as empty arrays', async () => {
       const user = userEvent.setup();
-      const originalOnNext = vi.fn();
-      mockContextData = { physicalExam: { answers: { q1: ['q1-yes'] }, details: [{ label: 'Jaundice', value: 'Yes' }] } };
-      render(<PhysicalExamination {...defaultProps} onNextQuestion={originalOnNext} />);
-
-      await user.click(screen.getByText('Save & Next'));
-      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
-
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      // Numeric value isn't a string and isn't an array — should coerce to []
+      capturedStepperProps._completeAnswers = {
+        q1: 42 as unknown as string,
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       modalConfig.onConfirm();
-
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
-        expect.any(Object),
+        { q1: [] },
         expect.any(Array)
       );
-      expect(originalOnNext).toHaveBeenCalled();
+    });
+
+    it('CameraImagesForCapture writes null to the ref when no camera provider is mounted', async () => {
+      // Force the consumer hook to return null so the ref-bridge takes its
+      // `?? null` fallback branch — and supply a camera answer so the
+      // handleStepperComplete loop actually invokes the () => [] fallback
+      // function (covers the fallback lambda body too).
+      cameraConsumerReturnsNull.value = true;
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('q1', 'General', 'Skin', [
+          { code: 'CAM', display: 'Take a picture', camera: true },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: ['CAM'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      // Fallback returned []; no images, so the camera answer drops out.
+      expect(modalConfig.sections).toEqual([]);
+    });
+
+    it('skips stored answer codes that are no longer in the question options', async () => {
+      const user = userEvent.setup();
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      // 'stale-code' isn't in q1's answerOption — orchestrator must `continue`
+      // past it without contributing to the summary.
+      capturedStepperProps._completeAnswers = { q1: ['stale-code'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      expect(modalConfig.sections).toEqual([]);
+    });
+
+    it('treats an option without a display string as an empty value', async () => {
+      const user = userEvent.setup();
+      // Option with a code but display=undefined — exercises the `?? ''`
+      // fallback. `?? ''` returns '' which is then dropped from the summary.
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: '' },
+        ]),
+      ];
+      // Strip the display property so it's undefined (not empty-string —
+      // `??` only falls back on null/undefined).
+      questions[0].answerOption![0].valueCoding!.display = undefined;
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: ['yes'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      // Display was undefined → fallback '' → not pushed → no section.
+      expect(modalConfig.sections).toEqual([]);
     });
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  AyuAnswerOption,
   AyuEnableWhen,
   AyuQuestion,
   AyuQuestionType,
@@ -6,6 +7,7 @@ import type {
 import type {
   FhirEnableWhen,
   FhirExtension,
+  FhirItem,
   FhirQuestionnaire,
 } from '../types/fhir-raw.types';
 import {
@@ -13,9 +15,19 @@ import {
   EXT_URL_AGE_MIN,
   EXT_URL_DISPLAY_TEXT,
   EXT_URL_GENDER,
+  EXT_URL_IS_EXCLUSIVE_OPTION,
+  EXT_URL_ITEM_CONTROL,
+  EXT_URL_JOB_AID_FILE,
+  EXT_URL_JOB_AID_TYPE,
+  EXT_URL_LANGUGAE_TEXT,
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_QUESTION_KEY,
+  EXT_URL_PE_SECTION_KEY,
   GENDER_CODE_FEMALE,
   GENDER_CODE_MALE,
   GENDER_CODE_OTHER,
+  PE_OPTION_KIND_CAMERA,
 } from './constants';
 
 const ALLOWED_TYPES: AyuQuestionType[] = [
@@ -227,4 +239,202 @@ function getLabel(question: AyuQuestion) {
   if (question.text) return question.text;
   return question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
     ?.valueString;
+}
+
+/* =========================================
+ * Physical Exam FHIR → AyuQuestion transform
+ *
+ * The Physical Exam FHIR Questionnaire is shaped differently from a Visit
+ * Reason questionnaire: top-level items are *sections* (Hands, Throat, …),
+ * each section's answerOption[] is a concept-tag index used for question
+ * labels, and the actual answerable questions are section.item[] of
+ * type=choice with an optional type=attachment child for camera capture.
+ *
+ * We flatten that into a single AyuQuestion root group containing one
+ * AyuQuestion per answerable question, with section/category metadata
+ * attached via EXT_URL_PE_* extensions and the camera tile (if any)
+ * appended as an extra answerOption marked with EXT_URL_PE_OPTION_KIND.
+ * ========================================= */
+
+function titleCasePhysExam(s: string): string {
+  return s
+    .split(' ')
+    .map(w => (w.length > 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+function stripTrailingAsterisk(s: string): string {
+  return s.replace(/\*+$/, '').trim();
+}
+
+function isCheckBoxItem(item: FhirItem): boolean {
+  const ext = item.extension?.find(e => e.url === EXT_URL_ITEM_CONTROL);
+  return (
+    ext?.valueCodeableConcept?.coding?.some(c => c.code === 'check-box') ??
+    false
+  );
+}
+
+/**
+ * Physical Exam questions are often wrapped one level deep: a "concept-tag"
+ * choice with a single answerOption whose code corresponds to a nested choice
+ * item that carries the real question text, answer options, and (optionally)
+ * an attachment child for camera capture.
+ *
+ *   wrapper (choice, text="Eyes: Jaundice")
+ *     answerOption: [{ code: X, display: "Is there jaundice?*" }]
+ *     item:
+ *       inner (choice, gated on wrapper via enableWhen)
+ *         answerOption: [Yes, No]
+ *         item: [{ type: "attachment", ... }]
+ *
+ * Detection uses the inner's `enableWhen` edge back to the wrapper rather
+ * than answerOption-code-vs-linkId matching. The real physExam.json has
+ * inconsistent hyphen/underscore conventions between the two (e.g. wrapper
+ * answerOption code "ID_1109515145" vs. inner linkId "ID-1109515145"), so a
+ * literal-string match misses some wrappers ("Nail anemia"); the enableWhen
+ * reference is data-consistent.
+ *
+ * Returns the inner choice when the pattern is detected, else null.
+ */
+function findWrappedInnerChoice(q: FhirItem): FhirItem | null {
+  // Caller (transformFhirPhysExamToAyu) only invokes this on choice items, so
+  // no defensive type check needed here.
+  if (!q.answerOption || q.answerOption.length !== 1) return null;
+  const inner = (q.item ?? []).find(
+    c =>
+      c.type === 'choice' && c.enableWhen?.some(ew => ew.question === q.linkId)
+  );
+  return inner ?? null;
+}
+
+function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
+  if (child.type !== 'attachment') return null;
+  const cameraCode = child.enableWhen?.[0]?.answerCoding?.code ?? child.linkId;
+  const langExt = child.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
+  const cameraText =
+    langExt?.valueString && langExt.valueString !== '%'
+      ? langExt.valueString
+      : (child.text ?? 'Take a picture');
+  const isExclusive =
+    child.extension?.find(e => e.url === EXT_URL_IS_EXCLUSIVE_OPTION)
+      ?.valueString === 'true';
+  const extension: FhirExtension[] = [
+    { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+  ];
+  if (isExclusive) {
+    extension.push({ url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' });
+  }
+  return {
+    valueCoding: { code: cameraCode, display: cameraText },
+    extension,
+  };
+}
+
+function buildPhysExamQuestion(
+  q: FhirItem,
+  sectionKey: string,
+  categoryLabel: string,
+  questionKey: string,
+  demographics?: PatientDemographics
+): AyuQuestion | null {
+  /* v8 ignore next */
+  if (q.type !== 'choice') return null;
+  if (!matchesDemographics(q.extension, demographics)) return null;
+
+  const questionText = stripTrailingAsterisk(q.text ?? '');
+
+  const peExt: FhirExtension[] = [
+    { url: EXT_URL_PE_SECTION_KEY, valueString: sectionKey },
+    { url: EXT_URL_PE_CATEGORY_LABEL, valueString: categoryLabel },
+    { url: EXT_URL_PE_QUESTION_KEY, valueString: questionKey },
+  ];
+  const passthroughExt = (q.extension ?? []).filter(
+    e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
+  );
+
+  const answerOption: AyuAnswerOption[] = (q.answerOption ?? []).map(opt => ({
+    valueString: opt.valueString,
+    valueInteger: opt.valueInteger,
+    valueDate: opt.valueDate,
+    valueCoding: opt.valueCoding,
+    extension: opt.extension,
+  }));
+
+  for (const child of q.item ?? []) {
+    const cameraOpt = buildPhysExamCameraOption(child);
+    if (cameraOpt) answerOption.push(cameraOpt);
+  }
+
+  return {
+    linkId: q.linkId,
+    text: questionText,
+    type: 'choice',
+    required: q.required === true,
+    repeats: isCheckBoxItem(q),
+    answerOption,
+    extension: [...peExt, ...passthroughExt],
+  };
+}
+
+/**
+ * Flatten a Physical Exam FHIR Questionnaire into an AyuQuestion root group.
+ *
+ * Tree (FHIR) → Flat (AyuQuestion):
+ *   Questionnaire.item[]                  → root.item[]
+ *     section.answerOption[]              → concept-tag index for sibling questions
+ *     section.item[] (type=choice)        → root.item[i] with PE metadata
+ *       question.answerOption[]           → root.item[i].answerOption[]
+ *       question.item[] (type=attachment) → camera option appended to answerOption
+ */
+export function transformFhirPhysExamToAyu(
+  questionnaire: FhirQuestionnaire,
+  demographics?: PatientDemographics
+): AyuQuestion | null {
+  if (!questionnaire.item || questionnaire.item.length === 0) return null;
+
+  const flatQuestions: AyuQuestion[] = [];
+
+  for (const section of questionnaire.item) {
+    if (!matchesDemographics(section.extension, demographics)) continue;
+
+    const sectionText = section.text ?? '';
+    const sectionKey = titleCasePhysExam(sectionText);
+
+    const conceptTags = (section.answerOption ?? [])
+      .map(o => o.valueCoding?.display)
+      .filter((d): d is string => typeof d === 'string');
+
+    const choiceItems = (section.item ?? []).filter(i => i.type === 'choice');
+
+    choiceItems.forEach((q, idx) => {
+      const inner = findWrappedInnerChoice(q);
+      const target = inner ?? q;
+      // When unwrapping, the wrapper's text (e.g., "Eyes: Jaundice") is the
+      // body-part:finding label users see in the summary; prefer it over the
+      // inner question's text ("Is there jaundice?").
+      const wrapperText = inner
+        ? stripTrailingAsterisk(q.text ?? '')
+        : undefined;
+      const conceptTag = conceptTags[idx];
+      const questionText = stripTrailingAsterisk(target.text ?? '');
+      const categoryLabel = wrapperText ?? conceptTag ?? questionText;
+      const questionKey = categoryLabel;
+      const transformed = buildPhysExamQuestion(
+        target,
+        sectionKey,
+        categoryLabel,
+        questionKey,
+        demographics
+      );
+      if (transformed) flatQuestions.push(transformed);
+    });
+  }
+
+  return {
+    linkId: 'root',
+    type: 'group',
+    text: questionnaire.title,
+    item: flatQuestions,
+  };
 }

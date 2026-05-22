@@ -154,7 +154,7 @@ describe('appointmentService', () => {
   });
 
   describe('getAppointmentSlots', () => {
-    it('calls the API with correct URL using DD/MM/YYYY dates and speciality', async () => {
+    it('calls the API with correct URL using YYYY-MM-DD dates and speciality', async () => {
       mockGet.mockResolvedValue(mockApiResponse);
       await appointmentService.getAppointmentSlots(
         '2026-04-08',
@@ -165,8 +165,8 @@ describe('appointmentService', () => {
         expect.stringContaining('/appointment/getAppointmentSlots')
       );
       const url: string = mockGet.mock.calls[0][0];
-      expect(url).toContain('fromDate=08%2F04%2F2026');
-      expect(url).toContain('toDate=09%2F04%2F2026');
+      expect(url).toContain('fromDate=2026-04-08');
+      expect(url).toContain('toDate=2026-04-09');
       expect(url).toContain('speciality=General%20Physician');
     });
 
@@ -197,7 +197,7 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[0].period).toBe('Morning'); // 9:00 AM
+      expect(result[0].period).toBe('Morning');
     });
 
     it('classifies Afternoon period correctly (12:00 PM to 6:00 PM inclusive)', async () => {
@@ -207,8 +207,8 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[1].period).toBe('Afternoon'); // 2:00 PM
-      expect(result[3].period).toBe('Afternoon'); // 6:00 PM (boundary)
+      expect(result[1].period).toBe('Afternoon');
+      expect(result[3].period).toBe('Afternoon');
     });
 
     it('classifies Evening period correctly (after 6:00 PM)', async () => {
@@ -218,7 +218,7 @@ describe('appointmentService', () => {
         '2026-04-09',
         'General Physician'
       );
-      expect(result[2].period).toBe('Evening'); // 7:00 PM
+      expect(result[2].period).toBe('Evening');
     });
 
     it('sets isAvailable to true for all slots', async () => {
@@ -328,6 +328,24 @@ describe('appointmentService', () => {
           'General Physician'
         )
       ).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('getVisitForPushData', () => {
+    it('calls OpenMRSApi.get with the correct visit URL and custom rep', async () => {
+      mockOpenMRSGet.mockResolvedValue(mockRawVisit);
+      const result = await appointmentService.getVisitForPushData('visit-uuid-1');
+      expect(mockOpenMRSGet).toHaveBeenCalledWith(
+        expect.stringContaining('/visit/visit-uuid-1?v=custom:')
+      );
+      expect(result).toEqual(mockRawVisit);
+    });
+
+    it('throws when OpenMRS API call fails', async () => {
+      mockOpenMRSGet.mockRejectedValue(new Error('Visit not found'));
+      await expect(
+        appointmentService.getVisitForPushData('invalid-uuid')
+      ).rejects.toThrow('Visit not found');
     });
   });
 
@@ -526,4 +544,5 @@ describe('appointmentService', () => {
       expect(visit.startDatetime).toBe('2025-10-03T15:36:36.374+0530');
     });
   });
+
 });

@@ -2,12 +2,21 @@
  * RAW FHIR TYPES (as-is JSON)
  * ========================================= */
 
+export interface FhirCodeableConcept {
+  coding?: Array<{
+    system?: string;
+    code?: string;
+    display?: string;
+  }>;
+}
+
 export interface FhirExtension {
   url: string;
   valueBoolean?: boolean;
   valueString?: string;
   valueCode?: string;
   valueInteger?: number;
+  valueCodeableConcept?: FhirCodeableConcept;
   extension?: FhirExtension[];
 }
 

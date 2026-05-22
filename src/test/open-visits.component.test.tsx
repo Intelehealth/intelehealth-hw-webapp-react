@@ -61,7 +61,9 @@ describe('OpenVisitsComponent', () => {
 
   it('renders the Open Visits heading', () => {
     renderComponent();
-    expect(screen.getByText('Open Visits')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Open Visits' })
+    ).toBeInTheDocument();
   });
 
   it('renders search input with placeholder', () => {
@@ -91,10 +93,12 @@ describe('OpenVisitsComponent', () => {
     expect(screen.getAllByText('Priya Singh').length).toBeGreaterThan(0);
   });
 
-  it('renders upload timestamps', () => {
+  it('renders the visit date in the Uploaded column (backend only emits visitCreatedDate)', () => {
     renderComponent();
-    expect(screen.getAllByText('1 hr ago').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('3 hr ago').length).toBeGreaterThan(0);
+    // The Uploaded column now sources its value from visitCreatedDate, so the
+    // dates appear in both the Visit created and Uploaded cells.
+    expect(screen.getAllByText('2025-04-21').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('2025-04-20').length).toBeGreaterThanOrEqual(2);
   });
 
   it('filters patients by search input', () => {

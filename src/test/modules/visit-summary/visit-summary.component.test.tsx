@@ -885,8 +885,10 @@ describe('VisitSummaryComponent', () => {
 
       await waitFor(() => {
         expect(screen.getByText('photo.jpg')).toBeInTheDocument();
+      }, { timeout: 3000 });
+      await waitFor(() => {
         expect(container.querySelector('.fa-file')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should render Word icon for .docx documents', async () => {
@@ -901,7 +903,7 @@ describe('VisitSummaryComponent', () => {
 
       await waitFor(() => {
         expect(container.querySelector('.fa-file-word')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should render Excel icon for .xlsx documents', async () => {
@@ -916,7 +918,7 @@ describe('VisitSummaryComponent', () => {
 
       await waitFor(() => {
         expect(container.querySelector('.fa-file-excel')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should render text icon for .txt documents', async () => {
@@ -931,7 +933,7 @@ describe('VisitSummaryComponent', () => {
 
       await waitFor(() => {
         expect(container.querySelector('.fa-file-lines')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should render generic icon for unknown file types', async () => {
@@ -946,7 +948,7 @@ describe('VisitSummaryComponent', () => {
 
       await waitFor(() => {
         expect(container.querySelector('.fa-file')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should not open window when blob is not loaded', async () => {

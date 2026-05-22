@@ -27,11 +27,15 @@ const VerifyOtpPage = lazy(
   () => import('../pages/auth/verify-otp/verify-otp.page')
 );
 const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
+const VideoCallPage = lazy(() => import('../pages/video-call/video-call.page'));
 const PrescriptionsPage = lazy(
   () => import('../pages/prescriptions/prescriptions.page')
 );
 const OpenVisitsPage = lazy(
   () => import('../pages/open-visits/open-visits.page')
+);
+const AppointmentListPage = lazy(
+  () => import('../pages/appointment-list/appointment-list.page')
 );
 const NotFoundPage = lazy(() => import('../pages/not-found/not-found.page'));
 const FollowupVisitsPage = lazy(
@@ -157,6 +161,14 @@ const AppRoutes = () => (
               }
             />
             <Route
+              path={ROUTES.VIDEO_CALL}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <VideoCallPage />
+                </Suspense>
+              }
+            />
+            <Route
               path={ROUTES.NOTIFICATIONS}
               element={
                 <Suspense fallback={<RouteLoader />}>
@@ -185,6 +197,14 @@ const AppRoutes = () => (
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <OpenVisitsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={ROUTES.APPOINTMENT_LIST}
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <AppointmentListPage />
                 </Suspense>
               }
             />

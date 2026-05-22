@@ -1,0 +1,213 @@
+import { useState } from 'react';
+import iconCamera from '../../../../assets/icons/icon-camera.svg';
+import iconYes from '../../assets/yes.svg';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
+import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../ayu-library';
+import {
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_SECTION_KEY,
+  PE_OPTION_KIND_CAMERA,
+} from '../../../ayu-library/utils/constants';
+import { usePhysicalExamCamera } from '../start-visit/physical-examination/physical-exam-camera-context';
+import { PhysicalExamImageCapture } from '../start-visit/physical-examination/physical-exam-image-capture.component';
+import { getOptionIcon } from '../start-visit/physical-examination/physical-examination.utils';
+import { BUTTON_UPLOAD } from '../../utils/ayu.constants';
+import AyuButton from './ayu-button.component';
+import { AyuSelectableOption } from './ayu-selectable-option.component';
+
+/**
+ * Physical-Exam-specific renderer plugged into componentMap as
+ * `'physicalExamOptions'`. Recognised by the section-key marker that
+ * transformFhirPhysExamToAyu attaches; otherwise inert.
+ *
+ * UX contract:
+ *  - Non-camera options commit to answers immediately on click (single-choice
+ *    auto-advances via useFHIRStepper).
+ *  - Camera tile selection is held in LOCAL state until the user clicks the
+ *    Submit/Upload button. This prevents the stepper's auto-advance from
+ *    firing before the user has had a chance to actually capture an image.
+ *  - Submit/Upload button visibility:
+ *      * multi-choice with any selected option, OR
+ *      * camera tile locally selected with at least one image captured.
+ */
+export const AyuPhysicalExamOptions = ({
+  question,
+  value,
+  setAnswer,
+}: AyuRendererBaseProps) => {
+  const camera = usePhysicalExamCamera();
+  const [cameraLocallySelected, setCameraLocallySelected] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+
+  if (!question) return null;
+
+  const allOptions = question.answerOption ?? [];
+  const cameraOption = allOptions.find(o =>
+    o.extension?.some(
+      ext =>
+        ext.url === EXT_URL_PE_OPTION_KIND &&
+        ext.valueString === PE_OPTION_KIND_CAMERA
+    )
+  );
+  const cameraCode = cameraOption?.valueCoding?.code;
+  const regularOptions = allOptions.filter(o => o !== cameraOption);
+  const isMultiChoice = !!question.repeats;
+  const selected: string[] = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? [value]
+      : [];
+
+  const categoryLabel = question.extension?.find(
+    e => e.url === EXT_URL_PE_CATEGORY_LABEL
+  )?.valueString;
+  const sectionLabel = question.extension?.find(
+    e => e.url === EXT_URL_PE_SECTION_KEY
+  )?.valueString;
+  const cameraImages = cameraCode
+    ? (camera?.cameraImagesFor(question.linkId) ?? [])
+    : [];
+  const jobAidUrl = camera?.jobAidUrlFor(question.linkId) ?? null;
+  const jobAidType = camera?.jobAidTypeFor(question.linkId) ?? null;
+
+  const codeOf = (opt: AyuAnswerOption): string | undefined =>
+    opt.valueCoding?.code ?? opt.valueString;
+
+  const handleRegularOptionClick = (optionId: string) => {
+    if (isMultiChoice) {
+      // Toggle the option in the current array; preserve already-committed
+      // camera code (if any) so multi-choice + camera composes naturally.
+      const without = selected.filter(id => id !== optionId);
+      const next =
+        without.length === selected.length ? [...selected, optionId] : without;
+      setAnswer?.(question, next);
+    } else {
+      setAnswer?.(question, optionId);
+    }
+  };
+
+  const handleCameraTileClick = () => {
+    /* The tile is rendered only when both cameraOption and cameraCode are
+     * present, so this handler always runs with cameraCode set. */
+    if (cameraLocallySelected) {
+      // Deselecting — drop any in-progress images and clear local state
+      camera?.clearCameraImages(question.linkId);
+      setCameraLocallySelected(false);
+      return;
+    }
+    setCameraLocallySelected(true);
+  };
+
+  const handleSubmit = () => {
+    /* Caller (the Submit button) is rendered only when submitVisible is true,
+     * which already implies cameraLocallySelected, cameraCode, and
+     * cameraImages.length > 0 — no defensive guard needed here. */
+    const next = isMultiChoice
+      ? [...selected.filter(id => id !== cameraCode), cameraCode!]
+      : [cameraCode!];
+    setAnswer?.(question, next);
+    setSubmittedAt(Date.now());
+  };
+
+  /* Only the camera-commit case needs an in-component Submit, since a captured
+   * image must be explicitly turned into an answer. Plain multi-choice defers
+   * to the outer stepper container's Submit (which also validates required
+   * fields and advances via goNext) — otherwise two Submit buttons stack. */
+  const submitVisible = cameraLocallySelected && cameraImages.length > 0;
+
+  const submitJustHappened = !!submittedAt && Date.now() - submittedAt < 1500;
+
+  return (
+    <div className="px-3 py-2">
+      {(sectionLabel || categoryLabel) && (
+        <div className="pb-1">
+          {sectionLabel && (
+            <span className="text-xs font-semibold text-gray-500">
+              {sectionLabel}
+            </span>
+          )}
+          {categoryLabel && (
+            <span className="text-xs font-semibold text-gray-500 ml-1">
+              {categoryLabel}
+            </span>
+          )}
+        </div>
+      )}
+      <p className="text-base font-semibold text-gray-900 pb-2">
+        {question.text}
+        {question.required && <span className="text-red-500 ml-0.5">*</span>}
+      </p>
+      {jobAidUrl && (
+        <div className="pb-2">
+          <p className="text-xs text-gray-500 mb-1">References:</p>
+          {jobAidType === 'video' ? (
+            <video src={jobAidUrl} controls className="rounded-md" />
+          ) : (
+            <img
+              src={jobAidUrl}
+              alt={categoryLabel ?? ''}
+              className="rounded-md"
+            />
+          )}
+        </div>
+      )}
+      <hr className="border-gray-200" />
+      <p className="pt-2 text-xs text-gray-500">
+        {isMultiChoice ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
+      </p>
+      <div className="flex flex-wrap gap-3 pt-2 pb-3">
+        {regularOptions.map(opt => {
+          const optId = codeOf(opt);
+          if (!optId) return null;
+          return (
+            <AyuSelectableOption
+              key={optId}
+              label={opt.valueCoding?.display ?? opt.valueString ?? optId}
+              value={optId}
+              selected={selected.includes(optId)}
+              leftIcon={getOptionIcon(
+                opt.valueCoding?.display ?? opt.valueString ?? ''
+              )}
+              onClick={() => handleRegularOptionClick(optId)}
+            />
+          );
+        })}
+        {cameraOption && cameraCode && (
+          <AyuSelectableOption
+            label={cameraOption.valueCoding?.display ?? 'Take a picture'}
+            value={cameraCode}
+            selected={cameraLocallySelected}
+            leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
+            onClick={handleCameraTileClick}
+          />
+        )}
+      </div>
+      {cameraLocallySelected && camera && (
+        <div className="pb-3">
+          <PhysicalExamImageCapture
+            images={cameraImages}
+            onAdd={f => camera.addCameraImage(question.linkId, f)}
+            onRemove={i => camera.removeCameraImage(question.linkId, i)}
+          />
+        </div>
+      )}
+      {submitVisible && (
+        <div className="flex justify-end pb-3">
+          <AyuButton
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={handleSubmit}
+          >
+            {/* submitVisible already implies cameraLocallySelected && images
+             * present, so the upload-with-count label is the only state. */}
+            {`${BUTTON_UPLOAD} (${cameraImages.length})`}
+            {submitJustHappened && <img src={iconYes} alt="yes" />}
+          </AyuButton>
+        </div>
+      )}
+    </div>
+  );
+};
