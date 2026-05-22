@@ -389,6 +389,35 @@ describe('useFCM', () => {
     });
   });
 
+  describe('getPermission fallback', () => {
+    it('should return "default" when Notification global is undefined', async () => {
+      // Remove the Notification global to cover the typeof check fallback
+      const savedNotification = (globalThis as any).Notification;
+      delete (globalThis as any).Notification;
+
+      vi.mocked(fcmService.isInitialized).mockReturnValue(true);
+      vi.mocked(fcmService.getToken).mockReturnValue(null);
+
+      const { result } = renderHook(() => useFCM());
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      // Without Notification, getPermission falls back to 'default'
+      expect(result.current.isPermissionDefault).toBe(true);
+      expect(result.current.isPermissionGranted).toBe(false);
+      expect(result.current.isPermissionDenied).toBe(false);
+
+      // Restore
+      Object.defineProperty(globalThis, 'Notification', {
+        value: savedNotification,
+        writable: true,
+        configurable: true,
+      });
+    });
+  });
+
   describe('Message Handling', () => {
     it('should call onMessageReceived callback', async () => {
       const mockOnMessage = vi.fn();

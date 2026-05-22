@@ -676,7 +676,7 @@ describe('AppointmentScheduleComponent', () => {
       });
     });
 
-    it('clicking Ok on success modal navigates to my-appointments', async () => {
+    it('clicking Ok on success modal navigates to dashboard', async () => {
       vi.useFakeTimers();
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
@@ -688,7 +688,7 @@ describe('AppointmentScheduleComponent', () => {
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByRole('button', { name: 'Ok' }));
-      expect(mockNavigate).toHaveBeenCalledWith('/my-appointments');
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
 
     it('clicking Close on success modal dismisses it without navigating', async () => {

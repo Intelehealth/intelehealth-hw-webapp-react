@@ -42,7 +42,13 @@ export interface EncounterRef {
   encounterType?: { uuid: string };
 }
 
+export interface VisitRef {
+  uuid: string;
+  [key: string]: unknown;
+}
+
 export interface VisitUploadResponse {
   encounters?: EncounterRef[];
+  visits?: VisitRef[];
   [key: string]: unknown;
 }

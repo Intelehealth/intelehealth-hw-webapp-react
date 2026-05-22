@@ -123,7 +123,7 @@ export const NotificationProvider = ({
 
   const showToast = useCallback(
     (pushData: NotificationPayload & { data?: NotificationPayload }) => {
-      const data = pushData?.data || pushData || {};
+      const data = pushData?.data ?? pushData;
       const type = detectType(data);
       const config =
         TOAST_CONFIG[type as keyof typeof TOAST_CONFIG] ||

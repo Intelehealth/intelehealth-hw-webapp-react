@@ -228,4 +228,27 @@ describe('PatientSearch', () => {
     const options = screen.getAllByRole('option');
     expect(options[1]).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('should early-return on ArrowDown when dropdown is shown but patients list is empty', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: [], loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    // Type to open dropdown (showDropdown = true), but patients is empty
+    fireEvent.change(input, { target: { value: 'xyz' } });
+    // Press ArrowDown - should hit the early return at line 51 (!patients.length)
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    // Nothing should crash, no navigation should happen
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should early-return on ArrowDown when dropdown is not shown (!showDropdown branch)', () => {
+    mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
+    renderComponent();
+    const input = screen.getByRole('combobox');
+    // Do not type anything - showDropdown remains false
+    // Press ArrowDown - should hit the early return at line 51 (!showDropdown)
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    // Nothing should happen
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
 });

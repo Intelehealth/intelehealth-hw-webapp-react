@@ -141,7 +141,6 @@ export const MedicalHistory = ({
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
       const schema = schemas[currentStep];
-      if (!schema?.schema) return;
 
       // Store answers for this file so they can be restored on "Change"
       fileAnswersRef.current[schema.name] = answers;

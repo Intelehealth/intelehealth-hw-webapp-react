@@ -345,6 +345,37 @@ describe('LoginComponent (Vite + Vitest)', () => {
     });
   });
 
+  describe('captchaSiteKey branch coverage for line 34 (key ? key : null)', () => {
+    afterEach(() => {
+      mockEnv.ENABLE_SITE_CAPTCHA = 'false';
+      mockEnv.RECAPTCHA_SITE_KEY = undefined;
+    });
+
+    it('returns the key (truthy branch) when RECAPTCHA_SITE_KEY trims to a non-empty string', () => {
+      mockEnv.ENABLE_SITE_CAPTCHA = 'true';
+      mockEnv.RECAPTCHA_SITE_KEY = 'valid-key';
+      mockHandleLogin.mockClear();
+
+      setup();
+      // If captchaSiteKey is truthy, the ReCaptcha widget is rendered
+      expect(
+        screen.getByRole('button', { name: /Mock: Verify Captcha/i })
+      ).toBeInTheDocument();
+    });
+
+    it('returns null (falsy branch) when RECAPTCHA_SITE_KEY trims to an empty string', () => {
+      mockEnv.ENABLE_SITE_CAPTCHA = 'true';
+      mockEnv.RECAPTCHA_SITE_KEY = '   ';
+      mockHandleLogin.mockClear();
+
+      setup();
+      // If captchaSiteKey is null, the ReCaptcha widget should NOT be rendered
+      expect(
+        screen.queryByRole('button', { name: /Mock: Verify Captcha/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe('when site captcha is enabled', () => {
     beforeEach(() => {
       mockEnv.ENABLE_SITE_CAPTCHA = 'true';

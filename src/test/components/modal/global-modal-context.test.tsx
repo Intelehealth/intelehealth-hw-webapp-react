@@ -717,4 +717,112 @@ describe('GlobalModalProvider', () => {
       expect(screen.getByText('Sized Confirm')).toBeInTheDocument();
     });
   });
+
+  it('passes iconElement to ConfirmationModal when provided', async () => {
+    const user = userEvent.setup();
+
+    const TestWithIconElement = () => {
+      const { showConfirmModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showConfirmModal({
+              open: true,
+              type: 'confirm',
+              title: 'Icon Element Modal',
+              iconElement: <span data-testid="custom-icon">Custom Icon</span>,
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithIconElement />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Icon Element Modal')).toBeInTheDocument();
+      expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
+    });
+  });
+
+  it('passes hideActions to ConfirmationModal when provided', async () => {
+    const user = userEvent.setup();
+
+    const TestWithHideActions = () => {
+      const { showConfirmModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showConfirmModal({
+              open: true,
+              type: 'confirm',
+              title: 'Hidden Actions Modal',
+              hideActions: true,
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithHideActions />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Hidden Actions Modal')).toBeInTheDocument();
+      // When hideActions is true, the Cancel/Confirm buttons should not be rendered
+      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+      expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
+    });
+  });
+
+  it('passes children to ConfirmationModal when provided', async () => {
+    const user = userEvent.setup();
+
+    const TestWithChildren = () => {
+      const { showConfirmModal } = useGlobalModal();
+      return (
+        <button
+          onClick={() =>
+            showConfirmModal({
+              open: true,
+              type: 'confirm',
+              title: 'Children Modal',
+              children: <div data-testid="modal-child">Child Content</div>,
+            })
+          }
+        >
+          Show
+        </button>
+      );
+    };
+
+    render(
+      <GlobalModalProvider>
+        <TestWithChildren />
+      </GlobalModalProvider>
+    );
+
+    await user.click(screen.getByText('Show'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Children Modal')).toBeInTheDocument();
+      expect(screen.getByTestId('modal-child')).toBeInTheDocument();
+      expect(screen.getByText('Child Content')).toBeInTheDocument();
+    });
+  });
 });

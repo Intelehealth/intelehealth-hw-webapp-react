@@ -21,6 +21,7 @@ import {
   removePendingDocument,
   uploadAllAdditionalDocuments,
   getLatestEncounterUuid,
+  getLatestVisitUuid,
 } from '../../../../modules/ayu/services/obs.service';
 import { OBS_CONCEPTS } from '../../../../modules/ayu/types/obs.types';
 
@@ -486,6 +487,45 @@ describe('obs.service', () => {
 
       await expect(
         getLatestEncounterUuid('patient-uuid', 'type-a')
+      ).rejects.toThrow('Network error');
+    });
+  });
+
+  // ── getLatestVisitUuid ──────────────────────────────────────────────
+
+  describe('getLatestVisitUuid', () => {
+    it('should call GET /visit with correct query params', async () => {
+      mockGet.mockResolvedValue({
+        results: [{ uuid: 'visit-uuid-1' }],
+      });
+
+      const result = await getLatestVisitUuid('patient-uuid');
+
+      expect(mockGet).toHaveBeenCalledWith(
+        '/visit?patient=patient-uuid&v=custom:(uuid)&limit=1&order=desc'
+      );
+      expect(result).toBe('visit-uuid-1');
+    });
+
+    it('should return undefined when no visit found', async () => {
+      mockGet.mockResolvedValue({ results: [] });
+
+      const result = await getLatestVisitUuid('patient-uuid');
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when results is undefined', async () => {
+      mockGet.mockResolvedValue({});
+
+      const result = await getLatestVisitUuid('patient-uuid');
+      expect(result).toBeUndefined();
+    });
+
+    it('should propagate API errors', async () => {
+      mockGet.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        getLatestVisitUuid('patient-uuid')
       ).rejects.toThrow('Network error');
     });
   });

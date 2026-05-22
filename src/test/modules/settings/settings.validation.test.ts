@@ -77,6 +77,33 @@ describe('validatePasswordChange', () => {
     });
     expect(errors.currentPassword).toBe('Enter current password');
   });
+
+  it('handles undefined currentPassword via optional chaining fallback', () => {
+    const errors = validatePasswordChange({
+      currentPassword: undefined as unknown as string,
+      newPassword: 'NewPass1',
+      confirmPassword: 'NewPass1',
+    });
+    expect(errors.currentPassword).toBe('Enter current password');
+  });
+
+  it('handles undefined newPassword via optional chaining fallback', () => {
+    const errors = validatePasswordChange({
+      currentPassword: 'OldPass1',
+      newPassword: undefined as unknown as string,
+      confirmPassword: 'NewPass1',
+    });
+    expect(errors.newPassword).toBe('Enter new password');
+  });
+
+  it('handles undefined confirmPassword via optional chaining fallback', () => {
+    const errors = validatePasswordChange({
+      currentPassword: 'OldPass1',
+      newPassword: 'NewPass1',
+      confirmPassword: undefined as unknown as string,
+    });
+    expect(errors.confirmPassword).toBe('Confirm new password');
+  });
 });
 
 describe('hasPasswordErrors', () => {

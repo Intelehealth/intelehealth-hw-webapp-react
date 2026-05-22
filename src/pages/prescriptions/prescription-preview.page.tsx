@@ -108,7 +108,7 @@ const DataTable = ({
   empty: string;
   colSpan: number;
 }) => {
-  const arr = Array.isArray(children) ? children : [children];
+  const arr = [children].flat();
   const hasRows = arr.filter(Boolean).length > 0;
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9 }}>

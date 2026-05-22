@@ -134,12 +134,12 @@ export default function MyAppointments() {
           <img
             src={iconAscSorted}
             alt="sort-asc"
-            className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-70'}`}
+            className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
           />
           <img
             src={iconDescSorted}
             alt="sort-desc"
-            className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-70'}`}
+            className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
           />
         </div>
         <div className="relative flex items-center flex-1 md:flex-none">
@@ -246,7 +246,7 @@ export default function MyAppointments() {
                     ? 'sort-desc'
                     : 'sort-asc'
                 }
-                className={`${sortKey === col.key && sortOrder ? 'opacity-100' : 'opacity-30'}`}
+                className={`transition ${sortKey === col.key && sortOrder ? 'opacity-100' : 'opacity-50'}`}
               />
             </span>
           ))}

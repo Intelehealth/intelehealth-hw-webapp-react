@@ -27,8 +27,7 @@ const MONTHS = [
   'December',
 ];
 
-// Computed once at module load using local time (not UTC)
-const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+const today = new Date().toLocaleDateString('en-CA');
 
 export default function AppointmentScheduleComponent() {
   const navigate = useNavigate();
@@ -48,11 +47,10 @@ export default function AppointmentScheduleComponent() {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
 
-  /* ================= DATES TO SHOW ================= */
   const getDateCount = () => {
-    if (window.innerWidth >= 1024) return 13; // desktop
-    if (window.innerWidth >= 768) return 10; // tablet
-    return 5; // mobile
+    if (window.innerWidth >= 1024) return 13;
+    if (window.innerWidth >= 768) return 10;
+    return 5;
   };
 
   const [datesToShow, setDatesToShow] = useState(getDateCount);
@@ -73,11 +71,8 @@ export default function AppointmentScheduleComponent() {
     };
   }, []);
 
-  /* ================= MONTH NAVIGATION ================= */
-
   const handlePrevMonth = () => {
     const now = new Date();
-    /* c8 ignore next 9 */
     if (
       year > now.getFullYear() ||
       (year === now.getFullYear() && month > now.getMonth())
@@ -103,10 +98,6 @@ export default function AppointmentScheduleComponent() {
     setDateOffset(0);
   };
 
-  /* ================= DATE GENERATION ================= */
-
-  // Generate all remaining dates for the current month view.
-  // For the current month starts from today; for future months starts from the 1st.
   const allDates = useMemo(() => {
     const now = new Date(`${today}T00:00:00`);
     const isCurrentMonth =
@@ -118,13 +109,11 @@ export default function AppointmentScheduleComponent() {
     while (cursor.getMonth() === month || dates.length === 0) {
       dates.push(cursor.toLocaleDateString('en-CA'));
       cursor.setDate(cursor.getDate() + 1);
-      /* c8 ignore next */
       if (cursor.getDate() > lastDay && cursor.getMonth() !== month) break;
     }
     return dates;
   }, [year, month]);
 
-  // Slice visible dates based on offset and datesToShow
   const visibleDates = useMemo(() => {
     return allDates.slice(dateOffset, dateOffset + datesToShow);
   }, [allDates, dateOffset, datesToShow]);
@@ -142,7 +131,6 @@ export default function AppointmentScheduleComponent() {
     );
   };
 
-  /* ================= API SLOTS ================= */
   const fromDate = selectedDate;
   const toDate = useMemo(() => {
     const d = new Date(`${selectedDate}T00:00:00`);
@@ -155,7 +143,6 @@ export default function AppointmentScheduleComponent() {
     error: slotsError,
   } = useAppointmentSlots(fromDate, toDate, speciality);
 
-  // Group API slots by period for the selected date
   const displaySlots: Record<
     SlotPeriod,
     { time: string; available: boolean }[]
@@ -199,19 +186,16 @@ export default function AppointmentScheduleComponent() {
     }
 
     setBooking(true);
-    // Build ISO datetime from selected date + time (e.g. "2025-10-03" + "09:00 am")
     const [time, meridiem] = selectedTime!.split(' ');
     const [hourStr, min] = time.split(':');
     let hour = parseInt(hourStr, 10);
     if (meridiem.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-    /* c8 ignore next */
     if (meridiem.toLowerCase() === 'am' && hour === 12) hour = 0;
     const appointmentDatetime = `${selectedDate}T${String(hour).padStart(2, '0')}:${min}:00.000+0530`;
 
     try {
       await appointmentService.bookAppointment(visitUuid!, appointmentDatetime);
 
-      // Delay to allow the confirm modal to close before opening the success modal
       setTimeout(() => {
         showConfirmModal({
           icon: iconCalendar,
@@ -221,7 +205,7 @@ export default function AppointmentScheduleComponent() {
           type: 'confirm',
           open: true,
           onConfirm: () => {
-            navigate('/my-appointments');
+            navigate('/dashboard');
           },
         });
       }, 0);
@@ -244,7 +228,6 @@ export default function AppointmentScheduleComponent() {
   };
 
   const bookAppointment = () => {
-    /* c8 ignore next */
     if (!selectedDate || !selectedTime) return;
     showConfirmModal({
       icon: iconCalendar,
@@ -283,7 +266,6 @@ export default function AppointmentScheduleComponent() {
         return iconAfternoon;
       case 'Evening':
         return iconSunset;
-      /* c8 ignore next 2 */
       default:
         return iconSunrise;
     }
@@ -291,7 +273,6 @@ export default function AppointmentScheduleComponent() {
 
   return (
     <div className="w-full bg-white rounded-xl p-4 md:p-5">
-      {/* Header */}
       <div className="hidden md:flex items-center gap-3 mb-2">
         <img src={iconsvioletFieldAppointmentDetails} alt="icon" />
         <span className="text-sm font-medium text-[#2E1E91]">
@@ -300,13 +281,11 @@ export default function AppointmentScheduleComponent() {
       </div>
       <hr className="hidden md:block border-t border-gray-200 mt-2 mb-4" />
 
-      {/* Month Row */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[14px] font-semibold text-gray-800">
           {MONTHS[month]}, {year}
         </h2>
         <div className="flex gap-2">
-          {/* Prev: disabled on current month */}
           <button
             onClick={handlePrevMonth}
             disabled={
@@ -326,7 +305,6 @@ export default function AppointmentScheduleComponent() {
         </div>
       </div>
 
-      {/* Date Selection */}
       <div className="flex items-center gap-1 mb-4">
         <button
           onClick={handleDatePrev}
@@ -382,12 +360,10 @@ export default function AppointmentScheduleComponent() {
         </button>
       </div>
 
-      {/* Pick a time slot — desktop/tablet only */}
       <p className="hidden md:block text-[14px] font-medium text-[#7F7B92] mb-3">
         Pick a time slot
       </p>
 
-      {/* Loading / Error states */}
       {slotsLoading && (
         <p className="text-center text-gray-400 py-4">Loading slots...</p>
       )}
@@ -395,7 +371,6 @@ export default function AppointmentScheduleComponent() {
         <p className="text-center text-red-500 py-2 text-sm">{slotsError}</p>
       )}
 
-      {/* Time Slots */}
       {!slotsLoading &&
         (Object.keys(displaySlots) as SlotPeriod[]).map(period => {
           const slots = displaySlots[period];
@@ -437,7 +412,6 @@ export default function AppointmentScheduleComponent() {
           );
         })}
 
-      {/* Book Button */}
       <div className="flex justify-end mt-4">
         <button
           disabled={!selectedDate || !selectedTime || booking}

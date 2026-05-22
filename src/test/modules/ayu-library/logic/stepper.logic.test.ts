@@ -585,5 +585,18 @@ describe('isTopLevelComplete', () => {
       };
       expect(isTopLevelComplete(q, { q1: ['a'] })).toBe(true);
     });
+
+    it('should treat totalOptions as 0 when answerOption is undefined', () => {
+      // Associated symptoms question without answerOption — triggers ?? 0 fallback on line 88
+      const q: AyuQuestion = {
+        linkId: 'as1',
+        type: 'choice',
+        text: 'Associated symptoms',
+        // No answerOption defined
+      };
+      // codes.length (1) < totalOptions (0) is false, so the guard doesn't return false
+      // The question is complete because the array is non-empty and no further nested checks apply
+      expect(isTopLevelComplete(q, { as1: ['fever'] })).toBe(true);
+    });
   });
 });

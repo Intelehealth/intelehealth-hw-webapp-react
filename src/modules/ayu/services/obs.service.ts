@@ -113,3 +113,12 @@ export const getLatestEncounterUuid = async (
     enc => enc.encounterType?.uuid === encounterTypeUuid
   )?.uuid;
 };
+
+export const getLatestVisitUuid = async (
+  patientUuid: string
+): Promise<string | undefined> => {
+  const response = await OpenMRSApi.get<{
+    results: Array<{ uuid: string }>;
+  }>(`/visit?patient=${patientUuid}&v=custom:(uuid)&limit=1&order=desc`);
+  return response.results?.[0]?.uuid;
+};

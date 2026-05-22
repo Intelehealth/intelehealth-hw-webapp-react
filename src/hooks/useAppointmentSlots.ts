@@ -14,14 +14,17 @@ export const useAppointmentSlots = (
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!fromDate || !toDate || !speciality) return;
+    if (!fromDate || !toDate || !speciality) {
+      return;
+    }
     setLoading(true);
     setError(null);
     appointmentService
       .getAppointmentSlots(fromDate, toDate, speciality)
-      .then(setData)
-      .catch(err => {
-        console.error('Appointment slots API error:', err);
+      .then(slots => {
+        setData(slots);
+      })
+      .catch(() => {
         setError('Failed to fetch appointment slots');
       })
       .finally(() => setLoading(false));

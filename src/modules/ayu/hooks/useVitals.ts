@@ -404,7 +404,7 @@ export const useVitals = (onNextQuestion: () => void) => {
           label: 'BP',
           value:
             watch('bp_systolic') && watch('bp_diastolic')
-              ? `${watch('bp_systolic') || ''}/${watch('bp_diastolic') || ''}`
+              ? `${watch('bp_systolic')}/${watch('bp_diastolic')}`
               : null,
         },
         { label: 'Pulse (bpm)', value: watch('pulse_bpm') || null },

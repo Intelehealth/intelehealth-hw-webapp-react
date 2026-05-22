@@ -1596,6 +1596,55 @@ describe('AyuNestedRenderer', () => {
     });
   });
 
+  describe('previousSibling prop in renderInlineNestedItems', () => {
+    it('should pass previousSibling to second inline nested item (line 77)', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'choice-parent',
+          text: 'Choice Parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+            { valueCoding: { code: 'opt-b', display: 'Option B' } },
+          ],
+          item: [
+            {
+              linkId: 'opt-a-child',
+              text: 'Child A',
+              type: 'string',
+              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-a' } }],
+            },
+            {
+              linkId: 'opt-b-child',
+              text: 'Child B',
+              type: 'string',
+              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-b' } }],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'choice-parent': ['opt-a', 'opt-b'] }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      const pill = screen.getByTestId('selectable-choice-parent');
+      await user.click(pill);
+
+      // Both items should render inline
+      expect(screen.getByTestId('renderer-opt-a-child')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-opt-b-child')).toBeInTheDocument();
+      // The second item gets previousSibling = first item
+      expect(screen.getByTestId('prev-sibling-opt-b-child')).toHaveTextContent('opt-a-child');
+    });
+  });
+
   describe('Deeply Nested Items', () => {
     it('should render child items in non-selectable mode', () => {
       const items: AyuQuestion[] = [

@@ -301,12 +301,10 @@ export const useFHIRStepper = (
   };
 
   const getTopLevelLinkId = (linkId: string) => {
-    if (!currentQuestion) return linkId;
-
-    if (currentQuestion.linkId === linkId) return linkId;
+    if (currentQuestion?.linkId === linkId) return linkId;
 
     // Recursively check all descendants, not just immediate children
-    if (isDescendantLinkId(currentQuestion, linkId)) {
+    if (currentQuestion && isDescendantLinkId(currentQuestion, linkId)) {
       return currentQuestion.linkId;
     }
 

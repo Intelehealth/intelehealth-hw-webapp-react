@@ -299,6 +299,44 @@ describe('useLogin hook', () => {
     expect(config.headers.Authorization).toBe(`Basic ${btoa('alice:pa55')}`);
   });
 
+  it('throws and shows error toast when backend login returns empty token (!token branch)', async () => {
+    const openmrsUser = {
+      uuid: 'u-no-token',
+      display: 'No Token User',
+      roles: [{ display: NURSE_ROLE }],
+    } as unknown as Record<string, unknown>;
+
+    mockOpenMRSLogin.mockResolvedValue({
+      user: openmrsUser,
+      sessionId: 'sess-no-token',
+      authenticated: true,
+    });
+    // Backend login returns falsy token (empty string)
+    mockBackendLogin.mockResolvedValue({ token: '', user: openmrsUser });
+
+    render(
+      <MemoryRouter>
+        <TestComponent username="john" password="secret" />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByTestId('login-btn'));
+
+    await waitFor(() => {
+      // The !token branch throws, which lands in the catch block
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Login Failed',
+        'Login Failed',
+        'error'
+      );
+      // Should NOT have stored token or navigated
+      expect(mockSetAuthToken).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    expect(screen.getByTestId('loading').textContent).toBe('false');
+  });
+
   it('toggles loading true on start and false on error', async () => {
     // Reject early to enter catch
     mockOpenMRSLogin.mockRejectedValue(new Error('network'));
