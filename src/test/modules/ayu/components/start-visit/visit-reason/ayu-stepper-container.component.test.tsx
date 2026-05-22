@@ -3508,6 +3508,224 @@ describe('AyuStepperContainer', () => {
       expect(ref.current).toBeDefined();
       expect(typeof ref.current!.confirm).toBe('function');
       expect(typeof ref.current!.showSummary).toBe('function');
+      expect(typeof ref.current!.getAnswers).toBe('function');
+    });
+  });
+
+  describe('useImperativeHandle getAnswers', () => {
+    it('should return the current in-progress answers map', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      const answers: Record<string, AyuAnswerValue> = {
+        q1: 'in-progress',
+        q2: 42,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Snapshot does NOT trigger completion or validation — pure read.
+      expect(ref.current!.getAnswers()).toEqual(answers);
+      expect(mockOnComplete).not.toHaveBeenCalled();
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('should return an empty object when no answers have been entered', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: false,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(ref.current!.getAnswers()).toEqual({});
+    });
+  });
+
+  describe('onSummaryShown prop wiring', () => {
+    it('should pass onSummaryShown through to useFHIRStepper', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const onSummaryShown = vi.fn();
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          onSummaryShown={onSummaryShown}
+        />
+      );
+
+      // The container forwards the prop verbatim; the actual firing is covered
+      // in useFHIRStepper's own tests.
+      expect(_mockUseFHIRStepper).toHaveBeenCalledWith(
+        expect.objectContaining({ onSummaryShown })
+      );
+    });
+  });
+
+  describe('Mount-time progress announcement (review mode)', () => {
+    it('should announce totalSteps and totalSteps as completed on mount when showAll is true', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string' },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 2,
+        answers: { q1: 'a', q2: 'b' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a', q2: 'b' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // The mount-only effect must still announce in review mode so the
+      // parent's SideLoader denominator is correct after returning from Back.
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 2);
+    });
+
+    it('should not double-announce on mount when showAll is false (change-driven effect handles it)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 3,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [
+          question,
+          { linkId: 'q2', text: 'Q2', type: 'string' },
+          { linkId: 'q3', text: 'Q3', type: 'string' },
+        ],
+        isLast: false,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Non-review mount → only the existing change-driven effect should fire (once).
+      expect(mockOnProgressUpdate).toHaveBeenCalledTimes(1);
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(3, 0);
+    });
+
+    it('should not announce in review mode when totalSteps is 0', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: undefined,
+        currentIndex: 0,
+        total: 0,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [],
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // showAll + empty questionnaire: mount-effect guard skips, and the
+      // change-driven effect is suppressed by showAll → nothing fires.
+      expect(mockOnProgressUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -4294,6 +4512,58 @@ describe('AyuStepperContainer', () => {
         q1: true as unknown as AyuAnswerValue,
       });
 
+      expect(container.querySelectorAll('p.text-sm.font-semibold')).toHaveLength(0);
+    });
+
+    it('should format a range answer with both low and high as "<low> - <high>"', () => {
+      // ayu-range-input emits { low, high } — the four branches below cover
+      // every return path in the range branch of formatAnswerValue.
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Cycle length (weeks)',
+        type: 'integer',
+      };
+      renderAnswered(question, {
+        q1: { low: 2, high: 6 } as unknown as AyuAnswerValue,
+      });
+      expect(screen.getByText('2 - 6')).toBeInTheDocument();
+    });
+
+    it('should format a range answer with only low set as String(low)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Cycle length (weeks)',
+        type: 'integer',
+      };
+      renderAnswered(question, {
+        q1: { low: 4 } as unknown as AyuAnswerValue,
+      });
+      expect(screen.getByText('4')).toBeInTheDocument();
+    });
+
+    it('should format a range answer with only high set as String(high)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Cycle length (weeks)',
+        type: 'integer',
+      };
+      renderAnswered(question, {
+        q1: { high: 9 } as unknown as AyuAnswerValue,
+      });
+      expect(screen.getByText('9')).toBeInTheDocument();
+    });
+
+    it('should return null primary value when range keys are present but values are null', () => {
+      // Outer guard ('low' in answer || 'high' in answer) passes because the
+      // keys exist; all three numeric returns are skipped → return null path.
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Cycle length (weeks)',
+        type: 'integer',
+      };
+      const { container } = renderAnswered(question, {
+        q1: { low: null, high: null } as unknown as AyuAnswerValue,
+      });
       expect(container.querySelectorAll('p.text-sm.font-semibold')).toHaveLength(0);
     });
   });

@@ -11,6 +11,9 @@ export const PHYSCAL_EXAM_DESCRIPTION = 'Please wash/sanitize your hands';
 export const CONFIRM_MODAL_OK = 'Okay';
 // --- Selected Reasons ---
 export const SELECTED_REASONS_LABEL = 'Selected reasons';
+export const REMOVE_REASON_CONFIRM_TITLE = 'Remove visit reason?';
+export const REMOVE_REASON_CONFIRM_DESCRIPTION =
+  'Removing this reason will clear all answered questions. Do you want to continue?';
 
 // --- All Reasons Heading ---
 export const ALL_REASONS_LABEL = 'All reasons';

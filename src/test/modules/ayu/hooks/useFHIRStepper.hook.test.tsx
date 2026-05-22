@@ -198,6 +198,90 @@ describe('useFHIRStepper', () => {
       );
     });
 
+    it('should fire onSummaryShown when the summary modal opens', () => {
+      const onSummaryShown = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          onComplete: vi.fn(),
+          onSummaryShown,
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+
+      // Modal opened and onSummaryShown fired — even though onConfirm has not been called.
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+      expect(onSummaryShown).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not fire onSummaryShown when skipSummary is true', () => {
+      const onSummaryShown = vi.fn();
+      const onComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          skipSummary: true,
+          onComplete,
+          onSummaryShown,
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+
+      // skipSummary bypasses the modal entirely — onSummaryShown should not fire.
+      expect(mockShowVitalConfirmationModal).not.toHaveBeenCalled();
+      expect(onSummaryShown).not.toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalled();
+    });
+
+    it('should not fire onSummaryShown when validation fails on the last question', () => {
+      const onSummaryShown = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          onComplete: vi.fn(),
+          onSummaryShown,
+        })
+      );
+
+      // Skip answering required q1 — handleComplete must early-return on validation.
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+
+      expect(mockShowVitalConfirmationModal).not.toHaveBeenCalled();
+      expect(onSummaryShown).not.toHaveBeenCalled();
+    });
+
     it('should assign onChange to each section returned by buildVisitSummary', async () => {
       const { buildVisitSummary } = await import('../../../../modules/ayu/utils/visit-summary.util');
       const mockBuildVisitSummary = vi.mocked(buildVisitSummary);

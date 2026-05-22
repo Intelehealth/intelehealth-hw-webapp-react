@@ -82,6 +82,7 @@ interface StartVisitContextType {
     reasonNames: string[],
     details: Array<{ label: string; value: string }>
   ) => void;
+  clearVisitReasonData: () => void;
   setPhysicalExamData: (
     answers: PhysicalExamAnswers,
     details: Array<{ label: string; value: string }>
@@ -228,6 +229,10 @@ export const StartVisitProvider = ({
     }));
   };
 
+  const clearVisitReasonData = () => {
+    setData(prev => ({ ...prev, visitReason: null }));
+  };
+
   const setPhysicalExamData = (
     answers: PhysicalExamAnswers,
     details: Array<{ label: string; value: string }>
@@ -265,6 +270,7 @@ export const StartVisitProvider = ({
         setPatientUuid,
         setVitalsData,
         setVisitReasonData,
+        clearVisitReasonData,
         setPhysicalExamData,
         setMedicalHistoryData,
         setMedicalHistoryAnswers,

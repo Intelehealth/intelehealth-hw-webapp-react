@@ -21,6 +21,8 @@ import {
   CONFIRM_MODAL_YES,
   ITEM_TYPES,
   PHYSCAL_EXAM_DESCRIPTION,
+  REMOVE_REASON_CONFIRM_DESCRIPTION,
+  REMOVE_REASON_CONFIRM_TITLE,
   VISIT_REASON_SUMMARY_TITLE,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
@@ -54,12 +56,14 @@ export const VisitReason = ({
     selectedComplaints,
   } = visitReasons!;
 
-  const { data, setVisitReasonData, saveSectionToTemp } = useStartVisitData();
+  const { data, setVisitReasonData, clearVisitReasonData, saveSectionToTemp } =
+    useStartVisitData();
   const savedAnswers = data.visitReason?.answers;
 
   const patientDemographics = usePatientDemographics();
 
   const [showStepper, setShowStepper] = useState(() => !!savedAnswers);
+  const [summaryShown, setSummaryShown] = useState(false);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(() => {
     if (savedAnswers && selectedComplaints.length > 0) {
       return transformFhirToAyu(
@@ -93,12 +97,53 @@ export const VisitReason = ({
           patientDemographics
         );
         setAyuSchema(schema);
+        setSummaryShown(false);
         setShowStepper(true); //Switch UI
       },
     });
   };
 
   const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
+
+  const hasAnsweredQuestions =
+    !!savedAnswers && Object.keys(savedAnswers).length > 0;
+
+  const handleRemoveReason = useCallback(
+    (reason: string) => {
+      // Nothing to clear yet — just remove the chip.
+      if (!hasAnsweredQuestions && !ayuSchema) {
+        removeReason(reason);
+        return;
+      }
+
+      showConfirmModal({
+        title: REMOVE_REASON_CONFIRM_TITLE,
+        description: REMOVE_REASON_CONFIRM_DESCRIPTION,
+        confirmText: CONFIRM_MODAL_YES,
+        cancelText: CONFIRM_MODAL_NO,
+        type: 'confirm',
+        open: true,
+        onConfirm: () => {
+          clearVisitReasonData();
+          saveSectionToTemp({ visitReason: null, confirmedReasons: [] });
+          setAyuSchema(null);
+          setShowStepper(false);
+          setSummaryShown(false);
+          onProgressUpdate?.(1, 0);
+          removeReason(reason);
+        },
+      });
+    },
+    [
+      hasAnsweredQuestions,
+      ayuSchema,
+      removeReason,
+      showConfirmModal,
+      clearVisitReasonData,
+      saveSectionToTemp,
+      onProgressUpdate,
+    ]
+  );
 
   const handleStepperComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {
@@ -173,6 +218,7 @@ export const VisitReason = ({
   // STEP 2: If stepper active, render it instead
   if (showStepper && stableSchema) {
     const isReviewMode = !!savedAnswers;
+    const showFooter = isReviewMode || summaryShown;
     return (
       <div className="w-full flex flex-col">
         <div className="flex-1 flex items-center justify-center">
@@ -184,10 +230,11 @@ export const VisitReason = ({
               initialAnswers={savedAnswers}
               onComplete={handleStepperComplete}
               onProgressUpdate={handleStepperProgress}
+              onSummaryShown={() => setSummaryShown(true)}
             />
           </div>
         </div>
-        {isReviewMode && (
+        {showFooter && (
           <div className="border-t border-gray-200 pt-3">
             <div className="flex gap-3 md:justify-end">
               <AyuButton
@@ -195,6 +242,19 @@ export const VisitReason = ({
                 variant="primarylight"
                 size="md"
                 onClick={() => {
+                  const currentAnswers = stepperRef.current?.getAnswers() ?? {};
+                  if (Object.keys(currentAnswers).length > 0) {
+                    setVisitReasonData(currentAnswers, selectedReasons, []);
+                    saveSectionToTemp({
+                      visitReason: {
+                        answers: currentAnswers,
+                        reasonNames: selectedReasons,
+                        details: [],
+                      },
+                      confirmedReasons: selectedReasons,
+                    });
+                  }
+                  onProgressUpdate?.(1, 0);
                   setShowStepper(false);
                 }}
                 className="w-full md:w-[10%]"
@@ -241,7 +301,7 @@ export const VisitReason = ({
           <div className="flex flex-col gap-4 pl-[80px]">
             <SelectedReasons
               selectedReasons={selectedReasons}
-              removeReason={removeReason}
+              removeReason={handleRemoveReason}
             />
 
             <div className="flex flex-col">

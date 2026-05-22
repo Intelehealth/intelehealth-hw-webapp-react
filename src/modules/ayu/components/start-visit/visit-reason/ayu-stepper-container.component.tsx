@@ -79,6 +79,13 @@ const formatAnswerValue = (
       if (number) return days ? `${number} ${days}` : String(number);
       return null;
     }
+    if ('low' in answer || 'high' in answer) {
+      const { low, high } = answer as { low?: number; high?: number };
+      if (low != null && high != null) return `${low} - ${high}`;
+      if (low != null) return String(low);
+      if (high != null) return String(high);
+      return null;
+    }
     if ('value' in answer) {
       const { value, unit } = answer as { value?: unknown; unit?: string };
       if (value != null && value !== '') {
@@ -244,6 +251,7 @@ export interface AyuStepperContainerHandle {
   confirm: () => void;
   /** Trigger the normal completion flow which shows the summary modal (when skipSummary is false). */
   showSummary: () => void;
+  getAnswers: () => Record<string, AyuAnswerValue>;
 }
 
 interface AyuStepperContainerProps {
@@ -255,6 +263,7 @@ interface AyuStepperContainerProps {
   totalQuestionsOverride?: number;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
+  onSummaryShown?: () => void;
 }
 
 export const AyuStepperContainer = forwardRef<
@@ -271,6 +280,7 @@ export const AyuStepperContainer = forwardRef<
       totalQuestionsOverride,
       onComplete,
       onProgressUpdate,
+      onSummaryShown,
     },
     ref
   ) => {
@@ -292,6 +302,7 @@ export const AyuStepperContainer = forwardRef<
       skipSummary,
       initialAnswers,
       onComplete,
+      onSummaryShown,
     });
 
     useImperativeHandle(
@@ -304,6 +315,7 @@ export const AyuStepperContainer = forwardRef<
         showSummary: () => {
           goNext();
         },
+        getAnswers: () => answers,
       }),
       [answers, onComplete, goNext, validateAllQuestions]
     );
@@ -342,6 +354,13 @@ export const AyuStepperContainer = forwardRef<
 
     const prevCompletedRef = useRef<number>(-1);
     const prevIndexRef = useRef<number>(currentIndex);
+
+    useEffect(() => {
+      if (showAll && totalSteps > 0) {
+        onProgressUpdate?.(totalSteps, totalSteps);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
       if (showAll) return; // Don't reset progress while in review mode

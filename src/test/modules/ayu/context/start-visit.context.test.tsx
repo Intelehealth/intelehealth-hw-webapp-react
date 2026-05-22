@@ -141,6 +141,10 @@ function ContextUpdater() {
         data-testid="btn-clearVisitId"
         onClick={() => ctx.clearVisitId()}
       />
+      <button
+        data-testid="btn-clearVisitReasonData"
+        onClick={() => ctx.clearVisitReasonData()}
+      />
     </div>
   );
 }
@@ -376,6 +380,58 @@ describe('StartVisitProvider', () => {
 
     expect(screen.getByTestId('vitals').textContent).not.toBe('null');
     expect(screen.getByTestId('visitReason').textContent).not.toBe('null');
+  });
+
+  it('should reset visitReason to null via clearVisitReasonData', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    });
+
+    // Set first so we can verify the clear path actually changes state.
+    act(() => {
+      screen.getByTestId('btn-setVisitReason').click();
+    });
+    expect(screen.getByTestId('visitReason').textContent).not.toBe('null');
+
+    act(() => {
+      screen.getByTestId('btn-clearVisitReasonData').click();
+    });
+
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+  });
+
+  it('should leave other data slices untouched when clearVisitReasonData runs', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('vitals')).toHaveTextContent('null');
+    });
+
+    act(() => {
+      screen.getByTestId('btn-setVitals').click();
+      screen.getByTestId('btn-setVisitReason').click();
+    });
+
+    expect(screen.getByTestId('vitals').textContent).not.toBe('null');
+    expect(screen.getByTestId('visitReason').textContent).not.toBe('null');
+
+    act(() => {
+      screen.getByTestId('btn-clearVisitReasonData').click();
+    });
+
+    // visitReason cleared, vitals preserved.
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    expect(screen.getByTestId('vitals').textContent).not.toBe('null');
   });
 
   // ── Temp-storage restore ────────────────────────────────────────────────
