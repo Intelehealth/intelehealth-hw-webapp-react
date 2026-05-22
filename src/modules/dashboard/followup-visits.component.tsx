@@ -87,12 +87,12 @@ export const FollowupVisitsComponent = ({
                   <img
                     src={iconAscSorted}
                     alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-70'}`}
+                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
                   />
                   <img
                     src={iconDescSorted}
                     alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-70'}`}
+                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
                   />
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">

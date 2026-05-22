@@ -81,6 +81,21 @@ describe('settings.helpers', () => {
       expect(getApiErrorMessage('string error', 'fallback')).toBe('fallback');
     });
 
+    it('returns fallback when response exists but data messages are undefined', () => {
+      const err = { response: { data: {} } };
+      expect(getApiErrorMessage(err, 'custom fallback')).toBe('custom fallback');
+    });
+
+    it('returns fallback when response.data is undefined', () => {
+      const err = { response: {} };
+      expect(getApiErrorMessage(err, 'fb')).toBe('fb');
+    });
+
+    it('returns fallback when response.data.error exists but message is undefined', () => {
+      const err = { response: { data: { error: {} } } };
+      expect(getApiErrorMessage(err, 'oops')).toBe('oops');
+    });
+
     it('uses default "Something went wrong" when no fallback supplied', () => {
       expect(getApiErrorMessage(null)).toBe('Something went wrong');
     });

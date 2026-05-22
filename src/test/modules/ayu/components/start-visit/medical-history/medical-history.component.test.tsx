@@ -565,5 +565,95 @@ describe('MedicalHistory', () => {
 
       expect(mockBuildVisitSummary).toHaveBeenCalled();
     });
+
+    it('line 120: should use ?? [] fallback when fileResultsRef[1] is undefined on confirm', async () => {
+      // Simulate only one history file so fileResultsRef[1] is never populated
+      const user = userEvent.setup();
+      const props = buildDefaultProps({
+        ayuConfigFiles: [makeConfigFile('patHist')],
+      });
+      render(<MedicalHistory {...props} />);
+
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      await act(async () => {
+        modalConfig.onConfirm();
+      });
+
+      // The famHist array should be empty since there is no second file
+      expect(mockSetMedicalHistoryData).toHaveBeenCalledWith(
+        expect.any(Array),
+        []
+      );
+    });
+
+    it('line 162+183: should handle buildResult when s.schema.item is undefined for first file', async () => {
+      // First file has a schema with item undefined, second file is normal
+      let callCount = 0;
+      mockTransformFhirToAyu.mockImplementation((json: any) => {
+        callCount++;
+        if (callCount === 1) {
+          // patHist: returns schema with no item array but text is present
+          return { text: 'patHist title title', title: 'patHist title title' };
+        }
+        return makeFakeSchema(json?.title ?? 'unknown');
+      });
+
+      const user = userEvent.setup();
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // Complete step 0 (patHist — schema with no .item uses `|| []` fallback)
+      await user.click(screen.getByTestId('trigger-complete'));
+      // Complete step 1 (famHist)
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      // The modal should appear even though first schema had no .item
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+    });
+
+    it('lines 116+183: should use ?? [] fallback when fileResultsRef[0] is undefined and schemas[0].schema is null', async () => {
+      // First file transforms to null schema, second file is valid.
+      // Restored answers have famHist so component starts at step 1.
+      let callCount = 0;
+      mockTransformFhirToAyu.mockImplementation((json: any) => {
+        callCount++;
+        if (callCount === 1) {
+          // patHist: returns null — schemas[0].schema will be null
+          return null;
+        }
+        return makeFakeSchema(json?.title ?? 'unknown');
+      });
+
+      // Restore answers for famHist so currentStep starts at 1
+      mockContextMedicalHistoryAnswers.value = {
+        famHist: { q1: 'answer1' },
+      };
+
+      const user = userEvent.setup();
+      const props = buildDefaultProps();
+      render(<MedicalHistory {...props} />);
+
+      // Step 1 (famHist) should be rendering since schemas[1].schema is valid
+      // Complete step 1
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      // showCombinedSummary should be triggered (last step)
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+
+      // Now trigger onConfirm - fileResultsRef.current[0] should be undefined
+      // because the for loop skipped schemas[0] (schema is null) via line 183 continue
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      await act(async () => {
+        modalConfig.onConfirm();
+      });
+
+      // patHist should be empty array (via ?? []) since fileResultsRef[0] is undefined
+      expect(mockSetMedicalHistoryData).toHaveBeenCalledWith(
+        [],
+        expect.any(Array)
+      );
+    });
   });
 });

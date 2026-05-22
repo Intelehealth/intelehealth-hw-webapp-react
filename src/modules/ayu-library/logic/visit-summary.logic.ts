@@ -71,12 +71,11 @@ export function buildVisitSummary(
     item: AyuQuestion,
     answer: AyuAnswerValue
   ): string | null {
-    if (!answer) return null;
-
     switch (item.type) {
       case 'integer':
         if (
           typeof answer === 'object' &&
+          answer !== null &&
           !Array.isArray(answer) &&
           ('low' in answer || 'high' in answer)
         ) {
@@ -94,7 +93,11 @@ export function buildVisitSummary(
         return typeof answer === 'string' ? answer : null;
 
       case 'quantity':
-        if (typeof answer === 'object' && !Array.isArray(answer)) {
+        if (
+          typeof answer === 'object' &&
+          answer !== null &&
+          !Array.isArray(answer)
+        ) {
           if ('dropdownValues' in answer) {
             const { number, days } = answer.dropdownValues || {};
             if (number) return days ? `${number} ${days}` : String(number);
@@ -324,7 +327,7 @@ export function buildVisitSummary(
             const isPercentLabel = langExt?.valueString === '%';
             const summaryLabel = isPercentLabel
               ? ''
-              : langExt?.valueString || item.text || '';
+              : ((langExt?.valueString || item.text) as string);
 
             // Separate positive codes and negated "None" (exclusive) option
             const positiveCodes: string[] = [];
@@ -346,11 +349,10 @@ export function buildVisitSummary(
               answerValue.length > 0
             ) {
               const exclusiveOpt = item.answerOption?.find(opt => {
-                const c = opt.valueCoding?.code || opt.valueString;
+                const c = opt.valueCoding?.code;
                 return !!c && isMutuallyExclusiveOption(item, c);
               });
-              const exclusiveCode =
-                exclusiveOpt?.valueCoding?.code || exclusiveOpt?.valueString;
+              const exclusiveCode = exclusiveOpt?.valueCoding?.code;
               if (exclusiveCode) {
                 exclusiveNoDisplay = getDisplay(item, exclusiveCode);
               }
@@ -401,12 +403,13 @@ export function buildVisitSummary(
                   if (!childDisplay) return;
 
                   // Use filter — date fields are siblings with the same enableWhen code
-                  const nestedChildren =
-                    multiSelectChild.item?.filter((c: AyuQuestion) =>
+                  // multiSelectChild.item is guaranteed non-empty by the .item?.length guard above
+                  const nestedChildren = multiSelectChild.item!.filter(
+                    (c: AyuQuestion) =>
                       c.enableWhen?.some(
                         cond => cond.answerCoding?.code === childCode
                       )
-                    ) || [];
+                  );
 
                   const childParts: string[] = [];
                   nestedChildren.forEach(nestedChild => {
@@ -515,8 +518,8 @@ export function buildVisitSummary(
             if (!display) return;
 
             // Use filter — sibling fields (name, from date, to date) share the same enableWhen
-            const itemChildren = item.item || [];
-            const nestedChildren = itemChildren.filter((child: AyuQuestion) =>
+            // item.item is guaranteed non-empty because hasNestedAnswers requires it
+            const nestedChildren = item.item!.filter((child: AyuQuestion) =>
               child.enableWhen?.some(cond => cond.answerCoding?.code === code)
             );
 
@@ -600,11 +603,12 @@ export function buildVisitSummary(
               if (!childDisplay) return;
 
               // Use filter (not find) — date fields are siblings with the same enableWhen code
-              const msChildren = multiSelectChild.item || [];
-              const nestedChildren = msChildren.filter((c: AyuQuestion) =>
-                c.enableWhen?.some(
-                  cond => cond.answerCoding?.code === childCode
-                )
+              // multiSelectChild.item is guaranteed non-empty by the .item?.length guard above
+              const nestedChildren = multiSelectChild.item!.filter(
+                (c: AyuQuestion) =>
+                  c.enableWhen?.some(
+                    cond => cond.answerCoding?.code === childCode
+                  )
               );
 
               const childParts: string[] = [];

@@ -399,6 +399,21 @@ describe('DashboardComponent', () => {
     });
   });
 
+  describe('Appointments card navigation', () => {
+    it('navigates to appointment list when Appointments card is clicked', () => {
+      render(
+        <MemoryRouter>
+          <DashboardComponent />
+        </MemoryRouter>
+      );
+
+      const appointmentsCard = screen.getByText('Appointments').closest('[class*="cursor-pointer"]');
+      expect(appointmentsCard).toBeInTheDocument();
+      fireEvent.click(appointmentsCard!);
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('appointment'));
+    });
+  });
+
   describe('Notifications route', () => {
     it('renders NotificationList when on /notifications route', () => {
       render(

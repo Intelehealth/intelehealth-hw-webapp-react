@@ -83,12 +83,12 @@ export const useChangePassword = (): UseChangePasswordReturn => {
       toastOk('Password changed successfully');
       setValues(EMPTY_PASSWORD);
       setErrors({});
+      setIsSaving(false);
       return true;
     } catch (error) {
       toastError(error, 'Failed to change password');
-      return false;
-    } finally {
       setIsSaving(false);
+      return false;
     }
   }, [values]);
 

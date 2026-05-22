@@ -699,4 +699,45 @@ describe('Vitals Component', () => {
       expect(screen.getByText(/Waist to Hip Ratio \(WHR\) must be between 0.5 and 1.5/)).toBeInTheDocument();
     });
   });
+
+  describe('Placeholder fallback (line 31)', () => {
+    it('should return empty string for unknown field key', () => {
+      // Use a field with a key that is NOT in the placeholders map
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        otherFields: [
+          {
+            name: 'Unknown Field',
+            key: 'some_unknown_key',
+            uuid: 'unknown-uuid',
+            is_mandatory: false,
+            lang: null,
+            is_enabled: true,
+          },
+        ],
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      // getPlaceholder returns '' for unknown key, so placeholder is "E.g., "
+      const input = document.querySelector('input[name="some_unknown_key"]') as HTMLInputElement;
+      expect(input).toBeTruthy();
+      expect(input.placeholder).toBe('E.g., ');
+    });
+  });
+
+  describe('Error border class (line 102)', () => {
+    it('should apply border-red-500 class when blood_group select has an error', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        errors: { blood_group: { type: 'required', message: 'Required' } },
+        touchedFields: { blood_group: true },
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      const select = screen.getByRole('combobox') as HTMLSelectElement;
+      expect(select.className).toContain('border-red-500');
+    });
+  });
 });

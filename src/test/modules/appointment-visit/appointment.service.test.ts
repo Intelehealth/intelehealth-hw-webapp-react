@@ -154,7 +154,7 @@ describe('appointmentService', () => {
   });
 
   describe('getAppointmentSlots', () => {
-    it('calls the API with correct URL using YYYY-MM-DD dates and speciality', async () => {
+    it('calls the API with correct URL converting YYYY-MM-DD to DD/MM/YYYY and speciality', async () => {
       mockGet.mockResolvedValue(mockApiResponse);
       await appointmentService.getAppointmentSlots(
         '2026-04-08',
@@ -165,8 +165,8 @@ describe('appointmentService', () => {
         expect.stringContaining('/appointment/getAppointmentSlots')
       );
       const url: string = mockGet.mock.calls[0][0];
-      expect(url).toContain('fromDate=2026-04-08');
-      expect(url).toContain('toDate=2026-04-09');
+      expect(url).toContain('fromDate=08%2F04%2F2026');
+      expect(url).toContain('toDate=09%2F04%2F2026');
       expect(url).toContain('speciality=General%20Physician');
     });
 
@@ -221,7 +221,7 @@ describe('appointmentService', () => {
       expect(result[2].period).toBe('Evening');
     });
 
-    it('sets isAvailable to true for all slots', async () => {
+    it('sets isAvailable to true when no booked appointments', async () => {
       mockGet.mockResolvedValue(mockApiResponse);
       const result = await appointmentService.getAppointmentSlots(
         '2026-04-08',
@@ -229,6 +229,163 @@ describe('appointmentService', () => {
         'General Physician'
       );
       expect(result.every(s => s.isAvailable)).toBe(true);
+    });
+
+    it('marks booked appointment slots as unavailable', async () => {
+      mockGet.mockResolvedValue({
+        ...mockApiResponse,
+        bookedAppointments: [
+          {
+            appointmentId: 1,
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '9:00 AM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+            visitUuid: 'v-1',
+            patientName: 'Test',
+            openMrsId: '100',
+            patientId: 'p-1',
+            locationUuid: 'loc-1',
+            hwUUID: 'hw-1',
+            reason: null,
+            voided: null,
+            syncd: true,
+            patientGender: 'M',
+            patientAge: '30',
+            hwName: 'HW',
+            hwAge: '25',
+            hwGender: 'F',
+          },
+        ],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      // 9:00 AM slot should be unavailable
+      expect(result[0].isAvailable).toBe(false);
+      // Other slots should still be available
+      expect(result[1].isAvailable).toBe(true);
+      expect(result[2].isAvailable).toBe(true);
+      expect(result[3].isAvailable).toBe(true);
+    });
+
+    it('marks rescheduled appointment slots as unavailable', async () => {
+      mockGet.mockResolvedValue({
+        ...mockApiResponse,
+        rescheduledAppointments: [
+          {
+            appointmentId: 2,
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '2:00 PM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+            visitUuid: 'v-2',
+            patientName: 'Test2',
+            openMrsId: '101',
+            patientId: 'p-2',
+            locationUuid: 'loc-1',
+            hwUUID: 'hw-1',
+            reason: null,
+            voided: null,
+            syncd: true,
+            patientGender: 'F',
+            patientAge: '40',
+            hwName: 'HW',
+            hwAge: '25',
+            hwGender: 'F',
+          },
+        ],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      // 2:00 PM slot should be unavailable
+      expect(result[0].isAvailable).toBe(true);
+      expect(result[1].isAvailable).toBe(false);
+      expect(result[2].isAvailable).toBe(true);
+      expect(result[3].isAvailable).toBe(true);
+    });
+
+    it('marks slots as unavailable from both booked and rescheduled', async () => {
+      mockGet.mockResolvedValue({
+        ...mockApiResponse,
+        bookedAppointments: [
+          {
+            appointmentId: 1,
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '9:00 AM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+            visitUuid: 'v-1',
+            patientName: 'Test',
+            openMrsId: '100',
+            patientId: 'p-1',
+            locationUuid: 'loc-1',
+            hwUUID: 'hw-1',
+            reason: null,
+            voided: null,
+            syncd: true,
+            patientGender: 'M',
+            patientAge: '30',
+            hwName: 'HW',
+            hwAge: '25',
+            hwGender: 'F',
+          },
+        ],
+        rescheduledAppointments: [
+          {
+            appointmentId: 2,
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '7:00 PM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+            visitUuid: 'v-2',
+            patientName: 'Test2',
+            openMrsId: '101',
+            patientId: 'p-2',
+            locationUuid: 'loc-1',
+            hwUUID: 'hw-1',
+            reason: null,
+            voided: null,
+            syncd: true,
+            patientGender: 'F',
+            patientAge: '40',
+            hwName: 'HW',
+            hwAge: '25',
+            hwGender: 'F',
+          },
+        ],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      // 9:00 AM (booked) and 7:00 PM (rescheduled) should be unavailable
+      expect(result[0].isAvailable).toBe(false);
+      expect(result[1].isAvailable).toBe(true);
+      expect(result[2].isAvailable).toBe(false);
+      expect(result[3].isAvailable).toBe(true);
     });
 
     it('includes speciality in each slot', async () => {
@@ -278,6 +435,31 @@ describe('appointmentService', () => {
         'General Physician'
       );
       expect(result).toEqual([]);
+    });
+
+    it('handles undefined bookedAppointments and rescheduledAppointments gracefully', async () => {
+      mockGet.mockResolvedValue({
+        status: true,
+        dates: [
+          {
+            slotDay: 'Wednesday',
+            slotDate: '08/04/2026',
+            slotDuration: 30,
+            slotDurationUnit: 'minutes',
+            slotTime: '9:00 AM',
+            speciality: 'General Physician',
+            userUuid: 'uuid-1',
+            drName: 'Dr Test',
+          },
+        ],
+      });
+      const result = await appointmentService.getAppointmentSlots(
+        '2026-04-08',
+        '2026-04-09',
+        'General Physician'
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].isAvailable).toBe(true);
     });
 
     it('classifies 12:00 AM as Morning (midnight edge case)', async () => {

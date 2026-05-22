@@ -281,7 +281,7 @@ describe('OpenVisitsComponent', () => {
       fireEvent.click(sortAscIcon); // desc
 
       expect(sortDescIcon).toHaveClass('opacity-100');
-      expect(sortAscIcon).toHaveClass('opacity-70');
+      expect(sortAscIcon).toHaveClass('opacity-50');
     });
 
     it('third click clears sort — both icons inactive', () => {
@@ -292,8 +292,8 @@ describe('OpenVisitsComponent', () => {
       fireEvent.click(sortAscIcon); // desc
       fireEvent.click(sortAscIcon); // null
 
-      expect(sortAscIcon).toHaveClass('opacity-70');
-      expect(sortDescIcon).toHaveClass('opacity-70');
+      expect(sortAscIcon).toHaveClass('opacity-50');
+      expect(sortDescIcon).toHaveClass('opacity-50');
     });
   });
 

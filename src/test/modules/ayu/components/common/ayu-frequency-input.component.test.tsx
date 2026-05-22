@@ -234,4 +234,21 @@ describe('AyuFrequencyInput', () => {
       expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument();
     });
   });
+
+  describe('readOnly guard in setLevel', () => {
+    it('does not call onChange when readOnly is true and slider change event fires', () => {
+      const onChange = vi.fn();
+      render(
+        <AyuFrequencyInput
+          question={{ ...baseQuestion, readOnly: true }}
+          onChange={onChange}
+        />
+      );
+      // fireEvent.change on a disabled input still fires the React handler in JSDOM,
+      // exercising the `if (isReadOnly) return;` guard at line 98
+      const slider = screen.getByRole('slider');
+      fireEvent.change(slider, { target: { value: '7' } });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -53,13 +53,14 @@ vi.mock('../../../../../../components/common', () => ({
       {label && <label>{label}</label>}
     </div>
   ),
-  RadioGroup: ({ children, onChange, value }: any) => {
+  RadioGroup: ({ children, onChange, value, error }: any) => {
     const handleClick = (e: any) => {
       if (e.target.type === 'radio') onChange?.(e.target.value);
     };
     return (
       <div role="radiogroup" data-value={value} onClick={handleClick}>
         {children}
+        {error && <span className="error">{error}</span>}
       </div>
     );
   },
@@ -129,7 +130,7 @@ vi.mock('../../../../../../components/common/country-select.component', () => ({
   ),
 }));
 vi.mock('../../../../../../components/common/state-selector.component', () => ({
-  default: ({ label, onChange, value, isRequired, placeholder }: any) => (
+  default: ({ label, onChange, value, isRequired, placeholder, error }: any) => (
     <div>
       {label && (
         <label>
@@ -149,13 +150,14 @@ vi.mock('../../../../../../components/common/state-selector.component', () => ({
       >
         Trigger Array
       </button>
+      {error && <span className="error">{error}</span>}
     </div>
   ),
 }));
 vi.mock(
   '../../../../../../components/common/district-selector.component',
   () => ({
-    default: ({ label, onChange, value, isRequired, placeholder }: any) => (
+    default: ({ label, onChange, value, isRequired, placeholder, error }: any) => (
       <div>
         {label && (
           <label>
@@ -175,6 +177,7 @@ vi.mock(
         >
           Trigger Array
         </button>
+        {error && <span className="error">{error}</span>}
       </div>
     ),
   })
@@ -664,6 +667,24 @@ describe('PatientInfo', () => {
       );
     });
 
+    it('shows phoneNumber error when phoneNumberCountryCode is valid but phoneNumber is invalid', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{ ...validDefaults, phoneNumber: '', phoneNumberCountryCode: '+91' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Phone number is required')).toBeInTheDocument()
+      );
+    });
+
     it('does not call onNext when validation fails (missing required fields)', async () => {
       const empty = {
         ...validDefaults,
@@ -924,6 +945,620 @@ describe('PatientInfo', () => {
         await vi.advanceTimersByTimeAsync(600);
       });
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+
+    it('handles postal data with empty string state/district/city (falsy values)', async () => {
+      mockFetchPostalCodeData.mockResolvedValue({
+        state: '',
+        district: '',
+        city: '',
+      });
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      await waitFor(() => expect(mockFetchPostalCodeData).toHaveBeenCalled());
+    });
+
+    it('handles postal data with null fields', async () => {
+      mockFetchPostalCodeData.mockResolvedValue({
+        state: null,
+        district: null,
+        city: null,
+      });
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560002',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      await waitFor(() => expect(mockFetchPostalCodeData).toHaveBeenCalled());
+    });
+
+    it('handles postal data with undefined fields', async () => {
+      mockFetchPostalCodeData.mockResolvedValue({});
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560003',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      await waitFor(() => expect(mockFetchPostalCodeData).toHaveBeenCalled());
+    });
+
+    it('handles country "india" in lowercase as valid for postal lookup', async () => {
+      mockFetchPostalCodeData.mockResolvedValue({
+        state: 'Karnataka',
+        district: 'Bangalore',
+        city: 'Bangalore',
+      });
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'india',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      await waitFor(() =>
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('560001')
+      );
+    });
+
+    it('does not fetch when country is undefined (optional chaining guard)', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: undefined as unknown as string,
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch when country is null (optional chaining guard)', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: null as unknown as string,
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Null/undefined watch values (nullish coalescing branches)', () => {
+    it('renders with null gender (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            gender: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      // The RadioGroup should render with empty string value
+      const radioGroup = screen.getByRole('radiogroup');
+      expect(radioGroup).toHaveAttribute('data-value', '');
+    });
+
+    it('renders with null contactType (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            contactType: undefined as unknown as 'Family',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const dropdown = screen.getByTestId('dropdown-Contact Type');
+      expect(dropdown).toHaveValue('');
+    });
+
+    it('renders with null country (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const countryInput = screen.getByTestId('country-input');
+      expect(countryInput).toHaveValue('');
+    });
+
+    it('renders with null state (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            state: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const stateInput = screen.getByTestId('state-input');
+      expect(stateInput).toHaveValue('');
+    });
+
+    it('renders with null district (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            district: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const districtInput = screen.getByTestId('district-input');
+      expect(districtInput).toHaveValue('');
+    });
+
+    it('renders with null occupation (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            occupation: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const dropdown = screen.getByTestId('dropdown-Occupation');
+      expect(dropdown).toHaveValue('');
+    });
+
+    it('renders with null caste (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            caste: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const dropdown = screen.getByTestId('dropdown-Caste');
+      expect(dropdown).toHaveValue('');
+    });
+
+    it('renders with null education (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            education: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const dropdown = screen.getByTestId('dropdown-Education');
+      expect(dropdown).toHaveValue('');
+    });
+
+    it('renders with null economicStatus (exercises ?? fallback)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            economicStatus: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const dropdown = screen.getByTestId('dropdown-Economic Status');
+      expect(dropdown).toHaveValue('');
+    });
+  });
+
+  describe('Error display branches', () => {
+    it('shows emergencyContactNumber error when validation fails', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            emergencyContactNumber: '',
+            emergencyContactNumberCountryCode: '+91',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('Emergency contact number is required')
+        ).toBeInTheDocument()
+      );
+    });
+
+    it('displays no phone error when both phoneNumberCountryCode and phoneNumber are valid', () => {
+      render(
+        <PatientInfo
+          defaultValues={validDefaults}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      // When there are no errors, no error spans for the phone number should exist
+      const phoneContainer = screen
+        .getByTestId('phone-main')
+        .closest('div');
+      const errorSpan = phoneContainer?.querySelector('.error');
+      expect(errorSpan).toBeNull();
+    });
+
+    it('exercises profilePhoto falsy branch (renders default image)', () => {
+      render(
+        <PatientInfo
+          defaultValues={{ ...validDefaults, profilePhoto: null }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const img = screen
+        .getByTestId('profile-photo')
+        .querySelector('img');
+      // When profilePhoto is null/falsy, the || operator gives DefaultUserImage
+      expect(img).toHaveAttribute('src', 'default-user.svg');
+    });
+
+    it('exercises profilePhoto empty string (falsy) uses default image', () => {
+      render(
+        <PatientInfo
+          defaultValues={{ ...validDefaults, profilePhoto: '' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const img = screen
+        .getByTestId('profile-photo')
+        .querySelector('img');
+      expect(img).toHaveAttribute('src', 'default-user.svg');
+    });
+
+    it('exercises dateOfBirth empty string (falsy) in Calendar value', () => {
+      render(
+        <PatientInfo
+          defaultValues={{ ...validDefaults, dateOfBirth: '' }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      const calendarInput = screen.getByTestId('calendar-input');
+      expect(calendarInput).toHaveValue('');
+    });
+
+    it('shows both phoneNumberCountryCode and phoneNumber errors prioritizing countryCode', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            phoneNumber: '',
+            phoneNumberCountryCode: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      // The phoneNumberCountryCode error is prioritized over phoneNumber
+      await waitFor(() =>
+        expect(screen.getByText('Country code is required')).toBeInTheDocument()
+      );
+    });
+
+    it('shows age validation error for invalid age value', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            age: '999',
+            dateOfBirth: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('Age must be between 0 and 120')
+        ).toBeInTheDocument()
+      );
+    });
+
+    it('shows all required address field errors when empty', async () => {
+      const empty = {
+        ...validDefaults,
+        postalCode: '',
+        country: '',
+        state: '',
+        district: '',
+        city: '',
+        correspondingAddress1: '',
+        correspondingAddress2: '',
+      };
+      const { container } = render(
+        <PatientInfo
+          defaultValues={empty}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Postal Code is required')).toBeInTheDocument()
+      );
+      expect(screen.getByText('Country is required')).toBeInTheDocument();
+      expect(screen.getByText('State is required')).toBeInTheDocument();
+      expect(screen.getByText('District is required')).toBeInTheDocument();
+      expect(
+        screen.getByText('Village/Town/City is required')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Corresponding Address 1 is required')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Corresponding Address 2 is required')
+      ).toBeInTheDocument();
+    });
+
+    it('shows gender and contact type errors when empty', async () => {
+      const empty = {
+        ...validDefaults,
+        gender: '',
+        contactType: '' as unknown as 'Family',
+      };
+      const { container } = render(
+        <PatientInfo
+          defaultValues={empty}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Gender is required')).toBeInTheDocument()
+      );
+      expect(screen.getByText('Contact type is required')).toBeInTheDocument();
+    });
+
+    it('shows dateOfBirth error when both dateOfBirth and age are missing', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            dateOfBirth: '',
+            age: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('Date of birth or age is required')
+        ).toBeInTheDocument()
+      );
+    });
+
+    it('shows emergency contact name error when missing', async () => {
+      const { container } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            emergencyContactName: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('Emergency contact name is required')
+        ).toBeInTheDocument()
+      );
+    });
+
+    it('exercises error branches for optional fields by providing non-castable types', async () => {
+      // Pass objects/arrays that yup.string() cannot cast, triggering type errors
+      // on optional string fields which normally never produce errors
+      const invalidDefaults = {
+        ...validDefaults,
+        middleName: { invalid: true } as unknown as string,
+        sonDaughterWifeOf: { invalid: true } as unknown as string,
+        occupation: ['invalid'] as unknown as string,
+        caste: { invalid: true } as unknown as string,
+        economicStatus: ['invalid'] as unknown as string,
+      };
+      const { container } = render(
+        <PatientInfo
+          defaultValues={invalidDefaults}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.submit(container.querySelector('form')!);
+      });
+
+      // Wait for validation to complete - these fields may produce type errors
+      // which exercises the truthy branch of errors.fieldName?.message
+      await waitFor(() => {
+        expect(container.querySelector('form')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Form submission with complete valid data', () => {
+    it('includes all personalInfo fields in the onNext payload', async () => {
+      const fullDefaults = {
+        ...validDefaults,
+        firstName: 'Alice',
+        middleName: 'Marie',
+        lastName: 'Smith',
+        gender: 'F',
+        dateOfBirth: '1992-06-15',
+        age: '32',
+        phoneNumber: '9876543210',
+        phoneNumberCountryCode: '+1',
+        contactType: 'Family' as const,
+        emergencyContactName: 'Bob',
+        emergencyContactNumber: '1112223333',
+        emergencyContactNumberCountryCode: '+1',
+        profilePhoto: 'photo-data',
+        country: 'India',
+        state: 'Karnataka',
+        district: 'Bangalore',
+        postalCode: '560001',
+        city: 'Bangalore',
+        correspondingAddress1: '123 Main St',
+        correspondingAddress2: 'Apt 4B',
+        sonDaughterWifeOf: 'Robert',
+        occupation: 'Engineer',
+        caste: 'General',
+        education: 'Graduate',
+        economicStatus: 'APL',
+      };
+
+      const { container } = render(
+        <PatientInfo
+          defaultValues={fullDefaults}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      fireEvent.submit(container.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalledWith({
+          personalInfo: {
+            firstName: 'Alice',
+            middleName: 'Marie',
+            lastName: 'Smith',
+            gender: 'F',
+            dateOfBirth: '1992-06-15',
+            age: '32',
+            phoneNumber: '9876543210',
+            phoneNumberCountryCode: '+1',
+            contactType: 'Family',
+            emergencyContactName: 'Bob',
+            emergencyContactNumber: '1112223333',
+            emergencyContactNumberCountryCode: '+1',
+            profilePhoto: 'photo-data',
+          },
+          addressInfo: {
+            postalCode: '560001',
+            city: 'Bangalore',
+            state: 'Karnataka',
+            country: 'India',
+            district: 'Bangalore',
+            correspondingAddress1: '123 Main St',
+            correspondingAddress2: 'Apt 4B',
+          },
+          otherInfo: {
+            sonDaughterWifeOf: 'Robert',
+            occupation: 'Engineer',
+            caste: 'General',
+            education: 'Graduate',
+            economicStatus: 'APL',
+          },
+        });
+      });
     });
   });
 });

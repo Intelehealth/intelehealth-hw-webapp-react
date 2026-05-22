@@ -23,6 +23,55 @@ vi.mock('../../../modules/settings/settings.hooks', () => ({
   useLanguageSettings: () => mockHook,
 }));
 
+// Capture the onChange prop passed to Dropdown so we can invoke it directly.
+let capturedDropdownOnChange: ((value: string | string[]) => void) | undefined;
+vi.mock('../../../components/common', async orig => {
+  const actual = await orig<typeof import('../../../components/common')>();
+  return {
+    ...actual,
+    Dropdown: (props: { onChange?: (value: string | string[]) => void; value?: string; options?: unknown[] }) => {
+      capturedDropdownOnChange = props.onChange;
+      return <select data-testid="mock-dropdown" value={props.value || ''} onChange={() => {}} />;
+    },
+  };
+});
+
+// Mock ConfirmationModal to expose onClose as a clickable button for testing
+vi.mock('../../../components/modal/confirmation.modal', () => ({
+  ConfirmationModal: (props: {
+    open: boolean;
+    title: string;
+    description?: string;
+    children?: React.ReactNode;
+    hideActions?: boolean;
+    onClose?: () => void;
+    onConfirm?: () => void;
+    cancelText?: string;
+    confirmText?: string;
+    iconElement?: React.ReactNode;
+  }) => {
+    if (!props.open) return null;
+    return (
+      <div data-testid={`modal-${props.title.replace(/\s+/g, '-')}`}>
+        <span>{props.title}</span>
+        {props.description && <span>{props.description}</span>}
+        {props.children}
+        {!props.hideActions && (
+          <>
+            <button onClick={props.onClose}>{props.cancelText || 'Cancel'}</button>
+            <button onClick={props.onConfirm}>{props.confirmText || 'Confirm'}</button>
+          </>
+        )}
+        {props.hideActions && props.onClose && (
+          <button data-testid="modal-hidden-close" onClick={props.onClose}>hidden-close</button>
+        )}
+      </div>
+    );
+  },
+}));
+
+import React from 'react';
+
 describe('SettingsLanguage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -188,5 +237,117 @@ describe('SettingsLanguage', () => {
     // we verify that onConfirm wiring is correct by inspecting the exposed prop:
     // setLanguage must not have been called before any user interaction.
     expect(mockHook.setLanguage).not.toHaveBeenCalled();
+  });
+
+  it('early returns without showing modal when the same language code is selected', () => {
+    mockHook.language = 'en';
+    render(<SettingsLanguage />);
+    // Invoke the Dropdown onChange with the same language code that is already selected
+    act(() => {
+      capturedDropdownOnChange?.('en');
+    });
+    // No confirm modal should be shown
+    expect(mockShowConfirmModal).not.toHaveBeenCalled();
+  });
+
+  it('handles array value from Dropdown onChange (takes first element)', () => {
+    mockHook.language = 'en';
+    render(<SettingsLanguage />);
+    // Invoke onChange with an array value — exercises the Array.isArray branch
+    act(() => {
+      capturedDropdownOnChange?.(['hi']);
+    });
+    expect(mockShowConfirmModal).toHaveBeenCalled();
+    const call = mockShowConfirmModal.mock.calls[0][0];
+    expect(call.title).toBe('Change language?');
+    expect(call.description).toContain('Hindi');
+  });
+
+  it('falls back to code as label when language code is not found in LANGUAGE_OPTIONS', () => {
+    mockHook.language = 'en';
+    render(<SettingsLanguage />);
+    // Use a code that does not exist in LANGUAGE_OPTIONS
+    act(() => {
+      capturedDropdownOnChange?.('zz');
+    });
+    expect(mockShowConfirmModal).toHaveBeenCalled();
+    const call = mockShowConfirmModal.mock.calls[0][0];
+    // Since 'zz' is not in LANGUAGE_OPTIONS, label should fallback to the code itself
+    expect(call.description).toContain('zz');
+  });
+
+  it('clears serverUrl and licenseKey when protocol form is closed (useEffect cleanup)', () => {
+    render(<SettingsLanguage />);
+    // Open the protocol form
+    fireEvent.click(screen.getByRole('button', { name: /^Update$/i }));
+    // Fill in the inputs
+    fireEvent.change(screen.getByPlaceholderText('Server URL'), {
+      target: { value: 'https://example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('License Key'), {
+      target: { value: 'KEY-123' },
+    });
+    // Close the form via Cancel
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+    // Reopen the form — fields should be cleared
+    fireEvent.click(screen.getByRole('button', { name: /^Update$/i }));
+    expect(
+      (screen.getByPlaceholderText('Server URL') as HTMLInputElement).value
+    ).toBe('');
+    expect(
+      (screen.getByPlaceholderText('License Key') as HTMLInputElement).value
+    ).toBe('');
+  });
+
+  it('invokes the onConfirm callback from the confirm modal to call setLanguage', () => {
+    mockHook.language = 'en';
+    render(<SettingsLanguage />);
+    // Trigger a language change which shows the confirm modal
+    act(() => {
+      capturedDropdownOnChange?.('hi');
+    });
+    expect(mockShowConfirmModal).toHaveBeenCalled();
+    const call = mockShowConfirmModal.mock.calls[0][0];
+    // Invoke the onConfirm callback
+    act(() => {
+      call.onConfirm();
+    });
+    expect(mockHook.setLanguage).toHaveBeenCalledWith('hi', 'Hindi');
+  });
+
+  it('covers the no-op onClose on the updating-protocols modal', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let resolveUpdate: () => void = () => {};
+    mockHook.handleUpdateProtocols = vi.fn(
+      () => new Promise<void>(r => { resolveUpdate = r; })
+    );
+
+    render(<SettingsLanguage />);
+    // Open the protocol form
+    fireEvent.click(screen.getByRole('button', { name: /^Update$/i }));
+    fireEvent.change(screen.getByPlaceholderText('Server URL'), {
+      target: { value: 'https://x.y' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('License Key'), {
+      target: { value: 'KEY-1' },
+    });
+
+    // Submit
+    const updates = screen.getAllByRole('button', { name: /^Update$/i });
+    const modalUpdate = updates[updates.length - 1];
+    await act(async () => {
+      fireEvent.click(modalUpdate);
+    });
+
+    // The "Changing protocols" modal should be visible with the hidden-close button
+    const hiddenClose = screen.getByTestId('modal-hidden-close');
+    fireEvent.click(hiddenClose);
+    // The onClose is () => {} which is a no-op, just ensure it doesn't throw
+
+    await act(async () => {
+      resolveUpdate();
+      vi.advanceTimersByTime(1500);
+    });
+    vi.useRealTimers();
   });
 });

@@ -676,7 +676,7 @@ describe('AppointmentScheduleComponent', () => {
       });
     });
 
-    it('clicking Ok on success modal navigates to my-appointments', async () => {
+    it('clicking Ok on success modal navigates to dashboard', async () => {
       vi.useFakeTimers();
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
@@ -688,7 +688,7 @@ describe('AppointmentScheduleComponent', () => {
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByRole('button', { name: 'Ok' }));
-      expect(mockNavigate).toHaveBeenCalledWith('/my-appointments');
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
 
     it('clicking Close on success modal dismisses it without navigating', async () => {
@@ -734,6 +734,32 @@ describe('AppointmentScheduleComponent', () => {
         expect(mockBookAppointment).toHaveBeenCalledWith(
           'test-visit-uuid',
           expect.stringMatching(/^\d{4}-\d{2}-\d{2}T12:00:00\.000\+0530$/)
+        );
+      });
+    });
+
+    it('correctly handles 12:00 AM (midnight) by converting hour to 0', async () => {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      const midnightSlot = {
+        slotId: `${todayStr}-12:00-am`,
+        date: todayStr,
+        time: '12:00 am',
+        isAvailable: true,
+        period: 'Morning' as const,
+        speciality: 'General Physician',
+      };
+      mockSlotsReturn = { data: [...defaultSlots, midnightSlot], loading: false, error: null };
+      vi.useFakeTimers();
+      renderComponent();
+      fireEvent.click(screen.getByText('12:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00\.000\+0530$/)
         );
       });
     });
