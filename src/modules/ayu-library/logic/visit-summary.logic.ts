@@ -659,8 +659,8 @@ export function buildVisitSummary(
             const labeledParts: string[] = [];
 
             matchingNested.forEach((nested: AyuQuestion) => {
-              // skipEchoedLabel=true mirrors the legacy collectNestedOwnValues
-              // behaviour for single-select paths (skip "Same Label – Same Label").
+              /* skipEchoedLabel=true mirrors the legacy collectNestedOwnValues
+               behaviour for single-select paths (skip "Same Label – Same Label").*/
               collectLabeledValues(nested, labeledParts, display, true);
               processed.add(nested.linkId);
             });
