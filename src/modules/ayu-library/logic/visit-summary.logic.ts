@@ -44,8 +44,6 @@ export function buildVisitSummary(
   const processed = new Set<string>();
 
   function getExtensionLabel(item: AyuQuestion): string {
-    // Summary surfaces prefer the short EXT_URL_DISPLAY_TEXT extension
-    // (e.g. "Site"); fall back to the canonical question text when absent.
     const ext = item.extension?.find(
       e => e.url === EXT_URL_DISPLAY_TEXT
     )?.valueString;
@@ -178,16 +176,27 @@ export function buildVisitSummary(
    * Used for patient/family history summary formatting.
    * Format: "label – value" for each nested field.
    */
-  function collectLabeledValues(item: AyuQuestion, parts: string[]) {
+  function collectLabeledValues(
+    item: AyuQuestion,
+    parts: string[],
+    parentDisplay?: string | null,
+    skipEchoedLabel = false
+  ) {
     const answer = getAnswerValue(item);
 
     if (answer) {
-      // Use the display extension label (e.g. "From Date", "To Date") if available,
-      // falling back to item.text — mirrors resolveLabel used in the UI.
       const displayExt = item.extension?.find(
         e => e.url === EXT_URL_DISPLAY_TEXT
       )?.valueString;
       const itemLabel = displayExt || item.text || '';
+
+      if (
+        skipEchoedLabel &&
+        typeof answer === 'string' &&
+        answer === itemLabel
+      ) {
+        return;
+      }
 
       if (Array.isArray(answer) && item.answerOption) {
         const displayValues: string[] = [];
@@ -203,7 +212,7 @@ export function buildVisitSummary(
 
           if (child && !processed.has(child.linkId)) {
             const childParts: string[] = [];
-            collectLabeledValues(child, childParts);
+            collectLabeledValues(child, childParts, display);
             processed.add(child.linkId);
 
             if (childParts.length) {
@@ -222,25 +231,42 @@ export function buildVisitSummary(
       } else {
         const formatted = formatAnswerByType(item, answer);
         if (formatted) {
-          // For string/text describe fields, just output the value — the parent option
-          // already provides context, so adding the label would cause duplication
-          // (e.g., "[Describe relation] – [Describe relation] – value")
-          if (item.type === 'string') {
-            parts.push(formatted);
-          } else {
-            parts.push(itemLabel ? `${itemLabel} – ${formatted}` : formatted);
+          const matchingChild =
+            typeof answer === 'string' &&
+            item.type === 'choice' &&
+            item.answerOption
+              ? item.item?.find(c =>
+                  c.enableWhen?.some(cond => cond.answerCoding?.code === answer)
+                )
+              : null;
+
+          let combinedValue = formatted;
+          if (
+            matchingChild &&
+            !processed.has(matchingChild.linkId) &&
+            getAnswerValue(matchingChild) !== null
+          ) {
+            const childParts: string[] = [];
+            collectLabeledValues(matchingChild, childParts, formatted);
+            processed.add(matchingChild.linkId);
+            if (childParts.length) {
+              combinedValue = `${formatted} – ${childParts.join(', ')}`;
+            }
           }
+          const omitLabel =
+            item.type === 'string' || !itemLabel || itemLabel === parentDisplay;
+          parts.push(
+            omitLabel ? combinedValue : `${itemLabel} – ${combinedValue}`
+          );
         }
       }
     }
 
-    // Process remaining children (including when item itself has no answer,
-    // e.g. group containers whose nested fields hold the actual values)
     item.item?.forEach((child: AyuQuestion) => {
       if (processed.has(child.linkId)) return;
       const childAnswer = getAnswerValue(child);
       if (childAnswer !== undefined) {
-        collectLabeledValues(child, parts);
+        collectLabeledValues(child, parts, parentDisplay, skipEchoedLabel);
         processed.add(child.linkId);
       }
     });
@@ -413,7 +439,7 @@ export function buildVisitSummary(
 
                   const childParts: string[] = [];
                   nestedChildren.forEach(nestedChild => {
-                    collectLabeledValues(nestedChild, childParts);
+                    collectLabeledValues(nestedChild, childParts, childDisplay);
                     processed.add(nestedChild.linkId);
                   });
 
@@ -448,7 +474,7 @@ export function buildVisitSummary(
               } else {
                 const labeledParts: string[] = [];
                 matchingChildren.forEach((nested: AyuQuestion) => {
-                  collectLabeledValues(nested, labeledParts);
+                  collectLabeledValues(nested, labeledParts, display);
                   processed.add(nested.linkId);
                 });
 
@@ -526,7 +552,7 @@ export function buildVisitSummary(
             if (nestedChildren.length) {
               const labeledParts: string[] = [];
               nestedChildren.forEach(nested => {
-                collectLabeledValues(nested, labeledParts);
+                collectLabeledValues(nested, labeledParts, display);
                 processed.add(nested.linkId);
               });
 
@@ -613,7 +639,7 @@ export function buildVisitSummary(
 
               const childParts: string[] = [];
               nestedChildren.forEach(nestedChild => {
-                collectLabeledValues(nestedChild, childParts);
+                collectLabeledValues(nestedChild, childParts, childDisplay);
                 processed.add(nestedChild.linkId);
               });
 
@@ -634,21 +660,20 @@ export function buildVisitSummary(
             // Mark remaining matching children as processed
             matchingNested.forEach(c => processed.add(c.linkId));
           } else {
-            const allNestedValues: string[] = [];
+            const labeledParts: string[] = [];
 
             matchingNested.forEach((nested: AyuQuestion) => {
-              const nestedValues: string[] = collectNestedOwnValues(nested);
-              nestedValues.push(...collectDescendantValues(nested.item));
-
-              allNestedValues.push(...nestedValues);
+              /* skipEchoedLabel=true mirrors the legacy collectNestedOwnValues
+               behaviour for single-select paths (skip "Same Label – Same Label").*/
+              collectLabeledValues(nested, labeledParts, display, true);
               processed.add(nested.linkId);
             });
 
-            if (allNestedValues.length) {
+            if (labeledParts.length) {
               mainItems.push({
                 type: 'labelValue',
                 label,
-                value: `${display} - ${allNestedValues.join(', ')}`,
+                value: `${display} - ${labeledParts.join(', ')}`,
               });
             } else if (display) {
               mainItems.push({

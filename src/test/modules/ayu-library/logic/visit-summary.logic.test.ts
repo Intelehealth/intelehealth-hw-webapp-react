@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { buildVisitSummary } from '../../../../modules/ayu-library/logic/visit-summary.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../modules/ayu-library/types/ayu.types';
-import { buildVisitSummary } from '../../../../modules/ayu-library/logic/visit-summary.logic';
 
 const makeQuestion = (overrides: Partial<AyuQuestion> = {}): AyuQuestion => ({
   linkId: 'q1',
@@ -338,6 +338,59 @@ describe('buildVisitSummary', () => {
       }
     });
 
+    it('should fall back to bare display when a nested multi-select code has no matching child (collectNestedOwnValues line 160-161)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'HA', display: 'Headache' } },
+          ],
+          item: [
+            {
+              linkId: 'assoc.nested',
+              type: 'choice',
+              text: 'Nested multi',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'X', display: 'Option X' } },
+                { valueCoding: { code: 'Y', display: 'Option Y' } },
+              ],
+              enableWhen: [
+                { question: 'assoc', operator: '=', answerCoding: { code: 'HA' } },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['HA']],
+        ['assoc.nested', ['X', 'Y']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const assocSection = result.find(
+        s => s.title === 'Associated symptoms'
+      );
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Headache');
+        expect(reports.values[0]).toContain('Option X');
+        expect(reports.values[0]).toContain('Option Y');
+      }
+    });
+
     it('should only show reports when no denies', () => {
       const questions = [makeAssociatedSymptomsQuestion()];
       const answers = new Map<string, AyuAnswerValue>([
@@ -550,6 +603,284 @@ describe('buildVisitSummary', () => {
         label: 'Duration',
         value: '3',
       });
+    });
+  });
+
+  describe('single-select with nested labeled children', () => {
+    it('should prefix each nested non-string field with its label so the summary matches the in-page card', () => {
+      const menstrualHistory: AyuQuestion = {
+        linkId: 'menses',
+        type: 'choice',
+        text: 'Menstrual history',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Menstrual history',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'YES', display: 'Is menstruating' } },
+        ],
+        item: [
+          {
+            linkId: 'menses.age',
+            type: 'integer',
+            text: 'Age at onset',
+            enableWhen: [
+              { question: 'menses', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'menses.lmp',
+            type: 'date',
+            text: 'Last menstruation period',
+            enableWhen: [
+              { question: 'menses', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'menses.regularity',
+            type: 'choice',
+            text: 'Regularity',
+            answerOption: [
+              { valueCoding: { code: 'REG', display: 'Regular' } },
+            ],
+            enableWhen: [
+              { question: 'menses', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'menses.cycle',
+            type: 'integer',
+            text: 'Cycle length (weeks)',
+            enableWhen: [
+              { question: 'menses', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'menses.duration',
+            type: 'choice',
+            text: 'Duration',
+            answerOption: [
+              { valueCoding: { code: 'LE7', display: '<= 7days' } },
+            ],
+            enableWhen: [
+              { question: 'menses', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+        ],
+      };
+      const answers = new Map<string, AyuAnswerValue>([
+        ['menses', 'YES'],
+        ['menses.age', 55],
+        ['menses.lmp', '2026-04-30'],
+        ['menses.regularity', 'REG'],
+        ['menses.cycle', { low: 22, high: 42 }],
+        ['menses.duration', 'LE7'],
+      ]);
+
+      const result = buildVisitSummary([menstrualHistory], answers, 'Visit');
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toBe(
+          'Is menstruating - Age at onset – 55, Last menstruation period – 2026-04-30, Regularity – Regular, Cycle length (weeks) – 22 - 42, Duration – <= 7days'
+        );
+      }
+    });
+
+    it('should keep `string` nested children unlabeled (e.g. free-form describe field)', () => {
+      const questions = [
+        makeChoiceQuestion({
+          item: [
+            {
+              linkId: 'q1.detail',
+              type: 'string',
+              text: 'Details',
+              extension: [
+                {
+                  url: 'urn:intelehealth:original-question-text',
+                  valueString: 'Details',
+                },
+              ],
+              enableWhen: [
+                {
+                  question: 'q1',
+                  operator: '=',
+                  answerCoding: { code: 'CODE_A' },
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', 'CODE_A'],
+        ['q1.detail', 'Some details'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toBe('Option A - Some details');
+      }
+    });
+  });
+
+  describe('nested choice option that enables a typed-input child', () => {
+    it('should fold the typed child into the option display (no duplicated option text)', () => {
+      const root: AyuQuestion = {
+        linkId: 'weight-change',
+        type: 'choice',
+        text: 'Weight change (kg)',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Weight change (kg)',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'WL', display: 'Weight loss' } },
+        ],
+        item: [
+          {
+            linkId: 'weight-loss',
+            type: 'choice',
+            text: 'Weight loss',
+            enableWhen: [
+              { question: 'weight-change', operator: '=', answerCoding: { code: 'WL' } },
+            ],
+            answerOption: [
+              {
+                valueCoding: {
+                  code: 'AMT',
+                  display: '[Enter amount of weight lost in kgs]',
+                },
+              },
+            ],
+            item: [
+              {
+                linkId: 'weight-loss.kgs',
+                type: 'integer',
+                text: '[Enter amount of weight lost in kgs]',
+                enableWhen: [
+                  {
+                    question: 'weight-loss',
+                    operator: '=',
+                    answerCoding: { code: 'AMT' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const answers = new Map<string, AyuAnswerValue>([
+        ['weight-change', 'WL'],
+        ['weight-loss', 'AMT'],
+        ['weight-loss.kgs', 3],
+      ]);
+
+      const result = buildVisitSummary([root], answers, 'Visit');
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toBe(
+          'Weight loss - [Enter amount of weight lost in kgs] – 3'
+        );
+        const occurrences =
+          String(item.value).split('[Enter amount of weight lost in kgs]')
+            .length - 1;
+        expect(occurrences).toBe(1);
+      }
+    });
+  });
+
+  describe('multi-select with nested children — duplicate-label dedup', () => {
+    it('should not repeat the option display when the nested question text matches it', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'ULCER', display: 'Ulcer [Describe]' } },
+          ],
+          item: [
+            {
+              linkId: 'q1.ulcer',
+              type: 'choice',
+              text: 'Ulcer [Describe]',
+              answerOption: [
+                {
+                  valueCoding: { code: 'SIMPLE', display: 'Simple ulcer' },
+                },
+              ],
+              enableWhen: [
+                {
+                  question: 'q1',
+                  operator: '=',
+                  answerCoding: { code: 'ULCER' },
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['ULCER']],
+        ['q1.ulcer', 'SIMPLE'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toBe('Ulcer [Describe] – Simple ulcer');
+        expect(item.value).not.toContain(
+          'Ulcer [Describe] – Ulcer [Describe]'
+        );
+      }
+    });
+
+    it('should still prepend the nested label when it differs from the parent option display', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'q1',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'LUMP', display: 'Lump' } },
+          ],
+          item: [
+            {
+              linkId: 'q1.lump',
+              type: 'choice',
+              text: 'Lump details',
+              answerOption: [
+                { valueCoding: { code: 'HARD', display: 'Hard' } },
+              ],
+              enableWhen: [
+                {
+                  question: 'q1',
+                  operator: '=',
+                  answerCoding: { code: 'LUMP' },
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['q1', ['LUMP']],
+        ['q1.lump', 'HARD'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).toBe('Lump – Lump details – Hard');
+      }
     });
   });
 

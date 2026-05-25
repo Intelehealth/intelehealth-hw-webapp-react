@@ -1,7 +1,7 @@
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
 
 describe('AyuNumberInput', () => {
   const mockQuestion: AyuQuestion = {
@@ -286,6 +286,24 @@ describe('AyuNumberInput', () => {
         />
       );
       expect(screen.getByRole('spinbutton')).toBeInTheDocument();
+    });
+  });
+
+  describe('Wheel scroll behavior', () => {
+    it('should blur the input on wheel so scrolling does not change the value', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      fireEvent.wheel(input);
+      expect(document.activeElement).not.toBe(input);
     });
   });
 
