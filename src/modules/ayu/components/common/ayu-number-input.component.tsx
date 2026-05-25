@@ -37,6 +37,7 @@ export function AyuNumberInput({
         type="number"
         value={inputValue}
         onChange={handleChange}
+        onWheel={e => (e.target as HTMLInputElement).blur()}
         disabled={question?.readOnly}
         className="border bg-white border-solid border-[#20c997] rounded px-3 py-2 outline-none resize-y"
       />

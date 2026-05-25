@@ -194,29 +194,30 @@ describe('AyuRangeInput', () => {
       expect(label!.textContent).toBe('How many episodes?');
     });
 
-    it('uses the non-parent label classes by default', () => {
+    it('uses the standard label classes', () => {
       const { container } = render(<AyuRangeInput question={baseQuestion} />);
       const label = container.querySelector('label');
-      expect(label).toHaveClass(
-        'block',
-        'text-base',
-        'text-(--color-muted)'
-      );
-      expect(label).not.toHaveClass('font-medium');
+      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 
-    it('uses the parent label classes when rendered as a nested child', () => {
+    it('keeps the same label classes regardless of whether a parent is supplied', () => {
+      // Label styling is no longer parent-aware — both renders must match.
+      const standalone = render(<AyuRangeInput question={baseQuestion} />);
+      const standaloneClass =
+        standalone.container.querySelector('label')!.className;
+      standalone.unmount();
+
       const parent: AyuQuestion = {
         linkId: 'parent',
         type: 'group',
         text: 'Parent group',
       };
-      const { container } = render(
+      const nested = render(
         <AyuRangeInput question={baseQuestion} parent={parent} />
       );
-      const label = container.querySelector('label');
-      expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
-      expect(label).not.toHaveClass('text-(--color-muted)');
+      const nestedClass = nested.container.querySelector('label')!.className;
+
+      expect(nestedClass).toBe(standaloneClass);
     });
 
     it('does not render a label element when question text and label-bearing extension are absent', () => {

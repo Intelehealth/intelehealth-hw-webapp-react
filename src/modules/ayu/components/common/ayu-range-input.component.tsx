@@ -75,15 +75,7 @@ export function AyuRangeInput({
   return (
     <div className="ayu-range-root">
       {label && (
-        <label
-          className={
-            parent
-              ? 'text-md font-medium text-black-500'
-              : 'block text-base text-(--color-muted)'
-          }
-        >
-          {label}
-        </label>
+        <label className="text-md font-medium text-black-500">{label}</label>
       )}
       <span className="ayu-range-hint">
         {RANGE_HINT_TEMPLATE.replace('{min}', String(min)).replace(
