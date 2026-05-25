@@ -339,9 +339,6 @@ describe('buildVisitSummary', () => {
     });
 
     it('should fall back to bare display when a nested multi-select code has no matching child (collectNestedOwnValues line 160-161)', () => {
-      // Outer associated symptom enables a nested multi-select choice. The
-      // nested choice selects a code that does NOT match any of its own
-      // child enableWhen rules → the else branch pushes just the display.
       const questions: AyuQuestion[] = [
         {
           linkId: 'assoc',
@@ -370,8 +367,6 @@ describe('buildVisitSummary', () => {
               enableWhen: [
                 { question: 'assoc', operator: '=', answerCoding: { code: 'HA' } },
               ],
-              // No `item` children — every chosen code falls through to the
-              // bare-display branch (line 160-161 in visit-summary.logic.ts).
             },
           ],
         },
@@ -695,8 +690,6 @@ describe('buildVisitSummary', () => {
     });
 
     it('should keep `string` nested children unlabeled (e.g. free-form describe field)', () => {
-      // Strings are user-typed free text; their question label is contextual
-      // already, so we deliberately skip the prefix to avoid "Details – Details".
       const questions = [
         makeChoiceQuestion({
           item: [
