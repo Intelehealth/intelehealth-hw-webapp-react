@@ -32,7 +32,6 @@ function isRangeAnswer(value: unknown): value is RangeAnswer {
 
 export function AyuRangeInput({
   question,
-  parent,
   value,
   onChange,
 }: AyuRendererBaseProps) {
