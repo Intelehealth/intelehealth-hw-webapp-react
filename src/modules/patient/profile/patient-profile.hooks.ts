@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { patientAttributes } from '../../../assets/data/openmrs_uuids';
+import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
 import type {
   OpenMRSPatient,
   OpenMRSVisit,
@@ -74,12 +75,63 @@ function mapPatientDisplayData(patient: OpenMRSPatient): PatientDisplayData {
   };
 }
 
+export function mapRawPatientToFormData(
+  patient: OpenMRSPatient
+): PatientFormData {
+  const pName = patient.person.preferredName;
+  const addr = patient.person.preferredAddress;
+  const attrs = patient.person.attributes ?? [];
+
+  return {
+    personalInfo: {
+      firstName: pName?.givenName ?? '',
+      middleName: pName?.middleName ?? '',
+      lastName: pName?.familyName ?? '',
+      gender: patient.person.gender ?? '',
+      dateOfBirth: patient.person.birthdate
+        ? patient.person.birthdate.split('T')[0]
+        : '',
+      age: patient.person.age != null ? String(patient.person.age) : '',
+      phoneNumber: getAttr(attrs, patientAttributes.telephoneNumber),
+      phoneNumberCountryCode: '+91',
+      contactType: getAttr(attrs, patientAttributes.emergencyContactType),
+      emergencyContactName: getAttr(
+        attrs,
+        patientAttributes.emergencyContactName
+      ),
+      emergencyContactNumber: getAttr(
+        attrs,
+        patientAttributes.emergencyContactNumber
+      ),
+      emergencyContactNumberCountryCode: '+91',
+      profilePhoto: null,
+    },
+    addressInfo: {
+      postalCode: addr?.postalCode ?? '',
+      city: addr?.cityVillage ?? '',
+      state: addr?.stateProvince ?? '',
+      country: addr?.country ?? '',
+      district: addr?.countyDistrict ?? '',
+      correspondingAddress1: addr?.address1 ?? '',
+      correspondingAddress2: addr?.address2 ?? '',
+    },
+    otherInfo: {
+      sonDaughterWifeOf: getAttr(attrs, patientAttributes.sonDaughterWifeOf),
+      occupation: getAttr(attrs, patientAttributes.occupation),
+      caste: getAttr(attrs, patientAttributes.caste),
+      education: getAttr(attrs, patientAttributes.education),
+      economicStatus: getAttr(attrs, patientAttributes.economicStatus),
+    },
+  };
+}
+
 export const usePatientProfile = (
   uuid: string | undefined
 ): UsePatientProfileReturn => {
   const [patientData, setPatientData] = useState<PatientDisplayData | null>(
     null
   );
+  const [rawPatient, setRawPatient] = useState<OpenMRSPatient | null>(null);
   const [visits, setVisits] = useState<OpenMRSVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +149,9 @@ export const usePatientProfile = (
         patientService.getPatientVisits(uuid),
       ])
         .then(([p, v]) => {
-          setPatientData(mapPatientDisplayData(p as OpenMRSPatient));
+          const patient = p as OpenMRSPatient;
+          setRawPatient(patient);
+          setPatientData(mapPatientDisplayData(patient));
           setVisits(
             ((v as Record<string, unknown>)?.results as OpenMRSVisit[]) ?? []
           );
@@ -119,5 +173,13 @@ export const usePatientProfile = (
 
   const refresh = useCallback(() => fetchData(false), [fetchData]);
 
-  return { patientData, visits, loading, refreshing, error, refresh };
+  return {
+    patientData,
+    rawPatient,
+    visits,
+    loading,
+    refreshing,
+    error,
+    refresh,
+  };
 };

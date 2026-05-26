@@ -88,11 +88,16 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
     emergencyContactType: 'ect-uuid',
     emergencyContactName: 'ecn-uuid',
     emergencyContactNumber: 'ecnum-uuid',
+    sonDaughterWifeOf: 'sdw-uuid',
     occupation: 'occ-uuid',
     caste: 'caste-uuid',
     education: 'edu-uuid',
     economicStatus: 'eco-uuid',
   },
+}));
+
+vi.mock('../../../../assets/icons/edit.svg', () => ({
+  default: 'edit.svg',
 }));
 
 import PatientProfileComponent from '../../../../modules/patient/profile/patient-profile.component';
@@ -124,8 +129,40 @@ const basePatientData = {
   },
 };
 
+const baseRawPatient = {
+  uuid: 'test-uuid',
+  identifiers: [{ identifier: 'PAT001', preferred: true }],
+  person: {
+    uuid: 'person-uuid',
+    gender: 'M',
+    age: 30,
+    birthdate: '1994-01-15T00:00:00.000+0000',
+    preferredName: { givenName: 'John', middleName: 'K', familyName: 'Doe' },
+    preferredAddress: {
+      address1: '123 Main St',
+      address2: 'Apt 4',
+      cityVillage: 'Mumbai',
+      stateProvince: 'Maharashtra',
+      country: 'India',
+      postalCode: '400001',
+      countyDistrict: 'Mumbai Urban',
+    },
+    attributes: [
+      { value: '+911234567890', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+      { value: 'Spouse', attributeType: { uuid: 'ect-uuid', display: 'ECT' } },
+      { value: 'Jane', attributeType: { uuid: 'ecn-uuid', display: 'ECN' } },
+      { value: '+9198', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      { value: 'Engineer', attributeType: { uuid: 'occ-uuid', display: 'Occ' } },
+      { value: 'General', attributeType: { uuid: 'caste-uuid', display: 'Caste' } },
+      { value: 'Graduate', attributeType: { uuid: 'edu-uuid', display: 'Edu' } },
+      { value: 'Middle', attributeType: { uuid: 'eco-uuid', display: 'Eco' } },
+    ],
+  },
+};
+
 const defaultHookReturn = {
   patientData: basePatientData,
+  rawPatient: baseRawPatient,
   visits: [],
   loading: false,
   refreshing: false,
@@ -443,6 +480,59 @@ describe('PatientProfileComponent', () => {
       state: expect.objectContaining({
         patientAge: '1/15/1994',
       }),
+    });
+  });
+
+  it('renders Edit button in the profile header card', () => {
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Edit')).toBeInTheDocument();
+    const editImg = screen.getByAltText('Edit') as HTMLImageElement;
+    expect(editImg.src).toContain('edit.svg');
+  });
+
+  it('navigates to /patient/edit with editFormData and patientUuid when Edit is clicked', async () => {
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Edit'));
+
+    expect(h.mockNavigate).toHaveBeenCalledWith('/patient/edit', {
+      state: {
+        editFormData: expect.objectContaining({
+          personalInfo: expect.objectContaining({
+            firstName: 'John',
+            middleName: 'K',
+            lastName: 'Doe',
+            gender: 'M',
+          }),
+          addressInfo: expect.objectContaining({
+            city: 'Mumbai',
+            state: 'Maharashtra',
+          }),
+          otherInfo: expect.objectContaining({
+            occupation: 'Engineer',
+          }),
+        }),
+        patientUuid: 'test-uuid',
+      },
+    });
+  });
+
+  it('passes null editFormData when rawPatient is null', async () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      rawPatient: null,
+    });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Edit'));
+
+    expect(h.mockNavigate).toHaveBeenCalledWith('/patient/edit', {
+      state: {
+        editFormData: null,
+        patientUuid: 'test-uuid',
+      },
     });
   });
 });

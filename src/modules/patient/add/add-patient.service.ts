@@ -16,6 +16,10 @@ export const patientService = {
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     OpenMRSApi.post<any>(API_ENDPOINTS.PATIENT, patientData),
 
+  updatePatient: (uuid: string, patientData: Partial<AddPatientData>) =>
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    OpenMRSApi.post<any>(`${API_ENDPOINTS.PATIENT}/${uuid}`, patientData),
+
   getPatient: (uuid: string) =>
     OpenMRSApi.get<OpenMRSPatient>(`${API_ENDPOINTS.PATIENT}/${uuid}?v=full`),
 

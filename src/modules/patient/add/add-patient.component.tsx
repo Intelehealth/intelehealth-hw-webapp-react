@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
 import ROUTES from '../../../routes/paths';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
@@ -70,18 +70,34 @@ const EMPTY_FORM_DATA: PatientFormData = {
 };
 
 export default function AddPatientComponent() {
-  const { handleAddPatient } = useAddPatient();
+  const { handleAddPatient, handleUpdatePatient } = useAddPatient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const editState = location.state as {
+    editFormData?: PatientFormData;
+    patientUuid?: string;
+  } | null;
+  const isEditMode =
+    !!editState?.editFormData || location.pathname.includes('/patient/edit');
+
   const [tempPatientId] = useState(getOrCreateTempPatientId);
-  const [step, setStep] = useState(0);
-  const [patientUuid, setPatientUuid] = useState<string | null>(null);
-  const [formData, setFormData] = useState<PatientFormData>(EMPTY_FORM_DATA);
+  const [step, setStep] = useState(isEditMode ? 2 : 0);
+  const [patientUuid, setPatientUuid] = useState<string | null>(
+    editState?.patientUuid ?? null
+  );
+  const [formData, setFormData] = useState<PatientFormData>(
+    editState?.editFormData ?? EMPTY_FORM_DATA
+  );
   const [, setIsRestoring] = useState(true);
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
 
-  // Restore from temp-storage on mount
+  // Restore from temp-storage on mount (skip in edit mode — form data comes from navigation state)
   useEffect(() => {
+    if (isEditMode) {
+      setIsRestoring(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -91,6 +107,12 @@ export default function AddPatientComponent() {
         );
         if (cancelled || !res.data) return;
         const saved = res.data.data;
+        // If the saved session already reached preview (step 3), discard it
+        // and start a fresh add-patient flow instead of resuming at preview.
+        if (saved.step != null && saved.step >= 3) {
+          storage.remove(TEMP_PATIENT_ID_KEY);
+          return;
+        }
         if (saved.formData) setFormData(saved.formData);
         if (saved.step != null) setStep(saved.step);
         if (saved.patientUuid) setPatientUuid(saved.patientUuid);
@@ -103,7 +125,7 @@ export default function AddPatientComponent() {
     return () => {
       cancelled = true;
     };
-  }, [tempPatientId]);
+  }, [tempPatientId, isEditMode]);
 
   // Save patient form data to temp-storage
   const savePatientToTemp = useCallback(
@@ -149,6 +171,10 @@ export default function AddPatientComponent() {
   };
 
   const prevStep = () => {
+    if (isEditMode) {
+      navigate(-1);
+      return;
+    }
     if (step > 0) {
       const prevIdx = step - 1;
       setStep(prevIdx);
@@ -173,12 +199,20 @@ export default function AddPatientComponent() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (data: any) => {
     const mergedData = { ...formData, ...data };
-    const result = await handleAddPatient(mergedData);
+    const result =
+      isEditMode && patientUuid
+        ? await handleUpdatePatient(patientUuid, mergedData)
+        : await handleAddPatient(mergedData);
     if (result) {
+      if (isEditMode) {
+        navigate(`/patient/${result}`, { replace: true });
+        return;
+      }
       setPatientUuid(result);
       const nextIdx = step + 1;
       setStep(nextIdx);
-      savePatientToTemp({ step: nextIdx, patientUuid: result });
+      // Clear temp-storage so the next add-patient session starts fresh
+      storage.remove(TEMP_PATIENT_ID_KEY);
     }
   };
 
@@ -187,11 +221,17 @@ export default function AddPatientComponent() {
       <div className="hidden md:flex items-center gap-3">
         <img src={iconUserPlusGreenRounded} />
         <label className="text-base font-semibold">
-          {step === 3 ? PATIENT_DETAILS_LABEL : ADD_PATIENT_LABEL}
+          {step === 3
+            ? PATIENT_DETAILS_LABEL
+            : isEditMode
+              ? PATIENT_DETAILS_LABEL
+              : ADD_PATIENT_LABEL}
         </label>
       </div>
       <hr className="hidden md:block border-t border-[#DFDEE3] my-3" />
-      <h2 className="text-lg font-semibold mb-6 md:hidden">Add New Patient</h2>
+      <h2 className="text-lg font-semibold mb-6 md:hidden">
+        {isEditMode ? 'Edit Patient' : 'Add New Patient'}
+      </h2>
 
       {/* Step Components */}
       {step === 0 && <PrivacyPolicy onNext={nextStep} onPrev={prevStep} />}

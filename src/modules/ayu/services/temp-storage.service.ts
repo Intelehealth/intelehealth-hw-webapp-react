@@ -47,13 +47,29 @@ export function upsertAssetResource<TData = Record<string, unknown>>(
   });
 }
 
-export function getResource<TData = unknown>(
+export async function getResource<TData = unknown>(
   resourceType: TempStorageResourceType,
   resourceId: string
 ): Promise<TempStorageApiResponse<TempStorageRecord<TData>>> {
-  return MindmapPortalApi.get<TempStorageApiResponse<TempStorageRecord<TData>>>(
-    TEMP_STORAGE_ENDPOINTS.byResource(resourceType, resourceId)
-  );
+  try {
+    return await MindmapPortalApi.get<
+      TempStorageApiResponse<TempStorageRecord<TData>>
+    >(TEMP_STORAGE_ENDPOINTS.byResource(resourceType, resourceId));
+  } catch (error: unknown) {
+    if (
+      error != null &&
+      typeof error === 'object' &&
+      'response' in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return {
+        success: false,
+        message: 'Not found',
+        data: null,
+      } as unknown as TempStorageApiResponse<TempStorageRecord<TData>>;
+    }
+    throw error;
+  }
 }
 
 export function getChildResources<TData = unknown>(

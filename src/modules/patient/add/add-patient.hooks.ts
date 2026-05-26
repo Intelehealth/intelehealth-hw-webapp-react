@@ -17,6 +17,10 @@ import { patientService } from './add-patient.service';
 
 interface UseAddPatientReturn {
   handleAddPatient: (patientData: PatientFormData) => Promise<string | false>;
+  handleUpdatePatient: (
+    uuid: string,
+    patientData: PatientFormData
+  ) => Promise<string | false>;
 }
 
 export const useAddPatient = (): UseAddPatientReturn => {
@@ -65,6 +69,42 @@ export const useAddPatient = (): UseAddPatientReturn => {
     } catch (error: unknown) {
       showToast(
         'Add Patient Failed',
+        error instanceof Error ? error.message : 'An unknown error occurred',
+        'error'
+      );
+      return false;
+    }
+  };
+
+  const handleUpdatePatient = async (
+    uuid: string,
+    patientData: PatientFormData
+  ): Promise<string | false> => {
+    try {
+      const formattedData = mapPatientFormData(patientData);
+      // For update, send only the person data (no identifiers)
+      await patientService.updatePatient(uuid, {
+        person: formattedData.person,
+      });
+
+      if (patientData.personalInfo.profilePhoto) {
+        await profileService.updateProfileImage({
+          person: uuid,
+          base64EncodedImage: patientData.personalInfo.profilePhoto.split(
+            ','
+          )[1] as string,
+        });
+      }
+
+      showToast(
+        'Patient Updated Successfully',
+        'Patient has been updated successfully',
+        'success'
+      );
+      return uuid;
+    } catch (error: unknown) {
+      showToast(
+        'Update Patient Failed',
         error instanceof Error ? error.message : 'An unknown error occurred',
         'error'
       );
@@ -180,5 +220,5 @@ export const useAddPatient = (): UseAddPatientReturn => {
     };
   };
 
-  return { handleAddPatient };
+  return { handleAddPatient, handleUpdatePatient };
 };

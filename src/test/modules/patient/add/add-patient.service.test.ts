@@ -212,6 +212,60 @@ describe('patientService', () => {
     });
   });
 
+  describe('updatePatient', () => {
+    it('should post patient data to the correct endpoint with uuid', async () => {
+      const uuid = 'patient-uuid-123';
+      const updateData = {
+        person: {
+          birthdate: '1990-01-01',
+          gender: 'M',
+          names: [
+            {
+              givenName: 'John',
+              middleName: 'M',
+              familyName: 'Doe',
+            },
+          ],
+          addresses: [
+            {
+              address1: 'Street 1',
+              address2: 'Area 2',
+              address3: '',
+              address6: '',
+              cityVillage: 'Mumbai',
+              country: 'India',
+              countyDistrict: 'Mumbai',
+              postalCode: '123456',
+              stateProvince: 'Maharashtra',
+            },
+          ],
+          attributes: [],
+        },
+      };
+
+      const response = { uuid, display: 'John Doe' };
+      mockOpenMRSPost.mockResolvedValue(response);
+
+      const result = await patientService.updatePatient(uuid, updateData);
+
+      expect(mockOpenMRSPost).toHaveBeenCalledTimes(1);
+      expect(mockOpenMRSPost).toHaveBeenCalledWith(
+        `${API_ENDPOINTS.PATIENT}/${uuid}`,
+        updateData
+      );
+      expect(result).toEqual(response);
+    });
+
+    it('should propagate errors from updatePatient', async () => {
+      const error = new Error('Failed to update patient');
+      mockOpenMRSPost.mockRejectedValue(error);
+
+      await expect(
+        patientService.updatePatient('unknown-uuid', { person: {} as any })
+      ).rejects.toThrow('Failed to update patient');
+    });
+  });
+
   describe('API_ENDPOINTS', () => {
     it('should export the correct API endpoints', () => {
       expect(API_ENDPOINTS.PATIENT).toBe('/patient');
