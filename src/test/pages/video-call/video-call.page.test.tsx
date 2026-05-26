@@ -137,4 +137,56 @@ describe('VideoCallPage', () => {
     fireEvent.click(screen.getByLabelText('Close chat'));
     expect(screen.getByLabelText('Open chat')).toBeInTheDocument();
   });
+
+  const iconOf = (label: string) =>
+    screen.getByLabelText(label).querySelector('img')?.getAttribute('src') ??
+    '';
+
+  it('swaps the mic icon between on and off states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const onSrc = iconOf('Mute microphone');
+    expect(onSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Mute microphone'));
+    const offSrc = iconOf('Unmute microphone');
+    expect(offSrc).toBeTruthy();
+    expect(offSrc).not.toBe(onSrc);
+  });
+
+  it('swaps the video icon between on and off states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const onSrc = iconOf('Turn off camera');
+    expect(onSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Turn off camera'));
+    const offSrc = iconOf('Turn on camera');
+    expect(offSrc).toBeTruthy();
+    expect(offSrc).not.toBe(onSrc);
+  });
+
+  it('swaps the chat icon between idle and active states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const idleSrc = iconOf('Open chat');
+    expect(idleSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Open chat'));
+    const activeSrc = iconOf('Close chat');
+    expect(activeSrc).toBeTruthy();
+    expect(activeSrc).not.toBe(idleSrc);
+  });
+
+  it('renders minimize and end-call icons as images', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(iconOf('Minimize call')).toBeTruthy();
+    expect(iconOf('End call')).toBeTruthy();
+  });
 });

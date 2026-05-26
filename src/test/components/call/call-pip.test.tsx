@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import CallPip from '../../../components/call/call-pip.component';
 
 const baseProps = {
@@ -8,8 +8,9 @@ const baseProps = {
   onEndCall: vi.fn(),
 };
 
-// jsdom does not implement PointerEvent; polyfill it from MouseEvent so
-// clientX/clientY are carried through fireEvent.pointer* calls.
+/* jsdom does not implement PointerEvent; polyfill it from MouseEvent so
+ clientX/clientY are carried through fireEvent.pointer* calls. **/
+ 
 class PointerEventPolyfill extends MouseEvent {}
 
 describe('CallPip', () => {
