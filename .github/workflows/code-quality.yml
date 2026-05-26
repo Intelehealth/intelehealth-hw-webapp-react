@@ -17,12 +17,12 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: 📦 Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'yarn'
@@ -85,9 +85,9 @@ jobs:
           fi
 
       - name: 📈 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
-          file: ./coverage/lcov.info
+          files: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -151,14 +151,14 @@ jobs:
           echo "- Dependency Scan: Completed" >> quality-report-${{ matrix.node-version }}.md
 
       - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-files-${{ matrix.node-version }}
           path: dist/
           retention-days: 7
 
       - name: 📊 Upload quality reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quality-reports-${{ matrix.node-version }}
           path: |
