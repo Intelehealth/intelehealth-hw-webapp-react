@@ -101,4 +101,92 @@ describe('VideoCallPage', () => {
     fireEvent.click(screen.getByLabelText('Minimize call'));
     expect(getCtx().isCallMinimized).toBe(true);
   });
+
+  it('toggles the microphone button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Mute microphone')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Mute microphone'));
+    expect(screen.getByLabelText('Unmute microphone')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Unmute microphone'));
+    expect(screen.getByLabelText('Mute microphone')).toBeInTheDocument();
+  });
+
+  it('toggles the camera button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Turn off camera')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Turn off camera'));
+    expect(screen.getByLabelText('Turn on camera')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Turn on camera'));
+    expect(screen.getByLabelText('Turn off camera')).toBeInTheDocument();
+  });
+
+  it('toggles the chat button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Open chat')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Open chat'));
+    expect(screen.getByLabelText('Close chat')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close chat'));
+    expect(screen.getByLabelText('Open chat')).toBeInTheDocument();
+  });
+
+  const iconOf = (label: string) =>
+    screen.getByLabelText(label).querySelector('img')?.getAttribute('src') ??
+    '';
+
+  it('swaps the mic icon between on and off states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const onSrc = iconOf('Mute microphone');
+    expect(onSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Mute microphone'));
+    const offSrc = iconOf('Unmute microphone');
+    expect(offSrc).toBeTruthy();
+    expect(offSrc).not.toBe(onSrc);
+  });
+
+  it('swaps the video icon between on and off states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const onSrc = iconOf('Turn off camera');
+    expect(onSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Turn off camera'));
+    const offSrc = iconOf('Turn on camera');
+    expect(offSrc).toBeTruthy();
+    expect(offSrc).not.toBe(onSrc);
+  });
+
+  it('swaps the chat icon between idle and active states', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    const idleSrc = iconOf('Open chat');
+    expect(idleSrc).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Open chat'));
+    const activeSrc = iconOf('Close chat');
+    expect(activeSrc).toBeTruthy();
+    expect(activeSrc).not.toBe(idleSrc);
+  });
+
+  it('renders minimize and end-call icons as images', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(iconOf('Minimize call')).toBeTruthy();
+    expect(iconOf('End call')).toBeTruthy();
+  });
 });

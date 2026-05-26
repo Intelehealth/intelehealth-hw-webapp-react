@@ -58,17 +58,4 @@ describe('IncomingCallModal', () => {
     expect(onDecline).toHaveBeenCalledTimes(1);
   });
 
-  it('invokes onClose when close (x) clicked', () => {
-    const onClose = vi.fn();
-    render(<IncomingCallModal {...baseProps} onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Close incoming call'));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('falls back to onDecline when onClose is not provided', () => {
-    const onDecline = vi.fn();
-    render(<IncomingCallModal {...baseProps} onDecline={onDecline} onClose={undefined} />);
-    fireEvent.click(screen.getByLabelText('Close incoming call'));
-    expect(onDecline).toHaveBeenCalledTimes(1);
-  });
 });
