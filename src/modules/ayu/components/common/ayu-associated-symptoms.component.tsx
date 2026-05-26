@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import {
   parseYesNoValues,
   toggleAssociatedSymptom,
@@ -7,9 +8,10 @@ import type {
   AyuQuestion,
 } from '../../../ayu-library/types/ayu.types';
 import {
-  EXT_URL_DISPLAY_TEXT,
+  NEGATED_PREFIX,
   SELECT_YES_OR_NO,
 } from '../../../ayu-library/utils/constants';
+import { getRowLabel } from '../../../ayu-library/utils/question.utils';
 import iconNo from '../../assets/no-default.svg';
 import iconNoSelected from '../../assets/No.svg';
 import iconYes from '../../assets/yes-default.svg';
@@ -33,6 +35,28 @@ export const AyuAssociatedSymptoms = ({
   setAnswer,
 }: Props) => {
   const { yesValues, noValues } = parseYesNoValues(value);
+  const visibleCodes = useMemo(
+    () =>
+      new Set(
+        (question.answerOption ?? [])
+          .map(o => o.valueCoding?.code || o.valueString)
+          .filter((c): c is string => !!c)
+      ),
+    [question.answerOption]
+  );
+
+  useEffect(() => {
+    if (!Array.isArray(value)) return;
+    const cleaned = value.filter(entry => {
+      const code = entry.startsWith(NEGATED_PREFIX)
+        ? entry.slice(NEGATED_PREFIX.length)
+        : entry;
+      return visibleCodes.has(code);
+    });
+    if (cleaned.length !== value.length) {
+      onChange?.(cleaned);
+    }
+  }, [value, visibleCodes, onChange]);
 
   const toggleValue = (code: string, isYes: boolean) => {
     onChange?.(
@@ -42,15 +66,7 @@ export const AyuAssociatedSymptoms = ({
 
   return (
     <div className="bg-emerald-50 rounded-xl">
-      <div className="text-lg font-medium">
-        {question?.extension &&
-        question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
-          ?.valueString
-          ? question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
-              ?.valueString
-          : question.text}
-        {/* {question?.required && <span className="text-error-500 ml-1">*</span>} */}
-      </div>
+      <div className="text-lg font-medium">{getRowLabel(question)}</div>
       <span className="text-sm text-gray-500">{SELECT_YES_OR_NO}</span>
 
       {question.answerOption?.map((opt, index) => {

@@ -1349,7 +1349,7 @@ describe('buildVisitSummary', () => {
   });
 
   describe('Extension Label Resolution', () => {
-    it('should use extension label when available', () => {
+    it('should use item.text even when display extension is present', () => {
       const items = [
         {
           linkId: 'q1',
@@ -1373,7 +1373,7 @@ describe('buildVisitSummary', () => {
 
       expect(result[0].items[0]).toEqual(
         expect.objectContaining({
-          label: 'Display Label',
+          label: 'Internal Text',
         })
       );
     });

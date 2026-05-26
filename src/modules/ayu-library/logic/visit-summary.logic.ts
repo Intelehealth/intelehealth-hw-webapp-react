@@ -1,7 +1,6 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import {
   ASSOCIATED_SYMPTOMS_TEXT,
-  EXT_URL_DISPLAY_TEXT,
   EXT_URL_LANGUGAE_TEXT,
   NEGATED_ID_PREFIX,
   NEGATED_PREFIX,
@@ -44,10 +43,7 @@ export function buildVisitSummary(
   const processed = new Set<string>();
 
   function getExtensionLabel(item: AyuQuestion): string {
-    const ext = item.extension?.find(
-      e => e.url === EXT_URL_DISPLAY_TEXT
-    )?.valueString;
-    return ext || item.text || '';
+    return item.text || '';
   }
 
   function getAnswerValue(item: AyuQuestion) {
@@ -185,10 +181,7 @@ export function buildVisitSummary(
     const answer = getAnswerValue(item);
 
     if (answer) {
-      const displayExt = item.extension?.find(
-        e => e.url === EXT_URL_DISPLAY_TEXT
-      )?.valueString;
-      const itemLabel = displayExt || item.text || '';
+      const itemLabel = item.text || '';
 
       if (
         skipEchoedLabel &&

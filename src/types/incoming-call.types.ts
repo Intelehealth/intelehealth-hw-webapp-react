@@ -23,6 +23,12 @@ export interface ActiveCallOverlayProps extends IncomingCallPayload {
   onEndCall: () => void;
 }
 
+export interface CallPipProps {
+  callerName: string;
+  onMaximize: () => void;
+  onEndCall: () => void;
+}
+
 export interface IncomingCallModalProps {
   open: boolean;
   callerName: string;
@@ -30,5 +36,4 @@ export interface IncomingCallModalProps {
   visitId: string;
   onAccept: () => void;
   onDecline: () => void;
-  onClose?: () => void;
 }

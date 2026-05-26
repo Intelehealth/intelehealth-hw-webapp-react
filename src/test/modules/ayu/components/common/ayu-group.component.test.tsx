@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AyuGroup } from '../../../../../modules/ayu/components/common/ayu-group.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from '../../../../../modules/ayu-library/utils/constants';
 
 vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question }) => <div data-testid={`renderer-${question.linkId}`}>{question.text}</div>),
@@ -221,6 +222,34 @@ describe('AyuGroup', () => {
       };
       render(<AyuGroup question={nestedGroupQuestion} />);
       expect(screen.getByText('Nested Group')).toBeInTheDocument();
+    });
+  });
+
+  describe('Display Extension Label', () => {
+    it('should prefer the display extension over text for the heading', () => {
+      const question: AyuQuestion = {
+        linkId: 'group-1',
+        type: 'group',
+        text: 'Short title',
+        extension: [
+          { url: EXT_URL_DISPLAY_TEXT, valueString: 'Long display title' },
+        ],
+      };
+      render(<AyuGroup question={question} />);
+      expect(screen.getByText('Long display title')).toBeInTheDocument();
+      expect(screen.queryByText('Short title')).not.toBeInTheDocument();
+    });
+
+    it('should render the heading when only the display extension is set', () => {
+      const question: AyuQuestion = {
+        linkId: 'group-1',
+        type: 'group',
+        extension: [
+          { url: EXT_URL_DISPLAY_TEXT, valueString: 'Display only title' },
+        ],
+      };
+      render(<AyuGroup question={question} />);
+      expect(screen.getByText('Display only title')).toBeInTheDocument();
     });
   });
 

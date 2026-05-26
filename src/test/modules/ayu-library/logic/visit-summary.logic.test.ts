@@ -1278,7 +1278,7 @@ describe('buildVisitSummary', () => {
   });
 
   describe('getExtensionLabel with language extension', () => {
-    it('should use display extension when language is percent', () => {
+    it('should use item.text even when display extension is present', () => {
       const questions: AyuQuestion[] = [
         makeQuestion({
           type: 'string',
@@ -1302,7 +1302,7 @@ describe('buildVisitSummary', () => {
 
       expect(result[0].items[0]).toEqual({
         type: 'labelValue',
-        label: 'Display Label',
+        label: 'Original text',
         value: 'some answer',
       });
     });
@@ -1961,19 +1961,13 @@ describe('buildVisitSummary', () => {
                 {
                   linkId: 'drug.med1.from',
                   type: 'date',
-                  text: '',
-                  extension: [
-                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
-                  ],
+                  text: 'From Date',
                   enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
                 },
                 {
                   linkId: 'drug.med1.to',
                   type: 'date',
-                  text: '',
-                  extension: [
-                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
-                  ],
+                  text: 'To Date',
                   enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
                 },
                 {
@@ -1985,19 +1979,13 @@ describe('buildVisitSummary', () => {
                 {
                   linkId: 'drug.med2.from',
                   type: 'date',
-                  text: '',
-                  extension: [
-                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
-                  ],
+                  text: 'From Date',
                   enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED2' } }],
                 },
                 {
                   linkId: 'drug.med2.to',
                   type: 'date',
-                  text: '',
-                  extension: [
-                    { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
-                  ],
+                  text: 'To Date',
                   enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED2' } }],
                 },
               ],
@@ -2061,7 +2049,7 @@ describe('buildVisitSummary', () => {
   });
 
   describe('collectLabeledValues with display extension labels', () => {
-    it('should use display extension for date field labels instead of item.text', () => {
+    it('should use item.text for date field labels and ignore display extension', () => {
       const questions: AyuQuestion[] = [
         {
           linkId: 'patHist',
@@ -2079,7 +2067,7 @@ describe('buildVisitSummary', () => {
             {
               linkId: 'patHist.from',
               type: 'date',
-              text: '',
+              text: 'From',
               extension: [
                 { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'From Date' },
               ],
@@ -2088,7 +2076,7 @@ describe('buildVisitSummary', () => {
             {
               linkId: 'patHist.to',
               type: 'date',
-              text: '',
+              text: 'To',
               extension: [
                 { url: 'https://intelehealth.org/fhir/StructureDefinition/display', valueString: 'To Date' },
               ],
@@ -2107,7 +2095,7 @@ describe('buildVisitSummary', () => {
       expect(result[0].items[0]).toEqual({
         type: 'labelValue',
         label: 'Medical history',
-        value: 'Diabetes – From Date – 2026-01-01, To Date – 2026-06-01',
+        value: 'Diabetes – From – 2026-01-01, To – 2026-06-01',
       });
     });
 

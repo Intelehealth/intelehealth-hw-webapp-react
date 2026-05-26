@@ -1,16 +1,11 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { resolveAyuComponent } from '../../../../modules/ayu-library/logic/decision-matrix';
 import { isMutuallyExclusiveOption } from '../../../../modules/ayu-library/logic/stepper.logic';
-import {
-  matchesDemographics,
-  normalizePatientGenderCode,
-  normalizeType,
-  parsePatientAgeYears,
-  questionnaireMatchesDemographics,
-  resolveLabel,
-  transformFhirPhysExamToAyu,
-  transformFhirToAyu,
-} from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+import type {
+  FhirItem,
+  FhirQuestionnaire,
+} from '../../../../modules/ayu-library/types/fhir-raw.types';
 import {
   EXT_URL_AGE_MAX as EXT_AGE_MAX,
   EXT_URL_AGE_MIN as EXT_AGE_MIN,
@@ -27,11 +22,16 @@ import {
   EXT_URL_PE_SECTION_KEY,
   PE_OPTION_KIND_CAMERA,
 } from '../../../../modules/ayu-library/utils/constants';
-import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
-import type {
-  FhirItem,
-  FhirQuestionnaire,
-} from '../../../../modules/ayu-library/types/fhir-raw.types';
+import {
+  matchesDemographics,
+  normalizePatientGenderCode,
+  normalizeType,
+  parsePatientAgeYears,
+  questionnaireMatchesDemographics,
+  resolveLabel,
+  transformFhirPhysExamToAyu,
+  transformFhirToAyu,
+} from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 
 describe('fhir-to-ayu.util', () => {
   describe('normalizeType', () => {
@@ -705,7 +705,7 @@ describe('fhir-to-ayu.util', () => {
         expect(resolveLabel(question)).toBe('Fallback Text');
       });
 
-      it('prefers question.text over the display-text extension when both are present', () => {
+      it('prefers the display-text extension over question.text when both are present', () => {
 
         const question: AyuQuestion = {
           linkId: 'q1',
@@ -719,7 +719,7 @@ describe('fhir-to-ayu.util', () => {
           ],
         };
 
-        expect(resolveLabel(question)).toBe('Raw Text');
+        expect(resolveLabel(question)).toBe('Display Override');
       });
 
       it('returns the display-text extension valueString when question.text is absent', () => {
@@ -1246,6 +1246,212 @@ describe('fhir-to-ayu.util', () => {
         'pregnancy',
         'prostate',
       ]);
+    });
+
+    it('filters individual answerOption entries by demographics', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'assoc',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+              {
+                valueCoding: { code: 'preg', display: 'Pregnancy symptoms' },
+                extension: [
+                  { url: EXT_GENDER, valueString: '0' },
+                  { url: EXT_AGE_MIN, valueString: '14' },
+                  { url: EXT_AGE_MAX, valueString: '49' },
+                ],
+              },
+              {
+                valueCoding: { code: 'prostate', display: 'Prostate issues' },
+                extension: [{ url: EXT_GENDER, valueString: '1' }],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male30 = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'M',
+      });
+      expect(
+        male30?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever', 'prostate']);
+
+      const female30 = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'F',
+      });
+      expect(
+        female30?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever', 'preg']);
+
+      const female10 = transformFhirToAyu(questionnaire, {
+        age: 10,
+        gender: 'F',
+      });
+      expect(
+        female10?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever']);
+    });
+
+    it('hides an option when its only enabled child is demographically excluded', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'assoc',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+              {
+                valueCoding: {
+                  code: 'vag',
+                  display: 'Vaginal discharge [describe]',
+                },
+              },
+            ],
+            item: [
+              {
+                linkId: 'vag-describe',
+                type: 'string',
+                text: 'Vaginal discharge [describe]',
+                enableWhen: [
+                  {
+                    question: 'assoc',
+                    operator: '=',
+                    answerCoding: { code: 'vag' },
+                  },
+                ],
+                extension: [
+                  { url: EXT_GENDER, valueString: '0' },
+                  { url: EXT_AGE_MIN, valueString: '8' },
+                  { url: EXT_AGE_MAX, valueString: '120' },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'M',
+      });
+      expect(
+        male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever']);
+
+      const female = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'F',
+      });
+      expect(
+        female?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever', 'vag']);
+    });
+
+    it('keeps an option when at least one of its enabled children passes demographics', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'assoc',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'pain', display: 'Pain' } },
+            ],
+            item: [
+              {
+                linkId: 'pain-female-detail',
+                type: 'string',
+                text: 'Female-only follow-up',
+                enableWhen: [
+                  {
+                    question: 'assoc',
+                    operator: '=',
+                    answerCoding: { code: 'pain' },
+                  },
+                ],
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+              {
+                linkId: 'pain-general',
+                type: 'string',
+                text: 'General follow-up',
+                enableWhen: [
+                  {
+                    question: 'assoc',
+                    operator: '=',
+                    answerCoding: { code: 'pain' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { gender: 'M' });
+      expect(
+        male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['pain']);
+      // Only the gendered child got filtered out.
+      expect(male?.item?.[0].item?.map(c => c.linkId)).toEqual([
+        'pain-general',
+      ]);
+    });
+
+    it('keeps an option with no enabled children even when other options have demographic gates', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'assoc',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+            ],
+            // No item children at all.
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { gender: 'M' });
+      expect(
+        male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever']);
+    });
+
+    it('keeps all answerOption entries when demographics are not provided', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'assoc',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+              {
+                valueCoding: { code: 'preg', display: 'Pregnancy symptoms' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+          },
+        ],
+      };
+      const schema = transformFhirToAyu(questionnaire);
+      expect(
+        schema?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['fever', 'preg']);
     });
 
     it('filters nested child items recursively', () => {
