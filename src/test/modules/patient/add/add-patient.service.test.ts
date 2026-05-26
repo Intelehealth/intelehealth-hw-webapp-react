@@ -215,7 +215,7 @@ describe('patientService', () => {
   describe('updatePatient', () => {
     it('should post patient data to the correct endpoint with uuid', async () => {
       const uuid = 'patient-uuid-123';
-      const updateData = {
+      const updateData: Partial<AddPatientData> = {
         person: {
           birthdate: '1990-01-01',
           gender: 'M',
