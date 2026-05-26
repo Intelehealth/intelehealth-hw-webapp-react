@@ -101,4 +101,40 @@ describe('VideoCallPage', () => {
     fireEvent.click(screen.getByLabelText('Minimize call'));
     expect(getCtx().isCallMinimized).toBe(true);
   });
+
+  it('toggles the microphone button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Mute microphone')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Mute microphone'));
+    expect(screen.getByLabelText('Unmute microphone')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Unmute microphone'));
+    expect(screen.getByLabelText('Mute microphone')).toBeInTheDocument();
+  });
+
+  it('toggles the camera button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Turn off camera')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Turn off camera'));
+    expect(screen.getByLabelText('Turn on camera')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Turn on camera'));
+    expect(screen.getByLabelText('Turn off camera')).toBeInTheDocument();
+  });
+
+  it('toggles the chat button', () => {
+    const { getCtx } = renderWithProvider();
+    act(() => getCtx().showIncomingCall(payload));
+    act(() => getCtx().acceptIncomingCall());
+
+    expect(screen.getByLabelText('Open chat')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Open chat'));
+    expect(screen.getByLabelText('Close chat')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close chat'));
+    expect(screen.getByLabelText('Open chat')).toBeInTheDocument();
+  });
 });

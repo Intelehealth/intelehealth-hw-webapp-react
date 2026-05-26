@@ -14,6 +14,9 @@ const VideoCallPage = () => {
   const { activeCall, isActiveCallOpen, endActiveCall, minimizeCall } =
     useIncomingCallContext();
   const [callSeconds, setCallSeconds] = useState(0);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     if (!isActiveCallOpen || !activeCall) {
@@ -67,7 +70,7 @@ const VideoCallPage = () => {
           onClick={minimizeCall}
           aria-label="Minimize call"
           className={
-            'absolute bottom-8 left-8 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg transition hover:bg-white'
+            'absolute bottom-12 right-8 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg transition hover:bg-white'
           }
         >
           <svg
@@ -117,8 +120,14 @@ const VideoCallPage = () => {
           </button>
           <button
             type="button"
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-            aria-label="Mute microphone"
+            onClick={() => setIsMicOn(prev => !prev)}
+            aria-pressed={!isMicOn}
+            className={`flex h-14 w-14 items-center justify-center rounded-full shadow-sm transition ${
+              isMicOn
+                ? 'bg-white text-slate-700 hover:bg-slate-100'
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+            aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
           >
             <svg
               width="20"
@@ -145,13 +154,27 @@ const VideoCallPage = () => {
                 strokeWidth="2"
                 strokeLinecap="round"
               />
+              {!isMicOn && (
+                <path
+                  d="M4 4L20 20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              )}
             </svg>
           </button>
 
           <button
             type="button"
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-            aria-label="Toggle camera"
+            onClick={() => setIsVideoOn(prev => !prev)}
+            aria-pressed={!isVideoOn}
+            className={`flex h-14 w-14 items-center justify-center rounded-full shadow-sm transition ${
+              isVideoOn
+                ? 'bg-white text-slate-700 hover:bg-slate-100'
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+            aria-label={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
           >
             <svg
               width="20"
@@ -172,12 +195,26 @@ const VideoCallPage = () => {
                 strokeWidth="2"
                 strokeLinecap="round"
               />
+              {!isVideoOn && (
+                <path
+                  d="M4 4L20 20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              )}
             </svg>
           </button>
           <button
             type="button"
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-            aria-label="Open chat"
+            onClick={() => setIsChatOpen(prev => !prev)}
+            aria-pressed={isChatOpen}
+            className={`flex h-14 w-14 items-center justify-center rounded-full shadow-sm transition ${
+              isChatOpen
+                ? 'bg-[#2C22B5] text-white hover:brightness-110'
+                : 'bg-white text-slate-700 hover:bg-slate-100'
+            }`}
+            aria-label={isChatOpen ? 'Close chat' : 'Open chat'}
           >
             <svg
               width="20"
