@@ -15,5 +15,15 @@
   },
   "User_Role": {
     "Health_Worker": "आरोग्य कर्मचारी"
+  },
+  "Settings": {
+    "Language": "भाषा",
+    "App_Language": "अॅप भाषा",
+    "Reset_To_English": "इंग्रजीवर रीसेट करा",
+    "Reset": "रीसेट",
+    "Change_Language": "भाषा बदलायची?",
+    "Change_Language_Confirm": "तुम्हाला खरोखर भाषा {{language}} मध्ये बदलायची आहे?",
+    "Yes": "होय",
+    "No": "नाही"
   }
 }

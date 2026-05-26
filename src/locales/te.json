@@ -15,5 +15,15 @@
   },
   "User_Role": {
     "Health_Worker": "ఆరోగ్య కార్యకర్త"
+  },
+  "Settings": {
+    "Language": "భాష",
+    "App_Language": "యాప్ భాష",
+    "Reset_To_English": "ఆంగ్లంలోకి రీసెట్ చేయండి",
+    "Reset": "రీసెట్",
+    "Change_Language": "భాష మార్చాలా?",
+    "Change_Language_Confirm": "మీరు ఖచ్చితంగా భాషను {{language}} కి మార్చాలనుకుంటున్నారా?",
+    "Yes": "అవును",
+    "No": "కాదు"
   }
 }

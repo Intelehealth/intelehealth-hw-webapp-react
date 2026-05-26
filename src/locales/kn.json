@@ -15,5 +15,15 @@
   },
   "User_Role": {
     "Health_Worker": "ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತೆ"
+  },
+  "Settings": {
+    "Language": "ಭಾಷೆ",
+    "App_Language": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
+    "Reset_To_English": "ಇಂಗ್ಲಿಷ್‌ಗೆ ಮರುಹೊಂದಿಸಿ",
+    "Reset": "ಮರುಹೊಂದಿಸಿ",
+    "Change_Language": "ಭಾಷೆ ಬದಲಾಯಿಸುವುದೇ?",
+    "Change_Language_Confirm": "ನೀವು ಖಚಿತವಾಗಿ ಭಾಷೆಯನ್ನು {{language}} ಗೆ ಬದಲಾಯಿಸಲು ಬಯಸುವಿರಾ?",
+    "Yes": "ಹೌದು",
+    "No": "ಇಲ್ಲ"
   }
 }

@@ -15,5 +15,15 @@
   },
   "User_Role": {
     "Health_Worker": "சுகாதார பணியாளர்"
+  },
+  "Settings": {
+    "Language": "மொழி",
+    "App_Language": "ஆப் மொழி",
+    "Reset_To_English": "ஆங்கிலத்திற்கு மீட்டமைக்கவும்",
+    "Reset": "மீட்டமை",
+    "Change_Language": "மொழியை மாற்றவா?",
+    "Change_Language_Confirm": "நீங்கள் நிச்சயமாக மொழியை {{language}} ஆக மாற்ற விரும்புகிறீர்களா?",
+    "Yes": "ஆம்",
+    "No": "இல்லை"
   }
 }

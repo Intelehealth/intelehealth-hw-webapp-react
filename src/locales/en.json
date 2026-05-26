@@ -15,5 +15,15 @@
   },
   "User_Role": {
     "Health_Worker": "Health Worker"
+  },
+  "Settings": {
+    "Language": "Language",
+    "App_Language": "App language",
+    "Reset_To_English": "Reset to English",
+    "Reset": "Reset",
+    "Change_Language": "Change language?",
+    "Change_Language_Confirm": "Are you sure you want to change language to {{language}}?",
+    "Yes": "Yes",
+    "No": "No"
   }
 }
