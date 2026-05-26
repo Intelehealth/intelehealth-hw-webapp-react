@@ -13,7 +13,6 @@ import type {
 import {
   EXT_URL_AGE_MAX,
   EXT_URL_AGE_MIN,
-  EXT_URL_DISPLAY_TEXT,
   EXT_URL_GENDER,
   EXT_URL_IS_EXCLUSIVE_OPTION,
   EXT_URL_ITEM_CONTROL,
@@ -29,6 +28,7 @@ import {
   GENDER_CODE_OTHER,
   PE_OPTION_KIND_CAMERA,
 } from './constants';
+import { getRowLabel } from './question.utils';
 
 const ALLOWED_TYPES: AyuQuestionType[] = [
   'group',
@@ -156,9 +156,28 @@ function transformItem(
   item: AyuQuestion,
   demographics?: PatientDemographics
 ): AyuQuestion {
-  const children = item.item
-    ?.filter(child => matchesDemographics(child.extension, demographics))
+  const originalChildren = item.item ?? [];
+
+  const children = originalChildren
+    .filter(child => matchesDemographics(child.extension, demographics))
     .map(child => transformItem(child, demographics));
+
+  const isOptionOrphanedByDemographics = (optCode: string): boolean => {
+    const enabledChildren = originalChildren.filter(child =>
+      child.enableWhen?.some(rule => rule.answerCoding?.code === optCode)
+    );
+    if (enabledChildren.length === 0) return false;
+    return enabledChildren.every(
+      child => !matchesDemographics(child.extension, demographics)
+    );
+  };
+
+  const answerOption = item.answerOption?.filter(opt => {
+    if (!matchesDemographics(opt.extension, demographics)) return false;
+    const code = opt.valueCoding?.code || opt.valueString;
+    if (code && isOptionOrphanedByDemographics(code)) return false;
+    return true;
+  });
 
   return {
     linkId: item.linkId,
@@ -171,7 +190,7 @@ function transformItem(
     readOnly: item.readOnly,
     repeats: item.repeats,
 
-    answerOption: item.answerOption,
+    answerOption,
     enableWhen: normalizeEnableWhen(item.enableWhen),
     extension: item.extension,
     item: children,
@@ -216,7 +235,7 @@ export function resolveLabel(
 ): string | undefined {
   // Question text itself
   if (question?.extension !== undefined) {
-    return getLabel(question);
+    return getRowLabel(question);
   }
 
   // Previous display item
@@ -224,21 +243,15 @@ export function resolveLabel(
     previousSibling?.type === 'display' &&
     previousSibling.extension !== undefined
   ) {
-    return getLabel(question);
+    return getRowLabel(question);
   }
 
   // Parent group text
   if (parent?.type === 'group' && parent.extension !== undefined) {
-    return getLabel(question);
+    return getRowLabel(question);
   }
 
   return question?.text;
-}
-
-function getLabel(question: AyuQuestion) {
-  if (question.text) return question.text;
-  return question?.extension?.find(ext => ext.url === EXT_URL_DISPLAY_TEXT)
-    ?.valueString;
 }
 
 /* =========================================

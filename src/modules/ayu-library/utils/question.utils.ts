@@ -1,4 +1,12 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from './constants';
+
+export const getRowLabel = (item: AyuQuestion | undefined): string => {
+  const displayExt = item?.extension?.find(
+    e => e.url === EXT_URL_DISPLAY_TEXT
+  )?.valueString;
+  return displayExt || item?.text || '';
+};
 
 /**
  * Find which parent answerOption code a child item maps to.

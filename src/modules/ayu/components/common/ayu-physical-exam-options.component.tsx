@@ -10,6 +10,7 @@ import {
   EXT_URL_PE_SECTION_KEY,
   PE_OPTION_KIND_CAMERA,
 } from '../../../ayu-library/utils/constants';
+import { getRowLabel } from '../../../ayu-library/utils/question.utils';
 import { usePhysicalExamCamera } from '../start-visit/physical-examination/physical-exam-camera-context';
 import { PhysicalExamImageCapture } from '../start-visit/physical-examination/physical-exam-image-capture.component';
 import { getOptionIcon } from '../start-visit/physical-examination/physical-examination.utils';
@@ -136,7 +137,7 @@ export const AyuPhysicalExamOptions = ({
         </div>
       )}
       <p className="text-base font-semibold text-gray-900 pb-2">
-        {question.text}
+        {getRowLabel(question)}
         {question.required && <span className="text-red-500 ml-0.5">*</span>}
       </p>
       {jobAidUrl && (
