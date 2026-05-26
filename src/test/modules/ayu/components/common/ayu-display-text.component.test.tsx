@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AyuDisplayText } from '../../../../../modules/ayu/components/common/ayu-display-text.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from '../../../../../modules/ayu-library/utils/constants';
 
 describe('AyuDisplayText', () => {
   const mockQuestion: AyuQuestion = {
@@ -149,6 +150,33 @@ describe('AyuDisplayText', () => {
       };
       render(<AyuDisplayText question={htmlEntityQuestion} />);
       expect(screen.getByText('Price: &pound;100')).toBeInTheDocument();
+    });
+  });
+
+  describe('Display Extension Label', () => {
+    it('should prefer the display extension over text', () => {
+      const question: AyuQuestion = {
+        linkId: 'display-1',
+        type: 'display',
+        text: 'Short text',
+        extension: [
+          { url: EXT_URL_DISPLAY_TEXT, valueString: 'Long display text' },
+        ],
+      };
+      render(<AyuDisplayText question={question} />);
+      expect(screen.getByText('Long display text')).toBeInTheDocument();
+      expect(screen.queryByText('Short text')).not.toBeInTheDocument();
+    });
+
+    it('should fall back to text when display extension has no valueString', () => {
+      const question: AyuQuestion = {
+        linkId: 'display-1',
+        type: 'display',
+        text: 'Short text',
+        extension: [{ url: EXT_URL_DISPLAY_TEXT }],
+      };
+      render(<AyuDisplayText question={question} />);
+      expect(screen.getByText('Short text')).toBeInTheDocument();
     });
   });
 

@@ -20,8 +20,10 @@ import type {
   AyuQuestion,
   FhirQuestionnaire,
 } from '../../../../ayu-library/types/ayu.types';
-import { EXT_URL_DISPLAY_TEXT } from '../../../../ayu-library/utils/constants';
-import { collectDescendantLinkIds } from '../../../../ayu-library/utils/question.utils';
+import {
+  collectDescendantLinkIds,
+  getRowLabel,
+} from '../../../../ayu-library/utils/question.utils';
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import {
@@ -47,14 +49,6 @@ const getOptionDisplay = (item: AyuQuestion, code: string): string | null => {
     o => o.valueCoding?.code === code || o.valueString === code
   );
   return opt?.valueCoding?.display || opt?.valueString || code;
-};
-
-const getRowLabel = (item: AyuQuestion): string => {
-  if (item.text) return item.text;
-  const displayExt = item.extension?.find(
-    e => e.url === EXT_URL_DISPLAY_TEXT
-  )?.valueString;
-  return displayExt || '';
 };
 
 const formatAnswerValue = (
@@ -179,7 +173,9 @@ const AyuAnsweredDisplay = ({
   if (isSkipped) {
     return (
       <div className="pr-8">
-        <p className="text-lg font-semibold text-[#1B163A]">{question.text}</p>
+        <p className="text-lg font-semibold text-[#1B163A]">
+          {getRowLabel(question)}
+        </p>
         <p className="text-sm font-semibold text-[#7F7B92]">Skipped</p>
       </div>
     );
@@ -188,7 +184,9 @@ const AyuAnsweredDisplay = ({
   if (isAssociatedSymptoms) {
     return (
       <div className="pr-8 space-y-1">
-        <p className="text-lg font-semibold text-[#1B163A]">{question.text}</p>
+        <p className="text-lg font-semibold text-[#1B163A]">
+          {getRowLabel(question)}
+        </p>
         {summaryItems.map((item, idx) =>
           item.type === 'labelValue' ? (
             <p key={idx} className="text-sm font-semibold text-[#2e1e91]">
@@ -212,14 +210,18 @@ const AyuAnsweredDisplay = ({
   if (!primaryValue && nestedRows.length === 0) {
     return (
       <div className="pr-8">
-        <p className="text-lg font-semibold text-[#1B163A]">{question.text}</p>
+        <p className="text-lg font-semibold text-[#1B163A]">
+          {getRowLabel(question)}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="pr-8">
-      <p className="text-lg font-semibold text-[#1B163A]">{question.text}</p>
+      <p className="text-lg font-semibold text-[#1B163A]">
+        {getRowLabel(question)}
+      </p>
       {primaryValue && (
         <p className="text-sm font-semibold text-[#2e1e91] mt-1">
           {primaryValue}
@@ -452,7 +454,7 @@ export const AyuStepperContainer = forwardRef<
                   />
                 )}
                 <QuestionLoader
-                  question={question.text}
+                  question={getRowLabel(question)}
                   questionIndex={index + questionIndexOffset}
                   totalQuestions={totalQuestionsOverride ?? total}
                   isShowQuestionNumber={true}

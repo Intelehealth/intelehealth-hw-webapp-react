@@ -3,10 +3,77 @@ import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../modules/ayu-library/types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from '../../../../modules/ayu-library/utils/constants';
 import {
-  collectDescendantLinkIds,
   clearHiddenDescendantAnswers,
+  collectDescendantLinkIds,
+  getRowLabel,
 } from '../../../../modules/ayu-library/utils/question.utils';
+
+describe('getRowLabel', () => {
+  it('returns the display extension valueString when present', () => {
+    const item: AyuQuestion = {
+      linkId: 'q1',
+      type: 'string',
+      text: 'Short text',
+      extension: [
+        { url: EXT_URL_DISPLAY_TEXT, valueString: 'Long display text' },
+      ],
+    };
+    expect(getRowLabel(item)).toBe('Long display text');
+  });
+
+  it('falls back to text when display extension is absent', () => {
+    const item: AyuQuestion = {
+      linkId: 'q1',
+      type: 'string',
+      text: 'Short text',
+    };
+    expect(getRowLabel(item)).toBe('Short text');
+  });
+
+  it('falls back to text when extension list has no display entry', () => {
+    const item: AyuQuestion = {
+      linkId: 'q1',
+      type: 'string',
+      text: 'Short text',
+      extension: [
+        { url: 'https://example.com/other', valueString: 'ignored' },
+      ],
+    };
+    expect(getRowLabel(item)).toBe('Short text');
+  });
+
+  it('falls back to text when display extension has no valueString', () => {
+    const item: AyuQuestion = {
+      linkId: 'q1',
+      type: 'string',
+      text: 'Short text',
+      extension: [{ url: EXT_URL_DISPLAY_TEXT }],
+    };
+    expect(getRowLabel(item)).toBe('Short text');
+  });
+
+  it('returns the display extension when text is missing', () => {
+    const item: AyuQuestion = {
+      linkId: 'q1',
+      type: 'string',
+      extension: [
+        { url: EXT_URL_DISPLAY_TEXT, valueString: 'Long display text' },
+      ],
+    };
+    expect(getRowLabel(item)).toBe('Long display text');
+  });
+
+  it('returns empty string when neither display extension nor text are present', () => {
+    const item: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(getRowLabel(item)).toBe('');
+  });
+
+  it('returns empty string when item is undefined', () => {
+    expect(getRowLabel(undefined)).toBe('');
+  });
+});
 
 describe('collectDescendantLinkIds', () => {
   it('should return empty array when item has no children', () => {

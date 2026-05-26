@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AyuPhysicalExamOptions } from '../../../../../modules/ayu/components/common/ayu-physical-exam-options.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import {
+  EXT_URL_DISPLAY_TEXT,
   EXT_URL_IS_EXCLUSIVE_OPTION,
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
@@ -156,6 +157,37 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       expect(screen.getByText('*')).toBeInTheDocument();
+    });
+
+    it('renders the question text as the label when no display extension is set', () => {
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/Is there jaundice\?/)).toBeInTheDocument();
+    });
+
+    it('prefers the display extension over text for the question label', () => {
+      const question = makePeQuestion({
+        text: 'Short text',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Eyes: Jaundice' },
+          { url: EXT_URL_DISPLAY_TEXT, valueString: 'Long display label' },
+        ],
+      });
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/Long display label/)).toBeInTheDocument();
+      expect(screen.queryByText(/^Short text$/)).not.toBeInTheDocument();
     });
 
     it('renders an image job aid when jobAidType is image', () => {

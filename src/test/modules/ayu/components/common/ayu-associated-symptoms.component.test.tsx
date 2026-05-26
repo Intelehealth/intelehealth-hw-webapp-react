@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AyuAssociatedSymptoms } from '../../../../../modules/ayu/components/common/ayu-associated-symptoms.component';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { AyuAssociatedSymptoms } from '../../../../../modules/ayu/components/common/ayu-associated-symptoms.component';
 import { AyuNestedRenderer as MockedAyuNestedRenderer } from '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 
 // Mock SVG imports
@@ -899,6 +899,60 @@ describe('AyuAssociatedSymptoms', () => {
       const noButtons = screen.getAllByTestId('btn-no');
       fireEvent.click(noButtons[1]);
       expect(mockOnChange).toHaveBeenCalledWith(['NO_cough']);
+    });
+  });
+
+  describe('Saved-answer cleanup when options are demographically hidden', () => {
+    it('should drop saved Yes codes that reference options no longer in the schema', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['fever', 'pregnancy']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(mockOnChange).toHaveBeenCalledWith(['fever']);
+    });
+
+    it('should drop saved No (negated) codes that reference hidden options', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['NO_fever', 'NO_pregnancy']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(mockOnChange).toHaveBeenCalledWith(['NO_fever']);
+    });
+
+    it('should not call onChange when every saved code is still visible', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={['fever', 'NO_cough']}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(mockOnChange).not.toHaveBeenCalled();
+    });
+
+    it('should not trip the cleanup when value is not an array', () => {
+      render(
+        <AyuAssociatedSymptoms
+          question={baseQuestion}
+          value={'fever'}
+          onChange={mockOnChange}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(mockOnChange).not.toHaveBeenCalled();
     });
   });
 });
