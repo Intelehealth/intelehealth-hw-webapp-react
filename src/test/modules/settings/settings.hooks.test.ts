@@ -10,6 +10,11 @@ import { showToast } from '../../../services/toast';
 
 /* ---------------- Mocks ---------------- */
 
+const mockedChangeLanguage = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../../i18n', () => ({
+  changeLanguage: (...args: unknown[]) => mockedChangeLanguage(...args),
+}));
+
 vi.mock('../../../services/toast', () => ({
   showToast: vi.fn(),
 }));
@@ -303,6 +308,7 @@ describe('useLanguageSettings', () => {
 
     await waitFor(() => expect(result.current.language).toBe('hi'));
     expect(mockedService.updateAppLanguage).toHaveBeenCalledWith('hi');
+    expect(mockedChangeLanguage).toHaveBeenCalledWith('hi');
     expect(mockedToast).toHaveBeenCalledWith(
       'Success',
       'Language successfully changed to Hindi!',
@@ -351,6 +357,7 @@ describe('useLanguageSettings', () => {
     });
 
     expect(result.current.language).toBe('en');
+    expect(mockedChangeLanguage).toHaveBeenCalledWith('en');
     expect(mockedToast).toHaveBeenCalledWith(
       'Success',
       'Language successfully changed to English!',

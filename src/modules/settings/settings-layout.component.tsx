@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import iconSettingsFilled from '../../assets/icons/icon-settings-filled.svg';
 import iconNotification from '../../assets/icons/icon-notification-plain.svg';
 import iconLock from '../../assets/icons/icon-security-filled.svg';
@@ -12,14 +13,19 @@ import SettingsLanguage from './settings-language.component';
 
 type SettingsTab = 'account' | 'notification' | 'security' | 'language';
 
-const navItems: { id: SettingsTab; label: string; icon: string }[] = [
-  { id: 'account', label: 'Account', icon: iconAccount },
-  { id: 'notification', label: 'Notification', icon: iconNotification },
-  { id: 'security', label: 'Security', icon: iconLock },
-  { id: 'language', label: 'Language & protocol', icon: iconSliders },
+const navItems: { id: SettingsTab; labelKey: string; icon: string }[] = [
+  { id: 'account', labelKey: 'Settings.Account', icon: iconAccount },
+  {
+    id: 'notification',
+    labelKey: 'Settings.Notification',
+    icon: iconNotification,
+  },
+  { id: 'security', labelKey: 'Settings.Security', icon: iconLock },
+  { id: 'language', labelKey: 'Settings.Language_Protocol', icon: iconSliders },
 ];
 
 const SettingsLayout: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
 
   return (
@@ -29,14 +35,14 @@ const SettingsLayout: React.FC = () => {
           <img src={iconSettingsFilled} alt="Settings" className="w-4 h-4" />
         </div>
         <h1 className="text-sm sm:text-base font-semibold text-(--color-dark)">
-          Settings
+          {t('Settings.Settings_Title')}
         </h1>
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
         <aside className="w-full md:w-52 lg:w-56 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 py-3 md:py-4 px-2 md:px-3">
           <p className="text-label text-(--color-muted) px-3 mb-2 hidden md:block">
-            Personal
+            {t('Settings.Personal')}
           </p>
           <nav
             className="flex md:flex-col gap-1 md:space-y-1 overflow-x-auto md:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]"
@@ -44,6 +50,7 @@ const SettingsLayout: React.FC = () => {
           >
             {navItems.map(item => {
               const isActive = activeTab === item.id;
+              const label = t(item.labelKey);
               return (
                 <button
                   key={item.id}
@@ -59,13 +66,13 @@ const SettingsLayout: React.FC = () => {
                 >
                   <img
                     src={item.icon}
-                    alt={item.label}
+                    alt={label}
                     className={cn(
                       'w-4 h-4 md:w-5 md:h-5 flex-shrink-0 transition',
                       !isActive && 'opacity-60'
                     )}
                   />
-                  {item.label}
+                  {label}
                 </button>
               );
             })}

@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "തിരികെ സ്വാഗതം!",
+    "Login_Continue_Description": "ദയവായി നിങ്ങളുടെ ജോലി തുടരാൻ ലോഗിൻ ചെയ്യുക",
     "Please_Enter_Your_Login_Details": "ദയവായി നിങ്ങളുടെ ലോഗിൻ വിവരങ്ങൾ നൽകുക",
+    "Tooltip_Credentials": "ഇന്റലിഹെൽത്ത് ടീം നൽകിയ ക്രെഡൻഷ്യലുകൾ നൽകുക",
     "Username": "ഉപയോക്തൃനാമം",
     "Forgot_Username": "ഉപയോക്തൃനാമം മറന്നോ?",
+    "Enter_Username_Placeholder": "നിങ്ങളുടെ ഉപയോക്തൃനാമം നൽകുക",
     "Password": "പാസ്‌വേഡ്",
     "Forgot_Password": "പാസ്‌വേഡ് മറന്നോ?",
+    "Enter_Password_Placeholder": "നിങ്ങളുടെ പാസ്‌വേഡ് നൽകുക",
+    "Select_Role": "റോൾ തിരഞ്ഞെടുക്കുക",
+    "Select_Role_Placeholder": "നിങ്ങളുടെ റോൾ തിരഞ്ഞെടുക്കുക",
     "Sign_In_As": "സൈൻ ഇൻ ചെയ്യുക",
     "Agree_To": "അംഗീകരിക്കുന്നു",
     "Login": "ലോഗിൻ"
@@ -17,6 +24,12 @@
     "Health_Worker": "ആരോഗ്യ പ്രവർത്തകൻ"
   },
   "Settings": {
+    "Settings_Title": "ക്രമീകരണങ്ങൾ",
+    "Personal": "വ്യക്തിപരം",
+    "Account": "അക്കൗണ്ട്",
+    "Notification": "അറിയിപ്പ്",
+    "Security": "സുരക്ഷ",
+    "Language_Protocol": "ഭാഷയും പ്രോട്ടോക്കോളും",
     "Language": "ഭാഷ",
     "App_Language": "ആപ്പ് ഭാഷ",
     "Reset_To_English": "ഇംഗ്ലീഷിലേക്ക് പുനഃസജ്ജമാക്കുക",

@@ -5,9 +5,10 @@ import { Dropdown } from '../../components/common';
 import { Loader } from '../../components/common';
 import { env } from '../../config/env';
 import { useConfig } from '../../hooks/useConfig';
+import { changeLanguage } from '../../i18n';
+import settingsService from '../settings/settings.service';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';
-import { changeLanguage } from 'i18next';
 
 interface AuthComponentProps {
   children?: React.ReactNode;
@@ -29,7 +30,9 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
   hideSliderImagesForMobile = false,
 }) => {
   const { config } = useConfig();
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    settingsService.getAppLanguage()
+  );
 
   const FALLBACK_OPTIONS = [
     { label: 'English', value: 'en' },
@@ -57,6 +60,7 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
     const language = Array.isArray(value) ? value[0] : value;
     setSelectedLanguage(language);
     changeLanguage(language);
+    settingsService.updateAppLanguage(language);
   };
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">

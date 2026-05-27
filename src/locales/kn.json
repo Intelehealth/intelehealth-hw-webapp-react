@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "ಮರಳಿ ಸ್ವಾಗತ!",
+    "Login_Continue_Description": "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಕೆಲಸವನ್ನು ಮುಂದುವರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ",
     "Please_Enter_Your_Login_Details": "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಲಾಗಿನ್ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ",
+    "Tooltip_Credentials": "ಇಂಟೆಲಿಹೆಲ್ತ್ ತಂಡವು ನೀಡಿದ ರುಜುವಾತುಗಳನ್ನು ನಮೂದಿಸಿ",
     "Username": "ಬಳಕೆದಾರ ಹೆಸರು",
     "Forgot_Username": "ಬಳಕೆದಾರ ಹೆಸರನ್ನು ಮರೆತಿರಾ?",
+    "Enter_Username_Placeholder": "ನಿಮ್ಮ ಬಳಕೆದಾರ ಹೆಸರನ್ನು ನಮೂದಿಸಿ",
     "Password": "ಪಾಸ್ವರ್ಡ್",
     "Forgot_Password": "ಪಾಸ್ವರ್ಡ್ ಮರೆತಿರಾ?",
+    "Enter_Password_Placeholder": "ನಿಮ್ಮ ಪಾಸ್ವರ್ಡ್ ನಮೂದಿಸಿ",
+    "Select_Role": "ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    "Select_Role_Placeholder": "ನಿಮ್ಮ ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
     "Sign_In_As": "ಲಾಗಿನ್ ಆಗಿ",
     "Agree_To": "ಒಪ್ಪುತ್ತೇನೆ",
     "Login": "ಲಾಗಿನ್"
@@ -17,6 +24,12 @@
     "Health_Worker": "ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತೆ"
   },
   "Settings": {
+    "Settings_Title": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
+    "Personal": "ವೈಯಕ್ತಿಕ",
+    "Account": "ಖಾತೆ",
+    "Notification": "ಅಧಿಸೂಚನೆ",
+    "Security": "ಭದ್ರತೆ",
+    "Language_Protocol": "ಭಾಷೆ ಮತ್ತು ಪ್ರೋಟೋಕಾಲ್",
     "Language": "ಭಾಷೆ",
     "App_Language": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
     "Reset_To_English": "ಇಂಗ್ಲಿಷ್‌ಗೆ ಮರುಹೊಂದಿಸಿ",

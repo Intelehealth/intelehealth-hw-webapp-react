@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "वापस स्वागत है!",
+    "Login_Continue_Description": "कृपया अपने काम को जारी रखने के लिए लॉगिन करें",
     "Please_Enter_Your_Login_Details": "कृपया अपनी लॉगिन विवरण दर्ज करें",
+    "Tooltip_Credentials": "इंटेलीहेल्थ टीम द्वारा दिए गए क्रेडेंशियल दर्ज करें",
     "Username": "उपयोगकर्ता नाम",
     "Forgot_Username": "उपयोगकर्ता नाम भूल गए?",
+    "Enter_Username_Placeholder": "अपना उपयोगकर्ता नाम दर्ज करें",
     "Password": "पासवर्ड",
     "Forgot_Password": "पासवर्ड भूल गए?",
+    "Enter_Password_Placeholder": "अपना पासवर्ड दर्ज करें",
+    "Select_Role": "भूमिका चुनें",
+    "Select_Role_Placeholder": "अपनी भूमिका चुनें",
     "Sign_In_As": "के रूप में साइन इन करें",
     "Agree_To": "सहमत हैं",
     "Login": "लॉगिन"
@@ -17,6 +24,12 @@
     "Health_Worker": "स्वास्थ्य कार्यकर्ता"
   },
   "Settings": {
+    "Settings_Title": "सेटिंग्स",
+    "Personal": "व्यक्तिगत",
+    "Account": "खाता",
+    "Notification": "सूचना",
+    "Security": "सुरक्षा",
+    "Language_Protocol": "भाषा और प्रोटोकॉल",
     "Language": "भाषा",
     "App_Language": "ऐप भाषा",
     "Reset_To_English": "अंग्रेजी पर रीसेट करें",

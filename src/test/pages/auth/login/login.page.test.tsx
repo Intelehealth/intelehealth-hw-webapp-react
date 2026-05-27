@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../../../i18n';
 import LoginPage from '../../../../pages/auth/login/login.page';
 
 // Mock the assets
@@ -56,6 +58,13 @@ vi.mock('../../../../modules/auth/login/login.component', () => ({
   default: vi.fn(() => <div data-testid="login-component">Login Component</div>),
 }));
 
+const renderComponent = () =>
+  render(
+    <I18nextProvider i18n={i18n}>
+      <LoginPage />
+    </I18nextProvider>
+  );
+
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,12 +72,12 @@ describe('LoginPage', () => {
 
   describe('Component Structure', () => {
     it('should render without crashing', () => {
-      render(<LoginPage />);
+      renderComponent();
       expect(screen.getByTestId('auth-component')).toBeInTheDocument();
     });
 
     it('should render AuthComponent with correct props', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       expect(screen.getByTestId('auth-title')).toHaveTextContent('Welcome back!');
       expect(screen.getByTestId('auth-description')).toHaveTextContent('Please login to continue with your work');
@@ -77,7 +86,7 @@ describe('LoginPage', () => {
     });
 
     it('should render LoginComponent as children', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       expect(screen.getByTestId('auth-children')).toBeInTheDocument();
       expect(screen.getByTestId('login-component')).toBeInTheDocument();
@@ -86,7 +95,7 @@ describe('LoginPage', () => {
 
   describe('Slides Configuration', () => {
     it('should render all slides with correct content', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Check slide 0
       expect(screen.getByTestId('slide-title-0')).toHaveTextContent('Who are we?');
@@ -117,7 +126,7 @@ describe('LoginPage', () => {
     });
 
     it('should have exactly 3 slides', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       const slides = screen.getAllByTestId(/^slide-\d+$/);
       expect(slides).toHaveLength(3);
@@ -126,7 +135,7 @@ describe('LoginPage', () => {
 
   describe('Component Integration', () => {
     it('should integrate AuthComponent and LoginComponent correctly', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify AuthComponent is rendered
       expect(screen.getByTestId('auth-component')).toBeInTheDocument();
@@ -142,7 +151,7 @@ describe('LoginPage', () => {
 
   describe('Props Validation', () => {
     it('should pass correct props to AuthComponent', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify all props are passed correctly
       expect(screen.getByTestId('auth-title')).toHaveTextContent('Welcome back!');
@@ -152,7 +161,7 @@ describe('LoginPage', () => {
     });
 
     it('should have slides array with correct structure', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify slides are rendered with proper structure
       expect(screen.getByTestId('slide-title-0')).toBeInTheDocument();
@@ -165,7 +174,7 @@ describe('LoginPage', () => {
 
   describe('Asset Imports', () => {
     it('should import and use slider images correctly', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       expect(screen.getByTestId('slide-image-0')).toHaveTextContent('mocked-slider-1.png');
       expect(screen.getByTestId('slide-image-1')).toHaveTextContent('mocked-slider-2.png');
@@ -173,13 +182,13 @@ describe('LoginPage', () => {
     });
 
     it('should import and use main logo correctly', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       expect(screen.getByTestId('auth-mobile-image')).toHaveTextContent('mocked-logo.png');
     });
 
     it('should import and use heartbeat images correctly', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify heartbeat1 (red heartbeat) is used in all slides
       expect(screen.getByTestId('slide-heartbeat1-0')).toHaveTextContent('mocked-red-heartbeat.png');
@@ -201,22 +210,26 @@ describe('LoginPage', () => {
 
     it('should be a React functional component', () => {
       expect(LoginPage).toBeInstanceOf(Function);
-      const { container } = render(<LoginPage />);
+      const { container } = renderComponent();
       expect(container).toBeInTheDocument();
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle re-renders correctly', () => {
-      const { rerender } = render(<LoginPage />);
+      const { rerender } = renderComponent();
       expect(screen.getByTestId('auth-component')).toBeInTheDocument();
-      
-      rerender(<LoginPage />);
+
+      rerender(
+        <I18nextProvider i18n={i18n}>
+          <LoginPage />
+        </I18nextProvider>
+      );
       expect(screen.getByTestId('auth-component')).toBeInTheDocument();
     });
 
     it('should render with all slides data', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify all slides are present
       expect(screen.getByTestId('slide-0')).toBeInTheDocument();
@@ -229,7 +242,7 @@ describe('LoginPage', () => {
     });
 
     it('should pass hideSliderImagesForMobile as boolean true', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       const hideSlider = screen.getByTestId('auth-hide-slider');
       expect(hideSlider).toHaveTextContent('true');
@@ -237,7 +250,7 @@ describe('LoginPage', () => {
     });
 
     it('should render LoginComponent inside AuthComponent children', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       const authComponent = screen.getByTestId('auth-component');
       const loginComponent = screen.getByTestId('login-component');
@@ -250,7 +263,7 @@ describe('LoginPage', () => {
 
   describe('Component Props Completeness', () => {
     it('should pass all required props to AuthComponent', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       // Verify title prop
       expect(screen.getByTestId('auth-title')).toHaveTextContent('Welcome back!');
@@ -269,7 +282,7 @@ describe('LoginPage', () => {
     });
 
     it('should render all slide images correctly', () => {
-      render(<LoginPage />);
+      renderComponent();
       
       expect(screen.getByTestId('slide-image-0')).toHaveTextContent('mocked-slider-1.png');
       expect(screen.getByTestId('slide-image-1')).toHaveTextContent('mocked-slider-2.png');

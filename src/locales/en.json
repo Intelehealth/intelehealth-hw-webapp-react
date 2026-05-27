@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "Welcome back!",
+    "Login_Continue_Description": "Please login to continue with your work",
     "Please_Enter_Your_Login_Details": "Please enter your login details",
+    "Tooltip_Credentials": "Enter the credentials given by intelehealth team",
     "Username": "Username",
     "Forgot_Username": "Forgot Username ?",
+    "Enter_Username_Placeholder": "Enter your username",
     "Password": "Password",
     "Forgot_Password": "Forgot Password ?",
+    "Enter_Password_Placeholder": "Enter your password",
+    "Select_Role": "Select Role",
+    "Select_Role_Placeholder": "Select your role",
     "Sign_In_As": "Sign in as",
     "Agree_To": "Agree to",
     "Login": "Login"
@@ -17,6 +24,12 @@
     "Health_Worker": "Health Worker"
   },
   "Settings": {
+    "Settings_Title": "Settings",
+    "Personal": "Personal",
+    "Account": "Account",
+    "Notification": "Notification",
+    "Security": "Security",
+    "Language_Protocol": "Language & protocol",
     "Language": "Language",
     "App_Language": "App language",
     "Reset_To_English": "Reset to English",

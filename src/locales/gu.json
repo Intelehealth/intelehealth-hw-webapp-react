@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "ફરી સ્વાગત છે!",
+    "Login_Continue_Description": "કૃપા કરીને તમારું કામ ચાલુ રાખવા માટે લૉગિન કરો",
     "Please_Enter_Your_Login_Details": "કૃપા કરીને તમારા લૉગિન વિગતો દાખલ કરો",
+    "Tooltip_Credentials": "ઇન્ટેલીહેલ્થ ટીમ દ્વારા આપેલા ઓળખપત્રો દાખલ કરો",
     "Username": "વપરાશકર્તા નામ",
     "Forgot_Username": "વપરાશકર્તા નામ ભૂલ્યા છો?",
+    "Enter_Username_Placeholder": "તમારું વપરાશકર્તા નામ દાખલ કરો",
     "Password": "પાસવર્ડ",
     "Forgot_Password": "પાસવર્ડ ભૂલ્યા છો?",
+    "Enter_Password_Placeholder": "તમારો પાસવર્ડ દાખલ કરો",
+    "Select_Role": "ભૂમિકા પસંદ કરો",
+    "Select_Role_Placeholder": "તમારી ભૂમિકા પસંદ કરો",
     "Sign_In_As": "સાઇન ઇન કરો",
     "Agree_To": "હું સંમત છું",
     "Login": "લૉગિન"
@@ -17,6 +24,12 @@
     "Health_Worker": "આરોગ્ય કાર્યકર"
   },
   "Settings": {
+    "Settings_Title": "સેટિંગ્સ",
+    "Personal": "વ્યક્તિગત",
+    "Account": "ખાતું",
+    "Notification": "સૂચના",
+    "Security": "સુરક્ષા",
+    "Language_Protocol": "ભાષા અને પ્રોટોકોલ",
     "Language": "ભાષા",
     "App_Language": "ઍપ ભાષા",
     "Reset_To_English": "અંગ્રેજીમાં રીસેટ કરો",
