@@ -53,6 +53,13 @@ export const EXT_URL_PE_OPTION_KIND =
   'urn:intelehealth:physical-exam/option-kind';
 export const PE_OPTION_KIND_CAMERA = 'camera';
 
+/* physExam.json sometimes carries a sentinel answerOption whose `language`
+ * extension equals this marker. It is NOT a user-facing choice — it is a
+ * proxy that pairs with an attachment child for image capture. The
+ * transform drops these so the camera tile (built from the attachment)
+ * is the only rendering surface for that semantic. */
+export const PE_OPTION_LANG_MARKER_PICTURE_TAKEN = '[picture taken]';
+
 /*
  * Threshold that distinguishes a Frequency (occurrences) from a Range
  * component when both share the same FHIR shape (integer + minValue/maxValue).

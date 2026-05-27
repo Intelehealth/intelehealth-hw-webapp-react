@@ -1659,7 +1659,10 @@ describe('transformFhirPhysExamToAyu', () => {
     const camera = root?.item?.[0]?.answerOption?.find(
       o => o.valueCoding?.code === 'CAMERA'
     );
-    expect(camera?.valueCoding?.display).toBe('Take a picture');
+    // The stored display is "Picture Taken" so the stepper's answered card
+    // reads back the post-capture label. The tile renders a hardcoded
+    // "Take a Picture" label and ignores this field.
+    expect(camera?.valueCoding?.display).toBe('Picture Taken');
     expect(camera?.extension).toEqual(
       expect.arrayContaining([
         { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
@@ -1719,6 +1722,114 @@ describe('transformFhirPhysExamToAyu', () => {
         { url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' },
       ])
     );
+  });
+
+  it('drops "[picture taken]" marker answerOptions so the camera tile is not duplicated', () => {
+    // Mirrors a question in physExam.json (e.g. linkId "1afo09f1e5ijjoum5sb3utlter")
+    // that carries a sentinel answerOption with display="Take a picture" and
+    // language extension "[picture taken]" alongside an attachment child.
+    // Without the filter, the FHIR option renders as a regular tile next to
+    // the real camera tile built from the attachment.
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Nails'], [
+          {
+            linkId: 'q-marker',
+            text: 'Nails',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'real-yes', display: 'Yes' } },
+              {
+                valueCoding: { code: 'marker', display: 'Take a picture' },
+                extension: [
+                  {
+                    url: EXT_URL_LANGUGAE_TEXT,
+                    valueString: '[picture taken]',
+                  },
+                ],
+              },
+            ],
+            item: [
+              {
+                linkId: 'q-marker_attach',
+                type: 'attachment',
+                enableWhen: [
+                  {
+                    question: 'q-marker',
+                    operator: '=',
+                    answerCoding: { code: 'marker' },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      ],
+    });
+    const codes = root?.item?.[0]?.answerOption?.map(
+      o => o.valueCoding?.code
+    );
+    // marker option is dropped; real Yes survives; camera option built from
+    // the attachment is appended at the end.
+    expect(codes).toEqual(['real-yes', 'marker']);
+    // The remaining "marker" code is the camera-marked option (PE_OPTION_KIND
+    // extension), NOT the original sentinel.
+    const marker = root?.item?.[0]?.answerOption?.find(
+      o => o.valueCoding?.code === 'marker'
+    );
+    expect(marker?.extension).toEqual(
+      expect.arrayContaining([
+        { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+      ])
+    );
+  });
+
+  it('preserves Yes/No answerOptions when the attachment enables on those codes (no false dedup)', () => {
+    // Mirrors the 1st jaundice question: enableWhen entries on the
+    // attachment reference the real Yes/No answer codes. Those codes must
+    // NOT be filtered out — they are real user choices, not "[picture taken]"
+    // markers.
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Eyes', ['Jaundice'], [
+          {
+            linkId: 'q-jaundice',
+            text: 'Is there jaundice?',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'no', display: 'No' } },
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            item: [
+              {
+                linkId: 'q-jaundice_attach',
+                type: 'attachment',
+                enableWhen: [
+                  {
+                    question: 'q-jaundice',
+                    operator: '=',
+                    answerCoding: { code: 'no' },
+                  },
+                  {
+                    question: 'q-jaundice',
+                    operator: '=',
+                    answerCoding: { code: 'yes' },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      ],
+    });
+    const codes = root?.item?.[0]?.answerOption?.map(
+      o => o.valueCoding?.code
+    );
+    // Both real choices survive; camera option (also code 'no' from
+    // enableWhen[0]) is appended after.
+    expect(codes).toEqual(['no', 'yes', 'no']);
   });
 
   it('passes job-aid extensions through to the question', () => {

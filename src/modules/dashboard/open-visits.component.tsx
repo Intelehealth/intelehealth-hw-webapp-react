@@ -10,6 +10,7 @@ import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-re
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import { useOpenVisits } from '../../hooks/useOpenVisits';
+import { usePriorityVisits } from '../../hooks/usePriorityVisits';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
@@ -45,19 +46,20 @@ export const OpenVisitsComponent = ({
     toggleSort: toggleNameSort,
     applySort: applyNameSort,
   } = useSortByName();
-  const { data, loading, error } = useOpenVisits();
+  const openVisits = useOpenVisits();
+  const priorityVisits = usePriorityVisits();
 
   const isPriorityTab = activeTab === OPEN_VISITS_TABS.PRIORITY;
+  /* Priority tab pulls from a dedicated endpoint (?type=priority-visits) so
+   * the backend owns the priority logic — no client-side isPriority filter. */
+  const { data, loading, error } = isPriorityTab ? priorityVisits : openVisits;
 
   const filtered = useMemo(() => {
-    const byTab = isPriorityTab
-      ? data.filter(p => p.isPriority === true)
-      : data;
-    const result = byTab.filter(p =>
+    const result = data.filter(p =>
       p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(result));
-  }, [data, isPriorityTab, search, applySort, applyNameSort]);
+  }, [data, search, applySort, applyNameSort]);
 
   const columns: Column[] = [
     {

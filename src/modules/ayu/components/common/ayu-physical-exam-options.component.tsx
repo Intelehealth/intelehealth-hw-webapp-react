@@ -14,7 +14,11 @@ import { getRowLabel } from '../../../ayu-library/utils/question.utils';
 import { usePhysicalExamCamera } from '../start-visit/physical-examination/physical-exam-camera-context';
 import { PhysicalExamImageCapture } from '../start-visit/physical-examination/physical-exam-image-capture.component';
 import { getOptionIcon } from '../start-visit/physical-examination/physical-examination.utils';
-import { BUTTON_UPLOAD } from '../../utils/ayu.constants';
+import {
+  BUTTON_UPLOAD,
+  PE_CAMERA_TILE_LABEL,
+  VALIDATION_UPLOAD_IMAGE,
+} from '../../utils/ayu.constants';
 import AyuButton from './ayu-button.component';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 
@@ -41,6 +45,7 @@ export const AyuPhysicalExamOptions = ({
   const camera = usePhysicalExamCamera();
   const [cameraLocallySelected, setCameraLocallySelected] = useState(false);
   const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+  const [showUploadError, setShowUploadError] = useState(false);
 
   if (!question) return null;
 
@@ -96,15 +101,19 @@ export const AyuPhysicalExamOptions = ({
       // Deselecting — drop any in-progress images and clear local state
       camera?.clearCameraImages(question.linkId);
       setCameraLocallySelected(false);
+      setShowUploadError(false);
       return;
     }
     setCameraLocallySelected(true);
+    setShowUploadError(false);
   };
 
   const handleSubmit = () => {
-    /* Caller (the Submit button) is rendered only when submitVisible is true,
-     * which already implies cameraLocallySelected, cameraCode, and
-     * cameraImages.length > 0 — no defensive guard needed here. */
+    if (cameraImages.length === 0) {
+      setShowUploadError(true);
+      return;
+    }
+    setShowUploadError(false);
     const next = isMultiChoice
       ? [...selected.filter(id => id !== cameraCode), cameraCode!]
       : [cameraCode!];
@@ -115,8 +124,11 @@ export const AyuPhysicalExamOptions = ({
   /* Only the camera-commit case needs an in-component Submit, since a captured
    * image must be explicitly turned into an answer. Plain multi-choice defers
    * to the outer stepper container's Submit (which also validates required
-   * fields and advances via goNext) — otherwise two Submit buttons stack. */
-  const submitVisible = cameraLocallySelected && cameraImages.length > 0;
+   * fields and advances via goNext) — otherwise two Submit buttons stack.
+   * We show the button whenever the camera tile is locally selected (even with
+   * zero images) so the user has a clear action — clicking with no images
+   * surfaces an inline error rather than failing silently. */
+  const submitVisible = cameraLocallySelected;
 
   const submitJustHappened = !!submittedAt && Date.now() - submittedAt < 1500;
 
@@ -144,12 +156,16 @@ export const AyuPhysicalExamOptions = ({
         <div className="pb-2">
           <p className="text-xs text-gray-500 mb-1">References:</p>
           {jobAidType === 'video' ? (
-            <video src={jobAidUrl} controls className="rounded-md" />
+            <video
+              src={jobAidUrl}
+              controls
+              className="rounded-md max-w-xs w-full h-auto"
+            />
           ) : (
             <img
               src={jobAidUrl}
               alt={categoryLabel ?? ''}
-              className="rounded-md"
+              className="rounded-md max-w-xs w-full h-auto object-contain"
             />
           )}
         </div>
@@ -177,7 +193,10 @@ export const AyuPhysicalExamOptions = ({
         })}
         {cameraOption && cameraCode && (
           <AyuSelectableOption
-            label={cameraOption.valueCoding?.display ?? 'Take a picture'}
+            /* Always render the camera tile as "Take a Picture". The
+             * underlying option's display in the FHIR data can be a marker
+             * like "[picture taken]" — never expose that to the user. */
+            label={PE_CAMERA_TILE_LABEL}
             value={cameraCode}
             selected={cameraLocallySelected}
             leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
@@ -189,9 +208,17 @@ export const AyuPhysicalExamOptions = ({
         <div className="pb-3">
           <PhysicalExamImageCapture
             images={cameraImages}
-            onAdd={f => camera.addCameraImage(question.linkId, f)}
+            onAdd={f => {
+              camera.addCameraImage(question.linkId, f);
+              setShowUploadError(false);
+            }}
             onRemove={i => camera.removeCameraImage(question.linkId, i)}
           />
+          {showUploadError && cameraImages.length === 0 && (
+            <p className="text-xs text-red-500 mt-1 px-3">
+              {VALIDATION_UPLOAD_IMAGE}
+            </p>
+          )}
         </div>
       )}
       {submitVisible && (
@@ -202,8 +229,6 @@ export const AyuPhysicalExamOptions = ({
             size="sm"
             onClick={handleSubmit}
           >
-            {/* submitVisible already implies cameraLocallySelected && images
-             * present, so the upload-with-count label is the only state. */}
             {`${BUTTON_UPLOAD} (${cameraImages.length})`}
             {submitJustHappened && <img src={iconYes} alt="yes" />}
           </AyuButton>

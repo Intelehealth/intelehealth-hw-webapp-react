@@ -541,7 +541,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(modalConfig.sections).toEqual([]);
     });
 
-    it('shows "Picture taken" when a camera answer has captured images', async () => {
+    it('shows "Picture Taken" when a camera answer has captured images', async () => {
       const user = userEvent.setup();
       const questions = [
         makeQuestion('with-images', 'General', 'Skin', [
@@ -557,7 +557,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       capturedStepperProps._completeAnswers = { 'with-images': ['CAM'] };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      expect(modalConfig.sections[0].items[0].value).toBe('Picture taken');
+      expect(modalConfig.sections[0].items[0].value).toBe('Picture Taken');
     });
 
     it('omits camera answers when there are no captured images', async () => {

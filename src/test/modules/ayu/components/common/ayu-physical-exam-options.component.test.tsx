@@ -125,7 +125,7 @@ describe('AyuPhysicalExamOptions', () => {
       expect(screen.getByRole('button', { name: /^No$/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^Yes$/ })).toBeInTheDocument();
       expect(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       ).toBeInTheDocument();
     });
 
@@ -368,8 +368,10 @@ describe('AyuPhysicalExamOptions', () => {
       ).toBeInTheDocument();
     });
 
-    it('falls back to "Take a picture" when the camera option has no display label', () => {
-      // Covers the `cameraOption.valueCoding?.display ?? 'Take a picture'` fallback.
+    it('renders the camera tile with the hardcoded "Take a Picture" label regardless of the option display', () => {
+      // The component intentionally ignores the option's display value because
+      // physExam.json sometimes carries marker strings (e.g. "[picture taken]")
+      // in that slot. The tile must always read "Take a Picture".
       const question: AyuQuestion = {
         linkId: 'q',
         text: 'Q',
@@ -379,7 +381,7 @@ describe('AyuPhysicalExamOptions', () => {
         ],
         answerOption: [
           {
-            valueCoding: { code: 'cam' }, // no display
+            valueCoding: { code: 'cam', display: '[picture taken]' },
             extension: [
               {
                 url: EXT_URL_PE_OPTION_KIND,
@@ -397,8 +399,11 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       expect(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: 'Take a Picture' })
       ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /picture taken/i })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -473,7 +478,7 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={setAnswer}
         />
       );
-      const camTile = screen.getByRole('button', { name: /Take a picture/ });
+      const camTile = screen.getByRole('button', { name: /Take a Picture/ });
       await userEvent.click(camTile);
       // Tile becomes selected, but the answer hasn't been written yet — that
       // happens on Submit (with images present).
@@ -489,7 +494,7 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={vi.fn()}
         />
       );
-      const camTile = screen.getByRole('button', { name: /Take a picture/ });
+      const camTile = screen.getByRole('button', { name: /Take a Picture/ });
       await userEvent.click(camTile);
       await userEvent.click(camTile);
       expect(cameraState.clearCameraImages).toHaveBeenCalledWith(
@@ -518,7 +523,7 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       expect(
-        screen.queryByRole('button', { name: /Take a picture/ })
+        screen.queryByRole('button', { name: /Take a Picture/ })
       ).not.toBeInTheDocument();
     });
   });
@@ -533,7 +538,7 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       await userEvent.click(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
       await userEvent.click(screen.getByTestId('image-capture-add'));
       expect(cameraState.addCameraImage).toHaveBeenCalledWith(
@@ -559,7 +564,7 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       await userEvent.click(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
       // Submit button now visible, labelled with image count
       expect(
@@ -579,7 +584,7 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       await userEvent.click(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Upload \(1\)/ })
@@ -599,7 +604,7 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       await userEvent.click(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Upload \(1\)/ })
@@ -607,7 +612,7 @@ describe('AyuPhysicalExamOptions', () => {
       expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
     });
 
-    it('Submit does nothing when no images have been captured', async () => {
+    it('shows an inline error and does not commit when Submit is clicked without images', async () => {
       const setAnswer = vi.fn();
       render(
         <AyuPhysicalExamOptions
@@ -617,16 +622,42 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       await userEvent.click(
-        screen.getByRole('button', { name: /Take a picture/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
-      // No Submit visible because images.length === 0
+      // Submit button is visible even with 0 images so the user has a clear
+      // action; clicking it surfaces an inline error instead of failing
+      // silently.
+      const submit = screen.getByRole('button', { name: /Upload \(0\)/ });
+      await userEvent.click(submit);
       expect(
-        screen.queryByRole('button', { name: /Upload/ })
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /^Submit$/ })
-      ).not.toBeInTheDocument();
+        screen.getByText('Please upload at least one image')
+      ).toBeInTheDocument();
       expect(setAnswer).not.toHaveBeenCalled();
+    });
+
+    it('clears the inline upload error once an image is added', async () => {
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Upload \(0\)/ })
+      );
+      expect(
+        screen.getByText('Please upload at least one image')
+      ).toBeInTheDocument();
+      // Simulating an image add through the mocked PhysicalExamImageCapture
+      await userEvent.click(screen.getByTestId('image-capture-add'));
+      expect(
+        screen.queryByText('Please upload at least one image')
+      ).not.toBeInTheDocument();
     });
 
     it('does not render an inner Submit button for plain multi-choice (defers to outer stepper)', () => {

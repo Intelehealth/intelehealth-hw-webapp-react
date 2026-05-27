@@ -22,6 +22,7 @@ import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
+  PE_PICTURE_TAKEN_LABEL,
   PHYSICAL_EXAM_SUMMARY_TITLE,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
@@ -199,7 +200,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           const display = opt.valueCoding?.display ?? '';
           if (isCameraOption(opt)) {
             const hasImages = cameraImagesFor(q.linkId).length > 0;
-            if (hasImages) summaryTexts.push('Picture taken');
+            if (hasImages) summaryTexts.push(PE_PICTURE_TAKEN_LABEL);
             // Cameras don't contribute to the plain details list (matches the
             // old PhysicalExamination behaviour).
           } else {
