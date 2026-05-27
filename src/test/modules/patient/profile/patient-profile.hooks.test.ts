@@ -250,6 +250,13 @@ describe('mapRawPatientToFormData', () => {
     expect(formData.personalInfo.age).toBe('0');
   });
 
+  it('handles null gender', () => {
+    const patient = buildPatient({ gender: null });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.gender).toBe('');
+  });
+
   it('handles null middleName in preferredName', () => {
     const patient = buildPatient({
       preferredName: { givenName: 'John', middleName: null, familyName: 'Doe' },

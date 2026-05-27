@@ -15,7 +15,7 @@ vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
 }));
 
 // Mock storage
-const mockStorageGet = vi.fn((_key: string): string | null => 'test-patient-id');
+const mockStorageGet = vi.fn<(key: string) => string | null>(() => 'test-patient-id');
 const mockStorageSet = vi.fn();
 const mockStorageRemove = vi.fn();
 const mockStorageGetUser = vi.fn(
@@ -637,6 +637,79 @@ describe('AddPatientComponent', () => {
       });
     });
 
+    it('should restore patientUuid from temp-storage when present', async () => {
+      mockGetResource.mockResolvedValue({
+        data: {
+          id: 1,
+          data: {
+            formData: {
+              personalInfo: {
+                firstName: 'Restored',
+                middleName: '',
+                lastName: 'User',
+                gender: 'F',
+                dateOfBirth: '2000-01-01',
+                age: '26',
+                phoneNumber: '9999999999',
+                phoneNumberCountryCode: '+91',
+                contactType: 'self',
+                emergencyContactName: 'EC',
+                emergencyContactNumber: '8888888888',
+                emergencyContactNumberCountryCode: '+91',
+                profilePhoto: null,
+              },
+              addressInfo: {
+                postalCode: '400001',
+                city: 'Mumbai',
+                state: 'MH',
+                country: 'India',
+                district: 'Mumbai',
+                correspondingAddress1: 'Addr 1',
+                correspondingAddress2: 'Addr 2',
+              },
+              otherInfo: {
+                sonDaughterWifeOf: '',
+                occupation: '',
+                caste: '',
+                education: 'Graduate',
+                economicStatus: '',
+              },
+            },
+            step: 1,
+            patientUuid: 'restored-patient-uuid',
+          },
+        },
+      });
+
+      render(
+        <MemoryRouter>
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      // Should restore to step 1 (Terms) with the patientUuid set
+      await waitFor(() => {
+        expect(screen.getByTestId('terms')).toBeInTheDocument();
+      });
+
+      // Navigate back — savePatientToTemp will include the restored patientUuid
+      mockUpsertResource.mockClear();
+      fireEvent.click(screen.getByTestId('terms-decline'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+
+      // Verify patientUuid was included in the save payload
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            patientUuid: 'restored-patient-uuid',
+          }),
+        })
+      );
+    });
+
     it('should discard completed session (step 3) and start fresh', async () => {
       mockGetResource.mockResolvedValue({
         data: {
@@ -929,6 +1002,33 @@ describe('AddPatientComponent', () => {
 
       expect(screen.getByTestId('patient-info')).toBeInTheDocument();
       expect(screen.getByTestId('current-location').textContent).toBe('/patient/edit');
+    });
+
+    it('should navigate back when prevStep is called in edit mode', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            '/patient/some-uuid',
+            {
+              pathname: '/patient/edit',
+              state: { editFormData, patientUuid: 'edit-patient-uuid-123' },
+            },
+          ]}
+          initialIndex={1}
+        >
+          <AddPatientComponent />
+          <LocationDisplay />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('patient-info-prev'));
+      await waitFor(() => {
+        expect(screen.getByTestId('current-location').textContent).toBe(
+          '/patient/some-uuid'
+        );
+      });
     });
   });
 });
