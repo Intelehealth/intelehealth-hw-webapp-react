@@ -8,6 +8,7 @@ import {
   extractChiefComplaints,
   extractPhysicalExamination,
   extractMedicalHistory,
+  extractAdditionalMeasurements,
   transformVisitSummaryResponse,
   transformObsToDocuments,
 } from '../../../modules/visit-summary/visit-summary.service';
@@ -1434,6 +1435,181 @@ describe('visitSummaryService', () => {
         responseType: 'blob',
       });
       expect(result).toBe(mockBlob);
+    });
+  });
+
+  describe('extractAdditionalMeasurements', () => {
+    it('should return empty array when no encounters', () => {
+      expect(extractAdditionalMeasurements([])).toEqual([]);
+    });
+
+    it('should return empty array when no matching concepts are present', () => {
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.HEIGHT, '170')]),
+      ];
+      expect(extractAdditionalMeasurements(encounters)).toEqual([]);
+    });
+
+    it('should extract numeric obs values for additional measurements', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.FBS, '89'),
+          makeObs(CONCEPT_UUIDS.PPBS, '158'),
+          makeObs(CONCEPT_UUIDS.RBS, '112'),
+          makeObs(CONCEPT_UUIDS.WAIST_CIRCUMFERENCE, '80'),
+          makeObs(CONCEPT_UUIDS.HIP_CIRCUMFERENCE, '90'),
+          makeObs(CONCEPT_UUIDS.WAIST_TO_HIP_RATIO, '0.89'),
+          makeObs(CONCEPT_UUIDS.OGTT, '140'),
+          makeObs(CONCEPT_UUIDS.HBA1C, '6'),
+        ]),
+      ];
+      const result = extractAdditionalMeasurements(encounters);
+      expect(result).toEqual([
+        { label: 'Fasting Blood Sugar (FBS) (mg/dl)', value: '89' },
+        { label: 'Post Prandial Blood Sugar (PPBS) (mg/dl)', value: '158' },
+        { label: 'RBS (mg/dl)', value: '112' },
+        { label: 'Waist Circumference (cm)', value: '80' },
+        { label: 'Hip Circumference (cm)', value: '90' },
+        { label: 'Waist to Hip Ratio (WHR)', value: '0.89' },
+        { label: '2 Hour Post Load Glucose Test (OGTT) (mg/dl)', value: '140' },
+        { label: 'HbA1c', value: '6' },
+      ]);
+    });
+
+    it('should resolve coded blood group via value.display', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.BLOOD_GROUP, {
+            uuid: 'bg-uuid',
+            display: 'B POSITIVE',
+          }),
+        ]),
+      ];
+      const result = extractAdditionalMeasurements(encounters);
+      expect(result).toEqual([{ label: 'Blood Group', value: 'B POSITIVE' }]);
+    });
+
+    it('should handle raw numeric obs value (not stringified)', () => {
+      const encounters: VisitDetailsEncounter[] = [
+        {
+          uuid: 'enc-uuid',
+          display: 'encounter',
+          encounterDatetime: '2026-01-15T10:00:00.000+0000',
+          encounterType: { uuid: 'et-uuid', display: 'Vitals' },
+          encounterProviders: [],
+          obs: [
+            {
+              uuid: 'obs-uuid',
+              display: 'FBS: 89',
+              concept: { uuid: CONCEPT_UUIDS.FBS, display: 'FBS' },
+              value: 89 as unknown as string,
+            },
+          ],
+        },
+      ];
+      const result = extractAdditionalMeasurements(encounters);
+      expect(result).toEqual([
+        { label: 'Fasting Blood Sugar (FBS) (mg/dl)', value: '89' },
+      ]);
+    });
+
+    it('should skip obs with null value', () => {
+      const encounters: VisitDetailsEncounter[] = [
+        {
+          uuid: 'enc-uuid',
+          display: 'encounter',
+          encounterDatetime: '2026-01-15T10:00:00.000+0000',
+          encounterType: { uuid: 'et-uuid', display: 'Vitals' },
+          encounterProviders: [],
+          obs: [
+            {
+              uuid: 'obs-uuid',
+              display: 'FBS',
+              concept: { uuid: CONCEPT_UUIDS.FBS, display: 'FBS' },
+              value: null as unknown as string,
+            },
+          ],
+        },
+      ];
+      expect(extractAdditionalMeasurements(encounters)).toEqual([]);
+    });
+
+    it('should skip obs whose object value lacks a display field', () => {
+      const encounters: VisitDetailsEncounter[] = [
+        {
+          uuid: 'enc-uuid',
+          display: 'encounter',
+          encounterDatetime: '2026-01-15T10:00:00.000+0000',
+          encounterType: { uuid: 'et-uuid', display: 'Vitals' },
+          encounterProviders: [],
+          obs: [
+            {
+              uuid: 'obs-uuid',
+              display: 'BG',
+              concept: {
+                uuid: CONCEPT_UUIDS.BLOOD_GROUP,
+                display: 'Blood Group',
+              },
+              value: { uuid: 'bg-uuid' } as unknown as string,
+            },
+          ],
+        },
+      ];
+      expect(extractAdditionalMeasurements(encounters)).toEqual([]);
+    });
+
+    it('should treat object value with undefined display as missing', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.BLOOD_GROUP, {
+            uuid: 'bg-uuid',
+            display: undefined as unknown as string,
+          }),
+        ]),
+      ];
+      expect(extractAdditionalMeasurements(encounters)).toEqual([]);
+    });
+  });
+
+  describe('transformVisitSummaryResponse — additionalMeasurements', () => {
+    it('should populate vitals.additionalMeasurements from encounter obs', () => {
+      const response = makeResponse({
+        encounters: [
+          makeEncounter([
+            makeObs(CONCEPT_UUIDS.FBS, '89'),
+            makeObs(CONCEPT_UUIDS.HBA1C, '6'),
+            makeObs(CONCEPT_UUIDS.BLOOD_GROUP, {
+              uuid: 'bg-uuid',
+              display: 'B POSITIVE',
+            }),
+          ]),
+        ],
+      });
+      const result = transformVisitSummaryResponse(response);
+      expect(result.vitals.additionalMeasurements).toEqual([
+        { label: 'Fasting Blood Sugar (FBS) (mg/dl)', value: '89' },
+        { label: 'HbA1c', value: '6' },
+        { label: 'Blood Group', value: 'B POSITIVE' },
+      ]);
+    });
+
+    it('should default vitals.additionalMeasurements to empty array', () => {
+      const result = transformVisitSummaryResponse(makeResponse());
+      expect(result.vitals.additionalMeasurements).toEqual([]);
+    });
+  });
+
+  describe('CONCEPT_UUIDS — additional measurements', () => {
+    it('should expose UUIDs for all additional measurement concepts', () => {
+      expect(CONCEPT_UUIDS.FBS).toBeDefined();
+      expect(CONCEPT_UUIDS.PPBS).toBeDefined();
+      expect(CONCEPT_UUIDS.RBS).toBeDefined();
+      expect(CONCEPT_UUIDS.WAIST_CIRCUMFERENCE).toBeDefined();
+      expect(CONCEPT_UUIDS.HIP_CIRCUMFERENCE).toBeDefined();
+      expect(CONCEPT_UUIDS.WAIST_TO_HIP_RATIO).toBeDefined();
+      expect(CONCEPT_UUIDS.OGTT).toBeDefined();
+      expect(CONCEPT_UUIDS.HBA1C).toBeDefined();
+      expect(CONCEPT_UUIDS.BLOOD_GROUP).toBeDefined();
     });
   });
 });

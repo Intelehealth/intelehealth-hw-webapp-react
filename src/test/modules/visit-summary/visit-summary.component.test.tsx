@@ -282,6 +282,43 @@ describe('VisitSummaryComponent', () => {
         expect(screen.getByText('Details')).toBeInTheDocument();
       });
     });
+
+    it('should not render Additional Measurements heading when none present', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Details')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Additional Measurements')).not.toBeInTheDocument();
+    });
+
+    it('should render Additional Measurements when provided', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        vitals: {
+          ...originalData[0].vitals,
+          additionalMeasurements: [
+            { label: 'Fasting Blood Sugar (FBS) (mg/dl)', value: '89' },
+            { label: 'HbA1c', value: '6' },
+            { label: 'Blood Group', value: 'B POSITIVE' },
+          ],
+        },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getAllByText('Additional Measurements').length).toBeGreaterThan(0);
+        expect(
+          screen.getAllByText('Fasting Blood Sugar (FBS) (mg/dl)').length
+        ).toBeGreaterThan(0);
+        expect(screen.getAllByText('89').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('HbA1c').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
   });
 
   describe('CheckupReasonSection', () => {
