@@ -2039,7 +2039,7 @@ describe('VisitReason', () => {
         item: [],
       };
 
-      mockStepperGetAnswers.mockReturnValue(undefined);
+      mockStepperGetAnswers.mockReturnValue(undefined as unknown as object);
       mockTransformFhirToAyu.mockReturnValue(mockSchema);
       defaultVisitReasons = createDefaultVisitReasons({
         selectedReasons: ['Fever'],
