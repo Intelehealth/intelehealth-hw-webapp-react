@@ -20,6 +20,7 @@ import {
   EXT_URL_JOB_AID_TYPE,
   EXT_URL_LANGUGAE_TEXT,
   EXT_URL_PE_CATEGORY_LABEL,
+  PE_OPTION_LANG_MARKER_PICTURE_TAKEN,
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
@@ -324,11 +325,11 @@ function findWrappedInnerChoice(q: FhirItem): FhirItem | null {
 function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
   if (child.type !== 'attachment') return null;
   const cameraCode = child.enableWhen?.[0]?.answerCoding?.code ?? child.linkId;
-  const langExt = child.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
-  const cameraText =
-    langExt?.valueString && langExt.valueString !== '%'
-      ? langExt.valueString
-      : (child.text ?? 'Take a picture');
+  /* The stored `display` is what the stepper's answered-card view reads back
+   * for a committed camera answer. It must read "Picture Taken" — the tile
+   * itself renders a hardcoded "Take a Picture" label and ignores this
+   * field. The raw FHIR `language` extension carries marker strings like
+   * "[picture taken]" that must never reach the UI. */
   const isExclusive =
     child.extension?.find(e => e.url === EXT_URL_IS_EXCLUSIVE_OPTION)
       ?.valueString === 'true';
@@ -339,7 +340,7 @@ function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
     extension.push({ url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' });
   }
   return {
-    valueCoding: { code: cameraCode, display: cameraText },
+    valueCoding: { code: cameraCode, display: 'Picture Taken' },
     extension,
   };
 }
@@ -366,13 +367,27 @@ function buildPhysExamQuestion(
     e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
   );
 
-  const answerOption: AyuAnswerOption[] = (q.answerOption ?? []).map(opt => ({
-    valueString: opt.valueString,
-    valueInteger: opt.valueInteger,
-    valueDate: opt.valueDate,
-    valueCoding: opt.valueCoding,
-    extension: opt.extension,
-  }));
+  /* Drop "[picture taken]" marker answerOptions. They are not user-facing
+   * choices — they are a proxy for the attachment child below, which we
+   * surface separately as the camera tile. Without this, the option renders
+   * as a duplicate "Take a picture" tile next to the real camera tile.
+   *
+   * Filter is keyed on the `language` extension marker (not on attachment
+   * trigger codes) because Yes/No-style questions enable an attachment via
+   * the Yes/No codes themselves — those are real choices, not markers, and
+   * must be preserved. */
+  const answerOption: AyuAnswerOption[] = (q.answerOption ?? [])
+    .filter(opt => {
+      const langExt = opt.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
+      return langExt?.valueString !== PE_OPTION_LANG_MARKER_PICTURE_TAKEN;
+    })
+    .map(opt => ({
+      valueString: opt.valueString,
+      valueInteger: opt.valueInteger,
+      valueDate: opt.valueDate,
+      valueCoding: opt.valueCoding,
+      extension: opt.extension,
+    }));
 
   for (const child of q.item ?? []) {
     const cameraOpt = buildPhysExamCameraOption(child);

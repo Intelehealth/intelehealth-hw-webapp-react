@@ -11,9 +11,14 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockUseOpenVisits = vi.fn();
+const mockUsePriorityVisits = vi.fn();
 
 vi.mock('../../../hooks/useOpenVisits', () => ({
   useOpenVisits: () => mockUseOpenVisits(),
+}));
+
+vi.mock('../../../hooks/usePriorityVisits', () => ({
+  usePriorityVisits: () => mockUsePriorityVisits(),
 }));
 
 const mockData = [
@@ -47,11 +52,31 @@ const mockData = [
   },
 ];
 
+const mockPriorityData = [
+  {
+    visitUuid: 'pv-1',
+    patientName: 'Anita Desai',
+    gender: 'F',
+    age: 42,
+    visitCreatedDate: '2025-04-20',
+    clinicName: 'TM Clinic 2',
+    uploadTimestamp: '1 hr ago',
+    isPriority: true,
+  },
+];
+
 const defaultState = {
   data: mockData,
   loading: false,
   error: null,
   totalCount: 3,
+};
+
+const defaultPriorityState = {
+  data: mockPriorityData,
+  loading: false,
+  error: null,
+  totalCount: 1,
 };
 
 const renderComponent = (props = {}) =>
@@ -65,6 +90,7 @@ describe('OpenVisitsComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseOpenVisits.mockReturnValue(defaultState);
+    mockUsePriorityVisits.mockReturnValue(defaultPriorityState);
   });
 
   describe('Initial render', () => {
@@ -342,39 +368,56 @@ describe('OpenVisitsComponent', () => {
       expect(openTab).toHaveClass('text-indigo-600');
     });
 
-    it('clicking Priority Visits filters to only priority rows', () => {
+    it('Priority Visits tab displays rows from the dedicated priority endpoint', () => {
       renderComponent();
       const priorityTab = screen
         .getByText('Priority Visits')
         .closest('button')!;
       fireEvent.click(priorityTab);
-      // Anita is the only priority visit in mockData
+      // Only Anita is present in the priority-visits payload; rows that exist
+      // in the open-visits payload must not bleed through.
       expect(screen.getAllByText('Anita Desai').length).toBeGreaterThan(0);
       expect(screen.queryByText('Ravi Kumar')).not.toBeInTheDocument();
       expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
     });
 
-    it('shows "No priority visits found." when Priority tab has no rows', () => {
-      mockUseOpenVisits.mockReturnValue({
-        data: [
-          {
-            visitUuid: 'ov-only',
-            patientName: 'Plain Patient',
-            gender: 'M',
-            age: 40,
-            visitCreatedDate: '2025-04-21',
-            clinicName: 'TM Clinic 1',
-            uploadTimestamp: '5 min ago',
-          },
-        ],
+    it('shows "No priority visits found." when the priority endpoint returns no rows', () => {
+      mockUsePriorityVisits.mockReturnValue({
+        data: [],
         loading: false,
         error: null,
-        totalCount: 1,
+        totalCount: 0,
       });
       renderComponent();
       fireEvent.click(screen.getByText('Priority Visits').closest('button')!);
       expect(
         screen.getByText('No priority visits found.')
+      ).toBeInTheDocument();
+    });
+
+    it('Priority tab surfaces loading state from the priority hook', () => {
+      mockUsePriorityVisits.mockReturnValue({
+        data: [],
+        loading: true,
+        error: null,
+        totalCount: 0,
+      });
+      renderComponent();
+      fireEvent.click(screen.getByText('Priority Visits').closest('button')!);
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+
+    it('Priority tab surfaces error from the priority hook', () => {
+      mockUsePriorityVisits.mockReturnValue({
+        data: [],
+        loading: false,
+        error: 'Failed to fetch priority visits',
+        totalCount: 0,
+      });
+      renderComponent();
+      fireEvent.click(screen.getByText('Priority Visits').closest('button')!);
+      expect(
+        screen.getByText('Failed to fetch priority visits')
       ).toBeInTheDocument();
     });
 

@@ -6,6 +6,10 @@ vi.mock('../../../hooks/useOpenVisits', () => ({
   useOpenVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
 }));
 
+vi.mock('../../../hooks/usePriorityVisits', () => ({
+  usePriorityVisits: () => ({ data: [], loading: false, error: null, totalCount: 0 }),
+}));
+
 import OpenVisitsPage from '../../../pages/open-visits/open-visits.page';
 
 describe('OpenVisitsPage', () => {

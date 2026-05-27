@@ -11,9 +11,14 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockUseOpenVisits = vi.fn();
+const mockUsePriorityVisits = vi.fn();
 
 vi.mock('../hooks/useOpenVisits', () => ({
   useOpenVisits: () => mockUseOpenVisits(),
+}));
+
+vi.mock('../hooks/usePriorityVisits', () => ({
+  usePriorityVisits: () => mockUsePriorityVisits(),
 }));
 
 const mockData = [
@@ -52,6 +57,12 @@ describe('OpenVisitsComponent', () => {
       loading: false,
       error: null,
       totalCount: 2,
+    });
+    mockUsePriorityVisits.mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+      totalCount: 0,
     });
   });
 

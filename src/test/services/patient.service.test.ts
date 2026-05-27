@@ -162,6 +162,34 @@ describe('patientService', () => {
     });
   });
 
+  describe('getPriorityVisits', () => {
+    it('calls the correct URL and returns visits', async () => {
+      const mockVisits = [
+        { visitUuid: 'pv-1', patientName: 'Anita Desai', gender: 'F', visitCreatedDate: '2025-04-20', clinicName: 'TC 2', uploadTimestamp: '1h', isPriority: true },
+      ];
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: mockVisits, totalCount: 1, pageNo: 0, pageSize: 50 } } });
+
+      const result = await patientService.getPriorityVisits('hw-123');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=priority-visits&page=0&limit=50', undefined);
+      expect(result).toEqual({ visits: mockVisits, totalCount: 1 });
+    });
+
+    it('passes custom page and limit', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 4, pageSize: 25 } } });
+
+      await patientService.getPriorityVisits('hw-321', 4, 25);
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-321?type=priority-visits&page=4&limit=25', undefined);
+    });
+
+    it('propagates errors from the API', async () => {
+      h.mockGet.mockRejectedValue(new Error('Server error'));
+
+      await expect(patientService.getPriorityVisits('hw-123')).rejects.toThrow('Server error');
+    });
+  });
+
   describe('getPrescriptionsPending', () => {
     it('calls the correct URL and returns visits', async () => {
       const mockVisits = [
