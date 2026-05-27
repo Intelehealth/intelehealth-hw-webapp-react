@@ -203,6 +203,11 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
   const leftItems = items.slice(0, 4);
   const rightItems = items.slice(4);
 
+  const additional = vitals.additionalMeasurements ?? [];
+  const addMid = Math.ceil(additional.length / 2);
+  const addLeft = additional.slice(0, addMid);
+  const addRight = additional.slice(addMid);
+
   return (
     <>
       <div className="md:hidden">
@@ -220,6 +225,28 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
           </div>
         ))}
       </div>
+
+      {additional.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-gray-500 mb-2">
+            Additional Measurements
+          </p>
+          <div className="md:hidden">
+            {additional.map(({ label, value }) => (
+              <LabelValueRow key={label} label={label} value={value} />
+            ))}
+          </div>
+          <div className="hidden md:grid grid-cols-2 gap-x-10">
+            {[addLeft, addRight].map((column, colIdx) => (
+              <div key={colIdx}>
+                {column.map(({ label, value }) => (
+                  <LabelValueRow key={label} label={label} value={value} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 };

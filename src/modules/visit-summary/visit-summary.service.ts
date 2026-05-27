@@ -33,6 +33,57 @@ interface CloseVisitPayload {
   stopDatetime: string;
 }
 
+const ADDITIONAL_MEASUREMENT_CONCEPTS: { uuid: string; label: string }[] = [
+  { uuid: CONCEPT_UUIDS.FBS, label: 'Fasting Blood Sugar (FBS) (mg/dl)' },
+  {
+    uuid: CONCEPT_UUIDS.PPBS,
+    label: 'Post Prandial Blood Sugar (PPBS) (mg/dl)',
+  },
+  { uuid: CONCEPT_UUIDS.RBS, label: 'RBS (mg/dl)' },
+  {
+    uuid: CONCEPT_UUIDS.WAIST_CIRCUMFERENCE,
+    label: 'Waist Circumference (cm)',
+  },
+  { uuid: CONCEPT_UUIDS.HIP_CIRCUMFERENCE, label: 'Hip Circumference (cm)' },
+  { uuid: CONCEPT_UUIDS.WAIST_TO_HIP_RATIO, label: 'Waist to Hip Ratio (WHR)' },
+  {
+    uuid: CONCEPT_UUIDS.OGTT,
+    label: '2 Hour Post Load Glucose Test (OGTT) (mg/dl)',
+  },
+  { uuid: CONCEPT_UUIDS.HBA1C, label: 'HbA1c' },
+  { uuid: CONCEPT_UUIDS.BLOOD_GROUP, label: 'Blood Group' },
+];
+
+function getObsRawDisplay(
+  encounters: VisitDetailsEncounter[],
+  conceptUuid: string
+): string | null {
+  for (const encounter of encounters) {
+    for (const obs of encounter.obs) {
+      if (obs.concept?.uuid === conceptUuid) {
+        const v = obs.value;
+        if (v == null) return null;
+        if (typeof v === 'number') return String(v);
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object' && 'display' in v) {
+          return (v as { display?: string }).display ?? null;
+        }
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+export function extractAdditionalMeasurements(
+  encounters: VisitDetailsEncounter[]
+): { label: string; value: string }[] {
+  return ADDITIONAL_MEASUREMENT_CONCEPTS.map(({ uuid, label }) => {
+    const raw = getObsRawDisplay(encounters, uuid);
+    return { label, value: raw ?? 'No information' };
+  }).filter(item => item.value !== 'No information');
+}
+
 export function getObsNumericValue(
   encounters: VisitDetailsEncounter[],
   conceptUuid: string
@@ -419,6 +470,7 @@ export function transformVisitSummaryResponse(
         unit: 'breaths/min',
         ...(respiratoryRate === null ? { note: 'No information' } : {}),
       },
+      additionalMeasurements: extractAdditionalMeasurements(encounters),
     },
     checkupReason: chiefComplaintData,
     physicalExamination,
