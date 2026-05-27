@@ -604,7 +604,6 @@ describe('appointmentService', () => {
       const config = { headers: {} as Record<string, string> };
       const result = interceptorHolder.fn!(config);
       expect(result.headers.Authorization).toBe('Bearer my-token');
-      expect(result.headers['Cache-Control']).toBe('no-cache');
       tokenHolder.value = null;
     });
 
@@ -613,7 +612,14 @@ describe('appointmentService', () => {
       const config = { headers: {} as Record<string, string> };
       const result = interceptorHolder.fn!(config);
       expect(result.headers.Authorization).toBeUndefined();
-      expect(result.headers['Cache-Control']).toBe('no-cache');
+    });
+
+    it('does not set Cache-Control header to avoid CORS preflight rejection', () => {
+      tokenHolder.value = 'my-token';
+      const config = { headers: {} as Record<string, string> };
+      const result = interceptorHolder.fn!(config);
+      expect(result.headers['Cache-Control']).toBeUndefined();
+      tokenHolder.value = null;
     });
   });
 
