@@ -86,6 +86,14 @@ vi.mock('../../../../../../modules/ayu/assets/yes.svg', () => ({
   default: 'yes-icon.svg',
 }));
 
+vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../../modules/ayu/utils/visit-summary.util')>();
+  return {
+    ...actual,
+    buildVisitSummary: vi.fn(actual.buildVisitSummary),
+  };
+});
+
 import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
 import { resolveAyuComponent, isStrictAssociatedSymptoms } from '../../../../../../modules/ayu/pages/decision-matrix';
 import {
@@ -93,6 +101,7 @@ import {
   isStrictAssociatedSymptoms as isStrictAssociatedSymptomsLogic,
 } from '../../../../../../modules/ayu-library/logic/decision-matrix';
 import { showToast } from '../../../../../../services/toast';
+import { buildVisitSummary } from '../../../../../../modules/ayu/utils/visit-summary.util';
 const _mockUseFHIRStepper = vi.mocked(useFHIRStepper);
 
 const mockValidateAllQuestions = vi.fn(() => true);
@@ -110,6 +119,7 @@ const mockIsStrictAssociatedSymptoms = vi.mocked(isStrictAssociatedSymptoms);
 const mockResolveAyuComponentLogic = vi.mocked(resolveAyuComponentLogic);
 const mockIsStrictAssociatedSymptomsLogic = vi.mocked(isStrictAssociatedSymptomsLogic);
 const mockShowToast = vi.mocked(showToast);
+const mockBuildVisitSummary = vi.mocked(buildVisitSummary);
 
 describe('AyuStepperContainer', () => {
   const mockOnComplete = vi.fn();
@@ -4597,6 +4607,329 @@ describe('AyuStepperContainer', () => {
       const labelEls = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
       const labelTexts = [...labelEls].map(el => el.textContent);
       expect(labelTexts).not.toContain('child');
+    });
+  });
+
+  describe('Auto-advance backfill effect (lines 367, 373)', () => {
+    it('line 367: should skip undefined items in topLevelItems during backfill', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+        { linkId: 'q2', text: 'Q2', type: 'string' },
+      ];
+
+      // First render at index 0 with a short topLevelItems array (only 1 item)
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 2,
+        answers: { q1: 'val1' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Auto-advance to index 3 with topLevelItems only having 2 items.
+      // The backfill loops from prev=0 to currentIndex=3 (i=0,1,2).
+      // topLevelItems[2] is undefined — triggers `if (!q) continue;` at line 367.
+      // The render slice(0, 4) on a 2-item array just renders [q1, q2] safely.
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 3,
+        total: 2,
+        answers: { q1: 'val1', q2: 'val2' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Should not throw — the undefined entry was safely skipped
+      expect(screen.getByTestId('question-loader-0')).toBeInTheDocument();
+    });
+
+    it('line 373: should not duplicate submittedQuestions when backfilling already-submitted question', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+        { linkId: 'q2', text: 'Q2', type: 'string' },
+        { linkId: 'q3', text: 'Q3', type: 'string' },
+      ];
+
+      // Start at index 0
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 3,
+        answers: { q1: 'val1' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Submit q1 normally
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      // Auto-advance to index 2 with q1 already submitted
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[2],
+        currentIndex: 2,
+        total: 3,
+        answers: { q1: 'val1', q2: 'val2', q3: 'val3' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Should not throw, backfill loops over q1 (already submitted — early return)
+      // and q2 (newly submitted)
+      expect(screen.getByTestId('question-loader-0')).toBeInTheDocument();
+    });
+  });
+
+  describe('getRowLabel fallback to display extension (lines 54-56)', () => {
+    it('should use display extension when item.text is empty', () => {
+      const child: AyuQuestion = {
+        linkId: 'child1',
+        type: 'string',
+        text: '', // empty text — triggers fallback to extension
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/display',
+            valueString: 'Display Label',
+          },
+        ],
+      };
+      const parent: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'A', display: 'Option A' } }],
+        item: [child],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'A', child1: 'child-answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [parent, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([parent, { linkId: 'q2', text: 'Next', type: 'string' }])}
+          initialAnswers={{ q1: 'A', child1: 'child-answer' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // getRowLabel returns 'Display Label' from extension (text is empty)
+      // The component renders label and value as separate elements
+      expect(screen.getByText('Display Label')).toBeInTheDocument();
+      expect(screen.getByText('child-answer')).toBeInTheDocument();
+    });
+  });
+
+  describe('formatAnswerValue array with non-string elements (lines 69, 71)', () => {
+    it('should return null when all array elements are non-string', () => {
+      const parent: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Multi-select',
+        type: 'choice',
+        repeats: true,
+        answerOption: [{ valueCoding: { code: 'A', display: 'Option A' } }],
+        item: [
+          {
+            linkId: 'child1',
+            type: 'choice',
+            text: 'Child',
+            repeats: true,
+            answerOption: [{ valueCoding: { code: 'X', display: 'X opt' } }],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        // Child answer is array with non-string elements (numbers)
+        answers: { q1: ['A'], child1: [42, 99] as unknown as AyuAnswerValue },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [parent, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([parent, { linkId: 'q2', text: 'Next', type: 'string' }])}
+          initialAnswers={{ q1: ['A'], child1: [42, 99] as unknown as AyuAnswerValue }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // The child with all non-string array elements should not render a value row
+      // (formatAnswerValue returns null for values.length === 0)
+      expect(screen.queryByText('42')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('collectAnsweredRows enableWhen continue branch (line 110)', () => {
+    it('should skip children where enableWhen evaluates to false', () => {
+      const parent: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'A', display: 'Option A' } },
+          { valueCoding: { code: 'B', display: 'Option B' } },
+        ],
+        item: [
+          {
+            linkId: 'visible-child',
+            type: 'string',
+            text: 'Visible Child',
+            enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'A' } }],
+          },
+          {
+            linkId: 'hidden-child',
+            type: 'string',
+            text: 'Hidden Child',
+            enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'B' } }],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        // Parent answered 'A' so hidden-child's enableWhen (code 'B') is false
+        answers: { q1: 'A', 'visible-child': 'visible-value', 'hidden-child': 'hidden-value' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [parent, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([parent, { linkId: 'q2', text: 'Next', type: 'string' }])}
+          initialAnswers={{ q1: 'A', 'visible-child': 'visible-value', 'hidden-child': 'hidden-value' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Visible child should render (label and value are in separate elements)
+      expect(screen.getByText('Visible Child')).toBeInTheDocument();
+      expect(screen.getByText('visible-value')).toBeInTheDocument();
+      // Hidden child should be skipped (enableWhen evaluates to false)
+      expect(screen.queryByText('hidden-value')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('AyuAnsweredDisplay labelValue without label (line 188)', () => {
+    it('should render just the value when labelValue item has empty label', () => {
+      const question: AyuQuestion = {
+        linkId: 'as1',
+        text: 'Associated symptoms',
+        type: 'choice',
+        repeats: true,
+      };
+
+      // Mock resolveAyuComponent to identify this as associated symptoms
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockResolveAyuComponentLogic.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+      mockIsStrictAssociatedSymptomsLogic.mockReturnValue(false);
+
+      // Mock buildVisitSummary to return a labelValue item with empty label
+      mockBuildVisitSummary.mockReturnValue([
+        {
+          title: 'Associated symptoms',
+          items: [
+            { type: 'labelValue' as const, label: '', value: 'Fever' },
+            { type: 'labelValue' as const, label: 'Duration', value: '3 days' },
+          ],
+        },
+      ]);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { as1: ['fever'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ as1: ['fever'] }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Line 188: empty label renders just the value without colon separator
+      expect(screen.getByText('Fever')).toBeInTheDocument();
+      // Non-empty label renders "label: value"
+      expect(screen.getByText('Duration: 3 days')).toBeInTheDocument();
     });
   });
 });

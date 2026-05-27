@@ -7,9 +7,9 @@ import type {
 } from '../../../assets/data/visit-summary.data';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
+import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
-import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconVisitReason from '../../../assets/icons/visit-reason.svg';
 import iconVitals from '../../../assets/icons/vitals.svg';
 import type { DropdownOption } from '../../../components/common';
@@ -29,6 +29,7 @@ import {
   addPendingDocument,
   clearPendingDocuments,
   getLatestEncounterUuid,
+  getLatestVisitUuid,
   uploadAllAdditionalDocuments,
 } from '../services/obs.service';
 import { bulkMarkSynced } from '../services/temp-storage.service';
@@ -245,6 +246,8 @@ const VisitSummaryPage = () => {
   }, [ayuList]);
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploaded, setIsUploaded] = useState(false);
+  const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [speciality, setSpeciality] = useState('General Physician');
   const [priorityVisit, setPriorityVisit] = useState(false);
@@ -349,7 +352,6 @@ const VisitSummaryPage = () => {
       });
 
       const response = await uploadVisit(payload);
-
       if (additionalDocuments.length > 0) {
         let encounterUuid: string | undefined;
 
@@ -382,8 +384,10 @@ const VisitSummaryPage = () => {
       storage.remove(PATIENT_AGE_KEY);
       storage.remove(PATIENT_GENDER_KEY);
 
+      const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
+      setUploadedVisitUuid(visitUuid);
+      setIsUploaded(true);
       showToast('Success', 'Visit uploaded successfully', 'success');
-      navigate('/dashboard');
     } catch (error) {
       console.error('Failed to upload visit:', error);
       showToast('Error', 'Failed to upload visit. Please try again.', 'error');
@@ -639,22 +643,40 @@ const VisitSummaryPage = () => {
       </div>
 
       <div className="flex justify-between gap-3 mt-6 px-4 md:px-0 pb-4">
-        <button
-          type="button"
-          onClick={handleBackToEdit}
-          className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Back to Edit
-        </button>
-        <button
-          type="button"
-          onClick={confirmAndUpload}
-          disabled={isUploading}
-          className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: PRIMARY_COLOR }}
-        >
-          {isUploading ? 'Uploading...' : 'Upload Visit'}
-        </button>
+        {!isUploaded && (
+          <>
+            <button
+              type="button"
+              onClick={handleBackToEdit}
+              className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Back to Edit
+            </button>
+            <button
+              type="button"
+              onClick={confirmAndUpload}
+              disabled={isUploading}
+              className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: PRIMARY_COLOR }}
+            >
+              {isUploading ? 'Uploading...' : 'Upload Visit'}
+            </button>
+          </>
+        )}
+        {isUploaded && (
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/appointment-schedule/${uploadedVisitUuid}`, {
+                state: { speciality },
+              })
+            }
+            className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90"
+            style={{ backgroundColor: PRIMARY_COLOR }}
+          >
+            Schedule Appointment
+          </button>
+        )}
       </div>
 
       {showConfirm && (

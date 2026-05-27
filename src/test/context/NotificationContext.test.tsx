@@ -818,4 +818,148 @@ describe('NotificationContext', () => {
     // Should still clear user token despite provider error
     expect(mockClearFCMToken).toHaveBeenCalledWith('user-uuid-123');
   });
+
+  it('should detect type "followup" from title when no explicit type field', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: { title: 'Follow-up reminder', patientName: 'Test' },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const toastEl = mockToast.mock.calls[0][0];
+    expect(toastEl.props.title).toBe('Follow-up Scheduled');
+  });
+
+  it('should detect type "appointment" from title when no explicit type field', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: { title: 'New Appointment scheduled', patientName: 'Test' },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const toastEl = mockToast.mock.calls[0][0];
+    expect(toastEl.props.title).toBe('Appointment Update');
+  });
+
+  it('should handle showToast when pushData has no nested data (uses pushData directly)', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    // The onMessageReceived in the useEffect passes payload?.data to handlePush
+    // handlePush calls showToast(pushData)
+    // In showToast: const data = pushData?.data || pushData || {}
+    // When pushData is a flat object with no nested .data, it uses pushData itself
+    act(() => {
+      onMessageCallback({ data: { patientName: 'DirectPatient', drName: 'Dr. Direct' } });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const msg = mockToast.mock.calls[0][0].props.message;
+    expect(msg).toContain('DirectPatient');
+  });
+
+  it('should not append date line when followupDatetime has empty date part and no time', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    act(() => {
+      onMessageCallback({
+        data: {
+          type: 'followup',
+          patientFirstName: 'Empty',
+          drName: 'Dr. Test',
+          followupDatetime: ',',
+        },
+      });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const msg: string = mockToast.mock.calls[0][0].props.message;
+    // When datePart is empty string and no time, formattedDate is '' and time is undefined
+    // So `if (formattedDate || time)` is false, no date line is appended
+    expect(msg).not.toContain('\n');
+  });
+
+  it('should use fallback "{}" when storage.getUser() returns null (line 55 || branch)', async () => {
+    const storageModule = await import('../../utils/storage');
+    const origGetUser = storageModule.storage.getUser;
+    (storageModule.storage as any).getUser = () => null;
+
+    mockRequestPermission.mockClear();
+    mockRegisterFCMToken.mockClear();
+
+    renderHook(() => useNotificationContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockInitialize).toHaveBeenCalled();
+    });
+
+    // requestPermission is called but getUUID returns undefined because JSON.parse('{}')?.uuid is undefined
+    // so the early return `if (!fcmToken || !uuid) return;` fires
+    await waitFor(() => {
+      expect(mockRequestPermission).toHaveBeenCalled();
+    });
+    expect(mockRegisterFCMToken).not.toHaveBeenCalled();
+
+    // Restore
+    (storageModule.storage as any).getUser = origGetUser;
+  });
+
+  it('should handle showToast with pushData where pushData.data is falsy and pushData is used (covers line 126 middle branch)', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    mockToast.mockClear();
+    // pushData will be { type: 'prescription' } - no .data property
+    // so pushData?.data is undefined (falsy), falls to pushData (truthy)
+    act(() => {
+      onMessageCallback({ data: { type: 'prescription' } });
+    });
+
+    expect(mockToast).toHaveBeenCalled();
+    const toastEl = mockToast.mock.calls[0][0];
+    expect(toastEl.props.title).toBe('Prescription Ready');
+  });
 });

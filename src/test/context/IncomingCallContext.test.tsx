@@ -178,24 +178,23 @@ describe('IncomingCallContext', () => {
     });
   });
 
-  it('renders floating PiP when active call is minimized', () => {
+  it('does not render the PiP while the call is active but not minimized', () => {
+    let ctx!: ReturnType<typeof useIncomingCallContext>;
+    const Capture = () => {
+      ctx = useIncomingCallContext();
+      return null;
+    };
     render(
       <IncomingCallProvider>
-        <button
-          onClick={() => {
-            (
-              window as unknown as { triggerIncomingCall: () => void }
-            ).triggerIncomingCall();
-          }}
-        >
-          trigger
-        </button>
+        <Capture />
       </IncomingCallProvider>
     );
-    fireEvent.click(screen.getByText('trigger'));
-    fireEvent.click(screen.getByLabelText('Close incoming call'));
-    // PiP not visible after decline
-    expect(screen.queryByLabelText('Maximize call')).not.toBeInTheDocument();
+    act(() => ctx.showIncomingCall(payload));
+    act(() => ctx.acceptIncomingCall());
+    // Active but maximized: no floating PiP yet.
+    expect(screen.queryByTestId('call-pip')).not.toBeInTheDocument();
+    act(() => ctx.minimizeCall());
+    expect(screen.getByTestId('call-pip')).toBeInTheDocument();
   });
 
   it('renders maximize and end buttons in PiP', () => {

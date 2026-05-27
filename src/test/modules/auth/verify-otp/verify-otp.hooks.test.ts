@@ -1767,9 +1767,9 @@ describe('useVerifyOtp hook', () => {
   it('should handle verifyOtp with missing stateData values (lines 96-97 fallback)', async () => {
     // Use real timers for this test
     vi.useRealTimers();
-    
+
     const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
-    
+
     // Mock verifyOtp to succeed
     vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValue({
       success: true,
@@ -1783,18 +1783,18 @@ describe('useVerifyOtp hook', () => {
       type: 'username' as const,
       otpFor: 'login',
     };
-    
+
     const stateDataWithMissingValues = {
       value: undefined as any, // Missing value
       type: 'username' as const,
       otpFor: undefined as any, // Missing otpFor
     };
-    
+
     const { result, rerender } = renderHook(
       ({ stateData }) => useVerifyOtp(stateData),
       { initialProps: { stateData: validStateData } }
     );
-    
+
     // Set up requestOtp to succeed
     vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
       success: true,
@@ -1846,7 +1846,89 @@ describe('useVerifyOtp hook', () => {
 
     // Verify verifyOtp was NOT called because stateData.type access causes error
     expect(vi.mocked(requestOtpService.default.verifyOtp)).not.toHaveBeenCalled();
-    
+
+    vi.useFakeTimers();
+  }, 15000);
+
+  it('should cover || "" fallback on lines 101-102 when stateData value/otpFor become falsy between guard and usage', async () => {
+    // Use real timers for this test
+    vi.useRealTimers();
+
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    const showToast = await import('../../../../services/toast');
+
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      data: { userUuid: 'test-uuid-fallback' },
+    } as any);
+
+    vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValue({
+      success: true,
+      message: 'OTP verified successfully',
+    } as any);
+
+    // Use a getter-based object that returns truthy for the guard check
+    // but returns falsy (empty string) on subsequent property accesses.
+    // The guard checks !stateData?.value (first access) -> truthy
+    // Line 101 uses stateData?.value (second access) -> falsy -> triggers || ''
+    let valueCallCount = 0;
+    let otpForCallCount = 0;
+    const trickStateData = {
+      type: 'username' as const,
+      get value() {
+        valueCallCount++;
+        // First access (guard check): return truthy value
+        // Subsequent accesses (line 101): return empty string
+        return valueCallCount <= 1 ? 'testuser' : '';
+      },
+      get otpFor() {
+        otpForCallCount++;
+        // First access (guard check): return truthy value
+        // Subsequent accesses (line 102): return empty string
+        return otpForCallCount <= 1 ? 'login' : '';
+      },
+    };
+
+    const { result } = renderHook(() => useVerifyOtp(trickStateData as any));
+
+    // Wait for initial requestOtp to complete (from useEffect)
+    await waitFor(() => {
+      expect(result.current.userUuid).toBe('test-uuid-fallback');
+    }, { timeout: 3000 });
+
+    vi.mocked(showToast.showToast).mockClear();
+
+    // Fill in the OTP
+    act(() => { result.current.handleChange(0, '1'); });
+    act(() => { result.current.handleChange(1, '2'); });
+    act(() => { result.current.handleChange(2, '3'); });
+    act(() => { result.current.handleChange(3, '4'); });
+    act(() => { result.current.handleChange(4, '5'); });
+    act(() => { result.current.handleChange(5, '6'); });
+
+    await waitFor(() => {
+      expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
+    }, { timeout: 1000 });
+
+    // Reset the getter call counts so the next verifyOtp call has fresh counters
+    valueCallCount = 0;
+    otpForCallCount = 0;
+
+    // Now call verifyOtp - the getters will return truthy on first access (guard)
+    // then falsy on second access (lines 101-102), triggering the || '' fallback
+    await act(async () => {
+      await result.current.verifyOtp();
+    });
+
+    // The payload should have '' for the value and verifyFor fields due to || '' fallback
+    expect(requestOtpService.default.verifyOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        otp: '123456',
+        username: '',      // stateData?.value was '' on line 101, so || '' gives ''
+        verifyFor: '',     // stateData?.otpFor was '' on line 102, so || '' gives ''
+      })
+    );
+
     vi.useFakeTimers();
   }, 15000);
 

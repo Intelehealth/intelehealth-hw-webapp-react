@@ -77,6 +77,15 @@ describe('useChangePassword', () => {
     expect(result.current.errors.currentPassword).toBeUndefined();
   });
 
+  it('does not mutate errors object when editing a field that has no error', () => {
+    const { result } = renderHook(() => useChangePassword());
+    // Initially there are no errors, so editing any field should leave errors unchanged
+    act(() => result.current.setNewPassword('SomePass'));
+    expect(result.current.errors).toEqual({});
+    act(() => result.current.setConfirmPassword('SomePass'));
+    expect(result.current.errors).toEqual({});
+  });
+
   it('handleGenerate fills newPassword and confirmPassword with the generated value', () => {
     const { result } = renderHook(() => useChangePassword());
     act(() => result.current.handleGenerate());
@@ -151,6 +160,63 @@ describe('useChangePassword', () => {
     expect(ok).toBe(false);
     expect(mockedToast).toHaveBeenCalledWith('Error', 'server boom', 'error');
   });
+
+  it('returns false and uses fallback message when API rejects with non-Axios error', async () => {
+    mockedService.changePassword.mockRejectedValue(new Error('network failure'));
+    const { result } = renderHook(() => useChangePassword());
+
+    act(() => {
+      result.current.setCurrentPassword('OldPass1');
+      result.current.setNewPassword('NewPass1');
+      result.current.setConfirmPassword('NewPass1');
+    });
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.handleSave();
+    });
+
+    expect(ok).toBe(false);
+    expect(result.current.isSaving).toBe(false);
+    expect(mockedToast).toHaveBeenCalledWith(
+      'Error',
+      'Failed to change password',
+      'error'
+    );
+  });
+
+  it('sets isSaving=true during API call and resets in finally block', async () => {
+    let resolveSave: (v: unknown) => void = () => {};
+    mockedService.changePassword.mockImplementation(
+      () => new Promise(r => { resolveSave = r; })
+    );
+    const { result } = renderHook(() => useChangePassword());
+
+    act(() => {
+      result.current.setCurrentPassword('OldPass1');
+      result.current.setNewPassword('NewPass1');
+      result.current.setConfirmPassword('NewPass1');
+    });
+
+    // Start the save without awaiting
+    let savePromise: Promise<boolean>;
+    act(() => {
+      savePromise = result.current.handleSave();
+    });
+
+    // isSaving should be true while waiting
+    expect(result.current.isSaving).toBe(true);
+
+    // Resolve the API call
+    await act(async () => {
+      resolveSave({});
+      await savePromise!;
+    });
+
+    // Finally block resets isSaving
+    expect(result.current.isSaving).toBe(false);
+  });
+
 });
 
 /* ---------------- useNotificationSettings ---------------- */

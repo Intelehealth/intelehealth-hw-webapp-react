@@ -92,6 +92,14 @@ describe('AyuRangeInput', () => {
       expect(sliders[0].value).toBe('25');
       expect(sliders[1].value).toBe('100');
     });
+
+    it('recognizes RangeAnswer with only high property (exercises right side of || at line 28)', () => {
+      render(<AyuRangeInput question={baseQuestion} value={{ high: 75 }} />);
+      const sliders = screen.getAllByRole('slider') as HTMLInputElement[];
+      // low defaults to min since it is not provided
+      expect(sliders[0].value).toBe('0');
+      expect(sliders[1].value).toBe('75');
+    });
   });
 
   describe('Interaction', () => {

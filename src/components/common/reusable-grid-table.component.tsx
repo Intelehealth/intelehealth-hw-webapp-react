@@ -57,7 +57,7 @@ export function ReusableGridTable<T>({
                   alt={
                     isActive && sortOrder === 'desc' ? 'sort-desc' : 'sort-asc'
                   }
-                  className={`${isActive && sortOrder ? 'opacity-100' : 'opacity-30'}`}
+                  className={`transition ${isActive && sortOrder ? 'opacity-100' : 'opacity-50'}`}
                 />
               )}
             </span>

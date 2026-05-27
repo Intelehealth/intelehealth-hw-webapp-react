@@ -696,6 +696,26 @@ describe('ProfileFormFields', () => {
     expect(screen.queryByText('Middle name error')).not.toBeInTheDocument();
   });
 
+  it('should display email error message when email has validation error', () => {
+    const errors = {
+      email: { message: 'Email is invalid' },
+    } as any;
+
+    render(
+      <ProfileFormFields
+        register={mockRegister}
+        errors={errors}
+        watch={mockWatch}
+        setValue={mockSetValue}
+        trigger={mockTrigger}
+        onPhotoModalOpen={mockOnPhotoModalOpen}
+        onCountryChange={mockOnCountryChange}
+      />
+    );
+
+    expect(screen.getByText('Email is invalid')).toBeInTheDocument();
+  });
+
   it('should use memoized age calculation', () => {
     mockWatch.mockImplementation((field?: string) => {
       if (field === 'dateOfBirth') return '1990-05-15';

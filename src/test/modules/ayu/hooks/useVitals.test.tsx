@@ -1075,6 +1075,92 @@ describe('useVitals', () => {
     });
   });
 
+  describe('BP truthy branch in onSubmit (line 407)', () => {
+    it('should format BP as systolic/diastolic when both values are set', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Set non-zero BP values that are truthy
+      const systolicInput = screen.getByTestId('systolic');
+      const diastolicInput = screen.getByTestId('diastolic');
+
+      act(() => {
+        fireEvent.change(systolicInput, { target: { value: '130' } });
+        fireEvent.change(diastolicInput, { target: { value: '85' } });
+      });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+      expect(bpItem.value).toBe('130/85');
+    });
+
+    it('should return null BP when systolic is set but diastolic is empty', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const hookResult = useVitals(mockOnNextQuestion);
+        const { register, onSubmit } = hookResult;
+
+        return (
+          <form>
+            <input {...register('bp_systolic')} data-testid="systolic" />
+            <input {...register('bp_diastolic')} data-testid="diastolic" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      const Wrapper = createWrapper();
+      render(<TestComponent />, { wrapper: Wrapper });
+
+      // Set only systolic value, diastolic stays empty
+      const systolicInput = screen.getByTestId('systolic');
+      act(() => {
+        fireEvent.change(systolicInput, { target: { value: '120' } });
+      });
+
+      const submitButton = screen.getByTestId('submit');
+      act(() => {
+        fireEvent.click(submitButton);
+      });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalled();
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
+      // Systolic is truthy but diastolic is empty string (falsy) → null
+      expect(bpItem.value).toBeNull();
+    });
+  });
+
   describe('Callback Stability', () => {
     it('should have stable onSubmit callback', () => {
       const { result, rerender } = renderHook(() => useVitals(mockOnNextQuestion), {
@@ -1823,6 +1909,146 @@ describe('useVitals', () => {
       const bpItem = modalConfig.items.find((item: any) => item.label === 'BP');
       expect(bpItem).toBeDefined();
       expect(bpItem.value).toBe('120/80');
+    });
+  });
+
+  describe('getCodedDisplay fallback (line 353)', () => {
+    it('should return uuid itself when no matching answer is found', async () => {
+      const codedConfig: VitalField[] = [
+        ...mockVitalsConfig,
+        {
+          uuid: 'bg-concept-uuid',
+          key: 'blood_group',
+          name: 'Blood Group',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+          datatype: 'Coded',
+        },
+      ];
+
+      // Return answers that don't include the saved UUID
+      mockFetchConceptAnswers.mockResolvedValue([
+        { uuid: 'uuid-a-pos', display: 'A POSITIVE' },
+      ]);
+
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: codedConfig },
+      } as any);
+
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const { register, onSubmit, getCodedAnswers } = useVitals(mockOnNextQuestion);
+        const answers = getCodedAnswers('blood_group');
+        return (
+          <form>
+            <select {...register('blood_group')} data-testid="blood-group" defaultValue="uuid-unknown">
+              <option value="uuid-unknown">Unknown</option>
+            </select>
+            <span data-testid="answer-count">{answers.length}</span>
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      render(<TestComponent />, { wrapper: createWrapper() });
+
+      // Wait for coded answers to load
+      await waitFor(() => {
+        expect(screen.getByTestId('answer-count').textContent).toBe('1');
+      });
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('submit'));
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const bgItem = modalConfig.items.find((item: any) => item.label === 'Blood Group');
+      // Since 'uuid-unknown' is not in answers, getCodedDisplay returns 'uuid-unknown'
+      expect(bgItem.value).toBe('uuid-unknown');
+    });
+  });
+
+  describe('onSubmit modal items coverage (lines 407-433)', () => {
+    it('should include all additional measurement items with null values when empty', () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const itemLabels = modalConfig.items.map((item: any) => item.label);
+
+      // Verify all items from lines 407-433 are present
+      expect(itemLabels).toContain('Fasting Blood Sugar (FBS) (mg/dl)');
+      expect(itemLabels).toContain('Post Prandial Blood Sugar (PPBS) (mg/dl)');
+      expect(itemLabels).toContain('RBS (mg/dl)');
+      expect(itemLabels).toContain('Waist Circumference (cm)');
+      expect(itemLabels).toContain('Hip Circumference (cm)');
+      expect(itemLabels).toContain('2 Hour Post Load Glucose Test (OGTT) (mg/dl)');
+      expect(itemLabels).toContain('HbA1c');
+
+      // All should be null since no values are set
+      const nullItems = modalConfig.items.filter((item: any) => item.value === null);
+      expect(nullItems.length).toBeGreaterThan(5);
+    });
+
+    it('should include filled values for additional measurement fields', async () => {
+      const mockShowVitalConfirmationModal = vi.fn();
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const TestComponent = () => {
+        const { register, onSubmit } = useVitals(mockOnNextQuestion);
+        return (
+          <form>
+            <input {...register('fbs_mg_per_dl')} data-testid="fbs" defaultValue="90" />
+            <input {...register('ppbs_mg_per_dl')} data-testid="ppbs" defaultValue="140" />
+            <input {...register('rbs_mg_per_dl')} data-testid="rbs" defaultValue="110" />
+            <input {...register('waist_circumference_cm')} data-testid="waist" defaultValue="80" />
+            <input {...register('hip_circumference_cm')} data-testid="hip" defaultValue="95" />
+            <input {...register('ogtt_mg_per_dl')} data-testid="ogtt" defaultValue="140" />
+            <input {...register('hba1c')} data-testid="hba1c" defaultValue="5.7" />
+            <button type="button" onClick={onSubmit} data-testid="submit">Submit</button>
+          </form>
+        );
+      };
+
+      render(<TestComponent />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('fbs')).toBeInTheDocument();
+      });
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('submit'));
+      });
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const fbsItem = modalConfig.items.find((item: any) => item.label === 'Fasting Blood Sugar (FBS) (mg/dl)');
+      expect(fbsItem.value).toBe('90');
+
+      const ppbsItem = modalConfig.items.find((item: any) => item.label === 'Post Prandial Blood Sugar (PPBS) (mg/dl)');
+      expect(ppbsItem.value).toBe('140');
+
+      const rbsItem = modalConfig.items.find((item: any) => item.label === 'RBS (mg/dl)');
+      expect(rbsItem.value).toBe('110');
     });
   });
 });

@@ -142,12 +142,14 @@ const mockUploadAllAdditionalDocuments = vi.fn().mockResolvedValue(undefined);
 const mockClearPendingDocuments = vi.fn();
 const mockAddPendingDocument = vi.fn();
 const mockGetLatestEncounterUuid = vi.fn().mockResolvedValue(undefined);
+const mockGetLatestVisitUuid = vi.fn().mockResolvedValue('mock-visit-uuid');
 
 vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   uploadAllAdditionalDocuments: (...args: any[]) => mockUploadAllAdditionalDocuments(...args),
   clearPendingDocuments: (...args: any[]) => mockClearPendingDocuments(...args),
   addPendingDocument: (...args: any[]) => mockAddPendingDocument(...args),
   getLatestEncounterUuid: (...args: any[]) => mockGetLatestEncounterUuid(...args),
+  getLatestVisitUuid: (...args: any[]) => mockGetLatestVisitUuid(...args),
 }));
 
 /* ── Mock icon imports ───────────────────────────────────────────────────── */
@@ -288,6 +290,7 @@ beforeEach(() => {
   mockUploadVisit.mockResolvedValue(undefined);
   mockUseConfig.mockReturnValue({ config: defaultMockConfig });
   mockUploadAllAdditionalDocuments.mockResolvedValue(undefined);
+  mockGetLatestVisitUuid.mockResolvedValue('mock-visit-uuid');
 });
 
 describe('VisitSummaryPage', () => {
@@ -404,8 +407,37 @@ describe('VisitSummaryPage', () => {
         'Visit uploaded successfully',
         'success'
       );
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+      expect(mockGetLatestVisitUuid).toHaveBeenCalledWith(
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
     });
+  });
+
+  /* ── "Schedule Appointment" button after upload ───────────────────────── */
+
+  it('should show Schedule Appointment button after successful upload and navigate on click', async () => {
+    renderWithData(fullData);
+
+    // Upload the visit
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+
+    // Schedule Appointment button should appear after upload
+    const scheduleBtn = await screen.findByText('Schedule Appointment');
+    fireEvent.click(scheduleBtn);
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/appointment-schedule/mock-visit-uuid',
+      { state: { speciality: 'General Physician' } }
+    );
   });
 
   /* ── "Back to Edit" button ──────────────────────────────────────────── */
@@ -1511,5 +1543,23 @@ describe('VisitSummaryPage', () => {
     });
 
     globalThis.FileReader = OriginalFileReader;
+  });
+
+  /* ── getLatestVisitUuid returns null (line 387 ?? '' branch) ────────── */
+
+  it('should handle getLatestVisitUuid returning null by using empty string fallback', async () => {
+    mockGetLatestVisitUuid.mockResolvedValueOnce(null);
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
   });
 });

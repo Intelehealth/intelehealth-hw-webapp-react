@@ -54,6 +54,20 @@ vi.mock('../../../components/common', () => ({
             {option.label}
           </button>
         ))}
+        {/* Button that passes an array value to onChange (covers Array.isArray branch) */}
+        <button
+          data-testid="option-array-hindi"
+          onClick={() => onChange?.(['hindi'])}
+        >
+          Array Hindi
+        </button>
+        {/* Button that passes an unknown language (covers || 'en' fallback) */}
+        <button
+          data-testid="option-unknown"
+          onClick={() => onChange?.('unknownlang')}
+        >
+          Unknown
+        </button>
         <span data-testid="dropdown-value">{value}</span>
       </div>
     )
@@ -424,46 +438,32 @@ describe('AuthComponent', () => {
       expect(changeLanguage).toHaveBeenCalledWith('en');
     });
 
-    it('should handle array value in handleLanguageChange', async () => {
+    it('should handle array value in handleLanguageChange (covers Array.isArray branch)', async () => {
       const user = userEvent.setup();
-
-      // Create a custom mock that passes array instead of string
-      vi.doMock('../../../components/common', () => ({
-        Dropdown: ({
-          options,
-          value,
-          className,
-          onChange,
-        }: {
-          options: Array<{ value: string; label: string }>;
-          value: string;
-          className?: string;
-          onChange?: (value: string | string[]) => void;
-        }) => (
-          <div data-testid="dropdown" className={className}>
-            {options.map((option) => (
-              <button
-                key={option.value}
-                data-testid={`option-${option.value}`}
-                onClick={() => onChange?.([option.value])}
-              >
-                {option.label}
-              </button>
-            ))}
-            <span data-testid="dropdown-value">{value}</span>
-          </div>
-        ),
-        Loader: () => <div data-testid="loader">Loading...</div>,
-      }));
-
       render(<AuthComponent {...defaultProps} />);
 
       vi.mocked(changeLanguage).mockClear();
 
-      const hindiOption = screen.getByTestId('option-hindi');
-      await user.click(hindiOption);
+      // Click button that passes an array ['hindi'] to onChange
+      const arrayHindiOption = screen.getByTestId('option-array-hindi');
+      await user.click(arrayHindiOption);
 
+      // Should extract first element from array and use languageMap['hindi'] = 'hi'
       expect(changeLanguage).toHaveBeenCalledWith('hi');
+    });
+
+    it('should fallback to "en" when language is not in languageMap (covers || "en" fallback)', async () => {
+      const user = userEvent.setup();
+      render(<AuthComponent {...defaultProps} />);
+
+      vi.mocked(changeLanguage).mockClear();
+
+      // Click button that passes 'unknownlang' which is not in languageMap
+      const unknownOption = screen.getByTestId('option-unknown');
+      await user.click(unknownOption);
+
+      // languageMap['unknownlang'] is undefined, so fallback || 'en' is used
+      expect(changeLanguage).toHaveBeenCalledWith('en');
     });
   });
 

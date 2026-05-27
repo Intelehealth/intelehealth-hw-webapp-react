@@ -4098,4 +4098,25 @@ describe('useFHIRStepper', () => {
       expect(result.current.showAll).toBeFalsy();
     });
   });
+
+  describe('getTopLevelLinkId when currentQuestion is undefined (line 304)', () => {
+    it('should return linkId directly when questionnaire has no items', () => {
+      const emptyQuestionnaire = { item: [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: emptyQuestionnaire as any })
+      );
+
+      // currentQuestion is undefined because there are no top-level items
+      expect(result.current.currentQuestion).toBeUndefined();
+
+      // Call setAnswer which internally calls getTopLevelLinkId
+      // When currentQuestion is undefined, getTopLevelLinkId returns the linkId unchanged
+      act(() => {
+        result.current.setAnswer({ linkId: 'orphan', type: 'string' } as any, 'value');
+      });
+
+      // The answer should be stored under the original linkId since there is no top-level question
+      expect(result.current.answers).toEqual({ orphan: 'value' });
+    });
+  });
 });

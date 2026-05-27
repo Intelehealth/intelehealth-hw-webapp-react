@@ -40,6 +40,11 @@ function fromApiDate(ddmmyyyy: string): string {
   return `${year}-${month}-${day}`;
 }
 
+function toApiDate(yyyymmdd: string): string {
+  const [year, month, day] = yyyymmdd.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 function getPeriod(slotTime: string): SlotPeriod {
   const lower = slotTime.toLowerCase();
   const [time, meridiem] = lower.split(' ');
@@ -122,14 +127,24 @@ export const appointmentService = {
     toDate: string,
     speciality: string
   ): Promise<AppointmentSlot[]> {
-    const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&speciality=${encodeURIComponent(speciality)}`;
+    const apiFromDate = toApiDate(fromDate);
+    const apiToDate = toApiDate(toDate);
+    const url = `/appointment/getAppointmentSlots?fromDate=${encodeURIComponent(apiFromDate)}&toDate=${encodeURIComponent(apiToDate)}&speciality=${encodeURIComponent(speciality)}`;
     const res = await AppointmentApi.get<AppointmentSlotsApiResponse>(url);
-    console.warn('[getAppointmentSlots] url:', url, 'response:', res);
+
+    const bookedKeys = new Set<string>();
+    for (const appt of res.bookedAppointments ?? []) {
+      bookedKeys.add(`${appt.slotDate}-${appt.slotTime}`);
+    }
+    for (const appt of res.rescheduledAppointments ?? []) {
+      bookedKeys.add(`${appt.slotDate}-${appt.slotTime}`);
+    }
+
     return (res.dates ?? []).map(slot => ({
       slotId: `${slot.slotDate}-${slot.slotTime.replace(/\s+/g, '-')}`,
       date: fromApiDate(slot.slotDate),
       time: slot.slotTime.toLowerCase(),
-      isAvailable: true,
+      isAvailable: !bookedKeys.has(`${slot.slotDate}-${slot.slotTime}`),
       period: getPeriod(slot.slotTime),
       speciality: slot.speciality,
     }));
@@ -147,6 +162,7 @@ export const appointmentService = {
   ): Promise<unknown> {
     const visitData = await this.getVisitForPushData(visitUuid);
     const payload = buildPushDataPayload(visitData, appointmentDatetime);
-    return EmrMiddlewareApi.post(PUSH_DATA_ENDPOINT, payload);
+    const result = await EmrMiddlewareApi.post(PUSH_DATA_ENDPOINT, payload);
+    return result;
   },
 };

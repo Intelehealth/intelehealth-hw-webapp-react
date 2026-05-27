@@ -339,6 +339,19 @@ describe('FCMService', () => {
       expect(token).toBeNull();
     });
 
+    it('should pass undefined for serviceWorkerRegistration when swRegistration is null (line 125)', async () => {
+      await fcmService.initialize();
+      // Manually null out swRegistration to cover the ?? undefined branch
+      (fcmService as any).swRegistration = null;
+
+      const token = await fcmService.requestPermission();
+      expect(mockGetToken).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ serviceWorkerRegistration: undefined })
+      );
+      expect(token).toBe('test-token-123');
+    });
+
     it('should listen for FCM_TOKEN_REFRESH and re-request permission (covers lines 110-113)', async () => {
       const messageListeners: Array<(event: any) => void> = [];
       Object.defineProperty(navigator, 'serviceWorker', {

@@ -305,4 +305,45 @@ describe('PrescriptionPreviewPage', () => {
       });
     });
   });
+
+  describe('edge case branches', () => {
+    it('renders "-" for InfoCell when phone is true but value is empty/null (line 48)', async () => {
+      mockGetData.mockResolvedValue(makePrescription({ phone: null as any }));
+      renderWithParams();
+      await waitFor(() => {
+        expect(screen.getByText('JOHN DOE')).toBeInTheDocument();
+      });
+      // When phone prop is true but value is null, InfoCell should render '-'
+      const dashes = screen.getAllByText('-');
+      expect(dashes.length).toBeGreaterThan(0);
+    });
+
+    it('shows "No data" when service resolves null (line 233)', async () => {
+      mockGetData.mockResolvedValue(null as any);
+      renderWithParams();
+      await waitFor(() => {
+        expect(screen.getByText('No data')).toBeInTheDocument();
+      });
+    });
+
+    it('renders referral without reason (line 368)', async () => {
+      mockGetData.mockResolvedValue(makePrescription({
+        referrals: [{ speciality: 'Dermatology', reason: '' }],
+      }));
+      renderWithParams();
+      await waitFor(() => {
+        expect(screen.getByText('Dermatology', { selector: 'li' })).toBeInTheDocument();
+      });
+    });
+
+    it('renders DataTable with single child (non-array children, line 111)', async () => {
+      mockGetData.mockResolvedValue(makePrescription({
+        diagnoses: [{ diagnosisName: 'SingleDiag', diagnosisType: 'Primary', diagnosisStatus: 'Active' }],
+      }));
+      renderWithParams();
+      await waitFor(() => {
+        expect(screen.getByText('SingleDiag')).toBeInTheDocument();
+      });
+    });
+  });
 });
