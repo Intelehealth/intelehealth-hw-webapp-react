@@ -143,20 +143,37 @@ export default function AppointmentScheduleComponent() {
 
   const displaySlots: Record<
     SlotPeriod,
-    { time: string; available: boolean }[]
+    { time: string; available: boolean; passed: boolean }[]
   > = useMemo(() => {
-    const grouped: Record<SlotPeriod, { time: string; available: boolean }[]> =
-      {
-        Morning: [],
-        Afternoon: [],
-        Evening: [],
-      };
+    const now = new Date();
+    const isToday = selectedDate === today;
+    const grouped: Record<
+      SlotPeriod,
+      { time: string; available: boolean; passed: boolean }[]
+    > = {
+      Morning: [],
+      Afternoon: [],
+      Evening: [],
+    };
     const slotsForDate = apiSlots.filter(s => s.date === selectedDate);
     for (const slot of slotsForDate) {
+      let passed = false;
+      if (isToday) {
+        const [time, meridiem] = slot.time.split(' ');
+        const [hourStr, minStr] = time.split(':');
+        let hour = parseInt(hourStr, 10);
+        const min = parseInt(minStr, 10);
+        if (meridiem === 'pm' && hour !== 12) hour += 12;
+        if (meridiem === 'am' && hour === 12) hour = 0;
+        const slotMinutes = hour * 60 + min;
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        passed = slotMinutes < nowMinutes;
+      }
       if (grouped[slot.period]) {
         grouped[slot.period].push({
           time: slot.time,
           available: slot.isAvailable,
+          passed,
         });
       }
     }
@@ -380,20 +397,20 @@ export default function AppointmentScheduleComponent() {
               </div>
 
               <div className="grid grid-cols-3 md:grid-cols-6 lg:flex lg:flex-wrap gap-3">
-                {slots.map(({ time, available }) => {
+                {slots.map(({ time, available, passed }) => {
                   const selected = selectedTime === time;
-                  const booked = !available;
+                  const disabled = !available || passed;
 
                   return (
                     <button
                       key={time}
-                      disabled={!selectedDate || booked}
+                      disabled={!selectedDate || disabled}
                       onClick={() => setSelectedTime(selected ? null : time)}
                       className={`h-[37px] min-w-[97px] rounded-lg text-xs font-medium border transition
                         ${
                           selected
                             ? 'bg-[#3F2E9C] text-white border-[#3F2E9C]'
-                            : booked
+                            : disabled
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-[#F3F1FB] text-gray-700 border-[#E0DDF5]'
                         }`}
