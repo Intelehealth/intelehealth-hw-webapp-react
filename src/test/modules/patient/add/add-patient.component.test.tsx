@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AddPatientComponent from '../../../../modules/patient/add/add-patient.component';
@@ -15,7 +15,7 @@ vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
 }));
 
 // Mock storage
-const mockStorageGet = vi.fn((_key: string): string | null => 'test-patient-id');
+const mockStorageGet = vi.fn<(key: string) => string | null>(() => 'test-patient-id');
 const mockStorageSet = vi.fn();
 const mockStorageRemove = vi.fn();
 const mockStorageGetUser = vi.fn(
@@ -32,9 +32,11 @@ vi.mock('../../../../utils/storage', () => ({
 
 // Mock the hooks
 const mockHandleAddPatient = vi.fn();
+const mockHandleUpdatePatient = vi.fn();
 vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
   useAddPatient: () => ({
     handleAddPatient: mockHandleAddPatient,
+    handleUpdatePatient: mockHandleUpdatePatient,
   }),
 }));
 
@@ -145,6 +147,70 @@ const renderWithRouter = async (component: React.ReactElement) => {
   // Wait for initial render + restore effect to settle
   await waitFor(() => {
     expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+  });
+  return result;
+};
+
+const editFormData = {
+  personalInfo: {
+    firstName: 'Existing',
+    middleName: 'M',
+    lastName: 'Patient',
+    gender: 'F',
+    dateOfBirth: '1985-03-20',
+    age: '40',
+    phoneNumber: '5551234567',
+    phoneNumberCountryCode: '+91',
+    contactType: 'Family',
+    emergencyContactName: 'EmContact',
+    emergencyContactNumber: '5559876543',
+    emergencyContactNumberCountryCode: '+91',
+    profilePhoto: null,
+  },
+  addressInfo: {
+    postalCode: '560001',
+    city: 'Bangalore',
+    state: 'Karnataka',
+    country: 'India',
+    district: 'Bangalore Urban',
+    correspondingAddress1: 'Edit Addr 1',
+    correspondingAddress2: 'Edit Addr 2',
+  },
+  otherInfo: {
+    sonDaughterWifeOf: 'Father',
+    occupation: 'Doctor',
+    caste: 'General',
+    education: 'Post Graduate',
+    economicStatus: 'Upper Middle',
+  },
+};
+
+// Helper component to display current location for navigation assertions
+const LocationDisplay = () => {
+  const location = useLocation();
+  return <div data-testid="current-location">{location.pathname}</div>;
+};
+
+// Helper to render in edit mode with location state
+const renderWithEditState = async (
+  patientUuid = 'edit-patient-uuid-123'
+) => {
+  const result = render(
+    <MemoryRouter
+      initialEntries={[
+        {
+          pathname: '/patient/edit',
+          state: { editFormData, patientUuid },
+        },
+      ]}
+    >
+      <AddPatientComponent />
+      <LocationDisplay />
+    </MemoryRouter>
+  );
+  // In edit mode, step starts at 2 (Patient Info)
+  await waitFor(() => {
+    expect(screen.getByTestId('patient-info')).toBeInTheDocument();
   });
   return result;
 };
@@ -571,7 +637,80 @@ describe('AddPatientComponent', () => {
       });
     });
 
-    it('should restore to Preview step with patientUuid', async () => {
+    it('should restore patientUuid from temp-storage when present', async () => {
+      mockGetResource.mockResolvedValue({
+        data: {
+          id: 1,
+          data: {
+            formData: {
+              personalInfo: {
+                firstName: 'Restored',
+                middleName: '',
+                lastName: 'User',
+                gender: 'F',
+                dateOfBirth: '2000-01-01',
+                age: '26',
+                phoneNumber: '9999999999',
+                phoneNumberCountryCode: '+91',
+                contactType: 'self',
+                emergencyContactName: 'EC',
+                emergencyContactNumber: '8888888888',
+                emergencyContactNumberCountryCode: '+91',
+                profilePhoto: null,
+              },
+              addressInfo: {
+                postalCode: '400001',
+                city: 'Mumbai',
+                state: 'MH',
+                country: 'India',
+                district: 'Mumbai',
+                correspondingAddress1: 'Addr 1',
+                correspondingAddress2: 'Addr 2',
+              },
+              otherInfo: {
+                sonDaughterWifeOf: '',
+                occupation: '',
+                caste: '',
+                education: 'Graduate',
+                economicStatus: '',
+              },
+            },
+            step: 1,
+            patientUuid: 'restored-patient-uuid',
+          },
+        },
+      });
+
+      render(
+        <MemoryRouter>
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      // Should restore to step 1 (Terms) with the patientUuid set
+      await waitFor(() => {
+        expect(screen.getByTestId('terms')).toBeInTheDocument();
+      });
+
+      // Navigate back — savePatientToTemp will include the restored patientUuid
+      mockUpsertResource.mockClear();
+      fireEvent.click(screen.getByTestId('terms-decline'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
+      });
+
+      // Verify patientUuid was included in the save payload
+      expect(mockUpsertResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            patientUuid: 'restored-patient-uuid',
+          }),
+        })
+      );
+    });
+
+    it('should discard completed session (step 3) and start fresh', async () => {
       mockGetResource.mockResolvedValue({
         data: {
           id: 1,
@@ -617,9 +756,12 @@ describe('AddPatientComponent', () => {
 
       await renderWithRouter(<AddPatientComponent />);
 
+      // Should NOT restore to preview; should start fresh at step 0
       await waitFor(() => {
-        expect(screen.getByTestId('preview')).toBeInTheDocument();
+        expect(screen.getByTestId('privacy-policy')).toBeInTheDocument();
       });
+      expect(screen.queryByTestId('preview')).not.toBeInTheDocument();
+      expect(mockStorageRemove).toHaveBeenCalledWith('temp_patient_id');
     });
 
     it('should save form data to temp-storage on nextStep', async () => {
@@ -674,7 +816,7 @@ describe('AddPatientComponent', () => {
       );
     });
 
-    it('should save patientUuid to temp-storage after successful submission', async () => {
+    it('should clear temp-storage ID after successful submission', async () => {
       mockHandleAddPatient.mockResolvedValue('new-patient-uuid');
       await renderWithRouter(<AddPatientComponent />);
 
@@ -685,21 +827,14 @@ describe('AddPatientComponent', () => {
       fireEvent.click(screen.getByTestId('terms-accept'));
       await waitFor(() => expect(screen.getByTestId('patient-info')).toBeInTheDocument());
 
-      mockUpsertResource.mockClear();
+      mockStorageRemove.mockClear();
       fireEvent.click(screen.getByTestId('patient-info-next'));
 
       await waitFor(() => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
       });
 
-      expect(mockUpsertResource).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            patientUuid: 'new-patient-uuid',
-            step: 3,
-          }),
-        })
-      );
+      expect(mockStorageRemove).toHaveBeenCalledWith('temp_patient_id');
     });
 
     it('should handle temp-storage fetch failure gracefully', async () => {
@@ -796,6 +931,103 @@ describe('AddPatientComponent', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('terms')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Edit Mode', () => {
+    it('should start at step 2 (Patient Info) when edit data is provided', async () => {
+      await renderWithEditState();
+
+      expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('terms')).not.toBeInTheDocument();
+    });
+
+    it('should pass edit form data as defaultValues to PatientInfo', async () => {
+      await renderWithEditState();
+
+      const defaults = screen.getByTestId('patient-info-default-values');
+      const defaultValues = JSON.parse(defaults.textContent || '{}');
+      expect(defaultValues.firstName).toBe('Existing');
+      expect(defaultValues.lastName).toBe('Patient');
+      expect(defaultValues.gender).toBe('F');
+      expect(defaultValues.city).toBe('Bangalore');
+      expect(defaultValues.occupation).toBe('Doctor');
+    });
+
+    it('should call handleUpdatePatient instead of handleAddPatient when submitting in edit mode', async () => {
+      mockHandleUpdatePatient.mockResolvedValue('edit-patient-uuid-123');
+      await renderWithEditState();
+
+      fireEvent.click(screen.getByTestId('patient-info-next'));
+
+      await waitFor(() => {
+        expect(mockHandleUpdatePatient).toHaveBeenCalledTimes(1);
+        expect(mockHandleUpdatePatient).toHaveBeenCalledWith(
+          'edit-patient-uuid-123',
+          expect.objectContaining({
+            personalInfo: expect.objectContaining({
+              firstName: 'John',
+            }),
+          })
+        );
+      });
+
+      expect(mockHandleAddPatient).not.toHaveBeenCalled();
+    });
+
+    it('should navigate to /patient/{uuid} on successful update', async () => {
+      mockHandleUpdatePatient.mockResolvedValue('edit-patient-uuid-123');
+      await renderWithEditState();
+
+      fireEvent.click(screen.getByTestId('patient-info-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('current-location').textContent).toBe(
+          '/patient/edit-patient-uuid-123'
+        );
+      });
+    });
+
+    it('should stay on Patient Info when update fails', async () => {
+      mockHandleUpdatePatient.mockResolvedValue(false);
+      await renderWithEditState();
+
+      fireEvent.click(screen.getByTestId('patient-info-next'));
+
+      await waitFor(() => {
+        expect(mockHandleUpdatePatient).toHaveBeenCalled();
+      });
+
+      expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      expect(screen.getByTestId('current-location').textContent).toBe('/patient/edit');
+    });
+
+    it('should navigate back when prevStep is called in edit mode', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            '/patient/some-uuid',
+            {
+              pathname: '/patient/edit',
+              state: { editFormData, patientUuid: 'edit-patient-uuid-123' },
+            },
+          ]}
+          initialIndex={1}
+        >
+          <AddPatientComponent />
+          <LocationDisplay />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('patient-info-prev'));
+      await waitFor(() => {
+        expect(screen.getByTestId('current-location').textContent).toBe(
+          '/patient/some-uuid'
+        );
       });
     });
   });

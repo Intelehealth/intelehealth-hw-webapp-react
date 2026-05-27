@@ -2030,5 +2030,48 @@ describe('VisitReason', () => {
       // Progress still resets regardless.
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
     });
+
+    it('should handle getAnswers returning undefined (nullish fallback)', async () => {
+      const user = userEvent.setup();
+      const mockSchema = {
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      };
+
+      mockStepperGetAnswers.mockReturnValue(undefined as unknown as object);
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onProgressUpdate={mockOnProgressUpdate}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      await user.click(screen.getByTestId('footer-next-button'));
+      mockShowConfirmModal.mock.calls[0][0].onConfirm();
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('stepper-summary-shown'));
+
+      mockSetVisitReasonData.mockClear();
+      mockSaveSectionToTemp.mockClear();
+
+      await user.click(screen.getByText('Back'));
+
+      // getAnswers() returned undefined → fallback to {} → no keys → no persist
+      expect(mockSetVisitReasonData).not.toHaveBeenCalled();
+      expect(mockSaveSectionToTemp).not.toHaveBeenCalled();
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
+    });
   });
 });

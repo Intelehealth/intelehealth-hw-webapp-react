@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 import {
+  filterAyuQuestionsForPhysExam,
   filterPhysicalExamQuestions,
   parsePhysicalExamFilter,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
@@ -174,5 +176,70 @@ describe('filterPhysicalExamQuestions', () => {
       'General Exams:Pallor;Head:Injury'
     );
     expect(result.map(q => q.id)).toEqual(['q1', 'q2', 'q3']);
+  });
+});
+
+// ── filterAyuQuestionsForPhysExam ──────────────────────────────────────────
+
+describe('filterAyuQuestionsForPhysExam', () => {
+  const PE_SECTION_KEY = 'urn:intelehealth:physical-exam/section-key';
+  const PE_QUESTION_KEY = 'urn:intelehealth:physical-exam/question-key';
+
+  const makeAyuPEQuestion = (
+    linkId: string,
+    sectionKey?: string,
+    questionKey?: string
+  ): AyuQuestion => ({
+    linkId,
+    type: 'string',
+    extension: [
+      ...(sectionKey
+        ? [{ url: PE_SECTION_KEY, valueString: sectionKey }]
+        : []),
+      ...(questionKey
+        ? [{ url: PE_QUESTION_KEY, valueString: questionKey }]
+        : []),
+    ],
+  });
+
+  const ayuQuestions: AyuQuestion[] = [
+    makeAyuPEQuestion('a1', 'General Exams', 'Jaundice'),
+    makeAyuPEQuestion('a2', 'Head', 'Injury'),
+    makeAyuPEQuestion('a3', 'Head', 'Swelling'),
+    makeAyuPEQuestion('a4'), // no sectionKey extension
+  ];
+
+  it('should return all questions when filterString is empty', () => {
+    expect(filterAyuQuestionsForPhysExam(ayuQuestions, '')).toEqual(
+      ayuQuestions
+    );
+  });
+
+  it('should exclude questions with no sectionKey extension', () => {
+    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
+    expect(result.find(q => q.linkId === 'a4')).toBeUndefined();
+  });
+
+  it('should always include questions with sectionKey === General Exams', () => {
+    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
+    expect(result.find(q => q.linkId === 'a1')).toBeDefined();
+  });
+
+  it('should include all questions in a section when allowedQuestions is empty', () => {
+    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:');
+    expect(result.map(q => q.linkId)).toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('should exclude sections not in the filter', () => {
+    const result = filterAyuQuestionsForPhysExam(
+      ayuQuestions,
+      'General Exams:Jaundice'
+    );
+    expect(result.find(q => q.linkId === 'a2')).toBeUndefined();
+  });
+
+  it('should filter to specific questions within a section', () => {
+    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
+    expect(result.map(q => q.linkId)).toEqual(['a1', 'a2']);
   });
 });

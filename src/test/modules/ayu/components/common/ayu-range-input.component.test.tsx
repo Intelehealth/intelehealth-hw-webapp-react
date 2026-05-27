@@ -237,6 +237,12 @@ describe('AyuRangeInput', () => {
   });
 
   describe('Edge cases', () => {
+    it('renders without a question prop', () => {
+      render(<AyuRangeInput question={undefined as any} />);
+      const sliders = screen.getAllByRole('slider') as HTMLInputElement[];
+      expect(sliders).toHaveLength(2);
+    });
+
     it('handles a degenerate min===max range without dividing by zero', () => {
       const q: AyuQuestion = {
         linkId: 'r-degen',

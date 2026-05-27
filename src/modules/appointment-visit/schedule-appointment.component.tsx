@@ -384,6 +384,15 @@ export default function AppointmentScheduleComponent() {
       )}
 
       {!slotsLoading &&
+        !slotsError &&
+        apiSlots.filter(s => s.date === selectedDate).length === 0 && (
+          <p className="text-center text-gray-500 py-4 text-sm">
+            No slots available for this date. Please create appointment slots
+            first.
+          </p>
+        )}
+
+      {!slotsLoading &&
         (Object.keys(displaySlots) as SlotPeriod[]).map(period => {
           const slots = displaySlots[period];
           if (slots.length === 0) return null;

@@ -683,6 +683,30 @@ describe('AppointmentScheduleComponent', () => {
       renderComponent();
       expect(screen.queryByText('Morning')).not.toBeInTheDocument();
     });
+
+    it('shows empty slots message when no slots are available for the selected date', () => {
+      mockSlotsReturn = { data: [], loading: false, error: null };
+      renderComponent();
+      expect(screen.getByText(/No slots available for this date/)).toBeInTheDocument();
+      expect(screen.getByText(/Please create appointment slots first/)).toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when slots exist', () => {
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when loading', () => {
+      mockSlotsReturn = { data: [], loading: true, error: null };
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when there is an error', () => {
+      mockSlotsReturn = { data: [], loading: false, error: 'Failed to fetch appointment slots' };
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
+    });
   });
 
   describe('Book Appointment', () => {
