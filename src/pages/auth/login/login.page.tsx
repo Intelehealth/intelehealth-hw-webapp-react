@@ -10,6 +10,7 @@ import sliderImage2 from '../../../assets/images/slider/slider-image-2.png';
 import sliderImage3 from '../../../assets/images/slider/slider-image-3.png';
 /* v8 ignore next line */
 import mainLogo from '../../../assets/logo/intelehealth-logo-white.png';
+import { useTranslation } from 'react-i18next';
 import AuthComponent from '../../../modules/auth/auth.component';
 import LoginComponent from '../../../modules/auth/login/login.component';
 
@@ -41,10 +42,11 @@ const slides = [
 ];
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
   return (
     <AuthComponent
-      title="Welcome back!"
-      description="Please login to continue with your work"
+      title={t('Auth.Welcome_Back')}
+      description={t('Auth.Login_Continue_Description')}
       slides={slides}
       mobileImage={mainLogo}
       hideSliderImagesForMobile={true}
