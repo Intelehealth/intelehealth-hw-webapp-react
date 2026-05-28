@@ -21,7 +21,7 @@ describe('ConfigService', () => {
         version: '1.0.0',
         apiEndpoint: 'https://api.example.com',
         specialization: [{ id: '1', name: 'Cardiology' }],
-        language: [{ code: 'en', name: 'English' }],
+        language: [{ code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true }],
         patient_registration: { field1: 'value1' },
         theme_config: [{ key: 'theme', value: 'light' }],
         patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
@@ -234,9 +234,9 @@ describe('ConfigService', () => {
           { id: '3', name: 'Orthopedics' },
         ],
         language: [
-          { code: 'en', name: 'English' },
-          { code: 'hi', name: 'Hindi' },
-          { code: 'mr', name: 'Marathi' },
+          { code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true },
+          { code: 'hi', name: 'Hindi', en_name: 'Hindi', is_default: false, platform: 'Both', is_enabled: true },
+          { code: 'mr', name: 'Marathi', en_name: 'Marathi', is_default: false, platform: 'Both', is_enabled: true },
         ],
         patient_vitals: [
           { name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true },

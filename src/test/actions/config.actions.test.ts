@@ -28,7 +28,7 @@ describe('Config Actions', () => {
         version: '1.0.0',
         apiEndpoint: 'https://api.example.com',
         specialization: [{ id: '1', name: 'Cardiology' }],
-        language: [{ code: 'en', name: 'English' }],
+        language: [{ code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true }],
       };
 
       vi.mocked(configService.getPublishedConfig).mockResolvedValue(mockConfig);
@@ -95,7 +95,7 @@ describe('Config Actions', () => {
         version: '1.0.0',
         apiEndpoint: 'https://api.example.com',
         specialization: [{ id: '1' }],
-        language: [{ code: 'en' }],
+        language: [{ code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme' }],
         patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
