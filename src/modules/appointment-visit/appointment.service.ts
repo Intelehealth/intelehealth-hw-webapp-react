@@ -25,7 +25,6 @@ class AppointmentApiService extends HttpService {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      config.headers['Cache-Control'] = 'no-cache';
       return config;
     });
   }

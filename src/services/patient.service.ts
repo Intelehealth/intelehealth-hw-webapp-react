@@ -147,6 +147,16 @@ export const patientService = {
     return { visits: res.data.visits, totalCount: res.data.totalCount };
   },
 
+  async getPriorityVisits(
+    hwId: string,
+    page = 0,
+    limit = 50
+  ): Promise<{ visits: OpenVisit[]; totalCount: number }> {
+    const url = `/pull/hw-visits/${hwId}?type=priority-visits&page=${page}&limit=${limit}`;
+    const res = await EmrMiddlewareApi.get<OpenVisitsResponse>(url);
+    return { visits: res.data.visits, totalCount: res.data.totalCount };
+  },
+
   async getPrescriptionsPending(
     hwId: string,
     page = 0,

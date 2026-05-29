@@ -72,10 +72,10 @@ const LoginComponent: React.FC = () => {
         {/* Title */}
         <div className="flex items-center mb-3">
           <h2 className="text-lg font-semibold text-[--color-dark]">
-            Please enter your login details
+            {t('Auth.Please_Enter_Your_Login_Details')}
           </h2>
           <span className="ml-2 lg:flex align-middle">
-            <Tooltip text="Enter the credentials given by intelehealth team">
+            <Tooltip text={t('Auth.Tooltip_Credentials')}>
               <img src={iconQuestionMark} alt="info" />
             </Tooltip>
           </span>
@@ -84,16 +84,21 @@ const LoginComponent: React.FC = () => {
         {/* Username */}
         <div className="mb-4">
           <div className="flex justify-between mb-2">
-            <label className="text-base text-(--color-muted)">Username</label>
+            <label className="text-base text-(--color-muted)">
+              {t('Auth.Username')}
+            </label>
             <a
               className="inline text-base underline cursor-pointer text-(--color-muted)"
               onClick={() => navigate('/auth/forgot-username')}
             >
-              Forgot Username?
+              {t('Auth.Forgot_Username')}
             </a>
           </div>
           {/* Input component can be used here */}
-          <Input {...register('username')} placeholder="Enter your username" />
+          <Input
+            {...register('username')}
+            placeholder={t('Auth.Enter_Username_Placeholder')}
+          />
           {errors.username && (
             <p className="text-red-500 text-xs mt-1">
               {errors.username.message}
@@ -105,13 +110,13 @@ const LoginComponent: React.FC = () => {
         <div className="mb-4">
           <div className="flex justify-between">
             <label className="small-label text-base text-(--color-muted)">
-              Password
+              {t('Auth.Password')}
             </label>
             <a
               className="inline text-base underline cursor-pointer text-(--color-muted)"
               onClick={() => navigate('/auth/forgot-password')}
             >
-              Forgot Password?
+              {t('Auth.Forgot_Password')}
             </a>
           </div>
 
@@ -120,7 +125,7 @@ const LoginComponent: React.FC = () => {
               {...register('password')}
               className="input-base pr-10"
               type="password"
-              placeholder="Enter your password"
+              placeholder={t('Auth.Enter_Password_Placeholder')}
             />
           </div>
           {errors.password && (
@@ -133,11 +138,11 @@ const LoginComponent: React.FC = () => {
         {/* Role select - visible desktop only */}
         <div className="mb-4">
           <Dropdown
-            label="Select Role"
-            placeholder="Select your role"
+            label={t('Auth.Select_Role')}
+            placeholder={t('Auth.Select_Role_Placeholder')}
             options={[
               { label: 'Doctor', value: 'doctor' },
-              { label: 'Health Worker', value: 'nurse' },
+              { label: t('User_Role.Health_Worker'), value: 'nurse' },
               { label: 'Admin', value: 'admin' },
             ]}
             labelClassName="text-(--color-muted)"
@@ -156,13 +161,13 @@ const LoginComponent: React.FC = () => {
           <Checkbox
             label={
               <div className="text-sm text-[--color-dark]">
-                Agree to&nbsp;
+                {t('Auth.Agree_To')}&nbsp;
                 <a
                   className="text-[--color-primary] underline"
                   href="https://intelehealth.org/terms-of-use"
                   target="_blank"
                 >
-                  Terms & Conditions
+                  {t('Legal.Terms_And_Conditions')}
                 </a>{' '}
                 and&nbsp;
                 <a
@@ -170,7 +175,7 @@ const LoginComponent: React.FC = () => {
                   href="https://intelehealth.org/privacy-policy"
                   target="_blank"
                 >
-                  {t('Privacy_Policy')}
+                  {t('Legal.Privacy_Policy')}
                 </a>
               </div>
             }
@@ -203,7 +208,7 @@ const LoginComponent: React.FC = () => {
             isLoading={loading}
             name="login-button"
           >
-            <span className="mx-auto w-full text-base">Login</span>
+            <span className="mx-auto w-full text-base">{t('Auth.Login')}</span>
           </Button>
         </div>
       </form>

@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "पुन्हा स्वागत!",
+    "Login_Continue_Description": "कृपया तुमचे काम चालू ठेवण्यासाठी लॉगिन करा",
     "Please_Enter_Your_Login_Details": "कृपया आपले लॉगिन तपशील भरा",
+    "Tooltip_Credentials": "इंटेलीहेल्थ टीमने दिलेले क्रेडेन्शियल भरा",
     "Username": "वापरकर्ता नाव",
     "Forgot_Username": "वापरकर्ता नाव विसरलात?",
+    "Enter_Username_Placeholder": "तुमचे वापरकर्ता नाव भरा",
     "Password": "पासवर्ड",
     "Forgot_Password": "पासवर्ड विसरलात?",
+    "Enter_Password_Placeholder": "तुमचा पासवर्ड भरा",
+    "Select_Role": "भूमिका निवडा",
+    "Select_Role_Placeholder": "तुमची भूमिका निवडा",
     "Sign_In_As": "साइन इन करा",
     "Agree_To": "मी सहमत आहे",
     "Login": "लॉगिन"
@@ -15,5 +22,21 @@
   },
   "User_Role": {
     "Health_Worker": "आरोग्य कर्मचारी"
+  },
+  "Settings": {
+    "Settings_Title": "सेटिंग्ज",
+    "Personal": "वैयक्तिक",
+    "Account": "खाते",
+    "Notification": "सूचना",
+    "Security": "सुरक्षा",
+    "Language_Protocol": "भाषा आणि प्रोटोकॉल",
+    "Language": "भाषा",
+    "App_Language": "अॅप भाषा",
+    "Reset_To_English": "इंग्रजीवर रीसेट करा",
+    "Reset": "रीसेट",
+    "Change_Language": "भाषा बदलायची?",
+    "Change_Language_Confirm": "तुम्हाला खरोखर भाषा {{language}} मध्ये बदलायची आहे?",
+    "Yes": "होय",
+    "No": "नाही"
   }
 }

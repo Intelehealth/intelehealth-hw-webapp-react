@@ -3,16 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthComponent from '../../../modules/auth/auth.component';
 import userEvent from '@testing-library/user-event';
 
-// Mock i18next
-vi.mock('i18next', () => ({
-  default: {
-    changeLanguage: vi.fn(),
-  },
+// Mock i18n (component imports from '../../i18n')
+vi.mock('../../../i18n', () => ({
   changeLanguage: vi.fn(),
 }));
 
+// Mock settingsService (component imports from '../settings/settings.service')
+vi.mock('../../../modules/settings/settings.service', () => ({
+  default: {
+    getAppLanguage: vi.fn(() => 'en'),
+    updateAppLanguage: vi.fn(),
+  },
+}));
+
 // Import after mock to get the mocked version
-import { changeLanguage } from 'i18next';
+import { changeLanguage } from '../../../i18n';
+import settingsService from '../../../modules/settings/settings.service';
 
 // Mock the assets
 vi.mock('../../../assets/logo/intelehealth-logo-white.png', () => ({
@@ -28,6 +34,16 @@ vi.mock('../../../config/env', () => ({
   env: {
     APP_VERSION: '1.0.0-test',
   },
+}));
+
+// Mock useConfig – configurable via mockConfigValue
+const mockConfigValue = { current: null as unknown };
+vi.mock('../../../hooks/useConfig', () => ({
+  useConfig: () => ({
+    config: mockConfigValue.current,
+    error: null,
+    lastFetched: null,
+  }),
 }));
 
 // Mock the components
@@ -111,8 +127,12 @@ describe('AuthComponent', () => {
     slides: mockSlides,
   };
 
+  const mockedSettingsService = vi.mocked(settingsService);
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedSettingsService.getAppLanguage.mockReturnValue('en');
+    mockConfigValue.current = null;
   });
 
   describe('Component Structure', () => {
@@ -316,7 +336,7 @@ describe('AuthComponent', () => {
       render(<AuthComponent {...defaultProps} showLanguages={true} />);
 
       expect(screen.getByTestId('dropdown')).toBeInTheDocument();
-      expect(screen.getByTestId('dropdown-value')).toHaveTextContent('english');
+      expect(screen.getByTestId('dropdown-value')).toHaveTextContent('en');
     });
 
     it('should hide language dropdown when showLanguages is false', () => {
@@ -350,11 +370,37 @@ describe('AuthComponent', () => {
       expect(screen.getByText('ગુજરાતી')).toBeInTheDocument();
     });
 
+    it('should use API languages when config provides enabled languages', () => {
+      mockConfigValue.current = {
+        language: [
+          { code: 'fr', name: 'French', is_enabled: true, platform: 'Both' },
+          { code: 'de', name: 'German', is_enabled: true, platform: 'Web' },
+          { code: 'ja', name: 'Japanese', is_enabled: false, platform: 'Both' },
+          { code: 'zh', name: 'Chinese', is_enabled: true, platform: 'Mobile' },
+        ],
+      };
+      render(<AuthComponent {...defaultProps} />);
+
+      expect(screen.getByText('French')).toBeInTheDocument();
+      expect(screen.getByText('German')).toBeInTheDocument();
+      // Disabled and Mobile-only should be excluded
+      expect(screen.queryByText('Japanese')).not.toBeInTheDocument();
+      expect(screen.queryByText('Chinese')).not.toBeInTheDocument();
+    });
+
     it('should render dropdown with correct value', () => {
       render(<AuthComponent {...defaultProps} />);
 
       const dropdownValue = screen.getByTestId('dropdown-value');
-      expect(dropdownValue).toHaveTextContent('english');
+      expect(dropdownValue).toHaveTextContent('en');
+    });
+
+    it('should initialise dropdown from settingsService.getAppLanguage', () => {
+      mockedSettingsService.getAppLanguage.mockReturnValue('hi');
+      render(<AuthComponent {...defaultProps} />);
+
+      const dropdownValue = screen.getByTestId('dropdown-value');
+      expect(dropdownValue).toHaveTextContent('hi');
     });
 
     it('should render dropdown with correct className', () => {
@@ -371,11 +417,11 @@ describe('AuthComponent', () => {
     it('should render all five language options with correct test ids', () => {
       render(<AuthComponent {...defaultProps} />);
 
-      expect(screen.getByTestId('option-english')).toBeInTheDocument();
-      expect(screen.getByTestId('option-hindi')).toBeInTheDocument();
-      expect(screen.getByTestId('option-marathi')).toBeInTheDocument();
-      expect(screen.getByTestId('option-bangoli')).toBeInTheDocument();
-      expect(screen.getByTestId('option-gujarati')).toBeInTheDocument();
+      expect(screen.getByTestId('option-en')).toBeInTheDocument();
+      expect(screen.getByTestId('option-hi')).toBeInTheDocument();
+      expect(screen.getByTestId('option-mr')).toBeInTheDocument();
+      expect(screen.getByTestId('option-ml')).toBeInTheDocument();
+      expect(screen.getByTestId('option-gu')).toBeInTheDocument();
     });
 
     it('should call handleLanguageChange when language is selected', async () => {
@@ -384,10 +430,11 @@ describe('AuthComponent', () => {
 
       vi.mocked(changeLanguage).mockClear();
 
-      const hindiOption = screen.getByTestId('option-hindi');
+      const hindiOption = screen.getByTestId('option-hi');
       await user.click(hindiOption);
 
       expect(changeLanguage).toHaveBeenCalledWith('hi');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('hi');
     });
 
     it('should call changeLanguage with correct language code for marathi', async () => {
@@ -396,10 +443,11 @@ describe('AuthComponent', () => {
 
       vi.mocked(changeLanguage).mockClear();
 
-      const marathiOption = screen.getByTestId('option-marathi');
+      const marathiOption = screen.getByTestId('option-mr');
       await user.click(marathiOption);
 
       expect(changeLanguage).toHaveBeenCalledWith('mr');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('mr');
     });
 
     it('should call changeLanguage with correct language code for malayalam', async () => {
@@ -408,10 +456,11 @@ describe('AuthComponent', () => {
 
       vi.mocked(changeLanguage).mockClear();
 
-      const malayalamOption = screen.getByTestId('option-bangoli');
+      const malayalamOption = screen.getByTestId('option-ml');
       await user.click(malayalamOption);
 
       expect(changeLanguage).toHaveBeenCalledWith('ml');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('ml');
     });
 
     it('should call changeLanguage with correct language code for gujarati', async () => {
@@ -420,10 +469,11 @@ describe('AuthComponent', () => {
 
       vi.mocked(changeLanguage).mockClear();
 
-      const gujaratiOption = screen.getByTestId('option-gujarati');
+      const gujaratiOption = screen.getByTestId('option-gu');
       await user.click(gujaratiOption);
 
       expect(changeLanguage).toHaveBeenCalledWith('gu');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('gu');
     });
 
     it('should call changeLanguage with default "en" for english', async () => {
@@ -432,10 +482,11 @@ describe('AuthComponent', () => {
 
       vi.mocked(changeLanguage).mockClear();
 
-      const englishOption = screen.getByTestId('option-english');
+      const englishOption = screen.getByTestId('option-en');
       await user.click(englishOption);
 
       expect(changeLanguage).toHaveBeenCalledWith('en');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('en');
     });
 
     it('should handle array value in handleLanguageChange (covers Array.isArray branch)', async () => {
@@ -448,22 +499,23 @@ describe('AuthComponent', () => {
       const arrayHindiOption = screen.getByTestId('option-array-hindi');
       await user.click(arrayHindiOption);
 
-      // Should extract first element from array and use languageMap['hindi'] = 'hi'
-      expect(changeLanguage).toHaveBeenCalledWith('hi');
+      // Should extract first element from array and use it directly as language code
+      expect(changeLanguage).toHaveBeenCalledWith('hindi');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('hindi');
     });
 
-    it('should fallback to "en" when language is not in languageMap (covers || "en" fallback)', async () => {
+    it('should pass unknown language code directly to changeLanguage', async () => {
       const user = userEvent.setup();
       render(<AuthComponent {...defaultProps} />);
 
       vi.mocked(changeLanguage).mockClear();
 
-      // Click button that passes 'unknownlang' which is not in languageMap
+      // Click button that passes 'unknownlang' — now passed directly to changeLanguage
       const unknownOption = screen.getByTestId('option-unknown');
       await user.click(unknownOption);
 
-      // languageMap['unknownlang'] is undefined, so fallback || 'en' is used
-      expect(changeLanguage).toHaveBeenCalledWith('en');
+      expect(changeLanguage).toHaveBeenCalledWith('unknownlang');
+      expect(mockedSettingsService.updateAppLanguage).toHaveBeenCalledWith('unknownlang');
     });
   });
 

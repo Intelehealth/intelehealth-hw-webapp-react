@@ -201,6 +201,17 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     host: true,
     open: true,
+    proxy:
+      mode === 'development'
+        ? {
+            '/portal-api': {
+              target: 'https://dev.intelehealth.org:3004',
+              changeOrigin: true,
+              secure: false,
+              rewrite: path => path.replace(/^\/portal-api/, '/api'),
+            },
+          }
+        : undefined,
   },
 
   // CSS optimizations

@@ -130,6 +130,40 @@ describe('temp-storage.service', () => {
       expect(mockGet).toHaveBeenCalledWith('/temp-storage/visit/visit-123');
       expect(result).toEqual(mockResponse);
     });
+
+    it('should return fallback response on 404 error', async () => {
+      const axiosError = { response: { status: 404 } };
+      mockGet.mockRejectedValue(axiosError);
+
+      const result = await getResource('patient', 'non-existent-id');
+
+      expect(mockGet).toHaveBeenCalledWith('/temp-storage/patient/non-existent-id');
+      expect(result).toEqual({
+        success: false,
+        message: 'Not found',
+        data: null,
+      });
+    });
+
+    it('should re-throw non-404 errors', async () => {
+      const axiosError = { response: { status: 500 } };
+      mockGet.mockRejectedValue(axiosError);
+
+      await expect(getResource('visit', 'visit-123')).rejects.toEqual(axiosError);
+    });
+
+    it('should re-throw errors without response property', async () => {
+      const networkError = new Error('Network Error');
+      mockGet.mockRejectedValue(networkError);
+
+      await expect(getResource('visit', 'visit-123')).rejects.toThrow('Network Error');
+    });
+
+    it('should re-throw when error is null', async () => {
+      mockGet.mockRejectedValue(null);
+
+      await expect(getResource('visit', 'visit-123')).rejects.toBeNull();
+    });
   });
 
   describe('getChildResources', () => {

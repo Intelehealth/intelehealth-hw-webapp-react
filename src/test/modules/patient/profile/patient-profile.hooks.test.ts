@@ -30,6 +30,7 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
 
 import {
   getVisitTitle,
+  mapRawPatientToFormData,
   maskVisitId,
   usePatientProfile,
 } from '../../../../modules/patient/profile/patient-profile.hooks';
@@ -128,6 +129,143 @@ describe('getVisitTitle', () => {
 });
 
 
+
+describe('mapRawPatientToFormData', () => {
+  it('maps all personal info fields correctly', () => {
+    const patient = buildPatient();
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.firstName).toBe('John');
+    expect(formData.personalInfo.middleName).toBe('K');
+    expect(formData.personalInfo.lastName).toBe('Doe');
+    expect(formData.personalInfo.gender).toBe('M');
+    expect(formData.personalInfo.dateOfBirth).toBe('1994-01-15');
+    expect(formData.personalInfo.age).toBe('30');
+    expect(formData.personalInfo.phoneNumber).toBe('+911234567890');
+    expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.contactType).toBe('Spouse');
+    expect(formData.personalInfo.emergencyContactName).toBe('Jane');
+    expect(formData.personalInfo.emergencyContactNumber).toBe('+9198');
+    expect(formData.personalInfo.emergencyContactNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.profilePhoto).toBeNull();
+  });
+
+  it('maps address info fields correctly', () => {
+    const patient = buildPatient();
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.addressInfo.postalCode).toBe('400001');
+    expect(formData.addressInfo.city).toBe('Mumbai');
+    expect(formData.addressInfo.state).toBe('Maharashtra');
+    expect(formData.addressInfo.country).toBe('India');
+    expect(formData.addressInfo.district).toBe('Mumbai Urban');
+    expect(formData.addressInfo.correspondingAddress1).toBe('123 Main St');
+    expect(formData.addressInfo.correspondingAddress2).toBe('Apt 4');
+  });
+
+  it('maps other info fields correctly', () => {
+    const patient = buildPatient();
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.otherInfo.occupation).toBe('Engineer');
+    expect(formData.otherInfo.caste).toBe('General');
+    expect(formData.otherInfo.education).toBe('Graduate');
+    expect(formData.otherInfo.economicStatus).toBe('Middle');
+  });
+
+  it('handles null preferredName gracefully', () => {
+    const patient = buildPatient({ preferredName: null });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.firstName).toBe('');
+    expect(formData.personalInfo.middleName).toBe('');
+    expect(formData.personalInfo.lastName).toBe('');
+  });
+
+  it('handles null preferredAddress gracefully', () => {
+    const patient = buildPatient();
+    (patient.person as any).preferredAddress = null;
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.addressInfo.postalCode).toBe('');
+    expect(formData.addressInfo.city).toBe('');
+    expect(formData.addressInfo.state).toBe('');
+    expect(formData.addressInfo.country).toBe('');
+    expect(formData.addressInfo.district).toBe('');
+    expect(formData.addressInfo.correspondingAddress1).toBe('');
+    expect(formData.addressInfo.correspondingAddress2).toBe('');
+  });
+
+  it('handles empty attributes array', () => {
+    const patient = buildPatient({ attributes: [] });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.phoneNumber).toBe('');
+    expect(formData.personalInfo.contactType).toBe('');
+    expect(formData.personalInfo.emergencyContactName).toBe('');
+    expect(formData.personalInfo.emergencyContactNumber).toBe('');
+    expect(formData.otherInfo.sonDaughterWifeOf).toBe('');
+    expect(formData.otherInfo.occupation).toBe('');
+    expect(formData.otherInfo.caste).toBe('');
+    expect(formData.otherInfo.education).toBe('');
+    expect(formData.otherInfo.economicStatus).toBe('');
+  });
+
+  it('handles null attributes by falling back to empty array', () => {
+    const patient = buildPatient();
+    (patient.person as any).attributes = null;
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.phoneNumber).toBe('');
+    expect(formData.otherInfo.occupation).toBe('');
+  });
+
+  it('extracts date part from birthdate with time component', () => {
+    const patient = buildPatient({
+      birthdate: '2000-06-15T10:30:00.000+0000',
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.dateOfBirth).toBe('2000-06-15');
+  });
+
+  it('handles null birthdate', () => {
+    const patient = buildPatient({ birthdate: null });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.dateOfBirth).toBe('');
+  });
+
+  it('handles null age', () => {
+    const patient = buildPatient({ age: null });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.age).toBe('');
+  });
+
+  it('handles zero age', () => {
+    const patient = buildPatient({ age: 0 });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.age).toBe('0');
+  });
+
+  it('handles null gender', () => {
+    const patient = buildPatient({ gender: null });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.gender).toBe('');
+  });
+
+  it('handles null middleName in preferredName', () => {
+    const patient = buildPatient({
+      preferredName: { givenName: 'John', middleName: null, familyName: 'Doe' },
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.middleName).toBe('');
+  });
+});
 
 describe('usePatientProfile', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -389,6 +527,22 @@ describe('usePatientProfile', () => {
   });
 
  
+
+  it('exposes rawPatient from the hook', async () => {
+    const patient = buildPatient();
+    h.mockGetPatient.mockResolvedValue(patient);
+    h.mockGetPatientVisits.mockResolvedValue(emptyVisits);
+
+    const { result } = renderHook(() => usePatientProfile('uuid'));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+    expect(result.current.rawPatient).toEqual(patient);
+  });
+
+  it('rawPatient is null initially and when uuid is undefined', () => {
+    const { result } = renderHook(() => usePatientProfile(undefined));
+    expect(result.current.rawPatient).toBeNull();
+  });
 
   it('sets visits from response results', async () => {
     h.mockGetPatient.mockResolvedValue(buildPatient());

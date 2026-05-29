@@ -12,6 +12,15 @@ export const CONCEPT_UUIDS = {
   TEMPERATURE: '5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   SPO2: '5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   RESPIRATORY_RATE: '5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  FBS: '2d6845e6-fa7a-4a80-a55a-c4fa6ff4e2af',
+  PPBS: 'e2d331f0-3132-4b66-9137-b1f9ace65443',
+  RBS: '056f3911-55ee-42c4-8078-5537a620a35a',
+  WAIST_CIRCUMFERENCE: '41e7d3ff-d24b-448f-a248-a4feb64ef700',
+  HIP_CIRCUMFERENCE: '9f1b264f-2b9b-44f5-9d7a-c809e9f63c51',
+  WAIST_TO_HIP_RATIO: '20d3e924-f379-443d-9033-c8d1cdfda2f0',
+  OGTT: 'd7a564d7-f104-4186-8e36-68101c7c2952',
+  HBA1C: 'f0631271-e0b3-48ca-a4e5-70959a7b76d9',
+  BLOOD_GROUP: '9d2df0c6-538f-11e6-9cfe-86f436325720',
   CHIEF_COMPLAINT: '3edb0e09-9135-481e-b8f0-07a26fa9a5ce',
   PHYSICAL_EXAMINATION: '200b7a45-77bc-4986-b879-cc727f5f7d5b',
   PHYSICAL_EXAM_DISPLAY: 'e1761e85-9b50-48ae-8c4d-e6b7eeeba084',
@@ -60,6 +69,11 @@ export interface BMI {
   value: number;
 }
 
+export interface AdditionalMeasurement {
+  label: string;
+  value: string;
+}
+
 export interface Vitals {
   height: VitalValue;
   weight: VitalValue;
@@ -69,6 +83,7 @@ export interface Vitals {
   temperature: VitalValue;
   spo2: VitalValue;
   respiratoryRate: VitalValue;
+  additionalMeasurements?: AdditionalMeasurement[];
 }
 
 export interface Detail {

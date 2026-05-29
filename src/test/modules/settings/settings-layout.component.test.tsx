@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
+import i18n from '../../../i18n';
 import SettingsLayout from '../../../modules/settings/settings-layout.component';
 
 vi.mock('../../../modules/settings/settings-account.component', () => ({
@@ -15,20 +17,27 @@ vi.mock('../../../modules/settings/settings-language.component', () => ({
   default: () => <div data-testid="tab-language" />,
 }));
 
+const renderComponent = () =>
+  render(
+    <I18nextProvider i18n={i18n}>
+      <SettingsLayout />
+    </I18nextProvider>
+  );
+
 describe('SettingsLayout', () => {
   it('renders the Settings header with gear icon', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByAltText('Settings')).toBeInTheDocument();
   });
 
   it('shows the Personal section label', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     expect(screen.getByText('Personal')).toBeInTheDocument();
   });
 
   it('renders all 4 nav tabs', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     expect(screen.getByText('Account')).toBeInTheDocument();
     expect(screen.getByText('Notification')).toBeInTheDocument();
     expect(screen.getByText('Security')).toBeInTheDocument();
@@ -36,7 +45,7 @@ describe('SettingsLayout', () => {
   });
 
   it('renders the Account tab content by default', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     expect(screen.getByTestId('tab-account')).toBeInTheDocument();
     expect(screen.queryByTestId('tab-notification')).not.toBeInTheDocument();
     expect(screen.queryByTestId('tab-security')).not.toBeInTheDocument();
@@ -44,26 +53,26 @@ describe('SettingsLayout', () => {
   });
 
   it('switches to the Notification tab when clicked', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     fireEvent.click(screen.getByText('Notification'));
     expect(screen.getByTestId('tab-notification')).toBeInTheDocument();
     expect(screen.queryByTestId('tab-account')).not.toBeInTheDocument();
   });
 
   it('switches to the Security tab when clicked', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     fireEvent.click(screen.getByText('Security'));
     expect(screen.getByTestId('tab-security')).toBeInTheDocument();
   });
 
   it('switches to the Language & protocol tab when clicked', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     fireEvent.click(screen.getByText('Language & protocol'));
     expect(screen.getByTestId('tab-language')).toBeInTheDocument();
   });
 
   it('applies active styling to the currently selected tab', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     const accountBtn = screen.getByText('Account').closest('button');
     expect(accountBtn).toHaveClass('bg-gray-100');
 
@@ -73,7 +82,7 @@ describe('SettingsLayout', () => {
   });
 
   it('renders nav-item icons', () => {
-    render(<SettingsLayout />);
+    renderComponent();
     expect(screen.getByAltText('Account')).toBeInTheDocument();
     expect(screen.getByAltText('Notification')).toBeInTheDocument();
     expect(screen.getByAltText('Security')).toBeInTheDocument();

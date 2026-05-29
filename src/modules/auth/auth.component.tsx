@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import logoBg from '../../assets/logo/logo-bg.svg';
 import { Dropdown } from '../../components/common';
 import { Loader } from '../../components/common';
 import { env } from '../../config/env';
+import { useConfig } from '../../hooks/useConfig';
+import { changeLanguage } from '../../i18n';
+import settingsService from '../settings/settings.service';
 import type { Slide } from '../../types/common.types';
 import ImageSlider from './common/image-slider.component';
-import { changeLanguage } from 'i18next';
 
 interface AuthComponentProps {
   children?: React.ReactNode;
@@ -27,22 +29,38 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
   showLanguages = true,
   hideSliderImagesForMobile = false,
 }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState('english');
+  const { config } = useConfig();
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    settingsService.getAppLanguage()
+  );
 
-  const languageMap: Record<string, string> = {
-    english: 'en',
-    hindi: 'hi',
-    marathi: 'mr',
-    bangoli: 'ml',
-    gujarati: 'gu',
-  };
+  const FALLBACK_OPTIONS = [
+    { label: 'English', value: 'en' },
+    { label: 'हिंदी', value: 'hi' },
+    { label: 'मराठी', value: 'mr' },
+    { label: 'മലയാളം', value: 'ml' },
+    { label: 'ગુજરાતી', value: 'gu' },
+  ];
+
+  const languageOptions = useMemo(() => {
+    const apiLanguages = config?.language?.filter(
+      lang =>
+        lang.is_enabled && (lang.platform === 'Both' || lang.platform === 'Web')
+    );
+    if (apiLanguages && apiLanguages.length > 0) {
+      return apiLanguages.map(lang => ({
+        value: lang.code,
+        label: lang.name,
+      }));
+    }
+    return FALLBACK_OPTIONS;
+  }, [config?.language]);
 
   const handleLanguageChange = (value: string | string[]) => {
     const language = Array.isArray(value) ? value[0] : value;
     setSelectedLanguage(language);
-    // Change the i18n language
-    const i18nLanguageCode = languageMap[language] || 'en';
-    changeLanguage(i18nLanguageCode);
+    changeLanguage(language);
+    settingsService.updateAppLanguage(language);
   };
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
@@ -86,13 +104,7 @@ const AuthComponent: React.FC<AuthComponentProps> = ({
           style={{ visibility: showLanguages ? 'visible' : 'hidden' }}
         >
           <Dropdown
-            options={[
-              { label: 'English', value: 'english' },
-              { label: 'हिंदी', value: 'hindi' },
-              { label: 'मराठी', value: 'marathi' },
-              { label: 'മലയാളം', value: 'bangoli' },
-              { label: 'ગુજરાતી', value: 'gujarati' },
-            ]}
+            options={languageOptions}
             value={selectedLanguage}
             onChange={handleLanguageChange}
             className="w-[30%] min-w-[50px] max-w-[150px] language-dropdown"

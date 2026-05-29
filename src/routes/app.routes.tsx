@@ -302,6 +302,14 @@ const AppRoutes = () => (
                 }
               />
               <Route
+                path={ROUTES.PATIENT.EDIT_PATIENT}
+                element={
+                  <Suspense fallback={<RouteLoader />}>
+                    <AddPatientPage />
+                  </Suspense>
+                }
+              />
+              <Route
                 path={ROUTES.PATIENT.DETAIL}
                 element={
                   <Suspense fallback={<RouteLoader />}>

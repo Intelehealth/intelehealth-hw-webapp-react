@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNotificationContext } from '../../context/NotificationContext';
+import { changeLanguage } from '../../i18n';
 import { showToast, type ToastOptions } from '../../services/toast';
 import {
   DEFAULT_GENERATED_PASSWORD_LENGTH,
@@ -162,6 +163,7 @@ export const useLanguageSettings = (): UseLanguageSettingsReturn => {
   const setLanguage = useCallback(async (code: string, label?: string) => {
     try {
       await settingsService.updateAppLanguage(code);
+      await changeLanguage(code);
       setLanguageState(code);
       toastOk(
         `Language successfully changed to ${label ?? code}!`,
@@ -175,6 +177,7 @@ export const useLanguageSettings = (): UseLanguageSettingsReturn => {
   const handleReset = useCallback(async () => {
     try {
       const code = await settingsService.resetAppLanguage();
+      await changeLanguage(code);
       setLanguageState(code);
       toastOk('Language successfully changed to English!', SETTINGS_TOAST);
     } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import iconClose from '../../../assets/icons/close.svg';
+import iconEdit from '../../../assets/icons/edit.svg';
 import iconAddress from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
 import iconRight from '../../../assets/icons/icon-right-arrow.svg';
 import iconVisit from '../../../assets/icons/icon-summary-list.svg';
@@ -12,6 +13,7 @@ import { Button } from '../../../components/common';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   getVisitTitle,
+  mapRawPatientToFormData,
   maskVisitId,
   usePatientProfile,
 } from './patient-profile.hooks';
@@ -31,8 +33,15 @@ const PatientProfileComponent: React.FC = () => {
   const { uuid } = useParams<{ uuid: string }>();
   const navigate = useNavigate();
 
-  const { patientData, visits, loading, refreshing, error, refresh } =
-    usePatientProfile(uuid);
+  const {
+    patientData,
+    rawPatient,
+    visits,
+    loading,
+    refreshing,
+    error,
+    refresh,
+  } = usePatientProfile(uuid);
   const [imgError, setImgError] = useState(false);
   const patientImgSrc = uuid
     ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${uuid}`
@@ -104,10 +113,27 @@ const PatientProfileComponent: React.FC = () => {
             className="w-14 h-14 rounded-full object-cover border border-gray-200"
             onError={() => setImgError(true)}
           />
-          <div>
+          <div className="flex-1">
             <p className="font-bold text-gray-900 text-base">{fullName}</p>
             <p className="text-sm text-gray-500">{patientId}</p>
           </div>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-xs text-[#2F1E91] font-medium cursor-pointer border border-[#E1DCFF] rounded-md px-3 py-1 hover:bg-[#E1DCFF] transition-colors"
+            onClick={() =>
+              navigate('/patient/edit', {
+                state: {
+                  editFormData: rawPatient
+                    ? mapRawPatientToFormData(rawPatient)
+                    : null,
+                  patientUuid: uuid,
+                },
+              })
+            }
+          >
+            <img src={iconEdit} alt="Edit" className="w-3.5 h-3.5" />
+            Edit
+          </button>
         </div>
 
         <CollapsedComponent

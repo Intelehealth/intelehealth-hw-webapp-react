@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "తిరిగి స్వాగతం!",
+    "Login_Continue_Description": "దయచేసి మీ పనిని కొనసాగించడానికి లాగిన్ చేయండి",
     "Please_Enter_Your_Login_Details": "దయచేసి మీ లాగిన్ వివరాలు నమోదు చేయండి",
+    "Tooltip_Credentials": "ఇంటెలీహెల్త్ టీమ్ అందించిన ఆధారాలను నమోదు చేయండి",
     "Username": "వినియోగదారుని పేరు",
     "Forgot_Username": "వినియోగదారుని పేరు మర్చిపోయారా?",
+    "Enter_Username_Placeholder": "మీ వినియోగదారుని పేరు నమోదు చేయండి",
     "Password": "పాస్‌వర్డ్",
     "Forgot_Password": "పాస్‌వర్డ్ మర్చిపోయారా?",
+    "Enter_Password_Placeholder": "మీ పాస్‌వర్డ్ నమోదు చేయండి",
+    "Select_Role": "పాత్రను ఎంచుకోండి",
+    "Select_Role_Placeholder": "మీ పాత్రను ఎంచుకోండి",
     "Sign_In_As": "సైన్ ఇన్ అవ్వండి",
     "Agree_To": "అంగీకరిస్తున్నాను",
     "Login": "లాగిన్"
@@ -15,5 +22,21 @@
   },
   "User_Role": {
     "Health_Worker": "ఆరోగ్య కార్యకర్త"
+  },
+  "Settings": {
+    "Settings_Title": "సెట్టింగ్‌లు",
+    "Personal": "వ్యక్తిగత",
+    "Account": "ఖాతా",
+    "Notification": "నోటిఫికేషన్",
+    "Security": "భద్రత",
+    "Language_Protocol": "భాష మరియు ప్రోటోకాల్",
+    "Language": "భాష",
+    "App_Language": "యాప్ భాష",
+    "Reset_To_English": "ఆంగ్లంలోకి రీసెట్ చేయండి",
+    "Reset": "రీసెట్",
+    "Change_Language": "భాష మార్చాలా?",
+    "Change_Language_Confirm": "మీరు ఖచ్చితంగా భాషను {{language}} కి మార్చాలనుకుంటున్నారా?",
+    "Yes": "అవును",
+    "No": "కాదు"
   }
 }

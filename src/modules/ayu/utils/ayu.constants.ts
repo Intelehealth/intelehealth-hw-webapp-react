@@ -40,6 +40,11 @@ export const VALIDATION_ALL_COMPULSORY =
   'All questions are compulsory, please answer';
 export const VALIDATION_ENTER_VALUE = 'Please enter a value';
 export const VALIDATION_SELECT_OPTION = 'Please select any one option';
+export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
+
+// --- Physical Exam Camera ---
+export const PE_CAMERA_TILE_LABEL = 'Take a Picture';
+export const PE_PICTURE_TAKEN_LABEL = 'Picture Taken';
 
 // FHIR Stepper Constants
 export const DEFAULT_VISIT_REASON_TEXT = 'Visit reason';

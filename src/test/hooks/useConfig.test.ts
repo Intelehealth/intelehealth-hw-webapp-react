@@ -39,7 +39,7 @@ describe('useConfig', () => {
         version: '1.0.0',
         apiEndpoint: 'https://api.example.com',
         specialization: [{ id: '1', name: 'Cardiology' }],
-        language: [{ code: 'en', name: 'English' }],
+        language: [{ code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true }],
       };
 
       const mockState: Partial<RootState> = {
@@ -85,7 +85,7 @@ describe('useConfig', () => {
         version: '1.0.0',
         apiEndpoint: 'https://api.example.com',
         specialization: [{ id: '1', name: 'Cardiology' }],
-        language: [{ code: 'en', name: 'English' }],
+        language: [{ code: 'en', name: 'English', en_name: 'English', is_default: true, platform: 'Both', is_enabled: true }],
         patient_registration: { field: 'value' },
         theme_config: [{ key: 'theme', value: 'light' }],
         patient_vitals: [{ name: 'Blood Pressure', key: 'bp', uuid: 'uuid-bp', is_mandatory: false, lang: null, is_enabled: true }],
