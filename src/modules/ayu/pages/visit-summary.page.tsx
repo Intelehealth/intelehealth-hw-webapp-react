@@ -27,6 +27,9 @@ import { useProfileContext } from '../../../context/ProfileContext';
 import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
 import type { OpenMRSPatient } from '../../../types/patient/profile/patient-profile.types';
+import { fetchConceptAnswers } from '../../../services/concept.service';
+import type { ConceptAnswer } from '../../../types/config.types';
+import { patientService } from '../../patient/add/add-patient.service';
 import { storage } from '../../../utils/storage';
 import { patientService } from '../../patient/add/add-patient.service';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
@@ -52,7 +55,7 @@ import {
 } from '../services/visit-upload.service';
 import type { CapturedDocument } from '../types/obs.types';
 import { ACCEPTED_DOCUMENT_TYPES } from '../types/obs.types';
-import type { VitalsFormValues } from '../types/vitals.types';
+import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 import {
   AYU_JSON_KEY_NAME,
   ITEM_TYPES,
@@ -96,6 +99,74 @@ const PatientInfoCard: React.FC<{
     </div>
   </div>
 );
+
+const VITALS_PRIMARY_KEYS = new Set([
+  'height_cm',
+  'weight_kg',
+  'bmi',
+  'bp_systolic',
+  'bp_diastolic',
+  'pulse_bpm',
+  'respiratory_rate',
+  'temprature_f',
+  'spo2',
+]);
+
+const buildAdditionalMeasurements = (
+  config: VitalField[],
+  formValues: VitalsFormValues,
+  bloodGroupAnswers: { uuid: string; display: string }[] = []
+): { label: string; value: string }[] => {
+  return config
+    .filter(field => !VITALS_PRIMARY_KEYS.has(field.key))
+    .map(field => {
+      const raw = (formValues as Record<string, unknown>)[field.key];
+      let display = 'No information';
+      if (raw != null && raw !== '') {
+        if (field.key === 'blood_group') {
+          const answers =
+            field.answers && field.answers.length > 0
+              ? field.answers
+              : bloodGroupAnswers;
+          const match = answers.find(a => a.uuid === String(raw));
+          display = match?.display ?? String(raw);
+        } else {
+          display = String(raw);
+        }
+      }
+      return { label: field.name, value: display };
+    });
+};
+
+const AdditionalMeasurementsSection: React.FC<{
+  items: { label: string; value: string }[];
+}> = ({ items }) => {
+  if (items.length === 0) return null;
+  const mid = Math.ceil(items.length / 2);
+  const leftItems = items.slice(0, mid);
+  const rightItems = items.slice(mid);
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-semibold text-gray-500 mb-2">
+        Additional Measurements
+      </p>
+      <div className="md:hidden">
+        {items.map(({ label, value }) => (
+          <LabelValueRow key={label} label={label} value={value} />
+        ))}
+      </div>
+      <div className="hidden md:grid grid-cols-2 gap-x-10">
+        {[leftItems, rightItems].map((column, colIdx) => (
+          <div key={colIdx}>
+            {column.map(({ label, value }) => (
+              <LabelValueRow key={label} label={label} value={value} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const LabelValueRow: React.FC<{
   label: string;
@@ -293,6 +364,11 @@ const VisitSummaryPage = () => {
   const [additionalDocuments, setAdditionalDocuments] = useState<
     CapturedDocument[]
   >([]);
+  const [patientName, setPatientName] = useState<string>('');
+  const [patientIdentifier, setPatientIdentifier] = useState<string>('');
+  const [bloodGroupAnswers, setBloodGroupAnswers] = useState<ConceptAnswer[]>(
+    []
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const patientUuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
@@ -321,6 +397,48 @@ const VisitSummaryPage = () => {
       cancelled = true;
     };
   }, [patientUuid]);
+  useEffect(() => {
+    const bgField = data.vitals?.config?.find(f => f.key === 'blood_group');
+    if (!bgField || (bgField.answers && bgField.answers.length > 0)) return;
+    let cancelled = false;
+    fetchConceptAnswers(bgField.uuid)
+      .then(answers => {
+        if (!cancelled) setBloodGroupAnswers(answers);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [data.vitals]);
+
+  useEffect(() => {
+    const uuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
+    if (!uuid) return;
+    let cancelled = false;
+    patientService
+      .getPatient(uuid)
+      .then(patient => {
+        if (cancelled) return;
+        const pn = patient.person?.preferredName;
+        const fullName = pn
+          ? [pn.givenName, pn.middleName, pn.familyName]
+              .filter(Boolean)
+              .join(' ')
+              .trim()
+          : '';
+        const preferred =
+          patient.identifiers?.find(i => i.preferred) ??
+          patient.identifiers?.[0];
+        setPatientName(fullName || storage.get(PATIENT_NAME_KEY) || '');
+        setPatientIdentifier(preferred?.identifier ?? '');
+      })
+      .catch(() => {
+        setPatientName(storage.get(PATIENT_NAME_KEY) ?? '');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ctxPatientUuid]);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -481,6 +599,18 @@ const VisitSummaryPage = () => {
     [data.vitals]
   );
 
+  const additionalMeasurements = useMemo(
+    () =>
+      data.vitals
+        ? buildAdditionalMeasurements(
+            data.vitals.config,
+            data.vitals.formValues,
+            bloodGroupAnswers
+          )
+        : [],
+    [data.vitals, bloodGroupAnswers]
+  );
+
   const checkupReason = useMemo(
     (): CheckupReason | null =>
       data.visitReason
@@ -509,6 +639,20 @@ const VisitSummaryPage = () => {
           Visit Summary
         </span>
       </div>
+      {(patientName || patientIdentifier) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 md:px-0 mt-1 mb-2">
+          {patientName && (
+            <span className="text-sm font-semibold text-gray-800">
+              {patientName}
+            </span>
+          )}
+          {patientIdentifier && (
+            <span className="text-xs text-gray-500">
+              OpenMRS ID: {patientIdentifier}
+            </span>
+          )}
+        </div>
+      )}
       <hr className="border-t border-gray-200 mt-2 mb-3 md:-mx-4" />
 
       <div className="px-4 md:px-0">
@@ -545,7 +689,12 @@ const VisitSummaryPage = () => {
               key={`vitals-${allOpen}`}
             >
               {vitals ? (
-                <VitalsSection vitals={vitals} />
+                <>
+                  <VitalsSection vitals={vitals} />
+                  <AdditionalMeasurementsSection
+                    items={additionalMeasurements}
+                  />
+                </>
               ) : (
                 <p className="text-gray-400 italic text-sm">
                   No vitals recorded

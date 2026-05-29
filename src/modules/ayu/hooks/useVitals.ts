@@ -452,8 +452,13 @@ export const useVitals = (onNextQuestion: () => void) => {
       type: 'vitalConfirm',
       onConfirm: () => {
         const formValues = watch() as VitalsFormValues;
-        setVitalsData(formValues, vitalsConfig);
-        saveSectionToTemp({ vitals: { formValues, config: vitalsConfig } });
+        const enrichedConfig = vitalsConfig.map(field =>
+          field.answers?.length || !codedAnswers[field.key]
+            ? field
+            : { ...field, answers: codedAnswers[field.key] }
+        );
+        setVitalsData(formValues, enrichedConfig);
+        saveSectionToTemp({ vitals: { formValues, config: enrichedConfig } });
         onNextQuestion();
       },
     });

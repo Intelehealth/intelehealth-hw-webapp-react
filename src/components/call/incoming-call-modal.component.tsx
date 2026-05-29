@@ -1,5 +1,5 @@
-import iconCallAccept from '../../assets/icons/icon-call-accept.svg';
-import iconCallDecline from '../../assets/icons/icon-call-decline.svg';
+import iconCallAccept from '../../assets/icons/accept.svg';
+import iconCallDecline from '../../assets/icons/decline.svg';
 import type { IncomingCallModalProps } from '../../types/incoming-call.types';
 
 const getInitials = (name: string) => {

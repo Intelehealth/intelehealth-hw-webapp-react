@@ -85,6 +85,13 @@ const remainingDaysInMonth = (() => {
 /** Helper: get the date-buttons container (inner flex with gap-[8px]) */
 const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
 
+/** Timestamp for midnight today – keeps all regular slots "in the future" by default. */
+const earlyMorningTime = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+})();
+
 /** Helper: how many dates remain from today through end-of-month (inclusive). */
 const remainingDaysInCurrentMonth = () => {
   const now = new Date();
@@ -104,6 +111,7 @@ describe('AppointmentScheduleComponent', () => {
       writable: true,
       configurable: true,
     });
+    vi.useFakeTimers({ now: earlyMorningTime });
   });
 
   afterEach(() => {
@@ -194,7 +202,7 @@ describe('AppointmentScheduleComponent', () => {
 
   describe('Resize handler', () => {
     it('updates datesToShow on window resize with debounce', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
 
       act(() => {
@@ -211,7 +219,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('clears debounce timer on rapid resize (only applies last)', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
 
       act(() => {
@@ -237,7 +245,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('clears active debounce timer on unmount', () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
       renderComponent();
 
@@ -582,6 +590,81 @@ describe('AppointmentScheduleComponent', () => {
     });
   });
 
+  describe('Past time slot behavior', () => {
+    it('disables slots whose time has passed on today', () => {
+      const tenFifteen = new Date(earlyMorningTime);
+      tenFifteen.setHours(10, 15, 0, 0);
+      vi.setSystemTime(tenFifteen);
+      renderComponent();
+      // Slots at or before 10:00 AM should be disabled (passed)
+      expect(screen.getByText('09:00 am')).toBeDisabled();
+      expect(screen.getByText('09:30 am')).toBeDisabled();
+      expect(screen.getByText('10:00 am')).toBeDisabled();
+      // Slots after 10:15 AM should still be enabled
+      expect(screen.getByText('10:30 am')).not.toBeDisabled();
+      expect(screen.getByText('11:00 am')).not.toBeDisabled();
+    });
+
+    it('past slots show disabled gray styling', () => {
+      const tenFifteen = new Date(earlyMorningTime);
+      tenFifteen.setHours(10, 15, 0, 0);
+      vi.setSystemTime(tenFifteen);
+      renderComponent();
+      const slot = screen.getByText('09:00 am');
+      expect(slot).toBeDisabled();
+      expect(slot).toHaveClass('bg-gray-200');
+      expect(slot).toHaveClass('text-gray-400');
+      expect(slot).toHaveClass('cursor-not-allowed');
+    });
+
+    it('does not disable any slots on a future date', () => {
+      const lateEvening = new Date(earlyMorningTime);
+      lateEvening.setHours(23, 59, 0, 0);
+      vi.setSystemTime(lateEvening);
+      renderComponent();
+      // Navigate to next month where isToday is false
+      fireEvent.click(screen.getByAltText('next').closest('button')!);
+      fireEvent.click(getDateArea().querySelector('button')!);
+      // All slots should be enabled on a future date
+      expect(screen.getByText('09:00 am')).not.toBeDisabled();
+      expect(screen.getByText('09:30 am')).not.toBeDisabled();
+    });
+
+    it('slot at exact current time is still enabled (boundary)', () => {
+      const nineAm = new Date(earlyMorningTime);
+      nineAm.setHours(9, 0, 0, 0);
+      vi.setSystemTime(nineAm);
+      renderComponent();
+      // 09:00 am is at the exact current time — should still be enabled
+      expect(screen.getByText('09:00 am')).not.toBeDisabled();
+      // Earlier implicit slots don't exist, but 09:30 should also be enabled
+      expect(screen.getByText('09:30 am')).not.toBeDisabled();
+    });
+
+    it('all morning slots are enabled when current time is before first slot', () => {
+      // earlyMorningTime is midnight — all slots are in the future
+      renderComponent();
+      morningTimes.forEach(time => {
+        expect(screen.getByText(time)).not.toBeDisabled();
+      });
+    });
+
+    it('disables afternoon slots that have passed', () => {
+      const threePm = new Date(earlyMorningTime);
+      threePm.setHours(15, 15, 0, 0);
+      vi.setSystemTime(threePm);
+      renderComponent();
+      // 12:00 pm, 01:00 pm, 02:00 pm, 03:00 pm should be disabled
+      expect(screen.getByText('12:00 pm')).toBeDisabled();
+      expect(screen.getByText('01:00 pm')).toBeDisabled();
+      expect(screen.getByText('02:00 pm')).toBeDisabled();
+      expect(screen.getByText('03:00 pm')).toBeDisabled();
+      // 03:30 pm and later should still be enabled
+      expect(screen.getByText('03:30 pm')).not.toBeDisabled();
+      expect(screen.getByText('04:00 pm')).not.toBeDisabled();
+    });
+  });
+
   describe('Loading and error states', () => {
     it('shows loading text when slots are loading', () => {
       mockSlotsReturn = { data: [], loading: true, error: null };
@@ -599,6 +682,30 @@ describe('AppointmentScheduleComponent', () => {
       mockSlotsReturn = { data: [], loading: true, error: null };
       renderComponent();
       expect(screen.queryByText('Morning')).not.toBeInTheDocument();
+    });
+
+    it('shows empty slots message when no slots are available for the selected date', () => {
+      mockSlotsReturn = { data: [], loading: false, error: null };
+      renderComponent();
+      expect(screen.getByText(/No slots available for this date/)).toBeInTheDocument();
+      expect(screen.getByText(/Please create appointment slots first/)).toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when slots exist', () => {
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when loading', () => {
+      mockSlotsReturn = { data: [], loading: true, error: null };
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
+    });
+
+    it('does not show empty slots message when there is an error', () => {
+      mockSlotsReturn = { data: [], loading: false, error: 'Failed to fetch appointment slots' };
+      renderComponent();
+      expect(screen.queryByText(/No slots available for this date/)).not.toBeInTheDocument();
     });
   });
 
@@ -658,7 +765,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('clicking Yes calls bookAppointment API and shows success modal', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -677,7 +784,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('clicking Ok on success modal navigates to dashboard', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -692,7 +799,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('clicking Close on success modal dismisses it without navigating', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -707,7 +814,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('correctly converts PM time when booking (hour += 12 for non-12 PM)', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('01:00 pm'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -723,7 +830,7 @@ describe('AppointmentScheduleComponent', () => {
     });
 
     it('correctly handles 12:00 PM (noon) without adding 12', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('12:00 pm'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -749,7 +856,7 @@ describe('AppointmentScheduleComponent', () => {
         speciality: 'General Physician',
       };
       mockSlotsReturn = { data: [...defaultSlots, midnightSlot], loading: false, error: null };
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('12:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -773,7 +880,7 @@ describe('AppointmentScheduleComponent', () => {
 
     it('shows error modal when API call fails', async () => {
       mockBookAppointment.mockRejectedValue(new Error('Network error'));
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
@@ -787,7 +894,7 @@ describe('AppointmentScheduleComponent', () => {
 
     it('shows "Visit information is missing" modal when visitUuid is absent', async () => {
       mockVisitUuid = undefined;
-      vi.useFakeTimers();
+      vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
       fireEvent.click(screen.getByText('09:00 am'));
       fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));

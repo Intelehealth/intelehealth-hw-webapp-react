@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
 
@@ -134,6 +134,20 @@ vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
 const mockBulkMarkSynced = vi.fn();
 vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
   bulkMarkSynced: (...args: any[]) => mockBulkMarkSynced(...args),
+}));
+
+
+
+const mockGetPatient = vi.fn();
+vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
+  patientService: {
+    getPatient: (...args: any[]) => mockGetPatient(...args),
+  },
+}));
+
+const mockFetchConceptAnswers = vi.fn();
+vi.mock('../../../../services/concept.service', () => ({
+  fetchConceptAnswers: (...args: any[]) => mockFetchConceptAnswers(...args),
 }));
 
 /* ── Mock obs.service ──────────────────────────────────────────────────── */
@@ -303,6 +317,12 @@ beforeEach(() => {
   // Default: a never-settling fetch so tests that don't care about the patient
   // ID don't trigger async state updates after render.
   mockGetPatient.mockReturnValue(new Promise(() => {}));
+  mockGetPatient.mockResolvedValue({
+    uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    identifiers: [],
+    person: { preferredName: null, attributes: [] },
+  });
+  mockFetchConceptAnswers.mockResolvedValue([]);
 });
 
 describe('VisitSummaryPage', () => {
@@ -1613,6 +1633,309 @@ describe('VisitSummaryPage', () => {
       });
       renderWithData(fullData);
       expect(await screen.findByText('ID: PID-PREF')).toBeInTheDocument();
+
+  describe('Additional Measurements', () => {
+    it('should not render the heading when config has no additional fields', () => {
+      renderWithData({ vitals: fullData.vitals });
+      expect(
+        screen.queryByText('Additional Measurements')
+      ).not.toBeInTheDocument();
+    });
+
+    it('should render additional measurement labels and values from config', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            fbs_mg_per_dl: 89,
+            hba1c: 6,
+          },
+          config: [
+            {
+              name: 'Fasting Blood Sugar (FBS) (mg/dl)',
+              key: 'fbs_mg_per_dl',
+              uuid: 'fbs-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+            {
+              name: 'HbA1c',
+              key: 'hba1c',
+              uuid: 'hba1c-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+          ],
+        },
+      });
+      expect(screen.getByText('Additional Measurements')).toBeInTheDocument();
+      expect(
+        screen.getAllByText('Fasting Blood Sugar (FBS) (mg/dl)').length
+      ).toBeGreaterThan(0);
+      expect(screen.getAllByText('89').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('HbA1c').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('6').length).toBeGreaterThan(0);
+    });
+
+    it('should show "No information" when value is missing for an additional field', () => {
+      renderWithData({
+        vitals: {
+          formValues: { ...fullData.vitals.formValues },
+          config: [
+            {
+              name: 'HbA1c',
+              key: 'hba1c',
+              uuid: 'hba1c-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+          ],
+        },
+      });
+      expect(screen.getByText('Additional Measurements')).toBeInTheDocument();
+      expect(screen.getAllByText('HbA1c').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('No information').length).toBeGreaterThan(0);
+    });
+
+    it('should resolve blood_group uuid to its display name via config answers', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-uuid-bpos',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'blood-group-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+              answers: [
+                { uuid: 'bg-uuid-bpos', display: 'B POSITIVE' },
+                { uuid: 'bg-uuid-apos', display: 'A POSITIVE' },
+              ],
+            },
+          ],
+        },
+      });
+      expect(screen.getByText('Additional Measurements')).toBeInTheDocument();
+      expect(screen.getAllByText('Blood Group').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+    });
+
+    it('should fall back to raw uuid when blood_group has no matching answer', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'unknown-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'blood-group-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+              answers: [{ uuid: 'bg-uuid-bpos', display: 'B POSITIVE' }],
+            },
+          ],
+        },
+      });
+      expect(screen.getAllByText('unknown-uuid').length).toBeGreaterThan(0);
+    });
+
+    it('should fall back to raw uuid when blood_group config has no answers', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'orphan-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'blood-group-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+            },
+          ],
+        },
+      });
+      expect(screen.getAllByText('orphan-uuid').length).toBeGreaterThan(0);
+    });
+
+    it('should treat empty-string value as missing', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            hba1c: '' as unknown as number,
+          },
+          config: [
+            {
+              name: 'HbA1c',
+              key: 'hba1c',
+              uuid: 'hba1c-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+          ],
+        },
+      });
+      expect(screen.getAllByText('No information').length).toBeGreaterThan(0);
+    });
+
+    it('should exclude primary vitals fields from Additional Measurements', () => {
+      renderWithData({
+        vitals: {
+          formValues: fullData.vitals.formValues,
+          config: [
+            {
+              name: 'Height (cm)',
+              key: 'height_cm',
+              uuid: 'height-uuid',
+              is_mandatory: true,
+              lang: null,
+              is_enabled: true,
+            },
+            {
+              name: 'HbA1c',
+              key: 'hba1c',
+              uuid: 'hba1c-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+          ],
+        },
+      });
+      
+      expect(screen.getByText('Additional Measurements')).toBeInTheDocument();
+      expect(screen.getAllByText('HbA1c').length).toBeGreaterThan(0);
+    });
+
+    it('should fetch concept answers and resolve blood_group display when config lacks answers', async () => {
+      mockFetchConceptAnswers.mockResolvedValueOnce([
+        { uuid: 'bg-bpos-uuid', display: 'B POSITIVE' },
+        { uuid: 'bg-apos-uuid', display: 'A POSITIVE' },
+      ]);
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-bpos-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+            },
+          ],
+        },
+      });
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalledWith('bg-concept-uuid');
+        expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should not fetch concept answers when config already has blood_group answers', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-bpos-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+              answers: [{ uuid: 'bg-bpos-uuid', display: 'B POSITIVE' }],
+            },
+          ],
+        },
+      });
+      expect(mockFetchConceptAnswers).not.toHaveBeenCalled();
+      expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+    });
+
+    it('should swallow fetchConceptAnswers errors and show the raw uuid', async () => {
+      mockFetchConceptAnswers.mockRejectedValueOnce(new Error('network'));
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-unknown',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+            },
+          ],
+        },
+      });
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+      });
+      expect(screen.getAllByText('bg-unknown').length).toBeGreaterThan(0);
+    });
+  });
+
+
+
+  describe('Patient header (name + OpenMRS ID)', () => {
+    it('should fetch and display patient name and OpenMRS ID', async () => {
+      mockGetPatient.mockResolvedValueOnce({
+        uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        identifiers: [
+          { identifier: 'AB123', preferred: false },
+          { identifier: 'OMRS-001', preferred: true },
+        ],
+        person: {
+          preferredName: {
+            givenName: 'Jane',
+            middleName: 'M',
+            familyName: 'Smith',
+          },
+          attributes: [],
+        },
+      });
+      renderWithData();
+      await waitFor(() => {
+        expect(screen.getByText('Jane M Smith')).toBeInTheDocument();
+        expect(
+          screen.getByText('OpenMRS ID: OMRS-001')
+        ).toBeInTheDocument();
+      });
       expect(mockGetPatient).toHaveBeenCalledWith(
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
       );
@@ -1654,6 +1977,31 @@ describe('VisitSummaryPage', () => {
         visitId: 'test-visit-id',
         tempRecordId: null,
 
+    it('should fall back to first identifier when no preferred flag is set', async () => {
+      mockGetPatient.mockResolvedValueOnce({
+        uuid: 'patient-uuid',
+        identifiers: [
+          { identifier: 'FIRST-ID', preferred: false },
+          { identifier: 'SECOND-ID', preferred: false },
+        ],
+        person: {
+          preferredName: { givenName: 'John', middleName: null, familyName: 'Doe' },
+          attributes: [],
+        },
+      });
+      renderWithData();
+      await waitFor(() => {
+        expect(screen.getByText('John Doe')).toBeInTheDocument();
+        expect(screen.getByText('OpenMRS ID: FIRST-ID')).toBeInTheDocument();
+      });
+    });
+
+    it('should skip fetch and render no header when patient uuid is absent', async () => {
+      mockUseStartVisitData.mockReturnValueOnce({
+        data: { ...defaultData },
+        patientUuid: null as unknown as string,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
         restoredSectionIndex: null,
         lastSectionIndex: 0,
         setLastSectionIndex: vi.fn(),
@@ -1675,6 +2023,67 @@ describe('VisitSummaryPage', () => {
       withPatient();
       let resolveFn!: (v: unknown) => void;
       mockGetPatient.mockReturnValue(
+      mockStorageGet.mockReturnValue(null);
+      render(<VisitSummaryPage />);
+      expect(mockGetPatient).not.toHaveBeenCalled();
+      expect(screen.queryByText(/OpenMRS ID:/)).not.toBeInTheDocument();
+    });
+
+    it('should fall back to storage name when getPatient fails', async () => {
+      mockGetPatient.mockRejectedValueOnce(new Error('network'));
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientName' ? 'Cached Patient' : null
+      );
+      renderWithData();
+      await waitFor(() => {
+        expect(screen.getByText('Cached Patient')).toBeInTheDocument();
+      });
+      // No identifier known on fallback
+      expect(screen.queryByText(/OpenMRS ID:/)).not.toBeInTheDocument();
+    });
+
+    it('should render no header when getPatient fails and storage has no name', async () => {
+      mockGetPatient.mockRejectedValueOnce(new Error('network'));
+      mockStorageGet.mockReturnValue(null);
+      renderWithData();
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/OpenMRS ID:/)).not.toBeInTheDocument();
+    });
+
+    it('should fall back to storage name when preferredName is null', async () => {
+      mockGetPatient.mockResolvedValueOnce({
+        uuid: 'patient-uuid',
+        identifiers: [{ identifier: 'OMRS-XYZ', preferred: true }],
+        person: { preferredName: null, attributes: [] },
+      });
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientName' ? 'Stored Name' : null
+      );
+      renderWithData();
+      await waitFor(() => {
+        expect(screen.getByText('Stored Name')).toBeInTheDocument();
+        expect(screen.getByText('OpenMRS ID: OMRS-XYZ')).toBeInTheDocument();
+      });
+    });
+
+    it('should render nothing when name and identifier are both empty', async () => {
+      mockGetPatient.mockResolvedValueOnce({
+        uuid: 'patient-uuid',
+        identifiers: [],
+        person: { preferredName: null, attributes: [] },
+      });
+      renderWithData();
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/OpenMRS ID:/)).not.toBeInTheDocument();
+    });
+
+    it('should not call setState after unmount when fetch resolves', async () => {
+      let resolveFn: (v: unknown) => void = () => {};
+      mockGetPatient.mockReturnValueOnce(
         new Promise(resolve => {
           resolveFn = resolve;
         })
@@ -1686,6 +2095,56 @@ describe('VisitSummaryPage', () => {
         await Promise.resolve();
       });
       expect(screen.queryByText('ID: LATE')).not.toBeInTheDocument();
+      const { unmount } = renderWithData();
+      unmount();
+      resolveFn({
+        uuid: 'patient-uuid',
+        identifiers: [{ identifier: 'OMRS-001', preferred: true }],
+        person: {
+          preferredName: { givenName: 'Late', middleName: null, familyName: 'Patient' },
+          attributes: [],
+        },
+      });
+     
+      await new Promise(r => setTimeout(r, 0));
+      expect(screen.queryByText(/Late Patient/)).not.toBeInTheDocument();
+    });
+
+    it('should fall back to PATIENT_UUID_KEY from storage when ctx patientUuid is absent', async () => {
+      mockUseStartVisitData.mockReturnValueOnce({
+        data: { ...defaultData },
+        patientUuid: null as any,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: mockClearVisitId,
+      });
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientUuid' ? 'storage-patient-uuid' : null
+      );
+      mockGetPatient.mockResolvedValueOnce({
+        uuid: 'storage-patient-uuid',
+        identifiers: [{ identifier: 'STO-001', preferred: true }],
+        person: {
+          preferredName: { givenName: 'From', middleName: null, familyName: 'Storage' },
+          attributes: [],
+        },
+      });
+      render(<VisitSummaryPage />);
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalledWith('storage-patient-uuid');
+        expect(screen.getByText('From Storage')).toBeInTheDocument();
+        expect(screen.getByText('OpenMRS ID: STO-001')).toBeInTheDocument();
+      });
     });
   });
 });

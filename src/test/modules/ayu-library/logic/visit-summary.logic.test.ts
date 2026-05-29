@@ -3823,4 +3823,172 @@ describe('buildVisitSummary', () => {
       }
     });
   });
+
+  describe('collectNestedOwnValues via associated symptoms path', () => {
+    const makeAssocQuestion = (
+      nestedItems: AyuQuestion[]
+    ): AyuQuestion => ({
+      linkId: 'assoc',
+      type: 'choice',
+      text: 'Associated symptoms',
+      repeats: true,
+      extension: [
+        {
+          url: 'urn:intelehealth:original-question-text',
+          valueString: 'Associated symptoms',
+        },
+      ],
+      answerOption: [
+        { valueCoding: { code: 'ID_1', display: 'Headache' } },
+      ],
+      item: nestedItems,
+    });
+
+    it('line 134 false: includes nested string answer that differs from label', () => {
+      const questions: AyuQuestion[] = [
+        makeAssocQuestion([
+          {
+            linkId: 'assoc.detail',
+            type: 'string',
+            text: 'Describe symptom',
+            extension: [
+              {
+                url: 'urn:intelehealth:original-question-text',
+                valueString: 'Describe symptom',
+              },
+            ],
+            enableWhen: [
+              { question: 'assoc', operator: '=', answerCoding: { code: 'ID_1' } },
+            ],
+          },
+        ]),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        // string answer differs from label 'Describe symptom'
+        ['assoc.detail', 'Sharp pain behind eyes'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Headache');
+        expect(reports.values[0]).toContain('Sharp pain behind eyes');
+      }
+    });
+
+    it('line 141: skips nested multi-select code with no matching answerOption', () => {
+      const questions: AyuQuestion[] = [
+        makeAssocQuestion([
+          {
+            linkId: 'assoc.severity',
+            type: 'choice',
+            text: 'Severity',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'MILD', display: 'Mild' } },
+            ],
+            enableWhen: [
+              { question: 'assoc', operator: '=', answerCoding: { code: 'ID_1' } },
+            ],
+          },
+        ]),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        // UNKNOWN_CODE has no matching answerOption → getDisplay returns null
+        ['assoc.severity', ['MILD', 'UNKNOWN_CODE']],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Mild');
+        expect(reports.values[0]).not.toContain('UNKNOWN_CODE');
+      }
+    });
+
+    it('line 134 true: skips nested string answer that equals its label', () => {
+      const questions: AyuQuestion[] = [
+        makeAssocQuestion([
+          {
+            linkId: 'assoc.detail',
+            type: 'string',
+            text: 'Describe symptom',
+            extension: [
+              {
+                url: 'urn:intelehealth:original-question-text',
+                valueString: 'Describe symptom',
+              },
+            ],
+            enableWhen: [
+              { question: 'assoc', operator: '=', answerCoding: { code: 'ID_1' } },
+            ],
+          },
+        ]),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        // answer equals label → skip at line 134
+        ['assoc.detail', 'Describe symptom'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        // Nested value was skipped because answer === label
+        expect(reports.values[0]).toContain('Headache');
+        expect(reports.values[0]).not.toContain('Describe symptom');
+      }
+    });
+
+    it('line 167: returns empty when formatAnswerByType returns null for nested item', () => {
+      const questions: AyuQuestion[] = [
+        makeAssocQuestion([
+          {
+            linkId: 'assoc.detail',
+            type: 'string',
+            text: 'Detail',
+            extension: [
+              {
+                url: 'urn:intelehealth:original-question-text',
+                valueString: 'Detail',
+              },
+            ],
+            enableWhen: [
+              { question: 'assoc', operator: '=', answerCoding: { code: 'ID_1' } },
+            ],
+          },
+        ]),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['ID_1']],
+        // Non-string answer for string type → formatAnswerByType returns null
+        ['assoc.detail', 42],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      const assocSection = result.find(s => s.title === 'Associated symptoms');
+      expect(assocSection).toBeDefined();
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        // Headache without nested detail (formatted was null)
+        expect(reports.values[0]).toContain('Headache');
+      }
+    });
+  });
 });

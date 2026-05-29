@@ -7,7 +7,12 @@ export interface ConfigState {
 
 // Language model
 export interface LanguageModel {
-  [key: string]: unknown;
+  name: string;
+  code: string;
+  en_name: string;
+  is_default: boolean;
+  platform: string;
+  is_enabled: boolean;
 }
 
 // Patient registration fields config model

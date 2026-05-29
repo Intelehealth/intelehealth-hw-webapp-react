@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "மீண்டும் வரவேற்கிறோம்!",
+    "Login_Continue_Description": "உங்கள் பணியைத் தொடர உள்நுழையவும்",
     "Please_Enter_Your_Login_Details": "தயவுசெய்து உள்நுழைவு விவரங்களை உள்ளிடவும்",
+    "Tooltip_Credentials": "இன்டெலிஹெல்த் குழு வழங்கிய நற்சான்றிதழ்களை உள்ளிடவும்",
     "Username": "பயனர் பெயர்",
     "Forgot_Username": "பயனர் பெயர் மறந்துவிட்டீர்களா?",
+    "Enter_Username_Placeholder": "உங்கள் பயனர் பெயரை உள்ளிடவும்",
     "Password": "கடவுச்சொல்",
     "Forgot_Password": "கடவுச்சொல் மறந்துவிட்டீர்களா?",
+    "Enter_Password_Placeholder": "உங்கள் கடவுச்சொல்லை உள்ளிடவும்",
+    "Select_Role": "பாத்திரத்தைத் தேர்ந்தெடுக்கவும்",
+    "Select_Role_Placeholder": "உங்கள் பாத்திரத்தைத் தேர்ந்தெடுக்கவும்",
     "Sign_In_As": "உள்நுழைய",
     "Agree_To": "ஏற்கிறேன்",
     "Login": "உள்நுழை"
@@ -15,5 +22,21 @@
   },
   "User_Role": {
     "Health_Worker": "சுகாதார பணியாளர்"
+  },
+  "Settings": {
+    "Settings_Title": "அமைப்புகள்",
+    "Personal": "தனிப்பட்ட",
+    "Account": "கணக்கு",
+    "Notification": "அறிவிப்பு",
+    "Security": "பாதுகாப்பு",
+    "Language_Protocol": "மொழி மற்றும் நெறிமுறை",
+    "Language": "மொழி",
+    "App_Language": "ஆப் மொழி",
+    "Reset_To_English": "ஆங்கிலத்திற்கு மீட்டமைக்கவும்",
+    "Reset": "மீட்டமை",
+    "Change_Language": "மொழியை மாற்றவா?",
+    "Change_Language_Confirm": "நீங்கள் நிச்சயமாக மொழியை {{language}} ஆக மாற்ற விரும்புகிறீர்களா?",
+    "Yes": "ஆம்",
+    "No": "இல்லை"
   }
 }

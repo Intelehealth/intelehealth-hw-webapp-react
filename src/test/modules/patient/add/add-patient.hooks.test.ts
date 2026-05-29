@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Hoisted mocks
 const h = vi.hoisted(() => ({
   mockCreatePatient: vi.fn(),
+  mockUpdatePatient: vi.fn(),
   mockGenerateIdentifier: vi.fn(),
   mockUpdateProfileImage: vi.fn(),
   mockShowToast: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('../../../../context/ProfileContext', () => ({
 vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
   patientService: {
     createPatient: (...args: unknown[]) => h.mockCreatePatient(...args),
+    updatePatient: (...args: unknown[]) => h.mockUpdatePatient(...args),
     genratePatientIdentifier: (...args: unknown[]) =>
       h.mockGenerateIdentifier(...args),
   },
@@ -64,6 +66,7 @@ import type { PatientFormData } from '../../../../types/patient/add/add-patient.
 
 const {
   mockCreatePatient,
+  mockUpdatePatient,
   mockGenerateIdentifier,
   mockUpdateProfileImage,
   mockShowToast,
@@ -512,10 +515,12 @@ describe('useAddPatient hook', () => {
       });
     });
 
-    it('should return hook object with handleAddPatient function', () => {
+    it('should return hook object with handleAddPatient and handleUpdatePatient functions', () => {
       const { result } = renderHook(() => useAddPatient());
       expect(result.current).toHaveProperty('handleAddPatient');
       expect(typeof result.current.handleAddPatient).toBe('function');
+      expect(result.current).toHaveProperty('handleUpdatePatient');
+      expect(typeof result.current.handleUpdatePatient).toBe('function');
     });
 
     it('should dispatch addLocalPatient after successful patient creation', async () => {
@@ -587,6 +592,182 @@ describe('useAddPatient hook', () => {
         (call: unknown[]) => (call[0] as { type: string })?.type === 'achievement/addLocalPatient'
       );
       expect(addLocalCalls.length).toBe(1);
+    });
+  });
+
+  describe('handleUpdatePatient', () => {
+    it('should successfully update a patient without profile photo', async () => {
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          mockPatientFormData
+        );
+      });
+
+      expect(mockUpdatePatient).toHaveBeenCalledTimes(1);
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
+      expect(mockCreatePatient).not.toHaveBeenCalled();
+      expect(mockGenerateIdentifier).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Patient Updated Successfully',
+        'Patient has been updated successfully',
+        'success'
+      );
+      expect(success).toBe('patient-uuid-123');
+    });
+
+    it('should successfully update a patient with profile photo', async () => {
+      const photoData =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      const patientDataWithPhoto = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: photoData,
+        },
+      };
+
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+      mockUpdateProfileImage.mockResolvedValue({ success: true });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          patientDataWithPhoto
+        );
+      });
+
+      expect(mockUpdatePatient).toHaveBeenCalledTimes(1);
+      expect(mockUpdateProfileImage).toHaveBeenCalledWith({
+        person: 'patient-uuid-123',
+        base64EncodedImage:
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Patient Updated Successfully',
+        'Patient has been updated successfully',
+        'success'
+      );
+      expect(success).toBe('patient-uuid-123');
+    });
+
+    it('should send only person data without identifiers', async () => {
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      await waitFor(async () => {
+        await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          mockPatientFormData
+        );
+      });
+
+      const updateCall = mockUpdatePatient.mock.calls[0];
+      expect(updateCall[0]).toBe('patient-uuid-123');
+      const payload = updateCall[1];
+      expect(payload).toHaveProperty('person');
+      expect(payload).not.toHaveProperty('identifiers');
+      expect(payload.person).toHaveProperty('names');
+      expect(payload.person).toHaveProperty('addresses');
+      expect(payload.person).toHaveProperty('attributes');
+    });
+
+    it('should handle error during patient update', async () => {
+      const error = new Error('Network error');
+      mockUpdatePatient.mockRejectedValue(error);
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          mockPatientFormData
+        );
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Update Patient Failed',
+        'Network error',
+        'error'
+      );
+      expect(success).toBe(false);
+    });
+
+    it('should handle unknown error type during patient update', async () => {
+      mockUpdatePatient.mockRejectedValue('Unknown error');
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          mockPatientFormData
+        );
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Update Patient Failed',
+        'An unknown error occurred',
+        'error'
+      );
+      expect(success).toBe(false);
+    });
+
+    it('should handle error during image upload on update', async () => {
+      const patientDataWithPhoto = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: 'data:image/png;base64,abc123',
+        },
+      };
+
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+      mockUpdateProfileImage.mockRejectedValue(new Error('Upload failed'));
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          patientDataWithPhoto
+        );
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Update Patient Failed',
+        'Upload failed',
+        'error'
+      );
+      expect(success).toBe(false);
+    });
+
+    it('should return the same uuid that was passed in', async () => {
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-999' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-999',
+          mockPatientFormData
+        );
+      });
+
+      expect(success).toBe('patient-uuid-999');
     });
   });
 });

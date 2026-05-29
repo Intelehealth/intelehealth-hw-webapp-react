@@ -55,6 +55,7 @@ export interface PatientDisplayData {
 
 export interface UsePatientProfileReturn {
   patientData: PatientDisplayData | null;
+  rawPatient: OpenMRSPatient | null;
   visits: OpenMRSVisit[];
   loading: boolean;
   refreshing: boolean;

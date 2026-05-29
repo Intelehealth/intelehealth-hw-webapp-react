@@ -67,21 +67,22 @@ const CallPip = ({ callerName, onMaximize, onEndCall }: CallPipProps) => {
         <p className="truncate text-xs font-semibold">Dr. {callerName}</p>
         <p className="text-[10px] text-slate-300">In call</p>
       </div>
-      <button
-        type="button"
-        onClick={onMaximize}
-        aria-label="Maximize call"
-        className="absolute bottom-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg transition hover:bg-white"
-      >
-        <img src={iconMaximize} alt="" className="h-4 w-4" />
-      </button>
+
       <button
         type="button"
         onClick={onEndCall}
         aria-label="End call"
-        className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:bg-red-700"
+        className="absolute bottom-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:bg-red-700"
       >
         <img src={iconCallEnd} alt="" className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onMaximize}
+        aria-label="Maximize call"
+        className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg transition hover:bg-white"
+      >
+        <img src={iconMaximize} alt="" className="h-4 w-4" />
       </button>
     </div>
   );

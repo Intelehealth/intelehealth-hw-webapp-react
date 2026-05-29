@@ -148,4 +148,28 @@ describe('CallPip', () => {
     // Position unchanged after release.
     expect(pip.style.left).toBe('190px');
   });
+
+  it('early-returns from pointer move when dragOffset is null', () => {
+    render(<CallPip {...baseProps} />);
+    const pip = screen.getByTestId('call-pip');
+    vi.spyOn(pip, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 320, bottom: 224,
+      width: 320, height: 224, x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    // Start a drag so the pointermove listener is registered
+    fireEvent.pointerDown(pip, { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(window, { clientX: 100, clientY: 100 });
+    const posAfterDrag = pip.style.left;
+
+    // Prevent removeEventListener from removing the handler during pointerUp
+    const removeSpy = vi.spyOn(globalThis, 'removeEventListener').mockImplementation(() => {});
+    fireEvent.pointerUp(window); // sets dragOffset.current = null but listener stays
+
+    removeSpy.mockRestore();
+
+    // Fire pointerMove — handler is still attached but dragOffset is null
+    fireEvent.pointerMove(window, { clientX: 500, clientY: 500 });
+    expect(pip.style.left).toBe(posAfterDrag);
+  });
 });

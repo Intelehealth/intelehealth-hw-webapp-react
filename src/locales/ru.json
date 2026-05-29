@@ -1,10 +1,17 @@
 {
   "Auth": {
+    "Welcome_Back": "С возвращением!",
+    "Login_Continue_Description": "Пожалуйста, войдите, чтобы продолжить работу",
     "Please_Enter_Your_Login_Details": "Пожалуйста, введите свои данные для входа",
+    "Tooltip_Credentials": "Введите учётные данные, предоставленные командой Intelehealth",
     "Username": "Имя пользователя",
     "Forgot_Username": "Забыли имя пользователя?",
+    "Enter_Username_Placeholder": "Введите имя пользователя",
     "Password": "Пароль",
     "Forgot_Password": "Забыли пароль?",
+    "Enter_Password_Placeholder": "Введите пароль",
+    "Select_Role": "Выберите роль",
+    "Select_Role_Placeholder": "Выберите вашу роль",
     "Sign_In_As": "Войти как",
     "Agree_To": "Согласен с",
     "Login": "Войти"
@@ -15,5 +22,21 @@
   },
   "User_Role": {
     "Health_Worker": "Медицинский работник"
+  },
+  "Settings": {
+    "Settings_Title": "Настройки",
+    "Personal": "Личное",
+    "Account": "Аккаунт",
+    "Notification": "Уведомления",
+    "Security": "Безопасность",
+    "Language_Protocol": "Язык и протокол",
+    "Language": "Язык",
+    "App_Language": "Язык приложения",
+    "Reset_To_English": "Сбросить на английский",
+    "Reset": "Сбросить",
+    "Change_Language": "Изменить язык?",
+    "Change_Language_Confirm": "Вы уверены, что хотите изменить язык на {{language}}?",
+    "Yes": "Да",
+    "No": "Нет"
   }
 }
