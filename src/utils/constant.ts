@@ -3,9 +3,9 @@ export const PATIENT_DETAILS_LABEL = 'Patient Details';
 
 export const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
-  { value: 'hi', label: 'Hindi' },
-  { value: 'mr', label: 'Marathi' },
-  { value: 'ta', label: 'Tamil' },
-  { value: 'te', label: 'Telugu' },
-  { value: 'bn', label: 'Bengali' },
+  { value: 'hi', label: 'हिंदी' },
+  { value: 'mr', label: 'मराठी' },
+  { value: 'ta', label: 'தமிழ்' },
+  { value: 'te', label: 'తెలుగు' },
+  { value: 'bn', label: 'বাংলা' },
 ];
