@@ -145,6 +145,11 @@ vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
   },
 }));
 
+const mockFetchConceptAnswers = vi.fn();
+vi.mock('../../../../services/concept.service', () => ({
+  fetchConceptAnswers: (...args: any[]) => mockFetchConceptAnswers(...args),
+}));
+
 /* ── Mock obs.service ──────────────────────────────────────────────────── */
 
 const mockUploadAllAdditionalDocuments = vi.fn().mockResolvedValue(undefined);
@@ -305,6 +310,7 @@ beforeEach(() => {
     identifiers: [],
     person: { preferredName: null, attributes: [] },
   });
+  mockFetchConceptAnswers.mockResolvedValue([]);
 });
 
 describe('VisitSummaryPage', () => {
@@ -1770,9 +1776,91 @@ describe('VisitSummaryPage', () => {
       expect(screen.getByText('Additional Measurements')).toBeInTheDocument();
       expect(screen.getAllByText('HbA1c').length).toBeGreaterThan(0);
     });
+
+    it('should fetch concept answers and resolve blood_group display when config lacks answers', async () => {
+      mockFetchConceptAnswers.mockResolvedValueOnce([
+        { uuid: 'bg-bpos-uuid', display: 'B POSITIVE' },
+        { uuid: 'bg-apos-uuid', display: 'A POSITIVE' },
+      ]);
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-bpos-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+            },
+          ],
+        },
+      });
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalledWith('bg-concept-uuid');
+        expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should not fetch concept answers when config already has blood_group answers', () => {
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-bpos-uuid',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+              answers: [{ uuid: 'bg-bpos-uuid', display: 'B POSITIVE' }],
+            },
+          ],
+        },
+      });
+      expect(mockFetchConceptAnswers).not.toHaveBeenCalled();
+      expect(screen.getAllByText('B POSITIVE').length).toBeGreaterThan(0);
+    });
+
+    it('should swallow fetchConceptAnswers errors and show the raw uuid', async () => {
+      mockFetchConceptAnswers.mockRejectedValueOnce(new Error('network'));
+      renderWithData({
+        vitals: {
+          formValues: {
+            ...fullData.vitals.formValues,
+            blood_group: 'bg-unknown',
+          },
+          config: [
+            {
+              name: 'Blood Group',
+              key: 'blood_group',
+              uuid: 'bg-concept-uuid',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+              datatype: 'Coded',
+            },
+          ],
+        },
+      });
+      await waitFor(() => {
+        expect(mockFetchConceptAnswers).toHaveBeenCalled();
+      });
+      expect(screen.getAllByText('bg-unknown').length).toBeGreaterThan(0);
+    });
   });
 
- 
+
 
   describe('Patient header (name + OpenMRS ID)', () => {
     it('should fetch and display patient name and OpenMRS ID', async () => {
