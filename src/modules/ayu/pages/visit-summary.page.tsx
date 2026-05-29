@@ -1,10 +1,17 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type {
   CheckupReason,
   PhysicalExamination,
   Vitals,
 } from '../../../assets/data/visit-summary.data';
+import iconPatientPhoto from '../../../assets/icons/appointment/icon-patient-image.svg';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
 import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
@@ -19,7 +26,9 @@ import type { ModalSectionItem } from '../../../components/modal/global-modal-co
 import { useProfileContext } from '../../../context/ProfileContext';
 import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
+import type { OpenMRSPatient } from '../../../types/patient/profile/patient-profile.types';
 import { storage } from '../../../utils/storage';
+import { patientService } from '../../patient/add/add-patient.service';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
@@ -58,6 +67,35 @@ import {
 } from '../utils/parseFhirPhysExamQuestionnaire';
 
 const PRIMARY_COLOR = '#0fd197';
+
+const PatientInfoCard: React.FC<{
+  name: string;
+  ageGender: string;
+  identifier: string;
+}> = ({ name, ageGender, identifier }) => (
+  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-3">
+    <div className="flex items-center gap-3">
+      <img
+        src={iconPatientPhoto}
+        alt="patient"
+        className="w-12 h-12 rounded-full shrink-0"
+      />
+      <div>
+        <p className="font-semibold text-gray-800">
+          {name}
+          {ageGender && (
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              {ageGender}
+            </span>
+          )}
+        </p>
+        {identifier && (
+          <p className="text-xs text-gray-500">ID: {identifier}</p>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
 const LabelValueRow: React.FC<{
   label: string;
@@ -257,6 +295,33 @@ const VisitSummaryPage = () => {
   >([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const patientUuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
+  const [patientInfo] = useState(() => ({
+    name: storage.get(PATIENT_NAME_KEY) ?? '',
+    age: storage.get(PATIENT_AGE_KEY) ?? '',
+    gender: storage.get(PATIENT_GENDER_KEY) ?? '',
+  }));
+  const [patientIdentifier, setPatientIdentifier] = useState('');
+
+  useEffect(() => {
+    if (!patientUuid) return;
+    let cancelled = false;
+    patientService
+      .getPatient(patientUuid)
+      .then((p: OpenMRSPatient) => {
+        if (cancelled) return;
+        const id =
+          p.identifiers?.find(i => i.preferred)?.identifier ??
+          p.identifiers?.[0]?.identifier ??
+          '';
+        setPatientIdentifier(id);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [patientUuid]);
+
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
   const handleFileSelect = useCallback(
@@ -304,7 +369,6 @@ const VisitSummaryPage = () => {
       return;
     }
 
-    const patientUuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
     const locationUuid = storage.getLocationUuid();
     const providerUuid = hwProfile?.providerUuid;
 
@@ -398,7 +462,7 @@ const VisitSummaryPage = () => {
     data,
     hwProfile,
     navigate,
-    ctxPatientUuid,
+    patientUuid,
     speciality,
     priorityVisit,
     tempRecordId,
@@ -448,6 +512,15 @@ const VisitSummaryPage = () => {
       <hr className="border-t border-gray-200 mt-2 mb-3 md:-mx-4" />
 
       <div className="px-4 md:px-0">
+        {patientInfo.name && (
+          <PatientInfoCard
+            name={patientInfo.name}
+            ageGender={[patientInfo.gender, patientInfo.age]
+              .filter(Boolean)
+              .join(', ')}
+            identifier={patientIdentifier}
+          />
+        )}
         <div className="flex justify-end py-2">
           <button
             className="flex items-center gap-1 text-xs text-gray-500"

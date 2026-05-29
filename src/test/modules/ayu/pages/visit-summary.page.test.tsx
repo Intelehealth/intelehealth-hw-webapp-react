@@ -152,6 +152,15 @@ vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   getLatestVisitUuid: (...args: any[]) => mockGetLatestVisitUuid(...args),
 }));
 
+/* ── Mock patientService.getPatient (patient ID fetch for details card) ──── */
+
+const mockGetPatient = vi.fn();
+vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
+  patientService: {
+    getPatient: (...args: any[]) => mockGetPatient(...args),
+  },
+}));
+
 /* ── Mock icon imports ───────────────────────────────────────────────────── */
 
 vi.mock('../../../../assets/icons/icon-chevron-down.svg', () => ({
@@ -291,6 +300,9 @@ beforeEach(() => {
   mockUseConfig.mockReturnValue({ config: defaultMockConfig });
   mockUploadAllAdditionalDocuments.mockResolvedValue(undefined);
   mockGetLatestVisitUuid.mockResolvedValue('mock-visit-uuid');
+  // Default: a never-settling fetch so tests that don't care about the patient
+  // ID don't trigger async state updates after render.
+  mockGetPatient.mockReturnValue(new Promise(() => {}));
 });
 
 describe('VisitSummaryPage', () => {
@@ -1560,6 +1572,120 @@ describe('VisitSummaryPage', () => {
         'Visit uploaded successfully',
         'success'
       );
+    });
+  });
+
+  /* ── Patient details card ─────────────────────────────────────────────── */
+
+  describe('Patient details card', () => {
+    const withPatient = (overrides: Record<string, string | null> = {}) => {
+      const values: Record<string, string | null> = {
+        patientName: 'Vimla Jadhav',
+        patientAge: '73',
+        patientGender: 'Female',
+        patientUuid: null,
+        ...overrides,
+      };
+      mockStorageGet.mockImplementation((key: string) => values[key] ?? null);
+    };
+
+    it('renders the patient card with name and age/gender meta', () => {
+      withPatient();
+      renderWithData(fullData);
+      expect(screen.getByText('Vimla Jadhav')).toBeInTheDocument();
+      expect(screen.getByText('Female, 73')).toBeInTheDocument();
+    });
+
+    it('renders the card without meta when age and gender are empty', () => {
+      withPatient({ patientAge: '', patientGender: '' });
+      renderWithData(fullData);
+      expect(screen.getByText('Vimla Jadhav')).toBeInTheDocument();
+      expect(screen.queryByText('Female, 73')).not.toBeInTheDocument();
+    });
+
+    it('shows the OpenMRS ID using the preferred identifier', async () => {
+      withPatient();
+      mockGetPatient.mockResolvedValue({
+        identifiers: [
+          { identifier: 'PID-0', preferred: false },
+          { identifier: 'PID-PREF', preferred: true },
+        ],
+      });
+      renderWithData(fullData);
+      expect(await screen.findByText('ID: PID-PREF')).toBeInTheDocument();
+      expect(mockGetPatient).toHaveBeenCalledWith(
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
+    });
+
+    it('falls back to the first identifier when none is preferred', async () => {
+      withPatient();
+      mockGetPatient.mockResolvedValue({
+        identifiers: [{ identifier: 'PID-0', preferred: false }],
+      });
+      renderWithData(fullData);
+      expect(await screen.findByText('ID: PID-0')).toBeInTheDocument();
+    });
+
+    it('shows no ID when the patient has no identifiers', async () => {
+      withPatient();
+      mockGetPatient.mockResolvedValue({ identifiers: [] });
+      renderWithData(fullData);
+      await act(async () => {});
+      expect(mockGetPatient).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/^ID:/)).not.toBeInTheDocument();
+    });
+
+    it('handles an ID fetch failure gracefully', async () => {
+      withPatient();
+      mockGetPatient.mockRejectedValue(new Error('network'));
+      renderWithData(fullData);
+      await act(async () => {});
+      expect(mockGetPatient).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/^ID:/)).not.toBeInTheDocument();
+      expect(screen.getByText('Vimla Jadhav')).toBeInTheDocument();
+    });
+
+    it('does not fetch the ID when no patient UUID is available', () => {
+      withPatient({ patientUuid: null });
+      mockUseStartVisitData.mockReturnValue({
+        data: { ...fullData },
+        patientUuid: null as any,
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: mockClearVisitId,
+      });
+      render(<VisitSummaryPage />);
+      expect(mockGetPatient).not.toHaveBeenCalled();
+      expect(screen.getByText('Vimla Jadhav')).toBeInTheDocument();
+    });
+
+    it('ignores a fetch that resolves after unmount', async () => {
+      withPatient();
+      let resolveFn!: (v: unknown) => void;
+      mockGetPatient.mockReturnValue(
+        new Promise(resolve => {
+          resolveFn = resolve;
+        })
+      );
+      const { unmount } = renderWithData(fullData);
+      unmount();
+      resolveFn({ identifiers: [{ identifier: 'LATE', preferred: true }] });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.queryByText('ID: LATE')).not.toBeInTheDocument();
     });
   });
 });
