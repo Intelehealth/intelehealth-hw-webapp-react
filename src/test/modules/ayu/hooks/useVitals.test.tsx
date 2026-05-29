@@ -795,6 +795,110 @@ describe('useVitals', () => {
       expect(result.current.handleSubmit).toBeDefined();
       expect(typeof result.current.handleSubmit).toBe('function');
     });
+
+    it('should enrich config with fetched coded answers before saving', async () => {
+      const bloodGroupConfig: VitalField[] = [
+        ...mockVitalsConfig,
+        {
+          uuid: 'bg-concept-uuid',
+          key: 'blood_group',
+          name: 'Blood Group',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+          datatype: 'Coded',
+        },
+      ];
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: bloodGroupConfig },
+      } as any);
+      const fetched: ConceptAnswer[] = [
+        { uuid: 'bg-bpos', display: 'B POSITIVE' },
+        { uuid: 'bg-apos', display: 'A POSITIVE' },
+      ];
+      mockFetchConceptAnswers.mockResolvedValueOnce(fetched);
+
+      const mockShowVitalConfirmationModal = vi.fn(config => {
+        if (config.onConfirm) config.onConfirm();
+      });
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      mockSetVitalsData.mockClear();
+      mockSaveSectionToTemp.mockClear();
+
+      act(() => {
+        result.current.onSubmit();
+      });
+
+      expect(mockSetVitalsData).toHaveBeenCalledTimes(1);
+      const enrichedConfig = mockSetVitalsData.mock.calls[0][1] as VitalField[];
+      const enrichedBg = enrichedConfig.find(f => f.key === 'blood_group');
+      expect(enrichedBg?.answers).toEqual(fetched);
+
+      const tempArg = mockSaveSectionToTemp.mock.calls[0][0] as {
+        vitals: { config: VitalField[] };
+      };
+      const tempBg = tempArg.vitals.config.find(f => f.key === 'blood_group');
+      expect(tempBg?.answers).toEqual(fetched);
+    });
+
+    it('should leave config untouched when field already has answers', async () => {
+      const preset: ConceptAnswer[] = [
+        { uuid: 'preset-uuid', display: 'PRESET' },
+      ];
+      const bloodGroupConfig: VitalField[] = [
+        ...mockVitalsConfig,
+        {
+          uuid: 'bg-concept-uuid',
+          key: 'blood_group',
+          name: 'Blood Group',
+          is_mandatory: false,
+          is_enabled: true,
+          lang: null,
+          datatype: 'Coded',
+          answers: preset,
+        },
+      ];
+      vi.mocked(useConfig).mockReturnValue({
+        config: { patient_vitals: bloodGroupConfig },
+      } as any);
+
+      const mockShowVitalConfirmationModal = vi.fn(config => {
+        if (config.onConfirm) config.onConfirm();
+      });
+      vi.mocked(useGlobalModal).mockReturnValue({
+        showConfirmModal: vi.fn(),
+        showVitalConfirmationModal: mockShowVitalConfirmationModal,
+      } as any);
+
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      mockSetVitalsData.mockClear();
+      act(() => {
+        result.current.onSubmit();
+      });
+
+    
+      expect(mockFetchConceptAnswers).not.toHaveBeenCalled();
+      const enrichedConfig = mockSetVitalsData.mock.calls[0][1] as VitalField[];
+      const enrichedBg = enrichedConfig.find(f => f.key === 'blood_group');
+      expect(enrichedBg?.answers).toEqual(preset);
+    });
   });
 
   describe('Validation', () => {

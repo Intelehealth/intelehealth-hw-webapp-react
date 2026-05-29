@@ -1,5 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../../../assets/icons/accept.svg', () => ({
+  default: 'mock-accept.svg',
+}));
+vi.mock('../../../assets/icons/decline.svg', () => ({
+  default: 'mock-decline.svg',
+}));
+
 import IncomingCallModal from '../../../components/call/incoming-call-modal.component';
 
 const baseProps = {
@@ -58,4 +66,17 @@ describe('IncomingCallModal', () => {
     expect(onDecline).toHaveBeenCalledTimes(1);
   });
 
+  it('uses accept.svg for the accept button icon', () => {
+    render(<IncomingCallModal {...baseProps} />);
+    const acceptBtn = screen.getByText('Accept').previousSibling as HTMLElement;
+    const img = acceptBtn.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('mock-accept.svg');
+  });
+
+  it('uses decline.svg for the decline button icon', () => {
+    render(<IncomingCallModal {...baseProps} />);
+    const declineBtn = screen.getByText('Decline').previousSibling as HTMLElement;
+    const img = declineBtn.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('mock-decline.svg');
+  });
 });
