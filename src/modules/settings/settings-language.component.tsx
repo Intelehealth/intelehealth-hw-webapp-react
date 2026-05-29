@@ -35,7 +35,7 @@ const SettingsLanguage: React.FC = () => {
     if (apiLanguages && apiLanguages.length > 0) {
       return apiLanguages.map(lang => ({
         value: lang.code,
-        label: lang.en_name,
+        label: lang.name,
       }));
     }
     return LANGUAGE_OPTIONS;
