@@ -94,7 +94,7 @@ describe('SettingsLanguage', () => {
     ) as HTMLElement;
     if (dropdownTrigger) fireEvent.click(dropdownTrigger);
 
-    const hindiOption = screen.queryByText('Hindi');
+    const hindiOption = screen.queryByText('हिंदी');
     if (hindiOption) {
       fireEvent.click(hindiOption);
       expect(mockShowConfirmModal).toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('SettingsLanguage', () => {
     expect(mockShowConfirmModal).toHaveBeenCalled();
     const call = mockShowConfirmModal.mock.calls[0][0];
     expect(call.title).toBe('Change language?');
-    expect(call.description).toContain('Hindi');
+    expect(call.description).toContain('हिंदी');
   });
 
   it('falls back to code as label when language code is not found in options', () => {
@@ -153,7 +153,7 @@ describe('SettingsLanguage', () => {
     act(() => {
       call.onConfirm();
     });
-    expect(mockHook.setLanguage).toHaveBeenCalledWith('hi', 'Hindi');
+    expect(mockHook.setLanguage).toHaveBeenCalledWith('hi', 'हिंदी');
   });
 
   it('uses dynamic language options from config when available', () => {
@@ -171,7 +171,7 @@ describe('SettingsLanguage', () => {
     });
     expect(mockShowConfirmModal).toHaveBeenCalled();
     const call = mockShowConfirmModal.mock.calls[0][0];
-    expect(call.description).toContain('Russian');
+    expect(call.description).toContain('русский');
   });
 
   it('falls back to LANGUAGE_OPTIONS when config has no languages', () => {
@@ -183,7 +183,7 @@ describe('SettingsLanguage', () => {
     });
     expect(mockShowConfirmModal).toHaveBeenCalled();
     const call = mockShowConfirmModal.mock.calls[0][0];
-    expect(call.description).toContain('Hindi');
+    expect(call.description).toContain('हिंदी');
   });
 
   it('filters out disabled languages from config', () => {
@@ -233,6 +233,6 @@ describe('SettingsLanguage', () => {
       capturedDropdownOnChange?.('hi');
     });
     const call = mockShowConfirmModal.mock.calls[0][0];
-    expect(call.description).toContain('Hindi');
+    expect(call.description).toContain('हिंदी');
   });
 });

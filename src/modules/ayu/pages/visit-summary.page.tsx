@@ -25,6 +25,8 @@ import type { ModalSectionItem } from '../../../components/modal/global-modal-co
 import { useProfileContext } from '../../../context/ProfileContext';
 import { useConfig } from '../../../hooks/useConfig';
 import { showToast } from '../../../services/toast';
+import { fetchConceptAnswers } from '../../../services/concept.service';
+import type { ConceptAnswer } from '../../../types/config.types';
 import { patientService } from '../../patient/add/add-patient.service';
 import { storage } from '../../../utils/storage';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
@@ -80,7 +82,8 @@ const VITALS_PRIMARY_KEYS = new Set([
 
 const buildAdditionalMeasurements = (
   config: VitalField[],
-  formValues: VitalsFormValues
+  formValues: VitalsFormValues,
+  bloodGroupAnswers: { uuid: string; display: string }[] = []
 ): { label: string; value: string }[] => {
   return config
     .filter(field => !VITALS_PRIMARY_KEYS.has(field.key))
@@ -89,7 +92,11 @@ const buildAdditionalMeasurements = (
       let display = 'No information';
       if (raw != null && raw !== '') {
         if (field.key === 'blood_group') {
-          const match = field.answers?.find(a => a.uuid === String(raw));
+          const answers =
+            field.answers && field.answers.length > 0
+              ? field.answers
+              : bloodGroupAnswers;
+          const match = answers.find(a => a.uuid === String(raw));
           display = match?.display ?? String(raw);
         } else {
           display = String(raw);
@@ -327,7 +334,24 @@ const VisitSummaryPage = () => {
   >([]);
   const [patientName, setPatientName] = useState<string>('');
   const [patientIdentifier, setPatientIdentifier] = useState<string>('');
+  const [bloodGroupAnswers, setBloodGroupAnswers] = useState<ConceptAnswer[]>(
+    []
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const bgField = data.vitals?.config?.find(f => f.key === 'blood_group');
+    if (!bgField || (bgField.answers && bgField.answers.length > 0)) return;
+    let cancelled = false;
+    fetchConceptAnswers(bgField.uuid)
+      .then(answers => {
+        if (!cancelled) setBloodGroupAnswers(answers);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [data.vitals]);
 
   useEffect(() => {
     const uuid = ctxPatientUuid || storage.get(PATIENT_UUID_KEY);
@@ -523,10 +547,11 @@ const VisitSummaryPage = () => {
       data.vitals
         ? buildAdditionalMeasurements(
             data.vitals.config,
-            data.vitals.formValues
+            data.vitals.formValues,
+            bloodGroupAnswers
           )
         : [],
-    [data.vitals]
+    [data.vitals, bloodGroupAnswers]
   );
 
   const checkupReason = useMemo(
