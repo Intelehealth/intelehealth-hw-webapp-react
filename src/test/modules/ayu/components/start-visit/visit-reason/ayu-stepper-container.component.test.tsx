@@ -109,6 +109,7 @@ const mockUseFHIRStepper = {
   mockReturnValue: (val: Record<string, unknown>) => {
     _mockUseFHIRStepper.mockReturnValue({
       validateAllQuestions: mockValidateAllQuestions,
+      isCameraAnswerMissingImages: () => false,
       ...val,
     } as unknown as ReturnType<typeof useFHIRStepper>);
   },
@@ -1559,6 +1560,56 @@ describe('AyuStepperContainer', () => {
 
       fireEvent.click(screen.getByTestId('button-submit'));
       expect(mockShowToast).toHaveBeenCalledWith('Please select any one option', undefined, 'warning');
+    });
+
+    it('should block Submit with an upload-image toast when the camera answer has no images', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Is there jaundice?',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          {
+            valueCoding: { code: 'cam', display: 'Picture Taken' },
+            extension: [
+              {
+                url: 'urn:intelehealth:physical-exam/option-kind',
+                valueString: 'camera',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['cam'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        isCameraAnswerMissingImages: () => true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please upload at least one image',
+        undefined,
+        'warning'
+      );
+      expect(mockGoNext).not.toHaveBeenCalled();
     });
 
     it('should show "All questions are compulsory" toast for incomplete associated symptoms', () => {

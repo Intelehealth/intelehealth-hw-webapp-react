@@ -69,20 +69,6 @@ vi.mock('../../../../../modules/ayu/hooks/useVisitReasons.hook', () => ({
   })),
 }));
 
-// Mock Cough questionnaire JSON — includes a matching extension so the
-// `?.valueString ?? ''` branch for "found extension" is exercised.
-vi.mock('../../../../../modules/ayu/pages/Cough.questionnaire.json', () => ({
-  default: {
-    item: [],
-    extension: [
-      {
-        url: 'urn:intelehealth:perform-physical-exam',
-        valueString: 'ga-gen',
-      },
-    ],
-  },
-}));
-
 // Mock SVG import
 vi.mock('../../../../../modules/ayu/assets/icon-start-visit.svg', () => ({
   default: 'mock-icon-start-visit.svg',

@@ -148,6 +148,10 @@ vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
 vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   getJobAidUrl: (file: string) =>
     file === 'missing' ? null : `assets/${file}.png`,
+  // Derives type from the bundled asset: 'vidfile' → video, 'imgfile' → image,
+  // anything else → undefined (no bundled asset → fall back to FHIR type).
+  getJobAidType: (file: string) =>
+    file === 'vidfile' ? 'video' : file === 'imgfile' ? 'image' : undefined,
 }));
 
 vi.mock('../../../../../assets/icons/icon-physical-examination.svg', () => ({
@@ -554,7 +558,10 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      capturedStepperProps._completeAnswers = { 'with-images': ['CAM'] };
+      // camera answer code = the attachment's linkId (`<question>-cam`)
+      capturedStepperProps._completeAnswers = {
+        'with-images': ['with-images-cam'],
+      };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections[0].items[0].value).toBe('Picture Taken');
@@ -573,7 +580,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      capturedStepperProps._completeAnswers = { 'no-images': ['CAM'] };
+      capturedStepperProps._completeAnswers = { 'no-images': ['no-images-cam'] };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       expect(modalConfig.sections).toEqual([]);
@@ -820,6 +827,53 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(fn('q-vid')).toBe('video');
       expect(fn('q-bad')).toBeNull();
     });
+
+    it('jobAidTypeFor prefers the actual bundled asset type over the FHIR job-aid-type', () => {
+      // job-aid-file resolves to an image asset even though the FHIR type
+      // (mislabelled) says "video" — the actual file wins.
+      const q = makeQuestion('q-file', 'General', 'Pallor', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      q.extension = [
+        ...(q.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-file',
+          valueString: 'imgfile',
+        },
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-type',
+          valueString: 'video',
+        },
+      ];
+      renderForCallbacks([q]);
+      const fn = capturedProviderProps.current?.jobAidTypeFor as (
+        id: string
+      ) => 'image' | 'video' | null;
+      expect(fn('q-file')).toBe('image');
+    });
+
+    it('jobAidTypeFor falls back to the FHIR job-aid-type when the file has no bundled asset', () => {
+      // getJobAidType returns undefined for an unknown file → use FHIR type.
+      const q = makeQuestion('q-fallback', 'General', 'Throat', [
+        { code: 'yes', display: 'Yes' },
+      ]);
+      q.extension = [
+        ...(q.extension ?? []),
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-file',
+          valueString: 'unbundled',
+        },
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/job-aid-type',
+          valueString: 'video',
+        },
+      ];
+      renderForCallbacks([q]);
+      const fn = capturedProviderProps.current?.jobAidTypeFor as (
+        id: string
+      ) => 'image' | 'video' | null;
+      expect(fn('q-fallback')).toBe('video');
+    });
   });
 
   describe('edge cases', () => {
@@ -948,7 +1002,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      capturedStepperProps._completeAnswers = { q1: ['CAM'] };
+      capturedStepperProps._completeAnswers = { q1: ['q1-cam'] };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       // Fallback returned []; no images, so the camera answer drops out.
