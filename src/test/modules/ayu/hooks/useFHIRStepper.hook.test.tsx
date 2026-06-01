@@ -27,6 +27,18 @@ vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
   default: 'mock-visit-reason-icon',
 }));
 
+// Mock the PE camera context so the stepper's camera-image validation can be
+// driven. `current` null = non-PE flow (no provider).
+const { cameraHolder } = vi.hoisted(() => ({
+  cameraHolder: {
+    current: null as null | { cameraImagesFor: (q: string) => string[] },
+  },
+}));
+vi.mock(
+  '../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-camera-context',
+  () => ({ usePhysicalExamCamera: () => cameraHolder.current })
+);
+
 import { useFHIRStepper } from '../../../../modules/ayu/hooks/useFHIRStepper.hook';
 
 describe('useFHIRStepper', () => {
@@ -34,6 +46,7 @@ describe('useFHIRStepper', () => {
     vi.useFakeTimers();
     mockShowVitalConfirmationModal.mockClear();
     mockShowToast.mockClear();
+    cameraHolder.current = null;
   });
 
   afterEach(() => {
@@ -4117,6 +4130,113 @@ describe('useFHIRStepper', () => {
 
       // The answer should be stored under the original linkId since there is no top-level question
       expect(result.current.answers).toEqual({ orphan: 'value' });
+    });
+  });
+
+  describe('camera image validation', () => {
+    const peCameraQuestionnaire = {
+      item: [
+        {
+          linkId: 'jaundice',
+          text: 'Is there jaundice?',
+          type: 'choice',
+          required: false,
+          answerOption: [
+            { valueCoding: { code: 'no', display: 'No' } },
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            {
+              valueCoding: { code: 'jaundice_cam', display: 'Picture Taken' },
+              extension: [
+                {
+                  url: 'urn:intelehealth:physical-exam/option-kind',
+                  valueString: 'camera',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('blocks completion when the picture option is selected but has no images', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['jaundice_cam'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please upload at least one image',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('allows completion when the picture option has at least one image', () => {
+      cameraHolder.current = { cameraImagesFor: () => ['data:image/png;base64,x'] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['jaundice_cam'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('does not block a non-camera answer for the same question', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['yes'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('handles a string (non-array) camera answer with no images', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: 'jaundice_cam' },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(false);
+    });
+
+    it('does not flag a camera question that has no answer at all', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          // jaundice is not required and unanswered → not a missing-image case
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('ignores a question with no camera option even when the PE camera context is present', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: {
+            item: [
+              {
+                linkId: 'plain',
+                text: 'Plain choice',
+                type: 'choice',
+                required: false,
+                answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+              },
+            ],
+          } as any,
+          initialAnswers: { plain: ['a'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
     });
   });
 });

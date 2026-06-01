@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getJobAidUrl, physExamAssets } from '../../../../modules/ayu/utils/physExamAssets';
+import {
+  getJobAidType,
+  getJobAidUrl,
+  physExamAssets,
+} from '../../../../modules/ayu/utils/physExamAssets';
 
 describe('getJobAidUrl', () => {
   afterEach(() => {
@@ -21,5 +25,27 @@ describe('getJobAidUrl', () => {
   it('should return undefined when fileName does not match any key', () => {
     physExamAssets['../assets/physicalExamAssets/pallor.png'] = '/bundled/pallor.png';
     expect(getJobAidUrl('cyanosis')).toBeUndefined();
+  });
+});
+
+describe('getJobAidType', () => {
+  afterEach(() => {
+    for (const key of Object.keys(physExamAssets)) {
+      delete physExamAssets[key];
+    }
+  });
+
+  it('returns "image" for a jpg/png asset (so a mislabelled "video" still renders as an image)', () => {
+    physExamAssets['../assets/physicalExamAssets/pallor.jpg'] = '/bundled/pallor.jpg';
+    expect(getJobAidType('pallor')).toBe('image');
+  });
+
+  it('returns "video" only for an .mp4 asset', () => {
+    physExamAssets['../assets/physicalExamAssets/throat.mp4'] = '/bundled/throat.mp4';
+    expect(getJobAidType('throat')).toBe('video');
+  });
+
+  it('returns undefined when the asset is missing', () => {
+    expect(getJobAidType('missing')).toBeUndefined();
   });
 });

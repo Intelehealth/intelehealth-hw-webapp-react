@@ -41,6 +41,17 @@ export const EXT_URL_JOB_AID_FILE =
 export const EXT_URL_IS_EXCLUSIVE_OPTION =
   'https://intelehealth.org/fhir/StructureDefinition/is-exclusive-option';
 
+/*
+ * Protocol-level extension that carries the perform-physical-exam filter string
+ * ("Section:Question;Section:Question;..."). Protocols served from the API use
+ * the canonical https form; the legacy urn form is still accepted for backward
+ * compatibility with older protocol JSON.
+ */
+export const EXT_URL_PERFORM_PHYSICAL_EXAM =
+  'https://intelehealth.org/fhir/StructureDefinition/performPhysicalExam';
+export const EXT_URL_PERFORM_PHYSICAL_EXAM_LEGACY =
+  'urn:intelehealth:perform-physical-exam';
+
 // Physical Examination markers attached by transformFhirPhysExamToAyu so the
 // resolver/renderer can tell PE questions apart from Visit Reason ones.
 export const EXT_URL_PE_SECTION_KEY =

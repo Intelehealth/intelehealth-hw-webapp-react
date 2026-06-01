@@ -31,7 +31,7 @@ import {
   filterAyuQuestionsForPhysExam,
   parsePhysicalExamFilter,
 } from '../../../utils/physical-exam.utils';
-import { getJobAidUrl } from '../../../utils/physExamAssets';
+import { getJobAidType, getJobAidUrl } from '../../../utils/physExamAssets';
 import AyuButton from '../../common/ayu-button.component';
 import type { AyuStepperContainerHandle } from '../visit-reason/ayu-stepper-container.component';
 import { AyuStepperContainer } from '../visit-reason/ayu-stepper-container.component';
@@ -154,6 +154,14 @@ export const PhysicalExamination = (props: SectionProps) => {
     (questionId: string): 'image' | 'video' | null => {
       const q = questionByLinkIdRef.current.get(questionId);
       if (!q) return null;
+      // Prefer the type of the ACTUAL bundled asset (matches the URL the user
+      // sees) over the FHIR job-aid-type, which can be wrong — e.g. a pallor
+      // reference declared "video" while the file is a .jpg.
+      const file = readExt(q, EXT_URL_JOB_AID_FILE);
+      if (file) {
+        const actual = getJobAidType(file);
+        if (actual) return actual;
+      }
       const t = readExt(q, EXT_URL_JOB_AID_TYPE);
       if (t === 'image' || t === 'video') return t;
       return null;

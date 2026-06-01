@@ -37,6 +37,7 @@ import {
   VALIDATION_ALL_COMPULSORY,
   VALIDATION_ENTER_VALUE,
   VALIDATION_SELECT_OPTION,
+  VALIDATION_UPLOAD_IMAGE,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import AyuButton from '../../common/ayu-button.component';
@@ -298,6 +299,7 @@ export const AyuStepperContainer = forwardRef<
       isLast,
       showAll,
       validateAllQuestions,
+      isCameraAnswerMissingImages,
     } = useFHIRStepper({
       questionnaire,
       summaryTitle,
@@ -641,7 +643,13 @@ export const AyuStepperContainer = forwardRef<
                                 )
                                   ? (rawAnswer as string[])
                                   : [];
+                                const cameraMissingImages =
+                                  isCameraAnswerMissingImages(
+                                    question,
+                                    answers
+                                  );
                                 const isInvalid =
+                                  cameraMissingImages ||
                                   hasVisibleRequiredNestedString(
                                     question,
                                     answers
@@ -678,9 +686,10 @@ export const AyuStepperContainer = forwardRef<
                                       answerCodes
                                     );
 
-                                  const message =
-                                    isAssociatedSymptomsIncomplete &&
-                                    isStrictAssociatedSymptoms(question)
+                                  const message = cameraMissingImages
+                                    ? VALIDATION_UPLOAD_IMAGE
+                                    : isAssociatedSymptomsIncomplete &&
+                                        isStrictAssociatedSymptoms(question)
                                       ? VALIDATION_ALL_COMPULSORY
                                       : hasVisibleRequiredNestedString(
                                             question,

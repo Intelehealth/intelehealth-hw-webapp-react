@@ -66,6 +66,12 @@ export const AyuPhysicalExamOptions = ({
       ? [value]
       : [];
 
+  /* The camera tile is "selected" either while the user is actively capturing
+   * this session (cameraLocallySelected) OR when a picture was already
+   * committed to the answer (e.g. on edit / revisit) — so it pre-selects. */
+  const cameraCommitted = !!cameraCode && selected.includes(cameraCode);
+  const isCameraSelected = cameraLocallySelected || cameraCommitted;
+
   const categoryLabel = question.extension?.find(
     e => e.url === EXT_URL_PE_CATEGORY_LABEL
   )?.valueString;
@@ -97,11 +103,18 @@ export const AyuPhysicalExamOptions = ({
   const handleCameraTileClick = () => {
     /* The tile is rendered only when both cameraOption and cameraCode are
      * present, so this handler always runs with cameraCode set. */
-    if (cameraLocallySelected) {
-      // Deselecting — drop any in-progress images and clear local state
+    if (isCameraSelected) {
+      // Deselecting — drop any in-progress images, clear local state, and
+      // remove a previously committed camera answer (edit case).
       camera?.clearCameraImages(question.linkId);
       setCameraLocallySelected(false);
       setShowUploadError(false);
+      if (cameraCommitted) {
+        setAnswer?.(
+          question,
+          isMultiChoice ? selected.filter(id => id !== cameraCode) : ''
+        );
+      }
       return;
     }
     setCameraLocallySelected(true);
@@ -125,10 +138,10 @@ export const AyuPhysicalExamOptions = ({
    * image must be explicitly turned into an answer. Plain multi-choice defers
    * to the outer stepper container's Submit (which also validates required
    * fields and advances via goNext) — otherwise two Submit buttons stack.
-   * We show the button whenever the camera tile is locally selected (even with
-   * zero images) so the user has a clear action — clicking with no images
-   * surfaces an inline error rather than failing silently. */
-  const submitVisible = cameraLocallySelected;
+   * We show the button whenever the camera tile is selected — either being
+   * captured this session OR already committed (edit), so on edit the user can
+   * review the uploaded pictures, add/remove, and re-submit. */
+  const submitVisible = isCameraSelected;
 
   const submitJustHappened = !!submittedAt && Date.now() - submittedAt < 1500;
 
@@ -198,13 +211,13 @@ export const AyuPhysicalExamOptions = ({
              * like "[picture taken]" — never expose that to the user. */
             label={PE_CAMERA_TILE_LABEL}
             value={cameraCode}
-            selected={cameraLocallySelected}
+            selected={isCameraSelected}
             leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
             onClick={handleCameraTileClick}
           />
         )}
       </div>
-      {cameraLocallySelected && camera && (
+      {isCameraSelected && camera && (
         <div className="pb-3">
           <PhysicalExamImageCapture
             images={cameraImages}
@@ -214,11 +227,16 @@ export const AyuPhysicalExamOptions = ({
             }}
             onRemove={i => camera.removeCameraImage(question.linkId, i)}
           />
-          {showUploadError && cameraImages.length === 0 && (
-            <p className="text-xs text-red-500 mt-1 px-3">
-              {VALIDATION_UPLOAD_IMAGE}
-            </p>
-          )}
+          {/* Block submission without a picture: show the error after a submit
+           * attempt (showUploadError) and also whenever the picture option is
+           * committed but has no images (e.g. all removed on edit) — that is an
+           * invalid state the user must fix before the answer can stand. */}
+          {(showUploadError || cameraCommitted) &&
+            cameraImages.length === 0 && (
+              <p className="text-xs text-red-500 mt-1 px-3">
+                {VALIDATION_UPLOAD_IMAGE}
+              </p>
+            )}
         </div>
       )}
       {submitVisible && (

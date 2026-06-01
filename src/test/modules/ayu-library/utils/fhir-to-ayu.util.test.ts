@@ -1656,9 +1656,12 @@ describe('transformFhirPhysExamToAyu', () => {
         ]),
       ],
     });
-    const camera = root?.item?.[0]?.answerOption?.find(
-      o => o.valueCoding?.code === 'CAMERA'
+    const camera = root?.item?.[0]?.answerOption?.find(o =>
+      o.extension?.some(e => e.url === EXT_URL_PE_OPTION_KIND)
     );
+    // Camera answer code is the attachment's own linkId (unique), NOT the
+    // enableWhen trigger code — so it can never collide with a Yes/No choice.
+    expect(camera?.valueCoding?.code).toBe('attach-1');
     // The stored display is "Picture Taken" so the stepper's answered card
     // reads back the post-capture label. The tile renders a hardcoded
     // "Take a Picture" label and ignores this field.
@@ -1771,14 +1774,14 @@ describe('transformFhirPhysExamToAyu', () => {
       o => o.valueCoding?.code
     );
     // marker option is dropped; real Yes survives; camera option built from
-    // the attachment is appended at the end.
-    expect(codes).toEqual(['real-yes', 'marker']);
-    // The remaining "marker" code is the camera-marked option (PE_OPTION_KIND
+    // the attachment is appended, coded by the attachment's linkId.
+    expect(codes).toEqual(['real-yes', 'q-marker_attach']);
+    // The appended option is the camera-marked option (PE_OPTION_KIND
     // extension), NOT the original sentinel.
-    const marker = root?.item?.[0]?.answerOption?.find(
-      o => o.valueCoding?.code === 'marker'
+    const camera = root?.item?.[0]?.answerOption?.find(
+      o => o.valueCoding?.code === 'q-marker_attach'
     );
-    expect(marker?.extension).toEqual(
+    expect(camera?.extension).toEqual(
       expect.arrayContaining([
         { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
       ])
@@ -1827,9 +1830,10 @@ describe('transformFhirPhysExamToAyu', () => {
     const codes = root?.item?.[0]?.answerOption?.map(
       o => o.valueCoding?.code
     );
-    // Both real choices survive; camera option (also code 'no' from
-    // enableWhen[0]) is appended after.
-    expect(codes).toEqual(['no', 'yes', 'no']);
+    // Both real choices survive; the camera option is appended with the
+    // attachment's linkId as its code — crucially NOT 'no'. (The old behavior
+    // reused enableWhen[0].code='no', so capturing a picture saved "No".)
+    expect(codes).toEqual(['no', 'yes', 'q-jaundice_attach']);
   });
 
   it('passes job-aid extensions through to the question', () => {
@@ -1982,6 +1986,264 @@ describe('transformFhirPhysExamToAyu', () => {
         o => o.valueCoding?.code
       );
       expect(codes).toEqual(['no', 'yes']);
+    });
+
+    /* Real "Abdomen → Tenderness" shape: the wrapper nests TWO levels deep —
+     * "Tenderness" (1 concept-tag option) → "Yes" (1 concept-tag option) →
+     * "Select the location" (the real question, 3 location options). The
+     * transform must drill all the way to the innermost choice, otherwise the
+     * inner wrapper's lone "Select the location…" concept-tag is shown with no
+     * locations under it. */
+    it('recursively unwraps a double-nested wrapper to the innermost real question', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-abdomen',
+            text: 'Abdomen',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-tenderness',
+                text: 'Tenderness',
+                type: 'choice',
+                answerOption: [
+                  {
+                    valueCoding: {
+                      code: 'tenderness-cc',
+                      display: 'Is there abdominal tenderness?*',
+                    },
+                  },
+                ],
+                item: [
+                  // string sibling — not a choice, must be ignored by unwrap
+                  {
+                    linkId: 'no-tenderness',
+                    text: 'No tenderness',
+                    type: 'string',
+                    enableWhen: [
+                      {
+                        question: 'wrap-tenderness',
+                        operator: '=',
+                        answerCoding: { code: 'tenderness-cc' },
+                      },
+                    ],
+                  },
+                  // inner wrapper "Yes" — single concept-tag option pointing at
+                  // the real location question nested one level deeper
+                  {
+                    linkId: 'tenderness-yes',
+                    text: 'Yes',
+                    type: 'choice',
+                    enableWhen: [
+                      {
+                        question: 'wrap-tenderness',
+                        operator: '=',
+                        answerCoding: { code: 'tenderness-cc' },
+                      },
+                    ],
+                    answerOption: [
+                      {
+                        valueCoding: {
+                          code: 'location-cc',
+                          display: 'Select the location where there is tenderness',
+                        },
+                      },
+                    ],
+                    item: [
+                      {
+                        linkId: 'tenderness-location',
+                        text: 'Select the location where there is tenderness',
+                        type: 'choice',
+                        enableWhen: [
+                          {
+                            question: 'tenderness-yes',
+                            operator: '=',
+                            answerCoding: { code: 'location-cc' },
+                          },
+                        ],
+                        answerOption: [
+                          { valueCoding: { code: 'upper-l', display: 'Upper(L)' } },
+                          { valueCoding: { code: 'middle-c', display: 'Middle(C)' } },
+                          { valueCoding: { code: 'all-over', display: 'All Over' } },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+
+      const q = root?.item?.[0];
+      // drilled to the innermost real question, not the "Yes" wrapper
+      expect(q?.linkId).toBe('tenderness-location');
+      expect(q?.text).toBe('Select the location where there is tenderness');
+      // the real location options are surfaced (not the lone concept-tag)
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'upper-l',
+        'middle-c',
+        'all-over',
+      ]);
+      // category/question key stay the OUTERMOST wrapper's text ("Tenderness")
+      // so the protocol filter "Abdomen:Tenderness" still matches this question
+      expect(q?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'Abdomen' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Tenderness' },
+          { url: EXT_URL_PE_QUESTION_KEY, valueString: 'Tenderness' },
+        ])
+      );
+    });
+
+    /* Real "Any Location → Skin Rash" shape: a branching sub-form. It is
+     * collapsed into a single "Is there any rash?" question with No/Yes
+     * options; the affirmative branch's follow-ups (mixed integer/choice/…)
+     * are lifted and re-gated so picking "Yes" reveals all of them, rendered
+     * by the same Visit-Reason AyuNestedRenderer. */
+    it('collapses a branching sub-form into a Yes/No question with lifted follow-ups', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-any-location',
+            text: 'Any Location',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-rash',
+                text: 'Skin Rash',
+                type: 'choice',
+                answerOption: [
+                  {
+                    valueCoding: { code: 'rash-cc', display: 'Is there any rash?' },
+                  },
+                ],
+                item: [
+                  {
+                    linkId: 'rash-no',
+                    text: 'No',
+                    type: 'string',
+                    enableWhen: [
+                      {
+                        question: 'wrap-rash',
+                        operator: '=',
+                        answerCoding: { code: 'rash-cc' },
+                      },
+                    ],
+                  },
+                  {
+                    linkId: 'rash-yes',
+                    text: 'Yes',
+                    type: 'choice',
+                    enableWhen: [
+                      {
+                        question: 'wrap-rash',
+                        operator: '=',
+                        answerCoding: { code: 'rash-cc' },
+                      },
+                    ],
+                    answerOption: [
+                      { valueCoding: { code: 'howmany', display: 'How many rashes?' } },
+                      { valueCoding: { code: 'surface', display: 'How is the surface?' } },
+                    ],
+                    item: [
+                      {
+                        linkId: 'howmany',
+                        text: 'How many rashes? - Enter number',
+                        type: 'integer',
+                        enableWhen: [
+                          {
+                            question: 'rash-yes',
+                            operator: '=',
+                            answerCoding: { code: 'howmany' },
+                          },
+                        ],
+                      },
+                      {
+                        linkId: 'surface',
+                        text: 'How is the surface?',
+                        type: 'choice',
+                        enableWhen: [
+                          {
+                            question: 'rash-yes',
+                            operator: '=',
+                            answerCoding: { code: 'surface' },
+                          },
+                        ],
+                        answerOption: [
+                          { valueCoding: { code: 'smooth', display: 'Smooth' } },
+                          { valueCoding: { code: 'rough', display: 'Rough' } },
+                        ],
+                      },
+                    ],
+                  },
+                  // camera child (like the real "Put a ruler … take a picture").
+                  // normalizeType throws on 'attachment', so the transform must
+                  // strip it before walking the branching subtree.
+                  {
+                    linkId: 'rash-camera',
+                    text: 'Put a ruler next to the rash and take a picture',
+                    type: 'attachment',
+                    enableWhen: [
+                      {
+                        question: 'wrap-rash',
+                        operator: '=',
+                        answerCoding: { code: 'rash-cc' },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+
+      const q = root?.item?.[0];
+      // Collapsed into the concept-tag question with PE metadata kept.
+      expect(q?.linkId).toBe('wrap-rash');
+      expect(q?.text).toBe('Is there any rash?');
+      expect(q?.type).toBe('choice');
+      expect(q?.extension).toEqual(
+        expect.arrayContaining([
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'Any Location' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Skin Rash' },
+          { url: EXT_URL_PE_QUESTION_KEY, valueString: 'Skin Rash' },
+        ])
+      );
+      // Options come from the branch children: No / Yes (coded by linkId).
+      expect(q?.answerOption?.map(o => o.valueCoding)).toEqual([
+        { code: 'rash-no', display: 'No' },
+        { code: 'rash-yes', display: 'Yes' },
+      ]);
+      // The "Yes" follow-ups are lifted to the top question and re-gated so
+      // they all show when the answer is "Yes" (= the rash-yes branch).
+      const subIds = q?.item?.map(c => c.linkId);
+      expect(subIds).toEqual(['howmany', 'surface']);
+      for (const sub of q?.item ?? []) {
+        expect(sub.enableWhen).toEqual([
+          {
+            question: 'wrap-rash',
+            operator: '=',
+            answerCoding: { code: 'rash-yes' },
+          },
+        ]);
+      }
+      const howMany = q?.item?.find(c => c.linkId === 'howmany');
+      expect(howMany?.type).toBe('integer');
+      const surface = q?.item?.find(c => c.linkId === 'surface');
+      expect(surface?.type).toBe('choice');
+      expect(surface?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'smooth',
+        'rough',
+      ]);
+      // the attachment (camera) child is dropped (deferred; would otherwise
+      // throw in normalizeType and render as a stray text box).
+      const allIds = [q?.linkId, ...(q?.item?.map(c => c.linkId) ?? [])];
+      expect(allIds).not.toContain('rash-camera');
     });
 
     it('uses the wrapper text as the category label for the summary', () => {

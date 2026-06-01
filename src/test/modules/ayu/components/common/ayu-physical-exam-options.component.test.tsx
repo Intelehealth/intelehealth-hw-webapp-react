@@ -439,6 +439,116 @@ describe('AyuPhysicalExamOptions', () => {
       );
     });
 
+    it('pre-selects the camera tile when a committed answer holds the camera code (edit)', () => {
+      // On revisit/edit the saved answer carries the camera code; the tile must
+      // come back pre-selected instead of looking unanswered.
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      ).toHaveClass('selected');
+    });
+
+    it('clears the committed camera answer when the pre-selected tile is deselected', async () => {
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      // single-choice → cleared to empty string
+      expect(setAnswer).toHaveBeenCalledWith(makePeQuestion(), '');
+    });
+
+    it('shows uploaded pictures, add/remove and the Upload button on edit (no prior click)', () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      // capture panel + Upload button appear immediately in edit mode
+      expect(screen.getByTestId('image-capture-add')).toBeInTheDocument();
+      expect(screen.getByTestId('image-capture-remove')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Upload \(2\)/ })
+      ).toBeInTheDocument();
+    });
+
+    it('shows the upload-required error on edit when the picture option is committed but has no images', () => {
+      // committed camera answer but no images (all removed / restore empty) is
+      // an invalid state — the user must add a picture before it can stand.
+      cameraState.imagesByQ = {};
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByText('Please upload at least one image')
+      ).toBeInTheDocument();
+    });
+
+    it('does not show the upload-required error on edit while the committed picture still has images', () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(
+        screen.queryByText('Please upload at least one image')
+      ).not.toBeInTheDocument();
+    });
+
+    it('removes an uploaded picture on edit via the capture panel', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      expect(cameraState.removeCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        0
+      );
+    });
+
+    it('adds a picture on edit via the capture panel', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-add'));
+      expect(cameraState.addCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        expect.any(File)
+      );
+    });
+
     it('toggles a new option into the array for multi-choice', async () => {
       const setAnswer = vi.fn();
       const question = makePeQuestion({ repeats: true });
