@@ -256,10 +256,12 @@ describe('parseFhirPhysExamQuestionnaire', () => {
       ],
     };
     const q = parseFhirPhysExamQuestionnaire(raw)[0];
+    // Camera id is the attachment's linkId (unique), not the enableWhen
+    // trigger code — so it can't collide with a real Yes/No option code.
     expect(q.options).toEqual([
       { id: 'no', text: 'No' },
       {
-        id: 'cam-trigger',
+        id: 'q1_cam',
         text: 'Take a picture',
         isCamera: true,
         isExclusiveOption: true,

@@ -2,22 +2,6 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// Create mock objects
-const mockAyuSchema = {
-  linkId: 'test-questionnaire',
-  type: 'group',
-  text: 'Test Questionnaire',
-  item: [
-    {
-      linkId: 'q1',
-      type: 'string',
-      text: 'Test Question',
-    },
-  ],
-};
-
-const mockTransformFhirToAyu = vi.fn(() => mockAyuSchema);
-
 // ── useLocation / useParams mock state ──────────────────────────────────────
 const mockLocationState: { patientUuid?: string } = {};
 const mockParams: Record<string, string> = {};
@@ -39,26 +23,6 @@ vi.mock('react-router-dom', async () => {
     useParams: vi.fn(() => mockParams),
   };
 });
-
-// Mock the transformFhirToAyu utility and resolveLabel
-vi.mock('../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
-  transformFhirToAyu: mockTransformFhirToAyu,
-  resolveLabel: vi.fn((question) => question?.text || null),
-}));
-
-// Mock the JSON import
-vi.mock('../../../../modules/ayu/pages/Cough.questionnaire.json', () => ({
-  default: { mockFhirData: 'test-questionnaire' },
-}));
-
-// Mock the AyuRenderer component
-vi.mock('../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
-  AyuRenderer: vi.fn(({ question }) => (
-    <div data-testid="ayu-renderer">
-      <div data-testid="ayu-question">{JSON.stringify(question)}</div>
-    </div>
-  )),
-}));
 
 // Mock the StartVisit component
 vi.mock('../../../../modules/ayu/components/start-visit/start-visit.component', () => ({
@@ -140,52 +104,6 @@ describe('AyuPage', () => {
       expect(screen.getByTestId('start-visit')).toBeInTheDocument();
       expect(screen.getByText('Start Visit Component')).toBeInTheDocument();
     });
-
-    it('should render AyuRenderer component on /renders path', () => {
-      render(
-        <MemoryRouter initialEntries={['/renders']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      expect(screen.getByTestId('ayu-renderer')).toBeInTheDocument();
-    });
-
-    it('should pass question prop to AyuRenderer on /renders path', () => {
-      render(
-        <MemoryRouter initialEntries={['/renders']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      const questionElement = screen.getByTestId('ayu-question');
-      expect(questionElement).toBeInTheDocument();
-      expect(questionElement.textContent).toBe(JSON.stringify(mockAyuSchema));
-    });
-  });
-
-  describe('FHIR Transformation', () => {
-    it('should use the transformed ayuSchema for rendering', () => {
-      render(
-        <MemoryRouter initialEntries={['/renders']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      const questionElement = screen.getByTestId('ayu-question');
-      expect(questionElement.textContent).toBe(JSON.stringify(mockAyuSchema));
-    });
-
-    it('should render content based on transformed schema', () => {
-      render(
-        <MemoryRouter initialEntries={['/']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      // Verify that routes are rendered, indicating the schema was transformed successfully
-      expect(screen.getByTestId('start-visit')).toBeInTheDocument();
-    });
   });
 
   describe('Component Integration', () => {
@@ -209,18 +127,18 @@ describe('AyuPage', () => {
       );
 
       expect(screen.getByTestId('start-visit')).toBeInTheDocument();
-      expect(screen.queryByTestId('ayu-renderer')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('visit-summary-page')).not.toBeInTheDocument();
 
       unmount();
 
-      // Test /renders route
+      // Test /visit-summary route
       render(
-        <MemoryRouter initialEntries={['/renders']}>
+        <MemoryRouter initialEntries={['/visit-summary']}>
           <AyuPage />
         </MemoryRouter>
       );
 
-      expect(screen.getByTestId('ayu-renderer')).toBeInTheDocument();
+      expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
       expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
     });
   });
@@ -270,53 +188,7 @@ describe('AyuPage', () => {
 
       // React Router should handle invalid paths by rendering nothing
       expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('ayu-renderer')).not.toBeInTheDocument();
-    });
-
-    it('should display error message when ayuSchema is null', async () => {
-      // Mock transformFhirToAyu to return null
-      vi.doMock('../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
-        transformFhirToAyu: vi.fn(() => null),
-      }));
-
-      // Re-import the component with the new mock
-      vi.resetModules();
-      const { default: AyuPageWithNullSchema } = await import(
-        '../../../../modules/ayu/pages/ayu.page'
-      );
-
-      render(
-        <MemoryRouter initialEntries={['/']}>
-          <AyuPageWithNullSchema />
-        </MemoryRouter>
-      );
-
-      expect(screen.getByText('No questionnaire available')).toBeInTheDocument();
-      expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('ayu-renderer')).not.toBeInTheDocument();
-    });
-
-    it('should display error message when ayuSchema is undefined', async () => {
-      // Mock transformFhirToAyu to return undefined
-      vi.doMock('../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
-        transformFhirToAyu: vi.fn(() => undefined),
-      }));
-
-      // Re-import the component with the new mock
-      vi.resetModules();
-      const { default: AyuPageWithUndefinedSchema } = await import(
-        '../../../../modules/ayu/pages/ayu.page'
-      );
-
-      render(
-        <MemoryRouter initialEntries={['/']}>
-          <AyuPageWithUndefinedSchema />
-        </MemoryRouter>
-      );
-
-      expect(screen.getByText('No questionnaire available')).toBeInTheDocument();
-      expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('ayu-renderer')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('visit-summary-page')).not.toBeInTheDocument();
     });
   });
 
@@ -342,27 +214,6 @@ describe('AyuPage', () => {
       );
 
       expect(screen.getByTestId('start-visit')).toBeInTheDocument();
-    });
-
-    it('should pass correct element prop to AyuRenderer route', () => {
-      render(
-        <MemoryRouter initialEntries={['/renders']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      expect(screen.getByTestId('ayu-renderer')).toBeInTheDocument();
-    });
-
-    it('should pass ayuSchema as question prop to AyuRenderer', () => {
-      render(
-        <MemoryRouter initialEntries={['/renders']}>
-          <AyuPage />
-        </MemoryRouter>
-      );
-
-      const questionElement = screen.getByTestId('ayu-question');
-      expect(questionElement.textContent).toBe(JSON.stringify(mockAyuSchema));
     });
   });
 
@@ -393,7 +244,7 @@ describe('AyuPage', () => {
     });
   });
 
-  /* ── NEW: Patient UUID resolution ───────────────────────────────────────── */
+  /* ── Patient UUID resolution ────────────────────────────────────────────── */
 
   describe('Patient UUID resolution', () => {
     it('should prioritise UUID from location state over URL params', () => {
@@ -463,7 +314,7 @@ describe('AyuPage', () => {
     });
   });
 
-  /* ── NEW: visit-summary sub-route ───────────────────────────────────────── */
+  /* ── visit-summary sub-route ────────────────────────────────────────────── */
 
   describe('Visit Summary sub-route', () => {
     it('should render VisitSummaryPage on /visit-summary path', () => {

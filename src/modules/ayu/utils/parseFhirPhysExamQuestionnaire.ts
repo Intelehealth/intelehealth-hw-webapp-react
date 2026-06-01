@@ -102,7 +102,12 @@ const buildCameraOption = (item: FhirItem): PhysicalExamOption | null => {
   const langExt = findExt(item.extension, IH_EXT_LANGUAGE);
   const isExclusive =
     findExt(item.extension, IH_EXT_IS_EXCLUSIVE)?.valueString === 'true';
-  const id = item.enableWhen?.[0]?.answerCoding?.code ?? item.linkId;
+  /* Camera answer code = the attachment's own linkId. The former
+   * `enableWhen[0].answerCoding.code` collided with the Yes/No option codes
+   * (cameras are gated on those via enableBehavior "any"), so a captured
+   * picture saved "No" instead of "Picture Taken". Must match the render-side
+   * `buildPhysExamCameraOption`. */
+  const id = item.linkId;
   const text =
     langExt?.valueString && langExt.valueString !== '%'
       ? langExt.valueString

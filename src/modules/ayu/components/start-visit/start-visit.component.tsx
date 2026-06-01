@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { storage } from '../../../../utils/storage';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
+import {
+  EXT_URL_PERFORM_PHYSICAL_EXAM,
+  EXT_URL_PERFORM_PHYSICAL_EXAM_LEGACY,
+} from '../../../ayu-library/utils/constants';
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
-import CoughQuestionnaire from '../../pages/Cough.questionnaire.json';
 import {
   PATIENT_AGE_KEY,
   PATIENT_GENDER_KEY,
@@ -23,17 +26,18 @@ import { VisitReason } from './visit-reason/visit-reason.component';
 import { Vitals } from './vitals/vitals.component';
 
 export const getPhysicalExamFilter = (
-  questionnaire: typeof CoughQuestionnaire
+  questionnaire:
+    | { extension?: Array<{ url: string; valueString?: string }> }
+    | null
+    | undefined
 ): string => {
-  const ext =
-    (
-      questionnaire as {
-        extension?: Array<{ url: string; valueString?: string }>;
-      }
-    ).extension ?? [];
+  const ext = questionnaire?.extension ?? [];
   return (
-    ext.find(e => e.url === 'urn:intelehealth:perform-physical-exam')
-      ?.valueString ?? ''
+    ext.find(
+      e =>
+        e.url === EXT_URL_PERFORM_PHYSICAL_EXAM ||
+        e.url === EXT_URL_PERFORM_PHYSICAL_EXAM_LEGACY
+    )?.valueString ?? ''
   );
 };
 
@@ -92,9 +96,19 @@ export const StartVisit = () => {
     }
   };
 
+  /*
+   * Derive the physical-exam filter from the protocol(s) the user actually
+   * selected, not a hardcoded one. When multiple protocols are selected their
+   * filter strings are concatenated with ';' so parsePhysicalExamFilter merges
+   * the allowed sections/questions across all of them.
+   */
   const physicalExamFilter = useMemo(
-    () => getPhysicalExamFilter(CoughQuestionnaire),
-    []
+    () =>
+      visitReasons.selectedComplaints
+        .map(item => getPhysicalExamFilter(item.json))
+        .filter(Boolean)
+        .join(';'),
+    [visitReasons.selectedComplaints]
   );
   const [sections, setSections] = useState<SectionState[]>(() => {
     const vitalsTotal = 1;

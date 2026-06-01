@@ -373,8 +373,11 @@ describe('usePhysicalExam', () => {
       expect(q.jobAidType).toBe('image');
       expect(q.jobAidFile).toBe('nails.png');
       expect(q.sectionLabel).toBe('Hands:');
-      expect(q.options.find(o => o.id === 'sq2-cam')?.isCamera).toBe(true);
-      expect(q.options.find(o => o.id === 'sq2-cam')?.isExclusiveOption).toBe(true);
+      // Camera id is the attachment's linkId (unique), not the enableWhen code.
+      expect(q.options.find(o => o.id === 'sq2-cam-link')?.isCamera).toBe(true);
+      expect(
+        q.options.find(o => o.id === 'sq2-cam-link')?.isExclusiveOption
+      ).toBe(true);
       expect(q.options.find(o => o.id === 'sq2-exc')?.isExclusiveOption).toBe(true);
       expect(q.options.find(o => o.id === 'sq2-n')?.excludeFromMulti).toBe(true);
     });

@@ -18,6 +18,10 @@ import type {
   FhirQuestionnaire,
 } from '../../ayu-library/types/ayu.types';
 import {
+  EXT_URL_PE_OPTION_KIND,
+  PE_OPTION_KIND_CAMERA,
+} from '../../ayu-library/utils/constants';
+import {
   clearHiddenDescendantAnswers,
   isDescendantLinkId,
 } from '../../ayu-library/utils/question.utils';
@@ -28,8 +32,10 @@ import {
   SUMMARY_CONFIRM_TEXT,
   VALIDATION_ENTER_VALUE,
   VALIDATION_SELECT_OPTION,
+  VALIDATION_UPLOAD_IMAGE,
 } from '../utils/ayu.constants';
 import { buildVisitSummary } from '../utils/visit-summary.util';
+import { usePhysicalExamCamera } from '../components/start-visit/physical-examination/physical-exam-camera-context';
 
 interface UseFHIRStepperProps {
   questionnaire: FhirQuestionnaire;
@@ -54,6 +60,11 @@ interface UseFHIRStepperReturn {
   showAll?: boolean;
   /** Validate all questions; returns true if valid, shows toast and returns false otherwise. */
   validateAllQuestions: () => boolean;
+  /** True when a PE question's answer holds the camera option but has no images. */
+  isCameraAnswerMissingImages: (
+    question: AyuQuestion,
+    questionAnswers: Record<string, AyuAnswerValue>
+  ) => boolean;
 }
 
 export const useFHIRStepper = (
@@ -80,6 +91,8 @@ export const useFHIRStepper = (
   const answersRef = useRef(answers);
   answersRef.current = answers;
   const { showVitalConfirmationModal } = useGlobalModal();
+  // PE-only: null for Visit Reason and other non-PE flows (no provider mounted).
+  const peCamera = usePhysicalExamCamera();
   const topLevelItems = useMemo(() => {
     const items = questionnaire?.item || [];
     return items.filter((item: AyuQuestion) => item.type !== 'group');
@@ -88,6 +101,36 @@ export const useFHIRStepper = (
   const structuralTotal = topLevelItems.length;
 
   const currentQuestion = topLevelItems[currentIndex];
+
+  /**
+   * A physical-exam question whose answer includes the camera ("picture")
+   * option but has no captured images is invalid — the user picked "take a
+   * picture" but never provided one (e.g. removed every image on edit). The
+   * camera answer is only ever committed with images, so this fires on the
+   * edit-removed case; non-PE flows return false (no camera provider).
+   */
+  const isCameraAnswerMissingImages = (
+    question: AyuQuestion,
+    questionAnswers: Record<string, AyuAnswerValue>
+  ): boolean => {
+    if (!peCamera) return false;
+    const cameraCode = question.answerOption?.find(o =>
+      o.extension?.some(
+        e =>
+          e.url === EXT_URL_PE_OPTION_KIND &&
+          e.valueString === PE_OPTION_KIND_CAMERA
+      )
+    )?.valueCoding?.code;
+    if (!cameraCode) return false;
+    const answer = questionAnswers[question.linkId];
+    const codes = Array.isArray(answer)
+      ? answer
+      : typeof answer === 'string'
+        ? [answer]
+        : [];
+    if (!codes.includes(cameraCode)) return false;
+    return peCamera.cameraImagesFor(question.linkId).length === 0;
+  };
 
   const goNext = () => {
     if (showAll) {
@@ -114,6 +157,12 @@ export const useFHIRStepper = (
       // Required questions must have an answer
       if (question.required && isEmpty(answer)) {
         showToast(VALIDATION_SELECT_OPTION, undefined, 'warning');
+        return false;
+      }
+
+      // The picture option is selected but no image was provided.
+      if (isCameraAnswerMissingImages(question, latestAnswers)) {
+        showToast(VALIDATION_UPLOAD_IMAGE, undefined, 'warning');
         return false;
       }
 
@@ -327,5 +376,6 @@ export const useFHIRStepper = (
     isLast: currentIndex === structuralTotal - 1,
     showAll,
     validateAllQuestions,
+    isCameraAnswerMissingImages,
   };
 };
