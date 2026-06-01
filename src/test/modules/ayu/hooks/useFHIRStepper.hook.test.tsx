@@ -4195,5 +4195,48 @@ describe('useFHIRStepper', () => {
       );
       expect(result.current.validateAllQuestions()).toBe(true);
     });
+
+    it('handles a string (non-array) camera answer with no images', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: 'jaundice_cam' },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(false);
+    });
+
+    it('does not flag a camera question that has no answer at all', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          // jaundice is not required and unanswered → not a missing-image case
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('ignores a question with no camera option even when the PE camera context is present', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: {
+            item: [
+              {
+                linkId: 'plain',
+                text: 'Plain choice',
+                type: 'choice',
+                required: false,
+                answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+              },
+            ],
+          } as any,
+          initialAnswers: { plain: ['a'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
   });
 });
