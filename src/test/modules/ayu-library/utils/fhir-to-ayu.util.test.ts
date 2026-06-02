@@ -2246,6 +2246,294 @@ describe('transformFhirPhysExamToAyu', () => {
       expect(allIds).not.toContain('rash-camera');
     });
 
+    it('returns null for a branching question whose wrapper fails demographics', () => {
+      const root = transformFhirPhysExamToAyu(
+        {
+          resourceType: 'Questionnaire',
+          item: [
+            {
+              linkId: 'sec',
+              text: 'Section',
+              type: 'group',
+              item: [
+                {
+                  linkId: 'wrap-female',
+                  text: 'Female Question',
+                  type: 'choice',
+                  extension: [
+                    { url: 'https://intelehealth.org/fhir/StructureDefinition/gender', valueString: '0' },
+                  ],
+                  answerOption: [
+                    { valueCoding: { code: 'cc', display: 'Concept' } },
+                  ],
+                  item: [
+                    {
+                      linkId: 'branch-no',
+                      text: 'No',
+                      type: 'string',
+                      enableWhen: [{ question: 'wrap-female', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                    {
+                      linkId: 'branch-yes',
+                      text: 'Yes',
+                      type: 'string',
+                      enableWhen: [{ question: 'wrap-female', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { gender: 'M' }
+      );
+      // Wrapper fails demographics → buildBranchingPhysExamQuestion returns null → no items
+      expect(root?.item).toEqual([]);
+    });
+
+    it('returns null for a branching question when all branches are filtered out by demographics', () => {
+      const root = transformFhirPhysExamToAyu(
+        {
+          resourceType: 'Questionnaire',
+          item: [
+            {
+              linkId: 'sec',
+              text: 'Section',
+              type: 'group',
+              item: [
+                {
+                  linkId: 'wrap-q',
+                  text: 'Branching Q',
+                  type: 'choice',
+                  answerOption: [
+                    { valueCoding: { code: 'cc', display: 'Check' } },
+                  ],
+                  item: [
+                    {
+                      linkId: 'b-no',
+                      text: 'No',
+                      type: 'string',
+                      extension: [
+                        { url: 'https://intelehealth.org/fhir/StructureDefinition/gender', valueString: '0' },
+                      ],
+                      enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                    {
+                      linkId: 'b-yes',
+                      text: 'Yes',
+                      type: 'string',
+                      extension: [
+                        { url: 'https://intelehealth.org/fhir/StructureDefinition/gender', valueString: '0' },
+                      ],
+                      enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { gender: 'M' }
+      );
+      // All branch children fail demographics (female-only) → branches.length === 0 → null
+      expect(root?.item).toEqual([]);
+    });
+
+    it('filters some branches by demographics while keeping others', () => {
+      const root = transformFhirPhysExamToAyu(
+        {
+          resourceType: 'Questionnaire',
+          item: [
+            {
+              linkId: 'sec',
+              text: 'Section',
+              type: 'group',
+              item: [
+                {
+                  linkId: 'wrap-q',
+                  text: 'Mixed',
+                  type: 'choice',
+                  answerOption: [
+                    { valueCoding: { code: 'cc', display: 'Check' } },
+                  ],
+                  item: [
+                    {
+                      linkId: 'branch-male',
+                      text: 'Male branch',
+                      type: 'string',
+                      extension: [
+                        { url: 'https://intelehealth.org/fhir/StructureDefinition/gender', valueString: '1' },
+                      ],
+                      enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                    {
+                      linkId: 'branch-all',
+                      text: 'All genders',
+                      type: 'string',
+                      enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { gender: 'F' }
+      );
+      const q = root?.item?.[0];
+      // Only 'branch-all' survives; 'branch-male' is filtered by demographics
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual(['branch-all']);
+    });
+
+    it('uses empty string when both answerOption display and q.text are missing in branching question', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Section',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-q',
+                // no text, no answerOption → conceptDisplay ?? q.text ?? '' yields ''
+                type: 'choice',
+                item: [
+                  {
+                    linkId: 'b-no',
+                    text: 'No',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                  },
+                  {
+                    linkId: 'b-yes',
+                    text: 'Yes',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.text).toBe('');
+    });
+
+    it('falls back to q.text when answerOption display is missing in branching question', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Section',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-q',
+                text: 'Fallback Text',
+                type: 'choice',
+                // no answerOption → conceptDisplay is undefined → falls back to q.text
+                item: [
+                  {
+                    linkId: 'b-no',
+                    text: 'No',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                  },
+                  {
+                    linkId: 'b-yes',
+                    text: 'Yes',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.text).toBe('Fallback Text');
+    });
+
+    it('handles a branch with no sub-items (empty item array)', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Section',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-q',
+                text: 'Q',
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'cc', display: 'Check' } },
+                ],
+                item: [
+                  {
+                    linkId: 'b-no',
+                    text: 'No',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    // no item array → subTree.item ?? [] yields empty
+                  },
+                  {
+                    linkId: 'b-yes',
+                    text: 'Yes',
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                    // no sub-items either
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual(['b-no', 'b-yes']);
+      // No sub-items are lifted
+      expect(q?.item).toEqual([]);
+    });
+
+    it('uses empty string for branch text when text is undefined', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec',
+            text: 'Section',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-q',
+                text: 'Q',
+                type: 'choice',
+                answerOption: [
+                  { valueCoding: { code: 'cc', display: 'Check' } },
+                ],
+                item: [
+                  {
+                    linkId: 'b-no',
+                    // no text → b.text ?? '' yields ''
+                    type: 'string',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'cc' } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.answerOption?.[0]?.valueCoding?.display).toBe('');
+    });
+
     it('uses the wrapper text as the category label for the summary', () => {
       const root = transformFhirPhysExamToAyu({
         resourceType: 'Questionnaire',

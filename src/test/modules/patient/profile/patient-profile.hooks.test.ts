@@ -69,14 +69,14 @@ const buildPatient = (overrides: {
       countyDistrict: 'Mumbai Urban',
     },
     attributes: overrides.attributes ?? [
-      { value: '+911234567890', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
-      { value: 'Spouse', attributeType: { uuid: 'ect-uuid', display: 'ECT' } },
-      { value: 'Jane', attributeType: { uuid: 'ecn-uuid', display: 'ECN' } },
-      { value: '+9198', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
-      { value: 'Engineer', attributeType: { uuid: 'occ-uuid', display: 'Occ' } },
-      { value: 'General', attributeType: { uuid: 'caste-uuid', display: 'Caste' } },
-      { value: 'Graduate', attributeType: { uuid: 'edu-uuid', display: 'Edu' } },
-      { value: 'Middle', attributeType: { uuid: 'eco-uuid', display: 'Eco' } },
+      { uuid: 'attr-tel', value: '+911234567890', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+      { uuid: 'attr-ect', value: 'Spouse', attributeType: { uuid: 'ect-uuid', display: 'ECT' } },
+      { uuid: 'attr-ecn', value: 'Jane', attributeType: { uuid: 'ecn-uuid', display: 'ECN' } },
+      { uuid: 'attr-ecnum', value: '+9198', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      { uuid: 'attr-occ', value: 'Engineer', attributeType: { uuid: 'occ-uuid', display: 'Occ' } },
+      { uuid: 'attr-caste', value: 'General', attributeType: { uuid: 'caste-uuid', display: 'Caste' } },
+      { uuid: 'attr-edu', value: 'Graduate', attributeType: { uuid: 'edu-uuid', display: 'Edu' } },
+      { uuid: 'attr-eco', value: 'Middle', attributeType: { uuid: 'eco-uuid', display: 'Eco' } },
     ],
   },
 });
@@ -141,11 +141,11 @@ describe('mapRawPatientToFormData', () => {
     expect(formData.personalInfo.gender).toBe('M');
     expect(formData.personalInfo.dateOfBirth).toBe('1994-01-15');
     expect(formData.personalInfo.age).toBe('30');
-    expect(formData.personalInfo.phoneNumber).toBe('+911234567890');
+    expect(formData.personalInfo.phoneNumber).toBe('1234567890');
     expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
     expect(formData.personalInfo.contactType).toBe('Spouse');
     expect(formData.personalInfo.emergencyContactName).toBe('Jane');
-    expect(formData.personalInfo.emergencyContactNumber).toBe('+9198');
+    expect(formData.personalInfo.emergencyContactNumber).toBe('98');
     expect(formData.personalInfo.emergencyContactNumberCountryCode).toBe('+91');
     expect(formData.personalInfo.profilePhoto).toBeNull();
   });
@@ -171,6 +171,22 @@ describe('mapRawPatientToFormData', () => {
     expect(formData.otherInfo.caste).toBe('General');
     expect(formData.otherInfo.education).toBe('Graduate');
     expect(formData.otherInfo.economicStatus).toBe('Middle');
+  });
+
+  it('builds attributeUuids map from patient attributes', () => {
+    const patient = buildPatient();
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.attributeUuids).toEqual({
+      'tel-uuid': 'attr-tel',
+      'ect-uuid': 'attr-ect',
+      'ecn-uuid': 'attr-ecn',
+      'ecnum-uuid': 'attr-ecnum',
+      'occ-uuid': 'attr-occ',
+      'caste-uuid': 'attr-caste',
+      'edu-uuid': 'attr-edu',
+      'eco-uuid': 'attr-eco',
+    });
   });
 
   it('handles null preferredName gracefully', () => {
@@ -264,6 +280,33 @@ describe('mapRawPatientToFormData', () => {
     const formData = mapRawPatientToFormData(patient as any);
 
     expect(formData.personalInfo.middleName).toBe('');
+  });
+
+  it('splits phone number without leading + prefix', () => {
+    const patient = buildPatient({
+      attributes: [
+        { value: '911234567890', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+        { value: '9198', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      ],
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.phoneNumber).toBe('1234567890');
+  });
+
+  it('falls back to default country code for unrecognizable phone number', () => {
+    const patient = buildPatient({
+      attributes: [
+        { value: 'ABCDEFG', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+        { value: '', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      ],
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    // getCountryCode returns null for non-numeric, so fallback path is used
+    expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.phoneNumber).toBe('ABCDEFG');
   });
 });
 

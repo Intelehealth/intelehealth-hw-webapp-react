@@ -323,7 +323,7 @@ describe('DashboardComponent', () => {
         </MemoryRouter>
       );
       // The prescriptions wrapper should have 'flex' class when showPrescriptions is true
-      const prescriptionWrapper = container.querySelector('[class*="lg:flex-1"]');
+      const prescriptionWrapper = container.querySelector('[class*="flex-[3]"]');
       expect(prescriptionWrapper).toHaveClass('flex');
     });
 
@@ -333,7 +333,7 @@ describe('DashboardComponent', () => {
           <DashboardComponent initialShowPrescriptions={false} />
         </MemoryRouter>
       );
-      const prescriptionWrapper = container.querySelector('[class*="lg:flex-1"]');
+      const prescriptionWrapper = container.querySelector('[class*="flex-[3]"]');
       expect(prescriptionWrapper).toHaveClass('hidden', 'md:flex');
     });
 

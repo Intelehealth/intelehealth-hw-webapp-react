@@ -783,4 +783,27 @@ describe('AyuPhysicalExamOptions', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe('multi-choice camera deselect with committed answer', () => {
+    it('removes the camera code from the multi-choice answer array when deselecting a committed camera tile', async () => {
+      const setAnswer = vi.fn();
+      // repeats=true → multi-choice; value includes 'cam' → committed
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion({ repeats: true })}
+          value={['yes', 'cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      // Click the camera tile to deselect it
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      // Should filter out 'cam' from the array, leaving ['yes']
+      expect(setAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'inner-jaundice' }),
+        ['yes']
+      );
+    });
+  });
 });
