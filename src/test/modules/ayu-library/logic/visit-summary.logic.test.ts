@@ -391,6 +391,60 @@ describe('buildVisitSummary', () => {
       }
     });
 
+    it('collects grandchild descendant values under a reported symptom', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'assoc',
+          type: 'choice',
+          text: 'Associated symptoms',
+          repeats: true,
+          extension: [
+            {
+              url: 'urn:intelehealth:original-question-text',
+              valueString: 'Associated symptoms',
+            },
+          ],
+          answerOption: [{ valueCoding: { code: 'HA', display: 'Headache' } }],
+          item: [
+            {
+              linkId: 'assoc.detail',
+              type: 'string',
+              text: 'Detail',
+              enableWhen: [
+                { question: 'assoc', operator: '=', answerCoding: { code: 'HA' } },
+              ],
+              item: [
+                {
+                  linkId: 'assoc.detail.sub',
+                  type: 'string',
+                  text: 'Sub detail',
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['assoc', ['HA']],
+        ['assoc.detail', 'throbbing'],
+        ['assoc.detail.sub', 'left side'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const assocSection = result.find(
+        s => s.title === 'Associated symptoms'
+      );
+      const reports = assocSection!.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Headache');
+        expect(reports.values[0]).toContain('throbbing');
+        expect(reports.values[0]).toContain('left side');
+      }
+    });
+
     it('should only show reports when no denies', () => {
       const questions = [makeAssociatedSymptomsQuestion()];
       const answers = new Map<string, AyuAnswerValue>([
@@ -2017,6 +2071,68 @@ describe('buildVisitSummary', () => {
         expect(item.value).toContain('To Date');
         expect(item.value).toContain('Medication name 2');
         expect(item.value).toContain('Metformin');
+      }
+    });
+
+    it('substitutes the date into a "From - [Enter Date]" placeholder label', () => {
+      const questions: AyuQuestion[] = [
+        makeChoiceQuestion({
+          linkId: 'drug',
+          text: 'Drug history',
+          extension: [
+            { url: 'urn:intelehealth:original-question-text', valueString: 'Drug history' },
+          ],
+          answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+          item: [
+            {
+              linkId: 'drug.meds',
+              type: 'choice',
+              text: 'Medications',
+              repeats: true,
+              answerOption: [
+                { valueCoding: { code: 'MED1', display: 'Medication name 1' } },
+              ],
+              enableWhen: [{ question: 'drug', operator: '=', answerCoding: { code: 'YES' } }],
+              item: [
+                {
+                  linkId: 'drug.med1.name',
+                  type: 'string',
+                  text: 'Medication Name - [Enter Name]',
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+                {
+                  linkId: 'drug.med1.from',
+                  type: 'date',
+                  text: 'From - [Enter Date]',
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+                {
+                  linkId: 'drug.med1.to',
+                  type: 'date',
+                  text: 'To - [Enter Date]',
+                  enableWhen: [{ question: 'drug.meds', operator: '=', answerCoding: { code: 'MED1' } }],
+                },
+              ],
+            },
+          ],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['drug', 'YES'],
+        ['drug.meds', ['MED1']],
+        ['drug.med1.name', 'dsad'],
+        ['drug.med1.from', '2026-05-06'],
+        ['drug.med1.to', '2026-06-02'],
+      ]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        expect(item.value).not.toContain('[Enter Date]');
+        expect(item.value).toContain('From - 2026-05-06');
+        expect(item.value).toContain('To - 2026-06-02');
+        expect(item.value).toContain('Medication name 1 – dsad');
       }
     });
 

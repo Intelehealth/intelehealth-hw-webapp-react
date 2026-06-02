@@ -304,7 +304,9 @@ describe('MedicalHistory', () => {
       await user.click(screen.getByTestId('trigger-complete'));
 
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      modalConfig.onConfirm();
+      await act(async () => {
+        modalConfig.onConfirm();
+      });
 
       expect(mockSetMedicalHistoryData).toHaveBeenCalledTimes(1);
       expect(mockNavigate).toHaveBeenCalledWith('/ayu/visit-summary');

@@ -4982,5 +4982,51 @@ describe('AyuStepperContainer', () => {
       // Non-empty label renders "label: value"
       expect(screen.getByText('Duration: 3 days')).toBeInTheDocument();
     });
+
+    it('renders a blank-value labelValue (e.g. family-history "None") without a trailing colon', () => {
+      const question: AyuQuestion = {
+        linkId: 'fam1',
+        text: 'Do you have a family history of any of the following?',
+        type: 'choice',
+        repeats: true,
+      };
+
+      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
+      mockResolveAyuComponentLogic.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+      mockIsStrictAssociatedSymptomsLogic.mockReturnValue(false);
+
+      mockBuildVisitSummary.mockReturnValue([
+        {
+          title: 'Family history',
+          items: [{ type: 'labelValue' as const, label: 'None', value: ' ' }],
+        },
+      ]);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { fam1: ['none'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ fam1: ['none'] }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('None')).toBeInTheDocument();
+      expect(screen.queryByText(/None\s*:/)).not.toBeInTheDocument();
+    });
   });
 });
