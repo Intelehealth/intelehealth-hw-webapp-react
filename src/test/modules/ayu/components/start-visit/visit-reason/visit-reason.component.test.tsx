@@ -135,6 +135,7 @@ vi.mock('../../../../../../components/modal/global-modal-context', () => ({
 
 vi.mock('../../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   transformFhirToAyu: vi.fn(),
+  questionnaireMatchesDemographics: vi.fn(() => true),
   parsePatientAgeYears: (raw: unknown) =>
     raw == null || raw === '' ? null : Number(raw),
 }));

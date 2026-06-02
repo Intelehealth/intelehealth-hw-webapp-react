@@ -318,6 +318,7 @@ const defaultProps = {
   onPrevQuestion: vi.fn(),
   onPrevSection: vi.fn(),
   onProgressUpdate: vi.fn(),
+  physicalExamFilter: 'General:;Head:',
 };
 
 describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {

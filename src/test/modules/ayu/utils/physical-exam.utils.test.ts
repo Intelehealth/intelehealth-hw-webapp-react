@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
+import type { AyuJsonItem } from '../../../../modules/ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+import type { FhirQuestionnaire } from '../../../../modules/ayu-library/types/fhir-raw.types';
+import {
+  EXT_URL_PE_QUESTION_KEY,
+  EXT_URL_PE_SECTION_KEY,
+  EXT_URL_PERFORM_PHYSICAL_EXAM,
+} from '../../../../modules/ayu-library/utils/constants';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 import {
+  ALWAYS_INCLUDED_SECTION_KEY,
+  combinePhysicalExamFilters,
   filterAyuQuestionsForPhysExam,
   filterPhysicalExamQuestions,
+  getPhysicalExamFilterFromComplaints,
   parsePhysicalExamFilter,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
-
-// ── parsePhysicalExamFilter ─────────────────────────────────────────────────
 
 describe('parsePhysicalExamFilter', () => {
   it('should return empty object for empty string', () => {
@@ -71,8 +79,6 @@ describe('parsePhysicalExamFilter', () => {
   });
 });
 
-// ── filterPhysicalExamQuestions ─────────────────────────────────────────────
-
 describe('filterPhysicalExamQuestions', () => {
   const testQuestions: PhysicalExamQuestion[] = [
     {
@@ -116,15 +122,13 @@ describe('filterPhysicalExamQuestions', () => {
       isRequired: false,
       isMultiChoice: false,
       sectionKey: 'Head',
-      // No questionKey — tests the undefined branch
       options: [{ id: 'o4', text: 'Yes' }],
     },
   ];
 
-  it('should return all questions when filterString is empty', () => {
-    expect(filterPhysicalExamQuestions(testQuestions, '')).toEqual(
-      testQuestions
-    );
+  it('should return only the always-included General Exams when filterString is empty', () => {
+    const result = filterPhysicalExamQuestions(testQuestions, '');
+    expect(result.map(q => q.id)).toEqual(['q1', 'q2']);
   });
 
   it('should filter to a specific section showing all its questions plus General Exams', () => {
@@ -179,67 +183,197 @@ describe('filterPhysicalExamQuestions', () => {
   });
 });
 
-// ── filterAyuQuestionsForPhysExam ──────────────────────────────────────────
-
 describe('filterAyuQuestionsForPhysExam', () => {
-  const PE_SECTION_KEY = 'urn:intelehealth:physical-exam/section-key';
-  const PE_QUESTION_KEY = 'urn:intelehealth:physical-exam/question-key';
-
-  const makeAyuPEQuestion = (
+  const make = (
     linkId: string,
-    sectionKey?: string,
+    section: string,
     questionKey?: string
   ): AyuQuestion => ({
     linkId,
-    type: 'string',
+    type: 'choice',
     extension: [
-      ...(sectionKey
-        ? [{ url: PE_SECTION_KEY, valueString: sectionKey }]
-        : []),
+      { url: EXT_URL_PE_SECTION_KEY, valueString: section },
       ...(questionKey
-        ? [{ url: PE_QUESTION_KEY, valueString: questionKey }]
+        ? [{ url: EXT_URL_PE_QUESTION_KEY, valueString: questionKey }]
         : []),
     ],
   });
 
-  const ayuQuestions: AyuQuestion[] = [
-    makeAyuPEQuestion('a1', 'General Exams', 'Jaundice'),
-    makeAyuPEQuestion('a2', 'Head', 'Injury'),
-    makeAyuPEQuestion('a3', 'Head', 'Swelling'),
-    makeAyuPEQuestion('a4'), // no sectionKey extension
+  const questions: AyuQuestion[] = [
+    make('a1', ALWAYS_INCLUDED_SECTION_KEY, 'Jaundice'),
+    make('a2', ALWAYS_INCLUDED_SECTION_KEY, 'Pallor'),
+    make('e1', 'Eyes', 'Jaundice'),
+    make('e2', 'Eyes', 'Pallor'),
+    make('h1', 'Head', 'Injury'),
+    make('h2', 'Head', 'Swelling'),
+    make('noSection', '', 'orphan'),
   ];
 
-  it('should return all questions when filterString is empty', () => {
-    expect(filterAyuQuestionsForPhysExam(ayuQuestions, '')).toEqual(
-      ayuQuestions
-    );
-  });
-
-  it('should exclude questions with no sectionKey extension', () => {
-    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
-    expect(result.find(q => q.linkId === 'a4')).toBeUndefined();
-  });
-
-  it('should always include questions with sectionKey === General Exams', () => {
-    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
-    expect(result.find(q => q.linkId === 'a1')).toBeDefined();
-  });
-
-  it('should include all questions in a section when allowedQuestions is empty', () => {
-    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:');
-    expect(result.map(q => q.linkId)).toEqual(['a1', 'a2', 'a3']);
-  });
-
-  it('should exclude sections not in the filter', () => {
-    const result = filterAyuQuestionsForPhysExam(
-      ayuQuestions,
-      'General Exams:Jaundice'
-    );
-    expect(result.find(q => q.linkId === 'a2')).toBeUndefined();
-  });
-
-  it('should filter to specific questions within a section', () => {
-    const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
+  it('returns only the always-included General Exams when the filter is empty', () => {
+    const result = filterAyuQuestionsForPhysExam(questions, '');
     expect(result.map(q => q.linkId)).toEqual(['a1', 'a2']);
+  });
+
+  it('returns the filtered set plus General Exams when a filter is supplied', () => {
+    const result = filterAyuQuestionsForPhysExam(questions, 'Eyes:Jaundice');
+    expect(result.map(q => q.linkId)).toEqual(['a1', 'a2', 'e1']);
+  });
+
+  it('honours a combined multi-protocol filter and dedups overlapping sections', () => {
+    const combined = combinePhysicalExamFilters([
+      'Eyes:Jaundice',
+      'Eyes:Jaundice;Head:Injury',
+    ]);
+    const result = filterAyuQuestionsForPhysExam(questions, combined);
+    expect(result.map(q => q.linkId).sort()).toEqual(
+      ['a1', 'a2', 'e1', 'h1'].sort()
+    );
+  });
+
+  it('treats a show-all section entry as everything in that section', () => {
+    const result = filterAyuQuestionsForPhysExam(questions, 'Head:');
+    expect(result.map(q => q.linkId).sort()).toEqual(
+      ['a1', 'a2', 'h1', 'h2'].sort()
+    );
+  });
+
+  it('drops questions whose section extension is missing', () => {
+    const result = filterAyuQuestionsForPhysExam(questions, 'Head:Injury');
+    expect(result.map(q => q.linkId)).not.toContain('noSection');
+  });
+
+  it('drops a question in a filtered section when its question-key extension is missing', () => {
+    const withMissingKey: AyuQuestion[] = [
+      make('h1', 'Head', 'Injury'),
+      make('hNoKey', 'Head'),
+    ];
+    const result = filterAyuQuestionsForPhysExam(withMissingKey, 'Head:Injury');
+    expect(result.map(q => q.linkId)).toEqual(['h1']);
+  });
+});
+
+describe('combinePhysicalExamFilters', () => {
+  const parsedEquals = (a: string, b: string) => {
+    expect(parsePhysicalExamFilter(a)).toEqual(parsePhysicalExamFilter(b));
+  };
+
+  it('returns empty string when given no filters', () => {
+    expect(combinePhysicalExamFilters([])).toBe('');
+  });
+
+  it('ignores empty / null / undefined entries', () => {
+    expect(combinePhysicalExamFilters(['', null, undefined])).toBe('');
+  });
+
+  it('passes a single filter through unchanged after a round trip', () => {
+    parsedEquals(
+      combinePhysicalExamFilters(['Eyes:Jaundice;Head:Injury']),
+      'Eyes:Jaundice;Head:Injury'
+    );
+  });
+
+  it('unions question lists across two protocols', () => {
+    const combined = combinePhysicalExamFilters([
+      'Eyes:Jaundice;Head:Injury',
+      'Eyes:Pallor;Mouth:Lips',
+    ]);
+    parsedEquals(combined, 'Eyes:Jaundice;Eyes:Pallor;Head:Injury;Mouth:Lips');
+  });
+
+  it('dedups the same test across protocols (Eyes:Jaundice in both)', () => {
+    const combined = combinePhysicalExamFilters([
+      'Eyes:Jaundice',
+      'Eyes:Jaundice;Head:Injury',
+    ]);
+    const parsed = parsePhysicalExamFilter(combined);
+    expect(parsed.Eyes).toEqual(['Jaundice']);
+    expect(parsed.Head).toEqual(['Injury']);
+  });
+
+  it('promotes to show-all when any protocol omits the question list', () => {
+    const combined = combinePhysicalExamFilters(['Eyes:Jaundice', 'Eyes:']);
+    expect(parsePhysicalExamFilter(combined)).toEqual({ Eyes: [] });
+  });
+
+  it('keeps later show-all overriding earlier specific questions', () => {
+    const combined = combinePhysicalExamFilters([
+      'Eyes:Jaundice;Eyes:Pallor',
+      'Eyes:',
+    ]);
+    expect(parsePhysicalExamFilter(combined)).toEqual({ Eyes: [] });
+  });
+
+  it('keeps earlier show-all even if later protocols list specific questions', () => {
+    const combined = combinePhysicalExamFilters(['Eyes:', 'Eyes:Jaundice']);
+    expect(parsePhysicalExamFilter(combined)).toEqual({ Eyes: [] });
+  });
+});
+
+describe('getPhysicalExamFilterFromComplaints', () => {
+  const makeComplaint = (name: string, filter?: string): AyuJsonItem => {
+    const questionnaire: FhirQuestionnaire = {
+      resourceType: 'Questionnaire',
+      title: name,
+      extension: filter
+        ? [{ url: EXT_URL_PERFORM_PHYSICAL_EXAM, valueString: filter }]
+        : [],
+      item: [],
+    };
+    return {
+      id: 1,
+      name: `${name}.json`,
+      json: questionnaire,
+      keyName: 'ayu',
+      isActive: true,
+    };
+  };
+
+  it('returns empty string when no complaints are supplied', () => {
+    expect(getPhysicalExamFilterFromComplaints(undefined)).toBe('');
+    expect(getPhysicalExamFilterFromComplaints([])).toBe('');
+  });
+
+  it('reads the perform-physical-exam extension from a single complaint', () => {
+    const filter = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Cough', 'Chest:Wheeze;Head:'),
+    ]);
+    expect(parsePhysicalExamFilter(filter)).toEqual({
+      Chest: ['Wheeze'],
+      Head: [],
+    });
+  });
+
+  it('combines extensions across multiple complaints with dedup', () => {
+    const filter = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Cough', 'Chest:Wheeze;Eyes:Jaundice'),
+      makeComplaint('Fever', 'Eyes:Jaundice;Head:Injury'),
+    ]);
+    const parsed = parsePhysicalExamFilter(filter);
+    expect(parsed.Chest).toEqual(['Wheeze']);
+    expect(parsed.Eyes).toEqual(['Jaundice']);
+    expect(parsed.Head).toEqual(['Injury']);
+  });
+
+  it('treats a complaint missing the extension as a no-op', () => {
+    const filter = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Cough', 'Chest:Wheeze'),
+      makeComplaint('NoExt'),
+    ]);
+    expect(parsePhysicalExamFilter(filter)).toEqual({ Chest: ['Wheeze'] });
+  });
+
+  it('treats a complaint with no extension array at all as a no-op', () => {
+    const noExtArray: AyuJsonItem = {
+      id: 2,
+      name: 'Bare.json',
+      json: { resourceType: 'Questionnaire', title: 'Bare', item: [] },
+      keyName: 'ayu',
+      isActive: true,
+    };
+    const filter = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Cough', 'Chest:Wheeze'),
+      noExtArray,
+    ]);
+    expect(parsePhysicalExamFilter(filter)).toEqual({ Chest: ['Wheeze'] });
   });
 });

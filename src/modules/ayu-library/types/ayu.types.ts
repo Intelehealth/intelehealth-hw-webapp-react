@@ -107,4 +107,10 @@ export interface AyuQuestion {
     inputType?: 'radio' | 'select';
     placeholder?: string;
   };
+
+  /**
+   * Source protocol code, set only when a multi-protocol selection is merged
+   * via mergeProtocols. Single-protocol flows leave this unset.
+   */
+  protocolCode?: string;
 }

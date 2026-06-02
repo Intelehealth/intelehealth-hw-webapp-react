@@ -1,7 +1,9 @@
+import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../ayu-library/types/ayu.types';
 import {
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
+  EXT_URL_PERFORM_PHYSICAL_EXAM,
 } from '../../ayu-library/utils/constants';
 import type { PhysicalExamQuestion } from '../types/physical-exam.types';
 
@@ -33,16 +35,15 @@ export const parsePhysicalExamFilter = (
 
 /**
  * Filter the question list using a perform-physical-exam filter string.
- * If filterString is empty, all questions are returned.
- * Questions in the "General Exams" section are always included.
+ * Questions in the "General Exams" section are always included; when the
+ * filter is empty, only that always-included section is returned so that
+ * protocols which don't declare a PE filter contribute nothing PE-specific.
  */
 export const filterPhysicalExamQuestions = (
   questions: PhysicalExamQuestion[],
   filterString: string
 ): PhysicalExamQuestion[] => {
   const filter = parsePhysicalExamFilter(filterString);
-  const sectionKeys = Object.keys(filter);
-  if (sectionKeys.length === 0) return questions;
 
   return questions.filter(q => {
     if (q.sectionKey === ALWAYS_INCLUDED_SECTION_KEY) return true;
@@ -60,13 +61,59 @@ export const filterPhysicalExamQuestions = (
  * AyuQuestion[] produced by transformFhirPhysExamToAyu, reading the PE
  * section-key and question-key from extensions instead of typed fields.
  */
+export const combinePhysicalExamFilters = (
+  filterStrings: Array<string | undefined | null>
+): string => {
+  const merged: Record<string, Set<string> | null> = {};
+
+  for (const raw of filterStrings) {
+    if (!raw) continue;
+    const parsed = parsePhysicalExamFilter(raw);
+    for (const [section, questions] of Object.entries(parsed)) {
+      if (merged[section] === null) continue;
+      if (questions.length === 0) {
+        merged[section] = null;
+        continue;
+      }
+      const set = (merged[section] as Set<string> | undefined) ?? new Set();
+      for (const q of questions) set.add(q);
+      merged[section] = set;
+    }
+  }
+
+  const parts: string[] = [];
+  for (const [section, questions] of Object.entries(merged)) {
+    if (questions === null) {
+      parts.push(`${section}:`);
+    } else {
+      for (const q of questions) parts.push(`${section}:${q}`);
+    }
+  }
+  return parts.join(';');
+};
+
+/**
+ * Pull the perform-physical-exam extension valueString from each selected
+ * complaint's questionnaire and combine them into a single filter string
+ * suitable for filterAyuQuestionsForPhysExam.
+ */
+export const getPhysicalExamFilterFromComplaints = (
+  complaints: AyuJsonItem[] | undefined
+): string => {
+  if (!complaints || complaints.length === 0) return '';
+  const filters = complaints.map(
+    c =>
+      c.json.extension?.find(e => e.url === EXT_URL_PERFORM_PHYSICAL_EXAM)
+        ?.valueString ?? ''
+  );
+  return combinePhysicalExamFilters(filters);
+};
+
 export const filterAyuQuestionsForPhysExam = (
   questions: AyuQuestion[],
   filterString: string
 ): AyuQuestion[] => {
   const filter = parsePhysicalExamFilter(filterString);
-  const sectionKeys = Object.keys(filter);
-  if (sectionKeys.length === 0) return questions;
 
   const readExt = (q: AyuQuestion, url: string): string | undefined =>
     q.extension?.find(e => e.url === url)?.valueString;
