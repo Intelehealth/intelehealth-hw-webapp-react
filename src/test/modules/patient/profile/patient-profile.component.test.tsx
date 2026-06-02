@@ -515,6 +515,7 @@ describe('PatientProfileComponent', () => {
           }),
         }),
         patientUuid: 'test-uuid',
+        editSource: 'profile',
       },
     });
   });
@@ -532,6 +533,7 @@ describe('PatientProfileComponent', () => {
       state: {
         editFormData: null,
         patientUuid: 'test-uuid',
+        editSource: 'profile',
       },
     });
   });

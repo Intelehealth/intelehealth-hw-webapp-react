@@ -54,15 +54,14 @@ describe('OpenVisitsPage', () => {
     expect(screen.getByPlaceholderText('Find patient')).toBeInTheDocument();
   });
 
-  it('renders sort icons next to search', () => {
+  it('renders filter icon next to search', () => {
     render(
       <MemoryRouter>
         <OpenVisitsPage />
       </MemoryRouter>
     );
 
-    expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
-    expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
+    expect(screen.getByAltText('filter')).toBeInTheDocument();
   });
 
   it('shows empty message when no data', () => {
