@@ -1174,6 +1174,34 @@ describe('AddPatientComponent', () => {
       expect(mockGetResource).not.toHaveBeenCalled();
     });
 
+    it('should fall back to EMPTY_FORM_DATA when resumePreview is true but previewData is missing', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                // no previewData provided
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      const previewData = screen.getByTestId('preview-data');
+      const data = JSON.parse(previewData.textContent || '{}');
+      // Should use EMPTY_FORM_DATA defaults (empty strings)
+      expect(data.personalInfo.firstName).toBe('');
+      expect(data.addressInfo.city).toBe('');
+    });
+
     it('should show Patient Details label on resume preview', async () => {
       render(
         <MemoryRouter

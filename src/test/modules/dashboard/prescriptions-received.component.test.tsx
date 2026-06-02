@@ -463,6 +463,16 @@ describe('PrescriptionsReceived', () => {
     });
   });
 
+  describe('Dynamic row count on resize', () => {
+    it('recalculates row count on window resize when initialRowCount is not provided', () => {
+      renderComponent();
+      // Trigger a resize event — the handleResize callback recalculates dynamicRowCount
+      fireEvent(window, new Event('resize'));
+      // Component should still render without crashing after resize
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Row click navigation', () => {
     it('navigates to visit-details on received row click', () => {
       renderComponent();

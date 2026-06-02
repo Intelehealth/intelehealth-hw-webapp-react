@@ -1561,4 +1561,36 @@ describe('PatientInfo', () => {
       });
     });
   });
+
+  describe('Edit mode button labels', () => {
+    it('renders "Cancel" and "Update" buttons when isEditMode is true', () => {
+      render(
+        <PatientInfo
+          defaultValues={validDefaults}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+          isEditMode={true}
+        />
+      );
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+      expect(screen.getByText('Update')).toBeInTheDocument();
+      expect(screen.queryByText('Back')).not.toBeInTheDocument();
+      expect(screen.queryByText('Next')).not.toBeInTheDocument();
+    });
+
+    it('renders "Back" and "Next" buttons when isEditMode is false', () => {
+      render(
+        <PatientInfo
+          defaultValues={validDefaults}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+          isEditMode={false}
+        />
+      );
+      expect(screen.getByText('Back')).toBeInTheDocument();
+      expect(screen.getByText('Next')).toBeInTheDocument();
+      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+      expect(screen.queryByText('Update')).not.toBeInTheDocument();
+    });
+  });
 });

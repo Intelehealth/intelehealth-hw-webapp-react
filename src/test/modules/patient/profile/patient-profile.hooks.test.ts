@@ -281,6 +281,33 @@ describe('mapRawPatientToFormData', () => {
 
     expect(formData.personalInfo.middleName).toBe('');
   });
+
+  it('splits phone number without leading + prefix', () => {
+    const patient = buildPatient({
+      attributes: [
+        { value: '911234567890', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+        { value: '9198', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      ],
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.phoneNumber).toBe('1234567890');
+  });
+
+  it('falls back to default country code for unrecognizable phone number', () => {
+    const patient = buildPatient({
+      attributes: [
+        { value: 'ABCDEFG', attributeType: { uuid: 'tel-uuid', display: 'Phone' } },
+        { value: '', attributeType: { uuid: 'ecnum-uuid', display: 'ECNum' } },
+      ],
+    });
+    const formData = mapRawPatientToFormData(patient as any);
+
+    // getCountryCode returns null for non-numeric, so fallback path is used
+    expect(formData.personalInfo.phoneNumberCountryCode).toBe('+91');
+    expect(formData.personalInfo.phoneNumber).toBe('ABCDEFG');
+  });
 });
 
 describe('usePatientProfile', () => {
