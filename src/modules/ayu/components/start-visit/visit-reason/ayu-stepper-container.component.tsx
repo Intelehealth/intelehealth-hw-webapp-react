@@ -191,7 +191,11 @@ const AyuAnsweredDisplay = ({
         {summaryItems.map((item, idx) =>
           item.type === 'labelValue' ? (
             <p key={idx} className="text-sm font-semibold text-[#2e1e91]">
-              {item.label ? `${item.label}: ${item.value}` : item.value}
+              {item.label
+                ? item.value != null && String(item.value).trim() !== ''
+                  ? `${item.label}: ${item.value}`
+                  : item.label
+                : item.value}
             </p>
           ) : (
             <div key={idx}>
