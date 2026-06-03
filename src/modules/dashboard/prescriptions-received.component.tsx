@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
-import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
+import iconFilter from '../../assets/icons/icon-filter.svg';
 
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
@@ -36,11 +35,7 @@ export const PrescriptionsReceived = ({
   );
   const [search, setSearch] = useState('');
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
-  const {
-    sortOrder: nameSortOrder,
-    toggleSort: toggleNameSort,
-    applySort: applyNameSort,
-  } = useSortByName();
+  const { applySort: applyNameSort } = useSortByName();
 
   const {
     data: receivedData,
@@ -54,6 +49,29 @@ export const PrescriptionsReceived = ({
     loading: pendingLoading,
     error: pendingError,
   } = usePrescriptionsPending();
+
+  const ROW_HEIGHT = 52; // 46px row + 6px gap
+  const HEADER_OFFSET = 370; // space above rows (cards, action bar, table header, tabs, column header)
+  const MIN_ROWS = 4;
+
+  const computeRowCount = useCallback(
+    () =>
+      initialRowCount ??
+      Math.max(
+        MIN_ROWS,
+        Math.floor((window.innerHeight - HEADER_OFFSET) / ROW_HEIGHT)
+      ),
+    [initialRowCount]
+  );
+
+  const [dynamicRowCount, setDynamicRowCount] = useState(computeRowCount);
+
+  useEffect(() => {
+    if (initialRowCount != null) return;
+    const handleResize = () => setDynamicRowCount(computeRowCount());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [initialRowCount, computeRowCount]);
 
   useEffect(() => {
     if (onCountLoaded) onCountLoaded(receivedCount);
@@ -150,7 +168,7 @@ export const PrescriptionsReceived = ({
     : 'No pending prescriptions found.';
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex flex-col flex-1 min-h-0">
         <div className="mx-auto flex flex-col flex-1 min-h-0 w-full">
           {/* Main Card */}
@@ -170,19 +188,11 @@ export const PrescriptionsReceived = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <div
-                  className="flex items-center gap-0.5 cursor-pointer"
-                  onClick={toggleNameSort}
-                >
+                <div className="flex items-center gap-3 shrink-0">
                   <img
-                    src={iconAscSorted}
-                    alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
-                  />
-                  <img
-                    src={iconDescSorted}
-                    alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
+                    src={iconFilter}
+                    alt="filter"
+                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
                   />
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
@@ -235,7 +245,7 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={receivedColumns}
                 data={loading ? [] : filteredReceived}
-                initialRowCount={initialRowCount}
+                initialRowCount={dynamicRowCount}
                 onRowClick={row =>
                   navigate(
                     `/visit-details/${row.visitUuid}`,
@@ -257,7 +267,7 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={pendingColumns}
                 data={loading ? [] : filteredPending}
-                initialRowCount={initialRowCount}
+                initialRowCount={dynamicRowCount}
                 onRowClick={row =>
                   navigate(
                     `/visit-details/${row.visitUuid}`,

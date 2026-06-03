@@ -164,7 +164,7 @@ const DashboardComponent = ({
             </div>
 
             <div
-              className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} lg:flex-1 lg:min-h-0 flex-col`}
+              className={`${showPrescriptions ? 'flex' : 'hidden md:flex'} flex-1 min-h-0 flex-col`}
             >
               <PrescriptionsReceived onCountLoaded={setPrescriptionCount} />
             </div>

@@ -31,6 +31,7 @@ export interface AddPatientData {
       },
     ];
     attributes?: {
+      uuid?: string;
       value: string;
       attributeType: string;
     }[];
@@ -69,6 +70,7 @@ export interface PatientFormData {
     education: string;
     economicStatus: string;
   };
+  attributeUuids?: Record<string, string>;
 }
 
 export interface PersonImage {

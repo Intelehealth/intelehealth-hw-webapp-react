@@ -55,6 +55,7 @@ export const MedicalHistory = ({
   );
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
   const { showVitalConfirmationModal } = useGlobalModal();
+  const [navigateToSummary, setNavigateToSummary] = useState(false);
 
   const historyFiles = useMemo(() => {
     if (!ayuConfigFiles) return [];
@@ -73,8 +74,6 @@ export const MedicalHistory = ({
     }));
   }, [historyFiles, patientAgeAndGender]);
 
-  // Precompute total question count across all files so the counter is
-  // correct even before later files have rendered their steppers.
   const precomputedTotal = useMemo(() => {
     return schemas.reduce((sum, s) => {
       const items = s.schema?.item || [];
@@ -126,17 +125,16 @@ export const MedicalHistory = ({
           medicalHistory: { patHistSummary: patHist, famHistSummary: famHist },
           medicalHistoryAnswers: { ...fileAnswersRef.current },
         });
-        const basePath = location.pathname.replace(/\/$/, '');
-        navigate(`${basePath}/visit-summary`);
+        setNavigateToSummary(true);
       },
     });
-  }, [
-    showVitalConfirmationModal,
-    navigate,
-    setMedicalHistoryData,
-    saveSectionToTemp,
-    location.pathname,
-  ]);
+  }, [showVitalConfirmationModal, setMedicalHistoryData, saveSectionToTemp]);
+
+  useEffect(() => {
+    if (!navigateToSummary) return;
+    const basePath = location.pathname.replace(/\/$/, '');
+    navigate(`${basePath}/visit-summary`);
+  }, [navigateToSummary, location.pathname, navigate]);
 
   const handleComplete = useCallback(
     (answers: Record<string, AyuAnswerValue>) => {

@@ -182,11 +182,27 @@ describe('PatientPreviewComponent', () => {
       expect(screen.getAllByText('John Michael Doe').length).toBeGreaterThan(0);
     });
 
-    it('renders a placeholder Edit button', () => {
+    it('renders an Edit button', () => {
       render(
         <PatientPreviewComponent patientUuid="test-uuid-123" data={completeData} />
       );
       expect(screen.getByText('Edit')).toBeInTheDocument();
+    });
+
+    it('navigates to /patient/edit with editSource "preview" when Edit is clicked', async () => {
+      const user = userEvent.setup();
+      render(
+        <PatientPreviewComponent patientUuid="test-uuid-123" data={completeData} />
+      );
+      await user.click(screen.getByText('Edit'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/patient/edit', {
+        state: {
+          editFormData: completeData,
+          patientUuid: 'test-uuid-123',
+          editSource: 'preview',
+        },
+      });
     });
 
     it('uses the uploaded profile photo when provided', () => {

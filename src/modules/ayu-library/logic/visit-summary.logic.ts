@@ -13,6 +13,8 @@ import {
 } from './decision-matrix';
 import { isMutuallyExclusiveOption } from './stepper.logic';
 
+const LABEL_PLACEHOLDER_RE = /\[[^\]]*\]/;
+
 /** Portable summary item — platform-agnostic equivalent of ModalSectionItem */
 export type SummaryItem =
   | { type: 'labelValue'; label: string; value: string | number | null }
@@ -248,9 +250,13 @@ export function buildVisitSummary(
           }
           const omitLabel =
             item.type === 'string' || !itemLabel || itemLabel === parentDisplay;
-          parts.push(
-            omitLabel ? combinedValue : `${itemLabel} – ${combinedValue}`
-          );
+          if (omitLabel) {
+            parts.push(combinedValue);
+          } else if (LABEL_PLACEHOLDER_RE.test(itemLabel)) {
+            parts.push(itemLabel.replace(LABEL_PLACEHOLDER_RE, combinedValue));
+          } else {
+            parts.push(`${itemLabel} – ${combinedValue}`);
+          }
         }
       }
     }

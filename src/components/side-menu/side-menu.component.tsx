@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import iconAbout from '../../assets/icons/icon-about.svg';
 import iconAchievements from '../../assets/icons/icon-achievement.svg';
 import iconHome from '../../assets/icons/icon-home.svg';
@@ -40,6 +40,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
   hideNavbarOnMobile,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -110,7 +111,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
         >
           <i
             className={`fa-solid text-(--color-primary) text-sm ${
-              isCollapsed ? 'fa-chevron-left' : 'fa-chevron-right'
+              isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'
             }`}
           ></i>
         </button>
@@ -183,45 +184,43 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   </span>
                 )}
               </div>
-              {!isCollapsed && (
-                <div
-                  className="w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: '#e1dcff' }}
-                >
-                  <i
-                    className="fa-solid fa-chevron-right text-xs"
-                    style={{ color: '#2e1e91' }}
-                  ></i>
-                </div>
-              )}
             </Link>
           </div>
           {/* Menu Items */}
           <nav className="flex-1 space-y-1 md:space-y-2 overflow-hidden flex flex-col min-h-0">
-            <div className="flex-1 overflow-hidden">
-              {menuItems.map(item => (
-                <Link
-                  key={item.label}
-                  to={item.path}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition ${
-                    isCollapsed
-                      ? 'justify-center py-3 px-0 md:py-4'
-                      : 'p-3 md:p-4'
-                  }`}
-                >
-                  <img
-                    src={item.icon}
-                    alt={item.label}
-                    className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
-                  />
-                  {!isCollapsed && (
-                    <span className="text-white text-base md:text-lg whitespace-nowrap">
-                      {item.label}
-                    </span>
-                  )}
-                </Link>
-              ))}
+            <div className="flex-1 overflow-hidden space-y-1 md:space-y-2">
+              {menuItems.map(item => {
+                const isActive =
+                  location.pathname === item.path ||
+                  location.pathname.startsWith(`${item.path}/`);
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={`flex items-center gap-2 md:gap-3 rounded-lg transition ${
+                      isActive
+                        ? 'bg-(--color-primary-dark)'
+                        : 'hover:bg-(--color-primary-dark)'
+                    } ${
+                      isCollapsed
+                        ? 'justify-center py-3 px-0 md:py-4'
+                        : 'p-3 md:p-4'
+                    }`}
+                  >
+                    <img
+                      src={item.icon}
+                      alt={item.label}
+                      className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0"
+                    />
+                    {!isCollapsed && (
+                      <span className="text-white text-base md:text-lg whitespace-nowrap">
+                        {item.label}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </nav>
 

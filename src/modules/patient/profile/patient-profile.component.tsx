@@ -10,6 +10,7 @@ import iconOther from '../../../assets/icons/icon-three-dot-green-rounded-border
 import iconPersonal from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
 import defaultUserImg from '../../../assets/images/default-user-img.svg';
 import { Button } from '../../../components/common';
+import { showToast } from '../../../services/toast';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   getVisitTitle,
@@ -120,16 +121,25 @@ const PatientProfileComponent: React.FC = () => {
           <button
             type="button"
             className="flex items-center gap-1.5 text-xs text-[#2F1E91] font-medium cursor-pointer border border-[#E1DCFF] rounded-md px-3 py-1 hover:bg-[#E1DCFF] transition-colors"
-            onClick={() =>
-              navigate('/patient/edit', {
-                state: {
-                  editFormData: rawPatient
-                    ? mapRawPatientToFormData(rawPatient)
-                    : null,
-                  patientUuid: uuid,
-                },
-              })
-            }
+            onClick={() => {
+              try {
+                navigate('/patient/edit', {
+                  state: {
+                    editFormData: rawPatient
+                      ? mapRawPatientToFormData(rawPatient)
+                      : null,
+                    patientUuid: uuid,
+                    editSource: 'profile',
+                  },
+                });
+              } catch {
+                showToast(
+                  'Edit Failed',
+                  'Could not open edit form. Please try again.',
+                  'error'
+                );
+              }
+            }}
           >
             <img src={iconEdit} alt="Edit" className="w-3.5 h-3.5" />
             Edit

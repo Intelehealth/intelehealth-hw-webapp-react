@@ -164,8 +164,8 @@ describe('FollowupVisitsComponent', () => {
       fireEvent.click(patientHeaders[0]); // null
 
       const allSortIcons = [
-        ...screen.getAllByAltText('sort-asc'),
-        ...screen.getAllByAltText('sort-desc'),
+        ...screen.queryAllByAltText('sort-asc'),
+        ...screen.queryAllByAltText('sort-desc'),
       ];
       allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
     });
@@ -180,36 +180,18 @@ describe('FollowupVisitsComponent', () => {
     });
   });
 
-  describe('Name sort button (search area)', () => {
-    it('first click sorts ascending — sort-asc icon becomes active', () => {
+  describe('Filter icon (search area)', () => {
+    it('renders the filter icon next to the search input', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
-
-      expect(sortAscIcon).toHaveClass('opacity-100');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toBeInTheDocument();
+      expect(filterIcon).toHaveClass('w-5', 'h-5');
     });
 
-    it('second click sorts descending — sort-desc icon becomes active', () => {
+    it('filter icon has hover styling', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-
-      expect(sortDescIcon).toHaveClass('opacity-100');
-      expect(sortAscIcon).toHaveClass('opacity-50');
-    });
-
-    it('third click clears sort — both icons inactive', () => {
-      renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-      fireEvent.click(sortAscIcon); // null
-
-      expect(sortAscIcon).toHaveClass('opacity-50');
-      expect(sortDescIcon).toHaveClass('opacity-50');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toHaveClass('cursor-pointer', 'hover:opacity-70', 'transition');
     });
   });
 
