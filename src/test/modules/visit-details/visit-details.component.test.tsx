@@ -507,4 +507,26 @@ describe('VisitDetails', () => {
       });
     });
   });
+
+  /* ── Breadcrumb with location state ── */
+
+  describe('breadcrumb with navigation state', () => {
+    it('should pass fromLabel and fromPath to child navigation when location.state is present', async () => {
+      vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(makeVisitData());
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/visit-details/my-visit-uuid', state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } }]}>
+          <BreadcrumbProvider>
+            <Routes>
+              <Route path="/visit-details/:visitId" element={<VisitDetails />} />
+            </Routes>
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText('Visit summary')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Visit summary'));
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary/my-visit-uuid', { state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } });
+    });
+  });
 });

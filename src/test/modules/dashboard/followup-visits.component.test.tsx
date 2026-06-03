@@ -204,4 +204,19 @@ describe('FollowupVisitsComponent', () => {
     if (clickable) fireEvent.click(clickable);
     expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', { state: { fromLabel: 'Follow-up Visits', fromPath: '/followup-visits' } });
   });
+
+  it('navigates without state when rendered on dashboard', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <BreadcrumbProvider>
+          <FollowupVisitsComponent />
+        </BreadcrumbProvider>
+      </MemoryRouter>
+    );
+
+    const raviNodes = screen.getAllByText('Ravi Kumar');
+    const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
+    if (clickable) fireEvent.click(clickable);
+    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', undefined);
+  });
 });

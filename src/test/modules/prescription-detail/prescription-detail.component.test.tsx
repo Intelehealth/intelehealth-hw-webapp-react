@@ -85,12 +85,32 @@ const renderComponent = (visitId = 'visit-123') =>
     </MemoryRouter>
   );
 
+const renderWithLocationState = (visitId = 'visit-123') =>
+  render(
+    <MemoryRouter initialEntries={[{ pathname: `/prescription-detail/${visitId}`, state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } }]}>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/prescription-detail/:visitId" element={<PrescriptionDetail />} />
+        </Routes>
+      </BreadcrumbProvider>
+    </MemoryRouter>
+  );
+
 /* ── Tests ── */
 
 describe('PrescriptionDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetPrescriptionData.mockResolvedValue({ ...fullData });
+  });
+
+  /* ── Breadcrumb with navigation state ── */
+
+  it('should render with breadcrumb navigation state (fromLabel and fromPath)', async () => {
+    renderWithLocationState();
+    await waitFor(() => {
+      expect(screen.getByText('Test S')).toBeInTheDocument();
+    });
   });
 
   /* ── Loading state ── */

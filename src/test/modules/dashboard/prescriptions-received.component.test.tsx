@@ -493,5 +493,34 @@ describe('PrescriptionsReceived', () => {
       fireEvent.click(row!);
       expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
     });
+
+    it('navigates without state when rendered on dashboard (received tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      const patientNames = screen.getAllByText('Sarrah Paul');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', undefined);
+    });
+
+    it('navigates without state when rendered on dashboard (pending tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', undefined);
+    });
   });
 });

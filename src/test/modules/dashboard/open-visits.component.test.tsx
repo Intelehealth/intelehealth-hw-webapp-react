@@ -315,6 +315,20 @@ describe('OpenVisitsComponent', () => {
       if (clickable) fireEvent.click(clickable);
       expect(mockNavigate).toHaveBeenCalledWith('/visit-details/ov-1', { state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } });
     });
+
+    it('navigates without state when rendered on dashboard', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <OpenVisitsComponent />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      const raviNodes = screen.getAllByText('Ravi Kumar');
+      const clickable = raviNodes[0].closest('.rounded-xl');
+      if (clickable) fireEvent.click(clickable);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/ov-1', undefined);
+    });
   });
 
   describe('initialRowCount prop', () => {
