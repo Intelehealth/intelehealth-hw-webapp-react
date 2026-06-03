@@ -337,6 +337,82 @@ interface Column<T> {
 - `initialRowCount`: number — number of rows shown before "Show all" toggle (default: 6)
 - `onRowClick`: (row: T) => void — optional click handler; makes rows appear clickable
 
+### Breadcrumb
+
+A layout-level breadcrumb navigation component driven by React Context. Pages declaratively set their breadcrumb trail using the `useBreadcrumb` hook, and the `Breadcrumb` component (rendered once in `MainContainer`) displays it automatically.
+
+```tsx
+// In your page component:
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+
+const SettingsPage: React.FC = () => {
+  useBreadcrumb([
+    { label: 'Dashboard', path: '/dashboard' },
+    { label: 'Settings' },
+  ]);
+
+  return <SettingsComponent />;
+};
+
+// With custom background color:
+const EducationalVideosPage: React.FC = () => {
+  useBreadcrumb(
+    [
+      { label: 'Dashboard', path: '/dashboard' },
+      { label: 'Educational Videos' },
+    ],
+    { bgColor: 'bg-gray-50' }
+  );
+
+  return <EducationalVideos />;
+};
+
+// With navigation state on breadcrumb links:
+const PrescriptionDetailPage: React.FC = () => {
+  useBreadcrumb([
+    { label: 'Dashboard', path: '/dashboard' },
+    {
+      label: 'Visit Details',
+      path: '/visit-details/123',
+      state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' },
+    },
+    { label: 'Prescription Detail' },
+  ]);
+
+  return <PrescriptionDetail />;
+};
+```
+
+**How it works:**
+
+1. `BreadcrumbProvider` wraps the layout in `MainContainer` and holds the breadcrumb state.
+2. Pages call `useBreadcrumb(items, options?)` to set their trail on mount. Items are cleared automatically on unmount.
+3. The `Breadcrumb` component reads from context and renders the trail. It returns `null` when no items are set (e.g. Dashboard page).
+
+**BreadcrumbItem Interface:**
+
+```tsx
+interface BreadcrumbItem {
+  label: string;
+  path?: string;
+  state?: Record<string, unknown>;
+}
+```
+
+**useBreadcrumb Options:**
+
+- `bgColor`: string — Tailwind background class applied to the breadcrumb nav and content container (default: `'bg-white'`)
+
+**Breadcrumb Props:**
+
+- `className`: string — additional CSS classes merged onto the `<nav>` element
+
+**Files:**
+
+- `src/context/BreadcrumbContext.tsx` — provider and context hook
+- `src/hooks/useBreadcrumb.ts` — page-level hook
+- `src/components/common/breadcrumb.component.tsx` — rendered component
+
 ### VideoCard
 
 A responsive video card component that displays a video thumbnail with a play button overlay and duration badge. Renders as a horizontal row on mobile and a vertical card on desktop.

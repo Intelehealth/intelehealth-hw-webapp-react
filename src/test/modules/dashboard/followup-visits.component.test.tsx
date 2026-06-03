@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FollowupVisitsComponent } from '../../../modules/dashboard/followup-visits.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -38,7 +39,9 @@ const mockData = [
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <FollowupVisitsComponent {...props} />
+      <BreadcrumbProvider>
+        <FollowupVisitsComponent {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -199,6 +202,21 @@ describe('FollowupVisitsComponent', () => {
 
     const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
     if (clickable) fireEvent.click(clickable);
-    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', { state: { fromLabel: 'Follow-up Visits', fromPath: '/followup-visits' } });
+  });
+
+  it('navigates without state when rendered on dashboard', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <BreadcrumbProvider>
+          <FollowupVisitsComponent />
+        </BreadcrumbProvider>
+      </MemoryRouter>
+    );
+
+    const raviNodes = screen.getAllByText('Ravi Kumar');
+    const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
+    if (clickable) fireEvent.click(clickable);
+    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', undefined);
   });
 });

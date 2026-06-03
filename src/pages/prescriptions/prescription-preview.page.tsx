@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import iconConsultation from '../../assets/icons/prescription-consultation.svg';
 import iconDiagnosis from '../../assets/icons/prescription-diagnosis.svg';
 import iconFollowUp from '../../assets/icons/prescription-followup.svg';
@@ -206,6 +208,16 @@ const ListSection = ({
 const PrescriptionPreviewPage = () => {
   const [searchParams] = useSearchParams();
   const visitUuid = searchParams.get('visitUuid') || '';
+
+  useBreadcrumb(
+    [
+      { label: 'Dashboard', path: ROUTES.DASHBOARD },
+      { label: 'Prescriptions', path: ROUTES.PRESCRIPTIONS },
+      { label: 'Prescription Preview' },
+    ],
+    { bgColor: 'bg-gray-100' }
+  );
+
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

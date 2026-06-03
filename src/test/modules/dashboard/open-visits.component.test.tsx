@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenVisitsComponent } from '../../../modules/dashboard/open-visits.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -82,7 +83,9 @@ const defaultPriorityState = {
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <OpenVisitsComponent {...props} />
+      <BreadcrumbProvider>
+        <OpenVisitsComponent {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -310,7 +313,21 @@ describe('OpenVisitsComponent', () => {
       const raviNodes = screen.getAllByText('Ravi Kumar');
       const clickable = raviNodes[0].closest('.rounded-xl');
       if (clickable) fireEvent.click(clickable);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/ov-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/ov-1', { state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } });
+    });
+
+    it('navigates without state when rendered on dashboard', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <OpenVisitsComponent />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      const raviNodes = screen.getAllByText('Ravi Kumar');
+      const clickable = raviNodes[0].closest('.rounded-xl');
+      if (clickable) fireEvent.click(clickable);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/ov-1', undefined);
     });
   });
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconFilter from '../../assets/icons/icon-filter.svg';
 
@@ -35,6 +35,8 @@ export const OpenVisitsComponent = ({
   initialRowCount,
 }: OpenVisitsProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [activeTab, setActiveTab] = useState<OpenVisitsTab>(
     OPEN_VISITS_TABS.OPEN
   );
@@ -167,7 +169,19 @@ export const OpenVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
-              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              onRowClick={row =>
+                navigate(
+                  `/visit-details/${row.visitUuid}`,
+                  isOnDashboard
+                    ? undefined
+                    : {
+                        state: {
+                          fromLabel: 'Open Visits',
+                          fromPath: '/open-visits',
+                        },
+                      }
+                )
+              }
               sortKey={sortKey}
               sortOrder={sortOrder}
               onSort={toggleSort}

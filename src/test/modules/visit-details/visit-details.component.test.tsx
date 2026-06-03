@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import VisitDetails from '../../../modules/visit-details/visit-details.component';
 import { visitDetailsService } from '../../../modules/visit-details/visit-details.service';
 import type { TransformedVisitDetails } from '../../../modules/visit-details/visit-details.types';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 /* ── Mocks ── */
 
@@ -73,9 +74,11 @@ function makeVisitData(overrides?: Partial<TransformedVisitDetails>): Transforme
 const renderWithRouter = (visitId = 'test-visit-uuid') => {
   return render(
     <MemoryRouter initialEntries={[`/visit-details/${visitId}`]}>
-      <Routes>
-        <Route path="/visit-details/:visitId" element={<VisitDetails />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-details/:visitId" element={<VisitDetails />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
@@ -83,9 +86,11 @@ const renderWithRouter = (visitId = 'test-visit-uuid') => {
 const renderWithoutVisitId = () => {
   return render(
     <MemoryRouter initialEntries={['/visit-details']}>
-      <Routes>
-        <Route path="/visit-details" element={<VisitDetails />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-details" element={<VisitDetails />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
@@ -151,20 +156,12 @@ describe('VisitDetails', () => {
       });
     });
 
-    it('should render "Back to Dashboard" button', async () => {
+    it('should not render "Back to Dashboard" button (removed in favor of breadcrumbs)', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Visit details')).toBeInTheDocument();
       });
-    });
-
-    it('should navigate back on "Back to Dashboard" click', async () => {
-      renderWithRouter();
-      await waitFor(() => {
-        expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByText('Back to Dashboard'));
-      expect(mockNavigate).toHaveBeenCalledWith(-1);
+      expect(screen.queryByText('Back to Dashboard')).not.toBeInTheDocument();
     });
   });
 
@@ -318,7 +315,7 @@ describe('VisitDetails', () => {
         expect(screen.getByText('Visit summary')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Visit summary'));
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary/my-visit-uuid');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary/my-visit-uuid', { state: { fromLabel: undefined, fromPath: undefined } });
     });
 
     it('should navigate to prescription detail on prescription row click', async () => {
@@ -328,7 +325,7 @@ describe('VisitDetails', () => {
         expect(screen.getByText('Prescription')).toBeInTheDocument();
       });
       fireEvent.click(screen.getByText('Prescription'));
-      expect(mockNavigate).toHaveBeenCalledWith('/prescription-detail/my-visit-uuid');
+      expect(mockNavigate).toHaveBeenCalledWith('/prescription-detail/my-visit-uuid', { state: { fromLabel: undefined, fromPath: undefined } });
     });
   });
 
@@ -508,6 +505,28 @@ describe('VisitDetails', () => {
       await waitFor(() => {
         expect(visitDetailsService.getVisitDetails).toHaveBeenCalledWith('my-visit-123');
       });
+    });
+  });
+
+  /* ── Breadcrumb with location state ── */
+
+  describe('breadcrumb with navigation state', () => {
+    it('should pass fromLabel and fromPath to child navigation when location.state is present', async () => {
+      vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(makeVisitData());
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/visit-details/my-visit-uuid', state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } }]}>
+          <BreadcrumbProvider>
+            <Routes>
+              <Route path="/visit-details/:visitId" element={<VisitDetails />} />
+            </Routes>
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText('Visit summary')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Visit summary'));
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-summary/my-visit-uuid', { state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } });
     });
   });
 });

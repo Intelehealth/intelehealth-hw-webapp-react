@@ -24,6 +24,7 @@ vi.mock('../../../modules/help-and-support/help-video', () => ({
   )),
 }));
 
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import HelpVideoPage from '../../../pages/help-and-support/help-video.page';
 
 describe('HelpVideoPage', () => {
@@ -32,23 +33,23 @@ describe('HelpVideoPage', () => {
   });
 
   it('should render without crashing', () => {
-    render(<HelpVideoPage />);
+    render(<BreadcrumbProvider><HelpVideoPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpAndSupportComponent layout', () => {
-    render(<HelpVideoPage />);
+    render(<BreadcrumbProvider><HelpVideoPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpSearchHeader with video placeholder', () => {
-    render(<HelpVideoPage />);
+    render(<BreadcrumbProvider><HelpVideoPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('search-header')).toBeInTheDocument();
     expect(screen.getByText('Search for videos')).toBeInTheDocument();
   });
 
   it('should render HelpVideo with showAll prop', () => {
-    render(<HelpVideoPage />);
+    render(<BreadcrumbProvider><HelpVideoPage /></BreadcrumbProvider>);
     const helpVideo = screen.getByTestId('help-video');
     expect(helpVideo).toBeInTheDocument();
     expect(helpVideo).toHaveAttribute('data-show-all', 'true');
