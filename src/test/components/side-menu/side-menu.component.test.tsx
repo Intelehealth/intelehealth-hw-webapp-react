@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { HashRouter } from 'react-router-dom';
+import { HashRouter, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
 
@@ -52,6 +52,12 @@ vi.mock('../../../assets/logo/intelehealth-thumbnail-logo-white.png', () => ({
 describe('SideMenu', () => {
   const renderWithRouter = (component: React.ReactElement) => {
     return render(<HashRouter>{component}</HashRouter>);
+  };
+
+  const renderAtRoute = (component: React.ReactElement, route: string) => {
+    return render(
+      <MemoryRouter initialEntries={[route]}>{component}</MemoryRouter>
+    );
   };
 
   beforeEach(() => {
@@ -209,6 +215,29 @@ describe('SideMenu', () => {
       const allButtons = screen.getAllByRole('button');
       expect(allButtons.length).toBeGreaterThan(0);
     });
+
+    it('should highlight the active menu item on exact path match', () => {
+      renderAtRoute(<SideMenu />, '/settings');
+
+      const settingsLink = screen.getByText('Settings').closest('a');
+      expect(settingsLink).toHaveClass('bg-(--color-primary-dark)');
+      expect(settingsLink).not.toHaveClass('hover:bg-(--color-primary-dark)');
+    });
+
+    it('should highlight the active menu item on nested route match', () => {
+      renderAtRoute(<SideMenu />, '/help/faq');
+
+      const helpLink = screen.getByText('Help & Support').closest('a');
+      expect(helpLink).toHaveClass('bg-(--color-primary-dark)');
+    });
+
+    it('should not highlight inactive menu items', () => {
+      renderAtRoute(<SideMenu />, '/settings');
+
+      const homeLink = screen.getByText('Home').closest('a');
+      expect(homeLink).toHaveClass('hover:bg-(--color-primary-dark)');
+      expect(homeLink).not.toHaveClass('bg-(--color-primary-dark)');
+    });
   });
 
   describe('Add Patients Button', () => {
@@ -297,13 +326,13 @@ describe('SideMenu', () => {
       );
       const chevronIcon = toggleButton?.querySelector('i');
 
-      // Initially chevron-right (pointing right to collapse)
-      expect(chevronIcon).toHaveClass('fa-chevron-right');
+      // Initially chevron-left (expanded state)
+      expect(chevronIcon).toHaveClass('fa-chevron-left');
 
       fireEvent.click(toggleButton!);
 
-      // After collapse, chevron-left (pointing left to expand)
-      expect(chevronIcon).toHaveClass('fa-chevron-left');
+      // After collapse, chevron-right
+      expect(chevronIcon).toHaveClass('fa-chevron-right');
     });
 
     it('should update main content margin when sidebar is collapsed', () => {
