@@ -36,7 +36,10 @@ export const useAddPatient = (): UseAddPatientReturn => {
         await generateIdentifier();
       const patient = await patientService.createPatient(formattedPatientData);
 
-      if (patient && patientData.personalInfo.profilePhoto) {
+      if (
+        patient &&
+        patientData.personalInfo.profilePhoto?.startsWith('data:')
+      ) {
         await profileService.updateProfileImage({
           person: patient.uuid,
           base64EncodedImage: patientData.personalInfo.profilePhoto.split(
@@ -90,7 +93,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
         person: formattedData.person,
       });
 
-      if (patientData.personalInfo.profilePhoto) {
+      if (patientData.personalInfo.profilePhoto?.startsWith('data:')) {
         await profileService.updateProfileImage({
           person: uuid,
           base64EncodedImage: patientData.personalInfo.profilePhoto.split(
