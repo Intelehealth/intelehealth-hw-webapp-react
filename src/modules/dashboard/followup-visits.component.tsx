@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
@@ -21,6 +21,8 @@ export const FollowupVisitsComponent = ({
   initialRowCount,
 }: FollowupVisitsProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [search, setSearch] = useState('');
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const {
@@ -116,7 +118,19 @@ export const FollowupVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
-              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              onRowClick={row =>
+                navigate(
+                  `/visit-details/${row.visitUuid}`,
+                  isOnDashboard
+                    ? undefined
+                    : {
+                        state: {
+                          fromLabel: 'Follow-up Visits',
+                          fromPath: '/followup-visits',
+                        },
+                      }
+                )
+              }
               sortKey={sortKey}
               sortOrder={sortOrder}
               onSort={toggleSort}

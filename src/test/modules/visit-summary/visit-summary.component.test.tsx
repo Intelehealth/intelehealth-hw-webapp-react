@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
 import { visitSummaryService } from '../../../modules/visit-summary/visit-summary.service';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 // Mock the service
 vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
@@ -67,9 +68,11 @@ vi.mock('../../../components/common/toggle.component', () => ({
 const renderWithMockData = () => {
   return render(
     <MemoryRouter initialEntries={['/visit-summary']}>
-      <Routes>
-        <Route path="/visit-summary" element={<VisitSummaryComponent />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-summary" element={<VisitSummaryComponent />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
@@ -78,9 +81,11 @@ const renderWithMockData = () => {
 const renderWithVisitId = (visitId = 'test-visit-123') => {
   return render(
     <MemoryRouter initialEntries={[`/visit-summary/${visitId}`]}>
-      <Routes>
-        <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };

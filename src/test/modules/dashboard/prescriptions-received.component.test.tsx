@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -80,7 +81,9 @@ const defaultPendingState = {
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <PrescriptionsReceived {...props} />
+      <BreadcrumbProvider>
+        <PrescriptionsReceived {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -488,7 +491,7 @@ describe('PrescriptionsReceived', () => {
       const patientNames = screen.getAllByText('Sarrah Paul');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
     });
 
     it('navigates to visit-details on pending row click', () => {
@@ -497,7 +500,7 @@ describe('PrescriptionsReceived', () => {
       const patientNames = screen.getAllByText('Ravi Kumar');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
     });
   });
 });

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import type {
   Medication,
   PrescriptionData,
@@ -19,7 +21,6 @@ import iconMedications from '../../assets/icons/icon-medications-circle.svg';
 import iconPrintWhite from '../../assets/icons/icon-print-white.svg';
 import iconReferral from '../../assets/icons/icon-referral-circle.svg';
 import iconShareWhite from '../../assets/icons/icon-share-white.svg';
-import iconBackArrow from '../../assets/icons/icon-back-arrow.svg';
 import iconDiagnosis from '../../assets/icons/visit-reason.svg';
 import iconTests from '../../assets/icons/vitals.svg';
 import Button from '../../components/common/button.component';
@@ -261,7 +262,24 @@ const FollowUpSection: React.FC<{ followUpDate: string | null }> = ({
 
 const PrescriptionDetail: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
-  const navigate = useNavigate();
+  const location = useLocation();
+
+  const fromLabel = (location.state as { fromLabel?: string })?.fromLabel;
+  const fromPath = (location.state as { fromPath?: string })?.fromPath;
+
+  useBreadcrumb(
+    [
+      { label: 'Dashboard', path: ROUTES.DASHBOARD },
+      ...(fromLabel && fromPath ? [{ label: fromLabel, path: fromPath }] : []),
+      {
+        label: 'Visit Details',
+        path: `/visit-details/${visitId}`,
+        state: fromLabel && fromPath ? { fromLabel, fromPath } : undefined,
+      },
+      { label: 'Prescription Detail' },
+    ],
+    { bgColor: 'bg-[#F5F5FA]' }
+  );
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -359,14 +377,6 @@ const PrescriptionDetail: React.FC = () => {
 
   return (
     <div className="bg-[#F5F5FA] h-full overflow-y-auto p-4 md:p-5">
-      {/* Back navigation – in gray area outside the card */}
-      <button
-        className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors mb-4"
-        onClick={() => navigate(-1)}
-      >
-        <img src={iconBackArrow} alt="" className="w-4 h-4 shrink-0" />
-        Back to Dashboard
-      </button>
       <div className=" max-w-4xl mx-auto">
         {/* White card */}
         <div className="bg-white rounded-xl border border-gray-200 px-8 py-6">

@@ -6,6 +6,8 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
+import ROUTES from '../../../routes/paths';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -304,6 +306,11 @@ const MedicalHistorySection: React.FC<{
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'Start Visit', path: '/ayu' },
+    { label: 'Visit Summary' },
+  ]);
   const {
     data,
     patientUuid: ctxPatientUuid,
@@ -326,7 +333,7 @@ const VisitSummaryPage = () => {
   const [isUploaded, setIsUploaded] = useState(false);
   const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState(false);
-  const [speciality, setSpeciality] = useState('General Physician');
+  const [speciality, setSpeciality] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [additionalDocuments, setAdditionalDocuments] = useState<
@@ -471,7 +478,7 @@ const VisitSummaryPage = () => {
         physicalExam,
         medicalHistory,
         familyHistory,
-        speciality,
+        speciality: speciality || 'General Physician',
         priorityVisit,
         doctorNotes: additionalNotes,
       });
@@ -776,7 +783,7 @@ const VisitSummaryPage = () => {
             )}
             value={speciality}
             onChange={val => setSpeciality(val as string)}
-            placeholder="General physician"
+            placeholder="Select Doctor's specialty"
             size="sm"
           />
         </div>
@@ -824,7 +831,7 @@ const VisitSummaryPage = () => {
             type="button"
             onClick={() =>
               navigate(`/appointment-schedule/${uploadedVisitUuid}`, {
-                state: { speciality },
+                state: { speciality: speciality || 'General Physician' },
               })
             }
             className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90"

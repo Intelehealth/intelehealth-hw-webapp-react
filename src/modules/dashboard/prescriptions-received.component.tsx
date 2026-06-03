@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
 import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
@@ -29,6 +29,8 @@ export const PrescriptionsReceived = ({
   initialRowCount,
 }: PrescriptionsReceivedProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [activeTab, setActiveTab] = useState<string>(
     PRESCRIPTION_TABS.RECEIVED
   );
@@ -234,7 +236,19 @@ export const PrescriptionsReceived = ({
                 columns={receivedColumns}
                 data={loading ? [] : filteredReceived}
                 initialRowCount={initialRowCount}
-                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+                onRowClick={row =>
+                  navigate(
+                    `/visit-details/${row.visitUuid}`,
+                    isOnDashboard
+                      ? undefined
+                      : {
+                          state: {
+                            fromLabel: 'Prescriptions',
+                            fromPath: '/prescriptions',
+                          },
+                        }
+                  )
+                }
                 sortKey={sortKey}
                 sortOrder={sortOrder}
                 onSort={toggleSort}
@@ -244,7 +258,19 @@ export const PrescriptionsReceived = ({
                 columns={pendingColumns}
                 data={loading ? [] : filteredPending}
                 initialRowCount={initialRowCount}
-                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+                onRowClick={row =>
+                  navigate(
+                    `/visit-details/${row.visitUuid}`,
+                    isOnDashboard
+                      ? undefined
+                      : {
+                          state: {
+                            fromLabel: 'Prescriptions',
+                            fromPath: '/prescriptions',
+                          },
+                        }
+                  )
+                }
                 sortKey={sortKey}
                 sortOrder={sortOrder}
                 onSort={toggleSort}

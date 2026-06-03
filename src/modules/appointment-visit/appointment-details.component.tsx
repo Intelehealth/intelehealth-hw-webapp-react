@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import iconPhoneRounded from '../../assets/icons/appointment/green-field-apm-phone-icon.svg';
 import iconWatsappsRounded from '../../assets/icons/appointment/green-field-apm-wattsapps.svg';
 import iconCalendar from '../../assets/icons/appointment/icon-apm-calendar.svg';
@@ -18,6 +20,12 @@ import { appointmentsDetailData } from '../../assets/data/appointments.data';
 export default function AppointmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'My Appointments', path: ROUTES.MY_APPOINTMENTS },
+    { label: 'Appointment Details' },
+  ]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
   const filteredAppointments = appointmentsDetailData.filter(

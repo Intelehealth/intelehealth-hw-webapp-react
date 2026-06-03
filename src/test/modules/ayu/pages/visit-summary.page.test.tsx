@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { BreadcrumbProvider } from '../../../../context/BreadcrumbContext';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
@@ -292,7 +293,7 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
     saveSectionToTemp: mockSaveSectionToTemp,
     clearVisitId: mockClearVisitId,
   });
-  return render(<VisitSummaryPage />);
+  return render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 }
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
@@ -464,12 +465,12 @@ describe('VisitSummaryPage', () => {
 
   it('should navigate to start-visit Medical History when "Back to Edit" button is clicked', () => {
     const setLastSectionIndex = vi.fn();
-    mockUseStartVisitData.mockReturnValueOnce({
+    mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: null,
-    
+
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex,
@@ -482,7 +483,7 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     });
-    renderWithData();
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     const backButton = screen.getByText('Back to Edit');
     fireEvent.click(backButton);
@@ -495,12 +496,12 @@ describe('VisitSummaryPage', () => {
     const originalPathname = mockLocation.pathname;
     mockLocation.pathname = '/visit-summary';
     const setLastSectionIndex = vi.fn();
-    mockUseStartVisitData.mockReturnValueOnce({
+    mockUseStartVisitData.mockReturnValue({
       data: { ...fullData },
       patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       visitId: 'test-visit-id',
       tempRecordId: null,
-    
+
       restoredSectionIndex: null,
       lastSectionIndex: 0,
       setLastSectionIndex,
@@ -515,7 +516,7 @@ describe('VisitSummaryPage', () => {
     });
 
     try {
-      renderWithData();
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
       fireEvent.click(screen.getByText('Back to Edit'));
       expect(setLastSectionIndex).toHaveBeenCalledWith(3);
       expect(mockNavigate).toHaveBeenCalledWith('/ayu');
@@ -610,7 +611,7 @@ describe('VisitSummaryPage', () => {
     });
     mockStorageGet.mockReturnValue(null);
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -645,7 +646,7 @@ describe('VisitSummaryPage', () => {
     });
     mockStorageGetLocationUuid.mockReturnValue(null as any);
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -702,7 +703,7 @@ describe('VisitSummaryPage', () => {
       clearVisitId: mockClearVisitId,
     });
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -890,14 +891,14 @@ describe('VisitSummaryPage', () => {
   it('should render Doctor\'s specialty label and dropdown', () => {
     renderWithData(fullData);
     expect(screen.getByText("Doctor's specialty")).toBeInTheDocument();
-    expect(screen.getByText('General Physician')).toBeInTheDocument();
+    expect(screen.getByText("Select Doctor's specialty")).toBeInTheDocument();
   });
 
   it('should render specialization options from config in the dropdown', () => {
     renderWithData(fullData);
 
     // Click dropdown to open options
-    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    const dropdownButton = screen.getByRole('button', { name: /select doctor's specialty/i });
     fireEvent.click(dropdownButton);
 
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
@@ -908,7 +909,7 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     // Open dropdown
-    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    const dropdownButton = screen.getByRole('button', { name: /select doctor's specialty/i });
     fireEvent.click(dropdownButton);
 
     // Select Dermatology
@@ -981,7 +982,7 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     // Open dropdown to see options
-    const dropdownButton = screen.getByRole('button', { name: /general physician/i });
+    const dropdownButton = screen.getByRole('button', { name: /select doctor's specialty/i });
     fireEvent.click(dropdownButton);
 
     // Null name should fallback to "Option 1"
@@ -1028,7 +1029,7 @@ describe('VisitSummaryPage', () => {
       clearVisitId: mockClearVisitId,
     });
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -1060,7 +1061,7 @@ describe('VisitSummaryPage', () => {
       clearVisitId: mockClearVisitId,
     });
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -1426,7 +1427,7 @@ describe('VisitSummaryPage', () => {
       clearVisitId: mockClearVisitId,
     });
 
-    render(<VisitSummaryPage />);
+    render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -1911,7 +1912,7 @@ describe('VisitSummaryPage', () => {
     });
 
     it('should skip fetch and render no header when patient uuid is absent', async () => {
-      mockUseStartVisitData.mockReturnValueOnce({
+      mockUseStartVisitData.mockReturnValue({
         data: { ...defaultData },
         patientUuid: null as unknown as string,
         visitId: 'test-visit-id',
@@ -1929,7 +1930,7 @@ describe('VisitSummaryPage', () => {
         clearVisitId: mockClearVisitId,
       });
       mockStorageGet.mockReturnValue(null);
-      render(<VisitSummaryPage />);
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
       expect(mockGetPatient).not.toHaveBeenCalled();
       expect(screen.queryByText(/OpenMRS ID:/)).not.toBeInTheDocument();
     });
@@ -2009,7 +2010,7 @@ describe('VisitSummaryPage', () => {
     });
 
     it('should fall back to PATIENT_UUID_KEY from storage when ctx patientUuid is absent', async () => {
-      mockUseStartVisitData.mockReturnValueOnce({
+      mockUseStartVisitData.mockReturnValue({
         data: { ...defaultData },
         patientUuid: null as any,
         visitId: 'test-visit-id',
@@ -2037,7 +2038,7 @@ describe('VisitSummaryPage', () => {
           attributes: [],
         },
       });
-      render(<VisitSummaryPage />);
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
       await waitFor(() => {
         expect(mockGetPatient).toHaveBeenCalledWith('storage-patient-uuid');
         expect(screen.getByText('From Storage')).toBeInTheDocument();

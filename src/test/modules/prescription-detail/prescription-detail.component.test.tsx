@@ -53,6 +53,7 @@ vi.mock('../../../assets/icons/vitals.svg', () => ({ default: 'icon-tests.svg' }
 /* ── Helpers ── */
 
 import PrescriptionDetail from '../../../modules/prescription-detail/prescription-detail.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const fullData: PrescriptionData = {
   patientName: 'Test S',
@@ -76,9 +77,11 @@ const fullData: PrescriptionData = {
 const renderComponent = (visitId = 'visit-123') =>
   render(
     <MemoryRouter initialEntries={[`/prescription-detail/${visitId}`]}>
-      <Routes>
-        <Route path="/prescription-detail/:visitId" element={<PrescriptionDetail />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/prescription-detail/:visitId" element={<PrescriptionDetail />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -124,20 +127,12 @@ describe('PrescriptionDetail', () => {
     });
   });
 
-  it('should render "Back to Dashboard" button', async () => {
+  it('should not render "Back to Dashboard" button (removed in favor of breadcrumbs)', async () => {
     renderComponent();
     await waitFor(() => {
-      expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Test S')).toBeInTheDocument();
     });
-  });
-
-  it('should navigate back on "Back to Dashboard" click', async () => {
-    renderComponent();
-    await waitFor(() => {
-      expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText('Back to Dashboard'));
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(screen.queryByText('Back to Dashboard')).not.toBeInTheDocument();
   });
 
   /* ── PrescriptionHeader ── */

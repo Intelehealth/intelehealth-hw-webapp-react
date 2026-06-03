@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconSortAsc from '../../assets/icons/icon-sort-asc.svg';
@@ -15,6 +17,11 @@ import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 
 export default function MyAppointments() {
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'My Appointments' },
+  ]);
+
   const [activeTab, setActiveTab] = useState('past');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');

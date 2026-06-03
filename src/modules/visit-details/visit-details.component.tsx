@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import iconPhone from '../../assets/icons/appointment/green-field-apm-phone-icon.svg';
 import iconAngleRight from '../../assets/icons/appointment/icon-apm-angle-small-right.svg';
 import iconCalendar from '../../assets/icons/appointment/icon-apm-calendar.svg';
@@ -225,7 +227,21 @@ const QuickActionsCard: React.FC = () => (
 const VisitDetails: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showConfirmModal } = useGlobalModal();
+
+  const fromLabel = (location.state as { fromLabel?: string })?.fromLabel;
+  const fromPath = (location.state as { fromPath?: string })?.fromPath;
+
+  useBreadcrumb(
+    [
+      { label: 'Dashboard', path: ROUTES.DASHBOARD },
+      ...(fromLabel && fromPath ? [{ label: fromLabel, path: fromPath }] : []),
+      { label: 'Visit Details' },
+    ],
+    { bgColor: 'bg-[#F5F5FA]' }
+  );
+
   const [data, setData] = useState<TransformedVisitDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -285,34 +301,8 @@ const VisitDetails: React.FC = () => {
   }
 
   return (
-    <div className="px-4 py-3 md:px-6 md:py-4 h-full overflow-y-auto bg-[#F5F5FA]">
-      {/* Back navigation */}
-      <button
-        className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
-        onClick={() => navigate(-1)}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="shrink-0"
-        >
-          <path
-            d="M10 12L6 8L10 4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        Back to Dashboard
-      </button>
-
-      <h1 className="text-xl font-bold text-gray-800 mt-1 mb-4">
-        Visit details
-      </h1>
+    <div className="px-4 py-3 md:px-6 md:py-4 bg-[#F5F5FA]">
+      <h1 className="text-xl font-bold text-gray-800 mb-4">Visit details</h1>
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
@@ -324,7 +314,11 @@ const VisitDetails: React.FC = () => {
           <NavigableRow
             icon={iconVisitSummary}
             title="Visit summary"
-            onClick={() => navigate(`/visit-summary/${visitId}`)}
+            onClick={() =>
+              navigate(`/visit-summary/${visitId}`, {
+                state: { fromLabel, fromPath },
+              })
+            }
           />
 
           <NavigableRow
@@ -335,7 +329,11 @@ const VisitDetails: React.FC = () => {
                 ? `Received ${data.prescriptionDate}`
                 : undefined
             }
-            onClick={() => navigate(`/prescription-detail/${visitId}`)}
+            onClick={() =>
+              navigate(`/prescription-detail/${visitId}`, {
+                state: { fromLabel, fromPath },
+              })
+            }
           />
 
           <FollowUpSection data={data} onEndVisit={handleEndVisit} />

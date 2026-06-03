@@ -7,6 +7,7 @@ import {
   StartVisit,
   getPhysicalExamFilter,
 } from '../../../../../modules/ayu/components/start-visit/start-visit.component';
+import { BreadcrumbProvider } from '../../../../../context/BreadcrumbContext';
 
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
@@ -150,7 +151,9 @@ const renderWithRouter = (
 ) => {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
-      {component}
+      <BreadcrumbProvider>
+        {component}
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
