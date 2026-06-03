@@ -166,14 +166,6 @@ describe('PhotoCropModal', () => {
   });
 
   it('rejects when image fails to load', async () => {
-    // Catch unhandled rejections from the component's handleSave
-    const rejections: unknown[] = [];
-    const handler = (e: PromiseRejectionEvent) => {
-      e.preventDefault();
-      rejections.push(e.reason);
-    };
-    window.addEventListener('unhandledrejection', handler);
-
     class ErrorImage {
       onload: null | (() => void) = null;
       onerror: null | ((e: unknown) => void) = null;
@@ -218,13 +210,9 @@ describe('PhotoCropModal', () => {
     }
 
     vi.stubGlobal('Image', MockImage);
-    window.removeEventListener('unhandledrejection', handler);
   });
 
   it('rejects when first canvas context is null in getCroppedImg', async () => {
-    const handler = (e: PromiseRejectionEvent) => e.preventDefault();
-    window.addEventListener('unhandledrejection', handler);
-
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
       () => null
     );
@@ -240,13 +228,9 @@ describe('PhotoCropModal', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
       () => mockCtx as unknown as CanvasRenderingContext2D
     );
-    window.removeEventListener('unhandledrejection', handler);
   });
 
   it('rejects when final canvas context is null in getCroppedImg', async () => {
-    const handler = (e: PromiseRejectionEvent) => e.preventDefault();
-    window.addEventListener('unhandledrejection', handler);
-
     let callCount = 0;
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
       () => {
@@ -267,13 +251,9 @@ describe('PhotoCropModal', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
       () => mockCtx as unknown as CanvasRenderingContext2D
     );
-    window.removeEventListener('unhandledrejection', handler);
   });
 
   it('rejects when toBlob returns null', async () => {
-    const handler = (e: PromiseRejectionEvent) => e.preventDefault();
-    window.addEventListener('unhandledrejection', handler);
-
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       value: vi.fn((cb: (blob: Blob | null) => void) => cb(null)),
       configurable: true,
@@ -293,7 +273,6 @@ describe('PhotoCropModal', () => {
       ),
       configurable: true,
     });
-    window.removeEventListener('unhandledrejection', handler);
   });
 
   it('changes zoom when slider is adjusted', () => {
