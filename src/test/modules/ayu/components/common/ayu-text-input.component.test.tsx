@@ -2,17 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AyuTextInput } from '../../../../../modules/ayu/components/common/ayu-text-input.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
-import { resolveAyuComponent } from '../../../../../modules/ayu-library/logic/decision-matrix';
 
 vi.mock('../../../../../modules/ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
 }));
-
-vi.mock('../../../../../modules/ayu-library/logic/decision-matrix', () => ({
-  resolveAyuComponent: vi.fn(() => 'text'),
-}));
-
-const mockResolveAyuComponent = vi.mocked(resolveAyuComponent);
 
 describe('AyuTextInput', () => {
   const mockQuestion: AyuQuestion = {
@@ -110,33 +103,74 @@ describe('AyuTextInput', () => {
       expect(screen.getByText('Additional information')).toBeInTheDocument();
     });
 
-    it('should not render label text when label includes "Describe" but not "Other [Describe]" and parent is not associatedSymptoms', () => {
-      const questionWithDescribe: AyuQuestion = {
-        ...mockQuestion,
-        text: 'Please Describe your symptoms',
-      };
+    it('hides the label of a string field that is the sole child of its option', () => {
       const parent: AyuQuestion = {
-        linkId: 'parent-1',
-        text: 'Parent Question',
-        type: 'group',
-        item: [],
+        linkId: 'p1',
+        type: 'choice',
+        text: 'Timing',
+        answerOption: [
+          { valueCoding: { code: 'OTHER', display: 'Other[Describe]' } },
+        ],
+        item: [
+          {
+            linkId: 'p1_other',
+            type: 'string',
+            text: 'Other[Describe]',
+            enableWhen: [
+              { question: 'p1', operator: '=', answerCoding: { code: 'OTHER' } },
+            ],
+          },
+        ],
       };
       render(
         <AyuTextInput
-          question={questionWithDescribe}
+          question={parent.item![0]}
           parent={parent}
           previousSibling={undefined}
         />
       );
-      // The label element is rendered (because label is truthy), but its text content is null
-      // since all three conditions are false:
-      // 1. label !== 'Additional information'
-      // 2. isAssociatedSymptomsParent is false (parent resolves to 'text', not 'associatedSymptoms')
-      // 3. label.includes('Describe') is true, so !label.includes('Describe') is false
-      expect(screen.queryByText('Please Describe your symptoms')).not.toBeInTheDocument();
+      expect(screen.queryByText('Other[Describe]')).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
-    it('should render label text when label does not include "Describe"', () => {
+    it('shows the label of a string field grouped with siblings under the same option', () => {
+      const parent: AyuQuestion = {
+        linkId: 'exposure',
+        type: 'choice',
+        text: 'Exposure to irritants/offending agents',
+        answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'duration',
+            type: 'quantity',
+            text: 'Duration from contact to a symptom development',
+            enableWhen: [
+              { question: 'exposure', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'irritant',
+            type: 'string',
+            text: 'Irritant/agents  (Describe)',
+            enableWhen: [
+              { question: 'exposure', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+        ],
+      };
+      render(
+        <AyuTextInput
+          question={parent.item![1]}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      expect(
+        screen.getByText('Irritant/agents (Describe)')
+      ).toBeInTheDocument();
+    });
+
+    it('should render label text for a standalone field without a parent', () => {
       render(
         <AyuTextInput
           question={mockQuestion}
@@ -144,7 +178,6 @@ describe('AyuTextInput', () => {
           previousSibling={undefined}
         />
       );
-      // Labels without "Describe" are rendered because !label.includes('Describe') is true
       expect(screen.getByText('What is your name?')).toBeInTheDocument();
     });
 
@@ -735,99 +768,128 @@ describe('AyuTextInput', () => {
     });
   });
 
-  describe('Associated Symptoms Parent Label Hiding', () => {
-    const associatedSymptomsParent: AyuQuestion = {
-      linkId: 'assoc-parent',
-      text: 'Associated symptoms',
+  describe('Inline describe-field label hiding (structural)', () => {
+    const soleChildParent = (childType: AyuQuestion['type']): AyuQuestion => ({
+      linkId: 'p1',
       type: 'choice',
-    };
-
-    it('should hide label containing "Other" when parent is associatedSymptoms', () => {
-      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
-      const questionWithOther: AyuQuestion = {
-        ...mockQuestion,
-        text: '[Other]',
-      };
-      render(
-        <AyuTextInput
-          question={questionWithOther}
-          parent={associatedSymptomsParent}
-          previousSibling={undefined}
-        />
-      );
-      expect(screen.queryByText('[Other]')).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
-      mockResolveAyuComponent.mockReturnValue('text');
+      text: 'Timing',
+      answerOption: [
+        { valueCoding: { code: 'OTHER', display: 'Other[Describe]' } },
+      ],
+      item: [
+        {
+          linkId: 'p1_other',
+          type: childType,
+          text: 'Other[Describe]',
+          enableWhen: [
+            { question: 'p1', operator: '=', answerCoding: { code: 'OTHER' } },
+          ],
+        },
+      ],
     });
 
-    it('should hide label containing "Other [describe]" (lowercase) when parent is associatedSymptoms', () => {
-      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
-      const questionWithDescribe: AyuQuestion = {
-        ...mockQuestion,
-        text: 'Other [describe]',
-      };
+    it('hides the label when the string field is the sole child of its option', () => {
+      const parent = soleChildParent('string');
       render(
         <AyuTextInput
-          question={questionWithDescribe}
-          parent={associatedSymptomsParent}
+          question={parent.item![0]}
+          parent={parent}
           previousSibling={undefined}
         />
       );
-      // "Other [describe]" contains "other" so it is hidden when parent is associatedSymptoms
-      expect(screen.queryByText('Other [describe]')).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
-      mockResolveAyuComponent.mockReturnValue('text');
+      expect(screen.queryByText('Other[Describe]')).not.toBeInTheDocument();
     });
 
-    it('should show label with "describe" but without "other" when parent is associatedSymptoms', () => {
-      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
-      const questionWithDescribe: AyuQuestion = {
-        ...mockQuestion,
-        text: 'Please describe your symptoms',
+    it('shows the label when the field is grouped with a sibling under the option', () => {
+      const parent: AyuQuestion = {
+        linkId: 'exposure',
+        type: 'choice',
+        text: 'Exposure',
+        answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'duration',
+            type: 'quantity',
+            text: 'Duration',
+            enableWhen: [
+              { question: 'exposure', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+          {
+            linkId: 'irritant',
+            type: 'string',
+            text: 'Irritant/agents  (Describe)',
+            enableWhen: [
+              { question: 'exposure', operator: '=', answerCoding: { code: 'YES' } },
+            ],
+          },
+        ],
       };
       render(
         <AyuTextInput
-          question={questionWithDescribe}
-          parent={associatedSymptomsParent}
+          question={parent.item![1]}
+          parent={parent}
           previousSibling={undefined}
         />
       );
-      // Label contains "describe" but NOT "other", so it is shown for associatedSymptoms parent
-      expect(screen.getByText('Please describe your symptoms')).toBeInTheDocument();
-      mockResolveAyuComponent.mockReturnValue('text');
+      expect(
+        screen.getByText('Irritant/agents (Describe)')
+      ).toBeInTheDocument();
     });
 
-    it('should show label without "Other" or "describe" when parent is associatedSymptoms', () => {
-      mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
-      const regularQuestion: AyuQuestion = {
-        ...mockQuestion,
-        text: 'Duration of fever',
-      };
+    it('shows the label for a non-string sole child', () => {
+      const parent = soleChildParent('integer');
       render(
         <AyuTextInput
-          question={regularQuestion}
-          parent={associatedSymptomsParent}
+          question={parent.item![0]}
+          parent={parent}
           previousSibling={undefined}
         />
       );
-      expect(screen.getByText('Duration of fever')).toBeInTheDocument();
-      mockResolveAyuComponent.mockReturnValue('text');
+      expect(screen.getByText('Other[Describe]')).toBeInTheDocument();
     });
 
-    it('should hide label with "describe" (case-insensitive) when parent is not associatedSymptoms', () => {
-      mockResolveAyuComponent.mockReturnValue('text');
-      const questionWithDescribe: AyuQuestion = {
+    it('shows the label when the parent has no item children', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        text: 'Timing',
+        item: [],
+      };
+      const question: AyuQuestion = {
         ...mockQuestion,
-        text: 'please describe symptoms',
+        text: 'Standalone field',
+        enableWhen: [
+          { question: 'p1', operator: '=', answerCoding: { code: 'OTHER' } },
+        ],
       };
       render(
         <AyuTextInput
-          question={questionWithDescribe}
-          parent={undefined}
+          question={question}
+          parent={parent}
           previousSibling={undefined}
         />
       );
-      expect(screen.queryByText('please describe symptoms')).not.toBeInTheDocument();
+      expect(screen.getByText('Standalone field')).toBeInTheDocument();
+    });
+
+    it('shows the label when the field has no enableWhen gate on its parent', () => {
+      const parent: AyuQuestion = {
+        linkId: 'p1',
+        type: 'choice',
+        text: 'Timing',
+        item: [
+          { linkId: 'p1_child', type: 'string', text: 'Ungated field' },
+        ],
+      };
+      render(
+        <AyuTextInput
+          question={parent.item![0]}
+          parent={parent}
+          previousSibling={undefined}
+        />
+      );
+      expect(screen.getByText('Ungated field')).toBeInTheDocument();
     });
   });
 });

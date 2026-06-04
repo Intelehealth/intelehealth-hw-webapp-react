@@ -1,9 +1,9 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AyuStepperContainer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
-import type { AyuStepperContainerHandle } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuAnswerValue, AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
+import type { AyuStepperContainerHandle } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
+import { AyuStepperContainer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
 
 vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
   QuestionLoader: vi.fn(({ children, question, questionIndex, totalQuestions, isAnswered, onEdit }) => (
@@ -94,14 +94,14 @@ vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', async (importO
   };
 });
 
-import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
-import { resolveAyuComponent, isStrictAssociatedSymptoms } from '../../../../../../modules/ayu/pages/decision-matrix';
 import {
-  resolveAyuComponent as resolveAyuComponentLogic,
   isStrictAssociatedSymptoms as isStrictAssociatedSymptomsLogic,
+  resolveAyuComponent as resolveAyuComponentLogic,
 } from '../../../../../../modules/ayu-library/logic/decision-matrix';
-import { showToast } from '../../../../../../services/toast';
+import { useFHIRStepper } from '../../../../../../modules/ayu/hooks/useFHIRStepper.hook';
+import { isStrictAssociatedSymptoms, resolveAyuComponent } from '../../../../../../modules/ayu/pages/decision-matrix';
 import { buildVisitSummary } from '../../../../../../modules/ayu/utils/visit-summary.util';
+import { showToast } from '../../../../../../services/toast';
 const _mockUseFHIRStepper = vi.mocked(useFHIRStepper);
 
 const mockValidateAllQuestions = vi.fn(() => true);
@@ -141,6 +141,8 @@ describe('AyuStepperContainer', () => {
 
     mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
     mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+    mockResolveAyuComponentLogic.mockReturnValue('selectableOptionGroup');
+    mockIsStrictAssociatedSymptomsLogic.mockReturnValue(false);
   });
 
   describe('Basic Rendering', () => {
@@ -1626,6 +1628,8 @@ describe('AyuStepperContainer', () => {
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
       mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+      mockResolveAyuComponentLogic.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptomsLogic.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2163,6 +2167,8 @@ describe('AyuStepperContainer', () => {
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
       mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+      mockResolveAyuComponentLogic.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptomsLogic.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -2330,6 +2336,8 @@ describe('AyuStepperContainer', () => {
 
       mockResolveAyuComponent.mockReturnValue('associatedSymptoms');
       mockIsStrictAssociatedSymptoms.mockReturnValue(true);
+      mockResolveAyuComponentLogic.mockReturnValue('associatedSymptoms');
+      mockIsStrictAssociatedSymptomsLogic.mockReturnValue(true);
       mockUseFHIRStepper.mockReturnValue({
         currentQuestion: question,
         currentIndex: 0,
@@ -4658,6 +4666,80 @@ describe('AyuStepperContainer', () => {
       const labelEls = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
       const labelTexts = [...labelEls].map(el => el.textContent);
       expect(labelTexts).not.toContain('child');
+    });
+  });
+
+  describe('collectAnsweredRows placeholder wrapper rows', () => {
+    it('skips placeholder wrapper rows and placeholder labels (Weight change)', () => {
+      const integerChild: AyuQuestion = {
+        linkId: 'wl_amount',
+        type: 'integer',
+        text: '[Enter amount of weight lost in kgs]',
+        enableWhen: [
+          { question: 'wl', operator: '=', answerCoding: { code: 'amount' } },
+        ],
+      };
+      const weightLoss: AyuQuestion = {
+        linkId: 'wl',
+        type: 'choice',
+        text: 'Weight loss',
+        answerOption: [
+          {
+            valueCoding: {
+              code: 'amount',
+              display: '[Enter amount of weight lost in kgs]',
+            },
+          },
+        ],
+        enableWhen: [
+          {
+            question: 'weight',
+            operator: '=',
+            answerCoding: { code: 'loss' },
+          },
+        ],
+        item: [integerChild],
+      };
+      const weightChange: AyuQuestion = {
+        linkId: 'weight',
+        type: 'choice',
+        text: 'Weight change (kg)*',
+        answerOption: [{ valueCoding: { code: 'loss', display: 'Weight loss' } }],
+        item: [weightLoss],
+      };
+
+      const answers = {
+        weight: 'loss',
+        wl: 'amount',
+        wl_amount: 34,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: weightChange,
+        currentIndex: 0,
+        total: 1,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [weightChange],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([weightChange])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('34')).toBeInTheDocument();
+      expect(
+        screen.getAllByText('[Enter amount of weight lost in kgs]')
+      ).toHaveLength(1);
+      expect(screen.getAllByText('Weight loss')).toHaveLength(1);
     });
   });
 
