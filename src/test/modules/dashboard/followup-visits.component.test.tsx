@@ -11,6 +11,19 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+vi.mock('../../../components/common/filter-module.component', () => ({
+  default: ({ onApply }: { onApply: (value: any) => void }) => (
+    <div data-testid="filter-module">
+      <button
+        data-testid="mock-filter-apply"
+        onClick={() => onApply({ mode: 'date', from: '2025-04-21', to: null })}
+      >
+        Mock Apply
+      </button>
+    </div>
+  ),
+}));
+
 const mockUseFollowupVisits = vi.fn();
 
 vi.mock('../../../hooks/useFollowupVisits', () => ({
@@ -192,6 +205,47 @@ describe('FollowupVisitsComponent', () => {
       renderComponent();
       const filterIcon = screen.getByAltText('filter');
       expect(filterIcon).toHaveClass('cursor-pointer', 'hover:opacity-70', 'transition');
+    });
+  });
+
+  describe('Filter module', () => {
+    it('opens filter module when filter icon is clicked', () => {
+      renderComponent();
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+    });
+
+    it('closes filter module when filter icon is clicked again', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('closes filter module on outside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('closes filter module after applying filter', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('applies date filter to visits', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      // Filter for 2025-04-21 matches 'Ravi Kumar' only
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('Priya Singh')).not.toBeInTheDocument();
     });
   });
 
