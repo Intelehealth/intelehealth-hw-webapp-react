@@ -267,6 +267,14 @@ describe('AppointmentListComponent', () => {
       expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
     });
 
+    it('does not close filter module on inside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(screen.getByTestId('filter-module'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+    });
+
     it('closes filter module after applying filter', () => {
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
