@@ -147,7 +147,9 @@ describe('mapRawPatientToFormData', () => {
     expect(formData.personalInfo.emergencyContactName).toBe('Jane');
     expect(formData.personalInfo.emergencyContactNumber).toBe('98');
     expect(formData.personalInfo.emergencyContactNumberCountryCode).toBe('+91');
-    expect(formData.personalInfo.profilePhoto).toBeNull();
+    expect(formData.personalInfo.profilePhoto).toBe(
+      'http://localhost:8080/openmrs/ws/rest/v1/personimage/person-uuid'
+    );
   });
 
   it('maps address info fields correctly', () => {
@@ -271,6 +273,14 @@ describe('mapRawPatientToFormData', () => {
     const formData = mapRawPatientToFormData(patient as any);
 
     expect(formData.personalInfo.gender).toBe('');
+  });
+
+  it('returns null profilePhoto when person.uuid is falsy', () => {
+    const patient = buildPatient();
+    (patient.person as any).uuid = undefined;
+    const formData = mapRawPatientToFormData(patient as any);
+
+    expect(formData.personalInfo.profilePhoto).toBeNull();
   });
 
   it('handles null middleName in preferredName', () => {

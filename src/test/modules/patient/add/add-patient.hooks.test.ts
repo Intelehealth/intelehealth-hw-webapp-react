@@ -435,6 +435,33 @@ describe('useAddPatient hook', () => {
       expect(success).toBe(false);
     });
 
+    it('should not upload image when profilePhoto is a URL (not data:)', async () => {
+      const patientDataWithUrl = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: 'http://localhost:8080/openmrs/ws/rest/v1/personimage/some-uuid',
+        },
+      };
+
+      mockGenerateIdentifier.mockResolvedValue({
+        identifiers: ['PAT-12345'],
+      });
+      mockCreatePatient.mockResolvedValue({
+        uuid: 'patient-uuid-123',
+      });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleAddPatient(patientDataWithUrl);
+      });
+
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
+      expect(success).toBe('patient-uuid-123');
+    });
+
     it('should handle error during image upload', async () => {
       const patientDataWithPhoto = {
         ...mockPatientFormData,
@@ -722,6 +749,31 @@ describe('useAddPatient hook', () => {
         'error'
       );
       expect(success).toBe(false);
+    });
+
+    it('should not upload image when profilePhoto is a URL on update', async () => {
+      const patientDataWithUrl = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: 'http://localhost:8080/openmrs/ws/rest/v1/personimage/some-uuid',
+        },
+      };
+
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          patientDataWithUrl
+        );
+      });
+
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
+      expect(success).toBe('patient-uuid-123');
     });
 
     it('should handle error during image upload on update', async () => {

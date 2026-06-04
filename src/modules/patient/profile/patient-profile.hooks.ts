@@ -129,7 +129,9 @@ export function mapRawPatientToFormData(
       ),
       emergencyContactNumber: emergencyPhoneParts.number,
       emergencyContactNumberCountryCode: emergencyPhoneParts.countryCode,
-      profilePhoto: null,
+      profilePhoto: patient.person?.uuid
+        ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${patient.person.uuid}`
+        : null,
     },
     addressInfo: {
       postalCode: addr?.postalCode ?? '',
