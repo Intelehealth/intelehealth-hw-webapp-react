@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
 import { visitSummaryService } from '../../../modules/visit-summary/visit-summary.service';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 // Mock the service
 vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
@@ -67,9 +68,11 @@ vi.mock('../../../components/common/toggle.component', () => ({
 const renderWithMockData = () => {
   return render(
     <MemoryRouter initialEntries={['/visit-summary']}>
-      <Routes>
-        <Route path="/visit-summary" element={<VisitSummaryComponent />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-summary" element={<VisitSummaryComponent />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
@@ -78,9 +81,24 @@ const renderWithMockData = () => {
 const renderWithVisitId = (visitId = 'test-visit-123') => {
   return render(
     <MemoryRouter initialEntries={[`/visit-summary/${visitId}`]}>
-      <Routes>
-        <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
+        </Routes>
+      </BreadcrumbProvider>
+    </MemoryRouter>
+  );
+};
+
+/* Render with visitId and location.state for breadcrumb fromLabel/fromPath */
+const renderWithLocationState = (visitId = 'test-visit-123') => {
+  return render(
+    <MemoryRouter initialEntries={[{ pathname: `/visit-summary/${visitId}`, state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } }]}>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/visit-summary/:visitId" element={<VisitSummaryComponent />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 };
@@ -92,6 +110,16 @@ describe('VisitSummaryComponent', () => {
     vi.clearAllMocks();
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
     globalThis.URL.revokeObjectURL = vi.fn();
+  });
+
+  describe('breadcrumb with navigation state', () => {
+    it('should render without error when location.state contains fromLabel and fromPath', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      renderWithLocationState();
+      await waitFor(() => {
+        expect(screen.getByText('Visit Summary')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('loading and error states (with visitId)', () => {

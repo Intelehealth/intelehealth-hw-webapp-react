@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
-import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
+import iconFilter from '../../assets/icons/icon-filter.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
 import {
   useFollowupVisits,
@@ -21,13 +20,11 @@ export const FollowupVisitsComponent = ({
   initialRowCount,
 }: FollowupVisitsProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [search, setSearch] = useState('');
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
-  const {
-    sortOrder: nameSortOrder,
-    toggleSort: toggleNameSort,
-    applySort: applyNameSort,
-  } = useSortByName();
+  const { applySort: applyNameSort } = useSortByName();
   const { data, loading, error } = useFollowupVisits();
 
   const filtered = useMemo(() => {
@@ -80,19 +77,11 @@ export const FollowupVisitsComponent = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <div
-                  className="flex items-center gap-0.5 cursor-pointer"
-                  onClick={toggleNameSort}
-                >
+                <div className="flex items-center gap-3 shrink-0">
                   <img
-                    src={iconAscSorted}
-                    alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
-                  />
-                  <img
-                    src={iconDescSorted}
-                    alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
+                    src={iconFilter}
+                    alt="filter"
+                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
                   />
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
@@ -116,7 +105,19 @@ export const FollowupVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
-              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              onRowClick={row =>
+                navigate(
+                  `/visit-details/${row.visitUuid}`,
+                  isOnDashboard
+                    ? undefined
+                    : {
+                        state: {
+                          fromLabel: 'Follow-up Visits',
+                          fromPath: '/followup-visits',
+                        },
+                      }
+                )
+              }
               sortKey={sortKey}
               sortOrder={sortOrder}
               onSort={toggleSort}

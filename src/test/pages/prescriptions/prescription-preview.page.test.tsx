@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PrescriptionPreviewPage from '../../../pages/prescriptions/prescription-preview.page';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import type { PrescriptionData } from '../../../services/visit-prescription.service';
 
 // ─── Mock service & SVG assets ───────────────────────────────────────────────
@@ -53,9 +54,11 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 const renderWithParams = (search = '?visitUuid=visit-1') =>
   render(
     <MemoryRouter initialEntries={[`/prescription-preview${search}`]}>
-      <Routes>
-        <Route path="/prescription-preview" element={<PrescriptionPreviewPage />} />
-      </Routes>
+      <BreadcrumbProvider>
+        <Routes>
+          <Route path="/prescription-preview" element={<PrescriptionPreviewPage />} />
+        </Routes>
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 

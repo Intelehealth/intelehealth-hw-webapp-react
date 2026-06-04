@@ -138,6 +138,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Take Photo</h3>
           <button
+            type="button"
             onClick={onClose}
             className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors border"
             style={{ borderColor: '#7f7b92' }}
@@ -161,6 +162,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 <p className="text-gray-900 text-lg mb-2">Camera Error</p>
                 <p className="text-gray-600 text-sm mb-6">{error}</p>
                 <button
+                  type="button"
                   onClick={onClose}
                   className="px-6 py-2 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors font-medium"
                 >
@@ -194,6 +196,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           {isCameraReady && !error && (
             <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center p-6 bg-gradient-to-t from-black/60 to-transparent">
               <button
+                type="button"
                 onClick={capturePhoto}
                 className="px-8 py-3 bg-[#2e1e91] text-white rounded-lg hover:bg-[#1e1070] transition-colors font-medium text-lg shadow-lg"
               >

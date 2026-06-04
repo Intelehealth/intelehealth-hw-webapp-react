@@ -1030,5 +1030,200 @@ describe('AddPatientComponent', () => {
         );
       });
     });
+
+    it('should navigate to /patient/add with resumePreview after update from preview editSource', async () => {
+      mockHandleUpdatePatient.mockResolvedValue('preview-patient-uuid');
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/edit',
+              state: {
+                editFormData,
+                patientUuid: 'preview-patient-uuid',
+                editSource: 'preview',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+          <LocationDisplay />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('patient-info-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('current-location').textContent).toBe(
+          '/patient/add'
+        );
+      });
+    });
+
+    it('should navigate to /patient/{uuid} after update from profile editSource', async () => {
+      mockHandleUpdatePatient.mockResolvedValue('profile-patient-uuid');
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/edit',
+              state: {
+                editFormData,
+                patientUuid: 'profile-patient-uuid',
+                editSource: 'profile',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+          <LocationDisplay />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('patient-info-next'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('current-location').textContent).toBe(
+          '/patient/profile-patient-uuid'
+        );
+      });
+    });
+  });
+
+  describe('Resume Preview Mode', () => {
+    it('should start at step 3 (Preview) when resumePreview state is provided', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                previewData: editFormData,
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('patient-info')).not.toBeInTheDocument();
+    });
+
+    it('should render preview with the provided previewData', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                previewData: editFormData,
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      const previewData = screen.getByTestId('preview-data');
+      const data = JSON.parse(previewData.textContent || '{}');
+      expect(data.personalInfo.firstName).toBe('Existing');
+      expect(data.addressInfo.city).toBe('Bangalore');
+    });
+
+    it('should not fetch from temp-storage when resumePreview is true', async () => {
+      mockGetResource.mockClear();
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                previewData: editFormData,
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      expect(mockGetResource).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to EMPTY_FORM_DATA when resumePreview is true but previewData is missing', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                // no previewData provided
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      const previewData = screen.getByTestId('preview-data');
+      const data = JSON.parse(previewData.textContent || '{}');
+      // Should use EMPTY_FORM_DATA defaults (empty strings)
+      expect(data.personalInfo.firstName).toBe('');
+      expect(data.addressInfo.city).toBe('');
+    });
+
+    it('should show Patient Details label on resume preview', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                resumePreview: true,
+                previewData: editFormData,
+                patientUuid: 'resumed-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview')).toBeInTheDocument();
+      });
+      expect(screen.getByText(PATIENT_DETAILS_LABEL)).toBeInTheDocument();
+    });
   });
 });

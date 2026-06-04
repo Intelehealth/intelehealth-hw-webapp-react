@@ -11,12 +11,15 @@ vi.mock('../../../hooks/usePrescriptionsPending', () => ({
 }));
 
 import PrescriptionsPage from '../../../pages/prescriptions/prescriptions.page';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 describe('PrescriptionsPage', () => {
   it('renders Prescriptions heading', () => {
     render(
       <MemoryRouter>
-        <PrescriptionsPage />
+        <BreadcrumbProvider>
+          <PrescriptionsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -27,7 +30,9 @@ describe('PrescriptionsPage', () => {
     expect(() => {
       render(
         <MemoryRouter>
-          <PrescriptionsPage />
+          <BreadcrumbProvider>
+            <PrescriptionsPage />
+          </BreadcrumbProvider>
         </MemoryRouter>
       );
     }).not.toThrow();
@@ -36,7 +41,9 @@ describe('PrescriptionsPage', () => {
   it('renders wrapper with flex layout classes', () => {
     const { container } = render(
       <MemoryRouter>
-        <PrescriptionsPage />
+        <BreadcrumbProvider>
+          <PrescriptionsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -47,7 +54,9 @@ describe('PrescriptionsPage', () => {
   it('passes initialRowCount=9 to PrescriptionsReceived', () => {
     const { container } = render(
       <MemoryRouter>
-        <PrescriptionsPage />
+        <BreadcrumbProvider>
+          <PrescriptionsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -58,7 +67,9 @@ describe('PrescriptionsPage', () => {
   it('renders search input from PrescriptionsReceived', () => {
     render(
       <MemoryRouter>
-        <PrescriptionsPage />
+        <BreadcrumbProvider>
+          <PrescriptionsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -68,7 +79,9 @@ describe('PrescriptionsPage', () => {
   it('renders Received and Pending tabs', () => {
     render(
       <MemoryRouter>
-        <PrescriptionsPage />
+        <BreadcrumbProvider>
+          <PrescriptionsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 

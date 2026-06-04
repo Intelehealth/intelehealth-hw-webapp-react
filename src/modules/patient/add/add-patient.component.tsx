@@ -73,28 +73,36 @@ export default function AddPatientComponent() {
   const { handleAddPatient, handleUpdatePatient } = useAddPatient();
   const navigate = useNavigate();
   const location = useLocation();
-  const editState = location.state as {
+  const locationState = location.state as {
     editFormData?: PatientFormData;
     patientUuid?: string;
+    editSource?: 'profile' | 'preview';
+    resumePreview?: boolean;
+    previewData?: PatientFormData;
   } | null;
+  const isResumePreview = !!locationState?.resumePreview;
+  const editSource = locationState?.editSource;
   const isEditMode =
-    !!editState?.editFormData || location.pathname.includes('/patient/edit');
+    !!locationState?.editFormData ||
+    location.pathname.includes('/patient/edit');
 
   const [tempPatientId] = useState(getOrCreateTempPatientId);
-  const [step, setStep] = useState(isEditMode ? 2 : 0);
+  const [step, setStep] = useState(isResumePreview ? 3 : isEditMode ? 2 : 0);
   const [patientUuid, setPatientUuid] = useState<string | null>(
-    editState?.patientUuid ?? null
+    locationState?.patientUuid ?? null
   );
   const [formData, setFormData] = useState<PatientFormData>(
-    editState?.editFormData ?? EMPTY_FORM_DATA
+    isResumePreview
+      ? (locationState?.previewData ?? EMPTY_FORM_DATA)
+      : (locationState?.editFormData ?? EMPTY_FORM_DATA)
   );
   const [, setIsRestoring] = useState(true);
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
 
-  // Restore from temp-storage on mount (skip in edit mode — form data comes from navigation state)
+  // Restore from temp-storage on mount (skip in edit/resume mode — form data comes from navigation state)
   useEffect(() => {
-    if (isEditMode) {
+    if (isEditMode || isResumePreview) {
       setIsRestoring(false);
       return;
     }
@@ -205,7 +213,18 @@ export default function AddPatientComponent() {
         : await handleAddPatient(mergedData);
     if (result) {
       if (isEditMode) {
-        navigate(`/patient/${result}`, { replace: true });
+        if (editSource === 'preview') {
+          navigate('/patient/add', {
+            replace: true,
+            state: {
+              resumePreview: true,
+              previewData: mergedData,
+              patientUuid: result,
+            },
+          });
+        } else {
+          navigate(`/patient/${result}`, { replace: true });
+        }
         return;
       }
       setPatientUuid(result);
@@ -249,6 +268,7 @@ export default function AddPatientComponent() {
           }}
           onNext={nextStep}
           onPrev={prevStep}
+          isEditMode={isEditMode}
         />
       )}
       {step === 3 && <Preview data={formData} patientUuid={patientUuid} />}

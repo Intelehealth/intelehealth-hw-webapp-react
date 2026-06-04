@@ -54,12 +54,14 @@ interface PatientInfoProps {
     otherInfo: OtherValues;
   }) => void;
   onPrev: () => void;
+  isEditMode?: boolean;
 }
 
 export default function PatientInfo({
   defaultValues,
   onNext,
   onPrev,
+  isEditMode = false,
 }: PatientInfoProps) {
   const {
     register,
@@ -350,10 +352,11 @@ export default function PatientInfo({
             <InputPhoneNumber
               onChange={val => {
                 setValue('emergencyContactNumber', val.number);
+                setValue('emergencyContactNumberCountryCode', val.countryCode);
               }}
               value={{
                 number: watch('emergencyContactNumber'),
-                countryCode: '+91',
+                countryCode: watch('emergencyContactNumberCountryCode'),
               }}
               placeholder="Enter Emergency Contact Number"
               error={
@@ -555,10 +558,14 @@ export default function PatientInfo({
             type="button"
             onClick={onPrev}
           >
-            <span className="mx-auto w-full text-base">Back</span>
+            <span className="mx-auto w-full text-base">
+              {isEditMode ? 'Cancel' : 'Back'}
+            </span>
           </Button>
           <Button variant="primary" className="w-full md:w-[10%]" type="submit">
-            <span className="mx-auto w-full text-base">Next</span>
+            <span className="mx-auto w-full text-base">
+              {isEditMode ? 'Update' : 'Next'}
+            </span>
           </Button>
         </div>
       </div>

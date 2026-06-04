@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import DefaultUserImage from '../../assets/images/default-user-img.svg';
-import PhotoCropModal from './photo-crop-modal.component';
 import PhotoUploadModal from './photo-upload-modal.component';
 import { fileToBase64 } from '../../modules/profile/profile.helpers';
 type ProfilePhotoUploadProps = {
@@ -15,8 +14,6 @@ export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
   imageFormat = 'file',
 }) => {
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [selectedImageBase64, setSelectedImageBase64] = useState<string>('');
 
   const handleTakePhoto = () => {};
 
@@ -32,20 +29,6 @@ export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
     },
     [imageFormat, onUpload]
   );
-
-  const handleCropComplete = useCallback(
-    async (croppedFile: File | string) => {
-      setIsCropModalOpen(false);
-      setSelectedImageBase64(''); // Clear base64 reference
-      onUpload(croppedFile);
-    },
-    [onUpload]
-  );
-
-  const handleCropCancel = useCallback(() => {
-    setIsCropModalOpen(false);
-    setSelectedImageBase64(''); // Clear base64 reference
-  }, []);
 
   return (
     <>
@@ -74,15 +57,6 @@ export const ProfilePhotoUpload: React.FC<ProfilePhotoUploadProps> = ({
         </div>
       </div>
 
-      {isCropModalOpen && selectedImageBase64 && (
-        <PhotoCropModal
-          image={selectedImageBase64}
-          onCropComplete={handleCropComplete}
-          onCancel={handleCropCancel}
-          outputType={imageFormat}
-          manual={true}
-        />
-      )}
       {isPhotoModalOpen && (
         <PhotoUploadModal
           onTakePhoto={handleTakePhoto}

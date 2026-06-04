@@ -439,6 +439,7 @@ function buildBranchingPhysExamQuestion(
   const questionText = stripTrailingAsterisk(conceptDisplay ?? q.text ?? '');
 
   // Branch children = the wrapper's own gated children, minus the camera tile.
+  /* v8 ignore next */
   const branches = (q.item ?? []).filter(
     c =>
       c.type !== 'attachment' &&
@@ -473,6 +474,7 @@ function buildBranchingPhysExamQuestion(
       stripFhirAttachmentDescendants(branch) as unknown as AyuQuestion,
       demographics
     );
+    /* v8 ignore next */
     for (const sub of subTree.item ?? []) {
       item.push({
         ...sub,

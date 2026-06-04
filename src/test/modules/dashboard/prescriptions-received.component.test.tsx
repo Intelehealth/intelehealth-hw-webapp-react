@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -80,7 +81,9 @@ const defaultPendingState = {
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <PrescriptionsReceived {...props} />
+      <BreadcrumbProvider>
+        <PrescriptionsReceived {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -101,10 +104,9 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('Prescriptions')).toBeInTheDocument();
     });
 
-    it('renders sort icons next to search', () => {
+    it('renders filter icon next to search', () => {
       renderComponent();
-      expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
-      expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
+      expect(screen.getByAltText('filter')).toBeInTheDocument();
     });
 
     it('renders search input with placeholder', () => {
@@ -387,8 +389,8 @@ describe('PrescriptionsReceived', () => {
       fireEvent.click(patientHeaders[0]); // null
 
       const allSortIcons = [
-        ...screen.getAllByAltText('sort-asc'),
-        ...screen.getAllByAltText('sort-desc'),
+        ...screen.queryAllByAltText('sort-asc'),
+        ...screen.queryAllByAltText('sort-desc'),
       ];
       allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
     });
@@ -429,36 +431,18 @@ describe('PrescriptionsReceived', () => {
     });
   });
 
-  describe('Name sort button (search area)', () => {
-    it('first click sorts ascending — sort-asc icon becomes active', () => {
+  describe('Filter icon (search area)', () => {
+    it('renders the filter icon next to the search input', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
-
-      expect(sortAscIcon).toHaveClass('opacity-100');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toBeInTheDocument();
+      expect(filterIcon).toHaveClass('w-5', 'h-5');
     });
 
-    it('second click sorts descending — sort-desc icon becomes active', () => {
+    it('filter icon has hover styling', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-
-      expect(sortDescIcon).toHaveClass('opacity-100');
-      expect(sortAscIcon).toHaveClass('opacity-50');
-    });
-
-    it('third click clears sort — both icons inactive', () => {
-      renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-      fireEvent.click(sortAscIcon); // null
-
-      expect(sortAscIcon).toHaveClass('opacity-50');
-      expect(sortDescIcon).toHaveClass('opacity-50');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toHaveClass('cursor-pointer', 'hover:opacity-70', 'transition');
     });
   });
 
@@ -482,13 +466,23 @@ describe('PrescriptionsReceived', () => {
     });
   });
 
+  describe('Dynamic row count on resize', () => {
+    it('recalculates row count on window resize when initialRowCount is not provided', () => {
+      renderComponent();
+      // Trigger a resize event — the handleResize callback recalculates dynamicRowCount
+      fireEvent(window, new Event('resize'));
+      // Component should still render without crashing after resize
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Row click navigation', () => {
     it('navigates to visit-details on received row click', () => {
       renderComponent();
       const patientNames = screen.getAllByText('Sarrah Paul');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
     });
 
     it('navigates to visit-details on pending row click', () => {
@@ -497,7 +491,36 @@ describe('PrescriptionsReceived', () => {
       const patientNames = screen.getAllByText('Ravi Kumar');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
+    });
+
+    it('navigates without state when rendered on dashboard (received tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      const patientNames = screen.getAllByText('Sarrah Paul');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', undefined);
+    });
+
+    it('navigates without state when rendered on dashboard (pending tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', undefined);
     });
   });
 });

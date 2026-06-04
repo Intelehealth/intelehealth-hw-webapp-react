@@ -36,7 +36,10 @@ export const useAddPatient = (): UseAddPatientReturn => {
         await generateIdentifier();
       const patient = await patientService.createPatient(formattedPatientData);
 
-      if (patient && patientData.personalInfo.profilePhoto) {
+      if (
+        patient &&
+        patientData.personalInfo.profilePhoto?.startsWith('data:')
+      ) {
         await profileService.updateProfileImage({
           person: patient.uuid,
           base64EncodedImage: patientData.personalInfo.profilePhoto.split(
@@ -81,13 +84,16 @@ export const useAddPatient = (): UseAddPatientReturn => {
     patientData: PatientFormData
   ): Promise<string | false> => {
     try {
-      const formattedData = mapPatientFormData(patientData);
+      const formattedData = mapPatientFormData(
+        patientData,
+        patientData.attributeUuids
+      );
       // For update, send only the person data (no identifiers)
       await patientService.updatePatient(uuid, {
         person: formattedData.person,
       });
 
-      if (patientData.personalInfo.profilePhoto) {
+      if (patientData.personalInfo.profilePhoto?.startsWith('data:')) {
         await profileService.updateProfileImage({
           person: uuid,
           base64EncodedImage: patientData.personalInfo.profilePhoto.split(
@@ -117,70 +123,76 @@ export const useAddPatient = (): UseAddPatientReturn => {
     return response.identifiers[0];
   };
 
-  const mapPatientFormData = (data: PatientFormData): AddPatientData => {
-    const attributes = [];
+  const mapPatientFormData = (
+    data: PatientFormData,
+    attributeUuids?: Record<string, string>
+  ): AddPatientData => {
+    const attributes: {
+      uuid?: string;
+      value: string;
+      attributeType: string;
+    }[] = [];
+
+    const pushAttr = (value: string, attributeType: string) => {
+      const entry: { uuid?: string; value: string; attributeType: string } = {
+        value,
+        attributeType,
+      };
+      if (attributeUuids?.[attributeType]) {
+        entry.uuid = attributeUuids[attributeType];
+      }
+      attributes.push(entry);
+    };
 
     if (data.personalInfo.phoneNumber) {
-      attributes.push({
-        value: `${data.personalInfo.phoneNumberCountryCode}${data.personalInfo.phoneNumber}`,
-        attributeType: patientAttributes.telephoneNumber,
-      });
+      pushAttr(
+        `${data.personalInfo.phoneNumberCountryCode}${data.personalInfo.phoneNumber}`,
+        patientAttributes.telephoneNumber
+      );
     }
 
     if (data.personalInfo.contactType) {
-      attributes.push({
-        value: data.personalInfo.contactType,
-        attributeType: patientAttributes.emergencyContactType,
-      });
+      pushAttr(
+        data.personalInfo.contactType,
+        patientAttributes.emergencyContactType
+      );
     }
 
     if (data.personalInfo.emergencyContactName) {
-      attributes.push({
-        value: data.personalInfo.emergencyContactName,
-        attributeType: patientAttributes.emergencyContactName,
-      });
+      pushAttr(
+        data.personalInfo.emergencyContactName,
+        patientAttributes.emergencyContactName
+      );
     }
 
     if (data.personalInfo.emergencyContactNumber) {
-      attributes.push({
-        value: `${data.personalInfo.emergencyContactNumberCountryCode}${data.personalInfo.emergencyContactNumber}`,
-        attributeType: patientAttributes.emergencyContactNumber,
-      });
+      pushAttr(
+        `${data.personalInfo.emergencyContactNumberCountryCode}${data.personalInfo.emergencyContactNumber}`,
+        patientAttributes.emergencyContactNumber
+      );
     }
 
     if (data.otherInfo.sonDaughterWifeOf) {
-      attributes.push({
-        value: data.otherInfo.sonDaughterWifeOf,
-        attributeType: patientAttributes.sonDaughterWifeOf,
-      });
+      pushAttr(
+        data.otherInfo.sonDaughterWifeOf,
+        patientAttributes.sonDaughterWifeOf
+      );
     }
 
     if (data.otherInfo.occupation) {
-      attributes.push({
-        value: data.otherInfo.occupation,
-        attributeType: patientAttributes.occupation,
-      });
+      pushAttr(data.otherInfo.occupation, patientAttributes.occupation);
     }
 
     if (data.otherInfo.caste) {
-      attributes.push({
-        value: data.otherInfo.caste,
-        attributeType: patientAttributes.caste,
-      });
+      pushAttr(data.otherInfo.caste, patientAttributes.caste);
     }
 
     if (data.otherInfo.education) {
-      attributes.push({
-        value: data.otherInfo.education,
-        attributeType: patientAttributes.education,
-      });
+      pushAttr(data.otherInfo.education, patientAttributes.education);
     }
 
     if (data.otherInfo.economicStatus) {
-      attributes.push({
-        value: data.otherInfo.economicStatus,
-        attributeType: patientAttributes.economicStatus,
-      });
+      pushAttr(data.otherInfo.economicStatus, patientAttributes.economicStatus);
     }
 
     return {

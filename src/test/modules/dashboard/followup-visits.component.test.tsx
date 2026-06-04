@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FollowupVisitsComponent } from '../../../modules/dashboard/followup-visits.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -38,7 +39,9 @@ const mockData = [
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <FollowupVisitsComponent {...props} />
+      <BreadcrumbProvider>
+        <FollowupVisitsComponent {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -161,8 +164,8 @@ describe('FollowupVisitsComponent', () => {
       fireEvent.click(patientHeaders[0]); // null
 
       const allSortIcons = [
-        ...screen.getAllByAltText('sort-asc'),
-        ...screen.getAllByAltText('sort-desc'),
+        ...screen.queryAllByAltText('sort-asc'),
+        ...screen.queryAllByAltText('sort-desc'),
       ];
       allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
     });
@@ -177,36 +180,18 @@ describe('FollowupVisitsComponent', () => {
     });
   });
 
-  describe('Name sort button (search area)', () => {
-    it('first click sorts ascending — sort-asc icon becomes active', () => {
+  describe('Filter icon (search area)', () => {
+    it('renders the filter icon next to the search input', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
-
-      expect(sortAscIcon).toHaveClass('opacity-100');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toBeInTheDocument();
+      expect(filterIcon).toHaveClass('w-5', 'h-5');
     });
 
-    it('second click sorts descending — sort-desc icon becomes active', () => {
+    it('filter icon has hover styling', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-
-      expect(sortDescIcon).toHaveClass('opacity-100');
-      expect(sortAscIcon).toHaveClass('opacity-50');
-    });
-
-    it('third click clears sort — both icons inactive', () => {
-      renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-      fireEvent.click(sortAscIcon); // null
-
-      expect(sortAscIcon).toHaveClass('opacity-50');
-      expect(sortDescIcon).toHaveClass('opacity-50');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toHaveClass('cursor-pointer', 'hover:opacity-70', 'transition');
     });
   });
 
@@ -217,6 +202,21 @@ describe('FollowupVisitsComponent', () => {
 
     const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
     if (clickable) fireEvent.click(clickable);
-    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', { state: { fromLabel: 'Follow-up Visits', fromPath: '/followup-visits' } });
+  });
+
+  it('navigates without state when rendered on dashboard', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <BreadcrumbProvider>
+          <FollowupVisitsComponent />
+        </BreadcrumbProvider>
+      </MemoryRouter>
+    );
+
+    const raviNodes = screen.getAllByText('Ravi Kumar');
+    const clickable = raviNodes[0].closest('tr') || raviNodes[0].closest('div[role="row"]') || raviNodes[0].closest('div');
+    if (clickable) fireEvent.click(clickable);
+    expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', undefined);
   });
 });

@@ -21,6 +21,7 @@ export interface OpenMRSPatient {
       countyDistrict: string | null;
     } | null;
     attributes: {
+      uuid: string;
       value: string;
       attributeType: { uuid: string; display: string };
     }[];

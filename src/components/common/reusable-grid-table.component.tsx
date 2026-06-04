@@ -66,7 +66,7 @@ export function ReusableGridTable<T>({
       </div>
 
       {/*  Rows – scrollable area */}
-      <div className="space-y-1.5 p-2 lg:p-1.5 flex-1 min-h-0 overflow-y-auto">
+      <div className="space-y-1.5 p-2 lg:p-1.5 min-h-0 overflow-y-auto">
         {visibleData.map((row, rowIndex) => (
           <div
             key={rowIndex}
