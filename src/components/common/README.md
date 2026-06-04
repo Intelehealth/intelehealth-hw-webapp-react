@@ -413,6 +413,81 @@ interface BreadcrumbItem {
 - `src/hooks/useBreadcrumb.ts` — page-level hook
 - `src/components/common/breadcrumb.component.tsx` — rendered component
 
+### FilterModule
+
+A reusable date/range filter component that appears as a popover anchored to a filter icon. Supports single-date and date-range modes with a toggle, and integrates with the existing `Calendar` component.
+
+```tsx
+import { FilterModule } from './components/common';
+import { isDateInFilterRange } from '../../utils/date-filter';
+import type { FilterValue } from '../../utils/date-filter';
+
+// State
+const [showFilter, setShowFilter] = useState(false);
+const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+const filterRef = useRef<HTMLDivElement>(null);
+
+// Popover trigger (attach to a filter icon)
+<div ref={filterRef} className="relative">
+  <img src={iconFilter} onClick={() => setShowFilter(prev => !prev)} />
+  {showFilter && (
+    <div className="absolute right-0 top-full mt-2 z-50">
+      <FilterModule
+        onApply={value => {
+          setDateFilter(value);
+          setShowFilter(false);
+        }}
+      />
+    </div>
+  )}
+</div>;
+
+// Apply filter in useMemo
+const filtered = useMemo(() => {
+  return data.filter(
+    row =>
+      row.patientName.toLowerCase().includes(search.toLowerCase()) &&
+      isDateInFilterRange(row.visitCreatedDate, dateFilter)
+  );
+}, [data, search, dateFilter]);
+```
+
+**Props:**
+
+- `onApply`: (value: FilterValue) => void — callback fired when Apply is clicked (required)
+- `defaultMode`: 'date' | 'range' — initial filter mode (default: `'range'`)
+- `defaultFrom`: string — initial from date in `yyyy-MM-dd` format
+- `defaultTo`: string — initial to date in `yyyy-MM-dd` format
+- `showToggle`: boolean — show/hide the Date/Range toggle buttons (default: `true`)
+- `className`: string — additional CSS classes for the container
+
+**FilterValue Interface:**
+
+```ts
+interface FilterValue {
+  mode: 'date' | 'range';
+  from: string; // yyyy-MM-dd
+  to: string | null; // null in date mode
+}
+```
+
+**Helper — `isDateInFilterRange(dateStr, filter)`:**
+
+Parses both ISO (`2025-04-21`) and human-readable (`10 Oct 2025, at 10:00 am`) date formats. Returns `true` when filter is `null` or the date string is unparseable.
+
+**Files:**
+
+- Component: `src/components/common/filter-module.component.tsx`
+- Date utility: `src/utils/date-filter.ts`
+- Tests: `src/test/common/FilterModule.test.tsx`, `src/test/utils/date-filter.test.ts`
+
+**Integrated in:**
+
+- Open Visits (`src/modules/dashboard/open-visits.component.tsx`) — filters on `visitCreatedDate`
+- Appointment List (`src/modules/dashboard/appointment-list.component.tsx`) — filters on `dateTime`
+- Follow-up Visits (`src/modules/dashboard/followup-visits.component.tsx`) — filters on `visitCreatedDate`
+- Prescriptions (`src/modules/dashboard/prescriptions-received.component.tsx`) — filters on `visitCreatedDate`
+
 ### VideoCard
 
 A responsive video card component that displays a video thumbnail with a play button overlay and duration badge. Renders as a horizontal row on mobile and a vertical card on desktop.

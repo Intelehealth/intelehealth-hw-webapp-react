@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
 import iconFilter from '../../assets/icons/icon-filter.svg';
@@ -9,6 +9,7 @@ import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-re
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { PRESCRIPTION_TABS } from '../../assets/data/prescription-detail.data';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import FilterModule from '../../components/common/filter-module.component';
 import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
 import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
 import { useColumnSort } from '../../hooks/useColumnSort';
@@ -17,6 +18,8 @@ import type {
   PrescriptionPendingVisit,
   PrescriptionReceivedVisit,
 } from '../../services/patient.service';
+import type { FilterValue } from '../../utils/date-filter';
+import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface PrescriptionsReceivedProps {
   onCountLoaded?: (count: number) => void;
@@ -34,6 +37,9 @@ export const PrescriptionsReceived = ({
     PRESCRIPTION_TABS.RECEIVED
   );
   const [search, setSearch] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const { applySort: applyNameSort } = useSortByName();
 
@@ -77,19 +83,41 @@ export const PrescriptionsReceived = ({
     if (onCountLoaded) onCountLoaded(receivedCount);
   }, [receivedCount, onCountLoaded]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFilterApply = (value: FilterValue) => {
+    setDateFilter(value);
+    setShowFilter(false);
+  };
+
   const filteredReceived = useMemo(() => {
-    const filtered = receivedData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const filtered = receivedData.filter(
+      p =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(filtered));
-  }, [receivedData, search, applySort, applyNameSort]);
+  }, [receivedData, search, dateFilter, applySort, applyNameSort]);
 
   const filteredPending = useMemo(() => {
-    const filtered = pendingData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const filtered = pendingData.filter(
+      p =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(filtered));
-  }, [pendingData, search, applySort, applyNameSort]);
+  }, [pendingData, search, dateFilter, applySort, applyNameSort]);
 
   const receivedColumns: {
     header: string;
@@ -188,12 +216,21 @@ export const PrescriptionsReceived = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3 shrink-0">
+                <div
+                  ref={filterRef}
+                  className="relative flex items-center gap-3 shrink-0"
+                >
                   <img
                     src={iconFilter}
                     alt="filter"
                     className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    onClick={() => setShowFilter(prev => !prev)}
                   />
+                  {showFilter && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <FilterModule onApply={handleFilterApply} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
                   <img

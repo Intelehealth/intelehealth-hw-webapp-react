@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import iconFilter from '../../assets/icons/appointment/icon-apm-filter.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
@@ -8,7 +8,10 @@ import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.
 import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import FilterModule from '../../components/common/filter-module.component';
 import { useAppointmentList } from '../../hooks/useAppointmentList';
+import type { FilterValue } from '../../utils/date-filter';
+import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface Column {
   header: string;
@@ -34,15 +37,37 @@ export const AppointmentListComponent = ({
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { data, loading, error } = useAppointmentList();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFilterApply = (value: FilterValue) => {
+    setDateFilter(value);
+    setShowFilter(false);
+  };
 
   const filtered = useMemo(() => {
     return data.filter(
       p =>
         p.type === activeTab &&
-        p.patientName.toLowerCase().includes(search.toLowerCase())
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.dateTime, dateFilter)
     );
-  }, [data, activeTab, search]);
+  }, [data, activeTab, search, dateFilter]);
 
   const upcomingCount = useMemo(
     () => data.filter(a => a.type === 'upcoming').length,
@@ -108,12 +133,21 @@ export const AppointmentListComponent = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3 shrink-0">
+                <div
+                  ref={filterRef}
+                  className="relative flex items-center gap-3 shrink-0"
+                >
                   <img
                     src={iconFilter}
                     alt="filter"
                     className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    onClick={() => setShowFilter(prev => !prev)}
                   />
+                  {showFilter && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <FilterModule onApply={handleFilterApply} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
                   <img
