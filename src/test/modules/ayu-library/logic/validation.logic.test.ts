@@ -190,6 +190,15 @@ describe('hasUnansweredRequiredNestedChild', () => {
     expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes' })).toBe(true);
   });
 
+  it('should return true when visible input-type child (date) has no answer', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'date' }],
+    };
+    expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes' })).toBe(true);
+  });
+
   it('should recurse into grandchildren and return true when unanswered', () => {
     const q: AyuQuestion = {
       linkId: 'q1',
@@ -356,6 +365,15 @@ describe('isNestedInputValueMissing', () => {
       linkId: 'q1',
       type: 'choice',
       item: [{ linkId: 'q1.1', type: 'integer' }],
+    };
+    expect(isNestedInputValueMissing(q, { q1: 'yes' })).toBe(true);
+  });
+
+  it('should return true when visible date child has no answer', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'date' }],
     };
     expect(isNestedInputValueMissing(q, { q1: 'yes' })).toBe(true);
   });
