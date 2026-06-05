@@ -31,9 +31,18 @@ const PhotoCropModal = ({
 
   const handleSave = async () => {
     if (croppedAreaPixels) {
-      const result = await getCroppedImg(image, croppedAreaPixels, outputType);
-      if (result) {
-        onCropComplete(result);
+      try {
+        const result = await getCroppedImg(
+          image,
+          croppedAreaPixels,
+          outputType
+        );
+        if (result) {
+          onCropComplete(result);
+        }
+      } catch {
+        // Errors from getCroppedImg (null canvas context, image load failure, empty blob)
+        // are non-recoverable — silently ignore so the user can retry or cancel.
       }
     }
   };
@@ -77,11 +86,11 @@ const PhotoCropModal = ({
 
           {manual && (
             <div className="flex gap-3">
-              <Button onClick={handleSave} variant="primary">
+              <Button type="button" onClick={handleSave} variant="primary">
                 Save
               </Button>
               {onCancel && (
-                <Button onClick={onCancel} variant="secondary">
+                <Button type="button" onClick={onCancel} variant="secondary">
                   Cancel
                 </Button>
               )}

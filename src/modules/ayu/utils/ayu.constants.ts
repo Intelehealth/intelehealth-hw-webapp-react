@@ -1,3 +1,5 @@
+import type { QuestionValidationReason } from '../../ayu-library/logic/validation.logic';
+
 // Visit Reason Constants
 
 // --- Confirm Modal ---
@@ -41,6 +43,22 @@ export const VALIDATION_ALL_COMPULSORY =
 export const VALIDATION_ENTER_VALUE = 'Please enter a value';
 export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
+
+/** Map a question validation failure reason to its user-facing toast message. */
+export const validationMessageForReason = (
+  reason: QuestionValidationReason | undefined
+): string => {
+  switch (reason) {
+    case 'uploadImage':
+      return VALIDATION_UPLOAD_IMAGE;
+    case 'allCompulsory':
+      return VALIDATION_ALL_COMPULSORY;
+    case 'enterValue':
+      return VALIDATION_ENTER_VALUE;
+    default:
+      return VALIDATION_SELECT_OPTION;
+  }
+};
 
 // --- Physical Exam Camera ---
 export const PE_CAMERA_TILE_LABEL = 'Take a Picture';

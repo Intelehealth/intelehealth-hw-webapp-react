@@ -9,8 +9,7 @@ import {
 } from '../../ayu-library/logic/stepper.logic';
 import {
   isEmpty,
-  isNestedInputValueMissing,
-  isQuantityInvalid,
+  validateQuestion,
 } from '../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
@@ -25,17 +24,16 @@ import {
   clearHiddenDescendantAnswers,
   isDescendantLinkId,
 } from '../../ayu-library/utils/question.utils';
+import { usePhysicalExamCamera } from '../components/start-visit/physical-examination/physical-exam-camera-context';
 import {
   ASSOCIATED_SYMPTOMS_LABEL,
   DEFAULT_VISIT_REASON_TEXT,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
-  VALIDATION_ENTER_VALUE,
   VALIDATION_SELECT_OPTION,
-  VALIDATION_UPLOAD_IMAGE,
+  validationMessageForReason,
 } from '../utils/ayu.constants';
 import { buildVisitSummary } from '../utils/visit-summary.util';
-import { usePhysicalExamCamera } from '../components/start-visit/physical-examination/physical-exam-camera-context';
 
 interface UseFHIRStepperProps {
   questionnaire: FhirQuestionnaire;
@@ -160,21 +158,18 @@ export const useFHIRStepper = (
         return false;
       }
 
-      // The picture option is selected but no image was provided.
-      if (isCameraAnswerMissingImages(question, latestAnswers)) {
-        showToast(VALIDATION_UPLOAD_IMAGE, undefined, 'warning');
-        return false;
-      }
-
-      // If a question is answered (or required), validate nested children are complete
       if (!isEmpty(answer) || question.required) {
-        if (!isTopLevelComplete(question, latestAnswers)) {
-          const message =
-            isNestedInputValueMissing(question, latestAnswers) ||
-            isQuantityInvalid(question, latestAnswers)
-              ? VALIDATION_ENTER_VALUE
-              : VALIDATION_SELECT_OPTION;
-          showToast(message, undefined, 'warning');
+        const result = validateQuestion(
+          question,
+          latestAnswers,
+          isCameraAnswerMissingImages
+        );
+        if (!result.valid) {
+          showToast(
+            validationMessageForReason(result.reason),
+            undefined,
+            'warning'
+          );
           return false;
         }
       }

@@ -212,6 +212,65 @@ describe('visit-upload.service', () => {
       expect(parsed.en).toBe('');
       expect(parsed['l-en']).toBe('');
     });
+
+    it('should annotate the answer with [Picture Taken] when a photo is captured', () => {
+      const questions: PhysicalExamQuestion[] = [
+        makeQuestion({
+          id: 'q1',
+          options: [
+            { id: 'yes', text: 'Yes' },
+            { id: 'no', text: 'No' },
+            { id: 'cam', text: 'Picture Taken', isCamera: true },
+          ],
+        }),
+      ];
+      const answers = { q1: ['yes', 'cam'] };
+
+      const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
+
+      // Picture is an annotation on the finding, not a separate answer.
+      expect(parsed.en).toContain('Eyes-yes [Picture Taken].');
+      expect(parsed['l-en']).toContain('•Yes [Picture Taken]-');
+    });
+
+    it('should record a picture-only finding as [Picture Taken]', () => {
+      const questions: PhysicalExamQuestion[] = [
+        makeQuestion({
+          id: 'q1',
+          options: [{ id: 'cam', text: 'Picture Taken', isCamera: true }],
+        }),
+      ];
+      const answers = { q1: ['cam'] };
+
+      const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
+
+      expect(parsed.en).toContain('Eyes-[Picture Taken].');
+      expect(parsed['l-en']).toContain('•[Picture Taken]-');
+    });
+
+    it('should append the picture annotation after multiple selected answers', () => {
+      const questions: PhysicalExamQuestion[] = [
+        makeQuestion({
+          id: 'q1',
+          isMultiChoice: true,
+          options: [
+            { id: 'no_jaundice', text: 'No jaundice seen' },
+            { id: 'jaundice', text: 'Jaundice present' },
+            { id: 'cam', text: 'Picture Taken', isCamera: true },
+          ],
+        }),
+      ];
+      const answers = { q1: ['no_jaundice', 'jaundice', 'cam'] };
+
+      const result = buildPhysicalExamData(answers, questions);
+      const parsed = parseObs(result.obsValue);
+
+      expect(parsed.en).toContain(
+        'no jaundice seen, jaundice present [Picture Taken].'
+      );
+    });
   });
 
   // ─── buildMedicalHistoryData ───────────────────────────────────────────────

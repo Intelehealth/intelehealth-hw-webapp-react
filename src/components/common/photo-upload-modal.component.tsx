@@ -203,6 +203,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 Upload/Change photo
               </h3>
               <button
+                type="button"
                 onClick={onClose}
                 className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors border"
                 style={{ borderColor: '#7f7b92' }}
@@ -227,6 +228,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                   </span>
                 </div>
                 <Button
+                  type="button"
                   onClick={handleOpenCamera}
                   variant="primary"
                   size="md"
@@ -248,6 +250,7 @@ const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                   </span>
                 </div>
                 <Button
+                  type="button"
                   onClick={handleUploadClick}
                   variant="primary"
                   size="md"

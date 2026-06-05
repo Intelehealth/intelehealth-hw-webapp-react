@@ -1,14 +1,29 @@
-import { resolveAyuComponent } from '../../../ayu-library/logic/decision-matrix';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
+import type { AyuQuestion } from '../../../ayu-library/types/ayu.types';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import {
   ADDITIONAL_INFORMATION_LABEL,
   TEXT_INPUT_DEFAULT_KEYWORDS,
   TEXT_INPUT_DEFAULT_PLACEHOLDER,
   TEXT_INPUT_ENTER_PREFIX,
-  TEXT_INPUT_KEYWORD_DESCRIBE,
-  TEXT_INPUT_KEYWORD_OTHER,
 } from '../../utils/ayu.constants';
+
+const isInlineDescribeField = (
+  question?: AyuQuestion,
+  parent?: AyuQuestion
+): boolean => {
+  if (question?.type !== 'string' || !parent?.item?.length) return false;
+  const gateCode = question.enableWhen?.find(
+    ew => ew.question === parent.linkId
+  )?.answerCoding?.code;
+  if (!gateCode) return false;
+  const optionSiblings = parent.item.filter(sib =>
+    sib.enableWhen?.some(
+      ew => ew.question === parent.linkId && ew.answerCoding?.code === gateCode
+    )
+  );
+  return optionSiblings.length === 1;
+};
 
 export function AyuTextInput({
   question,
@@ -20,10 +35,8 @@ export function AyuTextInput({
   const label = question
     ? resolveLabel(question, parent, previousSibling)
     : undefined;
-  const isAssociatedSymptomsParent = parent
-    ? resolveAyuComponent(parent) === 'associatedSymptoms'
-    : false;
   const inputId = `ayu-input-${question?.linkId}`;
+  const hideLabel = isInlineDescribeField(question, parent);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -34,7 +47,7 @@ export function AyuTextInput({
 
   return (
     <div className="flex flex-col gap-1">
-      {label && (
+      {!hideLabel && label && (
         <label
           htmlFor={inputId}
           className={
@@ -43,15 +56,7 @@ export function AyuTextInput({
               : 'block text-base text-(--color-muted)'
           }
         >
-          {isAssociatedSymptomsParent
-            ? label.includes(ADDITIONAL_INFORMATION_LABEL) ||
-              !label.toLowerCase().includes(TEXT_INPUT_KEYWORD_OTHER)
-              ? label
-              : null
-            : label.includes(ADDITIONAL_INFORMATION_LABEL) ||
-                !label.toLowerCase().includes(TEXT_INPUT_KEYWORD_DESCRIBE)
-              ? label
-              : null}
+          {label}
         </label>
       )}
       <textarea
