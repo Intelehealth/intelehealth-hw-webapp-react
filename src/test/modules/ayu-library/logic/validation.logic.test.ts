@@ -1,12 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+// Mock decision-matrix and associated-symptoms — only used by validateQuestion
+vi.mock('../../../../modules/ayu-library/logic/decision-matrix', () => ({
+  ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
+  resolveAyuComponent: vi.fn(() => 'select'),
+  isStrictAssociatedSymptoms: vi.fn(() => false),
+}));
+
+vi.mock('../../../../modules/ayu-library/logic/associated-symptoms.logic', () => ({
+  hasExclusiveSelected: vi.fn(() => false),
+}));
+
 import {
   isEmpty,
   hasVisibleRequiredNestedString,
   hasUnansweredRequiredNestedChild,
   isNestedInputValueMissing,
   isQuantityInvalid,
+  validateQuestion,
 } from '../../../../modules/ayu-library/logic/validation.logic';
+import {
+  resolveAyuComponent,
+  isStrictAssociatedSymptoms,
+} from '../../../../modules/ayu-library/logic/decision-matrix';
+import { hasExclusiveSelected } from '../../../../modules/ayu-library/logic/associated-symptoms.logic';
 
 describe('isEmpty', () => {
   it('should return true for undefined', () => {
@@ -152,6 +169,15 @@ describe('hasUnansweredRequiredNestedChild', () => {
       item: [{ linkId: 'q1.1', type: 'choice', repeats: true }],
     };
     expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes' })).toBe(true);
+  });
+
+  it('should return false when repeats child has an answer', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'choice', repeats: true }],
+    };
+    expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes', 'q1.1': ['opt1'] })).toBe(false);
   });
 
   it('should return false when hidden child has no answer', () => {
@@ -654,5 +680,233 @@ describe('isQuantityInvalid', () => {
         'q1.1.1': { dropdownValues: { number: 5 } },
       })
     ).toBe(true);
+  });
+
+  it('should return false when nested child has sub-items with no invalid duration', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'q1.1',
+          type: 'choice',
+          item: [{ linkId: 'q1.1.1', type: 'string' }],
+        },
+      ],
+    };
+    expect(
+      isQuantityInvalid(q, {
+        q1: 'yes',
+        'q1.1.1': 'some text value',
+      })
+    ).toBe(false);
+  });
+
+  it('should return false when nested child has valid duration with both number and days', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'choice' }],
+    };
+    expect(
+      isQuantityInvalid(q, {
+        q1: 'yes',
+        'q1.1': { dropdownValues: { number: 5, days: 'days' } },
+      })
+    ).toBe(false);
+  });
+
+  it('should return true when nested child duration is missing number', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'choice' }],
+    };
+    expect(
+      isQuantityInvalid(q, {
+        q1: 'yes',
+        'q1.1': { dropdownValues: { days: 'days' } },
+      })
+    ).toBe(true);
+  });
+});
+
+describe('validateQuestion', () => {
+  beforeEach(() => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('select' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(false);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(false);
+  });
+
+  it('should return valid when no validation issues exist', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(validateQuestion(q, { q1: 'answer' })).toEqual({ valid: true });
+  });
+
+  it('should return valid with array answer when all conditions pass', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+    };
+    expect(validateQuestion(q, { q1: ['a'] })).toEqual({ valid: true });
+  });
+
+  it('should return valid for repeats choice with answer codes', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      repeats: true,
+      answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+    };
+    expect(validateQuestion(q, { q1: ['a'] })).toEqual({ valid: true });
+  });
+
+  it('should return uploadImage when camera answer is missing images', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => true);
+    expect(validateQuestion(q, { q1: 'answer' }, cameraCheck)).toEqual({
+      valid: false,
+      reason: 'uploadImage',
+    });
+  });
+
+  it('should not flag camera when check returns false', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => false);
+    expect(validateQuestion(q, { q1: 'answer' }, cameraCheck)).toEqual({
+      valid: true,
+    });
+  });
+
+  it('should return enterValue when nested string child is unanswered', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'string' }],
+    };
+    expect(validateQuestion(q, { q1: 'yes' })).toEqual({
+      valid: false,
+      reason: 'enterValue',
+    });
+  });
+
+  it('should return enterValue when nested integer child is unanswered', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'q1.1', type: 'integer' }],
+    };
+    expect(validateQuestion(q, { q1: 'yes' })).toEqual({
+      valid: false,
+      reason: 'enterValue',
+    });
+  });
+
+  it('should return enterValue when quantity is invalid', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'quantity' };
+    expect(validateQuestion(q, {})).toEqual({
+      valid: false,
+      reason: 'enterValue',
+    });
+  });
+
+  it('should return selectOption for unanswered repeats choice', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice', repeats: true };
+    expect(validateQuestion(q, {})).toEqual({
+      valid: false,
+      reason: 'selectOption',
+    });
+  });
+
+  it('should return selectOption for unanswered non-strict associated', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(false);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+      ],
+    };
+    expect(validateQuestion(q, {})).toEqual({
+      valid: false,
+      reason: 'selectOption',
+    });
+  });
+
+  it('should not use repeats validation for associated symptoms', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+      ],
+    };
+    expect(validateQuestion(q, {})).toEqual({
+      valid: false,
+      reason: 'selectOption',
+    });
+  });
+
+  it('should return allCompulsory for strict associated with partial answers', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(false);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+        { valueCoding: { code: 'c', display: 'C' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['a'] })).toEqual({
+      valid: false,
+      reason: 'allCompulsory',
+    });
+  });
+
+  it('should return valid when strict associated is fully answered', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['a', 'b'] })).toEqual({ valid: true });
+  });
+
+  it('should return valid when associated has exclusive option selected', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(true);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'none', display: 'None' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['none'] })).toEqual({ valid: true });
+  });
+
+  it('should handle answerOption being undefined for associated', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(validateQuestion(q, {})).toEqual({
+      valid: false,
+      reason: 'selectOption',
+    });
   });
 });
