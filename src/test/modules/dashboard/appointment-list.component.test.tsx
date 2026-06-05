@@ -13,6 +13,19 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../../../components/common/filter-module.component', () => ({
+  default: ({ onApply }: { onApply: (value: any) => void }) => (
+    <div data-testid="filter-module">
+      <button
+        data-testid="mock-filter-apply"
+        onClick={() => onApply({ mode: 'date', from: '2025-10-10', to: null })}
+      >
+        Mock Apply
+      </button>
+    </div>
+  ),
+}));
+
 const renderComponent = (props?: { initialRowCount?: number }) =>
   render(<AppointmentListComponent {...props} />);
 
@@ -227,6 +240,54 @@ describe('AppointmentListComponent', () => {
       renderComponent({ initialRowCount: 1 });
       const rows = document.querySelectorAll('[class*="rounded-xl border"]');
       expect(rows.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Filter module', () => {
+    it('opens filter module when filter icon is clicked', () => {
+      renderComponent();
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+    });
+
+    it('closes filter module when filter icon is clicked again', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('closes filter module on outside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('does not close filter module on inside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(screen.getByTestId('filter-module'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+    });
+
+    it('closes filter module after applying filter', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('applies date filter to appointments', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      // Filter for 2025-10-10 matches 'Bapu Mali' (10 Oct 2025)
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
     });
   });
 
