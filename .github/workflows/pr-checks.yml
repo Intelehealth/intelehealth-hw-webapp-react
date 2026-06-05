@@ -74,15 +74,44 @@ jobs:
             echo "⚠️ Coverage threshold check bypassed due to BYPASS_COVERAGE_CHECK=true"
             echo "Skipping coverage threshold validation..."
           else
-            # Extract only the global/total coverage percentage (first occurrence is the total)
-            COVERAGE=$(grep -o '"pct":[0-9.]*' coverage/coverage-summary.json | head -1 | cut -d':' -f2)
-            echo "Current coverage: ${COVERAGE}%"
-            if (( $(echo "$COVERAGE < 100" | bc -l) )); then
-              echo "❌ Coverage is ${COVERAGE}%, but 100% is required"
-              exit 1
-            else
-              echo "✅ Coverage is ${COVERAGE}% - meets 100% requirement"
-            fi
+            # Use node for reliable JSON parsing instead of grep
+            node -e "
+              const data = require('./coverage/coverage-summary.json');
+              const total = data.total;
+              const metrics = ['lines', 'statements', 'functions', 'branches'];
+              let allPass = true;
+
+              console.log('📊 Coverage Summary:');
+              for (const m of metrics) {
+                const pct = total[m].pct;
+                const status = pct >= 100 ? '✅' : '❌';
+                console.log('  ' + status + ' ' + m + ': ' + total[m].covered + '/' + total[m].total + ' (' + pct + '%)');
+                if (pct < 100) allPass = false;
+              }
+
+              if (!allPass) {
+                console.log('');
+                console.log('Files below 100% coverage:');
+                const files = Object.keys(data).filter(k => k !== 'total');
+                for (const f of files) {
+                  const fd = data[f];
+                  const below = metrics.filter(m => fd[m] && fd[m].pct < 100);
+                  if (below.length > 0) {
+                    const shortPath = f.replace(process.cwd() + '/', '').replace(process.cwd() + '\\\\', '');
+                    console.log('  ' + shortPath + ':');
+                    for (const m of below) {
+                      console.log('    ' + m + ': ' + fd[m].covered + '/' + fd[m].total + ' (' + fd[m].pct + '%)');
+                    }
+                  }
+                }
+                console.log('');
+                console.log('❌ Coverage is below 100% — see details above');
+                process.exit(1);
+              } else {
+                console.log('');
+                console.log('✅ All coverage metrics meet 100% requirement');
+              }
+            "
           fi
 
       - name: 📈 Upload coverage to Codecov
