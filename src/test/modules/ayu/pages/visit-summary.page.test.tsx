@@ -154,6 +154,8 @@ vi.mock('../../../../services/concept.service', () => ({
 /* ── Mock obs.service ──────────────────────────────────────────────────── */
 
 const mockUploadAllAdditionalDocuments = vi.fn().mockResolvedValue(undefined);
+const mockUploadAllPhysicalExamImages = vi.fn().mockResolvedValue(undefined);
+const mockGetPendingImages = vi.fn().mockReturnValue([]);
 const mockClearPendingDocuments = vi.fn();
 const mockAddPendingDocument = vi.fn();
 const mockGetLatestEncounterUuid = vi.fn().mockResolvedValue(undefined);
@@ -161,6 +163,8 @@ const mockGetLatestVisitUuid = vi.fn().mockResolvedValue('mock-visit-uuid');
 
 vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   uploadAllAdditionalDocuments: (...args: any[]) => mockUploadAllAdditionalDocuments(...args),
+  uploadAllPhysicalExamImages: (...args: any[]) => mockUploadAllPhysicalExamImages(...args),
+  getPendingImages: (...args: any[]) => mockGetPendingImages(...args),
   clearPendingDocuments: (...args: any[]) => mockClearPendingDocuments(...args),
   addPendingDocument: (...args: any[]) => mockAddPendingDocument(...args),
   getLatestEncounterUuid: (...args: any[]) => mockGetLatestEncounterUuid(...args),
@@ -305,6 +309,8 @@ beforeEach(() => {
   mockUploadVisit.mockResolvedValue(undefined);
   mockUseConfig.mockReturnValue({ config: defaultMockConfig });
   mockUploadAllAdditionalDocuments.mockResolvedValue(undefined);
+  mockUploadAllPhysicalExamImages.mockResolvedValue(undefined);
+  mockGetPendingImages.mockReturnValue([]);
   mockGetLatestVisitUuid.mockResolvedValue('mock-visit-uuid');
   mockGetPatient.mockResolvedValue({
     uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
@@ -1514,6 +1520,77 @@ describe('VisitSummaryPage', () => {
     expect(mockClearPendingDocuments).not.toHaveBeenCalled();
     expect(mockAddPendingDocument).not.toHaveBeenCalled();
     expect(mockUploadAllAdditionalDocuments).not.toHaveBeenCalled();
+  });
+
+  it('should upload pending physical exam images after visit upload', async () => {
+    const ADULT_INITIAL_UUID = '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f';
+    const imgFile = new File(['pe'], 'pe-image.png', { type: 'image/png' });
+    mockGetPendingImages.mockReturnValue([
+      { file: imgFile, comment: 'General exams' },
+    ]);
+    mockUploadVisit.mockResolvedValue({
+      encounters: [
+        { uuid: 'pe-enc-uuid', encounterType: { uuid: ADULT_INITIAL_UUID } },
+      ],
+    });
+
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockUploadAllPhysicalExamImages).toHaveBeenCalledWith(
+        'pe-enc-uuid',
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      );
+    });
+  });
+
+  it('should not fail the visit when physical exam image upload throws', async () => {
+    mockGetPendingImages.mockReturnValue([
+      { file: new File(['pe'], 'pe.png', { type: 'image/png' }), comment: 'x' },
+    ]);
+    mockUploadAllPhysicalExamImages.mockRejectedValueOnce(new Error('boom'));
+    mockUploadVisit.mockResolvedValue({
+      encounters: [
+        {
+          uuid: 'pe-enc-uuid',
+          encounterType: { uuid: '8d5b27bc-c2cc-11de-8d13-0010c6dffd0f' },
+        },
+      ],
+    });
+
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+  });
+
+  it('should not upload physical exam images when there are none pending', async () => {
+    mockGetPendingImages.mockReturnValue([]);
+    renderWithData(fullData);
+
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+    });
+
+    expect(mockUploadAllPhysicalExamImages).not.toHaveBeenCalled();
   });
 
   it('should render file input with correct accept attribute for images only', () => {
