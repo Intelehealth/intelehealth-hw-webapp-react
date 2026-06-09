@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import AppointmentVisitPage from '../../../pages/appointment-visit/appointment-visit.page';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 vi.mock(
   '../../../modules/appointment-visit/appointment-visit.component',
@@ -15,11 +16,11 @@ vi.mock(
 
 describe('AppointmentVisitPage', () => {
   it('renders without crashing', () => {
-    expect(() => render(<AppointmentVisitPage />)).not.toThrow();
+    expect(() => render(<BreadcrumbProvider><AppointmentVisitPage /></BreadcrumbProvider>)).not.toThrow();
   });
 
   it('renders AppointmentVisitComponent', () => {
-    render(<AppointmentVisitPage />);
+    render(<BreadcrumbProvider><AppointmentVisitPage /></BreadcrumbProvider>);
     expect(
       screen.getByTestId('appointment-visit-component')
     ).toBeInTheDocument();

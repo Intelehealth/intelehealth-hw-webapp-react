@@ -1,5 +1,11 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { findMatchingOptionCode } from '../utils/question.utils';
+import { hasExclusiveSelected } from './associated-symptoms.logic';
+import {
+  ASSOCIATED_SYMPTOMS_COMPONENT,
+  isStrictAssociatedSymptoms,
+  resolveAyuComponent,
+} from './decision-matrix';
 import { evaluateEnableWhen } from './enable-when.logic';
 
 /**
@@ -169,4 +175,66 @@ export const isQuantityInvalid = (
 
   // For regular choice questions (string values), not invalid
   return false;
+};
+
+export type QuestionValidationReason =
+  | 'uploadImage'
+  | 'allCompulsory'
+  | 'enterValue'
+  | 'selectOption';
+
+export interface QuestionValidationResult {
+  valid: boolean;
+  /** Only set when `valid` is false. */
+  reason?: QuestionValidationReason;
+}
+
+export const validateQuestion = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>,
+  isCameraAnswerMissingImages?: (
+    q: AyuQuestion,
+    a: Record<string, AyuAnswerValue>
+  ) => boolean
+): QuestionValidationResult => {
+  const rawAnswer = answers[question.linkId];
+  const answerCodes: string[] = Array.isArray(rawAnswer)
+    ? (rawAnswer as string[])
+    : [];
+
+  const cameraMissingImages =
+    isCameraAnswerMissingImages?.(question, answers) ?? false;
+  const isAssociated =
+    resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
+  const totalOptions = question.answerOption?.length ?? 0;
+  const isAssociatedIncomplete =
+    isAssociated &&
+    answerCodes.length < totalOptions &&
+    !hasExclusiveSelected(question, answerCodes);
+
+  const isInvalid =
+    cameraMissingImages ||
+    hasVisibleRequiredNestedString(question, answers) ||
+    hasUnansweredRequiredNestedChild(question, answers) ||
+    isQuantityInvalid(question, answers) ||
+    (question.type === 'choice' &&
+      !!question.repeats &&
+      !isAssociated &&
+      answerCodes.length === 0) ||
+    (isAssociated && answerCodes.length === 0) ||
+    (isStrictAssociatedSymptoms(question) && isAssociatedIncomplete);
+
+  if (!isInvalid) return { valid: true };
+
+  const reason: QuestionValidationReason = cameraMissingImages
+    ? 'uploadImage'
+    : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)
+      ? 'allCompulsory'
+      : hasVisibleRequiredNestedString(question, answers) ||
+          isNestedInputValueMissing(question, answers) ||
+          isQuantityInvalid(question, answers)
+        ? 'enterValue'
+        : 'selectOption';
+
+  return { valid: false, reason };
 };

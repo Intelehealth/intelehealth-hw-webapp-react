@@ -34,5 +34,11 @@ export type { CustomToastProps } from './custom-toast.component';
 export { default as ReCaptcha } from './recaptcha.component';
 export type { ReCaptchaProps } from './recaptcha.component';
 
+export { default as Breadcrumb } from './breadcrumb.component';
+export type { BreadcrumbProps } from './breadcrumb.component';
+
+export { default as FilterModule } from './filter-module.component';
+export type { FilterModuleProps } from './filter-module.component';
+
 // Re-export utility function
 export { cn } from '../../utils/cn';

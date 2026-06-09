@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
 import { visitSummaryService } from './visit-summary.service';
 import type {
@@ -330,6 +332,22 @@ const MedicalHistorySection: React.FC<{ sections: HistorySection[] }> = ({
 
 const VisitSummaryComponent: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
+  const location = useLocation();
+
+  const fromLabel = (location.state as { fromLabel?: string })?.fromLabel;
+  const fromPath = (location.state as { fromPath?: string })?.fromPath;
+
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    ...(fromLabel && fromPath ? [{ label: fromLabel, path: fromPath }] : []),
+    {
+      label: 'Visit Details',
+      path: `/visit-details/${visitId}`,
+      state: fromLabel && fromPath ? { fromLabel, fromPath } : undefined,
+    },
+    { label: 'Visit Summary' },
+  ]);
+
   const [allOpen, setAllOpen] = useState(true);
   const [data, setData] = useState<VisitData | null>(null);
   const [loading, setLoading] = useState(!!visitId);

@@ -7,6 +7,7 @@ import type {
   PatientDisplayData,
   UsePatientProfileReturn,
 } from '../../../types/patient/profile/patient-profile.types';
+import { getCountryCode } from '../../../utils/countries';
 import { patientService } from '../add/add-patient.service';
 
 function getAttr(
@@ -14,6 +15,19 @@ function getAttr(
   typeUuid: string
 ): string {
   return attributes?.find(a => a.attributeType?.uuid === typeUuid)?.value ?? '';
+}
+
+function splitPhone(
+  fullPhone: string,
+  fallbackCode = '+91'
+): { countryCode: string; number: string } {
+  if (!fullPhone) return { countryCode: fallbackCode, number: '' };
+  const raw = fullPhone.startsWith('+') ? fullPhone.slice(1) : fullPhone;
+  const code = getCountryCode(raw);
+  if (code) {
+    return { countryCode: '+' + code, number: raw.slice(code.length) };
+  }
+  return { countryCode: fallbackCode, number: fullPhone };
 }
 
 function mapGender(code: string): string {
@@ -82,6 +96,20 @@ export function mapRawPatientToFormData(
   const addr = patient.person.preferredAddress;
   const attrs = patient.person.attributes ?? [];
 
+  const phoneParts = splitPhone(
+    getAttr(attrs, patientAttributes.telephoneNumber)
+  );
+  const emergencyPhoneParts = splitPhone(
+    getAttr(attrs, patientAttributes.emergencyContactNumber)
+  );
+
+  const attributeUuids: Record<string, string> = {};
+  for (const attr of attrs) {
+    if (attr.uuid && attr.attributeType?.uuid) {
+      attributeUuids[attr.attributeType.uuid] = attr.uuid;
+    }
+  }
+
   return {
     personalInfo: {
       firstName: pName?.givenName ?? '',
@@ -92,19 +120,18 @@ export function mapRawPatientToFormData(
         ? patient.person.birthdate.split('T')[0]
         : '',
       age: patient.person.age != null ? String(patient.person.age) : '',
-      phoneNumber: getAttr(attrs, patientAttributes.telephoneNumber),
-      phoneNumberCountryCode: '+91',
+      phoneNumber: phoneParts.number,
+      phoneNumberCountryCode: phoneParts.countryCode,
       contactType: getAttr(attrs, patientAttributes.emergencyContactType),
       emergencyContactName: getAttr(
         attrs,
         patientAttributes.emergencyContactName
       ),
-      emergencyContactNumber: getAttr(
-        attrs,
-        patientAttributes.emergencyContactNumber
-      ),
-      emergencyContactNumberCountryCode: '+91',
-      profilePhoto: null,
+      emergencyContactNumber: emergencyPhoneParts.number,
+      emergencyContactNumberCountryCode: emergencyPhoneParts.countryCode,
+      profilePhoto: patient.person?.uuid
+        ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${patient.person.uuid}`
+        : null,
     },
     addressInfo: {
       postalCode: addr?.postalCode ?? '',
@@ -122,6 +149,7 @@ export function mapRawPatientToFormData(
       education: getAttr(attrs, patientAttributes.education),
       economicStatus: getAttr(attrs, patientAttributes.economicStatus),
     },
+    attributeUuids,
   };
 }
 

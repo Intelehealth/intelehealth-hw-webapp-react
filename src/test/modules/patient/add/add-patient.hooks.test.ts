@@ -435,6 +435,33 @@ describe('useAddPatient hook', () => {
       expect(success).toBe(false);
     });
 
+    it('should not upload image when profilePhoto is a URL (not data:)', async () => {
+      const patientDataWithUrl = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: 'http://localhost:8080/openmrs/ws/rest/v1/personimage/some-uuid',
+        },
+      };
+
+      mockGenerateIdentifier.mockResolvedValue({
+        identifiers: ['PAT-12345'],
+      });
+      mockCreatePatient.mockResolvedValue({
+        uuid: 'patient-uuid-123',
+      });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleAddPatient(patientDataWithUrl);
+      });
+
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
+      expect(success).toBe('patient-uuid-123');
+    });
+
     it('should handle error during image upload', async () => {
       const patientDataWithPhoto = {
         ...mockPatientFormData,
@@ -724,6 +751,31 @@ describe('useAddPatient hook', () => {
       expect(success).toBe(false);
     });
 
+    it('should not upload image when profilePhoto is a URL on update', async () => {
+      const patientDataWithUrl = {
+        ...mockPatientFormData,
+        personalInfo: {
+          ...mockPatientFormData.personalInfo,
+          profilePhoto: 'http://localhost:8080/openmrs/ws/rest/v1/personimage/some-uuid',
+        },
+      };
+
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      let success: string | boolean | undefined;
+      await waitFor(async () => {
+        success = await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          patientDataWithUrl
+        );
+      });
+
+      expect(mockUpdateProfileImage).not.toHaveBeenCalled();
+      expect(success).toBe('patient-uuid-123');
+    });
+
     it('should handle error during image upload on update', async () => {
       const patientDataWithPhoto = {
         ...mockPatientFormData,
@@ -768,6 +820,83 @@ describe('useAddPatient hook', () => {
       });
 
       expect(success).toBe('patient-uuid-999');
+    });
+
+    it('should include attribute UUIDs when attributeUuids is provided', async () => {
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const dataWithAttrUuids: PatientFormData = {
+        ...mockPatientFormData,
+        attributeUuids: {
+          '14d4f066-15f5-102d-96e4-000c29c2a5d7': 'attr-uuid-phone',
+          '5fde1411-801c-49b9-93d4-abeefd8e1164': 'attr-uuid-ect',
+          'ecdaadb6-14a0-4ed9-b5b7-cfed87b44b87': 'attr-uuid-occ',
+        },
+      };
+
+      const { result } = renderHook(() => useAddPatient());
+
+      await waitFor(async () => {
+        await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          dataWithAttrUuids
+        );
+      });
+
+      const updateCall = mockUpdatePatient.mock.calls[0];
+      const attrs = updateCall[1].person.attributes;
+
+      expect(attrs).toContainEqual(
+        expect.objectContaining({
+          value: '+911234567890',
+          attributeType: '14d4f066-15f5-102d-96e4-000c29c2a5d7',
+          uuid: 'attr-uuid-phone',
+        })
+      );
+
+      expect(attrs).toContainEqual(
+        expect.objectContaining({
+          value: 'Family',
+          attributeType: '5fde1411-801c-49b9-93d4-abeefd8e1164',
+          uuid: 'attr-uuid-ect',
+        })
+      );
+
+      expect(attrs).toContainEqual(
+        expect.objectContaining({
+          value: 'Engineer',
+          attributeType: 'ecdaadb6-14a0-4ed9-b5b7-cfed87b44b87',
+          uuid: 'attr-uuid-occ',
+        })
+      );
+
+      // Attributes without a matching UUID should not have uuid field
+      const emergencyNameAttr = attrs.find(
+        (a: { attributeType: string }) =>
+          a.attributeType === '9b37e244-2cf5-4bd8-af32-b85ed4f919aa'
+      );
+      expect(emergencyNameAttr).toBeDefined();
+      expect(emergencyNameAttr).not.toHaveProperty('uuid');
+    });
+
+    it('should not include attribute UUIDs when attributeUuids is undefined', async () => {
+      mockUpdatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      await waitFor(async () => {
+        await result.current.handleUpdatePatient(
+          'patient-uuid-123',
+          mockPatientFormData
+        );
+      });
+
+      const updateCall = mockUpdatePatient.mock.calls[0];
+      const attrs = updateCall[1].person.attributes;
+
+      for (const attr of attrs) {
+        expect(attr).not.toHaveProperty('uuid');
+      }
     });
   });
 });

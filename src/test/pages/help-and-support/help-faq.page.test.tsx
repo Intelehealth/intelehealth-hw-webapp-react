@@ -20,6 +20,7 @@ vi.mock('../../../modules/help-and-support/help-faq', () => ({
   default: vi.fn(() => <div data-testid="help-faq">HelpFaq</div>),
 }));
 
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import HelpFaqPage from '../../../pages/help-and-support/help-faq.page';
 
 describe('HelpFaqPage', () => {
@@ -28,23 +29,23 @@ describe('HelpFaqPage', () => {
   });
 
   it('should render without crashing', () => {
-    render(<HelpFaqPage />);
+    render(<BreadcrumbProvider><HelpFaqPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpAndSupportComponent layout', () => {
-    render(<HelpFaqPage />);
+    render(<BreadcrumbProvider><HelpFaqPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpSearchHeader with FAQ placeholder', () => {
-    render(<HelpFaqPage />);
+    render(<BreadcrumbProvider><HelpFaqPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('search-header')).toBeInTheDocument();
     expect(screen.getByText('Search FAQs')).toBeInTheDocument();
   });
 
   it('should render HelpFaq component', () => {
-    render(<HelpFaqPage />);
+    render(<BreadcrumbProvider><HelpFaqPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-faq')).toBeInTheDocument();
   });
 

@@ -100,6 +100,11 @@ vi.mock('../../../../assets/icons/edit.svg', () => ({
   default: 'edit.svg',
 }));
 
+const mockShowToast = vi.fn();
+vi.mock('../../../../services/toast', () => ({
+  showToast: (...args: unknown[]) => mockShowToast(...args),
+}));
+
 import PatientProfileComponent from '../../../../modules/patient/profile/patient-profile.component';
 
 
@@ -515,6 +520,7 @@ describe('PatientProfileComponent', () => {
           }),
         }),
         patientUuid: 'test-uuid',
+        editSource: 'profile',
       },
     });
   });
@@ -532,7 +538,25 @@ describe('PatientProfileComponent', () => {
       state: {
         editFormData: null,
         patientUuid: 'test-uuid',
+        editSource: 'profile',
       },
     });
+  });
+
+  it('shows toast when Edit button click handler throws', async () => {
+    h.mockNavigate.mockImplementation(() => {
+      throw new Error('Navigation failed');
+    });
+    h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Edit'));
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Edit Failed',
+      'Could not open edit form. Please try again.',
+      'error'
+    );
+    h.mockNavigate.mockReset();
   });
 });

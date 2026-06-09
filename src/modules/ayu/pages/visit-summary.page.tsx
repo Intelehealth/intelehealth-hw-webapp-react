@@ -6,6 +6,8 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
+import ROUTES from '../../../routes/paths';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -24,11 +26,11 @@ import { ConfirmationModal } from '../../../components/modal/confirmation.modal'
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { useProfileContext } from '../../../context/ProfileContext';
 import { useConfig } from '../../../hooks/useConfig';
-import { showToast } from '../../../services/toast';
 import { fetchConceptAnswers } from '../../../services/concept.service';
+import { showToast } from '../../../services/toast';
 import type { ConceptAnswer } from '../../../types/config.types';
-import { patientService } from '../../patient/add/add-patient.service';
 import { storage } from '../../../utils/storage';
+import { patientService } from '../../patient/add/add-patient.service';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
@@ -39,7 +41,9 @@ import {
   clearPendingDocuments,
   getLatestEncounterUuid,
   getLatestVisitUuid,
+  getPendingImages,
   uploadAllAdditionalDocuments,
+  uploadAllPhysicalExamImages,
 } from '../services/obs.service';
 import { bulkMarkSynced } from '../services/temp-storage.service';
 import {
@@ -61,10 +65,8 @@ import {
   PATIENT_NAME_KEY,
   PATIENT_UUID_KEY,
 } from '../utils/ayu.constants';
-import {
-  parseFhirPhysExamQuestionnaire,
-  type FhirQuestionnaire,
-} from '../utils/parseFhirPhysExamQuestionnaire';
+import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
+import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -244,7 +246,7 @@ const CheckupReasonSection: React.FC<{ checkupReason: CheckupReason }> = ({
       {checkupReason.chiefComplaints.map(complaint => (
         <span
           key={complaint}
-          className="inline-flex items-center justify-center min-w-[105px] h-[26px] bg-[#2E1E91] text-white text-xs font-semibold rounded-[4px] mr-2 gap-1 py-1 px-2 whitespace-nowrap"
+          className="inline-flex items-center justify-center min-w-26.25 h-6.5 bg-[#2E1E91] text-white text-xs font-semibold rounded-sm mr-2 gap-1 py-1 px-2 whitespace-nowrap"
         >
           {complaint}
         </span>
@@ -304,6 +306,11 @@ const MedicalHistorySection: React.FC<{
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'Start Visit', path: '/ayu' },
+    { label: 'Visit Summary' },
+  ]);
   const {
     data,
     patientUuid: ctxPatientUuid,
@@ -315,18 +322,22 @@ const VisitSummaryPage = () => {
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const physicalExamQuestions = useMemo(() => {
     const item = ayuList.find(i => i.name === 'physExam.json');
-    return item
-      ? parseFhirPhysExamQuestionnaire(
-          item.json as unknown as FhirQuestionnaire
-        )
-      : [];
+    if (!item) return [];
+    // Build the obs questions from the SAME transform the PE stepper uses, so
+    // the question ids / option codes line up with the stored answers. Using a
+    // separate parser here left the upload obs blank once the stepper started
+    // unwrapping concept-tag wrappers and collapsing branching sub-forms.
+    const root = transformFhirPhysExamToAyu(
+      item.json as unknown as Parameters<typeof transformFhirPhysExamToAyu>[0]
+    );
+    return flattenAyuPhysExamQuestions(root);
   }, [ayuList]);
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploaded, setIsUploaded] = useState(false);
   const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState(false);
-  const [speciality, setSpeciality] = useState('General Physician');
+  const [speciality, setSpeciality] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [additionalDocuments, setAdditionalDocuments] = useState<
@@ -471,13 +482,15 @@ const VisitSummaryPage = () => {
         physicalExam,
         medicalHistory,
         familyHistory,
-        speciality,
+        speciality: speciality || 'General Physician',
         priorityVisit,
         doctorNotes: additionalNotes,
       });
 
       const response = await uploadVisit(payload);
-      if (additionalDocuments.length > 0) {
+
+      const hasPendingImages = getPendingImages().length > 0;
+      if (hasPendingImages || additionalDocuments.length > 0) {
         let encounterUuid: string | undefined;
 
         if (response?.encounters) {
@@ -494,11 +507,22 @@ const VisitSummaryPage = () => {
           );
         }
 
-        clearPendingDocuments();
-        for (const doc of additionalDocuments) {
-          addPendingDocument(doc.file, doc.name);
+        if (hasPendingImages && encounterUuid) {
+          try {
+            await uploadAllPhysicalExamImages(encounterUuid, patientUuid);
+          } catch (imgError) {
+            // Visit is already uploaded — don't fail the whole flow on image error
+            console.error('Failed to upload physical exam images:', imgError);
+          }
         }
-        await uploadAllAdditionalDocuments(encounterUuid, patientUuid);
+
+        if (additionalDocuments.length > 0) {
+          clearPendingDocuments();
+          for (const doc of additionalDocuments) {
+            addPendingDocument(doc.file, doc.name);
+          }
+          await uploadAllAdditionalDocuments(encounterUuid, patientUuid);
+        }
       }
 
       if (tempRecordId) {
@@ -522,7 +546,6 @@ const VisitSummaryPage = () => {
   }, [
     data,
     hwProfile,
-    navigate,
     ctxPatientUuid,
     speciality,
     priorityVisit,
@@ -776,7 +799,7 @@ const VisitSummaryPage = () => {
             )}
             value={speciality}
             onChange={val => setSpeciality(val as string)}
-            placeholder="General physician"
+            placeholder="Select Doctor's specialty"
             size="sm"
           />
         </div>
@@ -824,7 +847,7 @@ const VisitSummaryPage = () => {
             type="button"
             onClick={() =>
               navigate(`/appointment-schedule/${uploadedVisitUuid}`, {
-                state: { speciality },
+                state: { speciality: speciality || 'General Physician' },
               })
             }
             className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90"

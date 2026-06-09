@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { PrescriptionsReceived } from '../../../modules/dashboard/prescriptions-received.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -9,6 +10,19 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return { ...actual, useNavigate: () => mockNavigate };
 });
+
+vi.mock('../../../components/common/filter-module.component', () => ({
+  default: ({ onApply }: { onApply: (value: any) => void }) => (
+    <div data-testid="filter-module">
+      <button
+        data-testid="mock-filter-apply"
+        onClick={() => onApply({ mode: 'date', from: '2025-04-21', to: null })}
+      >
+        Mock Apply
+      </button>
+    </div>
+  ),
+}));
 
 const mockUsePrescriptionsReceived = vi.fn();
 const mockUsePrescriptionsPending = vi.fn();
@@ -80,7 +94,9 @@ const defaultPendingState = {
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <PrescriptionsReceived {...props} />
+      <BreadcrumbProvider>
+        <PrescriptionsReceived {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -101,10 +117,9 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getByText('Prescriptions')).toBeInTheDocument();
     });
 
-    it('renders sort icons next to search', () => {
+    it('renders filter icon next to search', () => {
       renderComponent();
-      expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
-      expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
+      expect(screen.getByAltText('filter')).toBeInTheDocument();
     });
 
     it('renders search input with placeholder', () => {
@@ -387,8 +402,8 @@ describe('PrescriptionsReceived', () => {
       fireEvent.click(patientHeaders[0]); // null
 
       const allSortIcons = [
-        ...screen.getAllByAltText('sort-asc'),
-        ...screen.getAllByAltText('sort-desc'),
+        ...screen.queryAllByAltText('sort-asc'),
+        ...screen.queryAllByAltText('sort-desc'),
       ];
       allSortIcons.forEach(el => expect(el).not.toHaveClass('opacity-100'));
     });
@@ -429,36 +444,77 @@ describe('PrescriptionsReceived', () => {
     });
   });
 
-  describe('Name sort button (search area)', () => {
-    it('first click sorts ascending — sort-asc icon becomes active', () => {
+  describe('Filter icon (search area)', () => {
+    it('renders the filter icon next to the search input', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      fireEvent.click(sortAscIcon); // triggers toggleNameSort via bubbling
-
-      expect(sortAscIcon).toHaveClass('opacity-100');
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toBeInTheDocument();
+      expect(filterIcon).toHaveClass('w-5', 'h-5');
     });
 
-    it('second click sorts descending — sort-desc icon becomes active', () => {
+    it('filter icon has hover styling', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
+      const filterIcon = screen.getByAltText('filter');
+      expect(filterIcon).toHaveClass('cursor-pointer', 'hover:opacity-70', 'transition');
+    });
+  });
 
-      expect(sortDescIcon).toHaveClass('opacity-100');
-      expect(sortAscIcon).toHaveClass('opacity-50');
+  describe('Filter module', () => {
+    it('opens filter module when filter icon is clicked', () => {
+      renderComponent();
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
     });
 
-    it('third click clears sort — both icons inactive', () => {
+    it('closes filter module when filter icon is clicked again', () => {
       renderComponent();
-      const sortAscIcon = screen.getAllByAltText('sort-asc')[0];
-      const sortDescIcon = screen.getAllByAltText('sort-desc')[0];
-      fireEvent.click(sortAscIcon); // asc
-      fireEvent.click(sortAscIcon); // desc
-      fireEvent.click(sortAscIcon); // null
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
 
-      expect(sortAscIcon).toHaveClass('opacity-50');
-      expect(sortDescIcon).toHaveClass('opacity-50');
+    it('closes filter module on outside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('does not close filter module on inside click', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+      fireEvent.mouseDown(screen.getByTestId('filter-module'));
+      expect(screen.getByTestId('filter-module')).toBeInTheDocument();
+    });
+
+    it('closes filter module after applying filter', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      expect(screen.queryByTestId('filter-module')).not.toBeInTheDocument();
+    });
+
+    it('applies date filter to received prescriptions', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      // Filter for 2025-04-21 matches only 'Sarrah Paul'
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Nikita Agrawal')).not.toBeInTheDocument();
+      expect(screen.queryByText('Suresh Deshmukh')).not.toBeInTheDocument();
+    });
+
+    it('applies date filter to pending prescriptions', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      // Filter for 2025-04-21 matches 'Ravi Kumar' (visitCreatedDate: 2025-04-21)
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
     });
   });
 
@@ -482,13 +538,23 @@ describe('PrescriptionsReceived', () => {
     });
   });
 
+  describe('Dynamic row count on resize', () => {
+    it('recalculates row count on window resize when initialRowCount is not provided', () => {
+      renderComponent();
+      // Trigger a resize event — the handleResize callback recalculates dynamicRowCount
+      fireEvent(window, new Event('resize'));
+      // Component should still render without crashing after resize
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Row click navigation', () => {
     it('navigates to visit-details on received row click', () => {
       renderComponent();
       const patientNames = screen.getAllByText('Sarrah Paul');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
     });
 
     it('navigates to visit-details on pending row click', () => {
@@ -497,7 +563,36 @@ describe('PrescriptionsReceived', () => {
       const patientNames = screen.getAllByText('Ravi Kumar');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', { state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' } });
+    });
+
+    it('navigates without state when rendered on dashboard (received tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      const patientNames = screen.getAllByText('Sarrah Paul');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/r-1', undefined);
+    });
+
+    it('navigates without state when rendered on dashboard (pending tab)', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <BreadcrumbProvider>
+            <PrescriptionsReceived />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const patientNames = screen.getAllByText('Ravi Kumar');
+      const row = patientNames[0].closest('.rounded-xl');
+      fireEvent.click(row!);
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/p-1', undefined);
     });
   });
 });

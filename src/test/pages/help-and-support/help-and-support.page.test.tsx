@@ -24,6 +24,7 @@ vi.mock('../../../modules/help-and-support/help-faq', () => ({
   default: vi.fn(() => <div data-testid="help-faq">HelpFaq</div>),
 }));
 
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import HelpAndSupportPage from '../../../pages/help-and-support/help-and-support.page';
 
 describe('HelpAndSupportPage', () => {
@@ -32,29 +33,29 @@ describe('HelpAndSupportPage', () => {
   });
 
   it('should render without crashing', () => {
-    render(<HelpAndSupportPage />);
+    render(<BreadcrumbProvider><HelpAndSupportPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpAndSupportComponent layout', () => {
-    render(<HelpAndSupportPage />);
+    render(<BreadcrumbProvider><HelpAndSupportPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-layout')).toBeInTheDocument();
   });
 
   it('should render HelpSearchHeader in headerRight', () => {
-    render(<HelpAndSupportPage />);
+    render(<BreadcrumbProvider><HelpAndSupportPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('header-right')).toBeInTheDocument();
     expect(screen.getByTestId('search-header')).toBeInTheDocument();
     expect(screen.getByText('Search for help')).toBeInTheDocument();
   });
 
   it('should render HelpVideo component', () => {
-    render(<HelpAndSupportPage />);
+    render(<BreadcrumbProvider><HelpAndSupportPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-video')).toBeInTheDocument();
   });
 
   it('should render HelpFaq component', () => {
-    render(<HelpAndSupportPage />);
+    render(<BreadcrumbProvider><HelpAndSupportPage /></BreadcrumbProvider>);
     expect(screen.getByTestId('help-faq')).toBeInTheDocument();
   });
 

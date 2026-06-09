@@ -1,7 +1,7 @@
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
 import type { MedicalHistorySummary } from '../context/start-visit.context';
-import { ITEM_TYPES } from '../utils/ayu.constants';
+import { ITEM_TYPES, PE_PICTURE_TAKEN_LABEL } from '../utils/ayu.constants';
 import {
   ADULT_INITIAL_CONCEPTS,
   ENCOUNTER_ROLE,
@@ -11,6 +11,7 @@ import {
 } from '../constants/visit-upload.constants';
 import type {
   PhysicalExamAnswers,
+  PhysicalExamOption,
   PhysicalExamQuestion,
 } from '../types/physical-exam.types';
 import type {
@@ -82,15 +83,26 @@ export function buildPhysicalExamData(
   let rawHtml = '';
   let currentSection = '';
 
+  const pictureTag = `[${PE_PICTURE_TAKEN_LABEL}]`;
+
   for (const question of questions) {
     const selectedIds = answers[question.id] ?? [];
     if (selectedIds.length === 0) continue;
 
-    const selectedTexts = selectedIds
-      .map(id => question.options.find(o => o.id === id)?.text)
-      .filter(Boolean);
+    const selectedOptions = selectedIds
+      .map(id => question.options.find(o => o.id === id))
+      .filter((o): o is PhysicalExamOption => Boolean(o));
 
-    if (!selectedTexts.length) continue;
+    // "Picture Taken" is an annotation on the finding, not an answer of its
+    // own — e.g. selecting "Yes" + capturing a photo reads "yes [Picture
+    // Taken]" rather than listing "picture taken" as a separate answer.
+    const answerTexts = selectedOptions
+      .filter(o => !o.isCamera)
+      .map(o => o.text)
+      .filter(Boolean);
+    const hasPicture = selectedOptions.some(o => o.isCamera);
+
+    if (answerTexts.length === 0 && !hasPicture) continue;
 
     if (question.sectionLabel && question.sectionLabel !== currentSection) {
       currentSection = question.sectionLabel;
@@ -99,12 +111,22 @@ export function buildPhysicalExamData(
       rawHtml += `►<b>${sectionName}: </b><br/>`;
     }
 
-    const answerText = selectedTexts.join(', ').toLowerCase();
+    const baseText = answerTexts.join(', ').toLowerCase();
+    const answerText = hasPicture
+      ? `${baseText ? `${baseText} ` : ''}${pictureTag}`
+      : baseText;
     displayHtml += `• ${question.categoryLabel}-${answerText}. <br/>`;
 
     rawHtml += `• ${question.categoryLabel}-● ${question.questionText}${question.isRequired ? '*' : ''}<br/>`;
-    for (const text of selectedTexts) {
-      rawHtml += `•${text}-<br/>`;
+    if (answerTexts.length === 0) {
+      // Picture-only finding.
+      rawHtml += `•${pictureTag}-<br/>`;
+    } else {
+      answerTexts.forEach((text, idx) => {
+        const isLast = idx === answerTexts.length - 1;
+        const suffix = hasPicture && isLast ? ` ${pictureTag}` : '';
+        rawHtml += `•${text}${suffix}-<br/>`;
+      });
     }
   }
 

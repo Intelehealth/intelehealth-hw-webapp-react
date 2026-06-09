@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
-import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
+import iconFilter from '../../assets/icons/icon-filter.svg';
 
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
@@ -10,6 +9,7 @@ import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-re
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { PRESCRIPTION_TABS } from '../../assets/data/prescription-detail.data';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import FilterModule from '../../components/common/filter-module.component';
 import { usePrescriptionsPending } from '../../hooks/usePrescriptionsPending';
 import { usePrescriptionsReceived } from '../../hooks/usePrescriptionsReceived';
 import { useColumnSort } from '../../hooks/useColumnSort';
@@ -18,6 +18,8 @@ import type {
   PrescriptionPendingVisit,
   PrescriptionReceivedVisit,
 } from '../../services/patient.service';
+import type { FilterValue } from '../../utils/date-filter';
+import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface PrescriptionsReceivedProps {
   onCountLoaded?: (count: number) => void;
@@ -29,16 +31,17 @@ export const PrescriptionsReceived = ({
   initialRowCount,
 }: PrescriptionsReceivedProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [activeTab, setActiveTab] = useState<string>(
     PRESCRIPTION_TABS.RECEIVED
   );
   const [search, setSearch] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
-  const {
-    sortOrder: nameSortOrder,
-    toggleSort: toggleNameSort,
-    applySort: applyNameSort,
-  } = useSortByName();
+  const { applySort: applyNameSort } = useSortByName();
 
   const {
     data: receivedData,
@@ -53,23 +56,68 @@ export const PrescriptionsReceived = ({
     error: pendingError,
   } = usePrescriptionsPending();
 
+  const ROW_HEIGHT = 52; // 46px row + 6px gap
+  const HEADER_OFFSET = 370; // space above rows (cards, action bar, table header, tabs, column header)
+  const MIN_ROWS = 4;
+
+  const computeRowCount = useCallback(
+    () =>
+      initialRowCount ??
+      Math.max(
+        MIN_ROWS,
+        Math.floor((window.innerHeight - HEADER_OFFSET) / ROW_HEIGHT)
+      ),
+    [initialRowCount]
+  );
+
+  const [dynamicRowCount, setDynamicRowCount] = useState(computeRowCount);
+
+  useEffect(() => {
+    if (initialRowCount != null) return;
+    const handleResize = () => setDynamicRowCount(computeRowCount());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [initialRowCount, computeRowCount]);
+
   useEffect(() => {
     if (onCountLoaded) onCountLoaded(receivedCount);
   }, [receivedCount, onCountLoaded]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFilterApply = (value: FilterValue) => {
+    setDateFilter(value);
+    setShowFilter(false);
+  };
+
   const filteredReceived = useMemo(() => {
-    const filtered = receivedData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const filtered = receivedData.filter(
+      p =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(filtered));
-  }, [receivedData, search, applySort, applyNameSort]);
+  }, [receivedData, search, dateFilter, applySort, applyNameSort]);
 
   const filteredPending = useMemo(() => {
-    const filtered = pendingData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const filtered = pendingData.filter(
+      p =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(filtered));
-  }, [pendingData, search, applySort, applyNameSort]);
+  }, [pendingData, search, dateFilter, applySort, applyNameSort]);
 
   const receivedColumns: {
     header: string;
@@ -148,7 +196,7 @@ export const PrescriptionsReceived = ({
     : 'No pending prescriptions found.';
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex flex-col flex-1 min-h-0">
         <div className="mx-auto flex flex-col flex-1 min-h-0 w-full">
           {/* Main Card */}
@@ -169,19 +217,20 @@ export const PrescriptionsReceived = ({
 
               <div className="flex items-center gap-3">
                 <div
-                  className="flex items-center gap-0.5 cursor-pointer"
-                  onClick={toggleNameSort}
+                  ref={filterRef}
+                  className="relative flex items-center gap-3 shrink-0"
                 >
                   <img
-                    src={iconAscSorted}
-                    alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
+                    src={iconFilter}
+                    alt="filter"
+                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    onClick={() => setShowFilter(prev => !prev)}
                   />
-                  <img
-                    src={iconDescSorted}
-                    alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
-                  />
+                  {showFilter && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <FilterModule onApply={handleFilterApply} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
                   <img
@@ -233,8 +282,20 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={receivedColumns}
                 data={loading ? [] : filteredReceived}
-                initialRowCount={initialRowCount}
-                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+                initialRowCount={dynamicRowCount}
+                onRowClick={row =>
+                  navigate(
+                    `/visit-details/${row.visitUuid}`,
+                    isOnDashboard
+                      ? undefined
+                      : {
+                          state: {
+                            fromLabel: 'Prescriptions',
+                            fromPath: '/prescriptions',
+                          },
+                        }
+                  )
+                }
                 sortKey={sortKey}
                 sortOrder={sortOrder}
                 onSort={toggleSort}
@@ -243,8 +304,20 @@ export const PrescriptionsReceived = ({
               <ReusableGridTable
                 columns={pendingColumns}
                 data={loading ? [] : filteredPending}
-                initialRowCount={initialRowCount}
-                onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+                initialRowCount={dynamicRowCount}
+                onRowClick={row =>
+                  navigate(
+                    `/visit-details/${row.visitUuid}`,
+                    isOnDashboard
+                      ? undefined
+                      : {
+                          state: {
+                            fromLabel: 'Prescriptions',
+                            fromPath: '/prescriptions',
+                          },
+                        }
+                  )
+                }
                 sortKey={sortKey}
                 sortOrder={sortOrder}
                 onSort={toggleSort}

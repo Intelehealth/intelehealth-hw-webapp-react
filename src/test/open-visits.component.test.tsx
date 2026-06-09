@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { OpenVisitsComponent } from '../modules/dashboard/open-visits.component';
+import { BreadcrumbProvider } from '../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -45,7 +46,9 @@ const mockData = [
 const renderComponent = (props = {}) =>
   render(
     <MemoryRouter>
-      <OpenVisitsComponent {...props} />
+      <BreadcrumbProvider>
+        <OpenVisitsComponent {...props} />
+      </BreadcrumbProvider>
     </MemoryRouter>
   );
 
@@ -143,10 +146,9 @@ describe('OpenVisitsComponent', () => {
     expect(screen.queryByText('Show all →')).not.toBeInTheDocument();
   });
 
-  it('renders sort icons next to search', () => {
+  it('renders filter icon next to search', () => {
     renderComponent();
-    expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
-    expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
+    expect(screen.getByAltText('filter')).toBeInTheDocument();
   });
 
   it('renders search icon', () => {
@@ -213,7 +215,7 @@ describe('OpenVisitsComponent', () => {
       const patientNames = screen.getAllByText('Ravi Kumar');
       const row = patientNames[0].closest('.rounded-xl');
       fireEvent.click(row!);
-      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/visit-details/v-1', { state: { fromLabel: 'Open Visits', fromPath: '/open-visits' } });
     });
   });
 });

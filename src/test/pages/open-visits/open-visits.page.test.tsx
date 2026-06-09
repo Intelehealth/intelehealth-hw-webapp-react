@@ -11,12 +11,15 @@ vi.mock('../../../hooks/usePriorityVisits', () => ({
 }));
 
 import OpenVisitsPage from '../../../pages/open-visits/open-visits.page';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 describe('OpenVisitsPage', () => {
   it('renders Open Visits heading', () => {
     render(
       <MemoryRouter>
-        <OpenVisitsPage />
+        <BreadcrumbProvider>
+          <OpenVisitsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -27,7 +30,9 @@ describe('OpenVisitsPage', () => {
     expect(() => {
       render(
         <MemoryRouter>
-          <OpenVisitsPage />
+          <BreadcrumbProvider>
+            <OpenVisitsPage />
+          </BreadcrumbProvider>
         </MemoryRouter>
       );
     }).not.toThrow();
@@ -36,7 +41,9 @@ describe('OpenVisitsPage', () => {
   it('renders wrapper with flex layout classes', () => {
     const { container } = render(
       <MemoryRouter>
-        <OpenVisitsPage />
+        <BreadcrumbProvider>
+          <OpenVisitsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
@@ -47,28 +54,33 @@ describe('OpenVisitsPage', () => {
   it('renders search input from OpenVisitsComponent', () => {
     render(
       <MemoryRouter>
-        <OpenVisitsPage />
+        <BreadcrumbProvider>
+          <OpenVisitsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
     expect(screen.getByPlaceholderText('Find patient')).toBeInTheDocument();
   });
 
-  it('renders sort icons next to search', () => {
+  it('renders filter icon next to search', () => {
     render(
       <MemoryRouter>
-        <OpenVisitsPage />
+        <BreadcrumbProvider>
+          <OpenVisitsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 
-    expect(screen.getAllByAltText('sort-asc').length).toBeGreaterThan(0);
-    expect(screen.getAllByAltText('sort-desc').length).toBeGreaterThan(0);
+    expect(screen.getByAltText('filter')).toBeInTheDocument();
   });
 
   it('shows empty message when no data', () => {
     render(
       <MemoryRouter>
-        <OpenVisitsPage />
+        <BreadcrumbProvider>
+          <OpenVisitsPage />
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
 

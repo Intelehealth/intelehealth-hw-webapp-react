@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
-import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
+import iconFilter from '../../assets/icons/icon-filter.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import FilterModule from '../../components/common/filter-module.component';
 import {
   useFollowupVisits,
   type FollowupVisit,
 } from '../../hooks/useFollowupVisits';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
+import type { FilterValue } from '../../utils/date-filter';
+import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface FollowupVisitsProps {
   initialRowCount?: number;
@@ -21,21 +23,42 @@ export const FollowupVisitsComponent = ({
   initialRowCount,
 }: FollowupVisitsProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [search, setSearch] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
-  const {
-    sortOrder: nameSortOrder,
-    toggleSort: toggleNameSort,
-    applySort: applyNameSort,
-  } = useSortByName();
+  const { applySort: applyNameSort } = useSortByName();
   const { data, loading, error } = useFollowupVisits();
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFilterApply = (value: FilterValue) => {
+    setDateFilter(value);
+    setShowFilter(false);
+  };
+
   const filtered = useMemo(() => {
-    const result = data.filter((p: FollowupVisit) =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const result = data.filter(
+      (p: FollowupVisit) =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(result));
-  }, [data, search, applySort, applyNameSort]);
+  }, [data, search, dateFilter, applySort, applyNameSort]);
 
   const columns: {
     header: string;
@@ -81,19 +104,20 @@ export const FollowupVisitsComponent = ({
 
               <div className="flex items-center gap-3">
                 <div
-                  className="flex items-center gap-0.5 cursor-pointer"
-                  onClick={toggleNameSort}
+                  ref={filterRef}
+                  className="relative flex items-center gap-3 shrink-0"
                 >
                   <img
-                    src={iconAscSorted}
-                    alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
+                    src={iconFilter}
+                    alt="filter"
+                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    onClick={() => setShowFilter(prev => !prev)}
                   />
-                  <img
-                    src={iconDescSorted}
-                    alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
-                  />
+                  {showFilter && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <FilterModule onApply={handleFilterApply} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
                   <img
@@ -116,7 +140,19 @@ export const FollowupVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
-              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              onRowClick={row =>
+                navigate(
+                  `/visit-details/${row.visitUuid}`,
+                  isOnDashboard
+                    ? undefined
+                    : {
+                        state: {
+                          fromLabel: 'Follow-up Visits',
+                          fromPath: '/followup-visits',
+                        },
+                      }
+                )
+              }
               sortKey={sortKey}
               sortOrder={sortOrder}
               onSort={toggleSort}

@@ -4037,7 +4037,7 @@ describe('useFHIRStepper', () => {
       );
     });
 
-    it('should show select option toast when nested choice child is unanswered', () => {
+    it('should show select option toast when a required nested choice child is unanswered', () => {
       const nestedChoiceQuestionnaire = {
         item: [
           {
@@ -4052,6 +4052,7 @@ describe('useFHIRStepper', () => {
               {
                 linkId: 'q1.child',
                 type: 'choice',
+                required: true,
                 answerOption: [
                   { valueCoding: { code: 'a', display: 'A' } },
                 ],
@@ -4213,6 +4214,17 @@ describe('useFHIRStepper', () => {
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
           // jaundice is not required and unanswered → not a missing-image case
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('treats a non-array, non-string camera answer as having no camera code', () => {
+      cameraHolder.current = { cameraImagesFor: () => [] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: { unexpected: true } as any },
         })
       );
       expect(result.current.validateAllQuestions()).toBe(true);

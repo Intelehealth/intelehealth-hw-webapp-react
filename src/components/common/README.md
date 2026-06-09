@@ -337,6 +337,157 @@ interface Column<T> {
 - `initialRowCount`: number — number of rows shown before "Show all" toggle (default: 6)
 - `onRowClick`: (row: T) => void — optional click handler; makes rows appear clickable
 
+### Breadcrumb
+
+A layout-level breadcrumb navigation component driven by React Context. Pages declaratively set their breadcrumb trail using the `useBreadcrumb` hook, and the `Breadcrumb` component (rendered once in `MainContainer`) displays it automatically.
+
+```tsx
+// In your page component:
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+
+const SettingsPage: React.FC = () => {
+  useBreadcrumb([
+    { label: 'Dashboard', path: '/dashboard' },
+    { label: 'Settings' },
+  ]);
+
+  return <SettingsComponent />;
+};
+
+// With custom background color:
+const EducationalVideosPage: React.FC = () => {
+  useBreadcrumb(
+    [
+      { label: 'Dashboard', path: '/dashboard' },
+      { label: 'Educational Videos' },
+    ],
+    { bgColor: 'bg-gray-50' }
+  );
+
+  return <EducationalVideos />;
+};
+
+// With navigation state on breadcrumb links:
+const PrescriptionDetailPage: React.FC = () => {
+  useBreadcrumb([
+    { label: 'Dashboard', path: '/dashboard' },
+    {
+      label: 'Visit Details',
+      path: '/visit-details/123',
+      state: { fromLabel: 'Prescriptions', fromPath: '/prescriptions' },
+    },
+    { label: 'Prescription Detail' },
+  ]);
+
+  return <PrescriptionDetail />;
+};
+```
+
+**How it works:**
+
+1. `BreadcrumbProvider` wraps the layout in `MainContainer` and holds the breadcrumb state.
+2. Pages call `useBreadcrumb(items, options?)` to set their trail on mount. Items are cleared automatically on unmount.
+3. The `Breadcrumb` component reads from context and renders the trail. It returns `null` when no items are set (e.g. Dashboard page).
+
+**BreadcrumbItem Interface:**
+
+```tsx
+interface BreadcrumbItem {
+  label: string;
+  path?: string;
+  state?: Record<string, unknown>;
+}
+```
+
+**useBreadcrumb Options:**
+
+- `bgColor`: string — Tailwind background class applied to the breadcrumb nav and content container (default: `'bg-white'`)
+
+**Breadcrumb Props:**
+
+- `className`: string — additional CSS classes merged onto the `<nav>` element
+
+**Files:**
+
+- `src/context/BreadcrumbContext.tsx` — provider and context hook
+- `src/hooks/useBreadcrumb.ts` — page-level hook
+- `src/components/common/breadcrumb.component.tsx` — rendered component
+
+### FilterModule
+
+A reusable date/range filter component that appears as a popover anchored to a filter icon. Supports single-date and date-range modes with a toggle, and integrates with the existing `Calendar` component.
+
+```tsx
+import { FilterModule } from './components/common';
+import { isDateInFilterRange } from '../../utils/date-filter';
+import type { FilterValue } from '../../utils/date-filter';
+
+// State
+const [showFilter, setShowFilter] = useState(false);
+const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+const filterRef = useRef<HTMLDivElement>(null);
+
+// Popover trigger (attach to a filter icon)
+<div ref={filterRef} className="relative">
+  <img src={iconFilter} onClick={() => setShowFilter(prev => !prev)} />
+  {showFilter && (
+    <div className="absolute right-0 top-full mt-2 z-50">
+      <FilterModule
+        onApply={value => {
+          setDateFilter(value);
+          setShowFilter(false);
+        }}
+      />
+    </div>
+  )}
+</div>;
+
+// Apply filter in useMemo
+const filtered = useMemo(() => {
+  return data.filter(
+    row =>
+      row.patientName.toLowerCase().includes(search.toLowerCase()) &&
+      isDateInFilterRange(row.visitCreatedDate, dateFilter)
+  );
+}, [data, search, dateFilter]);
+```
+
+**Props:**
+
+- `onApply`: (value: FilterValue) => void — callback fired when Apply is clicked (required)
+- `defaultMode`: 'date' | 'range' — initial filter mode (default: `'range'`)
+- `defaultFrom`: string — initial from date in `yyyy-MM-dd` format
+- `defaultTo`: string — initial to date in `yyyy-MM-dd` format
+- `showToggle`: boolean — show/hide the Date/Range toggle buttons (default: `true`)
+- `className`: string — additional CSS classes for the container
+
+**FilterValue Interface:**
+
+```ts
+interface FilterValue {
+  mode: 'date' | 'range';
+  from: string; // yyyy-MM-dd
+  to: string | null; // null in date mode
+}
+```
+
+**Helper — `isDateInFilterRange(dateStr, filter)`:**
+
+Parses both ISO (`2025-04-21`) and human-readable (`10 Oct 2025, at 10:00 am`) date formats. Returns `true` when filter is `null` or the date string is unparseable.
+
+**Files:**
+
+- Component: `src/components/common/filter-module.component.tsx`
+- Date utility: `src/utils/date-filter.ts`
+- Tests: `src/test/common/FilterModule.test.tsx`, `src/test/utils/date-filter.test.ts`
+
+**Integrated in:**
+
+- Open Visits (`src/modules/dashboard/open-visits.component.tsx`) — filters on `visitCreatedDate`
+- Appointment List (`src/modules/dashboard/appointment-list.component.tsx`) — filters on `dateTime`
+- Follow-up Visits (`src/modules/dashboard/followup-visits.component.tsx`) — filters on `visitCreatedDate`
+- Prescriptions (`src/modules/dashboard/prescriptions-received.component.tsx`) — filters on `visitCreatedDate`
+
 ### VideoCard
 
 A responsive video card component that displays a video thumbnail with a play button overlay and duration badge. Renders as a horizontal row on mobile and a vertical card on desktop.

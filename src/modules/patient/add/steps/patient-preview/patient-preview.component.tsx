@@ -192,6 +192,15 @@ export default function PatientPreviewComponent({
                 size="sm"
                 type="button"
                 leftIcon={<img src={iconEdit} alt="" className="w-4 h-4" />}
+                onClick={() =>
+                  navigate('/patient/edit', {
+                    state: {
+                      editFormData: data,
+                      patientUuid,
+                      editSource: 'preview',
+                    },
+                  })
+                }
               >
                 Edit
               </Button>

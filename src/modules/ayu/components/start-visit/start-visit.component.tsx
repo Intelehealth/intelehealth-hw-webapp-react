@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useBreadcrumb } from '../../../../hooks/useBreadcrumb';
+import ROUTES from '../../../../routes/paths';
 import { storage } from '../../../../utils/storage';
 import type { SectionState } from '../../../ayu-library/types/start-visit.types';
 import {
@@ -44,6 +46,11 @@ export const getPhysicalExamFilter = (
 export const StartVisit = () => {
   const { lastSectionIndex, data } = useStartVisitData();
   const { state } = useLocation();
+
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'Start Visit' },
+  ]);
 
   const patientName =
     state?.patientName ?? storage.get(PATIENT_NAME_KEY) ?? null;

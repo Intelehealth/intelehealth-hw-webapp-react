@@ -1,19 +1,21 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import iconSearch from '../../assets/icons/icon-search.svg';
-import iconAscSorted from '../../assets/icons/icon-asc-sorted.svg';
-import iconDescSorted from '../../assets/icons/icon-desc-sorted.svg';
+import iconFilter from '../../assets/icons/icon-filter.svg';
 
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconSummaryList from '../../assets/icons/appointment/icon-summary-list.svg';
 import iconPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
+import FilterModule from '../../components/common/filter-module.component';
 import { useOpenVisits } from '../../hooks/useOpenVisits';
 import { usePriorityVisits } from '../../hooks/usePriorityVisits';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
+import type { FilterValue } from '../../utils/date-filter';
+import { isDateInFilterRange } from '../../utils/date-filter';
 
 export const OPEN_VISITS_TABS = {
   OPEN: 'Open Visits',
@@ -36,18 +38,37 @@ export const OpenVisitsComponent = ({
   initialRowCount,
 }: OpenVisitsProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/dashboard';
   const [activeTab, setActiveTab] = useState<OpenVisitsTab>(
     OPEN_VISITS_TABS.OPEN
   );
   const [search, setSearch] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState<FilterValue | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
-  const {
-    sortOrder: nameSortOrder,
-    toggleSort: toggleNameSort,
-    applySort: applyNameSort,
-  } = useSortByName();
+  const { applySort: applyNameSort } = useSortByName();
   const openVisits = useOpenVisits();
   const priorityVisits = usePriorityVisits();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFilterApply = (value: FilterValue) => {
+    setDateFilter(value);
+    setShowFilter(false);
+  };
 
   const isPriorityTab = activeTab === OPEN_VISITS_TABS.PRIORITY;
   /* Priority tab pulls from a dedicated endpoint (?type=priority-visits) so
@@ -55,11 +76,13 @@ export const OpenVisitsComponent = ({
   const { data, loading, error } = isPriorityTab ? priorityVisits : openVisits;
 
   const filtered = useMemo(() => {
-    const result = data.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+    const result = data.filter(
+      p =>
+        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        isDateInFilterRange(p.visitCreatedDate, dateFilter)
     );
     return applySort(applyNameSort(result));
-  }, [data, search, applySort, applyNameSort]);
+  }, [data, search, dateFilter, applySort, applyNameSort]);
 
   const columns: Column[] = [
     {
@@ -116,19 +139,20 @@ export const OpenVisitsComponent = ({
 
               <div className="flex items-center gap-3">
                 <div
-                  className="flex items-center gap-0.5 cursor-pointer"
-                  onClick={toggleNameSort}
+                  ref={filterRef}
+                  className="relative flex items-center gap-3 shrink-0"
                 >
                   <img
-                    src={iconAscSorted}
-                    alt="sort-asc"
-                    className={`transition ${nameSortOrder === 'asc' ? 'opacity-100' : 'opacity-50'}`}
+                    src={iconFilter}
+                    alt="filter"
+                    className="w-5 h-5 cursor-pointer hover:opacity-70 transition"
+                    onClick={() => setShowFilter(prev => !prev)}
                   />
-                  <img
-                    src={iconDescSorted}
-                    alt="sort-desc"
-                    className={`transition ${nameSortOrder === 'desc' ? 'opacity-100' : 'opacity-50'}`}
-                  />
+                  {showFilter && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <FilterModule onApply={handleFilterApply} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative flex items-center w-full sm:w-auto">
                   <img
@@ -180,7 +204,19 @@ export const OpenVisitsComponent = ({
               columns={columns}
               data={loading ? [] : filtered}
               initialRowCount={initialRowCount}
-              onRowClick={row => navigate(`/visit-details/${row.visitUuid}`)}
+              onRowClick={row =>
+                navigate(
+                  `/visit-details/${row.visitUuid}`,
+                  isOnDashboard
+                    ? undefined
+                    : {
+                        state: {
+                          fromLabel: 'Open Visits',
+                          fromPath: '/open-visits',
+                        },
+                      }
+                )
+              }
               sortKey={sortKey}
               sortOrder={sortOrder}
               onSort={toggleSort}

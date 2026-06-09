@@ -1,11 +1,16 @@
 import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../ayu-library/types/ayu.types';
 import {
+  EXT_URL_PE_CATEGORY_LABEL,
+  EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
-  EXT_URL_PERFORM_PHYSICAL_EXAM,
+  PE_OPTION_KIND_CAMERA,
 } from '../../ayu-library/utils/constants';
-import type { PhysicalExamQuestion } from '../types/physical-exam.types';
+import type {
+  PhysicalExamOption,
+  PhysicalExamQuestion,
+} from '../types/physical-exam.types';
 
 /** Section that is always shown regardless of the protocol filter. */
 export const ALWAYS_INCLUDED_SECTION_KEY = 'General Exams';
@@ -128,4 +133,70 @@ export const filterAyuQuestionsForPhysExam = (
     const questionKey = readExt(q, EXT_URL_PE_QUESTION_KEY);
     return !!questionKey && allowedQuestions.includes(questionKey);
   });
+};
+
+const readQExt = (q: AyuQuestion, url: string): string | undefined =>
+  q.extension?.find(e => e.url === url)?.valueString;
+
+const ayuQuestionToLegacy = (q: AyuQuestion): PhysicalExamQuestion | null => {
+  if (q.type !== 'choice') return null;
+
+  const sectionKey = readQExt(q, EXT_URL_PE_SECTION_KEY) ?? '';
+  const categoryLabel = readQExt(q, EXT_URL_PE_CATEGORY_LABEL) ?? q.text ?? '';
+  const questionKey = readQExt(q, EXT_URL_PE_QUESTION_KEY);
+
+  const options: PhysicalExamOption[] = [];
+  for (const o of q.answerOption ?? []) {
+    const id = o.valueCoding?.code ?? o.valueString;
+    if (!id) continue;
+    const isCamera = o.extension?.some(
+      e =>
+        e.url === EXT_URL_PE_OPTION_KIND &&
+        e.valueString === PE_OPTION_KIND_CAMERA
+    );
+    options.push({
+      id,
+      text: o.valueCoding?.display ?? o.valueString ?? '',
+      ...(isCamera ? { isCamera: true } : {}),
+    });
+  }
+
+  return {
+    id: q.linkId,
+    sectionLabel: sectionKey ? `${sectionKey}:` : '',
+    categoryLabel,
+    questionText: q.text ?? '',
+    isRequired: q.required === true,
+    isMultiChoice: q.repeats === true,
+    options,
+    sectionKey,
+    ...(questionKey !== undefined ? { questionKey } : {}),
+  };
+};
+
+/**
+ * Flatten the AyuQuestion tree produced by transformFhirPhysExamToAyu into the
+ * legacy PhysicalExamQuestion[] shape consumed by buildPhysicalExamData.
+ *
+ * The visit-upload obs HTML must be built from the SAME question IDs / option
+ * codes the stepper stored answers under. The stepper unwraps concept-tag
+ * wrappers and collapses branching sub-forms, so re-parsing the raw FHIR with
+ * the old parseFhirPhysExamQuestionnaire produces mismatched linkIds and the
+ * obs comes out blank. Deriving the questions from the same transform keeps
+ * them aligned. Branching follow-ups are nested under their parent question, so
+ * recurse into `item[]` to surface their answers too.
+ */
+export const flattenAyuPhysExamQuestions = (
+  root: AyuQuestion | null
+): PhysicalExamQuestion[] => {
+  const out: PhysicalExamQuestion[] = [];
+  const walk = (items: AyuQuestion[] | undefined) => {
+    for (const q of items ?? []) {
+      const legacy = ayuQuestionToLegacy(q);
+      if (legacy) out.push(legacy);
+      if (q.item?.length) walk(q.item);
+    }
+  };
+  walk(root?.item);
+  return out;
 };

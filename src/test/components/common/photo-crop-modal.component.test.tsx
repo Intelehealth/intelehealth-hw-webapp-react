@@ -150,4 +150,135 @@ describe('PhotoCropModal', () => {
       expect(mockOnCropComplete).toHaveBeenCalledWith(expect.any(File));
     });
   });
+
+  it('sets crossOrigin for non-data URL images', async () => {
+    const externalProps = {
+      ...baseProps,
+      image: 'http://example.com/photo.jpg',
+    };
+    render(<PhotoCropModal {...externalProps} manual />);
+    fireEvent.click(screen.getByText(/complete crop/i));
+    fireEvent.click(screen.getByText(/save/i));
+
+    await waitFor(() => {
+      expect(mockOnCropComplete).toHaveBeenCalled();
+    });
+  });
+
+  it('rejects when image fails to load', async () => {
+    class ErrorImage {
+      onload: null | (() => void) = null;
+      onerror: null | ((e: unknown) => void) = null;
+      crossOrigin?: string;
+      private _src = '';
+
+      set src(value: string) {
+        this._src = value;
+        queueMicrotask(() => this.onerror?.(new Error('load failed')));
+      }
+
+      get src() {
+        return this._src;
+      }
+    }
+
+    vi.stubGlobal('Image', ErrorImage);
+
+    render(<PhotoCropModal {...baseProps} manual />);
+    fireEvent.click(screen.getByText(/complete crop/i));
+    fireEvent.click(screen.getByText(/save/i));
+
+    await waitFor(() => {
+      expect(mockOnCropComplete).not.toHaveBeenCalled();
+    });
+
+    // Restore original mock
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | ((e: unknown) => void) = null;
+      crossOrigin?: string;
+      private _src = '';
+
+      set src(value: string) {
+        this._src = value;
+        queueMicrotask(() => this.onload?.());
+      }
+
+      get src() {
+        return this._src;
+      }
+    }
+
+    vi.stubGlobal('Image', MockImage);
+  });
+
+  it('rejects when first canvas context is null in getCroppedImg', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () => null
+    );
+
+    render(<PhotoCropModal {...baseProps} manual />);
+    fireEvent.click(screen.getByText(/complete crop/i));
+    fireEvent.click(screen.getByText(/save/i));
+
+    await waitFor(() => {
+      expect(mockOnCropComplete).not.toHaveBeenCalled();
+    });
+
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () => mockCtx as unknown as CanvasRenderingContext2D
+    );
+  });
+
+  it('rejects when final canvas context is null in getCroppedImg', async () => {
+    let callCount = 0;
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () => {
+        callCount++;
+        if (callCount <= 1) return mockCtx as unknown as CanvasRenderingContext2D;
+        return null;
+      }
+    );
+
+    render(<PhotoCropModal {...baseProps} manual />);
+    fireEvent.click(screen.getByText(/complete crop/i));
+    fireEvent.click(screen.getByText(/save/i));
+
+    await waitFor(() => {
+      expect(mockOnCropComplete).not.toHaveBeenCalled();
+    });
+
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () => mockCtx as unknown as CanvasRenderingContext2D
+    );
+  });
+
+  it('rejects when toBlob returns null', async () => {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      value: vi.fn((cb: (blob: Blob | null) => void) => cb(null)),
+      configurable: true,
+    });
+
+    render(<PhotoCropModal {...baseProps} manual outputType="file" />);
+    fireEvent.click(screen.getByText(/complete crop/i));
+    fireEvent.click(screen.getByText(/save/i));
+
+    await waitFor(() => {
+      expect(mockOnCropComplete).not.toHaveBeenCalled();
+    });
+
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      value: vi.fn((cb: (blob: Blob | null) => void) =>
+        cb(new Blob(['x'], { type: 'image/jpeg' }))
+      ),
+      configurable: true,
+    });
+  });
+
+  it('changes zoom when slider is adjusted', () => {
+    render(<PhotoCropModal {...baseProps} />);
+    const slider = screen.getByRole('slider');
+    fireEvent.change(slider, { target: { value: '2.5' } });
+    expect(slider).toHaveValue('2.5');
+  });
 });

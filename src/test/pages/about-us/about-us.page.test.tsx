@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import AboutusPage from '../../../pages/about-us/about-us.page';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -32,7 +33,9 @@ describe('AboutusPage', () => {
     expect(() =>
       render(
         <MemoryRouter>
-          <AboutusPage />
+          <BreadcrumbProvider>
+            <AboutusPage />
+          </BreadcrumbProvider>
         </MemoryRouter>,
       ),
     ).not.toThrow();

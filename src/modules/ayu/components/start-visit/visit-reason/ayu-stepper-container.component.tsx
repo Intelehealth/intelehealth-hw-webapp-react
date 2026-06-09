@@ -7,14 +7,8 @@ import {
   useState,
 } from 'react';
 import { showToast } from '../../../../../services/toast';
-import { hasExclusiveSelected } from '../../../../ayu-library/logic/associated-symptoms.logic';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
-import {
-  hasUnansweredRequiredNestedChild,
-  hasVisibleRequiredNestedString,
-  isNestedInputValueMissing,
-  isQuantityInvalid,
-} from '../../../../ayu-library/logic/validation.logic';
+import { validateQuestion } from '../../../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
@@ -28,16 +22,12 @@ import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import {
   ASSOCIATED_SYMPTOMS_COMPONENT,
-  isStrictAssociatedSymptoms,
   resolveAyuComponent,
 } from '../../../pages/decision-matrix';
 import {
   BUTTON_SKIP,
   BUTTON_SUBMIT,
-  VALIDATION_ALL_COMPULSORY,
-  VALIDATION_ENTER_VALUE,
-  VALIDATION_SELECT_OPTION,
-  VALIDATION_UPLOAD_IMAGE,
+  validationMessageForReason,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import AyuButton from '../../common/ayu-button.component';
@@ -102,6 +92,9 @@ const formatAnswerValue = (
   return null;
 };
 
+const isPlaceholderText = (text: string): boolean =>
+  /^\s*\[.*\]\s*$/.test(text);
+
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>
@@ -111,10 +104,9 @@ const collectAnsweredRows = (
   for (const child of items) {
     if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
     const value = formatAnswerValue(child, answers[child.linkId]);
-    if (value) {
+    if (value && !isPlaceholderText(value)) {
       const label = getRowLabel(child);
-      // Skip rows where the label and value match — happens when a "describe"
-      // string field's text is what the user typed.
+
       if (label && label !== value) {
         rows.push({ label, value });
       } else if (!label) {
@@ -191,7 +183,11 @@ const AyuAnsweredDisplay = ({
         {summaryItems.map((item, idx) =>
           item.type === 'labelValue' ? (
             <p key={idx} className="text-sm font-semibold text-[#2e1e91]">
-              {item.label ? `${item.label}: ${item.value}` : item.value}
+              {item.label
+                ? item.value != null && String(item.value).trim() !== ''
+                  ? `${item.label}: ${item.value}`
+                  : item.label
+                : item.value}
             </p>
           ) : (
             <div key={idx}>
@@ -637,72 +633,17 @@ export const AyuStepperContainer = forwardRef<
                                 ) : undefined
                               }
                               onClick={() => {
-                                const rawAnswer = answers[question.linkId];
-                                const answerCodes: string[] = Array.isArray(
-                                  rawAnswer
-                                )
-                                  ? (rawAnswer as string[])
-                                  : [];
-                                const cameraMissingImages =
-                                  isCameraAnswerMissingImages(
-                                    question,
-                                    answers
+                                const result = validateQuestion(
+                                  question,
+                                  answers,
+                                  isCameraAnswerMissingImages
+                                );
+                                if (!result.valid) {
+                                  showToast(
+                                    validationMessageForReason(result.reason),
+                                    undefined,
+                                    'warning'
                                   );
-                                const isInvalid =
-                                  cameraMissingImages ||
-                                  hasVisibleRequiredNestedString(
-                                    question,
-                                    answers
-                                  ) ||
-                                  hasUnansweredRequiredNestedChild(
-                                    question,
-                                    answers
-                                  ) ||
-                                  isQuantityInvalid(question, answers) ||
-                                  (question.type === 'choice' &&
-                                    question.repeats &&
-                                    resolveAyuComponent(question) !==
-                                      ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                    answerCodes.length === 0) ||
-                                  (resolveAyuComponent(question) ===
-                                    ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                    answerCodes.length === 0) ||
-                                  (isStrictAssociatedSymptoms(question) &&
-                                    answerCodes.length <
-                                      (question.answerOption?.length ?? 0) &&
-                                    !hasExclusiveSelected(
-                                      question,
-                                      answerCodes
-                                    ));
-
-                                if (isInvalid) {
-                                  const isAssociatedSymptomsIncomplete =
-                                    resolveAyuComponent(question) ===
-                                      ASSOCIATED_SYMPTOMS_COMPONENT &&
-                                    answerCodes.length <
-                                      (question.answerOption?.length ?? 0) &&
-                                    !hasExclusiveSelected(
-                                      question,
-                                      answerCodes
-                                    );
-
-                                  const message = cameraMissingImages
-                                    ? VALIDATION_UPLOAD_IMAGE
-                                    : isAssociatedSymptomsIncomplete &&
-                                        isStrictAssociatedSymptoms(question)
-                                      ? VALIDATION_ALL_COMPULSORY
-                                      : hasVisibleRequiredNestedString(
-                                            question,
-                                            answers
-                                          ) ||
-                                          isNestedInputValueMissing(
-                                            question,
-                                            answers
-                                          ) ||
-                                          isQuantityInvalid(question, answers)
-                                        ? VALIDATION_ENTER_VALUE
-                                        : VALIDATION_SELECT_OPTION;
-                                  showToast(message, undefined, 'warning');
                                   return;
                                 }
 

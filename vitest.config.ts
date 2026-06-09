@@ -87,15 +87,9 @@ export default defineConfig({
         'src/config/sentry.ts',
         'src/config/sentry-wrapper.tsx',
         'src/config/env.ts',
-        'src/components/common/',
-        'src/components/common/common-ui.component.tsx',
+        'src/components/common/**',
         // Exclude profile-related files (tests were removed)
-        'src/assets/data/',
-        // Exclude calendar components (not tested)
-        'src/components/common/calendar.component.tsx',
-        'src/components/common/calendar-month-grid.component.tsx',
-        'src/components/common/calendar-year-grid.component.tsx',
-        'src/components/common/photo-upload-modal.component.tsx',
+        'src/assets/data/**',
         // Exclude Loader component (not tested)
         'src/components/Loader/**',
         // Exclude entry point files (mostly boilerplate)

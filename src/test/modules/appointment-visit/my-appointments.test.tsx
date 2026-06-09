@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MyAppointments from '../../../modules/appointment-visit/my-appointments.component';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 
@@ -12,7 +13,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const renderComponent = () => render(<MyAppointments />);
+const renderComponent = () => render(<BreadcrumbProvider><MyAppointments /></BreadcrumbProvider>);
 
 describe('MyAppointments', () => {
   beforeEach(() => {
