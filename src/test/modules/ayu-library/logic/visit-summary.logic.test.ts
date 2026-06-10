@@ -4107,4 +4107,119 @@ describe('buildVisitSummary', () => {
       }
     });
   });
+
+  describe('protocol grouping (multi-protocol summaries)', () => {
+    it('should emit one section per protocol titled by protocolCode', () => {
+      const questions = [
+        makeQuestion({
+          linkId: 'Abdominal pain:q1',
+          text: 'When did the pain start?',
+          protocolCode: 'Abdominal pain',
+          extension: [],
+        }),
+        makeQuestion({
+          linkId: 'Burns:q1',
+          text: 'Where did you get burned?',
+          protocolCode: 'Burns',
+          extension: [],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['Abdominal pain:q1', 'Last night'],
+        ['Burns:q1', 'Hand'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit reason');
+
+      expect(result.map(s => s.title)).toEqual(['Abdominal pain', 'Burns']);
+      expect(result[0].items).toEqual([
+        {
+          type: 'labelValue',
+          label: 'When did the pain start?',
+          value: 'Last night',
+        },
+      ]);
+      expect(result[1].items).toEqual([
+        {
+          type: 'labelValue',
+          label: 'Where did you get burned?',
+          value: 'Hand',
+        },
+      ]);
+    });
+
+    it('should preserve first-seen protocol order and group all questions of a protocol together', () => {
+      const questions = [
+        makeQuestion({
+          linkId: 'Abdominal pain:q1',
+          text: 'Q1',
+          protocolCode: 'Abdominal pain',
+          extension: [],
+        }),
+        makeQuestion({
+          linkId: 'Burns:q1',
+          text: 'Q burns',
+          protocolCode: 'Burns',
+          extension: [],
+        }),
+        makeQuestion({
+          linkId: 'Abdominal pain:q2',
+          text: 'Q2',
+          protocolCode: 'Abdominal pain',
+          extension: [],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['Abdominal pain:q1', 'A1'],
+        ['Burns:q1', 'B1'],
+        ['Abdominal pain:q2', 'A2'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit reason');
+
+      expect(result.map(s => s.title)).toEqual(['Abdominal pain', 'Burns']);
+      expect(result[0].items.map(i => i.type === 'labelValue' && i.value)).toEqual(
+        ['A1', 'A2']
+      );
+    });
+
+    it('should append ungrouped items (merged associated symptoms) after protocol sections', () => {
+      const questions = [
+        makeQuestion({
+          linkId: 'Abdominal pain:q1',
+          text: 'Q1',
+          protocolCode: 'Abdominal pain',
+          extension: [],
+        }),
+        makeChoiceQuestion({
+          linkId: 'assoc',
+          text: 'Associated symptoms',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'ID_1', display: 'Headache' } },
+          ],
+          extension: [],
+        }),
+      ];
+      const answers = new Map<string, AyuAnswerValue>([
+        ['Abdominal pain:q1', 'A1'],
+        ['assoc', ['ID_1']],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit reason');
+
+      expect(result[0].title).toBe('Abdominal pain');
+      expect(result[result.length - 1].title).toBe('Associated symptoms');
+    });
+
+    it('should not group when no item carries a protocolCode', () => {
+      const questions = [makeQuestion({ text: 'Q1', extension: [] })];
+      const answers = new Map<string, AyuAnswerValue>([['q1', 'A1']]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit reason');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Visit reason');
+    });
+  });
 });

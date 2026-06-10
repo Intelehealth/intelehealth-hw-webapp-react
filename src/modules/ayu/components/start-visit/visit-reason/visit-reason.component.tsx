@@ -6,7 +6,7 @@ import type {
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import { transformFhirToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import { mergeProtocols } from '../../../../ayu-library/utils/merge-protocols.util';
 import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
@@ -66,10 +66,7 @@ export const VisitReason = ({
   const [summaryShown, setSummaryShown] = useState(false);
   const [ayuSchema, setAyuSchema] = useState<AyuQuestion | null>(() => {
     if (savedAnswers && selectedComplaints.length > 0) {
-      return transformFhirToAyu(
-        selectedComplaints[0].json,
-        patientDemographics
-      );
+      return mergeProtocols(selectedComplaints, patientDemographics);
     }
     return null;
   });
@@ -92,10 +89,7 @@ export const VisitReason = ({
       open: true,
       onConfirm: () => {
         onReasonsConfirmed?.(selectedReasons);
-        const schema = transformFhirToAyu(
-          selectedComplaints[0].json,
-          patientDemographics
-        );
+        const schema = mergeProtocols(selectedComplaints, patientDemographics);
         setAyuSchema(schema);
         setSummaryShown(false);
         setShowStepper(true); //Switch UI
