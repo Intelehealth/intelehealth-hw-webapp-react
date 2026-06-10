@@ -39,6 +39,60 @@ export function buildVisitSummary(
   sectionTitle: string,
   options?: BuildSummaryOptions
 ): SummarySection[] {
+  if (questionnaire.some(item => item.protocolCode)) {
+    return buildGroupedSummary(
+      questionnaire,
+      answersMap,
+      sectionTitle,
+      options
+    );
+  }
+  return buildSummaryForItems(questionnaire, answersMap, sectionTitle, options);
+}
+
+function buildGroupedSummary(
+  questionnaire: AyuQuestion[],
+  answersMap: Map<string, AyuAnswerValue>,
+  sectionTitle: string,
+  options?: BuildSummaryOptions
+): SummarySection[] {
+  const order: string[] = [];
+  const groups = new Map<string, AyuQuestion[]>();
+  const ungrouped: AyuQuestion[] = [];
+
+  for (const item of questionnaire) {
+    const code = item.protocolCode;
+    if (!code) {
+      ungrouped.push(item);
+      continue;
+    }
+    if (!groups.has(code)) {
+      groups.set(code, []);
+      order.push(code);
+    }
+    groups.get(code)!.push(item);
+  }
+
+  const sections: SummarySection[] = [];
+  for (const code of order) {
+    sections.push(
+      ...buildSummaryForItems(groups.get(code)!, answersMap, code, options)
+    );
+  }
+  if (ungrouped.length) {
+    sections.push(
+      ...buildSummaryForItems(ungrouped, answersMap, sectionTitle, options)
+    );
+  }
+  return sections;
+}
+
+function buildSummaryForItems(
+  questionnaire: AyuQuestion[],
+  answersMap: Map<string, AyuAnswerValue>,
+  sectionTitle: string,
+  options?: BuildSummaryOptions
+): SummarySection[] {
   const useLabeledFormat = options?.useLabeledFormat ?? false;
   const mainItems: SummaryItem[] = [];
   const associatedItems: SummaryItem[] = [];

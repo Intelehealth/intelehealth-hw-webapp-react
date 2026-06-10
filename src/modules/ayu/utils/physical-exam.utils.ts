@@ -5,6 +5,7 @@ import {
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
+  EXT_URL_PERFORM_PHYSICAL_EXAM,
   PE_OPTION_KIND_CAMERA,
 } from '../../ayu-library/utils/constants';
 import type {

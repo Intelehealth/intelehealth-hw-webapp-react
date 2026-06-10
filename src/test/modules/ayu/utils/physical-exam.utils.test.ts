@@ -2,16 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 import {
+  combinePhysicalExamFilters,
   filterAyuQuestionsForPhysExam,
   filterPhysicalExamQuestions,
   flattenAyuPhysExamQuestions,
+  getPhysicalExamFilterFromComplaints,
   parsePhysicalExamFilter,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
+import type { AyuJsonItem } from '../../../../modules/ayu-library/types/ayu-json.types';
 import {
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
+  EXT_URL_PERFORM_PHYSICAL_EXAM,
   PE_OPTION_KIND_CAMERA,
 } from '../../../../modules/ayu-library/utils/constants';
 import { transformFhirPhysExamToAyu } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
@@ -249,6 +253,115 @@ describe('filterAyuQuestionsForPhysExam', () => {
   it('should filter to specific questions within a section', () => {
     const result = filterAyuQuestionsForPhysExam(ayuQuestions, 'Head:Injury');
     expect(result.map(q => q.linkId)).toEqual(['a1', 'a2']);
+  });
+});
+
+// ── combinePhysicalExamFilters ─────────────────────────────────────────────
+
+describe('combinePhysicalExamFilters', () => {
+  it('should return empty string for an empty list', () => {
+    expect(combinePhysicalExamFilters([])).toBe('');
+  });
+
+  it('should skip null, undefined and empty entries', () => {
+    expect(combinePhysicalExamFilters([null, undefined, ''])).toBe('');
+  });
+
+  it('should pass a single filter through unchanged', () => {
+    expect(combinePhysicalExamFilters(['Head:Injury'])).toBe('Head:Injury');
+  });
+
+  it('should merge distinct questions within the same section', () => {
+    const result = combinePhysicalExamFilters(['Head:Injury', 'Head:Swelling']);
+    expect(parsePhysicalExamFilter(result)).toEqual({
+      Head: ['Injury', 'Swelling'],
+    });
+  });
+
+  it('should deduplicate identical questions across filters', () => {
+    const result = combinePhysicalExamFilters(['Head:Injury', 'Head:Injury']);
+    expect(parsePhysicalExamFilter(result)).toEqual({ Head: ['Injury'] });
+  });
+
+  it('should keep separate sections separate', () => {
+    const result = combinePhysicalExamFilters(['Head:Injury', 'Ear:Bleeding']);
+    expect(parsePhysicalExamFilter(result)).toEqual({
+      Head: ['Injury'],
+      Ear: ['Bleeding'],
+    });
+  });
+
+  it('should treat an all-questions filter (empty question) as overriding specific ones', () => {
+    const result = combinePhysicalExamFilters(['Head:Injury', 'Head:']);
+    expect(result).toBe('Head:');
+  });
+
+  it('should keep a section pinned to all-questions even if a later filter narrows it', () => {
+    // Once a section is marked "all" (null), specific questions must not shrink it.
+    const result = combinePhysicalExamFilters(['Head:', 'Head:Injury']);
+    expect(result).toBe('Head:');
+  });
+
+  it('should combine all-questions and specific-question sections together', () => {
+    const result = combinePhysicalExamFilters([
+      'General Exams:',
+      'Head:Injury',
+    ]);
+    expect(parsePhysicalExamFilter(result)).toEqual({
+      'General Exams': [],
+      Head: ['Injury'],
+    });
+  });
+});
+
+// ── getPhysicalExamFilterFromComplaints ────────────────────────────────────
+
+describe('getPhysicalExamFilterFromComplaints', () => {
+  const makeComplaint = (valueString?: string): AyuJsonItem =>
+    ({
+      id: 1,
+      name: 'complaint',
+      keyName: 'complaint',
+      isActive: true,
+      json: {
+        ...(valueString !== undefined
+          ? {
+              extension: [
+                { url: EXT_URL_PERFORM_PHYSICAL_EXAM, valueString },
+              ],
+            }
+          : {}),
+      },
+    }) as unknown as AyuJsonItem;
+
+  it('should return empty string for undefined complaints', () => {
+    expect(getPhysicalExamFilterFromComplaints(undefined)).toBe('');
+  });
+
+  it('should return empty string for an empty complaint list', () => {
+    expect(getPhysicalExamFilterFromComplaints([])).toBe('');
+  });
+
+  it('should read the perform-physical-exam extension valueString', () => {
+    const result = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Head:Injury'),
+    ]);
+    expect(result).toBe('Head:Injury');
+  });
+
+  it('should treat a complaint without the extension as an empty filter', () => {
+    expect(getPhysicalExamFilterFromComplaints([makeComplaint()])).toBe('');
+  });
+
+  it('should combine filters across multiple complaints', () => {
+    const result = getPhysicalExamFilterFromComplaints([
+      makeComplaint('Head:Injury'),
+      makeComplaint('Ear:Bleeding'),
+    ]);
+    expect(parsePhysicalExamFilter(result)).toEqual({
+      Head: ['Injury'],
+      Ear: ['Bleeding'],
+    });
   });
 });
 
