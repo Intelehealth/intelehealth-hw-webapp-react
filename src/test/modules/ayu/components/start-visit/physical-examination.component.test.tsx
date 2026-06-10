@@ -959,6 +959,29 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(items.map(i => i.linkId)).toEqual(['q2']);
     });
 
+    it('falls back to an empty filter when physicalExamFilter is undefined', () => {
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+        makeQuestion('q2', 'Head', 'Injury', [{ code: 'yes', display: 'Yes' }]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          physicalExamFilter={undefined}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      // With no filter, `physicalExamFilter ?? ''` resolves to '' so only the
+      // always-included "General Exams" section survives. These questions are
+      // in "General"/"Head", so everything is pruned and the stepper isn't
+      // rendered -> loading placeholder.
+      expect(
+        screen.getByText(/Loading physical exam/i)
+      ).toBeInTheDocument();
+    });
+
     it('treats non-string, non-array answer values as empty arrays', async () => {
       const user = userEvent.setup();
       const questions = [

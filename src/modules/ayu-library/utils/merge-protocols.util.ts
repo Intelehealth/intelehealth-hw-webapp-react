@@ -45,6 +45,8 @@ function prefixForest(nodes: AyuQuestion[], prefix: string): AyuQuestion[] {
 
   const apply = (n: AyuQuestion): AyuQuestion => ({
     ...n,
+    // collect() registered every node apply() visits, so the fallback is unreachable.
+    /* v8 ignore next */
     linkId: linkIdMap.get(n.linkId) ?? n.linkId,
     protocolCode: prefix,
     enableWhen: n.enableWhen?.map(rule => ({
@@ -116,6 +118,8 @@ function mergeAssociatedSymptomGroups(
   const mergedChildren: AyuQuestion[] = [];
   const seenChildLinkIds = new Set<string>();
   for (const group of groups) {
+    // transformItem always sets item to an array, so the fallback is unreachable.
+    /* v8 ignore next */
     for (const child of group.item ?? []) {
       const refsDroppedOnly = child.enableWhen?.length
         ? child.enableWhen.every(rule => {
