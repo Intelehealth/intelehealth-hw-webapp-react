@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { BreadcrumbProvider } from '../../../../context/BreadcrumbContext';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BreadcrumbProvider } from '../../../../context/BreadcrumbContext';
 
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
 
@@ -254,6 +254,12 @@ const fullData = {
     answers: {},
     reasonNames: ['Cough', 'Fever'],
     details: [{ label: 'Duration', value: '3 days' }],
+    detailsSections: [
+      {
+        title: 'Cough',
+        items: [{ type: 'labelValue' as const, label: 'Duration', value: '3 days' }],
+      },
+    ],
   },
   physicalExam: {
     answers: {
@@ -419,7 +425,8 @@ describe('VisitSummaryPage', () => {
     await waitFor(() => {
       expect(mockBuildVisitReasonHtml).toHaveBeenCalledWith(
         fullData.visitReason.details,
-        fullData.visitReason.reasonNames
+        fullData.visitReason.reasonNames,
+        fullData.visitReason.detailsSections
       );
       expect(mockBuildPhysicalExamData).toHaveBeenCalled();
       expect(mockBuildMedicalHistoryData).toHaveBeenCalled();
@@ -847,6 +854,153 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('Chief complaint(s)')).toBeInTheDocument();
     expect(screen.getByText('Cough')).toBeInTheDocument();
     expect(screen.getByText('Fever')).toBeInTheDocument();
+    expect(screen.getByText('Duration')).toBeInTheDocument();
+    expect(screen.getByText('3 days')).toBeInTheDocument();
+  });
+
+  it('should segregate questions by protocol when multiple detailsSections exist', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough', 'Fever'],
+        details: [
+          { label: 'Cough type', value: 'Dry' },
+          { label: 'Temperature', value: 'High' },
+        ],
+        detailsSections: [
+          {
+            title: 'Cough',
+            items: [
+              { type: 'labelValue', label: 'Cough type', value: 'Dry' },
+            ],
+          },
+          {
+            title: 'Fever',
+            items: [
+              { type: 'labelValue', label: 'Temperature', value: 'High' },
+              // Null value exercises the `?? ''` fallback in the grouped render.
+              { type: 'labelValue', label: 'Notes', value: null },
+            ],
+          },
+        ],
+      },
+    });
+
+    // Protocol headings segregate the two complaints' questions.
+    const coughHeadings = screen.getAllByText('Cough');
+    const feverHeadings = screen.getAllByText('Fever');
+    // One chip + one section heading each.
+    expect(coughHeadings.length).toBeGreaterThanOrEqual(2);
+    expect(feverHeadings.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Cough type')).toBeInTheDocument();
+    expect(screen.getByText('Temperature')).toBeInTheDocument();
+  });
+
+  it('should render subheading items inside grouped sections', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough', 'Fever'],
+        details: [
+          { label: 'Patient reports', value: 'Chills' },
+          { label: 'Temperature', value: 'High' },
+        ],
+        detailsSections: [
+          {
+            title: 'Cough',
+            items: [
+              // Subheading with values -> "Patient reports: Chills, Sweating".
+              {
+                type: 'subheading',
+                heading: 'Patient reports',
+                values: ['Chills', 'Sweating'],
+              },
+              // Subheading with no values -> heading only (covers the ternary).
+              { type: 'subheading', heading: 'Notes', values: [] },
+            ],
+          },
+          {
+            title: 'Fever',
+            items: [
+              { type: 'labelValue', label: 'Temperature', value: 'High' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText('Patient reports: Chills, Sweating')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
+    expect(screen.getByText('Temperature')).toBeInTheDocument();
+  });
+
+  it('should skip unknown item types inside grouped checkup-reason sections', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough', 'Fever'],
+        details: [{ label: 'Known', value: 'Value' }],
+        detailsSections: [
+          {
+            title: 'Cough',
+            items: [
+              { type: 'unknownType' as any, label: 'X', value: 'Y' },
+              { type: 'labelValue' as const, label: 'Known', value: 'Value' },
+            ],
+          },
+          {
+            title: 'Fever',
+            items: [
+              { type: 'labelValue' as const, label: 'Temperature', value: 'High' },
+            ],
+          },
+        ],
+      },
+    });
+
+    // The known labelValue renders; the unknown type is skipped (return null).
+    expect(screen.getByText('Known')).toBeInTheDocument();
+    expect(screen.getByText('Temperature')).toBeInTheDocument();
+  });
+
+  it('should not show a section heading when there is a single protocol', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough'],
+        details: [{ label: 'Cough type', value: 'Dry' }],
+        detailsSections: [
+          {
+            title: '',
+            items: [
+              { type: 'labelValue', label: 'Cough type', value: 'Dry' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getAllByText('Cough')).toHaveLength(1);
+    expect(screen.getByText('Cough type')).toBeInTheDocument();
+    expect(screen.getByText('Dry')).toBeInTheDocument();
+  });
+
+  it('should fall back to flat details when detailsSections is absent', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: {},
+        reasonNames: ['Cough'],
+        details: [{ label: 'Duration', value: '3 days' }],
+          },
+    });
+
     expect(screen.getByText('Duration')).toBeInTheDocument();
     expect(screen.getByText('3 days')).toBeInTheDocument();
   });

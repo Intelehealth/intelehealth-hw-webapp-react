@@ -270,13 +270,26 @@ const CheckupReasonSection: React.FC<{ checkupReason: CheckupReason }> = ({
         </span>
       ))}
     </div>
-    {checkupReason.details.length > 0 && (
-      <div>
-        {checkupReason.details.map(({ label, value }) => (
-          <LabelValueRow key={label} label={label} value={value} />
-        ))}
-      </div>
-    )}
+    {checkupReason.detailsSections && checkupReason.detailsSections.length > 0
+      ? checkupReason.detailsSections.map((section, sIdx) => (
+          <div key={section.title || sIdx} className="mb-2 last:mb-0">
+            {section.title && (
+              <p className="text-sm font-semibold text-[#2E1E91] mb-1">
+                {section.title}
+              </p>
+            )}
+            {section.details.map(({ label, value }, idx) => (
+              <LabelValueRow key={idx} label={label} value={value} />
+            ))}
+          </div>
+        ))
+      : checkupReason.details.length > 0 && (
+          <div>
+            {checkupReason.details.map(({ label, value }) => (
+              <LabelValueRow key={label} label={label} value={value} />
+            ))}
+          </div>
+        )}
     {checkupReason.associatedSymptoms &&
       checkupReason.associatedSymptoms.length > 0 && (
         <div className="mt-3">

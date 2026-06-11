@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
+import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
 import { visitSummaryService } from '../../../modules/visit-summary/visit-summary.service';
-import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 // Mock the service
 vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
@@ -400,6 +400,76 @@ describe('VisitSummaryComponent', () => {
         expect(screen.getByText('Sweating')).toBeInTheDocument();
         expect(screen.getByText('Patient denies:')).toBeInTheDocument();
         expect(screen.getByText('Nausea')).toBeInTheDocument();
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
+    it('should segregate details by protocol when detailsSections is present', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        checkupReason: {
+          chiefComplaints: ['Skin disorder', 'Sleep disorder'],
+          details: [
+            { label: 'Lesion type', value: 'Eczematous' },
+            { label: 'Duration', value: '2 weeks' },
+          ],
+          detailsSections: [
+            {
+              title: 'Skin disorder',
+              details: [{ label: 'Lesion type', value: 'Eczematous' }],
+            },
+            {
+              title: 'Sleep disorder',
+              details: [{ label: 'Duration', value: '2 weeks' }],
+            },
+          ],
+        },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        // Each protocol appears as both a chip and a section heading.
+        expect(screen.getAllByText('Skin disorder').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getAllByText('Sleep disorder').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('Lesion type')).toBeInTheDocument();
+        expect(screen.getByText('Duration')).toBeInTheDocument();
+      });
+
+      visitSummaryDataModule.visitSummaryData.length = 0;
+      visitSummaryDataModule.visitSummaryData.push(...originalData);
+    });
+
+    it('should render a grouped section without a heading when its title is blank', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        checkupReason: {
+          chiefComplaints: ['Fever'],
+          details: [
+            { label: 'Lesion type', value: 'Eczematous' },
+            { label: 'Duration', value: '2 weeks' },
+          ],
+          detailsSections: [
+            {
+              title: '',
+              details: [{ label: 'Lesion type', value: 'Eczematous' }],
+            },
+            {
+              title: 'Sleep disorder',
+              details: [{ label: 'Duration', value: '2 weeks' }],
+            },
+          ],
+        },
+      };
+
+      renderWithMockData();
+      await waitFor(() => {
+        expect(screen.getByText('Lesion type')).toBeInTheDocument();
+        expect(screen.getByText('Sleep disorder')).toBeInTheDocument();
+        expect(screen.getByText('Duration')).toBeInTheDocument();
       });
 
       visitSummaryDataModule.visitSummaryData.length = 0;

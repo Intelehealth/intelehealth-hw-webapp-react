@@ -1,21 +1,21 @@
-import { OpenMRSApi } from '../../services/openmrs';
 import type {
-  VisitDetailsResponse,
-  VisitDetailsEncounter,
-  VisitDetailsPatient,
-} from '../visit-details/visit-details.types';
-import type {
-  VisitData,
+  AdditionalDocument,
+  AssociatedSymptom,
   Detail,
   GeneralExam,
-  AssociatedSymptom,
   HistorySection,
-  AdditionalDocument,
+  VisitData,
 } from '../../assets/data/visit-summary.data';
 import {
   CONCEPT_UUIDS,
   VISIT_SUMMARY_CUSTOM_REP,
 } from '../../assets/data/visit-summary.data';
+import { OpenMRSApi } from '../../services/openmrs';
+import type {
+  VisitDetailsEncounter,
+  VisitDetailsPatient,
+  VisitDetailsResponse,
+} from '../visit-details/visit-details.types';
 
 const VISIT_ATTR_SPECIALITY = '3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d';
 const VISIT_ATTR_DOCTOR_NOTES = '64aa50c8-e913-48c6-b8ad-dfa0bccb202b';
@@ -177,14 +177,43 @@ export function extractDetailsFromHtml(html: string): Detail[] {
 }
 
 const ASSOCIATED_SYMPTOM_LABELS = ['Patient reports', 'Patient denies'];
+const ASSOCIATED_SYMPTOMS_TITLE = 'Associated symptoms';
+
+function parseChiefComplaintSections(html: string): HistorySection[] {
+  const headerRegex = /►\s*<b>([^<]+)<\/b>\s*:?/g;
+  const headers: Array<{ title: string; start: number; end: number }> = [];
+  let match;
+  while ((match = headerRegex.exec(html)) !== null) {
+    headers.push({
+      title: match[1].trim(),
+      start: match.index,
+      end: headerRegex.lastIndex,
+    });
+  }
+
+  const sections: HistorySection[] = [];
+  for (let i = 0; i < headers.length; i++) {
+    const body = html.slice(
+      headers[i].end,
+      i + 1 < headers.length ? headers[i + 1].start : html.length
+    );
+    sections.push({
+      title: headers[i].title,
+      details: extractDetailsFromHtml(body),
+    });
+  }
+  return sections;
+}
 
 export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
   chiefComplaints: string[];
   details: Detail[];
   associatedSymptoms?: AssociatedSymptom[];
+  detailsSections?: HistorySection[];
 } {
   const complaints: string[] = [];
   const allDetails: Detail[] = [];
+  const rawSections: HistorySection[] = [];
 
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
@@ -196,29 +225,50 @@ export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
               ? String(obs.value)
               : (obs.value?.display ?? '');
         const parsed = parseChiefComplaintValue(raw);
-        if (parsed.name && !complaints.includes(parsed.name)) {
-          complaints.push(parsed.name);
+        const sections = parseChiefComplaintSections(parsed.html);
+        const names =
+          sections.length > 0 ? sections.map(s => s.title) : [parsed.name];
+        for (const name of names) {
+          if (
+            name &&
+            name !== ASSOCIATED_SYMPTOMS_TITLE &&
+            !complaints.includes(name)
+          ) {
+            complaints.push(name);
+          }
         }
         allDetails.push(...extractDetailsFromHtml(parsed.html));
+        rawSections.push(...sections);
       }
     }
   }
 
-  const details = allDetails.filter(
-    d => !ASSOCIATED_SYMPTOM_LABELS.includes(d.label)
-  );
-  const symptomDetails = allDetails.filter(d =>
-    ASSOCIATED_SYMPTOM_LABELS.includes(d.label)
-  );
+  const isSymptomLabel = (label: string) =>
+    ASSOCIATED_SYMPTOM_LABELS.includes(label);
+
+  const details = allDetails.filter(d => !isSymptomLabel(d.label));
+  const symptomDetails = allDetails.filter(d => isSymptomLabel(d.label));
   const associatedSymptoms: AssociatedSymptom[] = symptomDetails.map(d => ({
     heading: d.label,
     values: [d.value],
   }));
 
+  // Build the per-protocol grouping, dropping associated-symptom rows (they
+  // render in their own block) and empty sections. Only expose it when there's
+  // more than one section — a single section adds no value over the flat list.
+  const detailsSections = rawSections
+    .filter(s => s.title !== ASSOCIATED_SYMPTOMS_TITLE)
+    .map(s => ({
+      title: s.title,
+      details: s.details.filter(d => !isSymptomLabel(d.label)),
+    }))
+    .filter(s => s.details.length > 0);
+
   return {
     chiefComplaints: complaints.length > 0 ? complaints : ['No information'],
     details,
     ...(associatedSymptoms.length > 0 ? { associatedSymptoms } : {}),
+    ...(detailsSections.length > 1 ? { detailsSections } : {}),
   };
 }
 

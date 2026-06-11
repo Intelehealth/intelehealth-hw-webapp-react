@@ -1251,7 +1251,13 @@ describe('VisitReason', () => {
       expect(mockSetVisitReasonData).toHaveBeenCalledWith(
         expect.anything(),
         ['Fever'],
-        [{ label: 'Duration', value: '3 days' }]
+        [{ label: 'Duration', value: '3 days' }],
+        [
+          {
+            title: 'Summary',
+            items: [{ type: 'labelValue', label: 'Duration', value: '3 days' }],
+          },
+        ]
       );
     });
 
@@ -1308,6 +1314,19 @@ describe('VisitReason', () => {
         [
           { label: 'Symptoms', value: 'Cough, Fever' },
           { label: 'Duration', value: '5 days' },
+        ],
+        [
+          {
+            title: 'Summary',
+            items: [
+              {
+                type: 'subheading',
+                heading: 'Symptoms',
+                values: ['Cough', 'Fever'],
+              },
+              { type: 'labelValue', label: 'Duration', value: '5 days' },
+            ],
+          },
         ]
       );
     });
@@ -1401,7 +1420,13 @@ describe('VisitReason', () => {
       expect(mockSetVisitReasonData).toHaveBeenCalledWith(
         expect.anything(),
         ['Fever'],
-        [{ label: 'Notes', value: '' }]
+        [{ label: 'Notes', value: '' }],
+        [
+          {
+            title: 'Summary',
+            items: [{ type: 'labelValue', label: 'Notes', value: null }],
+          },
+        ]
       );
     });
   });

@@ -100,6 +100,7 @@ export interface CheckupReason {
   chiefComplaints: string[];
   details: Detail[];
   associatedSymptoms?: AssociatedSymptom[];
+  detailsSections?: HistorySection[];
 }
 
 export interface GeneralExam {

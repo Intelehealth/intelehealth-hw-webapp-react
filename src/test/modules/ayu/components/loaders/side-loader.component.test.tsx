@@ -79,6 +79,19 @@ describe('SideLoader', () => {
       expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-3');
     });
 
+    it('should cap height and allow scrolling so dots are not clipped', () => {
+      const { container } = render(<SideLoader sections={[{ totalQuestions: 5 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper).toHaveClass('max-h-[90vh]', 'overflow-y-auto');
+    });
+
+    it('should tighten the gap when there are many questions', () => {
+      const { container } = render(<SideLoader sections={[{ totalQuestions: 20 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper).toHaveClass('gap-1.5');
+      expect(wrapper).not.toHaveClass('gap-3');
+    });
+
     it('should have correct dot size classes', () => {
       const { container } = render(<SideLoader sections={[{ totalQuestions: 5 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
       const dots = container.querySelectorAll('span');

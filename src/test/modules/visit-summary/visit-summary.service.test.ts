@@ -1,19 +1,20 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildVisitReasonHtml } from '../../../modules/ayu/services/visit-upload.service';
+import type { VisitDetailsEncounter, VisitDetailsResponse } from '../../../modules/visit-details/visit-details.types';
 import {
-  visitSummaryService,
   API_ENDPOINTS,
   CONCEPT_UUIDS,
-  getObsNumericValue,
-  extractDetailsFromHtml,
-  extractChiefComplaints,
-  extractPhysicalExamination,
-  extractMedicalHistory,
   extractAdditionalMeasurements,
-  transformVisitSummaryResponse,
+  extractChiefComplaints,
+  extractDetailsFromHtml,
+  extractMedicalHistory,
+  extractPhysicalExamination,
+  getObsNumericValue,
   transformObsToDocuments,
+  transformVisitSummaryResponse,
+  visitSummaryService,
 } from '../../../modules/visit-summary/visit-summary.service';
 import { OpenMRSApi } from '../../../services/openmrs';
-import type { VisitDetailsResponse, VisitDetailsEncounter } from '../../../modules/visit-details/visit-details.types';
 
 vi.mock('../../../services/openmrs', () => ({
   OpenMRSApi: {
@@ -316,6 +317,147 @@ describe('visitSummaryService', () => {
       ];
       const result = extractChiefComplaints(encounters);
       expect(result.chiefComplaints).toEqual(['Fever']);
+    });
+
+    it('should segregate details by protocol when multiple subheaders exist', () => {
+      const jsonValue = JSON.stringify({
+        en:
+          '►<b>Skin disorder</b>: <br/>• Lesion type - Eczematous.<br/>' +
+          '►<b>Sleep disorder</b>: <br/>• Duration - 2 weeks.<br/>',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.detailsSections).toEqual([
+        {
+          title: 'Skin disorder',
+          details: [{ label: 'Lesion type', value: 'Eczematous' }],
+        },
+        {
+          title: 'Sleep disorder',
+          details: [{ label: 'Duration', value: '2 weeks' }],
+        },
+      ]);
+      // Flat details still populated for backward compatibility.
+      expect(result.details).toEqual([
+        { label: 'Lesion type', value: 'Eczematous' },
+        { label: 'Duration', value: '2 weeks' },
+      ]);
+    });
+
+    it('should segregate across multiple chief-complaint obs', () => {
+      const skin = JSON.stringify({
+        en: '►<b>Skin disorder</b>: <br/>• Lesion type - Eczematous.<br/>',
+      });
+      const sleep = JSON.stringify({
+        en: '►<b>Sleep disorder</b>: <br/>• Duration - 2 weeks.<br/>',
+      });
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, skin),
+          makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, sleep),
+        ]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.detailsSections).toHaveLength(2);
+      expect(result.detailsSections?.map(s => s.title)).toEqual([
+        'Skin disorder',
+        'Sleep disorder',
+      ]);
+    });
+
+    it('should round-trip a multi-protocol obs built by buildVisitReasonHtml', () => {
+      const obsValue = buildVisitReasonHtml(
+        [
+          { label: 'Lesion type', value: 'Eczematous' },
+          { label: 'Sleep duration', value: '2 weeks' },
+        ],
+        ['Skin disorder', 'Sleep disorder'],
+        [
+          {
+            title: 'Skin disorder',
+            items: [
+              { type: 'labelValue', label: 'Lesion type', value: 'Eczematous' },
+            ],
+          },
+          {
+            title: 'Sleep disorder',
+            items: [
+              { type: 'labelValue', label: 'Sleep duration', value: '2 weeks' },
+            ],
+          },
+        ]
+      ).obsValue;
+
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, obsValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+
+      expect(result.chiefComplaints).toEqual(['Skin disorder', 'Sleep disorder']);
+      expect(result.detailsSections).toEqual([
+        {
+          title: 'Skin disorder',
+          details: [{ label: 'Lesion type', value: 'Eczematous' }],
+        },
+        {
+          title: 'Sleep disorder',
+          details: [{ label: 'Sleep duration', value: '2 weeks' }],
+        },
+      ]);
+    });
+
+    it('should not treat the Associated symptoms header as a chief complaint', () => {
+      const jsonValue = JSON.stringify({
+        en:
+          '►<b>Oral Pain</b>: <br/>• Onset - Gradual.<br/>' +
+          '►<b>Cough</b>: <br/>• Duration - 3 days.<br/>' +
+          '►<b>Associated symptoms</b>: <br/>• Patient reports - Fever.<br/>',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+
+      // "Associated symptoms" is not a complaint chip nor a grouped section.
+      expect(result.chiefComplaints).toEqual(['Oral Pain', 'Cough']);
+      expect(result.detailsSections?.map(s => s.title)).toEqual([
+        'Oral Pain',
+        'Cough',
+      ]);
+      // It still surfaces in the dedicated associated-symptoms block.
+      expect(result.associatedSymptoms).toEqual([
+        { heading: 'Patient reports', values: ['Fever'] },
+      ]);
+    });
+
+    it('should not expose detailsSections for a single protocol section', () => {
+      const jsonValue = JSON.stringify({
+        en: '►<b>Fever</b>: <br/>• Duration - 3 days.<br/>',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.detailsSections).toBeUndefined();
+      expect(result.details).toEqual([{ label: 'Duration', value: '3 days' }]);
+    });
+
+    it('should keep associated symptoms out of the grouped sections', () => {
+      const jsonValue = JSON.stringify({
+        en:
+          '►<b>Skin disorder</b>: <br/>• Lesion type - Eczematous.<br/>' +
+          '►<b>Sleep disorder</b>: <br/>• Patient reports - Itching.<br/>',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.CHIEF_COMPLAINT, jsonValue)]),
+      ];
+      const result = extractChiefComplaints(encounters);
+      expect(result.detailsSections).toBeUndefined();
+      expect(result.associatedSymptoms).toEqual([
+        { heading: 'Patient reports', values: ['Itching'] },
+      ]);
     });
   });
 
