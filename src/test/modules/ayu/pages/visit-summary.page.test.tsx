@@ -254,6 +254,12 @@ const fullData = {
     answers: {},
     reasonNames: ['Cough', 'Fever'],
     details: [{ label: 'Duration', value: '3 days' }],
+    detailsSections: [
+      {
+        title: 'Cough',
+        items: [{ type: 'labelValue' as const, label: 'Duration', value: '3 days' }],
+      },
+    ],
   },
   physicalExam: {
     answers: {
