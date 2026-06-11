@@ -1,23 +1,23 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  buildVisitReasonHtml,
-  buildPhysicalExamData,
-  buildMedicalHistoryData,
+  ADULT_INITIAL_CONCEPTS,
+  ENCOUNTER_ROLE,
+  ENCOUNTER_TYPES,
+  VISIT_ATTRIBUTE_TYPES,
+  VISIT_TYPE,
+} from '../../../../modules/ayu/constants/visit-upload.constants';
+import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
+import type { BuildVisitUploadParams } from '../../../../modules/ayu/services/visit-upload.service';
+import {
   buildFamilyHistoryData,
+  buildMedicalHistoryData,
+  buildPhysicalExamData,
+  buildVisitReasonHtml,
   buildVisitUploadPayload,
   uploadVisit,
 } from '../../../../modules/ayu/services/visit-upload.service';
-import type { BuildVisitUploadParams } from '../../../../modules/ayu/services/visit-upload.service';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
-import type { MedicalHistorySummary } from '../../../../modules/ayu/context/start-visit.context';
 import type { VisitUploadPayload } from '../../../../modules/ayu/types/visit-upload.types';
-import {
-  ENCOUNTER_TYPES,
-  ENCOUNTER_ROLE,
-  VISIT_TYPE,
-  VISIT_ATTRIBUTE_TYPES,
-  ADULT_INITIAL_CONCEPTS,
-} from '../../../../modules/ayu/constants/visit-upload.constants';
 
 // Mock the EmrMiddlewareApi
 vi.mock('../../../../services/patient.service', () => ({
@@ -89,6 +89,79 @@ describe('visit-upload.service', () => {
 
       expect(parsed.en).toContain('<b>Chest Pain</b>');
       expect(parsed.en).toContain('Onset - Sudden.<br/>');
+    });
+
+    it('should emit a subheader per protocol when multiple sections are given', () => {
+      const details = [
+        { label: 'Lesion type', value: 'Eczematous' },
+        { label: 'Sleep duration', value: '2 weeks' },
+      ];
+      const reasonNames = ['Skin disorder', 'Sleep disorder'];
+      const detailsSections = [
+        {
+          title: 'Skin disorder',
+          items: [
+            { type: 'labelValue' as const, label: 'Lesion type', value: 'Eczematous' },
+          ],
+        },
+        {
+          title: 'Sleep disorder',
+          items: [
+            { type: 'subheading' as const, heading: 'Sleep duration', values: ['2 weeks'] },
+            { type: 'labelValue' as const, label: 'Notes', value: null },
+          ],
+        },
+      ];
+
+      const result = buildVisitReasonHtml(details, reasonNames, detailsSections);
+      const parsed = parseObs(result.obsValue);
+
+      // One bold header per protocol (no combined header).
+      expect(parsed.en).toContain('►<b>Skin disorder</b>:');
+      expect(parsed.en).toContain('►<b>Sleep disorder</b>:');
+      expect(parsed.en).not.toContain('<b>Skin disorder, Sleep disorder</b>');
+      expect(parsed.en).toContain('Lesion type - Eczematous.<br/>');
+      expect(parsed.en).toContain('Sleep duration - 2 weeks.<br/>');
+      expect(parsed.en).toContain('Notes - .<br/>');
+    });
+
+    it('should fall back to the flat layout for a single protocol section', () => {
+      const details = [{ label: 'Lesion type', value: 'Eczematous' }];
+      const reasonNames = ['Skin disorder'];
+      const detailsSections = [
+        {
+          title: 'Skin disorder',
+          items: [
+            { type: 'labelValue' as const, label: 'Lesion type', value: 'Eczematous' },
+          ],
+        },
+      ];
+
+      const result = buildVisitReasonHtml(details, reasonNames, detailsSections);
+      const parsed = parseObs(result.obsValue);
+
+      // Single header, flat — matches the original layout.
+      expect(parsed.en).toContain('<b>Skin disorder</b>: <br/>');
+      expect(parsed.en).toContain('Lesion type - Eczematous.<br/>');
+    });
+
+    it('should ignore empty sections when deciding to group', () => {
+      const details = [{ label: 'Lesion type', value: 'Eczematous' }];
+      const reasonNames = ['Skin disorder', 'Sleep disorder'];
+      const detailsSections = [
+        {
+          title: 'Skin disorder',
+          items: [
+            { type: 'labelValue' as const, label: 'Lesion type', value: 'Eczematous' },
+          ],
+        },
+        { title: 'Sleep disorder', items: [] },
+      ];
+
+      const result = buildVisitReasonHtml(details, reasonNames, detailsSections);
+      const parsed = parseObs(result.obsValue);
+
+      expect(parsed.en).toContain('<b>Skin disorder, Sleep disorder</b>');
     });
   });
 

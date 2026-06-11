@@ -1,7 +1,5 @@
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
-import type { MedicalHistorySummary } from '../context/start-visit.context';
-import { ITEM_TYPES, PE_PICTURE_TAKEN_LABEL } from '../utils/ayu.constants';
 import {
   ADULT_INITIAL_CONCEPTS,
   ENCOUNTER_ROLE,
@@ -9,6 +7,7 @@ import {
   VISIT_ATTRIBUTE_TYPES,
   VISIT_TYPE,
 } from '../constants/visit-upload.constants';
+import type { MedicalHistorySummary } from '../context/start-visit.context';
 import type {
   PhysicalExamAnswers,
   PhysicalExamOption,
@@ -21,6 +20,7 @@ import type {
   VisitUploadResponse,
 } from '../types/visit-upload.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
+import { ITEM_TYPES, PE_PICTURE_TAKEN_LABEL } from '../utils/ayu.constants';
 
 function formatDatetime(date: Date): string {
   return date.toISOString().replace('Z', '+0000');
@@ -50,10 +50,47 @@ export interface VisitReasonData {
   obsValue: string;
 }
 
+export interface VisitReasonSection {
+  title: string;
+  items: ModalSectionItem[];
+}
+
+function sectionItemToLabelValue(item: ModalSectionItem): {
+  label: string;
+  value: string;
+} {
+  if (item.type === 'subheading') {
+    return { label: item.heading, value: item.values.join(', ') };
+  }
+  return { label: item.label, value: String(item.value ?? '') };
+}
+
 export function buildVisitReasonHtml(
   details: Array<{ label: string; value: string }>,
-  reasonNames: string[]
+  reasonNames: string[],
+  detailsSections?: VisitReasonSection[]
 ): VisitReasonData {
+  const sections = (detailsSections ?? []).filter(s => s.items.length > 0);
+  if (sections.length > 1) {
+    let displayHtml = '';
+    let rawHtml = '';
+    for (const section of sections) {
+      displayHtml += `►<b>${section.title}</b>: <br/>`;
+      rawHtml += `►${section.title}::`;
+      for (const item of section.items) {
+        const { label, value } = sectionItemToLabelValue(item);
+        displayHtml += `• ${label} - ${value}.<br/>`;
+        rawHtml += `● ${label}<br/>•${value}<br/>`;
+      }
+    }
+    return {
+      obsValue: JSON.stringify({
+        en: displayHtml.trim(),
+        'l-en': rawHtml.trim(),
+      }),
+    };
+  }
+
   const complaint = reasonNames.join(', ');
   let displayHtml = '';
   let rawHtml = '';

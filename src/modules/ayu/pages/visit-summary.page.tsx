@@ -6,8 +6,6 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
-import ROUTES from '../../../routes/paths';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -25,11 +23,14 @@ import { Dropdown, Toggle } from '../../../components/common';
 import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { useProfileContext } from '../../../context/ProfileContext';
+import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
 import { useConfig } from '../../../hooks/useConfig';
+import ROUTES from '../../../routes/paths';
 import { fetchConceptAnswers } from '../../../services/concept.service';
 import { showToast } from '../../../services/toast';
 import type { ConceptAnswer } from '../../../types/config.types';
 import { storage } from '../../../utils/storage';
+import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
 import { patientService } from '../../patient/add/add-patient.service';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
@@ -65,7 +66,6 @@ import {
   PATIENT_NAME_KEY,
   PATIENT_UUID_KEY,
 } from '../utils/ayu.constants';
-import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
 import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
 
 const PRIMARY_COLOR = '#0fd197';
@@ -235,30 +235,75 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
   );
 };
 
-const CheckupReasonSection: React.FC<{ checkupReason: CheckupReason }> = ({
-  checkupReason,
-}) => (
-  <>
-    <p className="text-sm font-semibold text-gray-500 mb-2 text-center">
-      Chief complaint(s)
-    </p>
-    <div className="mb-2">
-      {checkupReason.chiefComplaints.map(complaint => (
-        <span
-          key={complaint}
-          className="inline-flex items-center justify-center min-w-26.25 h-6.5 bg-[#2E1E91] text-white text-xs font-semibold rounded-sm mr-2 gap-1 py-1 px-2 whitespace-nowrap"
-        >
-          {complaint}
-        </span>
-      ))}
-    </div>
-    <div>
-      {checkupReason.details.map(({ label, value }) => (
-        <LabelValueRow key={label} label={label} value={value} />
-      ))}
-    </div>
-  </>
-);
+const CheckupReasonSection: React.FC<{
+  checkupReason: CheckupReason;
+  detailsSections?: MedicalHistorySummary[];
+}> = ({ checkupReason, detailsSections }) => {
+  const groupedSections = detailsSections?.filter(s => s.items.length > 0);
+  const showSectionTitles = (groupedSections?.length ?? 0) > 1;
+
+  return (
+    <>
+      <p className="text-sm font-semibold text-gray-500 mb-2 text-center">
+        Chief complaint(s)
+      </p>
+      <div className="mb-2">
+        {checkupReason.chiefComplaints.map(complaint => (
+          <span
+            key={complaint}
+            className="inline-flex items-center justify-center min-w-26.25 h-6.5 bg-[#2E1E91] text-white text-xs font-semibold rounded-sm mr-2 gap-1 py-1 px-2 whitespace-nowrap"
+          >
+            {complaint}
+          </span>
+        ))}
+      </div>
+      {groupedSections && groupedSections.length > 0 ? (
+        <div>
+          {groupedSections.map((section, sIdx) => (
+            <div key={section.title || sIdx} className="mb-2 last:mb-0">
+              {showSectionTitles && section.title && (
+                <p className="text-sm font-semibold text-[#2E1E91] mb-1">
+                  {section.title}
+                </p>
+              )}
+              {section.items.map((item: ModalSectionItem, iIdx: number) => {
+                if (item.type === ITEM_TYPES.LABEL_VALUE) {
+                  return (
+                    <LabelValueRow
+                      key={iIdx}
+                      label={item.label}
+                      value={String(item.value ?? '')}
+                    />
+                  );
+                }
+                if (item.type === ITEM_TYPES.SUBHEADING) {
+                  return (
+                    <p
+                      key={iIdx}
+                      className="text-sm font-semibold text-gray-500 mt-2 mb-1"
+                    >
+                      {item.heading}
+                      {item.values.length > 0
+                        ? `: ${item.values.join(', ')}`
+                        : ''}
+                    </p>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div>
+          {checkupReason.details.map(({ label, value }) => (
+            <LabelValueRow key={label} label={label} value={value} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
 
 const PhysicalExaminationSection: React.FC<{
   physicalExamination: PhysicalExamination;
@@ -457,7 +502,8 @@ const VisitSummaryPage = () => {
     try {
       const visitReason = buildVisitReasonHtml(
         data.visitReason.details,
-        data.visitReason.reasonNames
+        data.visitReason.reasonNames,
+        data.visitReason.detailsSections
       );
 
       const physicalExam = buildPhysicalExamData(
@@ -667,7 +713,10 @@ const VisitSummaryPage = () => {
             key={`checkup-${allOpen}`}
           >
             {checkupReason ? (
-              <CheckupReasonSection checkupReason={checkupReason} />
+              <CheckupReasonSection
+                checkupReason={checkupReason}
+                detailsSections={data.visitReason?.detailsSections}
+              />
             ) : (
               <p className="text-gray-400 italic text-sm">
                 No visit reason recorded

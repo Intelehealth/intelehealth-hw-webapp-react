@@ -163,9 +163,19 @@ export const VisitReason = ({
         }
       }
 
-      setVisitReasonData(answers, selectedReasons, details);
+      const detailsSections = sections.map(({ title, items }) => ({
+        title,
+        items,
+      }));
+
+      setVisitReasonData(answers, selectedReasons, details, detailsSections);
       saveSectionToTemp({
-        visitReason: { answers, reasonNames: selectedReasons, details },
+        visitReason: {
+          answers,
+          reasonNames: selectedReasons,
+          details,
+          detailsSections,
+        },
         confirmedReasons: selectedReasons,
       });
 

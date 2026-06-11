@@ -9,8 +9,8 @@ import {
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { storage } from '../../../utils/storage';
 import type { AyuAnswerValue } from '../../ayu-library/types/ayu.types';
-import type { PhysicalExamAnswers } from '../types/physical-exam.types';
 import { getResource, upsertResource } from '../services/temp-storage.service';
+import type { PhysicalExamAnswers } from '../types/physical-exam.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 
 export interface MedicalHistorySummary {
@@ -27,6 +27,7 @@ export interface StartVisitData {
     answers: Record<string, AyuAnswerValue>;
     reasonNames: string[];
     details: Array<{ label: string; value: string }>;
+    detailsSections?: MedicalHistorySummary[];
   } | null;
   physicalExam: {
     answers: PhysicalExamAnswers;
@@ -80,7 +81,8 @@ interface StartVisitContextType {
   setVisitReasonData: (
     answers: Record<string, AyuAnswerValue>,
     reasonNames: string[],
-    details: Array<{ label: string; value: string }>
+    details: Array<{ label: string; value: string }>,
+    detailsSections?: MedicalHistorySummary[]
   ) => void;
   clearVisitReasonData: () => void;
   setPhysicalExamData: (
@@ -221,11 +223,12 @@ export const StartVisitProvider = ({
   const setVisitReasonData = (
     answers: Record<string, AyuAnswerValue>,
     reasonNames: string[],
-    details: Array<{ label: string; value: string }>
+    details: Array<{ label: string; value: string }>,
+    detailsSections?: MedicalHistorySummary[]
   ) => {
     setData(prev => ({
       ...prev,
-      visitReason: { answers, reasonNames, details },
+      visitReason: { answers, reasonNames, details, detailsSections },
     }));
   };
 
