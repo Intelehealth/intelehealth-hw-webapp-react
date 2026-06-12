@@ -9,7 +9,7 @@ export const SideLoader = ({
   const gapClass = totalQuestions > 12 ? 'gap-1.5' : 'gap-3';
   return (
     <div
-      className={`fixed right-12 top-1/2 -translate-y-1/2 flex flex-col items-center ${gapClass} max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]`}
+      className={`fixed right-12 top-60 bottom-8 flex flex-col items-center justify-center ${gapClass} overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]`}
     >
       {Array.from({ length: totalQuestions }).map((_, index) => {
         const isActive = index === currentQuestionIndex;

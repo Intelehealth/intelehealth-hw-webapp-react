@@ -1,4 +1,4 @@
-import { Route, Routes, useParams, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { storage } from '../../../utils/storage';
 import { StartVisit } from '../components/start-visit/start-visit.component';
 import { StartVisitProvider } from '../context/start-visit.context';
@@ -18,7 +18,7 @@ const AyuPage = () => {
 
   return (
     <StartVisitProvider initialPatientUuid={resolvedUuid}>
-      <div className="mx-auto p-6 space-y-6">
+      <div className="mx-auto p-2 space-y-6">
         <Routes>
           <Route path="/" element={<StartVisit />} />
           <Route path="/visit-summary" element={<VisitSummaryPage />} />

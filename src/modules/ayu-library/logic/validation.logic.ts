@@ -1,6 +1,9 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { findMatchingOptionCode } from '../utils/question.utils';
-import { hasExclusiveSelected } from './associated-symptoms.logic';
+import {
+  hasExclusiveSelected,
+  parseYesNoValues,
+} from './associated-symptoms.logic';
 import {
   ASSOCIATED_SYMPTOMS_COMPONENT,
   isStrictAssociatedSymptoms,
@@ -206,11 +209,18 @@ export const validateQuestion = (
     isCameraAnswerMissingImages?.(question, answers) ?? false;
   const isAssociated =
     resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
-  const totalOptions = question.answerOption?.length ?? 0;
+  const { yesValues, noValues } = parseYesNoValues(rawAnswer);
+  const answeredOptionCodes = new Set([...yesValues, ...noValues]);
+  const optionCodes = (question.answerOption ?? [])
+    .map(o => o.valueCoding?.code || o.valueString)
+    .filter((c): c is string => !!c);
+  const allOptionsAnswered =
+    optionCodes.length > 0 &&
+    optionCodes.every(code => answeredOptionCodes.has(code));
   const isAssociatedIncomplete =
     isAssociated &&
-    answerCodes.length < totalOptions &&
-    !hasExclusiveSelected(question, answerCodes);
+    !allOptionsAnswered &&
+    !hasExclusiveSelected(question, yesValues);
 
   const isInvalid =
     cameraMissingImages ||

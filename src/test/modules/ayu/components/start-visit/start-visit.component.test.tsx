@@ -12,6 +12,8 @@ import { BreadcrumbProvider } from '../../../../../context/BreadcrumbContext';
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
 const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
+const mockClearPhysicalExamData = vi.fn();
+const mockClearMedicalHistoryData = vi.fn();
 const mockUseStartVisitData = vi.fn(
   () =>
     ({
@@ -35,6 +37,8 @@ const mockUseStartVisitData = vi.fn(
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
       setMedicalHistoryAnswers: vi.fn(),
+      clearPhysicalExamData: mockClearPhysicalExamData,
+      clearMedicalHistoryData: mockClearMedicalHistoryData,
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: vi.fn(),
     })
@@ -102,7 +106,7 @@ vi.mock('../../../../../modules/ayu/components/start-visit/vitals/vitals.compone
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component', () => ({
-  VisitReason: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onReasonsConfirmed }) => (
+  VisitReason: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onReasonsConfirmed, onProtocolCleared }) => (
     <div data-testid="visit-reason-component">
       <div>Visit Reason - Question {questionIndex}</div>
       <button onClick={onPrevSection}>Prev Section</button>
@@ -110,6 +114,9 @@ vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-re
       <button onClick={onNextQuestion}>Next Question</button>
       {onReasonsConfirmed && (
         <button onClick={() => onReasonsConfirmed(['Fever', 'Cough'])}>Confirm Reasons</button>
+      )}
+      {onProtocolCleared && (
+        <button onClick={() => onProtocolCleared()}>Clear Protocol</button>
       )}
     </div>
   )),
@@ -178,6 +185,8 @@ describe('StartVisit', () => {
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
       setMedicalHistoryAnswers: vi.fn(),
+      clearPhysicalExamData: mockClearPhysicalExamData,
+      clearMedicalHistoryData: mockClearMedicalHistoryData,
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: vi.fn(),
     });
@@ -589,6 +598,31 @@ describe('StartVisit', () => {
       await user.click(within(visitReason).getByText('Next Question'));
       expect(screen.getByText('Question 1 of 3')).toBeInTheDocument();
     });
+
+    it('should not render SideLoader on the visit-reason protocol selection screen and render it once the stepper is active', async () => {
+      const user = userEvent.setup();
+      vi.mocked(
+        await import('../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component')
+      ).VisitReason.mockImplementation(
+        ({ onProgressUpdate, onStepperActiveChange }: any) => (
+          <div data-testid="visit-reason-component">
+            <button onClick={() => onProgressUpdate?.(3, 0)}>Load Questions</button>
+            <button onClick={() => onStepperActiveChange?.(true)}>Start Stepper</button>
+          </div>
+        )
+      );
+
+      renderWithRouter(<StartVisit />);
+
+      // Move to Visit Reason and load a multi-question protocol.
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(screen.getByText('Load Questions'));
+
+      expect(screen.queryByTestId('side-loader')).not.toBeInTheDocument();
+
+      await user.click(screen.getByText('Start Stepper'));
+      expect(screen.getByTestId('side-loader')).toBeInTheDocument();
+    });
   });
 
   describe('Section Display Information', () => {
@@ -835,6 +869,49 @@ describe('StartVisit', () => {
       expect(screen.getByText('4/4 Medical History')).toBeInTheDocument();
     });
 
+    it('should clear Physical Exam and Medical History when a protocol is removed', async () => {
+      const user = userEvent.setup();
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Clear Protocol'));
+
+      expect(mockClearPhysicalExamData).toHaveBeenCalledTimes(1);
+      expect(mockClearMedicalHistoryData).toHaveBeenCalledTimes(1);
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith({
+        physicalExam: null,
+        medicalHistory: null,
+        medicalHistoryAnswers: undefined,
+      });
+    });
+
+    it('should remount Physical Exam / Medical History when a protocol is removed', async () => {
+      const user = userEvent.setup();
+      let mountCount = 0;
+      vi.mocked(
+        await import('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component')
+      ).PhysicalExamination.mockImplementation(() => {
+        // A fresh mount (new key) runs this once-only effect again.
+        React.useEffect(() => {
+          mountCount += 1;
+        }, []);
+        return <div data-testid="physical-exam-component">Physical Exam</div>;
+      });
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+
+      const mountsBefore = mountCount;
+
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Clear Protocol'));
+
+      // The reset bumps the component key, forcing a remount (fresh state).
+      expect(mountCount).toBe(mountsBefore + 1);
+    });
+
     it('should update totalQuestions and answeredQuestions for matching section', async () => {
       const user = userEvent.setup();
 
@@ -1058,6 +1135,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1120,6 +1199,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1164,6 +1245,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1215,6 +1298,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1266,6 +1351,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1311,6 +1398,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1343,6 +1432,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1382,6 +1473,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1422,6 +1515,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });
@@ -1453,6 +1548,8 @@ describe('StartVisit', () => {
         setPhysicalExamData: vi.fn(),
         setMedicalHistoryData: vi.fn(),
         setMedicalHistoryAnswers: vi.fn(),
+        clearPhysicalExamData: mockClearPhysicalExamData,
+        clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
       });

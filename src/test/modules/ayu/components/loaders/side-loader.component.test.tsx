@@ -67,22 +67,22 @@ describe('SideLoader', () => {
   });
 
   describe('CSS Classes', () => {
-    it('should have fixed positioning', () => {
+    it('should have fixed positioning anchored below the top section loader', () => {
       const { container } = render(<SideLoader sections={[{ totalQuestions: 5 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('fixed', 'right-12', 'top-1/2', '-translate-y-1/2');
+      expect(wrapper).toHaveClass('fixed', 'right-12', 'top-60', 'bottom-8');
     });
 
-    it('should have flex column layout', () => {
+    it('should have flex column layout centered within its band', () => {
       const { container } = render(<SideLoader sections={[{ totalQuestions: 5 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-3');
+      expect(wrapper).toHaveClass('flex', 'flex-col', 'justify-center', 'gap-3');
     });
 
-    it('should cap height and allow scrolling so dots are not clipped', () => {
+    it('should allow scrolling so dots are not clipped when they exceed the band', () => {
       const { container } = render(<SideLoader sections={[{ totalQuestions: 5 }]} currentSectionIndex={0} currentQuestionIndex={0} />);
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('max-h-[90vh]', 'overflow-y-auto');
+      expect(wrapper).toHaveClass('overflow-y-auto');
     });
 
     it('should tighten the gap when there are many questions', () => {

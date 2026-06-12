@@ -7,9 +7,15 @@ vi.mock('../../../../modules/ayu-library/logic/decision-matrix', () => ({
   isStrictAssociatedSymptoms: vi.fn(() => false),
 }));
 
-vi.mock('../../../../modules/ayu-library/logic/associated-symptoms.logic', () => ({
-  hasExclusiveSelected: vi.fn(() => false),
-}));
+vi.mock(
+  '../../../../modules/ayu-library/logic/associated-symptoms.logic',
+  async importOriginal => ({
+    ...(await importOriginal<
+      typeof import('../../../../modules/ayu-library/logic/associated-symptoms.logic')
+    >()),
+    hasExclusiveSelected: vi.fn(() => false),
+  })
+);
 
 import {
   isEmpty,
@@ -884,6 +890,55 @@ describe('validateQuestion', () => {
       ],
     };
     expect(validateQuestion(q, { q1: ['a', 'b'] })).toEqual({ valid: true });
+  });
+
+  it('should return valid when every strict associated row is answered with mixed Yes/No', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(false);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+        { valueCoding: { code: 'c', display: 'C' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['a', 'NO_b', 'NO_c'] })).toEqual({
+      valid: true,
+    });
+  });
+
+  it('should not flag strict associated as incomplete when option codes are duplicated', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(false);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: 'a', display: 'A again' } },
+        { valueCoding: { code: 'b', display: 'B' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['a', 'NO_b'] })).toEqual({ valid: true });
+  });
+
+  it('should not require strict associated rows that have an empty code', () => {
+    vi.mocked(resolveAyuComponent).mockReturnValue('associatedSymptoms' as never);
+    vi.mocked(isStrictAssociatedSymptoms).mockReturnValue(true);
+    vi.mocked(hasExclusiveSelected).mockReturnValue(false);
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'a', display: 'A' } },
+        { valueCoding: { code: '', display: 'Unstorable' } },
+      ],
+    };
+    expect(validateQuestion(q, { q1: ['a'] })).toEqual({ valid: true });
   });
 
   it('should return valid when associated has exclusive option selected', () => {

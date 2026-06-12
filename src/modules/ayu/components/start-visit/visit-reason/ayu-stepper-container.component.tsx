@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -283,6 +284,19 @@ export const AyuStepperContainer = forwardRef<
     },
     ref
   ) => {
+    const handleStepperComplete = useCallback(
+      (finalAnswers: Record<string, AyuAnswerValue>) => {
+        const completeTotal = (questionnaire?.item || []).filter(
+          item => item.type !== 'group'
+        ).length;
+        if (completeTotal > 0) {
+          onProgressUpdate?.(completeTotal, completeTotal);
+        }
+        onComplete?.(finalAnswers);
+      },
+      [questionnaire, onComplete, onProgressUpdate]
+    );
+
     const {
       currentQuestion,
       currentIndex,
@@ -301,7 +315,7 @@ export const AyuStepperContainer = forwardRef<
       summaryTitle,
       skipSummary,
       initialAnswers,
-      onComplete,
+      onComplete: handleStepperComplete,
       onSummaryShown,
     });
 
@@ -310,14 +324,14 @@ export const AyuStepperContainer = forwardRef<
       () => ({
         confirm: () => {
           if (!validateAllQuestions()) return;
-          onComplete?.(answers);
+          handleStepperComplete(answers);
         },
         showSummary: () => {
           goNext();
         },
         getAnswers: () => answers,
       }),
-      [answers, onComplete, goNext, validateAllQuestions]
+      [answers, handleStepperComplete, goNext, validateAllQuestions]
     );
 
     const totalSteps = topLevelItems.length;

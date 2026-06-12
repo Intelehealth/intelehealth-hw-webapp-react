@@ -12,52 +12,44 @@ describe('SectionCompletionLoader', () => {
   ];
 
   describe('Rendering', () => {
-    it('should render correct number of section bars', () => {
+    it('should render a single progress bar for the current section', () => {
       const { container } = render(
         <SectionCompletionLoader
           sections={mockSections}
           currentSectionIndex={0}
         />
       );
-      const bars = container.querySelectorAll('.flex-1');
-      expect(bars).toHaveLength(4);
+      const progressBars = container.querySelectorAll('.bg-emerald-400');
+      expect(progressBars).toHaveLength(1);
     });
 
-    it('should render single section', () => {
-      const singleSection: SectionProgress[] = [
-        { totalQuestions: 5, answeredQuestions: 0 },
-      ];
-      const { container } = render(
+    it('should render the "Assessment Progress" label and LIVE badge', () => {
+      const { getByText } = render(
         <SectionCompletionLoader
-          sections={singleSection}
+          sections={mockSections}
           currentSectionIndex={0}
         />
       );
-      const bars = container.querySelectorAll('.flex-1');
-      expect(bars).toHaveLength(1);
+      expect(getByText('Assessment Progress')).toBeInTheDocument();
+      expect(getByText('LIVE')).toBeInTheDocument();
     });
 
-    it('should render multiple sections', () => {
-      const manySections: SectionProgress[] = Array.from({ length: 10 }, () => ({
-        totalQuestions: 5,
-        answeredQuestions: 0,
-      }));
-      const { container } = render(
+    it('should render the percentage for the current section', () => {
+      const { getByText } = render(
         <SectionCompletionLoader
-          sections={manySections}
+          sections={mockSections}
           currentSectionIndex={0}
         />
       );
-      const bars = container.querySelectorAll('.flex-1');
-      expect(bars).toHaveLength(10);
+      expect(getByText('50')).toBeInTheDocument();
     });
   });
 
   describe('Completed Sections', () => {
-    it('should show 100% width for completed section', () => {
+    it('should show 100% width when the current section is complete', () => {
       const completedSections: SectionProgress[] = [
-        { totalQuestions: 5, answeredQuestions: 5 },
-        { totalQuestions: 8, answeredQuestions: 0 },
+        { totalQuestions: 5, answeredQuestions: 0 },
+        { totalQuestions: 8, answeredQuestions: 8 },
       ];
       const { container } = render(
         <SectionCompletionLoader
@@ -65,25 +57,8 @@ describe('SectionCompletionLoader', () => {
           currentSectionIndex={1}
         />
       );
-      const progressBars = container.querySelectorAll('.bg-emerald-400');
-      expect(progressBars[0]).toHaveStyle({ width: '100%' });
-    });
-
-    it('should identify completed section correctly', () => {
-      const sections: SectionProgress[] = [
-        { totalQuestions: 10, answeredQuestions: 10 },
-        { totalQuestions: 8, answeredQuestions: 8 },
-        { totalQuestions: 6, answeredQuestions: 3 },
-      ];
-      const { container } = render(
-        <SectionCompletionLoader
-          sections={sections}
-          currentSectionIndex={2}
-        />
-      );
-      const progressBars = container.querySelectorAll('.bg-emerald-400');
-      expect(progressBars[0]).toHaveStyle({ width: '100%' });
-      expect(progressBars[1]).toHaveStyle({ width: '100%' });
+      const progressBar = container.querySelector('.bg-emerald-400');
+      expect(progressBar).toHaveStyle({ width: '100%' });
     });
 
     it('should show 100% when answeredQuestions exceeds totalQuestions', () => {
@@ -154,36 +129,26 @@ describe('SectionCompletionLoader', () => {
       const progressBar = container.querySelector('.bg-emerald-400');
       expect(progressBar).toHaveStyle({ width: '100%' });
     });
-  });
 
-  describe('Uncompleted Sections', () => {
-    it('should show 0% for uncompleted sections', () => {
+    it('should reflect only the current section, not earlier ones', () => {
+      const sections: SectionProgress[] = [
+        { totalQuestions: 10, answeredQuestions: 10 },
+        { totalQuestions: 8, answeredQuestions: 2 },
+      ];
       const { container } = render(
         <SectionCompletionLoader
-          sections={mockSections}
-          currentSectionIndex={0}
-        />
-      );
-      const progressBars = container.querySelectorAll('.bg-emerald-400');
-      expect(progressBars[2]).toHaveStyle({ width: '0%' });
-      expect(progressBars[3]).toHaveStyle({ width: '0%' });
-    });
-
-    it('should show 0% for future sections', () => {
-      const { container } = render(
-        <SectionCompletionLoader
-          sections={mockSections}
+          sections={sections}
           currentSectionIndex={1}
         />
       );
       const progressBars = container.querySelectorAll('.bg-emerald-400');
-      expect(progressBars[2]).toHaveStyle({ width: '0%' });
-      expect(progressBars[3]).toHaveStyle({ width: '0%' });
+      expect(progressBars).toHaveLength(1);
+      expect(progressBars[0]).toHaveStyle({ width: '25%' });
     });
   });
 
   describe('CSS Classes', () => {
-    it('should have flex container with gap', () => {
+    it('should have a vertical flex container', () => {
       const { container } = render(
         <SectionCompletionLoader
           sections={mockSections}
@@ -191,20 +156,7 @@ describe('SectionCompletionLoader', () => {
         />
       );
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('flex', 'w-full', 'gap-2');
-    });
-
-    it('should have correct bar container classes', () => {
-      const { container } = render(
-        <SectionCompletionLoader
-          sections={mockSections}
-          currentSectionIndex={0}
-        />
-      );
-      const bars = container.querySelectorAll('.flex-1');
-      bars.forEach(bar => {
-        expect(bar).toHaveClass('flex-1', 'h-[3px]', 'rounded', 'bg-gray-200', 'overflow-hidden');
-      });
+      expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-2', 'w-full');
     });
 
     it('should have progress bar with transition classes', () => {
@@ -214,10 +166,14 @@ describe('SectionCompletionLoader', () => {
           currentSectionIndex={0}
         />
       );
-      const progressBars = container.querySelectorAll('.bg-emerald-400');
-      progressBars.forEach(bar => {
-        expect(bar).toHaveClass('h-full', 'bg-emerald-400', 'transition-all', 'duration-300', 'ease-out');
-      });
+      const progressBar = container.querySelector('.bg-emerald-400');
+      expect(progressBar).toHaveClass(
+        'h-full',
+        'bg-emerald-400',
+        'transition-all',
+        'duration-300',
+        'ease-out'
+      );
     });
   });
 
@@ -262,6 +218,8 @@ describe('SectionCompletionLoader', () => {
           currentSectionIndex={0}
         />
       );
+      let progressBar = container.querySelector('.bg-emerald-400');
+      expect(progressBar).toHaveStyle({ width: '100%' });
 
       rerender(
         <SectionCompletionLoader
@@ -269,22 +227,17 @@ describe('SectionCompletionLoader', () => {
           currentSectionIndex={1}
         />
       );
-      const progressBars = container.querySelectorAll('.bg-emerald-400');
-      expect(progressBars[0]).toHaveStyle({ width: '100%' });
-      expect(progressBars[1]).toHaveStyle({ width: '20%' });
+      progressBar = container.querySelector('.bg-emerald-400');
+      expect(progressBar).toHaveStyle({ width: '20%' });
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle empty sections array', () => {
       const { container } = render(
-        <SectionCompletionLoader
-          sections={[]}
-          currentSectionIndex={0}
-        />
+        <SectionCompletionLoader sections={[]} currentSectionIndex={0} />
       );
-      const bars = container.querySelectorAll('.flex-1');
-      expect(bars).toHaveLength(0);
+      expect(container.firstChild).toBeInTheDocument();
     });
 
     it('should handle section with zero total questions', () => {
