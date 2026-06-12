@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import iconVisitReason from '../../../../../assets/icons/visit-reason.svg';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
 import type {
@@ -43,6 +43,8 @@ export const VisitReason = ({
   onProgressUpdate,
   visitReasons,
   onReasonsConfirmed,
+  onStepperActiveChange,
+  onProtocolCleared,
 }: SectionProps) => {
   const {
     search,
@@ -72,6 +74,10 @@ export const VisitReason = ({
   });
   const { showConfirmModal } = useGlobalModal();
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
+
+  useEffect(() => {
+    onStepperActiveChange?.(showStepper && !!ayuSchema);
+  }, [showStepper, ayuSchema, onStepperActiveChange]);
 
   const canSubmit = selectedReasons.length > 0;
 
@@ -125,6 +131,7 @@ export const VisitReason = ({
           setSummaryShown(false);
           onProgressUpdate?.(1, 0);
           removeReason(reason);
+          onProtocolCleared?.();
         },
       });
     },
@@ -136,6 +143,7 @@ export const VisitReason = ({
       clearVisitReasonData,
       saveSectionToTemp,
       onProgressUpdate,
+      onProtocolCleared,
     ]
   );
 
@@ -224,7 +232,7 @@ export const VisitReason = ({
     const isReviewMode = !!savedAnswers;
     const showFooter = isReviewMode || summaryShown;
     return (
-      <div className="w-full flex flex-col">
+      <div className="w-full flex flex-col mt-4">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-[996px]">
             <AyuStepperContainer

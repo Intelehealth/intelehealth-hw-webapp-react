@@ -145,6 +145,14 @@ function ContextUpdater() {
         data-testid="btn-clearVisitReasonData"
         onClick={() => ctx.clearVisitReasonData()}
       />
+      <button
+        data-testid="btn-clearPhysicalExamData"
+        onClick={() => ctx.clearPhysicalExamData()}
+      />
+      <button
+        data-testid="btn-clearMedicalHistoryData"
+        onClick={() => ctx.clearMedicalHistoryData()}
+      />
     </div>
   );
 }
@@ -432,6 +440,59 @@ describe('StartVisitProvider', () => {
     // visitReason cleared, vitals preserved.
     expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
     expect(screen.getByTestId('vitals').textContent).not.toBe('null');
+  });
+
+  it('should reset physicalExam to null via clearPhysicalExamData', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+    });
+
+    act(() => {
+      screen.getByTestId('btn-setPhysicalExam').click();
+    });
+    expect(screen.getByTestId('physicalExam').textContent).not.toBe('null');
+
+    act(() => {
+      screen.getByTestId('btn-clearPhysicalExamData').click();
+    });
+
+    expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+  });
+
+  it('should reset medicalHistory and its answers to null via clearMedicalHistoryData', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    });
+
+    act(() => {
+      screen.getByTestId('btn-setMedicalHistory').click();
+      screen.getByTestId('btn-setMedicalHistoryAnswers').click();
+    });
+    expect(screen.getByTestId('medicalHistory').textContent).not.toBe('null');
+    expect(screen.getByTestId('medicalHistoryAnswers').textContent).not.toBe(
+      'null'
+    );
+
+    act(() => {
+      screen.getByTestId('btn-clearMedicalHistoryData').click();
+    });
+
+    expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent(
+      'null'
+    );
   });
 
   // ── Temp-storage restore ────────────────────────────────────────────────

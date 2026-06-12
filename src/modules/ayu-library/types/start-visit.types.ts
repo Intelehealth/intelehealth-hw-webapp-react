@@ -1,5 +1,5 @@
-import type { AyuJsonItem } from './ayu-json.types';
 import type { VisitReasonsResult } from '../../ayu/hooks/useVisitReasons.hook';
+import type { AyuJsonItem } from './ayu-json.types';
 
 export interface SectionProps {
   questionIndex: number;
@@ -12,6 +12,8 @@ export interface SectionProps {
   ayuConfigFiles?: AyuJsonItem[];
   visitReasons?: VisitReasonsResult;
   onReasonsConfirmed?: (reasons: string[]) => void;
+  onStepperActiveChange?: (active: boolean) => void;
+  onProtocolCleared?: () => void;
 }
 
 export interface SectionState {

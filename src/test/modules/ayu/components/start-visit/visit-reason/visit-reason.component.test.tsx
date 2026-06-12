@@ -1862,6 +1862,59 @@ describe('VisitReason', () => {
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
       expect(removeReason).toHaveBeenCalledWith('Fever');
     });
+
+    it('should notify the parent to clear downstream sections (PE/MH) on confirm', async () => {
+      const user = userEvent.setup();
+      const onProtocolCleared = vi.fn();
+      const savedAnswers = { q1: 'a' };
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      mockTransformFhirToAyu.mockReturnValue({
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      });
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+        removeReason: vi.fn(),
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+          onProtocolCleared={onProtocolCleared}
+        />
+      );
+
+      await user.click(screen.getByText('Back'));
+      await user.click(screen.getByTestId('remove-reason-Fever'));
+
+      // Not cleared until the user actually confirms.
+      expect(onProtocolCleared).not.toHaveBeenCalled();
+
+      const onConfirm = mockShowConfirmModal.mock.calls.at(-1)?.[0]
+        .onConfirm as () => void;
+      onConfirm();
+
+      expect(onProtocolCleared).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('summaryShown footer visibility (Back/Save & Next after cancelling summary)', () => {
@@ -2098,6 +2151,96 @@ describe('VisitReason', () => {
       expect(mockSetVisitReasonData).not.toHaveBeenCalled();
       expect(mockSaveSectionToTemp).not.toHaveBeenCalled();
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
+    });
+  });
+
+  describe('onStepperActiveChange (Assessment Progress loader gating)', () => {
+    it('should report inactive on the selection screen (showStepper false)', () => {
+      const onStepperActiveChange = vi.fn();
+
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: null, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+          onStepperActiveChange={onStepperActiveChange}
+        />
+      );
+
+      expect(onStepperActiveChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it('should report active once the stepper is showing with a schema', () => {
+      const onStepperActiveChange = vi.fn();
+
+      // savedAnswers + selectedComplaints → showStepper true and ayuSchema set.
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: { q1: 'a' }, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      mockTransformFhirToAyu.mockReturnValue({ linkId: 'root', type: 'group' as const, item: [] });
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+          onStepperActiveChange={onStepperActiveChange}
+        />
+      );
+
+      expect(onStepperActiveChange).toHaveBeenLastCalledWith(true);
+    });
+
+    it('should report inactive when showStepper is true but no schema is built yet', () => {
+      const onStepperActiveChange = vi.fn();
+
+      // savedAnswers present but no selectedComplaints → showStepper true, ayuSchema null.
+      mockUseStartVisitData.mockReturnValue({
+        data: { vitals: null, visitReason: { answers: { q1: 'a' }, reasonNames: ['Fever'], details: [] }, physicalExam: null, medicalHistory: null, medicalHistoryAnswers: null },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [],
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={defaultVisitReasons}
+          onStepperActiveChange={onStepperActiveChange}
+        />
+      );
+
+      expect(onStepperActiveChange).toHaveBeenLastCalledWith(false);
     });
   });
 });

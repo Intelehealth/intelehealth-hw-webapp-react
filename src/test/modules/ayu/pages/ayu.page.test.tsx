@@ -88,7 +88,7 @@ describe('AyuPage', () => {
         </MemoryRouter>
       );
 
-      const mainDiv = container.querySelector('.mx-auto.p-6.space-y-6');
+      const mainDiv = container.querySelector('.mx-auto.p-2.space-y-6');
       expect(mainDiv).toBeInTheDocument();
     });
   });
@@ -201,7 +201,7 @@ describe('AyuPage', () => {
       );
 
       const mainDiv = container.querySelector('div.mx-auto');
-      expect(mainDiv).toHaveClass('mx-auto', 'p-6', 'space-y-6');
+      expect(mainDiv).toHaveClass('mx-auto', 'p-2', 'space-y-6');
     });
   });
 

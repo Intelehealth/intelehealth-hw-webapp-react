@@ -21,6 +21,7 @@ import {
   SECTION_VISIT_REASON,
   SECTION_VITALS,
 } from '../../utils/ayu.constants';
+import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
@@ -76,15 +77,39 @@ export const StartVisit = () => {
     isRestoring,
     restoredSectionIndex,
     saveSectionToTemp,
+    clearPhysicalExamData,
+    clearMedicalHistoryData,
   } = useStartVisitData();
   const visitReasons = useVisitReasons();
   const { ayuConfigFiles } = visitReasons;
   const [confirmedReasons, setConfirmedReasons] = useState<string[]>([]);
   const [medicalHistorySubtitle, setMedicalHistorySubtitle] = useState('');
+  // Bumped to force Physical Exam / Medical History to remount (and re-init
+  // from the now-cleared context) when a protocol is removed.
+  const [downstreamResetKey, setDownstreamResetKey] = useState(0);
 
   const handleReasonsConfirmed = useCallback((reasons: string[]) => {
     setConfirmedReasons(reasons);
   }, []);
+
+  const handleProtocolCleared = useCallback(() => {
+    clearPhysicalExamData();
+    clearMedicalHistoryData();
+    saveSectionToTemp({
+      physicalExam: null,
+      medicalHistory: null,
+      medicalHistoryAnswers: undefined,
+    });
+    setSections(prev =>
+      prev.map(section =>
+        section.name === SECTION_PHYSICAL_EXAM ||
+        section.name === SECTION_MEDICAL_HISTORY
+          ? { ...section, answeredQuestions: 0 }
+          : section
+      )
+    );
+    setDownstreamResetKey(key => key + 1);
+  }, [clearPhysicalExamData, clearMedicalHistoryData, saveSectionToTemp]);
 
   const getSectionSubtitle = (sectionName: string): string => {
     switch (sectionName) {
@@ -154,6 +179,17 @@ export const StartVisit = () => {
     useState(lastSectionIndex);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [hasRestored, setHasRestored] = useState(false);
+  const [isVisitReasonStepperActive, setIsVisitReasonStepperActive] =
+    useState(false);
+
+  /*
+   * Assessment Progress loader is hidden on Vitals and on the visit-reason
+   * protocol/reason selection screen. It appears once the question stepper
+   * starts and stays visible through Physical Exam and Medical History.
+   */
+  const showAssessmentProgress =
+    currentSectionIndex > 1 ||
+    (currentSectionIndex === 1 && isVisitReasonStepperActive);
 
   // Restore section index from temp-storage data after context finishes loading
   useEffect(() => {
@@ -351,23 +387,26 @@ export const StartVisit = () => {
           </div>
         </div>
         {/* Top Loader */}
-        {/* <div className="pt-3">
-        <SectionCompletionLoader
-          sections={sections}
-          currentSectionIndex={currentSectionIndex}
-        />
-      </div> */}
-
-        {/* Side Loader */}
-        {sections[currentSectionIndex]?.totalQuestions > 1 && (
-          <div className="hidden md:block">
-            <SideLoader
+        {showAssessmentProgress && (
+          <div className="pt-3">
+            <SectionCompletionLoader
               sections={sections}
               currentSectionIndex={currentSectionIndex}
-              currentQuestionIndex={currentQuestionIndex}
             />
           </div>
         )}
+
+        {/* Side Loader */}
+        {showAssessmentProgress &&
+          sections[currentSectionIndex]?.totalQuestions > 1 && (
+            <div className="hidden md:block">
+              <SideLoader
+                sections={sections}
+                currentSectionIndex={currentSectionIndex}
+                currentQuestionIndex={currentQuestionIndex}
+              />
+            </div>
+          )}
 
         {/* Active Section */}
         {currentSectionIndex === 0 && (
@@ -387,11 +426,14 @@ export const StartVisit = () => {
             onProgressUpdate={handleVisitReasonProgress}
             visitReasons={visitReasons}
             onReasonsConfirmed={handleReasonsConfirmed}
+            onStepperActiveChange={setIsVisitReasonStepperActive}
+            onProtocolCleared={handleProtocolCleared}
           />
         </div>
 
         <div style={{ display: currentSectionIndex === 2 ? 'block' : 'none' }}>
           <PhysicalExamination
+            key={`physical-exam-${downstreamResetKey}`}
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}
@@ -404,6 +446,7 @@ export const StartVisit = () => {
 
         <div style={{ display: currentSectionIndex === 3 ? 'block' : 'none' }}>
           <MedicalHistory
+            key={`medical-history-${downstreamResetKey}`}
             questionIndex={currentQuestionIndex}
             onNextQuestion={goNextQuestion}
             onPrevQuestion={goPreviousQuestion}

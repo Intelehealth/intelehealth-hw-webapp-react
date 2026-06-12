@@ -320,6 +320,82 @@ describe('AyuStepperContainer', () => {
 
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 1);
     });
+
+    it('should report 100% when the section completes (last question auto-advance)', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'choice' },
+        { linkId: 'q2', text: 'Question 2', type: 'choice' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'a', q2: 'b' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          skipSummary
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+     const hookOnComplete = _mockUseFHIRStepper.mock.calls.at(-1)?.[0]
+        ?.onComplete;
+      mockOnProgressUpdate.mockClear();
+      hookOnComplete?.({ q1: 'a', q2: 'b' });
+
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(2, 2);
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'a', q2: 'b' });
+    });
+
+    it('should not report progress on completion when the questionnaire has no items', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'choice',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 0,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      // Questionnaire without an `item` array exercises the `?.item || []`
+      // fallback, so completeTotal is 0 and progress is left untouched.
+      render(
+        <AyuStepperContainer
+          questionnaire={{} as any}
+          skipSummary
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const hookOnComplete = _mockUseFHIRStepper.mock.calls.at(-1)?.[0]
+        ?.onComplete;
+      mockOnProgressUpdate.mockClear();
+      hookOnComplete?.({ q1: 'a' });
+
+      expect(mockOnProgressUpdate).not.toHaveBeenCalled();
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'a' });
+    });
   });
 
   describe('Scroll Behavior', () => {
