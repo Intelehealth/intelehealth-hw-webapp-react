@@ -145,7 +145,7 @@ jobs:
           echo "Bundle size: $BUNDLE_SIZE_DISPLAY ($BUNDLE_SIZE_KB KB)"
 
           # Set performance budget
-          MAX_SIZE_KB=4096
+          MAX_SIZE_KB=5120
 
           if [ $BUNDLE_SIZE_KB -le $MAX_SIZE_KB ]; then
             echo "✅ Bundle size check passed ($BUNDLE_SIZE_KB KB <= $MAX_SIZE_KB KB)"

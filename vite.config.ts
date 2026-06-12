@@ -233,6 +233,7 @@ export default defineConfig(({ mode }) => ({
       'react-hook-form',
       '@hookform/resolvers',
       'yup',
+      '@intelehealth/webrtc',
     ],
   },
   // Resolve configuration for better tree-shaking

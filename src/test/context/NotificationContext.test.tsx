@@ -773,32 +773,28 @@ describe('NotificationContext', () => {
     expect(msg).toContain('3:00 PM');
   });
 
-  it('should log "unsupported" when Notification global is undefined (line 234)', async () => {
+  it('does not request permission when Notification is unsupported', async () => {
     const savedNotification = window.Notification;
     // @ts-ignore
     delete window.Notification;
+    mockInitialize.mockResolvedValueOnce(true);
+    mockRequestPermission.mockClear();
 
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      renderHook(() => useNotificationContext(), { wrapper });
 
-    renderHook(() => useNotificationContext(), { wrapper });
+      await waitFor(() => {
+        expect(mockInitialize).toHaveBeenCalled();
+      });
 
-    await waitFor(() => {
-      expect(mockInitialize).toHaveBeenCalled();
-    });
-
-    expect(warnSpy).toHaveBeenCalledWith(
-      'FCM init:',
-      expect.anything(),
-      'permission:',
-      'unsupported'
-    );
-
-    warnSpy.mockRestore();
-    Object.defineProperty(window, 'Notification', {
-      writable: true,
-      configurable: true,
-      value: savedNotification,
-    });
+      expect(mockRequestPermission).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'Notification', {
+        writable: true,
+        configurable: true,
+        value: savedNotification,
+      });
+    }
   });
 
   it('should handle toggle OFF with provider lookup failure silently', async () => {
@@ -961,5 +957,65 @@ describe('NotificationContext', () => {
     expect(mockToast).toHaveBeenCalled();
     const toastEl = mockToast.mock.calls[0][0];
     expect(toastEl.props.title).toBe('Prescription Ready');
+  });
+
+  it('routes a video_call push to the incoming-call trigger and shows no toast', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    const trigger = vi.fn();
+    (window as any).triggerIncomingCall = trigger;
+    mockToast.mockClear();
+
+    act(() => {
+      onMessageCallback({
+        data: {
+          type: 'video_call',
+          doctorName: 'Dr. Strange',
+          patientName: 'Peter',
+          visitId: 'v-1',
+          patientOpenMrsId: 'OMRS-9',
+          appToken: 'tok-1',
+          roomId: 'room-1',
+        },
+      });
+    });
+
+    expect(trigger).toHaveBeenCalledWith({
+      callerName: 'Dr. Strange',
+      patientName: 'Peter',
+      visitId: 'v-1',
+      openMrsId: 'OMRS-9',
+      token: 'tok-1',
+      roomId: 'room-1',
+    });
+    expect(mockToast).not.toHaveBeenCalled();
+    delete (window as any).triggerIncomingCall;
+  });
+
+  it('handles a video_call push when no trigger is registered without toasting', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    delete (window as any).triggerIncomingCall;
+    mockToast.mockClear();
+
+    act(() => {
+      onMessageCallback({ data: { type: 'video_call', visitId: 'v-2' } });
+    });
+
+    expect(mockToast).not.toHaveBeenCalled();
   });
 });
