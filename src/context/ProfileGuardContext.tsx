@@ -79,15 +79,7 @@ const getProfileState = (
     phone;
   if (!hasAnyData) return 'not-started';
 
-  const fields = [
-    firstName,
-    middleName,
-    lastName,
-    gender,
-    birthdate,
-    email,
-    phone,
-  ];
+  const fields = [firstName, lastName, gender, birthdate, email, phone];
   const isNotEmpty = (value: string | undefined) =>
     value !== null && value !== undefined && String(value).trim() !== '';
   const hasAllRequired = fields.every(isNotEmpty);

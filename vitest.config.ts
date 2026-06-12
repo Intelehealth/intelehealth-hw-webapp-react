@@ -49,6 +49,7 @@ export default defineConfig({
     mockCssPlugin(), // Add the mock CSS plugin
   ],
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       'react-datepicker': fileURLToPath(
         new URL('./src/test/mocks/react-datepicker.ts', import.meta.url)

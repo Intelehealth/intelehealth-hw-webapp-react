@@ -14,6 +14,14 @@ import profileService from '../modules/profile/profile.service';
 import { storage } from '../utils/storage';
 
 type NotificationPayload = Record<string, string | undefined>;
+type CallTrigger = (call?: {
+  callerName?: string;
+  patientName?: string;
+  visitId?: string;
+  openMrsId?: string;
+  token?: string;
+  roomId?: string;
+}) => void;
 interface ProviderSearchResult {
   results?: { uuid: string }[];
 }
@@ -89,16 +97,9 @@ export const NotificationProvider = ({
   const requestPermission = useCallback(async () => {
     const fcmToken = await fcmService.requestPermission();
     const uuid = getUUID();
-    console.warn(
-      'requestPermission: token=',
-      fcmToken ? fcmToken.slice(0, 20) + '...' : null,
-      'uuid=',
-      uuid
-    );
     if (!fcmToken || !uuid) return;
     setToken(fcmToken);
     await registerToken(uuid, fcmToken);
-    console.warn('registerToken done');
   }, []);
 
   const toggleNotifications = useCallback(async () => {
@@ -198,6 +199,22 @@ export const NotificationProvider = ({
       if (pushId === lastPushId.current) return;
       lastPushId.current = pushId;
       setTimeout(() => (lastPushId.current = ''), 3000);
+
+      const data = pushData?.data ?? pushData;
+      if (data?.type === 'video_call') {
+        (
+          window as unknown as { triggerIncomingCall?: CallTrigger }
+        ).triggerIncomingCall?.({
+          callerName: data.doctorName,
+          patientName: data.patientName,
+          visitId: data.visitId,
+          openMrsId: data.patientOpenMrsId,
+          token: data.appToken,
+          roomId: data.roomId,
+        });
+        return;
+      }
+
       if (pushData) showToast(pushData);
       setUnreadCount(prev => prev + 1);
     },
@@ -209,14 +226,6 @@ export const NotificationProvider = ({
       const initialized = await fcmService.initialize({
         onMessageReceived: payload => handlePush(payload?.data),
       });
-      console.warn(
-        'FCM init:',
-        initialized,
-        'permission:',
-        typeof Notification !== 'undefined'
-          ? Notification.permission
-          : 'unsupported'
-      );
       if (!initialized) return;
       if (
         typeof Notification !== 'undefined' &&
