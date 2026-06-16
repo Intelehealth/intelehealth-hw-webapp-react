@@ -30,7 +30,6 @@ import {
   DEFAULT_VISIT_REASON_TEXT,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
-  VALIDATION_SELECT_OPTION,
   validationMessageForReason,
 } from '../utils/ayu.constants';
 import { buildVisitSummary } from '../utils/visit-summary.util';
@@ -41,6 +40,7 @@ interface UseFHIRStepperProps {
   summaryTitle?: string;
   skipSummary?: boolean;
   initialAnswers?: Record<string, AyuAnswerValue>;
+  questionIndexOffset?: number;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onSummaryShown?: () => void;
 }
@@ -74,6 +74,7 @@ export const useFHIRStepper = (
     summaryTitle,
     skipSummary,
     initialAnswers,
+    questionIndexOffset = 0,
     onComplete,
     onSummaryShown,
   } = props;
@@ -149,12 +150,20 @@ export const useFHIRStepper = (
 
   const validateAllQuestions = (): boolean => {
     const latestAnswers = answersRef.current;
-    for (const question of topLevelItems) {
+    for (let index = 0; index < topLevelItems.length; index++) {
+      const question = topLevelItems[index];
       const answer = latestAnswers[question.linkId];
+      const questionNumber = showAll
+        ? index + questionIndexOffset + 1
+        : undefined;
 
       // Required questions must have an answer
       if (question.required && isEmpty(answer)) {
-        showToast(VALIDATION_SELECT_OPTION, undefined, 'warning');
+        showToast(
+          validationMessageForReason('selectOption', questionNumber),
+          undefined,
+          'warning'
+        );
         return false;
       }
 
@@ -166,7 +175,7 @@ export const useFHIRStepper = (
         );
         if (!result.valid) {
           showToast(
-            validationMessageForReason(result.reason),
+            validationMessageForReason(result.reason, questionNumber),
             undefined,
             'warning'
           );
@@ -186,6 +195,7 @@ export const useFHIRStepper = (
       onComplete?.(latestAnswers);
       return;
     }
+    setShowAll(true);
 
     const answersMap = new Map(Object.entries(latestAnswers));
     const sections = buildVisitSummary(

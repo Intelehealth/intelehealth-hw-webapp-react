@@ -44,20 +44,27 @@ export const VALIDATION_ENTER_VALUE = 'Please enter a value';
 export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
 
-/** Map a question validation failure reason to its user-facing toast message. */
 export const validationMessageForReason = (
-  reason: QuestionValidationReason | undefined
+  reason: QuestionValidationReason | undefined,
+  questionNumber?: number
 ): string => {
+  let message: string;
   switch (reason) {
     case 'uploadImage':
-      return VALIDATION_UPLOAD_IMAGE;
+      message = VALIDATION_UPLOAD_IMAGE;
+      break;
     case 'allCompulsory':
-      return VALIDATION_ALL_COMPULSORY;
+      message = VALIDATION_ALL_COMPULSORY;
+      break;
     case 'enterValue':
-      return VALIDATION_ENTER_VALUE;
+      message = VALIDATION_ENTER_VALUE;
+      break;
     default:
-      return VALIDATION_SELECT_OPTION;
+      message = VALIDATION_SELECT_OPTION;
   }
+  return questionNumber
+    ? `Please answer Question ${questionNumber} before proceeding`
+    : message;
 };
 
 // --- Physical Exam Camera ---

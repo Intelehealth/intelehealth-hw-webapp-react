@@ -315,6 +315,7 @@ export const AyuStepperContainer = forwardRef<
       summaryTitle,
       skipSummary,
       initialAnswers,
+      questionIndexOffset,
       onComplete: handleStepperComplete,
       onSummaryShown,
     });
@@ -654,7 +655,12 @@ export const AyuStepperContainer = forwardRef<
                                 );
                                 if (!result.valid) {
                                   showToast(
-                                    validationMessageForReason(result.reason),
+                                    validationMessageForReason(
+                                      result.reason,
+                                      showAll
+                                        ? index + questionIndexOffset + 1
+                                        : undefined
+                                    ),
                                     undefined,
                                     'warning'
                                   );
@@ -735,10 +741,6 @@ export const AyuStepperContainer = forwardRef<
                                     next.delete(question.linkId);
                                     return next;
                                   });
-                                  // Editing an already-answered past question must not
-                                  // advance the stepper. The last question is an exception —
-                                  // re-skipping it must always invoke goNext so a previously
-                                  // cancelled summary modal can be re-opened.
                                   if (isActive && (isLast || !wasEditing)) {
                                     if (isLast) {
                                       onProgressUpdate?.(
