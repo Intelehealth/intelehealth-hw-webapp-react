@@ -20,10 +20,14 @@ export const storage = {
 
   setUser: (user: string): void => {
     localStorage.setItem('user', user);
+    if (typeof window !== 'undefined')
+      window.dispatchEvent(new Event('ih:user-changed'));
   },
 
   clearUser: (): void => {
     localStorage.removeItem('user');
+    if (typeof window !== 'undefined')
+      window.dispatchEvent(new Event('ih:user-changed'));
   },
 
   // Location management

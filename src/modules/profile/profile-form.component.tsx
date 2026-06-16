@@ -9,6 +9,7 @@ import type { RootState } from '../../store/store';
 import ProfileFormFields from './profile-form-fields.component';
 import ProfileHeader from './profile-header.component';
 import { useProfileContext } from '../../context/ProfileContext';
+import { useProfileGuard } from '../../context/ProfileGuardContext';
 import { profileSchema, type ProfileFormValues } from './profile.validation';
 
 interface ProfileFormProps {
@@ -18,6 +19,7 @@ interface ProfileFormProps {
 const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
   const { profile, updateProfile, uploadPhoto, locations } =
     useProfileContext();
+  const { refreshProfileStatus } = useProfileGuard();
   const { showConfirmModal } = useGlobalModal();
 
   const isSaving = useSelector(
@@ -79,11 +81,12 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ className = '' }) => {
     async (data: ProfileFormValues) => {
       try {
         await updateProfile(data);
+        await refreshProfileStatus();
       } catch (error) {
         console.error('Failed to save profile:', error);
       }
     },
-    [updateProfile]
+    [updateProfile, refreshProfileStatus]
   );
 
   const onSubmitForm = useCallback(

@@ -13,6 +13,12 @@ vi.mock('../../../context/ProfileContext', () => ({
   useProfileContext: (...args: any[]) => mockUseProfile(...args),
 }));
 
+vi.mock('../../../context/ProfileGuardContext', () => ({
+  useProfileGuard: () => ({
+    refreshProfileStatus: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock('../../../context/NotificationContext', () => ({
   useNotificationContext: () => ({
     isEnabled: true,
