@@ -1778,6 +1778,113 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('Question number in validation toast', () => {
+    const invalidQuantityQuestion: AyuQuestion = {
+      linkId: 'q1',
+      text: 'Duration Question',
+      type: 'quantity',
+    };
+
+    const invalidQuantityAnswers = {
+      q1: { dropdownValues: { number: 5, days: undefined } },
+    };
+
+    it('should reference the question number in review mode', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: invalidQuantityQuestion,
+        currentIndex: 0,
+        total: 1,
+        answers: invalidQuantityAnswers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [invalidQuantityQuestion],
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([invalidQuantityQuestion]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 1 before proceeding',
+        undefined,
+        'warning'
+      );
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('should apply questionIndexOffset to the review mode question number', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: invalidQuantityQuestion,
+        currentIndex: 0,
+        total: 1,
+        answers: invalidQuantityAnswers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [invalidQuantityQuestion],
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([invalidQuantityQuestion]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          questionIndexOffset={3}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 4 before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should not reference the question number in linear mode', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: invalidQuantityQuestion,
+        currentIndex: 0,
+        total: 1,
+        answers: invalidQuantityAnswers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [invalidQuantityQuestion],
+        isLast: true,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire([invalidQuantityQuestion]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+  });
+
   describe('RightIcon Behavior', () => {
     it('should not show rightIcon on submit before clicking', () => {
       const question: AyuQuestion = {

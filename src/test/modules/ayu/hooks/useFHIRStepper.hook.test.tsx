@@ -4085,6 +4085,79 @@ describe('useFHIRStepper', () => {
         'warning'
       );
     });
+
+    it('should reference the question number in review mode', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          initialAnswers: { q2: 'yes' },
+        })
+      );
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 1 before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should apply questionIndexOffset to the review mode question number', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          initialAnswers: { q2: 'yes' },
+          questionIndexOffset: 5,
+        })
+      );
+
+      act(() => {
+        result.current.validateAllQuestions();
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 6 before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+  });
+
+  describe('handleComplete review mode', () => {
+    it('should switch to review mode once the summary is shown', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'answer1');
+      });
+
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+      expect(result.current.showAll).toBe(true);
+    });
+
+    it('should stay in linear mode when validation blocks the summary', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+      act(() => { result.current.goNext(); });
+
+      expect(mockShowVitalConfirmationModal).not.toHaveBeenCalled();
+      expect(result.current.showAll).toBeFalsy();
+    });
   });
 
   describe('initialAnswers', () => {
@@ -4169,7 +4242,7 @@ describe('useFHIRStepper', () => {
       );
       expect(result.current.validateAllQuestions()).toBe(false);
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Please upload at least one image',
+        'Please answer Question 1 before proceeding',
         undefined,
         'warning'
       );
