@@ -1,4 +1,4 @@
-name: 🚀 Deploy to Turn Server
+name: Deploy to Turn Server
 
 on:
   push:
