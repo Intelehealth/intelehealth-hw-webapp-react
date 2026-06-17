@@ -1095,6 +1095,18 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
   });
 
+  it('should show speciality error and not open modal when Upload Visit clicked without speciality', () => {
+    renderWithData(fullData);
+
+    // Click Upload Visit WITHOUT selecting a speciality first
+    fireEvent.click(screen.getByText('Upload Visit'));
+
+    // Modal should NOT appear
+    expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
+    // Error message should be shown
+    expect(screen.getByText("Please select a doctor's specialty")).toBeInTheDocument();
+  });
+
   /* ── Priority Visit Toggle ───────────────────────────────────────── */
 
   it('should render Priority Visit label and toggle', () => {
