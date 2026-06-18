@@ -320,7 +320,12 @@ const MedicalHistorySection: React.FC<{
 }> = ({ sections }) => (
   <div>
     {sections.map((section, sIdx) => (
-      <div key={sIdx}>
+      <div key={sIdx} className="mb-2 last:mb-0">
+        {section.title && (
+          <p className="text-sm font-semibold text-[#2E1E91] mb-1">
+            {section.title}
+          </p>
+        )}
         {section.items.map((item: ModalSectionItem, iIdx: number) => {
           if (item.type === ITEM_TYPES.LABEL_VALUE) {
             return (
@@ -751,7 +756,6 @@ const VisitSummaryPage = () => {
             <CollapsedComponent
               icon={iconMedicalHistory}
               title="Medical History"
-              contentLabel="Family History"
               defaultOpen={allOpen}
               key={`medical-${allOpen}`}
             >
