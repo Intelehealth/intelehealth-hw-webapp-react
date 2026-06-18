@@ -757,6 +757,33 @@ describe('AyuPhysicalExamOptions', () => {
       ).toBeInTheDocument();
     });
 
+    it('shows upload-required error when images are emptied between render and click', async () => {
+      // Covers the defensive guard in handleSubmit (lines 125-128): if images
+      // disappear after the Upload button was rendered but before the click
+      // handler runs, the error state is set instead of committing.
+      const images = ['img-1'];
+      cameraState.imagesByQ['inner-jaundice'] = images;
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
+      );
+      // Select the camera tile → Upload button appears (images.length > 0)
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      const uploadBtn = screen.getByRole('button', { name: /Upload \(1\)/ });
+      // Mutate the SAME array reference to empty — the closure still holds it
+      images.length = 0;
+      // Click the Upload button — handleSubmit sees cameraImages.length === 0
+      await userEvent.click(uploadBtn);
+      expect(
+        screen.getByText('Please upload at least one image')
+      ).toBeInTheDocument();
+    });
+
     it('does not render an inner Submit button for plain multi-choice (defers to outer stepper)', () => {
       render(
         <AyuPhysicalExamOptions

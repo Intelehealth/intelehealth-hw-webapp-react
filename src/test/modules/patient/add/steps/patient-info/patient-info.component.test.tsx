@@ -331,7 +331,6 @@ describe('PatientInfo', () => {
       expect(screen.getByAltText('Personal')).toBeInTheDocument();
       expect(screen.getByAltText('Address')).toBeInTheDocument();
       expect(screen.getAllByAltText('Other').length).toBeGreaterThan(0);
-      // Section header text
       expect(screen.getByText('Personal')).toBeInTheDocument();
       expect(screen.getByText('Address')).toBeInTheDocument();
       expect(screen.getAllByText('Other').length).toBeGreaterThan(0);
@@ -422,7 +421,6 @@ describe('PatientInfo', () => {
         />
       );
       fireEvent.click(screen.getByTestId('upload-photo'));
-      // No assertion; just exercises the setValue path
     });
 
     it('handles country onChange (string value)', () => {
@@ -522,7 +520,6 @@ describe('PatientInfo', () => {
         />
       );
       const phoneInputs = screen.getAllByRole('textbox', { hidden: false });
-      // Find phone number inputs by their tel type via querySelector
       const tels = document.querySelectorAll('input[type="tel"]');
       fireEvent.change(tels[0], { target: { value: '5555555555' } });
       fireEvent.change(tels[1], { target: { value: '6666666666' } });
@@ -638,8 +635,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // A spread of error messages should now be visible to exercise
-      // the truthy branches of error-display ternaries.
       await waitFor(() =>
         expect(screen.getByText('First name is required')).toBeInTheDocument()
       );
@@ -661,7 +656,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // Trigger re-render to surface validation errors
       await waitFor(() =>
         expect(screen.getByText('Country code is required')).toBeInTheDocument()
       );
@@ -714,7 +708,6 @@ describe('PatientInfo', () => {
 
       fireEvent.submit(container.querySelector('form')!);
 
-      // Wait briefly to confirm onNext was not called
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(mockOnNext).not.toHaveBeenCalled();
     });
@@ -876,7 +869,6 @@ describe('PatientInfo', () => {
       await waitFor(() =>
         expect(mockFetchPostalCodeData).toHaveBeenCalledWith('999999')
       );
-      // When API returns null, no address fields should be set, no toast shown
       const toastCalls = mockShowToast.mock.calls.filter(
         (call: unknown[]) => call[0] === 'No address found'
       );
@@ -921,12 +913,10 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // Unmount before timeout fires
       unmount();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1000);
       });
-      // Should not have fetched after unmount
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
     });
 
@@ -1056,6 +1046,54 @@ describe('PatientInfo', () => {
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
     });
 
+    it('does not fetch when postalCode is undefined (nullish coalescing guard)', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+
+    it('skips setValue when the effect cleanup aborts before fetch resolves', async () => {
+      let resolveFetch!: (value: unknown) => void;
+      mockFetchPostalCodeData.mockImplementation(
+        () => new Promise(resolve => { resolveFetch = resolve; })
+      );
+
+      const { unmount } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).toHaveBeenCalledWith('560001');
+
+      unmount();
+
+      await act(async () => {
+        resolveFetch({ state: 'Karnataka', district: 'Bangalore', city: 'Bangalore' });
+      });
+    });
+
     it('does not fetch when country is null (optional chaining guard)', async () => {
       render(
         <PatientInfo
@@ -1160,7 +1198,6 @@ describe('PatientInfo', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1100);
       });
-      // Only the API-related toast (if any) should fire, not the validation toast
       const toastCalls = mockShowToast.mock.calls.filter(
         (call: unknown[]) =>
           call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
@@ -1202,7 +1239,6 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // Advance only 500ms — toast should not fire yet
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500);
       });
@@ -1249,7 +1285,6 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // The RadioGroup should render with empty string value
       const radioGroup = screen.getByRole('radiogroup');
       expect(radioGroup).toHaveAttribute('data-value', '');
     });
@@ -1408,7 +1443,6 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // When there are no errors, no error spans for the phone number should exist
       const phoneContainer = screen
         .getByTestId('phone-main')
         .closest('div');
@@ -1427,7 +1461,6 @@ describe('PatientInfo', () => {
       const img = screen
         .getByTestId('profile-photo')
         .querySelector('img');
-      // When profilePhoto is null/falsy, the || operator gives DefaultUserImage
       expect(img).toHaveAttribute('src', 'default-user.svg');
     });
 
@@ -1474,7 +1507,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // The phoneNumberCountryCode error is prioritized over phoneNumber
       await waitFor(() =>
         expect(screen.getByText('Country code is required')).toBeInTheDocument()
       );
@@ -1616,8 +1648,6 @@ describe('PatientInfo', () => {
     });
 
     it('exercises error branches for optional fields by providing non-castable types', async () => {
-      // Pass objects/arrays that yup.string() cannot cast, triggering type errors
-      // on optional string fields which normally never produce errors
       const invalidDefaults = {
         ...validDefaults,
         middleName: { invalid: true } as unknown as string,
@@ -1638,8 +1668,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // Wait for validation to complete - these fields may produce type errors
-      // which exercises the truthy branch of errors.fieldName?.message
       await waitFor(() => {
         expect(container.querySelector('form')).toBeInTheDocument();
       });
