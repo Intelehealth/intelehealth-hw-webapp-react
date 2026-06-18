@@ -7,7 +7,7 @@ import {
   StartVisit,
   getPhysicalExamFilter,
 } from '../../../../../modules/ayu/components/start-visit/start-visit.component';
-import { BreadcrumbProvider } from '../../../../../context/BreadcrumbContext';
+import { BreadcrumbProvider, useBreadcrumbContext } from '../../../../../context/BreadcrumbContext';
 
 // Mock useStartVisitData context
 const mockSetLastSectionIndex = vi.fn();
@@ -162,6 +162,20 @@ const renderWithRouter = (
         {component}
       </BreadcrumbProvider>
     </MemoryRouter>
+  );
+};
+
+// Helper that reads breadcrumb state for assertions
+const BreadcrumbSpy = () => {
+  const { items } = useBreadcrumbContext();
+  return (
+    <div data-testid="breadcrumb-spy">
+      {items.map((item, i) => (
+        <span key={i} data-testid={`breadcrumb-${i}`}>
+          {item.label}
+        </span>
+      ))}
+    </div>
   );
 };
 
@@ -1587,6 +1601,37 @@ describe('StartVisit', () => {
         extension: [{ url: 'urn:intelehealth:perform-physical-exam' }],
       } as any;
       expect(getPhysicalExamFilter(questionnaire)).toBe('');
+    });
+  });
+
+  describe('dynamic breadcrumb', () => {
+    it('includes the current section name in the breadcrumb', async () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      // Initial section is Vitals
+      expect(screen.getByTestId('breadcrumb-0')).toHaveTextContent('Dashboard');
+      expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Start Visit');
+      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Vitals');
+    });
+
+    it('updates breadcrumb when navigating to the next section', async () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      // Navigate from Vitals -> Visit Reason
+      await userEvent.click(screen.getByText('Next Vitals'));
+      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Visit Reason');
     });
   });
 });

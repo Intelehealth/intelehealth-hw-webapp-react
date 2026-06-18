@@ -206,4 +206,15 @@ describe('showToast', () => {
       }
     );
   });
+
+  it('should pass toastId option through to toast call', () => {
+    showToast('Duplicate Guard', 'Only one', 'warning', { toastId: 'postal-code-invalid' });
+
+    expect(mockedToast).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        toastId: 'postal-code-invalid'
+      })
+    );
+  });
 });

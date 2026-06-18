@@ -19,6 +19,7 @@ export interface ToastOptions {
   closeButton?: boolean;
   className?: string;
   style?: CSSProperties;
+  toastId?: string | number;
 }
 
 export const showToast = (

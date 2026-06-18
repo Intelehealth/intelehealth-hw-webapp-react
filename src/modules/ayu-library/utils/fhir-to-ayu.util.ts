@@ -551,19 +551,33 @@ function buildPhysExamQuestion(
     e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
   );
 
-  /* Drop "[picture taken]" marker answerOptions. They are not user-facing
-   * choices — they are a proxy for the attachment child below, which we
-   * surface separately as the camera tile. Without this, the option renders
-   * as a duplicate "Take a picture" tile next to the real camera tile.
+  /* Drop camera-proxy answerOptions. They are not user-facing choices — they
+   * are a proxy for the attachment child below, which we surface separately
+   * as the camera tile. Without this, the option renders as a duplicate
+   * "Take a picture" tile next to the real camera tile.
    *
-   * Filter is keyed on the `language` extension marker (not on attachment
-   * trigger codes) because Yes/No-style questions enable an attachment via
-   * the Yes/No codes themselves — those are real choices, not markers, and
-   * must be preserved. */
+   * Two detection strategies (either triggers removal):
+   *  1. The `language` extension carries the "[picture taken]" marker.
+   *  2. When the question has attachment children (i.e. a camera tile will
+   *     be generated), any option whose display text is "take a picture"
+   *     (case-insensitive) is also a proxy — some FHIR data omits the
+   *     language marker.
+   *
+   * Real choices like Yes/No are preserved because their display text does
+   * not match the camera-proxy pattern. */
+  const hasAttachmentChild = (q.item ?? []).some(c => c.type === 'attachment');
   const answerOption: AyuAnswerOption[] = (q.answerOption ?? [])
     .filter(opt => {
       const langExt = opt.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
-      return langExt?.valueString !== PE_OPTION_LANG_MARKER_PICTURE_TAKEN;
+      if (langExt?.valueString === PE_OPTION_LANG_MARKER_PICTURE_TAKEN)
+        return false;
+      if (hasAttachmentChild) {
+        const display = (opt.valueCoding?.display ?? opt.valueString ?? '')
+          .toLowerCase()
+          .trim();
+        if (display === 'take a picture') return false;
+      }
+      return true;
     })
     .map(opt => ({
       valueString: opt.valueString,
@@ -575,7 +589,10 @@ function buildPhysExamQuestion(
 
   for (const child of q.item ?? []) {
     const cameraOpt = buildPhysExamCameraOption(child);
-    if (cameraOpt) answerOption.push(cameraOpt);
+    if (cameraOpt) {
+      answerOption.push(cameraOpt);
+      break; // Only one camera tile per question
+    }
   }
 
   return {

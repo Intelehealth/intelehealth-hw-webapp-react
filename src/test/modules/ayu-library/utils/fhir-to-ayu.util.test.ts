@@ -1788,6 +1788,38 @@ describe('transformFhirPhysExamToAyu', () => {
     );
   });
 
+  it('drops "Take a picture" proxy option even without the language marker when an attachment child exists', () => {
+    // Some FHIR data has a "Take a picture" answerOption without the
+    // "[picture taken]" language extension. When the question also has an
+    // attachment child (generating the camera tile), this proxy must still
+    // be filtered out to avoid a duplicate tile.
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Nails'], [
+          {
+            linkId: 'q-nails',
+            text: 'Nails',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'normal', display: 'Normal' } },
+              { valueCoding: { code: 'camera-proxy', display: 'Take a picture' } },
+            ],
+            item: [
+              { linkId: 'q-nails_attach', type: 'attachment' },
+            ],
+          },
+        ]),
+      ],
+    });
+    const codes = root?.item?.[0]?.answerOption?.map(
+      o => o.valueCoding?.code
+    );
+    // The unmarked proxy is dropped; real "Normal" survives; camera option
+    // is built from the attachment child.
+    expect(codes).toEqual(['normal', 'q-nails_attach']);
+  });
+
   it('preserves Yes/No answerOptions when the attachment enables on those codes (no false dedup)', () => {
     // Mirrors the 1st jaundice question: enableWhen entries on the
     // attachment reference the real Yes/No answer codes. Those codes must

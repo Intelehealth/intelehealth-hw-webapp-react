@@ -48,11 +48,6 @@ export const StartVisit = () => {
   const { lastSectionIndex, data } = useStartVisitData();
   const { state } = useLocation();
 
-  useBreadcrumb([
-    { label: 'Dashboard', path: ROUTES.DASHBOARD },
-    { label: 'Start Visit' },
-  ]);
-
   const patientName =
     state?.patientName ?? storage.get(PATIENT_NAME_KEY) ?? null;
   const patientAge = state?.patientAge ?? storage.get(PATIENT_AGE_KEY) ?? null;
@@ -181,6 +176,18 @@ export const StartVisit = () => {
   const [hasRestored, setHasRestored] = useState(false);
   const [isVisitReasonStepperActive, setIsVisitReasonStepperActive] =
     useState(false);
+
+  const sectionNames = [
+    SECTION_VITALS,
+    SECTION_VISIT_REASON,
+    SECTION_PHYSICAL_EXAM,
+    SECTION_MEDICAL_HISTORY,
+  ];
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'Start Visit' },
+    { label: sectionNames[currentSectionIndex] },
+  ]);
 
   /*
    * Assessment Progress loader is hidden on Vitals and on the visit-reason

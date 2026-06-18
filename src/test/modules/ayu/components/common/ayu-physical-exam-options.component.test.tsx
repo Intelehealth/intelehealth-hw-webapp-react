@@ -722,52 +722,39 @@ describe('AyuPhysicalExamOptions', () => {
       expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
     });
 
-    it('shows an inline error and does not commit when Submit is clicked without images', async () => {
-      const setAnswer = vi.fn();
+    it('does not show Upload button when camera tile is selected but no images are captured', async () => {
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
           value={undefined}
-          setAnswer={setAnswer}
+          setAnswer={vi.fn()}
         />
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      // Submit button is visible even with 0 images so the user has a clear
-      // action; clicking it surfaces an inline error instead of failing
-      // silently.
-      const submit = screen.getByRole('button', { name: /Upload \(0\)/ });
-      await userEvent.click(submit);
+      // Upload button hidden when no images — prevents premature submission
       expect(
-        screen.getByText('Please upload at least one image')
-      ).toBeInTheDocument();
-      expect(setAnswer).not.toHaveBeenCalled();
+        screen.queryByRole('button', { name: /Upload/ })
+      ).not.toBeInTheDocument();
     });
 
-    it('clears the inline upload error once an image is added', async () => {
-      const setAnswer = vi.fn();
+    it('shows Upload button once an image is captured after selecting camera tile', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
           value={undefined}
-          setAnswer={setAnswer}
+          setAnswer={vi.fn()}
         />
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(0\)/ })
-      );
+      // Upload button appears now that images > 0
       expect(
-        screen.getByText('Please upload at least one image')
+        screen.getByRole('button', { name: /Upload \(1\)/ })
       ).toBeInTheDocument();
-      // Simulating an image add through the mocked PhysicalExamImageCapture
-      await userEvent.click(screen.getByTestId('image-capture-add'));
-      expect(
-        screen.queryByText('Please upload at least one image')
-      ).not.toBeInTheDocument();
     });
 
     it('does not render an inner Submit button for plain multi-choice (defers to outer stepper)', () => {

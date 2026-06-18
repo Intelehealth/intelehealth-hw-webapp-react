@@ -857,7 +857,7 @@ describe('PatientInfo', () => {
       await waitFor(() => expect(mockFetchPostalCodeData).toHaveBeenCalled());
     });
 
-    it('shows toast when API returns null', async () => {
+    it('does not set address fields when API returns null', async () => {
       mockFetchPostalCodeData.mockResolvedValue(null);
       render(
         <PatientInfo
@@ -874,12 +874,13 @@ describe('PatientInfo', () => {
         await vi.advanceTimersByTimeAsync(600);
       });
       await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'No address found',
-          expect.any(String),
-          'error'
-        )
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('999999')
       );
+      // When API returns null, no address fields should be set, no toast shown
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'No address found'
+      );
+      expect(toastCalls).toHaveLength(0);
     });
 
     it('logs error when fetchPostalCodeData throws', async () => {
@@ -1071,6 +1072,168 @@ describe('PatientInfo', () => {
         await vi.advanceTimersByTimeAsync(600);
       });
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Postal code toast debounce effect', () => {
+    it('shows warning toast when postal code is entered without country selected', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: '',
+            postalCode: '123',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Country Required',
+        'Please select a country before entering postal code.',
+        'warning',
+        { toastId: 'postal-code-country' }
+      );
+    });
+
+    it('shows error toast when postal code is less than 6 digits with country selected', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '123',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Invalid Postal Code',
+        'Postal Code must be exactly 6 digits.',
+        'error',
+        { toastId: 'postal-code-invalid' }
+      );
+    });
+
+    it('shows error toast when postal code is more than 6 digits', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '1234567',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Invalid Postal Code',
+        'Postal Code must be exactly 6 digits.',
+        'error',
+        { toastId: 'postal-code-invalid' }
+      );
+    });
+
+    it('does not show toast when postal code is exactly 6 digits', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      // Only the API-related toast (if any) should fire, not the validation toast
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('does not show toast when postal code is empty', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('debounces the toast — no toast before 1000ms', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '12',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      // Advance only 500ms — toast should not fire yet
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('clears toast timeout on unmount', async () => {
+      const { unmount } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: '',
+            postalCode: '12',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
     });
   });
 
