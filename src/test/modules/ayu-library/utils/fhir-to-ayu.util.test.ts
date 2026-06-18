@@ -1788,6 +1788,73 @@ describe('transformFhirPhysExamToAyu', () => {
     );
   });
 
+  it('drops "Take a picture" proxy option even without the language marker when an attachment child exists', () => {
+    // Some FHIR data has a "Take a picture" answerOption without the
+    // "[picture taken]" language extension. When the question also has an
+    // attachment child (generating the camera tile), this proxy must still
+    // be filtered out to avoid a duplicate tile.
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Nails'], [
+          {
+            linkId: 'q-nails',
+            text: 'Nails',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'normal', display: 'Normal' } },
+              { valueCoding: { code: 'camera-proxy', display: 'Take a picture' } },
+            ],
+            item: [
+              { linkId: 'q-nails_attach', type: 'attachment' },
+            ],
+          },
+        ]),
+      ],
+    });
+    const codes = root?.item?.[0]?.answerOption?.map(
+      o => o.valueCoding?.code
+    );
+    // The unmarked proxy is dropped; real "Normal" survives; camera option
+    // is built from the attachment child.
+    expect(codes).toEqual(['normal', 'q-nails_attach']);
+  });
+
+  it('drops proxy option that uses valueString instead of valueCoding.display for "Take a picture"', () => {
+    // Covers the `opt.valueCoding?.display ?? opt.valueString ?? ''` fallback:
+    // when valueCoding is absent, the filter must fall through to valueString.
+    const root = transformFhirPhysExamToAyu({
+      resourceType: 'Questionnaire',
+      item: [
+        makeSection('Hands', ['Nails'], [
+          {
+            linkId: 'q-nails-vs',
+            text: 'Nails',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'normal', display: 'Normal' } },
+              // proxy with valueString only (no valueCoding)
+              { valueString: 'Take a picture' },
+              // option with neither valueCoding.display nor valueString
+              // (covers the final ?? '' fallback)
+              { valueInteger: 99 },
+            ],
+            item: [
+              { linkId: 'q-nails-vs_attach', type: 'attachment' },
+            ],
+          },
+        ]),
+      ],
+    });
+    const opts = root?.item?.[0]?.answerOption ?? [];
+    // 'Normal' survives, 'Take a picture' (valueString) is dropped,
+    // valueInteger option survives (display='' ≠ 'take a picture'),
+    // camera tile is appended from the attachment child.
+    expect(opts.map(o => o.valueCoding?.code ?? o.valueInteger ?? o.valueCoding?.code)).toEqual([
+      'normal', 99, 'q-nails-vs_attach',
+    ]);
+  });
+
   it('preserves Yes/No answerOptions when the attachment enables on those codes (no false dedup)', () => {
     // Mirrors the 1st jaundice question: enableWhen entries on the
     // attachment reference the real Yes/No answer codes. Those codes must
@@ -2904,6 +2971,13 @@ describe('transformFhirPhysExamToAyu', () => {
                       { valueCoding: { code: 'yes', display: 'Yes' } },
                     ],
                     item: [
+                      // non-attachment FIRST → must NOT contribute a camera option
+                      // (covers the `child.type !== 'attachment'` early-return path)
+                      {
+                        linkId: 'inner_note',
+                        type: 'display',
+                        text: 'A note',
+                      },
                       // attachment → becomes the camera answer option
                       {
                         linkId: 'inner_cam',
@@ -2915,12 +2989,6 @@ describe('transformFhirPhysExamToAyu', () => {
                             answerCoding: { code: 'CAM' },
                           },
                         ],
-                      },
-                      // non-attachment → must NOT contribute a camera option
-                      {
-                        linkId: 'inner_note',
-                        type: 'display',
-                        text: 'A note',
                       },
                     ],
                   },

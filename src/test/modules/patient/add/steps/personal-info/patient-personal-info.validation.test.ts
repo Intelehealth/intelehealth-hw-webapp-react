@@ -410,6 +410,48 @@ describe('patientPersonalInfoSchema', () => {
     });
   });
 
+  describe('emergencyContactNumber not-same-as-phone validation', () => {
+    it('should fail when emergencyContactNumber is the same as phoneNumber', async () => {
+      const data = { ...validData, phoneNumber: '1234567890', emergencyContactNumber: '1234567890' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+
+    it('should show correct error message when numbers are identical', async () => {
+      const data = { ...validData, phoneNumber: '1234567890', emergencyContactNumber: '1234567890' };
+      try {
+        await patientPersonalInfoSchema.validate(data);
+      } catch (error) {
+        expect((error as { message: string }).message).toBe(
+          'Emergency contact number must be different from phone number.'
+        );
+      }
+    });
+
+    it('should pass when emergencyContactNumber is different from phoneNumber', async () => {
+      const result = await patientPersonalInfoSchema.isValid(validData);
+      expect(result).toBe(true);
+    });
+
+    it('should pass when phoneNumber is empty (skip cross-field check)', async () => {
+      const data = { ...validData, phoneNumber: '', emergencyContactNumber: '9876543210' };
+      try {
+        await patientPersonalInfoSchema.validate(data, { abortEarly: false });
+      } catch (error) {
+        const errors = (error as { errors: string[] }).errors;
+        expect(errors).not.toContain(
+          'Emergency contact number must be different from phone number.'
+        );
+      }
+    });
+
+    it('should pass when emergencyContactNumber is empty (handled by required)', async () => {
+      const data = { ...validData, emergencyContactNumber: '' };
+      const result = await patientPersonalInfoSchema.isValid(data);
+      expect(result).toBe(false);
+    });
+  });
+
   describe('emergencyContactNumberCountryCode validation', () => {
     it('should validate when emergencyContactNumberCountryCode is provided', async () => {
       const result = await patientPersonalInfoSchema.isValid(validData);

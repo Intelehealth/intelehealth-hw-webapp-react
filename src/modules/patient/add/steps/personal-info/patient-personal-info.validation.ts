@@ -24,7 +24,16 @@ export const patientPersonalInfoSchema = yup
       .required('Emergency contact name is required'),
     emergencyContactNumber: yup
       .string()
-      .required('Emergency contact number is required'),
+      .required('Emergency contact number is required')
+      .test(
+        'not-same-as-phone',
+        'Emergency contact number must be different from phone number.',
+        function (value) {
+          const { phoneNumber } = this.parent;
+          if (!value || !phoneNumber) return true;
+          return value !== phoneNumber;
+        }
+      ),
     emergencyContactNumberCountryCode: yup
       .string()
       .required('Emergency contact number country code is required'),

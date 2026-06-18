@@ -141,7 +141,7 @@ export const AyuPhysicalExamOptions = ({
    * We show the button whenever the camera tile is selected — either being
    * captured this session OR already committed (edit), so on edit the user can
    * review the uploaded pictures, add/remove, and re-submit. */
-  const submitVisible = isCameraSelected;
+  const submitVisible = isCameraSelected && cameraImages.length > 0;
 
   const submitJustHappened = !!submittedAt && Date.now() - submittedAt < 1500;
 

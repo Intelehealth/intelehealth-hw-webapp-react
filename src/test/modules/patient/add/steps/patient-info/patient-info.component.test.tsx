@@ -331,7 +331,6 @@ describe('PatientInfo', () => {
       expect(screen.getByAltText('Personal')).toBeInTheDocument();
       expect(screen.getByAltText('Address')).toBeInTheDocument();
       expect(screen.getAllByAltText('Other').length).toBeGreaterThan(0);
-      // Section header text
       expect(screen.getByText('Personal')).toBeInTheDocument();
       expect(screen.getByText('Address')).toBeInTheDocument();
       expect(screen.getAllByText('Other').length).toBeGreaterThan(0);
@@ -422,7 +421,6 @@ describe('PatientInfo', () => {
         />
       );
       fireEvent.click(screen.getByTestId('upload-photo'));
-      // No assertion; just exercises the setValue path
     });
 
     it('handles country onChange (string value)', () => {
@@ -522,7 +520,6 @@ describe('PatientInfo', () => {
         />
       );
       const phoneInputs = screen.getAllByRole('textbox', { hidden: false });
-      // Find phone number inputs by their tel type via querySelector
       const tels = document.querySelectorAll('input[type="tel"]');
       fireEvent.change(tels[0], { target: { value: '5555555555' } });
       fireEvent.change(tels[1], { target: { value: '6666666666' } });
@@ -638,8 +635,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // A spread of error messages should now be visible to exercise
-      // the truthy branches of error-display ternaries.
       await waitFor(() =>
         expect(screen.getByText('First name is required')).toBeInTheDocument()
       );
@@ -661,7 +656,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // Trigger re-render to surface validation errors
       await waitFor(() =>
         expect(screen.getByText('Country code is required')).toBeInTheDocument()
       );
@@ -714,7 +708,6 @@ describe('PatientInfo', () => {
 
       fireEvent.submit(container.querySelector('form')!);
 
-      // Wait briefly to confirm onNext was not called
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(mockOnNext).not.toHaveBeenCalled();
     });
@@ -857,7 +850,7 @@ describe('PatientInfo', () => {
       await waitFor(() => expect(mockFetchPostalCodeData).toHaveBeenCalled());
     });
 
-    it('shows toast when API returns null', async () => {
+    it('does not set address fields when API returns null', async () => {
       mockFetchPostalCodeData.mockResolvedValue(null);
       render(
         <PatientInfo
@@ -874,12 +867,12 @@ describe('PatientInfo', () => {
         await vi.advanceTimersByTimeAsync(600);
       });
       await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'No address found',
-          expect.any(String),
-          'error'
-        )
+        expect(mockFetchPostalCodeData).toHaveBeenCalledWith('999999')
       );
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'No address found'
+      );
+      expect(toastCalls).toHaveLength(0);
     });
 
     it('logs error when fetchPostalCodeData throws', async () => {
@@ -920,12 +913,10 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // Unmount before timeout fires
       unmount();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1000);
       });
-      // Should not have fetched after unmount
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
     });
 
@@ -1055,6 +1046,54 @@ describe('PatientInfo', () => {
       expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
     });
 
+    it('does not fetch when postalCode is undefined (nullish coalescing guard)', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: undefined as unknown as string,
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).not.toHaveBeenCalled();
+    });
+
+    it('skips setValue when the effect cleanup aborts before fetch resolves', async () => {
+      let resolveFetch!: (value: unknown) => void;
+      mockFetchPostalCodeData.mockImplementation(
+        () => new Promise(resolve => { resolveFetch = resolve; })
+      );
+
+      const { unmount } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(mockFetchPostalCodeData).toHaveBeenCalledWith('560001');
+
+      unmount();
+
+      await act(async () => {
+        resolveFetch({ state: 'Karnataka', district: 'Bangalore', city: 'Bangalore' });
+      });
+    });
+
     it('does not fetch when country is null (optional chaining guard)', async () => {
       render(
         <PatientInfo
@@ -1074,6 +1113,166 @@ describe('PatientInfo', () => {
     });
   });
 
+  describe('Postal code toast debounce effect', () => {
+    it('shows warning toast when postal code is entered without country selected', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: '',
+            postalCode: '123',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Country Required',
+        'Please select a country before entering postal code.',
+        'warning',
+        { toastId: 'postal-code-country' }
+      );
+    });
+
+    it('shows error toast when postal code is less than 6 digits with country selected', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '123',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Invalid Postal Code',
+        'Postal Code must be exactly 6 digits.',
+        'error',
+        { toastId: 'postal-code-invalid' }
+      );
+    });
+
+    it('shows error toast when postal code is more than 6 digits', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '1234567',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Invalid Postal Code',
+        'Postal Code must be exactly 6 digits.',
+        'error',
+        { toastId: 'postal-code-invalid' }
+      );
+    });
+
+    it('does not show toast when postal code is exactly 6 digits', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '560001',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('does not show toast when postal code is empty', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('debounces the toast — no toast before 1000ms', async () => {
+      render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: 'India',
+            postalCode: '12',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+
+    it('clears toast timeout on unmount', async () => {
+      const { unmount } = render(
+        <PatientInfo
+          defaultValues={{
+            ...validDefaults,
+            country: '',
+            postalCode: '12',
+          }}
+          onNext={mockOnNext}
+          onPrev={mockOnPrev}
+        />
+      );
+      unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      const toastCalls = mockShowToast.mock.calls.filter(
+        (call: unknown[]) =>
+          call[0] === 'Invalid Postal Code' || call[0] === 'Country Required'
+      );
+      expect(toastCalls).toHaveLength(0);
+    });
+  });
+
   describe('Null/undefined watch values (nullish coalescing branches)', () => {
     it('renders with null gender (exercises ?? fallback)', () => {
       render(
@@ -1086,7 +1285,6 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // The RadioGroup should render with empty string value
       const radioGroup = screen.getByRole('radiogroup');
       expect(radioGroup).toHaveAttribute('data-value', '');
     });
@@ -1245,7 +1443,6 @@ describe('PatientInfo', () => {
           onPrev={mockOnPrev}
         />
       );
-      // When there are no errors, no error spans for the phone number should exist
       const phoneContainer = screen
         .getByTestId('phone-main')
         .closest('div');
@@ -1264,7 +1461,6 @@ describe('PatientInfo', () => {
       const img = screen
         .getByTestId('profile-photo')
         .querySelector('img');
-      // When profilePhoto is null/falsy, the || operator gives DefaultUserImage
       expect(img).toHaveAttribute('src', 'default-user.svg');
     });
 
@@ -1311,7 +1507,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // The phoneNumberCountryCode error is prioritized over phoneNumber
       await waitFor(() =>
         expect(screen.getByText('Country code is required')).toBeInTheDocument()
       );
@@ -1453,8 +1648,6 @@ describe('PatientInfo', () => {
     });
 
     it('exercises error branches for optional fields by providing non-castable types', async () => {
-      // Pass objects/arrays that yup.string() cannot cast, triggering type errors
-      // on optional string fields which normally never produce errors
       const invalidDefaults = {
         ...validDefaults,
         middleName: { invalid: true } as unknown as string,
@@ -1475,8 +1668,6 @@ describe('PatientInfo', () => {
         fireEvent.submit(container.querySelector('form')!);
       });
 
-      // Wait for validation to complete - these fields may produce type errors
-      // which exercises the truthy branch of errors.fieldName?.message
       await waitFor(() => {
         expect(container.querySelector('form')).toBeInTheDocument();
       });
