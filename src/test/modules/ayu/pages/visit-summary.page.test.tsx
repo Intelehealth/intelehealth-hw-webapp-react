@@ -561,6 +561,56 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('Diabetes')).toBeInTheDocument();
   });
 
+  it('should render the title of each medical history section', () => {
+    renderWithData({
+      ...fullData,
+      medicalHistory: {
+        patHistSummary: [
+          {
+            title: 'Patient History',
+            items: [
+              { type: 'labelValue' as const, label: 'Diabetes', value: 'Yes' },
+            ],
+          },
+        ],
+        famHistSummary: [
+          {
+            title: 'Family History',
+            items: [
+              { type: 'labelValue' as const, label: 'Hypertension', value: 'No' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('Patient History')).toBeInTheDocument();
+    expect(screen.getByText('Family History')).toBeInTheDocument();
+    expect(screen.getByText('Diabetes')).toBeInTheDocument();
+    expect(screen.getByText('Hypertension')).toBeInTheDocument();
+  });
+
+  it('should not render a section title when it is empty', () => {
+    renderWithData({
+      ...fullData,
+      medicalHistory: {
+        patHistSummary: [
+          {
+            title: '',
+            items: [
+              { type: 'labelValue' as const, label: 'Diabetes', value: 'Yes' },
+            ],
+          },
+        ],
+        famHistSummary: [],
+      },
+    });
+
+    expect(screen.getByText('Diabetes')).toBeInTheDocument();
+    // No section title should be rendered for the empty-title section
+    expect(screen.queryByText('Patient History')).not.toBeInTheDocument();
+  });
+
   it('should return null for unknown item types in medical history', () => {
     renderWithData({
       ...fullData,
