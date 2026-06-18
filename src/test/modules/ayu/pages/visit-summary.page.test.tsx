@@ -306,6 +306,13 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
   return render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 }
 
+/** Select a doctor's specialty from the dropdown (required before Upload Visit). */
+function selectSpeciality(name = 'General Physician') {
+  const dropdownButton = screen.getByRole('button', { name: /select doctor's specialty/i });
+  fireEvent.click(dropdownButton);
+  fireEvent.click(screen.getByText(name));
+}
+
 /* ── Tests ────────────────────────────────────────────────────────────────── */
 
 beforeEach(() => {
@@ -386,6 +393,7 @@ describe('VisitSummaryPage', () => {
 
     expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
 
+    selectSpeciality();
     const uploadButton = screen.getByText('Upload Visit');
     fireEvent.click(uploadButton);
 
@@ -400,6 +408,7 @@ describe('VisitSummaryPage', () => {
     renderWithData();
 
     // Click Upload Visit to open modal
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     // Confirm in modal
     fireEvent.click(screen.getByTestId('modal-confirm'));
@@ -419,6 +428,7 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     // Open and confirm modal
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -453,6 +463,7 @@ describe('VisitSummaryPage', () => {
     renderWithData(fullData);
 
     // Upload the visit
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -626,6 +637,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -661,6 +673,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -679,6 +692,7 @@ describe('VisitSummaryPage', () => {
     mockUploadVisit.mockRejectedValueOnce(new Error('Network error'));
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -718,6 +732,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -756,6 +771,7 @@ describe('VisitSummaryPage', () => {
   it('should close the confirmation modal when cancel is clicked', () => {
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
 
@@ -1079,6 +1095,18 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
   });
 
+  it('should show speciality error and not open modal when Upload Visit clicked without speciality', () => {
+    renderWithData(fullData);
+
+    // Click Upload Visit WITHOUT selecting a speciality first
+    fireEvent.click(screen.getByText('Upload Visit'));
+
+    // Modal should NOT appear
+    expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
+    // Error message should be shown
+    expect(screen.getByText("Please select a doctor's specialty")).toBeInTheDocument();
+  });
+
   /* ── Priority Visit Toggle ───────────────────────────────────────── */
 
   it('should render Priority Visit label and toggle', () => {
@@ -1107,6 +1135,7 @@ describe('VisitSummaryPage', () => {
     fireEvent.click(toggle);
 
     // Open and confirm upload
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1191,6 +1220,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1223,6 +1253,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByRole('button', { name: /Upload Visit/i }));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1253,6 +1284,7 @@ describe('VisitSummaryPage', () => {
     const textarea = screen.getByPlaceholderText('Leave a note for doctor');
     fireEvent.change(textarea, { target: { value: 'Test doctor note' } });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1437,6 +1469,7 @@ describe('VisitSummaryPage', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1478,6 +1511,7 @@ describe('VisitSummaryPage', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1517,6 +1551,7 @@ describe('VisitSummaryPage', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1546,6 +1581,7 @@ describe('VisitSummaryPage', () => {
 
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1589,6 +1625,7 @@ describe('VisitSummaryPage', () => {
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1606,6 +1643,7 @@ describe('VisitSummaryPage', () => {
 
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1644,6 +1682,7 @@ describe('VisitSummaryPage', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1664,6 +1703,7 @@ describe('VisitSummaryPage', () => {
   it('should not upload documents when additionalDocuments is empty', async () => {
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1690,6 +1730,7 @@ describe('VisitSummaryPage', () => {
 
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1717,6 +1758,7 @@ describe('VisitSummaryPage', () => {
 
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1733,6 +1775,7 @@ describe('VisitSummaryPage', () => {
     mockGetPendingImages.mockReturnValue([]);
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1783,6 +1826,7 @@ describe('VisitSummaryPage', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 
@@ -1803,6 +1847,7 @@ describe('VisitSummaryPage', () => {
     mockGetLatestVisitUuid.mockResolvedValueOnce(null);
     renderWithData(fullData);
 
+    selectSpeciality();
     fireEvent.click(screen.getByText('Upload Visit'));
     fireEvent.click(screen.getByTestId('modal-confirm'));
 

@@ -383,6 +383,7 @@ const VisitSummaryPage = () => {
   const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [speciality, setSpeciality] = useState('');
+  const [specialityError, setSpecialityError] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [additionalDocuments, setAdditionalDocuments] = useState<
@@ -528,7 +529,7 @@ const VisitSummaryPage = () => {
         physicalExam,
         medicalHistory,
         familyHistory,
-        speciality: speciality || 'General Physician',
+        speciality,
         priorityVisit,
         doctorNotes: additionalNotes,
       });
@@ -603,8 +604,12 @@ const VisitSummaryPage = () => {
   ]);
 
   const confirmAndUpload = useCallback(() => {
+    if (!speciality) {
+      setSpecialityError("Please select a doctor's specialty");
+      return;
+    }
     setShowConfirm(true);
-  }, []);
+  }, [speciality]);
 
   const vitals = useMemo(
     () => (data.vitals ? mapVitals(data.vitals.formValues) : null),
@@ -847,9 +852,13 @@ const VisitSummaryPage = () => {
               })
             )}
             value={speciality}
-            onChange={val => setSpeciality(val as string)}
+            onChange={val => {
+              setSpeciality(val as string);
+              setSpecialityError('');
+            }}
             placeholder="Select Doctor's specialty"
             size="sm"
+            error={specialityError}
           />
         </div>
 
@@ -896,7 +905,7 @@ const VisitSummaryPage = () => {
             type="button"
             onClick={() =>
               navigate(`/appointment-schedule/${uploadedVisitUuid}`, {
-                state: { speciality: speciality || 'General Physician' },
+                state: { speciality },
               })
             }
             className="rounded-lg px-5 py-2 text-sm font-medium text-white hover:opacity-90"
