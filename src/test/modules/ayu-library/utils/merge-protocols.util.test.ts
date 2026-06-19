@@ -13,8 +13,8 @@ import {
 import { transformFhirToAyu } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 import {
   groupAnswersByProtocol,
-  mergeProtocols,
   MERGED_ASSOCIATED_SYMPTOMS_LINK_ID,
+  mergeProtocols,
 } from '../../../../modules/ayu-library/utils/merge-protocols.util';
 
 const makeComplaint = (
@@ -678,6 +678,133 @@ describe('mergeProtocols', () => {
         i => i.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID
       );
       expect(mergedAS?.item?.map(c => c.linkId)).toEqual(['A:a-other-describe']);
+    });
+
+    it('dedups the "Other" option that shares a code but has a slightly different label across protocols', () => {
+
+      const a: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        title: 'A',
+        item: [
+          {
+            linkId: 'A-AS',
+            text: ASSOCIATED_SYMPTOMS_TEXT,
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'nausea', display: 'Nausea' } },
+              { valueCoding: { code: 'shared-other', display: 'Other [describe]' } },
+            ],
+            item: [
+              {
+                linkId: 'a-other-describe',
+                text: 'Other [describe]',
+                type: 'string',
+                enableWhen: [
+                  {
+                    question: 'A-AS',
+                    operator: '=',
+                    answerCoding: { code: 'shared-other' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const b: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        title: 'B',
+        item: [
+          {
+            linkId: 'B-AS',
+            text: ASSOCIATED_SYMPTOMS_TEXT,
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+              { valueCoding: { code: 'shared-other', display: 'Others [describe]' } },
+            ],
+            item: [
+              {
+                linkId: 'b-other-describe',
+                text: 'Others [describe]',
+                type: 'string',
+                enableWhen: [
+                  {
+                    question: 'B-AS',
+                    operator: '=',
+                    answerCoding: { code: 'shared-other' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const merged = mergeProtocols([
+        makeComplaint('A', a),
+        makeComplaint('B', b),
+      ]);
+      const mergedAS = merged?.item?.find(
+        i => i.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID
+      );
+
+      // The "Other" option appears once (first-wins label), alongside the two
+      // distinct symptoms.
+      expect(
+        mergedAS?.answerOption?.map(o => o.valueCoding?.display)
+      ).toEqual(['Nausea', 'Other [describe]', 'Fever']);
+      expect(mergedAS?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'nausea',
+        'shared-other',
+        'fever',
+      ]);
+
+      // And its follow-up free-text child appears only once.
+      expect(mergedAS?.item?.map(c => c.linkId)).toEqual(['A:a-other-describe']);
+    });
+
+    it('dedups follow-up children gated on the same option code even when their labels differ', () => {
+      const buildChildGroup = (
+        title: string,
+        childLinkId: string,
+        childText: string
+      ): FhirQuestionnaire => ({
+        resourceType: 'Questionnaire',
+        title,
+        item: [
+          {
+            linkId: `${title}-AS`,
+            text: ASSOCIATED_SYMPTOMS_TEXT,
+            type: 'choice',
+            repeats: true,
+            answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
+            item: [
+              {
+                linkId: childLinkId,
+                text: childText,
+                type: 'string',
+                enableWhen: [
+                  {
+                    question: `${title}-AS`,
+                    operator: '=',
+                    answerCoding: { code: 'other' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const merged = mergeProtocols([
+        makeComplaint('A', buildChildGroup('A', 'a-desc', 'Other [describe]')),
+        makeComplaint('B', buildChildGroup('B', 'b-desc', 'Others [describe]')),
+      ]);
+      const mergedAS = merged?.item?.find(
+        i => i.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID
+      );
+      expect(mergedAS?.item?.map(c => c.linkId)).toEqual(['A:a-desc']);
     });
 
     it('omits the merged block when no protocol carries associated symptoms', () => {

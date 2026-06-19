@@ -13,21 +13,26 @@ export const MERGED_ASSOCIATED_SYMPTOMS_LINK_ID =
 const optionCode = (opt: AyuAnswerOption): string | undefined =>
   opt.valueCoding?.code || opt.valueString || undefined;
 
-/**
- * Dedup AS options by their rendered display first — across protocols the
- * same conceptual option (e.g. "Other [describe]") frequently has different
- * codes, so a code-only key would let visible duplicates through. Display
- * matches across protocols are first-wins; remaining cases fall back to code
- * or valueString. Prefixes prevent cross-namespace collisions.
- */
-const optionDedupKey = (opt: AyuAnswerOption): string | undefined => {
+const optionDisplayKey = (opt: AyuAnswerOption): string | undefined => {
   const display = opt.valueCoding?.display?.trim().toLowerCase();
-  if (display) return `display:${display}`;
+  return display ? `display:${display}` : undefined;
+};
+
+const optionIdentityKey = (opt: AyuAnswerOption): string | undefined => {
   const code = opt.valueCoding?.code?.trim().toLowerCase();
   if (code) return `code:${code}`;
   const str = opt.valueString?.trim().toLowerCase();
   if (str) return `string:${str}`;
   return undefined;
+};
+
+const associatedChildKey = (child: AyuQuestion): string => {
+  const codes = (child.enableWhen ?? [])
+    .map(rule => rule.answerCoding?.code?.trim().toLowerCase())
+    .filter((c): c is string => !!c)
+    .sort();
+  if (codes.length === 0) return `linkId:${child.linkId}`;
+  return `gate:${codes.join(',')}|type:${child.type ?? ''}`;
 };
 
 function deriveProtocolCode(complaint: AyuJsonItem): string {
@@ -102,21 +107,27 @@ function mergeAssociatedSymptomGroups(
 
   for (const group of groups) {
     for (const opt of group.answerOption ?? []) {
-      const key = optionDedupKey(opt);
+      const displayKey = optionDisplayKey(opt);
+      const identityKey = optionIdentityKey(opt);
       const code = optionCode(opt);
-      if (!key) continue;
-      if (seenKeys.has(key)) {
+      // No display, code, or string — nothing to render or dedup on.
+      if (!displayKey && !identityKey) continue;
+      const isDuplicate =
+        (displayKey && seenKeys.has(displayKey)) ||
+        (identityKey && seenKeys.has(identityKey));
+      if (isDuplicate) {
         if (code) droppedCodes.add(code);
         continue;
       }
-      seenKeys.add(key);
+      if (displayKey) seenKeys.add(displayKey);
+      if (identityKey) seenKeys.add(identityKey);
       if (code) keptCodes.add(code);
       mergedOptions.push(opt);
     }
   }
 
   const mergedChildren: AyuQuestion[] = [];
-  const seenChildLinkIds = new Set<string>();
+  const seenChildKeys = new Set<string>();
   for (const group of groups) {
     // transformItem always sets item to an array, so the fallback is unreachable.
     /* v8 ignore next */
@@ -132,8 +143,9 @@ function mergeAssociatedSymptomGroups(
           })
         : false;
       if (refsDroppedOnly) continue;
-      if (seenChildLinkIds.has(child.linkId)) continue;
-      seenChildLinkIds.add(child.linkId);
+      const childKey = associatedChildKey(child);
+      if (seenChildKeys.has(childKey)) continue;
+      seenChildKeys.add(childKey);
       mergedChildren.push(rewriteASChildEnableWhen(child, group.linkId));
     }
   }
