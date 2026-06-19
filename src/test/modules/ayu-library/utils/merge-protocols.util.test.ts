@@ -807,6 +807,52 @@ describe('mergeProtocols', () => {
       expect(mergedAS?.item?.map(c => c.linkId)).toEqual(['A:a-desc']);
     });
 
+    it('keeps both follow-up children gated on the same code when their types differ', () => {
+      const buildTypedChildGroup = (
+        title: string,
+        childLinkId: string,
+        childType: string
+      ): FhirQuestionnaire => ({
+        resourceType: 'Questionnaire',
+        title,
+        item: [
+          {
+            linkId: `${title}-AS`,
+            text: ASSOCIATED_SYMPTOMS_TEXT,
+            type: 'choice',
+            repeats: true,
+            answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
+            item: [
+              {
+                linkId: childLinkId,
+                text: 'Describe',
+                type: childType,
+                enableWhen: [
+                  {
+                    question: `${title}-AS`,
+                    operator: '=',
+                    answerCoding: { code: 'other' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const merged = mergeProtocols([
+        makeComplaint('A', buildTypedChildGroup('A', 'a-desc', 'string')),
+        makeComplaint('B', buildTypedChildGroup('B', 'b-desc', 'integer')),
+      ]);
+      const mergedAS = merged?.item?.find(
+        i => i.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID
+      );
+      // Same gate code but different `type` → distinct keys → both kept.
+      expect(mergedAS?.item?.map(c => c.linkId)).toEqual([
+        'A:a-desc',
+        'B:b-desc',
+      ]);
+    });
+
     it('omits the merged block when no protocol carries associated symptoms', () => {
       const merged = mergeProtocols([
         makeComplaint('A', {

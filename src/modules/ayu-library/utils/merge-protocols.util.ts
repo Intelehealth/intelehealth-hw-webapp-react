@@ -32,7 +32,7 @@ const associatedChildKey = (child: AyuQuestion): string => {
     .filter((c): c is string => !!c)
     .sort();
   if (codes.length === 0) return `linkId:${child.linkId}`;
-  return `gate:${codes.join(',')}|type:${child.type ?? ''}`;
+  return `gate:${codes.join(',')}|type:${child.type}`;
 };
 
 function deriveProtocolCode(complaint: AyuJsonItem): string {
