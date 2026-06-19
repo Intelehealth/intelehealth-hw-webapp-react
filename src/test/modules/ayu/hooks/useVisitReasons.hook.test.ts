@@ -1,15 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { storage } from '../../../../utils/storage';
-import {
-  usePatientDemographics,
-  useVisitReasons,
-} from '../../../../modules/ayu/hooks/useVisitReasons.hook';
 import {
   EXT_URL_AGE_MAX,
   EXT_URL_AGE_MIN,
   EXT_URL_GENDER,
 } from '../../../../modules/ayu-library/utils/constants';
+import {
+  usePatientDemographics,
+  useVisitReasons,
+} from '../../../../modules/ayu/hooks/useVisitReasons.hook';
+import { storage } from '../../../../utils/storage';
 
 // Mock the useAyuJsonList hook
 vi.mock('../../../../modules/ayu/hooks/useAyuJson.hook', () => ({
@@ -180,6 +180,18 @@ describe('useVisitReasons', () => {
     const names = result.current.selectedComplaints.map(c => c.name);
     expect(names).toContain('Fever.json');
     expect(names).toContain('Cough.json');
+  });
+
+  it('should order selectedComplaints by selection order, not JSON-list order', () => {
+    const { result } = renderHook(() => useVisitReasons());
+    act(() => {
+      result.current.addReason('Headache');
+      result.current.addReason('Fever');
+      result.current.addReason('Cough');
+    });
+
+    const names = result.current.selectedComplaints.map(c => c.name);
+    expect(names).toEqual(['Headache.json', 'Fever.json', 'Cough.json']);
   });
 
   it('should return empty selectedComplaints when no reasons selected', () => {

@@ -6,6 +6,7 @@ import {
   filterNamesBySearch,
   groupByFirstLetter,
 } from '../../ayu-library/logic/visit-reasons.logic';
+import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import { EXCLUDED_JSON_NAMES } from '../../ayu-library/utils/constants';
 import {
   type PatientDemographics,
@@ -89,11 +90,17 @@ export const useVisitReasons = () => {
     return groupByFirstLetter(names);
   }, [names]);
 
+  /* Preserve the order in which the user selected the reasons so the merged
+  stepper renders the first-selected protocol first. Filtering `ayuJsonList`
+   would instead follow the (alphabetical) JSON-list order.*/
+
   const selectedComplaints = useMemo(() => {
-    const set = new Set(selectedReasons);
-    return ayuJsonList.filter(item =>
-      set.has(item.name.replace(/\.json$/i, '').trim())
+    const byName = new Map(
+      ayuJsonList.map(item => [item.name.replace(/\.json$/i, '').trim(), item])
     );
+    return selectedReasons
+      .map(name => byName.get(name))
+      .filter((item): item is AyuJsonItem => item !== undefined);
   }, [ayuJsonList, selectedReasons]);
 
   const ayuConfigFiles = useMemo(() => {
