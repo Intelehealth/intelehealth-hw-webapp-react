@@ -268,7 +268,9 @@ const AppRoutes = () => (
               path={ROUTES.PROFILE}
               element={
                 <Suspense fallback={<RouteLoader />}>
-                  <ProfilePage />
+                  <ProfileGuardProvider>
+                    <ProfilePage />
+                  </ProfileGuardProvider>
                 </Suspense>
               }
             />

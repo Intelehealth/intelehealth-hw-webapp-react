@@ -611,6 +611,44 @@ describe('mergeProtocols', () => {
       ]);
     });
 
+    it('dedups the "Other [describe]" catch-all across singular/plural and spacing variants', () => {
+      // Real protocols spell this option inconsistently: "Others [describe]"
+      // (plural), "Other [Describe]" (spaced), "Other[Describe]" (no space),
+      // each with its own code. They must collapse to a single option.
+      const makeAS = (
+        title: string,
+        code: string,
+        display: string
+      ): FhirQuestionnaire => ({
+        resourceType: 'Questionnaire',
+        title,
+        item: [
+          {
+            linkId: `${title}-AS`,
+            text: ASSOCIATED_SYMPTOMS_TEXT,
+            type: 'choice',
+            repeats: true,
+            answerOption: [{ valueCoding: { code, display } }],
+          },
+        ],
+      });
+      const merged = mergeProtocols([
+        makeComplaint('A', makeAS('A', 'a-other', 'Others [describe]')),
+        makeComplaint('B', makeAS('B', 'b-other', 'Other [Describe]')),
+        makeComplaint('C', makeAS('C', 'c-other', 'Other[Describe]')),
+      ]);
+      const mergedAS = merged?.item?.find(
+        i => i.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID
+      );
+      // Only the first protocol's spelling/code survives.
+      expect(
+        mergedAS?.answerOption?.map(o => o.valueCoding?.display)
+      ).toEqual(['Others [describe]']);
+      expect(mergedAS?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'a-other',
+      ]);
+    });
+
     it("drops B's nested child that referenced the deduped-out option code", () => {
       const a: FhirQuestionnaire = {
         resourceType: 'Questionnaire',

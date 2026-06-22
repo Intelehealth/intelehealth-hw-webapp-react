@@ -13,9 +13,19 @@ export const MERGED_ASSOCIATED_SYMPTOMS_LINK_ID =
 const optionCode = (opt: AyuAnswerOption): string | undefined =>
   opt.valueCoding?.code || opt.valueString || undefined;
 
+const normalizeDisplay = (s: string): string => {
+  const base = s
+    .trim()
+    .toLowerCase()
+    .replace(/\s*([[\]])\s*/g, '$1')
+    .replace(/\s+/g, ' ');
+  if (/^others?\[describe\]$/.test(base)) return 'other[describe]';
+  return base;
+};
+
 const optionDisplayKey = (opt: AyuAnswerOption): string | undefined => {
-  const display = opt.valueCoding?.display?.trim().toLowerCase();
-  return display ? `display:${display}` : undefined;
+  const display = opt.valueCoding?.display?.trim();
+  return display ? `display:${normalizeDisplay(display)}` : undefined;
 };
 
 const optionIdentityKey = (opt: AyuAnswerOption): string | undefined => {
