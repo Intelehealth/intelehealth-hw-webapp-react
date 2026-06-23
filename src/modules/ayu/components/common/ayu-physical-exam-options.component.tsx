@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import iconCamera from '../../../../assets/icons/icon-camera.svg';
-import iconYes from '../../assets/yes.svg';
+import {
+  computeMultiSelectToggle,
+  SELECT_ANY_ONE,
+  SELECT_ONE_OR_MORE,
+} from '../../../ayu-library';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
-import { SELECT_ANY_ONE, SELECT_ONE_OR_MORE } from '../../../ayu-library';
 import {
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
@@ -11,14 +14,15 @@ import {
   PE_OPTION_KIND_CAMERA,
 } from '../../../ayu-library/utils/constants';
 import { getRowLabel } from '../../../ayu-library/utils/question.utils';
-import { usePhysicalExamCamera } from '../start-visit/physical-examination/physical-exam-camera-context';
-import { PhysicalExamImageCapture } from '../start-visit/physical-examination/physical-exam-image-capture.component';
-import { getOptionIcon } from '../start-visit/physical-examination/physical-examination.utils';
+import iconYes from '../../assets/yes.svg';
 import {
   BUTTON_UPLOAD,
   PE_CAMERA_TILE_LABEL,
   VALIDATION_UPLOAD_IMAGE,
 } from '../../utils/ayu.constants';
+import { usePhysicalExamCamera } from '../start-visit/physical-examination/physical-exam-camera-context';
+import { PhysicalExamImageCapture } from '../start-visit/physical-examination/physical-exam-image-capture.component';
+import { getOptionIcon } from '../start-visit/physical-examination/physical-examination.utils';
 import AyuButton from './ayu-button.component';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 
@@ -89,11 +93,11 @@ export const AyuPhysicalExamOptions = ({
 
   const handleRegularOptionClick = (optionId: string) => {
     if (isMultiChoice) {
-      // Toggle the option in the current array; preserve already-committed
-      // camera code (if any) so multi-choice + camera composes naturally.
-      const without = selected.filter(id => id !== optionId);
-      const next =
-        without.length === selected.length ? [...selected, optionId] : without;
+      /* Toggle through the shared logic so mutually-exclusive options
+      (e.g. "None"/"Normal", marked exclude-from-multi-choice) clear the
+      rest and vice-versa. The camera code is never exclusive, so it is
+      preserved when a normal option is toggled.*/
+      const next = computeMultiSelectToggle(question, selected, optionId);
       setAnswer?.(question, next);
     } else {
       setAnswer?.(question, optionId);

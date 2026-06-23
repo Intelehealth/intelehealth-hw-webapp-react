@@ -7,6 +7,7 @@ import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.t
 import {
   EXT_URL_DISPLAY_TEXT,
   EXT_URL_IS_EXCLUSIVE_OPTION,
+  EXT_URL_MUTUALLY_EXCLUSIVE,
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_SECTION_KEY,
@@ -575,6 +576,92 @@ describe('AyuPhysicalExamOptions', () => {
       );
       await userEvent.click(screen.getByRole('button', { name: /^Yes$/ }));
       expect(setAnswer).toHaveBeenCalledWith(question, ['no']);
+    });
+  });
+
+  describe('mutually-exclusive multi-choice handling', () => {
+    /* A multi-choice PE question whose "None" option carries the
+     * exclude-from-multi-choice marker (EXT_URL_MUTUALLY_EXCLUSIVE), as
+     * produced by buildPhysExamQuestion when the protocol marks an option
+     * exclusive. computeMultiSelectToggle must enforce the exclusivity. */
+    const makeExclusiveQuestion = (): AyuQuestion => ({
+      linkId: 'pe-multi',
+      text: 'Any abnormal findings?',
+      type: 'choice',
+      required: true,
+      repeats: true,
+      extension: [
+        { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Skin' },
+      ],
+      answerOption: [
+        {
+          valueCoding: { code: 'none', display: 'None' },
+          extension: [
+            { url: EXT_URL_MUTUALLY_EXCLUSIVE, valueString: 'true' },
+          ],
+        },
+        { valueCoding: { code: 'rash', display: 'Rash' } },
+        { valueCoding: { code: 'pallor', display: 'Pallor' } },
+      ],
+    });
+
+    it('clears existing selections when an exclusive option is chosen', async () => {
+      const setAnswer = vi.fn();
+      const question = makeExclusiveQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={['rash', 'pallor']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: /^None$/ }));
+      // Selecting the exclusive option replaces all other selections.
+      expect(setAnswer).toHaveBeenCalledWith(question, ['none']);
+    });
+
+    it('clears the exclusive option when a normal option is chosen', async () => {
+      const setAnswer = vi.fn();
+      const question = makeExclusiveQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={['none']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: /^Rash$/ }));
+      // Picking a normal finding drops the previously-selected exclusive option.
+      expect(setAnswer).toHaveBeenCalledWith(question, ['rash']);
+    });
+
+    it('deselects the exclusive option when it is clicked again', async () => {
+      const setAnswer = vi.fn();
+      const question = makeExclusiveQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={['none']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: /^None$/ }));
+      expect(setAnswer).toHaveBeenCalledWith(question, []);
+    });
+
+    it('keeps adding normal options together (exclusivity does not affect them)', async () => {
+      const setAnswer = vi.fn();
+      const question = makeExclusiveQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={['rash']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: /^Pallor$/ }));
+      expect(setAnswer).toHaveBeenCalledWith(question, ['rash', 'pallor']);
     });
   });
 
