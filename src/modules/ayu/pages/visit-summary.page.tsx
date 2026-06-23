@@ -247,11 +247,11 @@ const CheckupReasonSection: React.FC<{
       <p className="text-sm font-semibold text-gray-500 mb-2 text-center">
         Chief complaint(s)
       </p>
-      <div className="mb-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         {checkupReason.chiefComplaints.map(complaint => (
           <span
             key={complaint}
-            className="inline-flex items-center justify-center min-w-26.25 h-6.5 bg-[#2E1E91] text-white text-xs font-semibold rounded-sm mr-2 gap-1 py-1 px-2 whitespace-nowrap"
+            className="inline-flex items-center justify-center min-w-26.25 h-6.5 bg-[#2E1E91] text-white text-xs font-semibold rounded-sm gap-1 py-1 px-2 whitespace-nowrap"
           >
             {complaint}
           </span>
