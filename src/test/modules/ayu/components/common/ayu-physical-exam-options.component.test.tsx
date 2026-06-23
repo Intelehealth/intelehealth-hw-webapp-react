@@ -702,6 +702,96 @@ describe('AyuPhysicalExamOptions', () => {
       expect(setAnswer).toHaveBeenCalledWith(question, ['cam']);
     });
 
+    it('lets a single-choice Yes/No be selected together with the camera tile and commits both on Submit', async () => {
+      // Mobile parity: "Take a Picture" composes with the Yes/No finding instead
+      // of replacing it. Selecting the camera tile first, then Yes, must keep
+      // both highlighted and commit ['yes', 'cam'] on Upload.
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      const setAnswer = vi.fn();
+      const question = makePeQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      const camTile = screen.getByRole('button', { name: /Take a Picture/ });
+      await userEvent.click(camTile);
+      const yes = screen.getByRole('button', { name: /^Yes$/ });
+      await userEvent.click(yes);
+      // Both highlighted; picking Yes does NOT commit yet (no auto-advance).
+      expect(camTile).toHaveClass('selected');
+      expect(yes).toHaveClass('selected');
+      expect(setAnswer).not.toHaveBeenCalled();
+      // Upload commits the pair.
+      await userEvent.click(
+        screen.getByRole('button', { name: /Upload \(1\)/ })
+      );
+      expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
+    });
+
+    it('toggles off the pending Yes/No when re-clicked while the camera is active', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      const setAnswer = vi.fn();
+      const question = makePeQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      const yes = screen.getByRole('button', { name: /^Yes$/ });
+      await userEvent.click(yes);
+      expect(yes).toHaveClass('selected');
+      await userEvent.click(yes);
+      expect(yes).not.toHaveClass('selected');
+      await userEvent.click(
+        screen.getByRole('button', { name: /Upload \(1\)/ })
+      );
+      // Yes was toggled off → camera-only answer.
+      expect(setAnswer).toHaveBeenCalledWith(question, ['cam']);
+    });
+
+    it('keeps a committed Yes/No when deselecting an already-committed camera tile', async () => {
+      // value holds both the finding and the picture marker (edit/revisit).
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      const setAnswer = vi.fn();
+      const question = makePeQuestion();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={['yes', 'cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      // Only the camera marker is stripped; the Yes finding survives.
+      expect(setAnswer).toHaveBeenCalledWith(question, 'yes');
+    });
+
+    it('pre-selects both the Yes finding and the camera tile from a composed answer', () => {
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['yes', 'cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: /^Yes$/ })).toHaveClass(
+        'selected'
+      );
+      expect(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      ).toHaveClass('selected');
+    });
+
     it('appends the camera code to existing selections for multi-choice on Submit', async () => {
       cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
       const setAnswer = vi.fn();
