@@ -328,7 +328,7 @@ export function buildVisitUploadPayload(
         attributes: [
           {
             attributeType: VISIT_ATTRIBUTE_TYPES.SPECIALITY,
-            value: params.speciality ?? 'General Physician',
+            value: params.speciality ?? '',
           },
           {
             attributeType: VISIT_ATTRIBUTE_TYPES.VISIT_COMPLETE_DATETIME,

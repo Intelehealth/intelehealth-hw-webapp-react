@@ -1,5 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import * as yup from 'yup';
 import type { InferType } from 'yup';
@@ -69,6 +69,7 @@ export default function PatientInfo({
     formState: { errors },
     setValue,
     watch,
+    trigger,
   } = useForm<PatientInfoFormValues>({
     resolver: yupResolver(patientInfoSchema) as Resolver<PatientInfoFormValues>,
     mode: 'onTouched',
@@ -77,48 +78,86 @@ export default function PatientInfo({
 
   const country = watch('country');
   const postalCode = watch('postalCode');
+  const lastFetchedPincode = useRef('');
 
+  // Auto-fill address when postal code is exactly 6 digits
   useEffect(() => {
-    const loadPostalCodeData = async () => {
-      if (
-        country?.toLowerCase() !== 'india' ||
-        !postalCode ||
-        postalCode.trim().length < 6
-      ) {
-        return;
-      }
+    const trimmed = postalCode?.trim() ?? '';
 
+    if (
+      country?.toLowerCase() !== 'india' ||
+      trimmed.length !== 6 ||
+      trimmed === lastFetchedPincode.current
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timeoutId = setTimeout(async () => {
       try {
-        const postalData = await fetchPostalCodeData(postalCode);
+        const postalData = await fetchPostalCodeData(trimmed);
+
+        if (controller.signal.aborted) return;
+
+        lastFetchedPincode.current = trimmed;
 
         if (postalData) {
           if (postalData.state) {
             setValue('state', postalData.state, { shouldValidate: true });
           }
           if (postalData.district) {
-            setValue('district', postalData.district, { shouldValidate: true });
+            setValue('district', postalData.district, {
+              shouldValidate: true,
+            });
           }
           if (postalData.city) {
             setValue('city', postalData.city, { shouldValidate: true });
           }
-        } else {
-          showToast(
-            'No address found',
-            'No address found for this Postal Code. Please select or enter manually.',
-            'error'
-          );
         }
       } catch (error) {
-        console.error('Error fetching postal code data:', error);
+        if (!controller.signal.aborted) {
+          console.error('Error fetching postal code data:', error);
+        }
       }
-    };
-
-    const timeoutId = setTimeout(() => {
-      loadPostalCodeData();
     }, 500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [country, postalCode, setValue]);
+
+  // Debounced toast for postal code validation
+  useEffect(() => {
+    const trimmed = postalCode?.trim() ?? '';
+
+    if (!trimmed || trimmed.length === 6) {
+      return;
+    }
+
+    const hasCountry = !!country;
+
+    const toastTimeout = setTimeout(() => {
+      if (!hasCountry) {
+        showToast(
+          'Country Required',
+          'Please select a country before entering postal code.',
+          'warning',
+          { toastId: 'postal-code-country' }
+        );
+      } else {
+        showToast(
+          'Invalid Postal Code',
+          'Postal Code must be exactly 6 digits.',
+          'error',
+          { toastId: 'postal-code-invalid' }
+        );
+      }
+    }, 1000);
+
+    return () => clearTimeout(toastTimeout);
+  }, [postalCode, country]);
 
   const handleNext = (data: PatientInfoFormValues) => {
     const {
@@ -303,6 +342,7 @@ export default function PatientInfo({
               onChange={val => {
                 setValue('phoneNumber', val.number);
                 setValue('phoneNumberCountryCode', val.countryCode);
+                trigger('emergencyContactNumber');
               }}
               value={{
                 number: watch('phoneNumber'),
@@ -353,6 +393,7 @@ export default function PatientInfo({
               onChange={val => {
                 setValue('emergencyContactNumber', val.number);
                 setValue('emergencyContactNumberCountryCode', val.countryCode);
+                trigger('emergencyContactNumber');
               }}
               value={{
                 number: watch('emergencyContactNumber'),

@@ -638,7 +638,7 @@ describe('visit-upload.service', () => {
       expect(visit.attributes).toHaveLength(3);
     });
 
-    it('should include speciality attribute defaulting to General Physician', () => {
+    it('should include speciality attribute defaulting to empty string', () => {
       const result = buildVisitUploadPayload(makeParams());
       const attrs = result.visits[0].attributes;
 
@@ -646,7 +646,7 @@ describe('visit-upload.service', () => {
         a => a.attributeType === VISIT_ATTRIBUTE_TYPES.SPECIALITY
       );
       expect(speciality).toBeDefined();
-      expect(speciality!.value).toBe('General Physician');
+      expect(speciality!.value).toBe('');
     });
 
     it('should use custom speciality when provided', () => {

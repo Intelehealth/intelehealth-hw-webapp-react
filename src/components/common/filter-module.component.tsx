@@ -26,7 +26,6 @@ const FilterModule: React.FC<FilterModuleProps> = ({
   const [applied, setApplied] = useState(false);
 
   const isApplyDisabled = !from || (mode === 'range' && !to) || applied;
-  const isApplyDisablednow = true;
   const handleFromChange = (date: string) => {
     setFrom(date);
     setApplied(false);
@@ -43,7 +42,6 @@ const FilterModule: React.FC<FilterModuleProps> = ({
   };
 
   const handleApply = () => {
-    if (isApplyDisabled) return;
     onApply({
       mode,
       from,
@@ -113,7 +111,7 @@ const FilterModule: React.FC<FilterModuleProps> = ({
         <button
           type="button"
           onClick={handleApply}
-          disabled={isApplyDisablednow}
+          disabled={isApplyDisabled}
           className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-medium text-white border border-[#2b1a92] cursor-pointer disabled:cursor-not-allowed disabled:pointer-events-none"
         >
           Apply

@@ -722,52 +722,66 @@ describe('AyuPhysicalExamOptions', () => {
       expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
     });
 
-    it('shows an inline error and does not commit when Submit is clicked without images', async () => {
-      const setAnswer = vi.fn();
+    it('does not show Upload button when camera tile is selected but no images are captured', async () => {
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
           value={undefined}
-          setAnswer={setAnswer}
+          setAnswer={vi.fn()}
         />
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      // Submit button is visible even with 0 images so the user has a clear
-      // action; clicking it surfaces an inline error instead of failing
-      // silently.
-      const submit = screen.getByRole('button', { name: /Upload \(0\)/ });
-      await userEvent.click(submit);
+      // Upload button hidden when no images — prevents premature submission
       expect(
-        screen.getByText('Please upload at least one image')
-      ).toBeInTheDocument();
-      expect(setAnswer).not.toHaveBeenCalled();
+        screen.queryByRole('button', { name: /Upload/ })
+      ).not.toBeInTheDocument();
     });
 
-    it('clears the inline upload error once an image is added', async () => {
-      const setAnswer = vi.fn();
+    it('shows Upload button once an image is captured after selecting camera tile', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
           value={undefined}
-          setAnswer={setAnswer}
+          setAnswer={vi.fn()}
         />
       );
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(0\)/ })
+      // Upload button appears now that images > 0
+      expect(
+        screen.getByRole('button', { name: /Upload \(1\)/ })
+      ).toBeInTheDocument();
+    });
+
+    it('shows upload-required error when images are emptied between render and click', async () => {
+      // Covers the defensive guard in handleSubmit (lines 125-128): if images
+      // disappear after the Upload button was rendered but before the click
+      // handler runs, the error state is set instead of committing.
+      const images = ['img-1'];
+      cameraState.imagesByQ['inner-jaundice'] = images;
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
       );
+      // Select the camera tile → Upload button appears (images.length > 0)
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      const uploadBtn = screen.getByRole('button', { name: /Upload \(1\)/ });
+      // Mutate the SAME array reference to empty — the closure still holds it
+      images.length = 0;
+      // Click the Upload button — handleSubmit sees cameraImages.length === 0
+      await userEvent.click(uploadBtn);
       expect(
         screen.getByText('Please upload at least one image')
       ).toBeInTheDocument();
-      // Simulating an image add through the mocked PhysicalExamImageCapture
-      await userEvent.click(screen.getByTestId('image-capture-add'));
-      expect(
-        screen.queryByText('Please upload at least one image')
-      ).not.toBeInTheDocument();
     });
 
     it('does not render an inner Submit button for plain multi-choice (defers to outer stepper)', () => {
