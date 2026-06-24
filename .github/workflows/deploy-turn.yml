@@ -76,6 +76,8 @@ jobs:
           export VITE_FIREBASE_VAPID_KEY="${{ secrets.VITE_FIREBASE_VAPID_KEY }}"
           export VITE_ENABLE_SITE_CAPTCHA="${{ secrets.VITE_ENABLE_SITE_CAPTCHA }}"
           export VITE_RECAPTCHA_SITE_KEY="${{ secrets.VITE_RECAPTCHA_SITE_KEY }}"
+          export VITE_PORTAL_SOCKET_URL="${{ secrets.VITE_PORTAL_SOCKET_URL }}"
+          export VITE_WEBRTC_SDK_SERVER_URL="${{ secrets.VITE_WEBRTC_SDK_SERVER_URL }}"
           yarn build
 
       - name: 🔐 Setup SSH Key
