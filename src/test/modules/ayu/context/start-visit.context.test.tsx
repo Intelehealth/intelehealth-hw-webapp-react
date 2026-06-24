@@ -105,6 +105,18 @@ function ContextUpdater() {
         }}
       />
       <button
+        data-testid="btn-setPhysicalExamWithSections"
+        onClick={() => {
+          const answers: PhysicalExamAnswers = { eyes_jaundice: ['no_jaundice'] };
+          const details = [{ label: 'Eyes', value: 'No jaundice' }];
+          const detailsSections: MedicalHistorySummary[] = [
+            { title: 'General Exams', items: [{ type: 'labelValue', label: 'Eyes', value: 'No jaundice' }] },
+            { title: 'Mouth', items: [{ type: 'labelValue', label: 'Oral Cavity', value: 'Normal' }] },
+          ];
+          ctx.setPhysicalExamData(answers, details, detailsSections);
+        }}
+      />
+      <button
         data-testid="btn-setMedicalHistory"
         onClick={() => {
           const patHistSummary: MedicalHistorySummary[] = [

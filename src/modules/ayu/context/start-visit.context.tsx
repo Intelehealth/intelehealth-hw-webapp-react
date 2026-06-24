@@ -32,6 +32,7 @@ export interface StartVisitData {
   physicalExam: {
     answers: PhysicalExamAnswers;
     details: Array<{ label: string; value: string }>;
+    detailsSections?: MedicalHistorySummary[];
   } | null;
   medicalHistory: {
     patHistSummary: MedicalHistorySummary[];
@@ -89,7 +90,8 @@ interface StartVisitContextType {
   clearMedicalHistoryData: () => void;
   setPhysicalExamData: (
     answers: PhysicalExamAnswers,
-    details: Array<{ label: string; value: string }>
+    details: Array<{ label: string; value: string }>,
+    detailsSections?: MedicalHistorySummary[]
   ) => void;
   setMedicalHistoryData: (
     patHistSummary: MedicalHistorySummary[],
@@ -252,9 +254,13 @@ export const StartVisitProvider = ({
 
   const setPhysicalExamData = (
     answers: PhysicalExamAnswers,
-    details: Array<{ label: string; value: string }>
+    details: Array<{ label: string; value: string }>,
+    detailsSections?: MedicalHistorySummary[]
   ) => {
-    setData(prev => ({ ...prev, physicalExam: { answers, details } }));
+    setData(prev => ({
+      ...prev,
+      physicalExam: { answers, details, detailsSections },
+    }));
   };
 
   const setMedicalHistoryData = (
