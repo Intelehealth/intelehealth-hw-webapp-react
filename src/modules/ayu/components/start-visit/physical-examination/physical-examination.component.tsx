@@ -255,9 +255,17 @@ export const PhysicalExamination = (props: SectionProps) => {
         confirmText: SUMMARY_CONFIRM_TEXT,
         cancelText: SUMMARY_CANCEL_TEXT,
         onConfirm: () => {
-          setPhysicalExamData(physExamAnswers, details);
+          const detailsSections = sections.map(s => ({
+            title: s.title,
+            items: s.items,
+          }));
+          setPhysicalExamData(physExamAnswers, details, detailsSections);
           saveSectionToTemp({
-            physicalExam: { answers: physExamAnswers, details },
+            physicalExam: {
+              answers: physExamAnswers,
+              details,
+              detailsSections,
+            },
           });
           originalOnNext();
         },

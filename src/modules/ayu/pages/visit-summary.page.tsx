@@ -307,13 +307,54 @@ const CheckupReasonSection: React.FC<{
 
 const PhysicalExaminationSection: React.FC<{
   physicalExamination: PhysicalExamination;
-}> = ({ physicalExamination }) => (
-  <div>
-    {physicalExamination.generalExams.map(({ label, value }, idx) => (
-      <LabelValueRow key={idx} label={label} value={value} />
-    ))}
-  </div>
-);
+  detailsSections?: MedicalHistorySummary[];
+}> = ({ physicalExamination, detailsSections }) => {
+  if (detailsSections && detailsSections.length > 0) {
+    return (
+      <div>
+        {detailsSections.map((section, sIdx) => (
+          <div key={sIdx} className="mb-2 last:mb-0">
+            {section.title && (
+              <p className="text-sm font-semibold text-[#2E1E91] mb-1">
+                {section.title}
+              </p>
+            )}
+            {section.items.map((item: ModalSectionItem, iIdx: number) => {
+              if (item.type === ITEM_TYPES.LABEL_VALUE) {
+                return (
+                  <LabelValueRow
+                    key={iIdx}
+                    label={item.label}
+                    value={String(item.value ?? 'No information')}
+                  />
+                );
+              }
+              if (item.type === ITEM_TYPES.SUBHEADING) {
+                return (
+                  <p
+                    key={iIdx}
+                    className="text-sm font-semibold text-gray-500 mt-3 mb-1"
+                  >
+                    {item.heading}
+                  </p>
+                );
+              }
+              return null;
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {physicalExamination.generalExams.map(({ label, value }, idx) => (
+        <LabelValueRow key={idx} label={label} value={value} />
+      ))}
+    </div>
+  );
+};
 
 const MedicalHistorySection: React.FC<{
   sections: MedicalHistorySummary[];
@@ -737,13 +778,13 @@ const VisitSummaryPage = () => {
           <CollapsedComponent
             icon={iconPhysicalExam}
             title="Physical examination"
-            contentLabel="General exams"
             defaultOpen={allOpen}
             key={`physical-${allOpen}`}
           >
             {physicalExamination ? (
               <PhysicalExaminationSection
                 physicalExamination={physicalExamination}
+                detailsSections={data.physicalExam?.detailsSections}
               />
             ) : (
               <p className="text-gray-400 italic text-sm">

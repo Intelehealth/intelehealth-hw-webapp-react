@@ -610,6 +610,14 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         { q1: ['yes'] },
         expect.arrayContaining([
           expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
+        ]),
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'General',
+            items: expect.arrayContaining([
+              expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
+            ]),
+          }),
         ])
       );
       expect(originalOnNext).toHaveBeenCalledTimes(1);
@@ -636,6 +644,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         physicalExam: {
           answers: { q1: ['yes'] },
           details: expect.any(Array),
+          detailsSections: expect.any(Array),
         },
       });
     });
@@ -659,6 +668,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       modalConfig.onConfirm();
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: ['yes'] },
+        expect.any(Array),
         expect.any(Array)
       );
     });
@@ -1004,6 +1014,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       modalConfig.onConfirm();
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: [] },
+        expect.any(Array),
         expect.any(Array)
       );
     });
