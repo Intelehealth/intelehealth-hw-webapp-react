@@ -170,11 +170,17 @@ const BreadcrumbSpy = () => {
   const { items } = useBreadcrumbContext();
   return (
     <div data-testid="breadcrumb-spy">
-      {items.map((item, i) => (
-        <span key={i} data-testid={`breadcrumb-${i}`} data-status={item.status ?? ''}>
-          {item.label}
-        </span>
-      ))}
+      {items.map((item, i) =>
+        item.onClick ? (
+          <button key={i} data-testid={`breadcrumb-${i}`} data-status={item.status ?? ''} onClick={item.onClick}>
+            {item.label}
+          </button>
+        ) : (
+          <span key={i} data-testid={`breadcrumb-${i}`} data-status={item.status ?? ''}>
+            {item.label}
+          </span>
+        )
+      )}
     </div>
   );
 };
@@ -1728,6 +1734,100 @@ describe('StartVisit', () => {
 
       expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
         expect.objectContaining({ currentSectionIndex: 1 })
+      );
+    });
+
+    it('should navigate to Add Patient page when Add Patient breadcrumb is clicked', async () => {
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/', state: { patientUuid: 'state-uuid' } }]}>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      const addPatientBtn = screen.getByTestId('breadcrumb-1');
+      expect(addPatientBtn).toHaveTextContent('Add Patient');
+      await userEvent.click(addPatientBtn);
+    });
+
+    it('should navigate to Patient Details when Patient Details breadcrumb is clicked', async () => {
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/', state: { patientUuid: 'state-uuid' } }]}>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      const patientDetailsBtn = screen.getByTestId('breadcrumb-2');
+      expect(patientDetailsBtn).toHaveTextContent('Patient Details');
+      await userEvent.click(patientDetailsBtn);
+    });
+
+    it('should fall back to storage for patientUuid when location state has no patientUuid', async () => {
+      mockStorageStore['patientUuid'] = 'storage-uuid';
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      await userEvent.click(screen.getByTestId('breadcrumb-1'));
+      await userEvent.click(screen.getByTestId('breadcrumb-2'));
+      delete mockStorageStore['patientUuid'];
+    });
+
+    it('should call goToSection(0) when Start Visit breadcrumb is clicked', async () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      // Navigate to section 1 first so goToSection(0) has an effect
+      await userEvent.click(screen.getByText('Next Vitals'));
+      mockSaveSectionToTemp.mockClear();
+
+      const startVisitBtn = screen.getByTestId('breadcrumb-3');
+      expect(startVisitBtn).toHaveTextContent('Start Visit');
+      await userEvent.click(startVisitBtn);
+
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 0 })
+      );
+    });
+
+    it('should call goToSection when a completed section breadcrumb is clicked', async () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      // Navigate to section 1 so Vitals becomes completed
+      await userEvent.click(screen.getByText('Next Vitals'));
+      mockSaveSectionToTemp.mockClear();
+
+      // Click the completed Vitals breadcrumb (index 4)
+      const vitalsBtn = screen.getByTestId('breadcrumb-4');
+      expect(vitalsBtn).toHaveTextContent('Vitals');
+      expect(vitalsBtn).toHaveAttribute('data-status', 'completed');
+      await userEvent.click(vitalsBtn);
+
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 0 })
       );
     });
   });

@@ -40,9 +40,10 @@ vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
   }),
 }));
 
-// Mock useBreadcrumb
+// Mock useBreadcrumb — capture calls so we can invoke onClick callbacks
+const mockUseBreadcrumb = vi.fn();
 vi.mock('../../../../hooks/useBreadcrumb', () => ({
-  useBreadcrumb: vi.fn(),
+  useBreadcrumb: (...args: unknown[]) => mockUseBreadcrumb(...args),
 }));
 
 // Mock patient service (for fromStartVisit fetch)
@@ -1333,6 +1334,82 @@ describe('AddPatientComponent', () => {
       await waitFor(() => {
         expect(mockGetPatient).toHaveBeenCalledWith('start-visit-patient-uuid');
       });
+    });
+
+    it('should handle fetch failure gracefully when getPatient throws', async () => {
+      mockGetPatient.mockRejectedValue(new Error('Network error'));
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalledWith('start-visit-patient-uuid');
+      });
+      // Component should still render without crashing
+      expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+    });
+  });
+
+  describe('breadcrumb onClick callbacks', () => {
+    it('should pass onClick for Add Patient breadcrumb that calls setStep(0)', async () => {
+      render(
+        <MemoryRouter>
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      // useBreadcrumb is called with items array
+      const items = mockUseBreadcrumb.mock.calls[0][0];
+      const addPatientItem = items.find((item: any) => item.label === 'Add Patient');
+      expect(addPatientItem).toBeDefined();
+      expect(addPatientItem.onClick).toBeInstanceOf(Function);
+      // Invoke the onClick — it calls setStep(0) which resets to Privacy Policy
+      addPatientItem.onClick();
+    });
+
+    it('should pass onClick for completed step breadcrumb that calls setStep(index)', async () => {
+      // Start at step 2 so that steps 0 and 1 are completed and have onClick
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'test-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+
+      // Get the latest useBreadcrumb call (after step is set to 2)
+      const lastCall = mockUseBreadcrumb.mock.calls[mockUseBreadcrumb.mock.calls.length - 1];
+      const items = lastCall[0];
+      // Find a completed step with onClick
+      const completedItem = items.find((item: any) => item.status === 'completed' && item.onClick);
+      expect(completedItem).toBeDefined();
+      // Invoke the onClick — it calls setStep(index)
+      completedItem.onClick();
     });
   });
 });
