@@ -112,6 +112,7 @@ describe('Vitals Component', () => {
     watch: mockWatch,
     errors: {},
     touchedFields: {},
+    isSubmitted: false,
     bodyMeasurementFields: mockBodyMeasurementFields,
     vitalFields: mockVitalFields,
     otherFields: mockOtherFields,
@@ -738,6 +739,104 @@ describe('Vitals Component', () => {
 
       const select = screen.getByRole('combobox') as HTMLSelectElement;
       expect(select.className).toContain('border-red-500');
+    });
+  });
+
+  describe('isSubmitted error display', () => {
+    it('should show errors when isSubmitted is true even if field not touched', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: true,
+        errors: {
+          height_cm: { message: 'Height (cm) is required' },
+        },
+        touchedFields: {},
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.getByText('Height (cm) is required')).toBeInTheDocument();
+    });
+
+    it('should show error border when isSubmitted is true and field has error', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: true,
+        errors: {
+          weight_kg: { message: 'Weight (kg) is required' },
+        },
+        touchedFields: {},
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      const weightInput = screen.getByPlaceholderText('E.g., 63 kg');
+      expect(weightInput).toHaveClass('border-red-500');
+    });
+
+    it('should show error icon when isSubmitted is true and field has error', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: true,
+        errors: {
+          height_cm: { message: 'Height is required' },
+        },
+        touchedFields: {},
+      });
+
+      const { container } = render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      const errorIcon = container.querySelector('svg.text-red-500');
+      expect(errorIcon).toBeInTheDocument();
+    });
+
+    it('should not show errors when neither touched nor submitted', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: false,
+        errors: {
+          height_cm: { message: 'Height is required' },
+        },
+        touchedFields: {},
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.queryByText('Height is required')).not.toBeInTheDocument();
+    });
+
+    it('should show errors when field is touched even if not submitted', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: false,
+        errors: {
+          height_cm: { message: 'Height must be between 50 and 250 cm' },
+        },
+        touchedFields: { height_cm: true },
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.getByText('Height must be between 50 and 250 cm')).toBeInTheDocument();
+    });
+
+    it('should show multiple field errors after submission', () => {
+      mockUseVitals.mockReturnValue({
+        ...defaultMockReturn,
+        isSubmitted: true,
+        errors: {
+          height_cm: { message: 'Height (cm) is required' },
+          weight_kg: { message: 'Weight (kg) is required' },
+          pulse_bpm: { message: 'Pulse (bpm) is required' },
+        },
+        touchedFields: {},
+      });
+
+      render(<Vitals questionIndex={0} onNextQuestion={mockOnNextQuestion} onPrevQuestion={mockOnPrevQuestion} />);
+
+      expect(screen.getByText('Height (cm) is required')).toBeInTheDocument();
+      expect(screen.getByText('Weight (kg) is required')).toBeInTheDocument();
+      expect(screen.getByText('Pulse (bpm) is required')).toBeInTheDocument();
     });
   });
 });

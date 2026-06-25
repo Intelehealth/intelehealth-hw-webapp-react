@@ -4,6 +4,8 @@ export interface BreadcrumbItem {
   label: string;
   path?: string;
   state?: Record<string, unknown>;
+  status?: 'completed' | 'active' | 'pending';
+  onClick?: () => void;
 }
 
 interface BreadcrumbContextType {

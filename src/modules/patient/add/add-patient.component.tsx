@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import iconUserPlusGreenRounded from '../../../assets/icons/icon-user-plus-green-rounded.svg';
+import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
 import ROUTES from '../../../routes/paths';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
 import { storage } from '../../../utils/storage';
@@ -13,7 +14,9 @@ import {
   ADD_PATIENT_LABEL,
   PATIENT_DETAILS_LABEL,
 } from '../../../utils/constant';
+import { mapRawPatientToFormData } from '../profile/patient-profile.hooks';
 import { useAddPatient } from './add-patient.hooks';
+import { patientService } from './add-patient.service';
 import PatientInfo from './steps/patient-info/patient-info.component';
 import Preview from './steps/patient-preview/patient-preview.component';
 import PrivacyPolicy from './steps/privacy-policy/patient-privacy-policy.component';
@@ -79,15 +82,19 @@ export default function AddPatientComponent() {
     editSource?: 'profile' | 'preview';
     resumePreview?: boolean;
     previewData?: PatientFormData;
+    fromStartVisit?: boolean;
   } | null;
   const isResumePreview = !!locationState?.resumePreview;
+  const isFromStartVisit = !!locationState?.fromStartVisit;
   const editSource = locationState?.editSource;
   const isEditMode =
     !!locationState?.editFormData ||
     location.pathname.includes('/patient/edit');
 
   const [tempPatientId] = useState(getOrCreateTempPatientId);
-  const [step, setStep] = useState(isResumePreview ? 3 : isEditMode ? 2 : 0);
+  const [step, setStep] = useState(
+    isResumePreview ? 3 : isEditMode || isFromStartVisit ? 2 : 0
+  );
   const [patientUuid, setPatientUuid] = useState<string | null>(
     locationState?.patientUuid ?? null
   );
@@ -100,9 +107,67 @@ export default function AddPatientComponent() {
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
 
-  // Restore from temp-storage on mount (skip in edit/resume mode — form data comes from navigation state)
+  const addPatientSteps = [
+    'Privacy Policy',
+    'Terms & Conditions',
+    'Patient Information',
+    'Patient Details',
+  ];
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: 'Add Patient', onClick: () => setStep(0) },
+    ...addPatientSteps
+      .map((name, index) => ({
+        label: name,
+        status: (index < step
+          ? 'completed'
+          : index === step
+            ? 'active'
+            : 'pending') as 'completed' | 'active' | 'pending',
+        ...(index < step && {
+          onClick: () => setStep(index),
+        }),
+      }))
+      .filter(item => item.status !== 'pending'),
+  ]);
+
+  // Fetch patient data from backend when patientUuid is available but no pre-filled data
+  // (e.g. navigating back from Start Visit, edit mode, or resuming preview)
+  const needsFetch =
+    (isEditMode && !locationState?.editFormData) ||
+    isFromStartVisit ||
+    (isResumePreview && !locationState?.previewData);
+
+  const [isFetchingPatient, setIsFetchingPatient] = useState(needsFetch);
+
   useEffect(() => {
-    if (isEditMode || isResumePreview) {
+    if (!needsFetch || !patientUuid) {
+      setIsFetchingPatient(false);
+      return;
+    }
+    setIsFetchingPatient(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const patient = await patientService.getPatient(patientUuid);
+        if (cancelled || !patient) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mapped = mapRawPatientToFormData(patient as any);
+        setFormData(mapped);
+      } catch {
+        // Fetch failed — form stays with current values
+      } finally {
+        if (!cancelled) setIsFetchingPatient(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsFetch, patientUuid]);
+
+  // Restore from temp-storage on mount (skip in edit/resume/fromStartVisit mode — form data comes from navigation state or backend)
+  useEffect(() => {
+    if (isEditMode || isResumePreview || isFromStartVisit) {
       setIsRestoring(false);
       return;
     }
@@ -253,25 +318,33 @@ export default function AddPatientComponent() {
       </h2>
 
       {/* Step Components */}
-      {step === 0 && <PrivacyPolicy onNext={nextStep} onPrev={prevStep} />}
-      {step === 1 && <Terms onNext={nextStep} onPrev={prevStep} />}
-      {step === 2 && (
-        <PatientInfo
-          defaultValues={{
-            ...formData.personalInfo,
-            profilePhoto:
-              typeof formData.personalInfo.profilePhoto === 'string'
-                ? formData.personalInfo.profilePhoto
-                : null,
-            ...formData.addressInfo,
-            ...formData.otherInfo,
-          }}
-          onNext={nextStep}
-          onPrev={prevStep}
-          isEditMode={isEditMode}
-        />
+      {isFetchingPatient ? (
+        <div className="flex items-center justify-center p-8">
+          <p className="text-gray-500">Loading patient data...</p>
+        </div>
+      ) : (
+        <>
+          {step === 0 && <PrivacyPolicy onNext={nextStep} onPrev={prevStep} />}
+          {step === 1 && <Terms onNext={nextStep} onPrev={prevStep} />}
+          {step === 2 && (
+            <PatientInfo
+              defaultValues={{
+                ...formData.personalInfo,
+                profilePhoto:
+                  typeof formData.personalInfo.profilePhoto === 'string'
+                    ? formData.personalInfo.profilePhoto
+                    : null,
+                ...formData.addressInfo,
+                ...formData.otherInfo,
+              }}
+              onNext={nextStep}
+              onPrev={prevStep}
+              isEditMode={isEditMode}
+            />
+          )}
+          {step === 3 && <Preview data={formData} patientUuid={patientUuid} />}
+        </>
       )}
-      {step === 3 && <Preview data={formData} patientUuid={patientUuid} />}
     </div>
   );
 }

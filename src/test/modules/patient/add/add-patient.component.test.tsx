@@ -40,6 +40,29 @@ vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
   }),
 }));
 
+// Mock useBreadcrumb
+vi.mock('../../../../hooks/useBreadcrumb', () => ({
+  useBreadcrumb: vi.fn(),
+}));
+
+// Mock patient service (for fromStartVisit fetch)
+const mockGetPatient = vi.fn();
+vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
+  patientService: {
+    getPatient: (...args: unknown[]) => mockGetPatient(...args),
+  },
+}));
+
+// Mock mapRawPatientToFormData
+vi.mock('../../../../modules/patient/profile/patient-profile.hooks', () => ({
+  mapRawPatientToFormData: vi.fn(() => ({
+    personalInfo: { firstName: 'Fetched', middleName: '', lastName: 'Patient', gender: 'M', dateOfBirth: '1990-01-01', age: '35', phoneNumber: '1111111111', phoneNumberCountryCode: '+91', contactType: 'self', emergencyContactName: '', emergencyContactNumber: '', emergencyContactNumberCountryCode: '+91', profilePhoto: null },
+    addressInfo: { postalCode: '', city: 'FetchCity', state: '', country: '', district: '', correspondingAddress1: '', correspondingAddress2: '' },
+    otherInfo: { sonDaughterWifeOf: '', occupation: '', caste: '', education: '', economicStatus: '' },
+  })),
+  usePatientProfile: vi.fn(),
+}));
+
 // Mock all the step components
 vi.mock('../../../../modules/patient/add/steps/privacy-policy/patient-privacy-policy.component', () => ({
   default: ({ onNext, onPrev }: { onNext: (data: any) => void; onPrev: () => void }) => (
@@ -1224,6 +1247,92 @@ describe('AddPatientComponent', () => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
       });
       expect(screen.getByText(PATIENT_DETAILS_LABEL)).toBeInTheDocument();
+    });
+  });
+
+  describe('fromStartVisit navigation', () => {
+    it('should start at step 2 (Patient Info) when fromStartVisit is true', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('terms')).not.toBeInTheDocument();
+    });
+
+    it('should not fetch temp-storage when fromStartVisit is true', async () => {
+      mockGetResource.mockClear();
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      expect(mockGetResource).not.toHaveBeenCalled();
+    });
+
+    it('should fetch patient data from backend when fromStartVisit with patientUuid', async () => {
+      mockGetPatient.mockResolvedValue({
+        uuid: 'start-visit-patient-uuid',
+        identifiers: [{ identifier: 'PAT001', preferred: true }],
+        person: {
+          uuid: 'person-uuid',
+          gender: 'M',
+          age: 35,
+          birthdate: '1990-01-01',
+          preferredName: { givenName: 'Fetched', middleName: '', familyName: 'Patient' },
+          preferredAddress: {},
+          attributes: [],
+        },
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalledWith('start-visit-patient-uuid');
+      });
     });
   });
 });

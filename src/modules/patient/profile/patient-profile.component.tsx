@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
+import ROUTES from '../../../routes/paths';
 import iconClose from '../../../assets/icons/close.svg';
 import iconEdit from '../../../assets/icons/edit.svg';
 import iconAddress from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
@@ -43,6 +45,11 @@ const PatientProfileComponent: React.FC = () => {
     error,
     refresh,
   } = usePatientProfile(uuid);
+  useBreadcrumb([
+    { label: 'Dashboard', path: ROUTES.DASHBOARD },
+    { label: patientData?.fullName ?? 'Patient Details' },
+  ]);
+
   const [imgError, setImgError] = useState(false);
   const patientImgSrc = uuid
     ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${uuid}`

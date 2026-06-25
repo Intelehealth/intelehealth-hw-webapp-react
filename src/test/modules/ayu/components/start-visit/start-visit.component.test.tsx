@@ -171,7 +171,7 @@ const BreadcrumbSpy = () => {
   return (
     <div data-testid="breadcrumb-spy">
       {items.map((item, i) => (
-        <span key={i} data-testid={`breadcrumb-${i}`}>
+        <span key={i} data-testid={`breadcrumb-${i}`} data-status={item.status ?? ''}>
           {item.label}
         </span>
       ))}
@@ -1614,10 +1614,12 @@ describe('StartVisit', () => {
           </BreadcrumbProvider>
         </MemoryRouter>
       );
-      // Initial section is Vitals
+      // Breadcrumb: Dashboard > Add Patient > Patient Details > Start Visit > Vitals (active)
       expect(screen.getByTestId('breadcrumb-0')).toHaveTextContent('Dashboard');
-      expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Start Visit');
-      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Vitals');
+      expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Add Patient');
+      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Patient Details');
+      expect(screen.getByTestId('breadcrumb-3')).toHaveTextContent('Start Visit');
+      expect(screen.getByTestId('breadcrumb-4')).toHaveTextContent('Vitals');
     });
 
     it('updates breadcrumb when navigating to the next section', async () => {
@@ -1631,7 +1633,102 @@ describe('StartVisit', () => {
       );
       // Navigate from Vitals -> Visit Reason
       await userEvent.click(screen.getByText('Next Vitals'));
-      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Visit Reason');
+      // After navigation: Vitals becomes completed (index 4), Visit Reason becomes active (index 5)
+      expect(screen.getByTestId('breadcrumb-5')).toHaveTextContent('Visit Reason');
+    });
+  });
+
+  describe('scroll-to-top on section change', () => {
+    it('should scroll main-container-content to top when section changes', async () => {
+      const mockScrollTo = vi.fn();
+      const mockElement = { scrollTo: mockScrollTo } as unknown as HTMLElement;
+      const spy = vi.spyOn(document, 'getElementById').mockReturnValue(mockElement);
+
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      await user.click(screen.getByText('Next Vitals'));
+
+      expect(spy).toHaveBeenCalledWith('main-container-content');
+      expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
+
+      spy.mockRestore();
+    });
+
+    it('should not throw when main-container-content element is not found', async () => {
+      const spy = vi.spyOn(document, 'getElementById').mockReturnValue(null);
+
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      await user.click(screen.getByText('Next Vitals'));
+      expect(screen.getByText('2/4 Visit Reason')).toBeInTheDocument();
+
+      spy.mockRestore();
+    });
+  });
+
+  describe('breadcrumb goToSection navigation', () => {
+    it('should include Add Patient, Patient Details, Start Visit, and active section in breadcrumb', () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('breadcrumb-0')).toHaveTextContent('Dashboard');
+      expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Add Patient');
+      expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Patient Details');
+      expect(screen.getByTestId('breadcrumb-3')).toHaveTextContent('Start Visit');
+      expect(screen.getByTestId('breadcrumb-4')).toHaveTextContent('Vitals');
+      expect(screen.getByTestId('breadcrumb-4')).toHaveAttribute('data-status', 'active');
+    });
+
+    it('should mark completed sections and show active section with correct status', async () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      await userEvent.click(screen.getByText('Next Vitals'));
+
+      expect(screen.getByTestId('breadcrumb-4')).toHaveTextContent('Vitals');
+      expect(screen.getByTestId('breadcrumb-4')).toHaveAttribute('data-status', 'completed');
+      expect(screen.getByTestId('breadcrumb-5')).toHaveTextContent('Visit Reason');
+      expect(screen.getByTestId('breadcrumb-5')).toHaveAttribute('data-status', 'active');
+    });
+
+    it('should filter out pending sections from breadcrumb', () => {
+      render(
+        <MemoryRouter>
+          <BreadcrumbProvider>
+            <BreadcrumbSpy />
+            <StartVisit />
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+
+      // Only Dashboard, Add Patient, Patient Details, Start Visit, Vitals (active)
+      // Visit Reason, Physical Examination, Medical History are pending and filtered
+      expect(screen.queryByTestId('breadcrumb-5')).not.toBeInTheDocument();
+    });
+
+    it('should call saveSectionToTemp when navigating to next section', async () => {
+      renderWithRouter(<StartVisit />);
+
+      // Click Next to go from Vitals (section 0) -> Visit Reason (section 1)
+      await userEvent.click(screen.getByText('Next Vitals'));
+
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ currentSectionIndex: 1 })
+      );
     });
   });
 });
