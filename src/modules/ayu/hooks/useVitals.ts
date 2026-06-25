@@ -283,7 +283,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     watch,
     setValue,
     reset,
-    formState: { errors, touchedFields },
+    formState: { errors, touchedFields, isSubmitted },
   } = useForm<VitalsFormValues>({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     mode: 'onChange',
@@ -475,6 +475,7 @@ export const useVitals = (onNextQuestion: () => void) => {
     watch,
     errors,
     touchedFields,
+    isSubmitted,
 
     // Field groups
     bodyMeasurementFields,

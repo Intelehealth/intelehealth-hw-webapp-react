@@ -44,6 +44,11 @@ vi.mock(
 );
 
 
+const mockUseBreadcrumb = vi.fn();
+vi.mock('../../../../hooks/useBreadcrumb', () => ({
+  useBreadcrumb: (...args: unknown[]) => mockUseBreadcrumb(...args),
+}));
+
 vi.mock('../../../../assets/icons/close.svg', () => ({ default: 'close.svg' }));
 vi.mock(
   '../../../../assets/icons/icon-location-green-rounded-bordered.svg',
@@ -558,5 +563,32 @@ describe('PatientProfileComponent', () => {
       'error'
     );
     h.mockNavigate.mockReset();
+  });
+
+  describe('breadcrumb', () => {
+    it('should call useBreadcrumb with patient name when patient data is available', () => {
+      h.mockUsePatientProfile.mockReturnValue({ ...defaultHookReturn });
+      render(<PatientProfileComponent />);
+
+      expect(mockUseBreadcrumb).toHaveBeenCalledWith([
+        { label: 'Dashboard', path: expect.any(String) },
+        { label: 'John K Doe' },
+      ]);
+    });
+
+    it('should call useBreadcrumb with "Patient Details" when patient data is null', () => {
+      h.mockUsePatientProfile.mockReturnValue({
+        ...defaultHookReturn,
+        patientData: null,
+        loading: false,
+        error: null,
+      });
+      render(<PatientProfileComponent />);
+
+      expect(mockUseBreadcrumb).toHaveBeenCalledWith([
+        { label: 'Dashboard', path: expect.any(String) },
+        { label: 'Patient Details' },
+      ]);
+    });
   });
 });

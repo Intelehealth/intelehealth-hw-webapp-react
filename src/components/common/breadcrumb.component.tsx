@@ -19,9 +19,12 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className }) => {
       aria-label="Breadcrumb"
       className={cn('px-4 py-2', bgColor, className)}
     >
-      <ol className="flex items-center gap-1.5 text-sm">
+      <ol className="flex items-center gap-1.5 text-sm flex-wrap">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
+
+          const getItemClassName = () =>
+            isLast ? 'text-[#374151] font-medium' : 'text-[#9CA3AF]';
 
           return (
             <li
@@ -41,12 +44,28 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className }) => {
                 >
                   {item.label}
                 </Link>
+              ) : item.onClick ? (
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  className={cn(
+                    'bg-transparent border-none p-0 m-0 font-inherit text-inherit',
+                    'hover:underline cursor-pointer transition-colors',
+                    getItemClassName()
+                  )}
+                >
+                  {item.label}
+                </button>
               ) : (
                 <span
-                  className={cn(
-                    isLast ? 'text-[#374151] font-medium' : 'text-[#9CA3AF]'
-                  )}
-                  aria-current={isLast ? 'page' : undefined}
+                  className={cn(getItemClassName())}
+                  aria-current={
+                    item.status === 'active'
+                      ? 'step'
+                      : isLast
+                        ? 'page'
+                        : undefined
+                  }
                 >
                   {item.label}
                 </span>
