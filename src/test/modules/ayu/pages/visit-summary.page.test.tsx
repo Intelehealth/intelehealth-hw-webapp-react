@@ -905,6 +905,106 @@ describe('VisitSummaryPage', () => {
     expect(screen.queryByText('No physical exam recorded')).not.toBeInTheDocument();
   });
 
+  it('should render physical exam detailsSections with section titles and labelValue items', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { pe1: ['opt1'] },
+        details: [{ label: 'Jaundice', value: 'Present' }],
+        detailsSections: [
+          {
+            title: 'General Exams',
+            items: [
+              { type: 'labelValue' as const, label: 'Jaundice', value: 'Present' },
+            ],
+          },
+          {
+            title: 'Throat',
+            items: [
+              { type: 'labelValue' as const, label: 'Tonsils', value: 'Swollen' },
+              { type: 'labelValue' as const, label: 'Redness', value: null },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('General Exams')).toBeInTheDocument();
+    expect(screen.getAllByText('Jaundice').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Present').length).toBeGreaterThan(0);
+    expect(screen.getByText('Throat')).toBeInTheDocument();
+    expect(screen.getByText('Tonsils')).toBeInTheDocument();
+    expect(screen.getByText('Swollen')).toBeInTheDocument();
+    // null value falls back to 'No information'
+    expect(screen.getByText('No information')).toBeInTheDocument();
+  });
+
+  it('should render physical exam detailsSections with subheading items', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { pe1: ['opt1'] },
+        details: [],
+        detailsSections: [
+          {
+            title: 'Hands',
+            items: [
+              { type: 'subheading' as const, heading: 'Nail Check' },
+              { type: 'labelValue' as const, label: 'Pallor', value: 'Normal' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('Hands')).toBeInTheDocument();
+    expect(screen.getByText('Nail Check')).toBeInTheDocument();
+    expect(screen.getByText('Pallor')).toBeInTheDocument();
+  });
+
+  it('should render physical exam detailsSections without section title when title is empty', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { pe1: ['opt1'] },
+        details: [],
+        detailsSections: [
+          {
+            title: '',
+            items: [
+              { type: 'labelValue' as const, label: 'Eyes', value: 'Clear' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('Eyes')).toBeInTheDocument();
+    expect(screen.getByText('Clear')).toBeInTheDocument();
+  });
+
+  it('should skip unknown item types in physical exam detailsSections', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { pe1: ['opt1'] },
+        details: [],
+        detailsSections: [
+          {
+            title: 'Section',
+            items: [
+              { type: 'unknown' as any, label: 'X', value: 'Y' },
+              { type: 'labelValue' as const, label: 'Known', value: 'Item' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('Known')).toBeInTheDocument();
+    expect(screen.getByText('Item')).toBeInTheDocument();
+  });
+
   /* ── Check-up reason section rendering ────────────────────────────── */
 
   it('should render check-up reason with chief complaint chips and details', () => {
