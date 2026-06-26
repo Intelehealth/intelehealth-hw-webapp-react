@@ -26,6 +26,12 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Range Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range-no-to"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: null })}
+      >
+        Mock Range No To
+      </button>
     </div>
   ),
 }));
@@ -386,6 +392,25 @@ describe('OpenVisitsComponent', () => {
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Anita Desai')).not.toBeInTheDocument();
       expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
+    });
+
+    it('applies range filter with null to (falls back to undefined)', () => {
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null, totalCount: mockData.length };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPriorityData, loading: false, error: null, totalCount: mockPriorityData.length };
+        }
+        return defaultPriorityState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range-no-to'));
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
     });
 
     it('applies range filter to visits', () => {

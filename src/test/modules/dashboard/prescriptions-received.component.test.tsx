@@ -26,6 +26,12 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Range Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range-no-to"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: null })}
+      >
+        Mock Range No To
+      </button>
     </div>
   ),
 }));
@@ -546,6 +552,25 @@ describe('PrescriptionsReceived', () => {
       fireEvent.click(screen.getByText('Pending').closest('button')!);
       // Filter for 2025-04-21 matches 'Ravi Kumar' (visitCreatedDate: 2025-04-21)
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+    });
+
+    it('applies range filter with null to (falls back to undefined)', () => {
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockReceivedData, loading: false, error: null, totalCount: mockReceivedData.length };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range-no-to'));
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
     });
 
     it('applies range filter to received prescriptions', () => {
