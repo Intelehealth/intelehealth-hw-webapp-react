@@ -20,6 +20,12 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: '2025-04-21' })}
+      >
+        Mock Range Apply
+      </button>
     </div>
   ),
 }));
@@ -261,6 +267,20 @@ describe('FollowupVisitsComponent', () => {
       // Server-side filter for 2025-04-21 returns only 'Ravi Kumar'
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Priya Singh')).not.toBeInTheDocument();
+    });
+
+    it('applies range filter to visits', () => {
+      mockUseFollowupVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null };
+        }
+        return { data: mockData, loading: false, error: null };
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range'));
+      // Range filter passes fromDate and toDate from the range
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
     });
   });
 

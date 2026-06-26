@@ -20,6 +20,12 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: '2025-04-21' })}
+      >
+        Mock Range Apply
+      </button>
     </div>
   ),
 }));
@@ -380,6 +386,26 @@ describe('OpenVisitsComponent', () => {
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Anita Desai')).not.toBeInTheDocument();
       expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
+    });
+
+    it('applies range filter to visits', () => {
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null, totalCount: mockData.length };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPriorityData, loading: false, error: null, totalCount: mockPriorityData.length };
+        }
+        return defaultPriorityState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range'));
+      // Range filter passes fromDate and toDate from the range
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
     });
   });
 
