@@ -19,7 +19,6 @@ import type {
   PrescriptionReceivedVisit,
 } from '../../services/patient.service';
 import type { FilterValue } from '../../utils/date-filter';
-import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface PrescriptionsReceivedProps {
   onCountLoaded?: (count: number) => void;
@@ -43,18 +42,24 @@ export const PrescriptionsReceived = ({
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const { applySort: applyNameSort } = useSortByName();
 
+  const filterFromDate = dateFilter?.from;
+  const filterToDate =
+    dateFilter?.mode === 'range'
+      ? (dateFilter.to ?? undefined)
+      : dateFilter?.from;
+
   const {
     data: receivedData,
     loading: receivedLoading,
     error: receivedError,
     totalCount: receivedCount,
-  } = usePrescriptionsReceived();
+  } = usePrescriptionsReceived(filterFromDate, filterToDate);
 
   const {
     data: pendingData,
     loading: pendingLoading,
     error: pendingError,
-  } = usePrescriptionsPending();
+  } = usePrescriptionsPending(filterFromDate, filterToDate);
 
   const ROW_HEIGHT = 52; // 46px row + 6px gap
   const HEADER_OFFSET = 370; // space above rows (cards, action bar, table header, tabs, column header)
@@ -102,22 +107,18 @@ export const PrescriptionsReceived = ({
   };
 
   const filteredReceived = useMemo(() => {
-    const filtered = receivedData.filter(
-      p =>
-        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
-        isDateInFilterRange(p.visitCreatedDate, dateFilter)
+    const filtered = receivedData.filter(p =>
+      p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(filtered));
-  }, [receivedData, search, dateFilter, applySort, applyNameSort]);
+  }, [receivedData, search, applySort, applyNameSort]);
 
   const filteredPending = useMemo(() => {
-    const filtered = pendingData.filter(
-      p =>
-        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
-        isDateInFilterRange(p.visitCreatedDate, dateFilter)
+    const filtered = pendingData.filter(p =>
+      p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(filtered));
-  }, [pendingData, search, dateFilter, applySort, applyNameSort]);
+  }, [pendingData, search, applySort, applyNameSort]);
 
   const receivedColumns: {
     header: string;

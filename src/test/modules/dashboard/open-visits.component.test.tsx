@@ -20,6 +20,18 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: '2025-04-21' })}
+      >
+        Mock Range Apply
+      </button>
+      <button
+        data-testid="mock-filter-apply-range-no-to"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: null })}
+      >
+        Mock Range No To
+      </button>
     </div>
   ),
 }));
@@ -28,11 +40,11 @@ const mockUseOpenVisits = vi.fn();
 const mockUsePriorityVisits = vi.fn();
 
 vi.mock('../../../hooks/useOpenVisits', () => ({
-  useOpenVisits: () => mockUseOpenVisits(),
+  useOpenVisits: (...args: unknown[]) => mockUseOpenVisits(...args),
 }));
 
 vi.mock('../../../hooks/usePriorityVisits', () => ({
-  usePriorityVisits: () => mockUsePriorityVisits(),
+  usePriorityVisits: (...args: unknown[]) => mockUsePriorityVisits(...args),
 }));
 
 const mockData = [
@@ -360,13 +372,65 @@ describe('OpenVisitsComponent', () => {
     });
 
     it('applies date filter to visits', () => {
+      const filteredData = [mockData[0]]; // Only Ravi Kumar (2025-04-21)
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: filteredData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: [], loading: false, error: null, totalCount: 0 };
+        }
+        return defaultPriorityState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
-      // Filter for 2025-04-21 matches only 'Ravi Kumar'
+      // Server-side filter for 2025-04-21 returns only 'Ravi Kumar'
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Anita Desai')).not.toBeInTheDocument();
       expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
+    });
+
+    it('applies range filter with null to (falls back to undefined)', () => {
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null, totalCount: mockData.length };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPriorityData, loading: false, error: null, totalCount: mockPriorityData.length };
+        }
+        return defaultPriorityState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range-no-to'));
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('applies range filter to visits', () => {
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null, totalCount: mockData.length };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPriorityData, loading: false, error: null, totalCount: mockPriorityData.length };
+        }
+        return defaultPriorityState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range'));
+      // Range filter passes fromDate and toDate from the range
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
     });
   });
 

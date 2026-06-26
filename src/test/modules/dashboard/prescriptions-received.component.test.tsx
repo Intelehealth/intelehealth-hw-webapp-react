@@ -20,6 +20,18 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: '2025-04-21' })}
+      >
+        Mock Range Apply
+      </button>
+      <button
+        data-testid="mock-filter-apply-range-no-to"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: null })}
+      >
+        Mock Range No To
+      </button>
     </div>
   ),
 }));
@@ -28,11 +40,11 @@ const mockUsePrescriptionsReceived = vi.fn();
 const mockUsePrescriptionsPending = vi.fn();
 
 vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
-  usePrescriptionsReceived: () => mockUsePrescriptionsReceived(),
+  usePrescriptionsReceived: (...args: unknown[]) => mockUsePrescriptionsReceived(...args),
 }));
 
 vi.mock('../../../hooks/usePrescriptionsPending', () => ({
-  usePrescriptionsPending: () => mockUsePrescriptionsPending(),
+  usePrescriptionsPending: (...args: unknown[]) => mockUsePrescriptionsPending(...args),
 }));
 
 const mockReceivedData = [
@@ -499,22 +511,86 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('applies date filter to received prescriptions', () => {
+      const filteredReceived = [mockReceivedData[0]]; // Only Sarrah Paul (2025-04-21)
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: filteredReceived, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
-      // Filter for 2025-04-21 matches only 'Sarrah Paul'
+      // Server-side filter for 2025-04-21 returns only 'Sarrah Paul'
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
       expect(screen.queryByText('Nikita Agrawal')).not.toBeInTheDocument();
       expect(screen.queryByText('Suresh Deshmukh')).not.toBeInTheDocument();
     });
 
     it('applies date filter to pending prescriptions', () => {
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: [mockReceivedData[0]], loading: false, error: null, totalCount: 1 };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
       fireEvent.click(screen.getByText('Pending').closest('button')!);
       // Filter for 2025-04-21 matches 'Ravi Kumar' (visitCreatedDate: 2025-04-21)
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+    });
+
+    it('applies range filter with null to (falls back to undefined)', () => {
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockReceivedData, loading: false, error: null, totalCount: mockReceivedData.length };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range-no-to'));
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
+    });
+
+    it('applies range filter to received prescriptions', () => {
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockReceivedData, loading: false, error: null, totalCount: mockReceivedData.length };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range'));
+      // Range filter passes fromDate and toDate from the range
+      expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
     });
   });
 

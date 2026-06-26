@@ -13,7 +13,6 @@ import {
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { FilterValue } from '../../utils/date-filter';
-import { isDateInFilterRange } from '../../utils/date-filter';
 
 interface FollowupVisitsProps {
   initialRowCount?: number;
@@ -31,7 +30,17 @@ export const FollowupVisitsComponent = ({
   const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const { applySort: applyNameSort } = useSortByName();
-  const { data, loading, error } = useFollowupVisits();
+
+  const filterFromDate = dateFilter?.from;
+  const filterToDate =
+    dateFilter?.mode === 'range'
+      ? (dateFilter.to ?? undefined)
+      : dateFilter?.from;
+
+  const { data, loading, error } = useFollowupVisits(
+    filterFromDate,
+    filterToDate
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -52,13 +61,11 @@ export const FollowupVisitsComponent = ({
   };
 
   const filtered = useMemo(() => {
-    const result = data.filter(
-      (p: FollowupVisit) =>
-        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
-        isDateInFilterRange(p.visitCreatedDate, dateFilter)
+    const result = data.filter((p: FollowupVisit) =>
+      p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(result));
-  }, [data, search, dateFilter, applySort, applyNameSort]);
+  }, [data, search, applySort, applyNameSort]);
 
   const columns: {
     header: string;

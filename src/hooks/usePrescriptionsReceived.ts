@@ -5,7 +5,10 @@ import {
   type PrescriptionReceivedVisit,
 } from '../services/patient.service';
 
-export const usePrescriptionsReceived = () => {
+export const usePrescriptionsReceived = (
+  fromDate?: string,
+  toDate?: string
+) => {
   const { locationUuid } = useProfileContext();
   const [data, setData] = useState<PrescriptionReceivedVisit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -16,11 +19,11 @@ export const usePrescriptionsReceived = () => {
     setLoading(true);
     setError(null);
     patientService
-      .getPrescriptionsReceived(locationUuid)
+      .getPrescriptionsReceived(locationUuid, 0, 50, fromDate, toDate)
       .then(setData)
       .catch(() => setError('Failed to fetch prescriptions'))
       .finally(() => setLoading(false));
-  }, [locationUuid]);
+  }, [locationUuid, fromDate, toDate]);
 
   return { data, loading, error, totalCount: data.length };
 };

@@ -15,7 +15,6 @@ import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
 import type { FilterValue } from '../../utils/date-filter';
-import { isDateInFilterRange } from '../../utils/date-filter';
 
 export const OPEN_VISITS_TABS = {
   OPEN: 'Open Visits',
@@ -49,8 +48,15 @@ export const OpenVisitsComponent = ({
   const filterRef = useRef<HTMLDivElement>(null);
   const { sortKey, sortOrder, toggleSort, applySort } = useColumnSort();
   const { applySort: applyNameSort } = useSortByName();
-  const openVisits = useOpenVisits();
-  const priorityVisits = usePriorityVisits();
+
+  const filterFromDate = dateFilter?.from;
+  const filterToDate =
+    dateFilter?.mode === 'range'
+      ? (dateFilter.to ?? undefined)
+      : dateFilter?.from;
+
+  const openVisits = useOpenVisits(filterFromDate, filterToDate);
+  const priorityVisits = usePriorityVisits(filterFromDate, filterToDate);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -76,13 +82,11 @@ export const OpenVisitsComponent = ({
   const { data, loading, error } = isPriorityTab ? priorityVisits : openVisits;
 
   const filtered = useMemo(() => {
-    const result = data.filter(
-      p =>
-        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
-        isDateInFilterRange(p.visitCreatedDate, dateFilter)
+    const result = data.filter(p =>
+      p.patientName.toLowerCase().includes(search.toLowerCase())
     );
     return applySort(applyNameSort(result));
-  }, [data, search, dateFilter, applySort, applyNameSort]);
+  }, [data, search, applySort, applyNameSort]);
 
   const columns: Column[] = [
     {
