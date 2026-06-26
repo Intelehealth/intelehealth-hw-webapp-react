@@ -75,12 +75,41 @@ describe('useOpenVisits', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getOpenVisits with the location uuid', async () => {
+  it('calls getOpenVisits with the location uuid and default params', async () => {
     mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
     renderHook(() => useOpenVisits());
 
     await waitFor(() => {
-      expect(mockGetOpenVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
+      expect(mockGetOpenVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, undefined, undefined);
+    });
+  });
+
+  it('passes fromDate and toDate to the service', async () => {
+    mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
+    renderHook(() => useOpenVisits('2026-04-01', '2026-06-01'));
+
+    await waitFor(() => {
+      expect(mockGetOpenVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', '2026-06-01');
+    });
+  });
+
+  it('re-fetches when fromDate changes', async () => {
+    mockGetOpenVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
+    const { rerender } = renderHook(
+      ({ fromDate }: { fromDate?: string }) => useOpenVisits(fromDate),
+      { initialProps: { fromDate: undefined as string | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(mockGetOpenVisits).toHaveBeenCalledTimes(1);
+    });
+
+    mockGetOpenVisits.mockResolvedValue({ visits: [], totalCount: 0 });
+    rerender({ fromDate: '2026-04-01' });
+
+    await waitFor(() => {
+      expect(mockGetOpenVisits).toHaveBeenCalledTimes(2);
+      expect(mockGetOpenVisits).toHaveBeenLastCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', undefined);
     });
   });
 
@@ -120,7 +149,7 @@ describe('useOpenVisits', () => {
   });
 
   it('re-fetches when locationUuid changes', async () => {
-    mockGetOpenVisits.mockResolvedValue(mockVisits);
+    mockGetOpenVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
     let locationUuid = MOCK_LOCATION_UUID;
     mockUseProfileContext.mockImplementation(() => ({ locationUuid }));
 
@@ -135,7 +164,7 @@ describe('useOpenVisits', () => {
 
     await waitFor(() => {
       expect(mockGetOpenVisits).toHaveBeenCalledTimes(2);
-      expect(mockGetOpenVisits).toHaveBeenLastCalledWith('loc-uuid-new');
+      expect(mockGetOpenVisits).toHaveBeenLastCalledWith('loc-uuid-new', 0, 50, undefined, undefined);
     });
   });
 });

@@ -75,12 +75,41 @@ describe('usePrescriptionsPending', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getPrescriptionsPending with the location uuid', async () => {
+  it('calls getPrescriptionsPending with the location uuid and default params', async () => {
     mockGetPrescriptionsPending.mockResolvedValue([]);
     renderHook(() => usePrescriptionsPending());
 
     await waitFor(() => {
-      expect(mockGetPrescriptionsPending).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, undefined, undefined);
+    });
+  });
+
+  it('passes fromDate and toDate to the service', async () => {
+    mockGetPrescriptionsPending.mockResolvedValue([]);
+    renderHook(() => usePrescriptionsPending('2026-04-01', '2026-06-01'));
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', '2026-06-01');
+    });
+  });
+
+  it('re-fetches when fromDate changes', async () => {
+    mockGetPrescriptionsPending.mockResolvedValue(mockPendingVisits);
+    const { rerender } = renderHook(
+      ({ fromDate }: { fromDate?: string }) => usePrescriptionsPending(fromDate),
+      { initialProps: { fromDate: undefined as string | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledTimes(1);
+    });
+
+    mockGetPrescriptionsPending.mockResolvedValue([]);
+    rerender({ fromDate: '2026-04-01' });
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsPending).toHaveBeenCalledTimes(2);
+      expect(mockGetPrescriptionsPending).toHaveBeenLastCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', undefined);
     });
   });
 
@@ -135,7 +164,7 @@ describe('usePrescriptionsPending', () => {
 
     await waitFor(() => {
       expect(mockGetPrescriptionsPending).toHaveBeenCalledTimes(2);
-      expect(mockGetPrescriptionsPending).toHaveBeenLastCalledWith('loc-uuid-new');
+      expect(mockGetPrescriptionsPending).toHaveBeenLastCalledWith('loc-uuid-new', 0, 50, undefined, undefined);
     });
   });
 });

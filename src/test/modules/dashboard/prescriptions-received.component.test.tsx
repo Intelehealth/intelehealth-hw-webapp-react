@@ -28,11 +28,11 @@ const mockUsePrescriptionsReceived = vi.fn();
 const mockUsePrescriptionsPending = vi.fn();
 
 vi.mock('../../../hooks/usePrescriptionsReceived', () => ({
-  usePrescriptionsReceived: () => mockUsePrescriptionsReceived(),
+  usePrescriptionsReceived: (...args: unknown[]) => mockUsePrescriptionsReceived(...args),
 }));
 
 vi.mock('../../../hooks/usePrescriptionsPending', () => ({
-  usePrescriptionsPending: () => mockUsePrescriptionsPending(),
+  usePrescriptionsPending: (...args: unknown[]) => mockUsePrescriptionsPending(...args),
 }));
 
 const mockReceivedData = [
@@ -499,16 +499,41 @@ describe('PrescriptionsReceived', () => {
     });
 
     it('applies date filter to received prescriptions', () => {
+      const filteredReceived = [mockReceivedData[0]]; // Only Sarrah Paul (2025-04-21)
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: filteredReceived, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
-      // Filter for 2025-04-21 matches only 'Sarrah Paul'
+      // Server-side filter for 2025-04-21 returns only 'Sarrah Paul'
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
       expect(screen.queryByText('Nikita Agrawal')).not.toBeInTheDocument();
       expect(screen.queryByText('Suresh Deshmukh')).not.toBeInTheDocument();
     });
 
     it('applies date filter to pending prescriptions', () => {
+      mockUsePrescriptionsReceived.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: [mockReceivedData[0]], loading: false, error: null, totalCount: 1 };
+        }
+        return defaultReceivedState;
+      });
+      mockUsePrescriptionsPending.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockPendingData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultPendingState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));

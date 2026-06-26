@@ -11,7 +11,7 @@ export interface FollowupVisit {
   gender: string;
 }
 
-export const useFollowupVisits = () => {
+export const useFollowupVisits = (fromDate?: string, toDate?: string) => {
   const { locationUuid } = useProfileContext();
   const [data, setData] = useState<FollowupVisit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,11 +22,11 @@ export const useFollowupVisits = () => {
     setLoading(true);
     setError(null);
     patientService
-      .getFollowupVisits(locationUuid)
+      .getFollowupVisits(locationUuid, 0, 50, fromDate, toDate)
       .then(res => setData(res.visits))
       .catch(() => setError('Failed to fetch follow-up visits'))
       .finally(() => setLoading(false));
-  }, [locationUuid]);
+  }, [locationUuid, fromDate, toDate]);
 
   return { data, loading, error };
 };

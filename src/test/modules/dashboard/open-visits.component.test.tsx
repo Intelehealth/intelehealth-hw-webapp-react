@@ -28,11 +28,11 @@ const mockUseOpenVisits = vi.fn();
 const mockUsePriorityVisits = vi.fn();
 
 vi.mock('../../../hooks/useOpenVisits', () => ({
-  useOpenVisits: () => mockUseOpenVisits(),
+  useOpenVisits: (...args: unknown[]) => mockUseOpenVisits(...args),
 }));
 
 vi.mock('../../../hooks/usePriorityVisits', () => ({
-  usePriorityVisits: () => mockUsePriorityVisits(),
+  usePriorityVisits: (...args: unknown[]) => mockUsePriorityVisits(...args),
 }));
 
 const mockData = [
@@ -360,10 +360,23 @@ describe('OpenVisitsComponent', () => {
     });
 
     it('applies date filter to visits', () => {
+      const filteredData = [mockData[0]]; // Only Ravi Kumar (2025-04-21)
+      mockUseOpenVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: filteredData, loading: false, error: null, totalCount: 1 };
+        }
+        return defaultState;
+      });
+      mockUsePriorityVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: [], loading: false, error: null, totalCount: 0 };
+        }
+        return defaultPriorityState;
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
-      // Filter for 2025-04-21 matches only 'Ravi Kumar'
+      // Server-side filter for 2025-04-21 returns only 'Ravi Kumar'
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Anita Desai')).not.toBeInTheDocument();
       expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();

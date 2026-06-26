@@ -67,6 +67,22 @@ describe('patientService', () => {
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/loc-456?type=followup-visits&page=2&limit=15', undefined);
     });
 
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { data: { visits: [], totalCount: 0 } } });
+
+      await patientService.getFollowupVisits('loc-456', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/loc-456?type=followup-visits&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
+    });
+
+    it('appends only fromDate when toDate is not provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { data: { visits: [], totalCount: 0 } } });
+
+      await patientService.getFollowupVisits('loc-456', 0, 50, '2026-04-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/loc-456?type=followup-visits&page=0&limit=50&fromDate=2026-04-01', undefined);
+    });
+
     it('propagates errors from the API', async () => {
       h.mockGet.mockRejectedValue(new Error('API error'));
 
@@ -99,6 +115,14 @@ describe('patientService', () => {
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-456?type=recent-patients&page=1&limit=10', undefined);
     });
 
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 0, pageSize: 50 } } });
+
+      await patientService.getRecentPatients('hw-123', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=recent-patients&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
+    });
+
     it('propagates errors from the API', async () => {
       h.mockGet.mockRejectedValue(new Error('Network error'));
 
@@ -125,6 +149,14 @@ describe('patientService', () => {
       await patientService.getPrescriptionsReceived('hw-789', 2, 20);
 
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-789?type=prescription-received&page=2&limit=20', undefined);
+    });
+
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 0, pageSize: 50 } } });
+
+      await patientService.getPrescriptionsReceived('hw-123', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=prescription-received&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
     });
 
     it('propagates errors from the API', async () => {
@@ -155,6 +187,14 @@ describe('patientService', () => {
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-999?type=open-visits&page=3&limit=5', undefined);
     });
 
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 0, pageSize: 50 } } });
+
+      await patientService.getOpenVisits('hw-123', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=open-visits&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
+    });
+
     it('propagates errors from the API', async () => {
       h.mockGet.mockRejectedValue(new Error('Timeout'));
 
@@ -183,6 +223,14 @@ describe('patientService', () => {
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-321?type=priority-visits&page=4&limit=25', undefined);
     });
 
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 0, pageSize: 50 } } });
+
+      await patientService.getPriorityVisits('hw-123', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=priority-visits&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
+    });
+
     it('propagates errors from the API', async () => {
       h.mockGet.mockRejectedValue(new Error('Server error'));
 
@@ -209,6 +257,14 @@ describe('patientService', () => {
       await patientService.getPrescriptionsPending('hw-555', 2, 15);
 
       expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-555?type=prescription-pending&page=2&limit=15', undefined);
+    });
+
+    it('appends fromDate and toDate when provided', async () => {
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits: [], totalCount: 0, pageNo: 0, pageSize: 50 } } });
+
+      await patientService.getPrescriptionsPending('hw-123', 0, 50, '2026-04-01', '2026-06-01');
+
+      expect(h.mockGet).toHaveBeenCalledWith('/pull/hw-visits/hw-123?type=prescription-pending&page=0&limit=50&fromDate=2026-04-01&toDate=2026-06-01', undefined);
     });
 
     it('propagates errors from the API', async () => {
