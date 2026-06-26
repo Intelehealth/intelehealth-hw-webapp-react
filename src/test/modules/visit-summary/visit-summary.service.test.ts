@@ -1754,4 +1754,182 @@ describe('visitSummaryService', () => {
       expect(CONCEPT_UUIDS.BLOOD_GROUP).toBeDefined();
     });
   });
+
+  describe('getPhysicalExamImages', () => {
+    it('should call OpenMRSApi.get with correct URL', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({ results: [] });
+      await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(OpenMRSApi.get).toHaveBeenCalledWith(
+        expect.stringContaining('/obs?patient=patient-uuid')
+      );
+      expect(OpenMRSApi.get).toHaveBeenCalledWith(
+        expect.stringContaining('concept=200b7a45-77bc-4986-b879-cc727f5f7d5b')
+      );
+    });
+
+    it('should filter out text observations (string value)', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-text',
+            comment: 'text note',
+            value: 'General exam looks normal',
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-file',
+            comment: 'image.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/file' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].uuid).toBe('obs-file');
+    });
+
+    it('should filter by visit UUID', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-match',
+            comment: 'match.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/1' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-other',
+            comment: 'other.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/2' } },
+            encounter: { visit: { uuid: 'other-visit' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].uuid).toBe('obs-match');
+    });
+
+    it('should include obs without encounter (null encounter)', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-no-enc',
+            comment: 'no-encounter.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/no-enc' } },
+            encounter: null,
+          },
+          {
+            uuid: 'obs-wrong-visit',
+            comment: 'wrong.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/wrong' } },
+            encounter: { visit: { uuid: 'other-visit' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].uuid).toBe('obs-no-enc');
+    });
+
+    it('should use comment as name, falling back to value.display, then Physical exam image', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-with-comment',
+            comment: 'my-photo.jpg',
+            value: { display: 'file-display', links: { uri: 'http://example.com/1' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-no-comment',
+            comment: '',
+            value: { display: 'fallback-display', links: { uri: 'http://example.com/2' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-no-comment-no-display',
+            comment: '',
+            value: { display: '', links: { uri: 'http://example.com/3' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(3);
+      expect(docs[0].name).toBe('my-photo.jpg');
+      expect(docs[1].name).toBe('fallback-display');
+      expect(docs[2].name).toBe('Physical exam image');
+    });
+
+    it('should extract fileUrl from value.links.uri when available', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-uri',
+            comment: 'photo.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/obs/uri-value' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(1);
+      expect(docs[0].fileUrl).toBe('http://example.com/obs/uri-value');
+    });
+
+    it('should return empty fileUrl when links is not an object or missing uri', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-no-links',
+            comment: 'no-links.jpg',
+            value: { display: 'file' },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-links-no-uri',
+            comment: 'no-uri.jpg',
+            value: { display: 'file', links: { rel: 'self' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(2);
+      expect(docs[0].fileUrl).toBe('');
+      expect(docs[1].fileUrl).toBe('');
+    });
+
+    it('should handle undefined results in response', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({});
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(0);
+    });
+
+    it('should always set isImage to true', async () => {
+      vi.mocked(OpenMRSApi.get).mockResolvedValue({
+        results: [
+          {
+            uuid: 'obs-1',
+            comment: 'a.jpg',
+            value: { display: 'file', links: { uri: 'http://example.com/1' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+          {
+            uuid: 'obs-2',
+            comment: 'b.png',
+            value: { display: 'file', links: { uri: 'http://example.com/2' } },
+            encounter: { visit: { uuid: 'visit-uuid' } },
+          },
+        ],
+      });
+      const docs = await visitSummaryService.getPhysicalExamImages('patient-uuid', 'visit-uuid');
+      expect(docs).toHaveLength(2);
+      docs.forEach(doc => {
+        expect(doc.isImage).toBe(true);
+      });
+    });
+  });
 });

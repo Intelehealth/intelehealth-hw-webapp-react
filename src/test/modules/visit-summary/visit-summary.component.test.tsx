@@ -11,6 +11,7 @@ vi.mock('../../../modules/visit-summary/visit-summary.service', () => ({
   visitSummaryService: {
     getVisitSummary: vi.fn(),
     getAdditionalDocuments: vi.fn().mockResolvedValue([]),
+    getPhysicalExamImages: vi.fn().mockResolvedValue([]),
     getDocumentFile: vi.fn().mockRejectedValue(new Error('not found')),
   },
 }));
@@ -1500,6 +1501,172 @@ describe('VisitSummaryComponent', () => {
       const docContainer = docLabel.closest('.flex.flex-col')!;
       const button = docContainer.querySelector('button')!;
       expect(button).not.toBeDisabled();
+    });
+  });
+
+  describe('Physical exam image thumbnails', () => {
+    it('should call getPhysicalExamImages with patient UUID and visit UUID after data loads', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([]);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(visitSummaryService.getPhysicalExamImages).toHaveBeenCalledWith(
+          data.patient.patientUuid,
+          data.visitUuid
+        );
+      });
+    });
+
+    it('should render physical exam images grouped by section name', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-1', name: 'Ear Canal', fileUrl: '', isImage: true },
+        { uuid: 'pe-img-2', name: 'Nasal Cavity', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('Ear Canal')).toBeInTheDocument();
+        expect(screen.getByText('Nasal Cavity')).toBeInTheDocument();
+      });
+    });
+
+    it('should open preview modal when image thumbnail is clicked', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-1', name: 'Ear Canal', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Ear Canal')).toBeInTheDocument();
+      });
+
+      // Click the image thumbnail to open preview
+      const thumbnail = screen.getByAltText('Ear Canal');
+      const button = thumbnail.closest('button')!;
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Preview')).toBeInTheDocument();
+      });
+    });
+
+    it('should close preview modal when close button is clicked', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-1', name: 'Ear Canal', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Ear Canal')).toBeInTheDocument();
+      });
+
+      // Open preview
+      const thumbnail = screen.getByAltText('Ear Canal');
+      fireEvent.click(thumbnail.closest('button')!);
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Preview')).toBeInTheDocument();
+      });
+
+      // Click close button (has fa-xmark icon)
+      const closeButton = container.querySelector('.fa-solid.fa-xmark')!.closest('button')!;
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByAltText('Preview')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should close preview modal when clicking backdrop', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-1', name: 'Ear Canal', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Ear Canal')).toBeInTheDocument();
+      });
+
+      // Open preview
+      const thumbnail = screen.getByAltText('Ear Canal');
+      fireEvent.click(thumbnail.closest('button')!);
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Preview')).toBeInTheDocument();
+      });
+
+      // Click the backdrop (the outermost fixed overlay div)
+      const backdrop = container.querySelector('.fixed.inset-0.z-50')!;
+      fireEvent.click(backdrop);
+
+      await waitFor(() => {
+        expect(screen.queryByAltText('Preview')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should render download link in preview modal', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-1', name: 'Ear Canal', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      const { container } = renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Ear Canal')).toBeInTheDocument();
+      });
+
+      // Open preview
+      const thumbnail = screen.getByAltText('Ear Canal');
+      fireEvent.click(thumbnail.closest('button')!);
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Preview')).toBeInTheDocument();
+      });
+
+      // Verify download link
+      const downloadLink = container.querySelector('a[download="physical-exam-image"]') as HTMLAnchorElement;
+      expect(downloadLink).toBeInTheDocument();
+      expect(downloadLink.href).toContain('blob:mock-url');
+      expect(downloadLink.querySelector('.fa-solid.fa-download')).toBeInTheDocument();
+    });
+
+    it('should handle getPhysicalExamImages failure gracefully', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      renderWithVisitId();
+
+      // The component should render normally without crashing
+      await waitFor(() => {
+        expect(screen.getByText('Physical examination')).toBeInTheDocument();
+      });
+
+      // No image section headings should appear since images failed to load
+      expect(screen.queryByText('Ear Canal')).not.toBeInTheDocument();
+      expect(screen.queryByText('Nasal Cavity')).not.toBeInTheDocument();
     });
   });
 });
