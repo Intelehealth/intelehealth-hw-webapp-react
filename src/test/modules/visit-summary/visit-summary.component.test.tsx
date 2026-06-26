@@ -1651,6 +1651,21 @@ describe('VisitSummaryComponent', () => {
       expect(downloadLink.querySelector('.fa-solid.fa-download')).toBeInTheDocument();
     });
 
+    it('should group images under "Other" when image name is empty', async () => {
+      const mockBlob = new Blob(['img'], { type: 'image/png' });
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockResolvedValue([
+        { uuid: 'pe-img-noname', name: '', fileUrl: '', isImage: true },
+      ]);
+      vi.mocked(visitSummaryService.getDocumentFile).mockResolvedValue(mockBlob);
+
+      renderWithVisitId();
+
+      await waitFor(() => {
+        expect(screen.getByText('Other')).toBeInTheDocument();
+      });
+    });
+
     it('should handle getPhysicalExamImages failure gracefully', async () => {
       vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
       vi.mocked(visitSummaryService.getPhysicalExamImages).mockRejectedValue(

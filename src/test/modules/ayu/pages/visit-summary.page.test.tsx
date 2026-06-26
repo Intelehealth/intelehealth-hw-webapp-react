@@ -2485,6 +2485,24 @@ describe('VisitSummaryPage', () => {
       globalThis.URL.createObjectURL = vi.fn(() => `blob:mock-url-${urlCounter++}`);
     });
 
+    it('should group images under "Other" when image comment is empty (flat mode)', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'unknown.png', { type: 'image/png' }), comment: '' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Other')).toBeInTheDocument();
+      });
+    });
+
     it('should render physical exam image thumbnails when pending images exist (flat mode)', async () => {
       mockGetPendingImages.mockReturnValue([
         { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
