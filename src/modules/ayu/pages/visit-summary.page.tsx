@@ -308,41 +308,126 @@ const CheckupReasonSection: React.FC<{
 const PhysicalExaminationSection: React.FC<{
   physicalExamination: PhysicalExamination;
   detailsSections?: MedicalHistorySummary[];
-}> = ({ physicalExamination, detailsSections }) => {
+  images?: Array<{ preview: string; name: string }>;
+}> = ({ physicalExamination, detailsSections, images }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const imagesBySection = useMemo(() => {
+    if (!images || images.length === 0) return {};
+    return images.reduce<
+      Record<string, Array<{ preview: string; name: string }>>
+    >((acc, img) => {
+      const key = img.name || 'Other';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(img);
+      return acc;
+    }, {});
+  }, [images]);
+
+  const renderImageThumbnails = (
+    sectionImages: Array<{ preview: string; name: string }>
+  ) => (
+    <div className="flex items-start gap-3 flex-wrap mt-2 mb-1">
+      {sectionImages.map((img, idx) => (
+        <button
+          key={idx}
+          type="button"
+          onClick={() => setPreviewUrl(img.preview)}
+          className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center cursor-pointer"
+        >
+          <img
+            src={img.preview}
+            alt={img.name}
+            className="w-full h-full object-cover"
+          />
+        </button>
+      ))}
+    </div>
+  );
+
+  const previewModal = previewUrl && (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+      onClick={() => setPreviewUrl(null)}
+    >
+      <div
+        className="relative max-w-[90vw] max-h-[90vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => setPreviewUrl(null)}
+          className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-gray-600 hover:text-gray-900 z-10"
+        >
+          <i className="fa-solid fa-xmark" />
+        </button>
+        <a
+          href={previewUrl}
+          download="physical-exam-image"
+          className="absolute -top-3 -right-14 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-gray-600 hover:text-gray-900 z-10"
+        >
+          <i className="fa-solid fa-download" />
+        </a>
+        <img
+          src={previewUrl}
+          alt="Preview"
+          className="max-w-full max-h-[85vh] rounded-lg"
+        />
+      </div>
+    </div>
+  );
+
   if (detailsSections && detailsSections.length > 0) {
+    const matchedKeys = new Set<string>();
     return (
       <div>
-        {detailsSections.map((section, sIdx) => (
-          <div key={sIdx} className="mb-2 last:mb-0">
-            {section.title && (
-              <p className="text-sm font-semibold text-[#2E1E91] mb-1">
-                {section.title}
-              </p>
-            )}
-            {section.items.map((item: ModalSectionItem, iIdx: number) => {
-              if (item.type === ITEM_TYPES.LABEL_VALUE) {
-                return (
-                  <LabelValueRow
-                    key={iIdx}
-                    label={item.label}
-                    value={String(item.value ?? 'No information')}
-                  />
-                );
-              }
-              if (item.type === ITEM_TYPES.SUBHEADING) {
-                return (
-                  <p
-                    key={iIdx}
-                    className="text-sm font-semibold text-gray-500 mt-3 mb-1"
-                  >
-                    {item.heading}
-                  </p>
-                );
-              }
-              return null;
-            })}
-          </div>
-        ))}
+        {detailsSections.map((section, sIdx) => {
+          const sectionImages = section.title
+            ? imagesBySection[section.title]
+            : undefined;
+          if (section.title && sectionImages) matchedKeys.add(section.title);
+          return (
+            <div key={sIdx} className="mb-2 last:mb-0">
+              {section.title && (
+                <p className="text-sm font-semibold text-[#2E1E91] mb-1">
+                  {section.title}
+                </p>
+              )}
+              {section.items.map((item: ModalSectionItem, iIdx: number) => {
+                if (item.type === ITEM_TYPES.LABEL_VALUE) {
+                  return (
+                    <LabelValueRow
+                      key={iIdx}
+                      label={item.label}
+                      value={String(item.value ?? 'No information')}
+                    />
+                  );
+                }
+                if (item.type === ITEM_TYPES.SUBHEADING) {
+                  return (
+                    <p
+                      key={iIdx}
+                      className="text-sm font-semibold text-gray-500 mt-3 mb-1"
+                    >
+                      {item.heading}
+                    </p>
+                  );
+                }
+                return null;
+              })}
+              {sectionImages && renderImageThumbnails(sectionImages)}
+            </div>
+          );
+        })}
+        {Object.entries(imagesBySection)
+          .filter(([key]) => !matchedKeys.has(key))
+          .map(([key, sectionImages]) => (
+            <div key={key} className="mb-2">
+              <p className="text-sm font-semibold text-[#2E1E91] mb-1">{key}</p>
+              {renderImageThumbnails(sectionImages)}
+            </div>
+          ))}
+        {previewModal}
       </div>
     );
   }
@@ -352,6 +437,13 @@ const PhysicalExaminationSection: React.FC<{
       {physicalExamination.generalExams.map(({ label, value }, idx) => (
         <LabelValueRow key={idx} label={label} value={value} />
       ))}
+      {Object.entries(imagesBySection).map(([key, sectionImages]) => (
+        <div key={key} className="mt-3">
+          <p className="text-sm font-semibold text-gray-500 mb-2">{key}</p>
+          {renderImageThumbnails(sectionImages)}
+        </div>
+      ))}
+      {previewModal}
     </div>
   );
 };
@@ -441,6 +533,9 @@ const VisitSummaryPage = () => {
     []
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [physExamImagePreviews, setPhysExamImagePreviews] = useState<
+    Array<{ preview: string; name: string }>
+  >([]);
 
   useEffect(() => {
     const bgField = data.vitals?.config?.find(f => f.key === 'blood_group');
@@ -484,6 +579,23 @@ const VisitSummaryPage = () => {
       cancelled = true;
     };
   }, [ctxPatientUuid]);
+
+  useEffect(() => {
+    const pending = getPendingImages();
+    if (pending.length === 0) return;
+
+    const urls: string[] = [];
+    const previews = pending.map(img => {
+      const url = URL.createObjectURL(img.file);
+      urls.push(url);
+      return { preview: url, name: img.comment };
+    });
+    setPhysExamImagePreviews(previews);
+
+    return () => {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -785,6 +897,7 @@ const VisitSummaryPage = () => {
               <PhysicalExaminationSection
                 physicalExamination={physicalExamination}
                 detailsSections={data.physicalExam?.detailsSections}
+                images={physExamImagePreviews}
               />
             ) : (
               <p className="text-gray-400 italic text-sm">

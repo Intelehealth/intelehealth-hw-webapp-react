@@ -317,6 +317,8 @@ function selectSpeciality(name = 'General Physician') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+  globalThis.URL.revokeObjectURL = vi.fn();
   mockStorageGet.mockReturnValue(null);
   mockStorageGetLocationUuid.mockReturnValue('location-uuid-5678');
   mockUploadVisit.mockResolvedValue(undefined);
@@ -2470,6 +2472,243 @@ describe('VisitSummaryPage', () => {
         expect(screen.getByText('From Storage')).toBeInTheDocument();
         expect(screen.getByText('OpenMRS ID: STO-001')).toBeInTheDocument();
       });
+    });
+  });
+
+  /* ── Physical exam image thumbnails and preview modal ────────────── */
+
+  describe('Physical exam image thumbnails', () => {
+    let urlCounter: number;
+
+    beforeEach(() => {
+      urlCounter = 0;
+      globalThis.URL.createObjectURL = vi.fn(() => `blob:mock-url-${urlCounter++}`);
+    });
+
+    it('should group images under "Other" when image comment is empty (flat mode)', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'unknown.png', { type: 'image/png' }), comment: '' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Other')).toBeInTheDocument();
+      });
+    });
+
+    it('should render physical exam image thumbnails when pending images exist (flat mode)', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+          // No detailsSections — flat mode
+        },
+      });
+
+      await waitFor(() => {
+        // The section heading for the image group should appear
+        expect(screen.getByText('Eyes')).toBeInTheDocument();
+      });
+
+      // Thumbnail button should be rendered with the blob URL image
+      const thumbnailImg = screen.getByAltText('Eyes');
+      expect(thumbnailImg).toBeInTheDocument();
+      expect(thumbnailImg.closest('button')).toBeTruthy();
+    });
+
+    it('should render physical exam image thumbnails matched to detailsSections (structured mode)', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'throat.png', { type: 'image/png' }), comment: 'Throat' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'Tonsils', value: 'Swollen' }],
+          detailsSections: [
+            {
+              title: 'Throat',
+              items: [
+                { type: 'labelValue' as const, label: 'Tonsils', value: 'Swollen' },
+              ],
+            },
+          ],
+        },
+      });
+
+      await waitFor(() => {
+        // Section title should render
+        expect(screen.getByText('Throat')).toBeInTheDocument();
+      });
+
+      // The image thumbnail should appear within the structured section
+      const thumbnailImg = screen.getByAltText('Throat');
+      expect(thumbnailImg).toBeInTheDocument();
+      expect(thumbnailImg.closest('button')).toBeTruthy();
+    });
+
+    it('should render unmatched images as fallback section (structured mode)', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'unmatched.png', { type: 'image/png' }), comment: 'Unmatched Section' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'Eyes', value: 'Clear' }],
+          detailsSections: [
+            {
+              title: 'General Exams',
+              items: [
+                { type: 'labelValue' as const, label: 'Eyes', value: 'Clear' },
+              ],
+            },
+          ],
+        },
+      });
+
+      await waitFor(() => {
+        // The unmatched image heading should appear as a fallback section
+        expect(screen.getByText('Unmatched Section')).toBeInTheDocument();
+      });
+
+      // Thumbnail for the unmatched image should be rendered
+      const thumbnailImg = screen.getByAltText('Unmatched Section');
+      expect(thumbnailImg).toBeInTheDocument();
+      expect(thumbnailImg.closest('button')).toBeTruthy();
+    });
+
+    it('should open preview modal when image thumbnail is clicked', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Eyes')).toBeInTheDocument();
+      });
+
+      // Click the thumbnail button to open the preview modal
+      const thumbnailButton = screen.getByAltText('Eyes').closest('button')!;
+      fireEvent.click(thumbnailButton);
+
+      // Preview modal should appear with alt="Preview"
+      expect(screen.getByAltText('Preview')).toBeInTheDocument();
+    });
+
+    it('should close preview modal when close button is clicked', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Eyes')).toBeInTheDocument();
+      });
+
+      // Open modal
+      const thumbnailButton = screen.getByAltText('Eyes').closest('button')!;
+      fireEvent.click(thumbnailButton);
+      expect(screen.getByAltText('Preview')).toBeInTheDocument();
+
+      // Click close button (fa-xmark icon's parent button)
+      const closeIcon = document.querySelector('.fa-solid.fa-xmark')!;
+      const closeButton = closeIcon.closest('button')!;
+      fireEvent.click(closeButton);
+
+      // Modal should be closed
+      expect(screen.queryByAltText('Preview')).not.toBeInTheDocument();
+    });
+
+    it('should close preview modal when clicking backdrop', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Eyes')).toBeInTheDocument();
+      });
+
+      // Open modal
+      const thumbnailButton = screen.getByAltText('Eyes').closest('button')!;
+      fireEvent.click(thumbnailButton);
+      expect(screen.getByAltText('Preview')).toBeInTheDocument();
+
+      // Click the backdrop (the outermost fixed div of the modal)
+      const previewImg = screen.getByAltText('Preview');
+      const backdrop = previewImg.closest('.fixed')!;
+      fireEvent.click(backdrop);
+
+      // Modal should be closed
+      expect(screen.queryByAltText('Preview')).not.toBeInTheDocument();
+    });
+
+    it('should render download link in preview modal', async () => {
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['img1'], 'eyes.png', { type: 'image/png' }), comment: 'Eyes' },
+      ]);
+
+      renderWithData({
+        ...fullData,
+        physicalExam: {
+          answers: { pe1: ['opt1'] },
+          details: [{ label: 'General Appearance', value: 'Normal' }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Eyes')).toBeInTheDocument();
+      });
+
+      // Open modal
+      const thumbnailButton = screen.getByAltText('Eyes').closest('button')!;
+      fireEvent.click(thumbnailButton);
+      expect(screen.getByAltText('Preview')).toBeInTheDocument();
+
+      // Verify download link exists with the correct download attribute
+      const downloadLink = document.querySelector('a[download="physical-exam-image"]') as HTMLAnchorElement;
+      expect(downloadLink).toBeTruthy();
+      expect(downloadLink.href).toContain('blob:mock-url-');
+
+      // Verify the download icon is inside the link
+      const downloadIcon = downloadLink.querySelector('.fa-solid.fa-download');
+      expect(downloadIcon).toBeTruthy();
     });
   });
 });
