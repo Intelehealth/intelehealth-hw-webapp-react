@@ -6,6 +6,7 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom';
+import type { BlockerFunction } from 'react-router-dom';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
 import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
 import { storage } from '../../../utils/storage';
@@ -34,7 +35,7 @@ const AyuLeaveGuard = () => {
   const shouldGuard = hasProgress && !isUploaded;
 
   const blocker = useBlocker(
-    useCallback(
+    useCallback<BlockerFunction>(
       ({ currentLocation, nextLocation }) => {
         if (!shouldGuard) return false;
         return (
