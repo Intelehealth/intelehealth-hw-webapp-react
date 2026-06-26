@@ -408,6 +408,7 @@ const VisitSummaryPage = () => {
     tempRecordId,
     clearVisitId,
     setLastSectionIndex,
+    markVisitUploaded,
   } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
@@ -629,6 +630,7 @@ const VisitSummaryPage = () => {
       const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
       setUploadedVisitUuid(visitUuid);
       setIsUploaded(true);
+      markVisitUploaded();
       showToast('Success', 'Visit uploaded successfully', 'success');
     } catch (error) {
       console.error('Failed to upload visit:', error);
@@ -644,6 +646,7 @@ const VisitSummaryPage = () => {
     priorityVisit,
     tempRecordId,
     clearVisitId,
+    markVisitUploaded,
     additionalNotes,
     additionalDocuments,
     physicalExamQuestions,

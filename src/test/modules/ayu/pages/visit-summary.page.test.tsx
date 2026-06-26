@@ -39,6 +39,7 @@ const mockUseStartVisitData = vi.fn(() => ({
   setMedicalHistoryAnswers: vi.fn(),
   saveSectionToTemp: mockSaveSectionToTemp,
   clearVisitId: mockClearVisitId,
+  markVisitUploaded: vi.fn(),
 }));
 
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
@@ -302,6 +303,7 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
     setMedicalHistoryAnswers: vi.fn(),
     saveSectionToTemp: mockSaveSectionToTemp,
     clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
   });
   return render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 }
@@ -506,6 +508,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
@@ -537,6 +540,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
 
     try {
@@ -682,6 +686,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
     mockStorageGet.mockReturnValue(null);
 
@@ -718,6 +723,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
     mockStorageGetLocationUuid.mockReturnValue(null as any);
 
@@ -778,6 +784,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1366,6 +1373,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1399,6 +1407,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1771,6 +1780,7 @@ describe('VisitSummaryPage', () => {
       setMedicalHistoryAnswers: vi.fn(),
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -2354,6 +2364,7 @@ describe('VisitSummaryPage', () => {
         setMedicalHistoryAnswers: vi.fn(),
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
       });
       mockStorageGet.mockReturnValue(null);
       render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -2452,6 +2463,7 @@ describe('VisitSummaryPage', () => {
         setMedicalHistoryAnswers: vi.fn(),
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: mockClearVisitId,
+    markVisitUploaded: vi.fn(),
       });
       mockStorageGet.mockImplementation((key: string) =>
         key === 'patientUuid' ? 'storage-patient-uuid' : null

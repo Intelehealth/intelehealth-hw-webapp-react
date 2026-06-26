@@ -165,3 +165,11 @@ export const RANGE_DEFAULT_MIN = 0;
 export const RANGE_DEFAULT_MAX = 100;
 export const RANGE_HINT_TEMPLATE = 'Drag two capture range from {min} to {max}';
 export const RANGE_TO_LABEL = 'To';
+
+// "Exit Assessment?" confirmation shown when leaving an in-progress visit.
+export const EXIT_ASSESSMENT_MODAL = {
+  TITLE: 'Exit Assessment?',
+  DESCRIPTION: 'Your progress has been saved. You can continue later.',
+  EXIT: 'Exit',
+  CONTINUE: 'Continue Assessment',
+} as const;

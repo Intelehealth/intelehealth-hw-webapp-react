@@ -8,9 +8,16 @@ import iconVisit from '../../../assets/icons/icon-summary-list.svg';
 import iconSync from '../../../assets/icons/icon-sync.svg';
 import iconOther from '../../../assets/icons/icon-three-dot-green-rounded-bordered.svg';
 import iconPersonal from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
+import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
 import defaultUserImg from '../../../assets/images/default-user-img.svg';
 import { Button } from '../../../components/common';
+import { ConfirmationModal } from '../../../components/modal/confirmation.modal';
 import { showToast } from '../../../services/toast';
+import {
+  clearVisitForPatient,
+  hasInProgressVisit,
+} from '../../ayu/utils/visit-id.util';
+import { RESUME_VISIT_MODAL } from '../../../utils/constant';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   getVisitTitle,
@@ -44,6 +51,7 @@ const PatientProfileComponent: React.FC = () => {
     refresh,
   } = usePatientProfile(uuid);
   const [imgError, setImgError] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const patientImgSrc = uuid
     ? `${import.meta.env.VITE_OPENMRS_API_URL}/personimage/${uuid}`
     : '';
@@ -80,6 +88,35 @@ const PatientProfileComponent: React.FC = () => {
     economicStatus,
     address,
   } = patientData;
+
+  const goToVisit = () =>
+    navigate('/ayu', {
+      state: {
+        patientName: fullName,
+        patientAge: age || dob,
+        patientGender: gender,
+        patientUuid: uuid,
+      },
+    });
+
+  const handleStartVisitClick = async () => {
+    if (await hasInProgressVisit(uuid ?? null)) {
+      setShowResumeModal(true);
+    } else {
+      goToVisit();
+    }
+  };
+
+  const handleResume = () => {
+    setShowResumeModal(false);
+    goToVisit();
+  };
+
+  const handleStartOver = () => {
+    clearVisitForPatient(uuid ?? null);
+    setShowResumeModal(false);
+    goToVisit();
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -228,16 +265,7 @@ const PatientProfileComponent: React.FC = () => {
                   variant="primary"
                   className="w-auto px-8"
                   type="button"
-                  onClick={() =>
-                    navigate('/ayu', {
-                      state: {
-                        patientName: fullName,
-                        patientAge: age || dob,
-                        patientGender: gender,
-                        patientUuid: uuid,
-                      },
-                    })
-                  }
+                  onClick={handleStartVisitClick}
                 >
                   Start Visit
                 </Button>
@@ -278,6 +306,20 @@ const PatientProfileComponent: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showResumeModal && (
+        <ConfirmationModal
+          open
+          type="confirm"
+          icon={iconVisitSummary}
+          title={RESUME_VISIT_MODAL.TITLE}
+          description={RESUME_VISIT_MODAL.DESCRIPTION}
+          cancelText={RESUME_VISIT_MODAL.START_OVER}
+          confirmText={RESUME_VISIT_MODAL.RESUME}
+          onClose={handleStartOver}
+          onConfirm={handleResume}
+        />
+      )}
     </div>
   );
 };

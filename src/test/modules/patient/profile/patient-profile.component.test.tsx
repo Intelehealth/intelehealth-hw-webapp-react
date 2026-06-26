@@ -1,12 +1,14 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 
 const h = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockUsePatientProfile: vi.fn(),
+  mockHasInProgressVisit: vi.fn(),
+  mockClearVisitForPatient: vi.fn(),
 }));
 
 let mockUuid: string | undefined = 'test-uuid';
@@ -14,6 +16,23 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => h.mockNavigate,
   useParams: () => ({ uuid: mockUuid }),
 }));
+
+// In-progress visit detection / clearing for the "Continue or Start Over?" flow.
+vi.mock('../../../../modules/ayu/utils/visit-id.util', () => ({
+  hasInProgressVisit: h.mockHasInProgressVisit,
+  clearVisitForPatient: h.mockClearVisitForPatient,
+}));
+
+vi.mock('../../../../assets/icons/icon-visit-summery.svg', () => ({
+  default: 'visit-summary.svg',
+}));
+
+beforeEach(() => {
+  h.mockNavigate.mockClear();
+  h.mockClearVisitForPatient.mockClear();
+  // Default: no saved assessment, so Start Visit navigates straight through.
+  h.mockHasInProgressVisit.mockReset().mockResolvedValue(false);
+});
 
 vi.mock(
   '../../../../modules/patient/profile/patient-profile.hooks',
@@ -438,14 +457,82 @@ describe('PatientProfileComponent', () => {
     });
     render(<PatientProfileComponent />);
     await userEvent.click(screen.getByText('Start Visit'));
-    expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
-      state: {
-        patientName: 'John K Doe',
-        patientAge: '30 years',
-        patientGender: 'Male',
-        patientUuid: 'test-uuid',
-      },
+    await waitFor(() =>
+      expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
+        state: {
+          patientName: 'John K Doe',
+          patientAge: '30 years',
+          patientGender: 'Male',
+          patientUuid: 'test-uuid',
+        },
+      })
+    );
+  });
+
+  it('prompts to resume when an in-progress visit exists; "Resume Visit" keeps the data', async () => {
+    h.mockHasInProgressVisit.mockResolvedValue(true);
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
     });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Start Visit'));
+
+    // Popup shown, no navigation yet.
+    expect(await screen.findByText('Continue or Start Over?')).toBeInTheDocument();
+    expect(h.mockNavigate).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByText('Resume Visit'));
+
+    expect(h.mockClearVisitForPatient).not.toHaveBeenCalled();
+    expect(h.mockNavigate).toHaveBeenCalledWith(
+      '/ayu',
+      expect.objectContaining({
+        state: expect.objectContaining({ patientUuid: 'test-uuid' }),
+      })
+    );
+  });
+
+  it('"Start over" clears the saved visit before navigating', async () => {
+    h.mockHasInProgressVisit.mockResolvedValue(true);
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
+    });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Start Visit'));
+    await screen.findByText('Continue or Start Over?');
+
+    await userEvent.click(screen.getByText('Start over'));
+
+    expect(h.mockClearVisitForPatient).toHaveBeenCalledWith('test-uuid');
+    expect(h.mockNavigate).toHaveBeenCalledWith(
+      '/ayu',
+      expect.objectContaining({
+        state: expect.objectContaining({ patientUuid: 'test-uuid' }),
+      })
+    );
+  });
+
+  it('passes null to the visit helpers when uuid is undefined', async () => {
+    mockUuid = undefined;
+    h.mockHasInProgressVisit.mockResolvedValue(true);
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
+    });
+    render(<PatientProfileComponent />);
+
+    await userEvent.click(screen.getByText('Start Visit'));
+    await screen.findByText('Continue or Start Over?');
+    expect(h.mockHasInProgressVisit).toHaveBeenCalledWith(null);
+
+    await userEvent.click(screen.getByText('Start over'));
+    expect(h.mockClearVisitForPatient).toHaveBeenCalledWith(null);
+
+    mockUuid = 'test-uuid';
   });
 
   it('does not render "Start Visit" button when visits exist', () => {
@@ -481,11 +568,13 @@ describe('PatientProfileComponent', () => {
     });
     render(<PatientProfileComponent />);
     await userEvent.click(screen.getByText('Start Visit'));
-    expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
-      state: expect.objectContaining({
-        patientAge: '1/15/1994',
-      }),
-    });
+    await waitFor(() =>
+      expect(h.mockNavigate).toHaveBeenCalledWith('/ayu', {
+        state: expect.objectContaining({
+          patientAge: '1/15/1994',
+        }),
+      })
+    );
   });
 
   it('renders Edit button in the profile header card', () => {
