@@ -1,10 +1,29 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 // ── useLocation / useParams mock state ──────────────────────────────────────
 const mockLocationState: { patientUuid?: string } = {};
 const mockParams: Record<string, string> = {};
+
+// ── useBlocker mock: capture the predicate and control the returned state ────
+type BlockerArgs = {
+  currentLocation: { pathname: string };
+  nextLocation: { pathname: string };
+};
+let capturedShouldBlock: ((args: BlockerArgs) => boolean) | undefined;
+const mockBlockerState = {
+  state: 'unblocked' as 'unblocked' | 'blocked',
+  proceed: vi.fn(),
+  reset: vi.fn(),
+};
+const mockUseBlocker = vi.fn((shouldBlock: unknown) => {
+  capturedShouldBlock =
+    typeof shouldBlock === 'function'
+      ? (shouldBlock as (args: BlockerArgs) => boolean)
+      : undefined;
+  return mockBlockerState;
+});
 
 // Mock react-router-dom: keep MemoryRouter / Route / Routes real, stub hooks
 vi.mock('react-router-dom', async () => {
@@ -21,6 +40,7 @@ vi.mock('react-router-dom', async () => {
       state: mockLocationState,
     })),
     useParams: vi.fn(() => mockParams),
+    useBlocker: (shouldBlock: unknown) => mockUseBlocker(shouldBlock),
   };
 });
 
@@ -29,14 +49,20 @@ vi.mock('../../../../modules/ayu/components/start-visit/start-visit.component', 
   StartVisit: vi.fn(() => <div data-testid="start-visit">Start Visit Component</div>),
 }));
 
-// Mock the StartVisitProvider – capture the initialPatientUuid prop
+// Mock the StartVisitProvider – capture the initialPatientUuid prop. The inline
+// AyuLeaveGuard reads visit state via useStartVisitData, so return a controllable
+// context object (default: no progress, not uploaded → guard stays inactive).
 const mockStartVisitProviderProps: { initialPatientUuid?: string | null } = {};
+const mockCtx: { data: Record<string, unknown>; isUploaded: boolean } = {
+  data: {},
+  isUploaded: false,
+};
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
   StartVisitProvider: vi.fn(({ children, initialPatientUuid }: any) => {
     mockStartVisitProviderProps.initialPatientUuid = initialPatientUuid;
     return <div data-testid="start-visit-provider">{children}</div>;
   }),
-  useStartVisitData: vi.fn(),
+  useStartVisitData: () => mockCtx,
 }));
 
 // Mock VisitSummaryPage
@@ -67,6 +93,12 @@ beforeEach(() => {
   mockStorageGet.mockReturnValue(null);
   mockStorageSet.mockReset();
   mockStartVisitProviderProps.initialPatientUuid = undefined;
+  mockCtx.data = {};
+  mockCtx.isUploaded = false;
+  mockBlockerState.state = 'unblocked';
+  mockBlockerState.proceed.mockClear();
+  mockBlockerState.reset.mockClear();
+  capturedShouldBlock = undefined;
 });
 
 describe('AyuPage', () => {
@@ -326,6 +358,84 @@ describe('AyuPage', () => {
 
       expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
       expect(screen.getByText('Visit Summary Page')).toBeInTheDocument();
+    });
+  });
+
+  /* ── Leave guard ────────────────────────────────────────────────────────── */
+
+  describe('Leave guard', () => {
+    const renderPage = () =>
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+    const leaveAyu = { currentLocation: { pathname: '/ayu' }, nextLocation: { pathname: '/dashboard' } };
+
+    it('blocks navigation away from /ayu when there is unsaved progress', () => {
+      mockCtx.data = { vitals: { foo: 1 } };
+      renderPage();
+      expect(capturedShouldBlock?.(leaveAyu)).toBe(true);
+    });
+
+    it('does not block when there is no progress', () => {
+      renderPage();
+      expect(capturedShouldBlock?.(leaveAyu)).toBe(false);
+    });
+
+    it('does not block once the visit has been uploaded', () => {
+      mockCtx.data = { vitals: { foo: 1 } };
+      mockCtx.isUploaded = true;
+      renderPage();
+      expect(capturedShouldBlock?.(leaveAyu)).toBe(false);
+    });
+
+    it('allows navigation that stays within /ayu (e.g. visit-summary)', () => {
+      mockCtx.data = { vitals: { foo: 1 } };
+      renderPage();
+      expect(
+        capturedShouldBlock?.({
+          currentLocation: { pathname: '/ayu' },
+          nextLocation: { pathname: '/ayu/visit-summary' },
+        })
+      ).toBe(false);
+    });
+
+    it('shows the popup while blocked; "Continue Assessment" stays, "Exit" leaves', () => {
+      mockCtx.data = { vitals: { foo: 1 } };
+      mockBlockerState.state = 'blocked';
+      renderPage();
+
+      expect(screen.getByText('Exit Assessment?')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Continue Assessment'));
+      expect(mockBlockerState.reset).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Exit'));
+      expect(mockBlockerState.proceed).toHaveBeenCalledTimes(1);
+    });
+
+    it('warns via beforeunload while an assessment is in progress, then cleans up', () => {
+      mockCtx.data = { vitals: { foo: 1 } };
+      const { unmount } = renderPage();
+
+      const blocked = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(blocked);
+      expect(blocked.defaultPrevented).toBe(true);
+
+      // Listener is removed on unmount, so a later event is no longer prevented.
+      unmount();
+      const afterUnmount = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(afterUnmount);
+      expect(afterUnmount.defaultPrevented).toBe(false);
+    });
+
+    it('does not attach the beforeunload warning when there is no progress', () => {
+      renderPage();
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
     });
   });
 });
