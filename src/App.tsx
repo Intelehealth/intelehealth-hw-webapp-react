@@ -10,6 +10,7 @@ import './i18n';
 import AppRoutes from './routes/app.routes';
 import { useAppDispatch } from './store/hooks';
 import { useStoredUser } from './hooks/useStoredUser';
+import { fcmService } from './services/fcm.service';
 
 function App() {
   const dispatch = useAppDispatch();
@@ -34,6 +35,9 @@ function App() {
               'Health Worker',
           }
         : null,
+      onDecline: () => fcmService.closeCallNotifications(),
+      onAccept: () => fcmService.closeCallNotifications(),
+      onEnd: () => fcmService.closeCallNotifications(),
     }),
     [user]
   );

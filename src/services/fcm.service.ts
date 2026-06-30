@@ -91,6 +91,7 @@ class FCMService {
     if (!this.swRegistration) return;
 
     const data = payload.data || {};
+    if (data['type'] === 'video_call') return;
     const notif = payload.notification || {};
     const title = data['title'] || notif.title || 'New Notification';
     const body = data['body'] || notif.body || '';
@@ -103,6 +104,20 @@ class FCMService {
       tag,
       data,
     } as NotificationOptions & { renotify: boolean });
+  }
+
+  async closeCallNotifications(): Promise<void> {
+    try {
+      const reg = this.swRegistration ?? (await navigator.serviceWorker?.ready);
+      if (!reg) return;
+      const notes = await reg.getNotifications();
+      for (const n of notes) {
+        const data = (n.data ?? {}) as { type?: string };
+        if (data.type === 'video_call' || n.tag === 'fcm-foreground') n.close();
+      }
+    } catch {
+      return;
+    }
   }
 
   async requestPermission(): Promise<string | null> {

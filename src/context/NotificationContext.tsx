@@ -21,6 +21,8 @@ type CallTrigger = (call?: {
   openMrsId?: string;
   token?: string;
   roomId?: string;
+  doctorId?: string;
+  nurseId?: string;
 }) => void;
 interface ProviderSearchResult {
   results?: { uuid: string }[];
@@ -211,6 +213,8 @@ export const NotificationProvider = ({
           openMrsId: data.patientOpenMrsId,
           token: data.appToken,
           roomId: data.roomId,
+          doctorId: data.doctorId,
+          nurseId: data.nurseId,
         });
         return;
       }
