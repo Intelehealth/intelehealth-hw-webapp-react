@@ -275,6 +275,19 @@ describe('FCMService', () => {
       );
     });
 
+    it('does not show a foreground OS notification for video_call pushes', async () => {
+      await fcmService.initialize();
+
+      const messageCallback = mockOnMessage.mock.calls[0][1];
+      messageCallback({
+        data: { type: 'video_call', title: 'Dr', body: 'calling' },
+      } as unknown as MessagePayload);
+
+      expect(
+        mockServiceWorkerRegistration.showNotification
+      ).not.toHaveBeenCalled();
+    });
+
     it('should unsubscribe previous listener when initialize is called twice (line 73)', async () => {
       const unsub1 = vi.fn();
       mockOnMessage.mockReturnValueOnce(unsub1);
@@ -284,6 +297,46 @@ describe('FCMService', () => {
 
       await fcmService.initialize();
       expect(unsub1).toHaveBeenCalled();
+    });
+  });
+
+  describe('closeCallNotifications', () => {
+    it('closes only video_call / fcm-foreground notifications', async () => {
+      await fcmService.initialize();
+      const close1 = vi.fn();
+      const close2 = vi.fn();
+      const close3 = vi.fn();
+      mockServiceWorkerRegistration.getNotifications = vi
+        .fn()
+        .mockResolvedValue([
+          { data: { type: 'video_call' }, tag: 'a', close: close1 },
+          { tag: 'fcm-foreground', close: close2 },
+          { data: { type: 'prescription' }, tag: 'b', close: close3 },
+        ]);
+
+      await fcmService.closeCallNotifications();
+
+      expect(close1).toHaveBeenCalled();
+      expect(close2).toHaveBeenCalled();
+      expect(close3).not.toHaveBeenCalled();
+    });
+
+    it('returns when no service worker registration is available', async () => {
+      (navigator.serviceWorker as any).ready = Promise.resolve(undefined);
+      await expect(
+        fcmService.closeCallNotifications()
+      ).resolves.toBeUndefined();
+    });
+
+    it('swallows errors from getNotifications', async () => {
+      await fcmService.initialize();
+      mockServiceWorkerRegistration.getNotifications = vi
+        .fn()
+        .mockRejectedValue(new Error('boom'));
+
+      await expect(
+        fcmService.closeCallNotifications()
+      ).resolves.toBeUndefined();
     });
   });
 
