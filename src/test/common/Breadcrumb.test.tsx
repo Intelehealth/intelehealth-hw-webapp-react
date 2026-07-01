@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import Breadcrumb from '../../components/common/breadcrumb.component';
@@ -354,6 +355,133 @@ describe('Breadcrumb Component', () => {
 
       const separators = screen.getAllByText('>');
       expect(separators).toHaveLength(4);
+    });
+  });
+
+  describe('onClick items', () => {
+    it('should render item with onClick as a button element', () => {
+      const handleClick = vi.fn();
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Add Patient', onClick: handleClick },
+        { label: 'Current Page' },
+      ]);
+      const button = screen.getByRole('button', { name: 'Add Patient' });
+      expect(button).toBeInTheDocument();
+      expect(button.tagName).toBe('BUTTON');
+    });
+
+    it('should call onClick handler when button is clicked', async () => {
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Start Visit', onClick: handleClick },
+        { label: 'Current' },
+      ]);
+      await user.click(screen.getByRole('button', { name: 'Start Visit' }));
+      expect(handleClick).toHaveBeenCalledOnce();
+    });
+
+    it('should set type="button" on onClick items', () => {
+      renderBreadcrumb([
+        { label: 'Back', onClick: vi.fn() },
+        { label: 'Current' },
+      ]);
+      const button = screen.getByRole('button', { name: 'Back' });
+      expect(button).toHaveAttribute('type', 'button');
+    });
+
+    it('should apply reset styles to onClick button', () => {
+      renderBreadcrumb([
+        { label: 'Step', onClick: vi.fn() },
+        { label: 'Current' },
+      ]);
+      const button = screen.getByRole('button', { name: 'Step' });
+      expect(button).toHaveClass('bg-transparent');
+      expect(button).toHaveClass('border-none');
+      expect(button).toHaveClass('p-0');
+      expect(button).toHaveClass('m-0');
+      expect(button).toHaveClass('cursor-pointer');
+    });
+
+    it('should apply non-last styling to non-last onClick item', () => {
+      renderBreadcrumb([
+        { label: 'Step', onClick: vi.fn() },
+        { label: 'Current' },
+      ]);
+      const button = screen.getByRole('button', { name: 'Step' });
+      expect(button).toHaveClass('text-[#9CA3AF]');
+    });
+
+    it('should apply last-item styling when onClick item is last', () => {
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Active Step', onClick: vi.fn() },
+      ]);
+      const button = screen.getByRole('button', { name: 'Active Step' });
+      expect(button).toHaveClass('text-[#374151]');
+      expect(button).toHaveClass('font-medium');
+    });
+
+    it('should prefer path over onClick when item is not last', () => {
+      const handleClick = vi.fn();
+      renderBreadcrumb([
+        { label: 'Clickable', path: '/some-path', onClick: handleClick },
+        { label: 'Current' },
+      ]);
+      // path && !isLast takes precedence, so it renders as a Link, not a button
+      const link = screen.getByRole('link', { name: 'Clickable' });
+      expect(link).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Clickable' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('status and aria-current', () => {
+    it('should set aria-current="step" when status is active', () => {
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Vitals', status: 'active' },
+      ]);
+      const span = screen.getByText('Vitals');
+      expect(span).toHaveAttribute('aria-current', 'step');
+    });
+
+    it('should set aria-current="page" on last item without active status', () => {
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Settings' },
+      ]);
+      const span = screen.getByText('Settings');
+      expect(span).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('should not set aria-current on completed status item (non-last)', () => {
+      renderBreadcrumb([
+        { label: 'Vitals', status: 'completed' },
+        { label: 'Visit Reason', status: 'active' },
+      ]);
+      const completed = screen.getByText('Vitals');
+      expect(completed).not.toHaveAttribute('aria-current');
+    });
+
+    it('should apply non-last styling to completed status items', () => {
+      renderBreadcrumb([
+        { label: 'Vitals', status: 'completed' },
+        { label: 'Visit Reason', status: 'active' },
+      ]);
+      const completed = screen.getByText('Vitals');
+      expect(completed).toHaveClass('text-[#9CA3AF]');
+    });
+
+    it('should apply last-item styling to active status when it is the last item', () => {
+      renderBreadcrumb([
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Vitals', status: 'active' },
+      ]);
+      const active = screen.getByText('Vitals');
+      expect(active).toHaveClass('text-[#374151]');
+      expect(active).toHaveClass('font-medium');
     });
   });
 });

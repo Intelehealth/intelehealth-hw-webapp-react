@@ -12,6 +12,7 @@ import type { AyuAnswerValue } from '../../ayu-library/types/ayu.types';
 import { getResource, upsertResource } from '../services/temp-storage.service';
 import type { PhysicalExamAnswers } from '../types/physical-exam.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
+import { getOrCreateVisitId, visitIdStorageKey } from '../utils/visit-id.util';
 
 export interface MedicalHistorySummary {
   title: string;
@@ -51,23 +52,6 @@ export interface TempVisitData {
   confirmedReasons?: string[];
 }
 
-const VISIT_ID_STORAGE_KEY = 'temp_visit_id';
-
-function visitIdStorageKey(patientUuid: string | null): string {
-  return patientUuid
-    ? `${VISIT_ID_STORAGE_KEY}_${patientUuid}`
-    : VISIT_ID_STORAGE_KEY;
-}
-
-function getOrCreateVisitId(patientUuid: string | null): string {
-  const key = visitIdStorageKey(patientUuid);
-  const existing = storage.get(key);
-  if (existing) return existing;
-  const id = crypto.randomUUID();
-  storage.set(key, id);
-  return id;
-}
-
 interface StartVisitContextType {
   data: StartVisitData;
   patientUuid: string | null;
@@ -77,6 +61,8 @@ interface StartVisitContextType {
   restoredSectionIndex: number | null;
   lastSectionIndex: number;
   setLastSectionIndex: (index: number) => void;
+  isUploaded: boolean;
+  markVisitUploaded: () => void;
   setPatientUuid: (uuid: string) => void;
   setVitalsData: (formValues: VitalsFormValues, config: VitalField[]) => void;
   setVisitReasonData: (
@@ -125,6 +111,7 @@ export const StartVisitProvider = ({
     number | null
   >(null);
   const [lastSectionIndex, setLastSectionIndex] = useState(0);
+  const [isUploaded, setIsUploaded] = useState(false);
   const [data, setData] = useState<StartVisitData>({
     vitals: null,
     visitReason: null,
@@ -217,6 +204,8 @@ export const StartVisitProvider = ({
     storage.remove(visitIdStorageKey(patientUuid));
   }, [patientUuid]);
 
+  const markVisitUploaded = useCallback(() => setIsUploaded(true), []);
+
   const setVitalsData = (
     formValues: VitalsFormValues,
     config: VitalField[]
@@ -290,6 +279,8 @@ export const StartVisitProvider = ({
         restoredSectionIndex,
         lastSectionIndex,
         setLastSectionIndex,
+        isUploaded,
+        markVisitUploaded,
         setPatientUuid,
         setVitalsData,
         setVisitReasonData,

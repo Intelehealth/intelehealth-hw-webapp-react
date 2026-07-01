@@ -61,12 +61,41 @@ describe('usePriorityVisits', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getPriorityVisits with the location uuid', async () => {
+  it('calls getPriorityVisits with the location uuid and default params', async () => {
     mockGetPriorityVisits.mockResolvedValue({ visits: [], totalCount: 0 });
     renderHook(() => usePriorityVisits());
 
     await waitFor(() => {
-      expect(mockGetPriorityVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
+      expect(mockGetPriorityVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, undefined, undefined);
+    });
+  });
+
+  it('passes fromDate and toDate to the service', async () => {
+    mockGetPriorityVisits.mockResolvedValue({ visits: [], totalCount: 0 });
+    renderHook(() => usePriorityVisits('2026-04-01', '2026-06-01'));
+
+    await waitFor(() => {
+      expect(mockGetPriorityVisits).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', '2026-06-01');
+    });
+  });
+
+  it('re-fetches when fromDate changes', async () => {
+    mockGetPriorityVisits.mockResolvedValue({ visits: mockVisits, totalCount: mockVisits.length });
+    const { rerender } = renderHook(
+      ({ fromDate }: { fromDate?: string }) => usePriorityVisits(fromDate),
+      { initialProps: { fromDate: undefined as string | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(mockGetPriorityVisits).toHaveBeenCalledTimes(1);
+    });
+
+    mockGetPriorityVisits.mockResolvedValue({ visits: [], totalCount: 0 });
+    rerender({ fromDate: '2026-04-01' });
+
+    await waitFor(() => {
+      expect(mockGetPriorityVisits).toHaveBeenCalledTimes(2);
+      expect(mockGetPriorityVisits).toHaveBeenLastCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', undefined);
     });
   });
 
@@ -108,7 +137,7 @@ describe('usePriorityVisits', () => {
 
     await waitFor(() => {
       expect(mockGetPriorityVisits).toHaveBeenCalledTimes(2);
-      expect(mockGetPriorityVisits).toHaveBeenLastCalledWith('loc-uuid-new');
+      expect(mockGetPriorityVisits).toHaveBeenLastCalledWith('loc-uuid-new', 0, 50, undefined, undefined);
     });
   });
 });

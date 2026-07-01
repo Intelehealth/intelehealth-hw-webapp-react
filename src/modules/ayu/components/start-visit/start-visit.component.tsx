@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useBreadcrumb } from '../../../../hooks/useBreadcrumb';
 import ROUTES from '../../../../routes/paths';
 import { storage } from '../../../../utils/storage';
@@ -47,6 +47,7 @@ export const getPhysicalExamFilter = (
 export const StartVisit = () => {
   const { lastSectionIndex, data } = useStartVisitData();
   const { state } = useLocation();
+  const navigate = useNavigate();
 
   const patientName =
     state?.patientName ?? storage.get(PATIENT_NAME_KEY) ?? null;
@@ -183,11 +184,64 @@ export const StartVisit = () => {
     SECTION_PHYSICAL_EXAM,
     SECTION_MEDICAL_HISTORY,
   ];
+  const goToSection = useCallback(
+    (targetIndex: number) => {
+      setCurrentSectionIndex(targetIndex);
+      saveSectionToTemp({ currentSectionIndex: targetIndex });
+      setCurrentQuestionIndex(
+        Math.max(sections[targetIndex].answeredQuestions - 1, 0)
+      );
+    },
+    [saveSectionToTemp, sections]
+  );
+
   useBreadcrumb([
     { label: 'Dashboard', path: ROUTES.DASHBOARD },
-    { label: 'Start Visit' },
-    { label: sectionNames[currentSectionIndex] },
+    {
+      label: 'Add Patient',
+      onClick: () =>
+        navigate(`${ROUTES.PATIENT.BASE}/${ROUTES.PATIENT.ADD_PATIENT}`, {
+          state: {
+            fromStartVisit: true,
+            patientUuid: state?.patientUuid ?? storage.get(PATIENT_UUID_KEY),
+          },
+        }),
+    },
+    {
+      label: 'Patient Details',
+      onClick: () =>
+        navigate(`${ROUTES.PATIENT.BASE}/${ROUTES.PATIENT.ADD_PATIENT}`, {
+          state: {
+            resumePreview: true,
+            patientUuid: state?.patientUuid ?? storage.get(PATIENT_UUID_KEY),
+          },
+        }),
+    },
+    { label: 'Start Visit', onClick: () => goToSection(0) },
+    ...sectionNames
+      .map((name, index) => ({
+        label: name,
+        status: (index < currentSectionIndex
+          ? 'completed'
+          : index === currentSectionIndex
+            ? 'active'
+            : 'pending') as 'completed' | 'active' | 'pending',
+        ...(index < currentSectionIndex && {
+          onClick: () => goToSection(index),
+        }),
+      }))
+      .filter(item => item.status !== 'pending'),
   ]);
+
+  // Scroll to the top of the main container when the section changes
+  useEffect(() => {
+    const mainContainerContent = document.getElementById(
+      'main-container-content'
+    );
+    if (mainContainerContent) {
+      mainContainerContent.scrollTo(0, 0);
+    }
+  }, [currentSectionIndex]);
 
   /*
    * Assessment Progress loader is hidden on Vitals and on the visit-reason

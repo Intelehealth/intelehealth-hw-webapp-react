@@ -2155,4 +2155,22 @@ describe('useVitals', () => {
       expect(rbsItem.value).toBe('110');
     });
   });
+
+  describe('isSubmitted return value', () => {
+    it('should include isSubmitted in the return value', () => {
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current).toHaveProperty('isSubmitted');
+    });
+
+    it('should initially return isSubmitted as false', () => {
+      const { result } = renderHook(() => useVitals(mockOnNextQuestion), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.isSubmitted).toBe(false);
+    });
+  });
 });

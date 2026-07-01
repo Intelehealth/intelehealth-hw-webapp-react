@@ -40,6 +40,7 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
     watch,
     errors,
     touchedFields,
+    isSubmitted,
     bodyMeasurementFields,
     vitalFields,
     otherFields,
@@ -64,7 +65,8 @@ export const Vitals = ({ questionIndex, onNextQuestion }: SectionProps) => {
     const isReadOnly =
       field.key === 'bmi' || field.key === 'waist_to_hip_ratio';
     const fieldKey = field.key as keyof VitalsFormValues;
-    const error = touchedFields[fieldKey] ? errors[fieldKey] : undefined;
+    const error =
+      touchedFields[fieldKey] || isSubmitted ? errors[fieldKey] : undefined;
     const fieldValue = watch(field.key as keyof VitalsFormValues);
 
     const showBMIStatus = field.key === 'bmi' && fieldValue;

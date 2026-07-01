@@ -20,6 +20,18 @@ vi.mock('../../../components/common/filter-module.component', () => ({
       >
         Mock Apply
       </button>
+      <button
+        data-testid="mock-filter-apply-range"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: '2025-04-21' })}
+      >
+        Mock Range Apply
+      </button>
+      <button
+        data-testid="mock-filter-apply-range-no-to"
+        onClick={() => onApply({ mode: 'range', from: '2025-04-20', to: null })}
+      >
+        Mock Range No To
+      </button>
     </div>
   ),
 }));
@@ -27,7 +39,7 @@ vi.mock('../../../components/common/filter-module.component', () => ({
 const mockUseFollowupVisits = vi.fn();
 
 vi.mock('../../../hooks/useFollowupVisits', () => ({
-  useFollowupVisits: () => mockUseFollowupVisits(),
+  useFollowupVisits: (...args: unknown[]) => mockUseFollowupVisits(...args),
 }));
 
 const mockData = [
@@ -248,12 +260,46 @@ describe('FollowupVisitsComponent', () => {
     });
 
     it('applies date filter to visits', () => {
+      const filteredData = [mockData[0]]; // Only Ravi Kumar (2025-04-21)
+      mockUseFollowupVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: filteredData, loading: false, error: null };
+        }
+        return { data: mockData, loading: false, error: null };
+      });
       renderComponent();
       fireEvent.click(screen.getByAltText('filter'));
       fireEvent.click(screen.getByTestId('mock-filter-apply'));
-      // Filter for 2025-04-21 matches 'Ravi Kumar' only
+      // Server-side filter for 2025-04-21 returns only 'Ravi Kumar'
       expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Priya Singh')).not.toBeInTheDocument();
+    });
+
+    it('applies range filter with null to (falls back to undefined)', () => {
+      mockUseFollowupVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null };
+        }
+        return { data: mockData, loading: false, error: null };
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range-no-to'));
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('applies range filter to visits', () => {
+      mockUseFollowupVisits.mockImplementation((fromDate?: string) => {
+        if (fromDate) {
+          return { data: mockData, loading: false, error: null };
+        }
+        return { data: mockData, loading: false, error: null };
+      });
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      fireEvent.click(screen.getByTestId('mock-filter-apply-range'));
+      // Range filter passes fromDate and toDate from the range
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThanOrEqual(1);
     });
   });
 

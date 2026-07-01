@@ -590,6 +590,32 @@ export const visitSummaryService = {
     return transformObsToDocuments(response.results ?? [], visitUuid);
   },
 
+  getPhysicalExamImages: async (
+    patientUuid: string,
+    visitUuid: string
+  ): Promise<AdditionalDocument[]> => {
+    const url = `/obs?patient=${patientUuid}&v=custom:(uuid,comment,value,encounter:(visit:(uuid)))&concept=${CONCEPT_UUIDS.PHYSICAL_EXAMINATION}`;
+    const response = await OpenMRSApi.get<ObsDocResponse>(url);
+    // Physical exam obs include both text (string value) and file/image obs
+    // (object value with display/links). Filter to only file obs.
+    const fileObs = (response.results ?? []).filter(
+      obs => obs.value != null && typeof obs.value === 'object'
+    );
+    return fileObs
+      .filter(obs => obs.encounter?.visit?.uuid === visitUuid || !obs.encounter)
+      .map(obs => ({
+        uuid: obs.uuid,
+        name: obs.comment || obs.value?.display || 'Physical exam image',
+        fileUrl:
+          obs.value?.links &&
+          typeof obs.value.links === 'object' &&
+          'uri' in obs.value.links
+            ? String(obs.value.links.uri)
+            : '',
+        isImage: true,
+      }));
+  },
+
   getDocumentFile: async (obsUuid: string): Promise<Blob> => {
     return OpenMRSApi.get<Blob>(`/obs/${obsUuid}/value`, {
       responseType: 'blob',

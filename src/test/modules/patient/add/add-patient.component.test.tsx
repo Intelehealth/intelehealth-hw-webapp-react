@@ -40,6 +40,30 @@ vi.mock('../../../../modules/patient/add/add-patient.hooks', () => ({
   }),
 }));
 
+// Mock useBreadcrumb — capture calls so we can invoke onClick callbacks
+const mockUseBreadcrumb = vi.fn();
+vi.mock('../../../../hooks/useBreadcrumb', () => ({
+  useBreadcrumb: (...args: unknown[]) => mockUseBreadcrumb(...args),
+}));
+
+// Mock patient service (for fromStartVisit fetch)
+const mockGetPatient = vi.fn();
+vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
+  patientService: {
+    getPatient: (...args: unknown[]) => mockGetPatient(...args),
+  },
+}));
+
+// Mock mapRawPatientToFormData
+vi.mock('../../../../modules/patient/profile/patient-profile.hooks', () => ({
+  mapRawPatientToFormData: vi.fn(() => ({
+    personalInfo: { firstName: 'Fetched', middleName: '', lastName: 'Patient', gender: 'M', dateOfBirth: '1990-01-01', age: '35', phoneNumber: '1111111111', phoneNumberCountryCode: '+91', contactType: 'self', emergencyContactName: '', emergencyContactNumber: '', emergencyContactNumberCountryCode: '+91', profilePhoto: null },
+    addressInfo: { postalCode: '', city: 'FetchCity', state: '', country: '', district: '', correspondingAddress1: '', correspondingAddress2: '' },
+    otherInfo: { sonDaughterWifeOf: '', occupation: '', caste: '', education: '', economicStatus: '' },
+  })),
+  usePatientProfile: vi.fn(),
+}));
+
 // Mock all the step components
 vi.mock('../../../../modules/patient/add/steps/privacy-policy/patient-privacy-policy.component', () => ({
   default: ({ onNext, onPrev }: { onNext: (data: any) => void; onPrev: () => void }) => (
@@ -1224,6 +1248,168 @@ describe('AddPatientComponent', () => {
         expect(screen.getByTestId('preview')).toBeInTheDocument();
       });
       expect(screen.getByText(PATIENT_DETAILS_LABEL)).toBeInTheDocument();
+    });
+  });
+
+  describe('fromStartVisit navigation', () => {
+    it('should start at step 2 (Patient Info) when fromStartVisit is true', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('privacy-policy')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('terms')).not.toBeInTheDocument();
+    });
+
+    it('should not fetch temp-storage when fromStartVisit is true', async () => {
+      mockGetResource.mockClear();
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+      expect(mockGetResource).not.toHaveBeenCalled();
+    });
+
+    it('should fetch patient data from backend when fromStartVisit with patientUuid', async () => {
+      mockGetPatient.mockResolvedValue({
+        uuid: 'start-visit-patient-uuid',
+        identifiers: [{ identifier: 'PAT001', preferred: true }],
+        person: {
+          uuid: 'person-uuid',
+          gender: 'M',
+          age: 35,
+          birthdate: '1990-01-01',
+          preferredName: { givenName: 'Fetched', middleName: '', familyName: 'Patient' },
+          preferredAddress: {},
+          attributes: [],
+        },
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalledWith('start-visit-patient-uuid');
+      });
+    });
+
+    it('should handle fetch failure gracefully when getPatient throws', async () => {
+      mockGetPatient.mockRejectedValue(new Error('Network error'));
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'start-visit-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockGetPatient).toHaveBeenCalledWith('start-visit-patient-uuid');
+      });
+      // Component should still render without crashing
+      expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+    });
+  });
+
+  describe('breadcrumb onClick callbacks', () => {
+    it('should pass onClick for Add Patient breadcrumb that calls setStep(0)', async () => {
+      render(
+        <MemoryRouter>
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      // useBreadcrumb is called with items array
+      const items = mockUseBreadcrumb.mock.calls[0][0];
+      const addPatientItem = items.find((item: any) => item.label === 'Add Patient');
+      expect(addPatientItem).toBeDefined();
+      expect(addPatientItem.onClick).toBeInstanceOf(Function);
+      // Invoke the onClick — it calls setStep(0) which resets to Privacy Policy
+      addPatientItem.onClick();
+    });
+
+    it('should pass onClick for completed step breadcrumb that calls setStep(index)', async () => {
+      // Start at step 2 so that steps 0 and 1 are completed and have onClick
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/patient/add',
+              state: {
+                fromStartVisit: true,
+                patientUuid: 'test-patient-uuid',
+              },
+            },
+          ]}
+        >
+          <AddPatientComponent />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('patient-info')).toBeInTheDocument();
+      });
+
+      // Get the latest useBreadcrumb call (after step is set to 2)
+      const lastCall = mockUseBreadcrumb.mock.calls[mockUseBreadcrumb.mock.calls.length - 1];
+      const items = lastCall[0];
+      // Find a completed step with onClick
+      const completedItem = items.find((item: any) => item.status === 'completed' && item.onClick);
+      expect(completedItem).toBeDefined();
+      // Invoke the onClick — it calls setStep(index)
+      completedItem.onClick();
     });
   });
 });

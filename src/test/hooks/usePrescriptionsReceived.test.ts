@@ -75,12 +75,41 @@ describe('usePrescriptionsReceived', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('calls getPrescriptionsReceived with the location uuid', async () => {
+  it('calls getPrescriptionsReceived with the location uuid and default params', async () => {
     mockGetPrescriptionsReceived.mockResolvedValue([]);
     renderHook(() => usePrescriptionsReceived());
 
     await waitFor(() => {
-      expect(mockGetPrescriptionsReceived).toHaveBeenCalledWith(MOCK_LOCATION_UUID);
+      expect(mockGetPrescriptionsReceived).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, undefined, undefined);
+    });
+  });
+
+  it('passes fromDate and toDate to the service', async () => {
+    mockGetPrescriptionsReceived.mockResolvedValue([]);
+    renderHook(() => usePrescriptionsReceived('2026-04-01', '2026-06-01'));
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsReceived).toHaveBeenCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', '2026-06-01');
+    });
+  });
+
+  it('re-fetches when fromDate changes', async () => {
+    mockGetPrescriptionsReceived.mockResolvedValue(mockPrescriptions);
+    const { rerender } = renderHook(
+      ({ fromDate }: { fromDate?: string }) => usePrescriptionsReceived(fromDate),
+      { initialProps: { fromDate: undefined as string | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsReceived).toHaveBeenCalledTimes(1);
+    });
+
+    mockGetPrescriptionsReceived.mockResolvedValue([]);
+    rerender({ fromDate: '2026-04-01' });
+
+    await waitFor(() => {
+      expect(mockGetPrescriptionsReceived).toHaveBeenCalledTimes(2);
+      expect(mockGetPrescriptionsReceived).toHaveBeenLastCalledWith(MOCK_LOCATION_UUID, 0, 50, '2026-04-01', undefined);
     });
   });
 
@@ -135,7 +164,7 @@ describe('usePrescriptionsReceived', () => {
 
     await waitFor(() => {
       expect(mockGetPrescriptionsReceived).toHaveBeenCalledTimes(2);
-      expect(mockGetPrescriptionsReceived).toHaveBeenLastCalledWith('loc-uuid-new');
+      expect(mockGetPrescriptionsReceived).toHaveBeenLastCalledWith('loc-uuid-new', 0, 50, undefined, undefined);
     });
   });
 });

@@ -1,5 +1,10 @@
 import { Suspense, lazy } from 'react';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import {
+  Route,
+  RouterProvider,
+  createHashRouter,
+  createRoutesFromElements,
+} from 'react-router-dom';
 import MainContainer from './main-container.routes';
 import ROUTES from './paths';
 import ProtectedRoute from './protected.route';
@@ -86,62 +91,212 @@ const HelpFaqPage = lazy(
 
 const AboutUsPage = lazy(() => import('../pages/about-us/about-us.page'));
 
-const AppRoutes = () => (
-  <HashRouter>
-    <Suspense fallback={<RouteLoader />}>
-      <Routes>
+const router = createHashRouter(
+  createRoutesFromElements(
+    <>
+      <Route
+        path={ROUTES.AUTH.BASE}
+        element={
+          <ProtectedRoute ignoredRoutes={[...Object.values(ROUTES.AUTH)]} />
+        }
+      >
         <Route
-          path={ROUTES.AUTH.BASE}
+          path={ROUTES.AUTH.LOGIN}
           element={
-            <ProtectedRoute ignoredRoutes={[...Object.values(ROUTES.AUTH)]} />
+            <Suspense fallback={<RouteLoader />}>
+              <LoginPage />
+            </Suspense>
           }
-        >
-          <Route
-            path={ROUTES.AUTH.LOGIN}
-            element={
-              <Suspense fallback={<RouteLoader />}>
-                <LoginPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path={ROUTES.AUTH.FORGOT_USERNAME}
-            element={
-              <Suspense fallback={<RouteLoader />}>
-                <ForgotUsernamePage />
-              </Suspense>
-            }
-          />
-          <Route
-            path={ROUTES.AUTH.FORGOT_PASSWORD}
-            element={
-              <Suspense fallback={<RouteLoader />}>
-                <ForgotPasswordPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path={ROUTES.AUTH.VERIFY_OTP}
-            element={
-              <Suspense fallback={<RouteLoader />}>
-                <VerifyOtpPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path={ROUTES.AUTH.RESET_PASSWORD}
-            element={
-              <Suspense fallback={<RouteLoader />}>
-                <ResetPasswordPage />
-              </Suspense>
-            }
-          />
-        </Route>
+        />
+        <Route
+          path={ROUTES.AUTH.FORGOT_USERNAME}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <ForgotUsernamePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.AUTH.FORGOT_PASSWORD}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <ForgotPasswordPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.AUTH.VERIFY_OTP}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <VerifyOtpPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.AUTH.RESET_PASSWORD}
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <ResetPasswordPage />
+            </Suspense>
+          }
+        />
+      </Route>
 
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainContainer />}>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<MainContainer />}>
+          <Route
+            path={ROUTES.ROOT}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <ProfileGuardProvider>
+                  <ProfileRouteGuard>
+                    <AddPatientPage />
+                  </ProfileRouteGuard>
+                </ProfileGuardProvider>
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.DASHBOARD}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <DashboardPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.VIDEO_CALL}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <VideoCallPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.NOTIFICATIONS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <DashboardPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.PRESCRIPTIONS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <PrescriptionsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.FOLLOWUP_VISITS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <FollowupVisitsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.OPEN_VISITS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <OpenVisitsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.APPOINTMENT_LIST}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AppointmentListPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.MY_APPOINTMENTS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <MyAppointments />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.APPOINTMENT_DETAILS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AppointmentDetails />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.APPOINTMENT_VISIT_SHEDULE}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AppointmentVisitPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.PRESCRIPTION_PREVIEW}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <PrescriptionPreviewPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.VISIT_SUMMARY}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <VisitSummary />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.VISIT_DETAILS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <VisitDetails />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.PRESCRIPTION_DETAIL}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <PrescriptionDetail />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.PROFILE}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <ProfileGuardProvider>
+                  <ProfilePage />
+                </ProfileGuardProvider>
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.SETTINGS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <SettingsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.EDUCATIONAL_VIDEOS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <EducationalVideosPage />
+              </Suspense>
+            }
+          />
+          <Route path={ROUTES.PATIENT.BASE}>
             <Route
-              path={ROUTES.ROOT}
+              path={ROUTES.PATIENT.ADD_PATIENT}
               element={
                 <Suspense fallback={<RouteLoader />}>
                   <ProfileGuardProvider>
@@ -153,252 +308,102 @@ const AppRoutes = () => (
               }
             />
             <Route
-              path={ROUTES.DASHBOARD}
+              path={ROUTES.PATIENT.EDIT_PATIENT}
               element={
                 <Suspense fallback={<RouteLoader />}>
-                  <DashboardPage />
+                  <AddPatientPage />
                 </Suspense>
               }
             />
             <Route
-              path={ROUTES.VIDEO_CALL}
+              path={ROUTES.PATIENT.DETAIL}
               element={
                 <Suspense fallback={<RouteLoader />}>
-                  <VideoCallPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.NOTIFICATIONS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <DashboardPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.PRESCRIPTIONS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <PrescriptionsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.FOLLOWUP_VISITS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <FollowupVisitsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.OPEN_VISITS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <OpenVisitsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.APPOINTMENT_LIST}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AppointmentListPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.MY_APPOINTMENTS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <MyAppointments />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.APPOINTMENT_DETAILS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AppointmentDetails />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.APPOINTMENT_VISIT_SHEDULE}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AppointmentVisitPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.PRESCRIPTION_PREVIEW}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <PrescriptionPreviewPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.VISIT_SUMMARY}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <VisitSummary />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.VISIT_DETAILS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <VisitDetails />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.PRESCRIPTION_DETAIL}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <PrescriptionDetail />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.PROFILE}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <ProfileGuardProvider>
-                    <ProfilePage />
-                  </ProfileGuardProvider>
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.SETTINGS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <SettingsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.EDUCATIONAL_VIDEOS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <EducationalVideosPage />
-                </Suspense>
-              }
-            />
-            <Route path={ROUTES.PATIENT.BASE}>
-              <Route
-                path={ROUTES.PATIENT.ADD_PATIENT}
-                element={
-                  <Suspense fallback={<RouteLoader />}>
-                    <ProfileGuardProvider>
-                      <ProfileRouteGuard>
-                        <AddPatientPage />
-                      </ProfileRouteGuard>
-                    </ProfileGuardProvider>
-                  </Suspense>
-                }
-              />
-              <Route
-                path={ROUTES.PATIENT.EDIT_PATIENT}
-                element={
-                  <Suspense fallback={<RouteLoader />}>
-                    <AddPatientPage />
-                  </Suspense>
-                }
-              />
-              <Route
-                path={ROUTES.PATIENT.DETAIL}
-                element={
-                  <Suspense fallback={<RouteLoader />}>
-                    <PatientProfilePage />
-                  </Suspense>
-                }
-              />
-            </Route>
-            <Route
-              path={ROUTES.AYU_WITH_PATIENT}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AyuModule />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.AYU}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AyuModule />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.ACHIEVEMENT_UI}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AchievementUiPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.HELP}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <HelpAndSupportPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.HELP_VIDEOS}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <HelpVideoPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.HELP_FAQ}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <HelpFaqPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path={ROUTES.ABOUT_US}
-              element={
-                <Suspense fallback={<RouteLoader />}>
-                  <AboutUsPage />
+                  <PatientProfilePage />
                 </Suspense>
               }
             />
           </Route>
+          <Route
+            path={ROUTES.AYU_WITH_PATIENT}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AyuModule />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.AYU}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AyuModule />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.ACHIEVEMENT_UI}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AchievementUiPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.HELP}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HelpAndSupportPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.HELP_VIDEOS}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HelpVideoPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.HELP_FAQ}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HelpFaqPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.ABOUT_US}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AboutUsPage />
+              </Suspense>
+            }
+          />
         </Route>
+      </Route>
 
-        <Route
-          path={ROUTES.COMMON_UI}
-          element={
-            <Suspense fallback={<RouteLoader />}>
-              <CommonUiComponent />
-            </Suspense>
-          }
-        />
+      <Route
+        path={ROUTES.COMMON_UI}
+        element={
+          <Suspense fallback={<RouteLoader />}>
+            <CommonUiComponent />
+          </Suspense>
+        }
+      />
 
-        <Route
-          path={ROUTES.NOT_FOUND}
-          element={
-            <Suspense fallback={<RouteLoader />}>
-              <NotFoundPage />
-            </Suspense>
-          }
-        />
-      </Routes>
-    </Suspense>
-  </HashRouter>
+      <Route
+        path={ROUTES.NOT_FOUND}
+        element={
+          <Suspense fallback={<RouteLoader />}>
+            <NotFoundPage />
+          </Suspense>
+        }
+      />
+    </>
+  )
 );
+
+const AppRoutes = () => <RouterProvider router={router} />;
 
 export default AppRoutes;

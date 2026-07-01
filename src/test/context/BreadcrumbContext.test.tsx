@@ -215,4 +215,83 @@ describe('BreadcrumbContext', () => {
       expect(firstSetBgColor).toBe(secondSetBgColor);
     });
   });
+
+  describe('items with status property', () => {
+    it('should handle items with status completed', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      const items: BreadcrumbItem[] = [
+        { label: 'Vitals', status: 'completed' },
+        { label: 'Visit Reason', status: 'active' },
+      ];
+
+      act(() => {
+        result.current.setItems(items);
+      });
+
+      expect(result.current.items[0].status).toBe('completed');
+      expect(result.current.items[1].status).toBe('active');
+    });
+
+    it('should handle items with status pending', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      act(() => {
+        result.current.setItems([
+          { label: 'Physical Exam', status: 'pending' },
+        ]);
+      });
+
+      expect(result.current.items[0].status).toBe('pending');
+    });
+
+    it('should handle items without status (backward compatible)', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      act(() => {
+        result.current.setItems([{ label: 'Dashboard', path: '/dashboard' }]);
+      });
+
+      expect(result.current.items[0].status).toBeUndefined();
+    });
+  });
+
+  describe('items with onClick property', () => {
+    it('should handle items with onClick handler', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      const clickHandler = () => {};
+      act(() => {
+        result.current.setItems([
+          { label: 'Start Visit', onClick: clickHandler },
+        ]);
+      });
+
+      expect(result.current.items[0].onClick).toBe(clickHandler);
+    });
+
+    it('should handle items without onClick (backward compatible)', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      act(() => {
+        result.current.setItems([{ label: 'Dashboard', path: '/dashboard' }]);
+      });
+
+      expect(result.current.items[0].onClick).toBeUndefined();
+    });
+
+    it('should handle items with both status and onClick', () => {
+      const { result } = renderHook(() => useBreadcrumbContext(), { wrapper });
+
+      const clickHandler = () => {};
+      act(() => {
+        result.current.setItems([
+          { label: 'Vitals', status: 'completed', onClick: clickHandler },
+        ]);
+      });
+
+      expect(result.current.items[0].status).toBe('completed');
+      expect(result.current.items[0].onClick).toBe(clickHandler);
+    });
+  });
 });

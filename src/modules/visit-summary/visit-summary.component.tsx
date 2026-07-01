@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import ROUTES from '../../routes/paths';
@@ -45,7 +45,8 @@ const DocumentThumbnail: React.FC<{
   obsUuid: string;
   name: string;
   isImage: boolean;
-}> = ({ obsUuid, name, isImage }) => {
+  onImageClick?: (blobUrl: string) => void;
+}> = ({ obsUuid, name, isImage, onImageClick }) => {
   const [blobUrl, setBlobUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -67,7 +68,11 @@ const DocumentThumbnail: React.FC<{
   const handleClick = () => {
     /* v8 ignore next -- button is disabled when blobUrl is empty */
     if (!blobUrl) return;
-    window.open(blobUrl, '_blank');
+    if (onImageClick) {
+      onImageClick(blobUrl);
+    } else {
+      window.open(blobUrl, '_blank');
+    }
   };
 
   const { icon, color } = getFileIcon(name);
@@ -320,13 +325,81 @@ const CheckupReasonSection: React.FC<{ checkupReason: CheckupReason }> = ({
 
 const PhysicalExaminationSection: React.FC<{
   physicalExamination: PhysicalExamination;
-}> = ({ physicalExamination }) => (
-  <div>
-    {physicalExamination.generalExams.map(({ label, value }, idx) => (
-      <LabelValueRow key={idx} label={label} value={value} />
-    ))}
-  </div>
-);
+  images: AdditionalDocument[];
+}> = ({ physicalExamination, images }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const imagesBySection = useMemo(() => {
+    if (images.length === 0) return {};
+    return images.reduce<Record<string, AdditionalDocument[]>>((acc, img) => {
+      const key = img.name || 'Other';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(img);
+      return acc;
+    }, {});
+  }, [images]);
+
+  return (
+    <div>
+      {physicalExamination.generalExams.map(({ label, value }, idx) => (
+        <LabelValueRow key={idx} label={label} value={value} />
+      ))}
+      {Object.entries(imagesBySection).map(([sectionName, sectionImages]) => (
+        <div key={sectionName} className="mt-3">
+          <p className="text-sm font-semibold text-gray-500 mb-2">
+            {sectionName}
+          </p>
+          <div className="flex items-start gap-3 flex-wrap">
+            {sectionImages.map(img => (
+              <div
+                key={img.uuid}
+                className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center"
+              >
+                <DocumentThumbnail
+                  obsUuid={img.uuid}
+                  name={img.name}
+                  isImage={img.isImage}
+                  onImageClick={setPreviewUrl}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div
+            className="relative max-w-[90vw] max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewUrl(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-gray-600 hover:text-gray-900 z-10"
+            >
+              <i className="fa-solid fa-xmark" />
+            </button>
+            <a
+              href={previewUrl}
+              download="physical-exam-image"
+              className="absolute -top-3 -right-14 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-gray-600 hover:text-gray-900 z-10"
+            >
+              <i className="fa-solid fa-download" />
+            </a>
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="max-w-full max-h-[85vh] rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const MedicalHistorySection: React.FC<{ sections: HistorySection[] }> = ({
   sections,
@@ -368,6 +441,9 @@ const VisitSummaryComponent: React.FC = () => {
   const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocument[]>(
     []
   );
+  const [physicalExamImages, setPhysicalExamImages] = useState<
+    AdditionalDocument[]
+  >([]);
 
   useEffect(() => {
     if (!visitId) {
@@ -408,6 +484,24 @@ const VisitSummaryComponent: React.FC = () => {
       })
       .catch(() => {
         if (!cancelled) setAdditionalDocs([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.patient?.patientUuid, data?.visitUuid]);
+
+  useEffect(() => {
+    if (!data?.patient?.patientUuid || !data?.visitUuid) return;
+
+    let cancelled = false;
+    visitSummaryService
+      .getPhysicalExamImages(data.patient.patientUuid, data.visitUuid)
+      .then(imgs => {
+        if (!cancelled) setPhysicalExamImages(imgs);
+      })
+      .catch(() => {
+        if (!cancelled) setPhysicalExamImages([]);
       });
 
     return () => {
@@ -540,6 +634,7 @@ const VisitSummaryComponent: React.FC = () => {
           >
             <PhysicalExaminationSection
               physicalExamination={physicalExamination}
+              images={physicalExamImages}
             />
           </CollapsedComponent>
 
