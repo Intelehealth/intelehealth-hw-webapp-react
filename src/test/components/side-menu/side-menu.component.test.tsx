@@ -3,6 +3,16 @@ import { HashRouter, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SideMenu from '../../../components/side-menu/side-menu.component';
 
+// Mock global modal
+const mockShowConfirmModal = vi.fn();
+vi.mock('../../../components/modal/global-modal-context', () => ({
+  useGlobalModal: () => ({
+    showConfirmModal: mockShowConfirmModal,
+    showVitalConfirmationModal: vi.fn(),
+    closeModal: vi.fn(),
+  }),
+}));
+
 // Mock storage
 vi.mock('../../../utils/storage', () => ({
   storage: {
@@ -607,28 +617,56 @@ describe('SideMenu', () => {
       expect(icon).toHaveAttribute('src', 'icon-power-off.svg');
     });
 
-    it('should call clearAuthToken and navigate on logout click', async () => {
+    it('should show confirmation modal on logout click', () => {
+      renderWithRouter(<SideMenu />);
+
+      const logoutLink = screen.getByText('Log-out').closest('a');
+      fireEvent.click(logoutLink!);
+
+      expect(mockShowConfirmModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          open: true,
+          type: 'confirm',
+          title: 'Log out',
+          description: 'Are you sure you want to log out?',
+          confirmText: 'Log out',
+          cancelText: 'Cancel',
+          onConfirm: expect.any(Function),
+        })
+      );
+    });
+
+    it('should clear auth and navigate when confirmation is confirmed', async () => {
       const { storage } = await import('../../../utils/storage');
       renderWithRouter(<SideMenu />);
 
       const logoutLink = screen.getByText('Log-out').closest('a');
       fireEvent.click(logoutLink!);
 
+      // Extract and invoke the onConfirm callback
+      const modalConfig = mockShowConfirmModal.mock.calls[0][0];
+      modalConfig.onConfirm();
+
       expect(storage.clearAuthToken).toHaveBeenCalled();
+      expect(storage.clearBasicAuthHeader).toHaveBeenCalled();
     });
 
-    it('should close mobile menu on logout click', async () => {
-      const { storage } = await import('../../../utils/storage');
+    it('should close mobile menu on logout click', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500 });
-      renderWithRouter(<SideMenu />);
+      const { container } = renderWithRouter(<SideMenu />);
 
       const mobileToggleButton = screen.getAllByRole('button')[0];
       fireEvent.click(mobileToggleButton);
 
+      const sidebar = container.querySelector('aside');
+      expect(sidebar).toHaveClass('translate-x-0');
+
       const logoutLink = screen.getByText('Log-out').closest('a');
       fireEvent.click(logoutLink!);
 
-      expect(storage.clearAuthToken).toHaveBeenCalled();
+      // Mobile menu closes immediately, confirmation modal shown
+      expect(sidebar).not.toHaveClass('translate-x-0');
+      expect(mockShowConfirmModal).toHaveBeenCalled();
     });
 
     it('should hide logout label when collapsed', () => {
