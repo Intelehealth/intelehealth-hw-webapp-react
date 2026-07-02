@@ -281,13 +281,13 @@ describe('PatientProfileComponent', () => {
 
  
 
-  it('renders "No open visits" when visits array is empty', () => {
+  it('renders Start Visit button when visits array is empty', () => {
     h.mockUsePatientProfile.mockReturnValue({
       ...defaultHookReturn,
       visits: [],
     });
     render(<PatientProfileComponent />);
-    expect(screen.getByText('No open visits')).toBeInTheDocument();
+    expect(screen.getByText('Start Visit')).toBeInTheDocument();
   });
 
  
