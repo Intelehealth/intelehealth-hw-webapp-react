@@ -267,7 +267,6 @@ const PatientProfileComponent: React.FC = () => {
           <div className="px-4 pb-3 pt-2 space-y-2">
             {visits.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-4">
-                <p className="text-sm text-gray-400">No open visits</p>
                 <Button
                   variant="primary"
                   className="w-auto px-8"
