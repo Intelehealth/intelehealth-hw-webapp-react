@@ -12,6 +12,7 @@ import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.p
 import ROUTES from '../../routes/paths';
 import { cookie } from '../../utils/cookie';
 import { storage } from '../../utils/storage';
+import { useGlobalModal } from '../modal/global-modal-context';
 
 const menuItems = [
   { label: 'Home', icon: iconHome, path: ROUTES.DASHBOARD },
@@ -41,6 +42,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showConfirmModal } = useGlobalModal();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -230,10 +232,20 @@ const SideMenu: React.FC<SideMenuProps> = ({
               <a
                 onClick={() => {
                   setIsMobileOpen(false);
-                  storage.clearAuthToken();
-                  storage.clearBasicAuthHeader();
-                  cookie.removeJSessionId();
-                  navigate('/auth/login');
+                  showConfirmModal({
+                    open: true,
+                    type: 'confirm',
+                    title: 'Log out',
+                    description: 'Are you sure you want to log out?',
+                    confirmText: 'Log out',
+                    cancelText: 'Cancel',
+                    onConfirm: () => {
+                      storage.clearAuthToken();
+                      storage.clearBasicAuthHeader();
+                      cookie.removeJSessionId();
+                      navigate('/auth/login');
+                    },
+                  });
                 }}
                 className={`flex items-center gap-2 md:gap-3 rounded-lg hover:bg-(--color-primary-dark) transition cursor-pointer ${
                   isCollapsed
