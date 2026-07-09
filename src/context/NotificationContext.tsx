@@ -23,6 +23,7 @@ type CallTrigger = (call?: {
   roomId?: string;
   doctorId?: string;
   nurseId?: string;
+  autoJoin?: boolean;
 }) => void;
 interface ProviderSearchResult {
   results?: { uuid: string }[];
@@ -215,6 +216,7 @@ export const NotificationProvider = ({
           roomId: data.roomId,
           doctorId: data.doctorId,
           nurseId: data.nurseId,
+          autoJoin: data.autoJoin === 'true' || data.isTurnServer === 'true',
         });
         return;
       }

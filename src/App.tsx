@@ -11,6 +11,7 @@ import AppRoutes from './routes/app.routes';
 import { useAppDispatch } from './store/hooks';
 import { useStoredUser } from './hooks/useStoredUser';
 import { fcmService } from './services/fcm.service';
+import { showToast } from './services/toast';
 
 function App() {
   const dispatch = useAppDispatch();
@@ -37,7 +38,20 @@ function App() {
         : null,
       onDecline: () => fcmService.closeCallNotifications(),
       onAccept: () => fcmService.closeCallNotifications(),
-      onEnd: () => fcmService.closeCallNotifications(),
+      onEnd: (
+        _call: unknown,
+        _socket: unknown,
+        info?: { reason: string; message: string }
+      ) => {
+        fcmService.closeCallNotifications();
+        if (info?.message) {
+          showToast(
+            'Call ended',
+            info.message,
+            info.reason === 'remote-left' ? 'info' : 'warning'
+          );
+        }
+      },
     }),
     [user]
   );

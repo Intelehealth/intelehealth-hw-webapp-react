@@ -10,6 +10,7 @@ const ROUTES = {
   },
   DASHBOARD: '/dashboard',
   VIDEO_CALL: '/video-call',
+  JOIN_CALL: '/join/:magicToken',
   PRESCRIPTIONS: '/prescriptions',
   OPEN_VISITS: '/open-visits',
   PROFILE: '/profile',

@@ -33,6 +33,7 @@ const VerifyOtpPage = lazy(
 );
 const DashboardPage = lazy(() => import('../pages/dashboard/dashboard.page'));
 const VideoCallPage = lazy(() => import('../pages/video-call/video-call.page'));
+const JoinCallPage = lazy(() => import('../pages/join-call/join-call.page'));
 const PrescriptionsPage = lazy(
   () => import('../pages/prescriptions/prescriptions.page')
 );
@@ -94,6 +95,14 @@ const AboutUsPage = lazy(() => import('../pages/about-us/about-us.page'));
 const router = createHashRouter(
   createRoutesFromElements(
     <>
+      <Route
+        path={ROUTES.JOIN_CALL}
+        element={
+          <Suspense fallback={<RouteLoader />}>
+            <JoinCallPage />
+          </Suspense>
+        }
+      />
       <Route
         path={ROUTES.AUTH.BASE}
         element={
