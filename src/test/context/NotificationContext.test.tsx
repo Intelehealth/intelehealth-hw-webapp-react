@@ -983,6 +983,8 @@ describe('NotificationContext', () => {
           patientOpenMrsId: 'OMRS-9',
           appToken: 'tok-1',
           roomId: 'room-1',
+          doctorId: 'doc-1',
+          nurseId: 'nurse-1',
         },
       });
     });
@@ -994,8 +996,61 @@ describe('NotificationContext', () => {
       openMrsId: 'OMRS-9',
       token: 'tok-1',
       roomId: 'room-1',
+      doctorId: 'doc-1',
+      nurseId: 'nurse-1',
+      autoJoin: false,
     });
     expect(mockToast).not.toHaveBeenCalled();
+    delete (window as any).triggerIncomingCall;
+  });
+
+  it('forwards autoJoin=true when the video_call push is flagged autoJoin', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    const trigger = vi.fn();
+    (window as any).triggerIncomingCall = trigger;
+
+    act(() => {
+      onMessageCallback({
+        data: { type: 'video_call', visitId: 'v-3', autoJoin: 'true' },
+      });
+    });
+
+    expect(trigger).toHaveBeenCalledWith(
+      expect.objectContaining({ autoJoin: true })
+    );
+    delete (window as any).triggerIncomingCall;
+  });
+
+  it('forwards autoJoin=true when the video_call push is flagged isTurnServer', async () => {
+    let onMessageCallback: any;
+    mockInitialize.mockImplementation(async (config: any) => {
+      onMessageCallback = config.onMessageReceived;
+      return true;
+    });
+
+    renderHook(() => useNotificationContext(), { wrapper });
+    await waitFor(() => expect(onMessageCallback).toBeDefined());
+
+    const trigger = vi.fn();
+    (window as any).triggerIncomingCall = trigger;
+
+    act(() => {
+      onMessageCallback({
+        data: { type: 'video_call', visitId: 'v-4', isTurnServer: 'true' },
+      });
+    });
+
+    expect(trigger).toHaveBeenCalledWith(
+      expect.objectContaining({ autoJoin: true })
+    );
     delete (window as any).triggerIncomingCall;
   });
 

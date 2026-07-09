@@ -1683,5 +1683,43 @@ describe('VisitSummaryComponent', () => {
       expect(screen.queryByText('Ear Canal')).not.toBeInTheDocument();
       expect(screen.queryByText('Nasal Cavity')).not.toBeInTheDocument();
     });
+
+    it('ignores physical exam images that resolve after unmount', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      let resolveImages: (v: unknown) => void = () => {};
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockReturnValue(
+        new Promise(resolve => {
+          resolveImages = resolve;
+        }) as any
+      );
+
+      const { unmount } = renderWithVisitId();
+      await waitFor(() =>
+        expect(visitSummaryService.getPhysicalExamImages).toHaveBeenCalled()
+      );
+
+      unmount();
+      resolveImages([{ uuid: 'x', name: 'X', fileUrl: '', isImage: true }]);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    it('ignores physical exam image failures that reject after unmount', async () => {
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      let rejectImages: (e: unknown) => void = () => {};
+      vi.mocked(visitSummaryService.getPhysicalExamImages).mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectImages = reject;
+        }) as any
+      );
+
+      const { unmount } = renderWithVisitId();
+      await waitFor(() =>
+        expect(visitSummaryService.getPhysicalExamImages).toHaveBeenCalled()
+      );
+
+      unmount();
+      rejectImages(new Error('late'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 });
