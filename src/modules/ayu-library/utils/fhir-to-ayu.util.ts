@@ -391,8 +391,9 @@ function hasSubQuestionChildren(item: FhirItem): boolean {
  *   - `resolveAyuComponent` has no 'attachment' case (falls back to a text
  *     box), and PE camera capture is driven by the physicalExamOptions tile,
  *     not the nested renderer.
- * Camera capture inside a branching sub-form is a follow-up; for now the
- * follow-up *questions* render and the camera child is dropped.
+ * The top-level attachment child of a branching question is surfaced as a
+ * camera answerOption by buildBranchingPhysExamQuestion; this helper only
+ * strips attachments from the *sub-tree* that transformItem will walk.
  */
 function stripFhirAttachmentDescendants(item: FhirItem): FhirItem {
   if (!item.item?.length) return item;
@@ -465,6 +466,16 @@ function buildBranchingPhysExamQuestion(
       display: stripTrailingAsterisk(b.text ?? ''),
     },
   }));
+
+  // Append camera tile when the wrapper has an attachment child.
+  /* v8 ignore next */
+  for (const child of q.item ?? []) {
+    const cameraOpt = buildPhysExamCameraOption(child);
+    if (cameraOpt) {
+      answerOption.push(cameraOpt);
+      break;
+    }
+  }
 
   // Lift each branch's sub-questions and re-gate them onto this question's
   // branch option, so selecting that branch reveals all of its follow-ups.

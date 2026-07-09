@@ -5,7 +5,10 @@ import type {
 } from '../types/ayu.types';
 import { EXT_URL_MUTUALLY_EXCLUSIVE } from '../utils/constants';
 import { findMatchingOptionCode } from '../utils/question.utils';
-import { isStrictAssociatedSymptoms } from './decision-matrix';
+import {
+  isPhysicalExamOptionsQuestion,
+  isStrictAssociatedSymptoms,
+} from './decision-matrix';
 import { evaluateEnableWhen } from './enable-when.logic';
 
 export const isDurationAnswer = (value: unknown): value is DurationAnswer => {
@@ -119,6 +122,10 @@ export const isTopLevelComplete = (
   }
 
   if (!question.item?.length) return true;
+
+  // PE branching questions: sub-questions are shown as selectable concept-tags;
+  // answering them is optional — the question is complete once Yes/No is selected.
+  if (isPhysicalExamOptionsQuestion(question)) return true;
 
   // Recursively check visible nested children at all depths
   const areNestedComplete = (
