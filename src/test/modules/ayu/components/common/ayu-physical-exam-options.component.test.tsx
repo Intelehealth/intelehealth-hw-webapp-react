@@ -975,6 +975,110 @@ describe('AyuPhysicalExamOptions', () => {
     });
   });
 
+  describe('mutually-exclusive visual disabling', () => {
+    const makeExclusiveQuestion = (): AyuQuestion => ({
+      linkId: 'pe-multi',
+      text: 'Any abnormal findings?',
+      type: 'choice',
+      required: true,
+      repeats: true,
+      extension: [
+        { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Skin' },
+      ],
+      answerOption: [
+        {
+          valueCoding: { code: 'none', display: 'None' },
+          extension: [
+            { url: EXT_URL_MUTUALLY_EXCLUSIVE, valueString: 'true' },
+          ],
+        },
+        { valueCoding: { code: 'rash', display: 'Rash' } },
+        { valueCoding: { code: 'pallor', display: 'Pallor' } },
+      ],
+    });
+
+    it('applies disabled class to non-exclusive options when exclusive option is selected', () => {
+      render(
+        <AyuPhysicalExamOptions
+          question={makeExclusiveQuestion()}
+          value={['none']}
+          setAnswer={vi.fn()}
+        />
+      );
+      // Exclusive option "None" is selected → normal options get disabled class
+      expect(screen.getByRole('button', { name: /^Rash$/ })).toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Pallor$/ })).toHaveClass('disabled');
+      // Exclusive option itself is NOT disabled
+      expect(screen.getByRole('button', { name: /^None$/ })).not.toHaveClass('disabled');
+    });
+
+    it('applies disabled class to exclusive option when non-exclusive options are selected', () => {
+      render(
+        <AyuPhysicalExamOptions
+          question={makeExclusiveQuestion()}
+          value={['rash', 'pallor']}
+          setAnswer={vi.fn()}
+        />
+      );
+      // Non-exclusive options selected → exclusive option gets disabled class
+      expect(screen.getByRole('button', { name: /^None$/ })).toHaveClass('disabled');
+      // Non-exclusive options are NOT disabled
+      expect(screen.getByRole('button', { name: /^Rash$/ })).not.toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
+    });
+
+    it('does not apply disabled class when no options are selected', () => {
+      render(
+        <AyuPhysicalExamOptions
+          question={makeExclusiveQuestion()}
+          value={[]}
+          setAnswer={vi.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: /^None$/ })).not.toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Rash$/ })).not.toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
+    });
+
+    it('does not apply disabled class for single-choice (non-repeats) questions', () => {
+      const q: AyuQuestion = {
+        ...makeExclusiveQuestion(),
+        repeats: false,
+      };
+      render(
+        <AyuPhysicalExamOptions
+          question={q}
+          value={'none'}
+          setAnswer={vi.fn()}
+        />
+      );
+      // Single-choice: no mutual exclusivity disabling
+      expect(screen.getByRole('button', { name: /^Rash$/ })).not.toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
+    });
+
+    it('disabled buttons are still clickable (visual-only) and toggle correctly', async () => {
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={makeExclusiveQuestion()}
+          value={['rash']}
+          setAnswer={setAnswer}
+        />
+      );
+      // "None" is visually disabled but should still be clickable
+      const noneButton = screen.getByRole('button', { name: /^None$/ });
+      expect(noneButton).toHaveClass('disabled');
+      await userEvent.click(noneButton);
+      // computeMultiSelectToggle should replace 'rash' with 'none'
+      expect(setAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'pe-multi' }),
+        ['none']
+      );
+    });
+  });
+
   describe('multi-choice camera deselect with committed answer', () => {
     it('removes the camera code from the multi-choice answer array when deselecting a committed camera tile', async () => {
       const setAnswer = vi.fn();

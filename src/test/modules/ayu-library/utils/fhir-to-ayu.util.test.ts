@@ -2281,10 +2281,18 @@ describe('transformFhirPhysExamToAyu', () => {
           { url: EXT_URL_PE_QUESTION_KEY, valueString: 'Skin Rash' },
         ])
       );
-      // Options come from the branch children: No / Yes (coded by linkId).
+      // Options come from the branch children: No / Yes (coded by linkId),
+      // plus a camera tile from the attachment child.
       expect(q?.answerOption?.map(o => o.valueCoding)).toEqual([
         { code: 'rash-no', display: 'No' },
         { code: 'rash-yes', display: 'Yes' },
+        { code: 'rash-camera', display: 'Picture Taken' },
+      ]);
+      const cameraOpt = q?.answerOption?.find(
+        o => o.valueCoding?.code === 'rash-camera'
+      );
+      expect(cameraOpt?.extension).toEqual([
+        { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
       ]);
       // The "Yes" follow-ups are lifted to the top question and re-gated so
       // they all show when the answer is "Yes" (= the rash-yes branch).

@@ -33,8 +33,8 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-r
 }));
 
 vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component', () => ({
-  AyuNestedRenderer: vi.fn(({ items, answers, setAnswer }) => (
-    <div data-testid="nested-renderer">
+  AyuNestedRenderer: vi.fn(({ items, answers, setAnswer, selectable }) => (
+    <div data-testid="nested-renderer" data-selectable={String(!!selectable)}>
       {items?.map((item: AyuQuestion) => (
         <div key={item.linkId} data-testid={`nested-item-${item.linkId}`}>
           <input
@@ -69,6 +69,7 @@ vi.mock('../../../../../../modules/ayu/hooks/useFHIRStepper.hook', () => ({
 vi.mock('../../../../../../modules/ayu-library/logic/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(),
   isStrictAssociatedSymptoms: vi.fn(),
+  isPhysicalExamOptionsQuestion: vi.fn(() => false),
   ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
 }));
 
@@ -76,6 +77,7 @@ vi.mock('../../../../../../modules/ayu/pages/decision-matrix', () => ({
   resolveAyuComponent: vi.fn(),
   isStrictAssociatedSymptoms: vi.fn(),
   ASSOCIATED_SYMPTOMS_COMPONENT: 'associatedSymptoms',
+  PHYSICAL_EXAM_OPTIONS_COMPONENT: 'physicalExamOptions',
 }));
 
 vi.mock('../../../../../../services/toast', () => ({
@@ -5292,6 +5294,78 @@ describe('AyuStepperContainer', () => {
 
       expect(screen.getByText('None')).toBeInTheDocument();
       expect(screen.queryByText(/None\s*:/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('PE question selectable prop', () => {
+    it('should pass selectable=true to AyuNestedRenderer for physicalExamOptions questions', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-q1',
+        text: 'Lumps',
+        type: 'choice',
+        item: [{ linkId: 'pe-q1.child', text: 'Where', type: 'choice' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'true');
+    });
+
+    it('should pass selectable=false to AyuNestedRenderer for non-PE questions', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Normal question',
+        type: 'choice',
+        item: [{ linkId: 'q1.child', text: 'Detail', type: 'string' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
+      mockResolveAyuComponentLogic.mockReturnValue('selectableOptionGroup');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
     });
   });
 });

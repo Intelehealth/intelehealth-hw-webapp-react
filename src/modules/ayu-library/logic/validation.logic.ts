@@ -6,6 +6,7 @@ import {
 } from './associated-symptoms.logic';
 import {
   ASSOCIATED_SYMPTOMS_COMPONENT,
+  isPhysicalExamOptionsQuestion,
   isStrictAssociatedSymptoms,
   resolveAyuComponent,
 } from './decision-matrix';
@@ -222,10 +223,14 @@ export const validateQuestion = (
     !allOptionsAnswered &&
     !hasExclusiveSelected(question, yesValues);
 
+  // PE branching questions: sub-questions are optional selectable concept-tags;
+  // skip nested child validation — the question is valid once Yes/No is answered.
+  const isPE = isPhysicalExamOptionsQuestion(question);
+
   const isInvalid =
     cameraMissingImages ||
-    hasVisibleRequiredNestedString(question, answers) ||
-    hasUnansweredRequiredNestedChild(question, answers) ||
+    (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
+    (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     isQuantityInvalid(question, answers) ||
     (question.type === 'choice' &&
       !!question.repeats &&
@@ -240,8 +245,8 @@ export const validateQuestion = (
     ? 'uploadImage'
     : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)
       ? 'allCompulsory'
-      : hasVisibleRequiredNestedString(question, answers) ||
-          isNestedInputValueMissing(question, answers) ||
+      : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
+          (!isPE && isNestedInputValueMissing(question, answers)) ||
           isQuantityInvalid(question, answers)
         ? 'enterValue'
         : 'selectOption';

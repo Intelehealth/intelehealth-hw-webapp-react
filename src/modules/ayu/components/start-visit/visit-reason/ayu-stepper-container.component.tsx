@@ -23,6 +23,7 @@ import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
 import {
   ASSOCIATED_SYMPTOMS_COMPONENT,
+  PHYSICAL_EXAM_OPTIONS_COMPONENT,
   resolveAyuComponent,
 } from '../../../pages/decision-matrix';
 import {
@@ -506,6 +507,10 @@ export const AyuStepperContainer = forwardRef<
                             setAnswer={handleSetAnswer}
                             clearAnswers={clearAnswers}
                             showAllTriangles
+                            selectable={
+                              resolveAyuComponent(question) ===
+                              PHYSICAL_EXAM_OPTIONS_COMPONENT
+                            }
                           />
                         )}
                       {/* ACTION BUTTONS */}
