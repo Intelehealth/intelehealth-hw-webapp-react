@@ -187,6 +187,10 @@ export const AyuPhysicalExamOptions = ({
     setAnswer?.(question, next);
     setPendingRegular(null);
     setSubmittedAt(Date.now());
+    // Commit this question's images to the pending-upload queue only on
+    // explicit Upload click — prevents images from appearing on the Visit
+    // Summary when the user merely captured but never confirmed.
+    camera?.commitQuestionImages(question.linkId);
   };
 
   /* Only the camera-commit case needs an in-component Submit, since a captured

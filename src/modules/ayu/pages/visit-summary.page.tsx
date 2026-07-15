@@ -46,7 +46,14 @@ import {
   uploadAllAdditionalDocuments,
   uploadAllPhysicalExamImages,
 } from '../services/obs.service';
-import { bulkMarkSynced } from '../services/temp-storage.service';
+import {
+  bulkMarkSynced,
+  clearCommittedQuestionIds,
+  clearDeletedAssetIds,
+  getChildResources,
+  getCommittedQuestionIds,
+  getDeletedAssetIds,
+} from '../services/temp-storage.service';
 import {
   buildFamilyHistoryData,
   buildMedicalHistoryData,
@@ -497,10 +504,12 @@ const VisitSummaryPage = () => {
   const {
     data,
     patientUuid: ctxPatientUuid,
+    visitId: ctxVisitId,
     tempRecordId,
     clearVisitId,
     setLastSectionIndex,
     markVisitUploaded,
+    physExamPendingImages: ctxPendingImages,
   } = useStartVisitData();
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
@@ -536,7 +545,26 @@ const VisitSummaryPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [physExamImagePreviews, setPhysExamImagePreviews] = useState<
     Array<{ preview: string; name: string }>
-  >([]);
+  >(() => {
+    // Primary source: context images snapshotted by the PE component on confirm.
+    // These survive Vite HMR / module reloading that can wipe the module-level
+    // pendingImages array.
+    if (ctxPendingImages.length > 0) {
+      return ctxPendingImages.map(img => ({
+        preview: URL.createObjectURL(img.file),
+        name: img.comment ?? 'Physical Exam',
+      }));
+    }
+    // Fallback: read the module-level pending images array directly.
+    const pending = getPendingImages();
+    if (pending.length > 0) {
+      return pending.map(img => ({
+        preview: URL.createObjectURL(img.file),
+        name: img.comment ?? 'Physical Exam',
+      }));
+    }
+    return [];
+  });
 
   useEffect(() => {
     const bgField = data.vitals?.config?.find(f => f.key === 'blood_group');
@@ -582,21 +610,63 @@ const VisitSummaryPage = () => {
   }, [ctxPatientUuid]);
 
   useEffect(() => {
+    // Primary source: context images snapshotted by the PE component on confirm.
+    if (ctxPendingImages.length > 0) {
+      setPhysExamImagePreviews(
+        ctxPendingImages.map(img => ({
+          preview: URL.createObjectURL(img.file),
+          name: img.comment ?? 'Physical Exam',
+        }))
+      );
+      return;
+    }
+
+    // In-session fallback: read committed images from the in-memory pending queue.
     const pending = getPendingImages();
-    if (pending.length === 0) return;
+    if (pending.length > 0) {
+      setPhysExamImagePreviews(
+        pending.map(img => ({
+          preview: URL.createObjectURL(img.file),
+          name: img.comment ?? 'Physical Exam',
+        }))
+      );
+      return;
+    }
 
-    const urls: string[] = [];
-    const previews = pending.map(img => {
-      const url = URL.createObjectURL(img.file);
-      urls.push(url);
-      return { preview: url, name: img.comment };
-    });
-    setPhysExamImagePreviews(previews);
-
+    // Page-reload fallback: Load from temp-storage, filtered by committed
+    // question IDs (sessionStorage) so only explicitly uploaded images appear.
+    if (!ctxVisitId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getChildResources<{
+          questionId: string;
+          comment?: string;
+        }>('visit', ctxVisitId, 'asset');
+        if (cancelled || !res.data?.length) return;
+        const deletedIds = getDeletedAssetIds();
+        const committedIds = getCommittedQuestionIds();
+        const previews = res.data
+          .filter(
+            r =>
+              r.file_path &&
+              !deletedIds.has(r.id) &&
+              r.data?.questionId &&
+              committedIds.has(r.data.questionId)
+          )
+          .map(r => ({
+            preview: r.file_path!,
+            name: r.data?.comment ?? 'Physical Exam',
+          }));
+        setPhysExamImagePreviews(previews);
+      } catch {
+        // Failed to load from temp-storage — images won't display
+      }
+    })();
     return () => {
-      urls.forEach(url => URL.revokeObjectURL(url));
+      cancelled = true;
     };
-  }, []);
+  }, [ctxVisitId, ctxPendingImages]);
 
   const toggleAll = useCallback(() => setAllOpen(prev => !prev), []);
 
@@ -735,6 +805,8 @@ const VisitSummaryPage = () => {
         bulkMarkSynced([tempRecordId]).catch(() => {});
       }
       clearVisitId();
+      clearCommittedQuestionIds();
+      clearDeletedAssetIds();
       storage.remove(PATIENT_NAME_KEY);
       storage.remove(PATIENT_AGE_KEY);
       storage.remove(PATIENT_GENDER_KEY);

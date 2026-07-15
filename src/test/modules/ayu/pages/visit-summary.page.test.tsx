@@ -40,6 +40,8 @@ const mockUseStartVisitData = vi.fn(() => ({
   saveSectionToTemp: mockSaveSectionToTemp,
   clearVisitId: mockClearVisitId,
   markVisitUploaded: vi.fn(),
+  physExamPendingImages: [] as Array<{ file: File; comment: string }>,
+  setPhysExamPendingImages: vi.fn(),
 }));
 
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
@@ -134,8 +136,18 @@ vi.mock('../../../../modules/ayu/services/visit-upload.service', () => ({
 /* ── Mock temp-storage service ──────────────────────────────────────────── */
 
 const mockBulkMarkSynced = vi.fn();
+const mockClearCommittedQuestionIds = vi.fn();
+const mockClearDeletedAssetIds = vi.fn();
+const mockGetChildResources = vi.fn().mockResolvedValue({ data: [] });
+const mockGetCommittedQuestionIds = vi.fn().mockReturnValue(new Set<string>());
+const mockGetDeletedAssetIds = vi.fn().mockReturnValue(new Set<number>());
 vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
   bulkMarkSynced: (...args: any[]) => mockBulkMarkSynced(...args),
+  clearCommittedQuestionIds: (...args: any[]) => mockClearCommittedQuestionIds(...args),
+  clearDeletedAssetIds: (...args: any[]) => mockClearDeletedAssetIds(...args),
+  getChildResources: (...args: any[]) => mockGetChildResources(...args),
+  getCommittedQuestionIds: (...args: any[]) => mockGetCommittedQuestionIds(...args),
+  getDeletedAssetIds: (...args: any[]) => mockGetDeletedAssetIds(...args),
 }));
 
 
@@ -304,6 +316,8 @@ function renderWithData(dataOverride?: Partial<typeof defaultData>) {
     saveSectionToTemp: mockSaveSectionToTemp,
     clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
   });
   return render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 }
@@ -511,6 +525,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
 
@@ -543,6 +559,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
 
     try {
@@ -689,6 +707,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
     mockStorageGet.mockReturnValue(null);
 
@@ -726,6 +746,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
     mockStorageGetLocationUuid.mockReturnValue(null as any);
 
@@ -787,6 +809,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1376,6 +1400,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1410,6 +1436,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -1783,6 +1811,8 @@ describe('VisitSummaryPage', () => {
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: mockClearVisitId,
     markVisitUploaded: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: vi.fn(),
     });
 
     render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -2366,7 +2396,9 @@ describe('VisitSummaryPage', () => {
         setMedicalHistoryAnswers: vi.fn(),
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: mockClearVisitId,
-    markVisitUploaded: vi.fn(),
+        markVisitUploaded: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: vi.fn(),
       });
       mockStorageGet.mockReturnValue(null);
       render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
@@ -2465,7 +2497,9 @@ describe('VisitSummaryPage', () => {
         setMedicalHistoryAnswers: vi.fn(),
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: mockClearVisitId,
-    markVisitUploaded: vi.fn(),
+        markVisitUploaded: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: vi.fn(),
       });
       mockStorageGet.mockImplementation((key: string) =>
         key === 'patientUuid' ? 'storage-patient-uuid' : null
@@ -2721,6 +2755,119 @@ describe('VisitSummaryPage', () => {
       // Verify the download icon is inside the link
       const downloadIcon = downloadLink.querySelector('.fa-solid.fa-download');
       expect(downloadIcon).toBeTruthy();
+    });
+
+    it('should prefer context pending images over module-level getPendingImages', async () => {
+      const ctxFile = new File(['ctx-img'], 'ctx.png', { type: 'image/png' });
+      // Module-level getPendingImages returns different data — should NOT be used
+      mockGetPendingImages.mockReturnValue([
+        { file: new File(['module-img'], 'module.png', { type: 'image/png' }), comment: 'Module' },
+      ]);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: { ...fullData },
+        patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: mockClearVisitId,
+        markVisitUploaded: vi.fn(),
+        physExamPendingImages: [{ file: ctxFile, comment: 'ContextSection' }],
+        setPhysExamPendingImages: vi.fn(),
+      });
+
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
+
+      await waitFor(() => {
+        // Context image comment used as section heading
+        expect(screen.getByText('ContextSection')).toBeInTheDocument();
+      });
+
+      // URL.createObjectURL should have been called with the context file
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(ctxFile);
+    });
+
+    it('should fall back to getPendingImages when context has no images', async () => {
+      const moduleFile = new File(['mod-img'], 'mod.png', { type: 'image/png' });
+      mockGetPendingImages.mockReturnValue([
+        { file: moduleFile, comment: 'ModuleSection' },
+      ]);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: { ...fullData },
+        patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: mockClearVisitId,
+        markVisitUploaded: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: vi.fn(),
+      });
+
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
+
+      await waitFor(() => {
+        expect(screen.getByText('ModuleSection')).toBeInTheDocument();
+      });
+
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(moduleFile);
+    });
+
+    it('should use "Physical Exam" as default name when context image comment is missing', async () => {
+      const ctxFile = new File(['img'], 'pic.png', { type: 'image/png' });
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          ...fullData,
+          physicalExam: {
+            answers: { pe1: ['opt1'] },
+            details: [{ label: 'General Appearance', value: 'Normal' }],
+          },
+        },
+        patientUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        visitId: 'test-visit-id',
+        tempRecordId: null,
+        restoredSectionIndex: null,
+        lastSectionIndex: 0,
+        setLastSectionIndex: vi.fn(),
+        setPatientUuid: vi.fn(),
+        setVitalsData: vi.fn(),
+        setVisitReasonData: vi.fn(),
+        setPhysicalExamData: vi.fn(),
+        setMedicalHistoryData: vi.fn(),
+        setMedicalHistoryAnswers: vi.fn(),
+        saveSectionToTemp: mockSaveSectionToTemp,
+        clearVisitId: mockClearVisitId,
+        markVisitUploaded: vi.fn(),
+        physExamPendingImages: [{ file: ctxFile, comment: undefined as unknown as string }],
+        setPhysExamPendingImages: vi.fn(),
+      });
+
+      render(<BreadcrumbProvider><VisitSummaryPage /></BreadcrumbProvider>);
+
+      await waitFor(() => {
+        // Falls back to 'Physical Exam' when comment is falsy
+        expect(screen.getByAltText('Physical Exam')).toBeInTheDocument();
+      });
     });
   });
 });

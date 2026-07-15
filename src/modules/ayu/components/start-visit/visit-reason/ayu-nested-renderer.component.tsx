@@ -133,13 +133,15 @@ export const AyuNestedRenderer = ({
     <div className="space-y-4 px-3">
       {Array.from(groups.entries()).map(([label, children]) => (
         <div key={label || 'default'}>
-          {selectable ? (
+          {selectable &&
+          children.filter(c => c.type !== 'string').length > 1 ? (
             <>
-              {/* All items as selectable option pills */}
+              {/* Multiple non-string children: render as selectable option pills */}
               <div className="option-group mt-4 mb-3">
                 {children.map(
                   item =>
-                    item?.type !== 'string' && (
+                    item?.type !== 'string' &&
+                    !!item?.text && (
                       <AyuSelectableOption
                         key={item.linkId}
                         label={item.text}
@@ -165,7 +167,7 @@ export const AyuNestedRenderer = ({
                     )
                 )}
               </div>
-              {/* Render string-type children directly without selection */}
+              {/* Render string-type children directly */}
               {children
                 .filter(child => child.type === 'string')
                 .map(child => (
@@ -182,7 +184,9 @@ export const AyuNestedRenderer = ({
               {children
                 .filter(
                   child =>
-                    child.type !== 'string' && selectedOption === child.linkId
+                    child.type !== 'string' &&
+                    !!child.text &&
+                    selectedOption === child.linkId
                 )
                 .map(child => (
                   <div

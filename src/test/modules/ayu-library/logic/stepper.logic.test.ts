@@ -663,6 +663,50 @@ describe('isTopLevelComplete', () => {
       expect(isTopLevelComplete(q, { 'pe-lumps': 'yes' })).toBe(true);
     });
 
+    it('should return false for PE question when a gated choice child is visible and unanswered', () => {
+      const q = makePEQuestion([
+        {
+          linkId: 'pe-lumps.location',
+          type: 'choice',
+          enableWhen: [
+            { question: 'pe-lumps', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ]);
+      // "Yes" selected → gated location child becomes visible → not complete
+      expect(isTopLevelComplete(q, { 'pe-lumps': 'yes' })).toBe(false);
+    });
+
+    it('should return true for PE question when a gated choice child is visible and answered', () => {
+      const q = makePEQuestion([
+        {
+          linkId: 'pe-lumps.location',
+          type: 'choice',
+          enableWhen: [
+            { question: 'pe-lumps', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ]);
+      // "Yes" selected AND location answered → complete
+      expect(
+        isTopLevelComplete(q, { 'pe-lumps': 'yes', 'pe-lumps.location': 'upper-l' })
+      ).toBe(true);
+    });
+
+    it('should return true for PE question when a gated child is not visible', () => {
+      const q = makePEQuestion([
+        {
+          linkId: 'pe-lumps.location',
+          type: 'choice',
+          enableWhen: [
+            { question: 'pe-lumps', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ]);
+      // "No" selected → gated child is hidden → complete
+      expect(isTopLevelComplete(q, { 'pe-lumps': 'no' })).toBe(true);
+    });
+
     it('should NOT skip nested validation for non-PE questions with children', () => {
       // Same shape but no PE extension → standard behavior
       const q: AyuQuestion = {

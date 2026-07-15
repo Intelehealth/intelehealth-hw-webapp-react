@@ -99,3 +99,91 @@ export function bulkMarkSynced(
     TempStorageApiResponse<{ updatedCount: number }>
   >(TEMP_STORAGE_ENDPOINTS.SYNC, { ids });
 }
+
+export function deleteAssetResource(
+  recordId: number
+): Promise<TempStorageApiResponse<null>> {
+  // Track the deletion client-side so the image is immediately hidden even if
+  // the backend DELETE is slow or fails.
+  markAssetDeleted(recordId);
+  return MindmapPortalApi.delete<TempStorageApiResponse<null>>(
+    `${TEMP_STORAGE_ENDPOINTS.ROOT}/${recordId}`
+  );
+}
+
+/* ── Deleted-asset tracking (sessionStorage) ──────────────────────────── */
+const DELETED_ASSETS_KEY = 'pe_deleted_asset_ids';
+
+/** Record an asset record ID as deleted so it won't reappear in queries. */
+function markAssetDeleted(id: number): void {
+  const ids = getDeletedAssetIds();
+  ids.add(id);
+  try {
+    sessionStorage.setItem(DELETED_ASSETS_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* sessionStorage full or unavailable — in-memory set still works */
+  }
+}
+
+/** Returns the set of asset record IDs that were deleted this session. */
+export function getDeletedAssetIds(): Set<number> {
+  try {
+    const raw = sessionStorage.getItem(DELETED_ASSETS_KEY);
+    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+/** Clear the deleted-assets tracker (call after successful visit upload). */
+export function clearDeletedAssetIds(): void {
+  try {
+    sessionStorage.removeItem(DELETED_ASSETS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/* ── Committed-question tracking (sessionStorage) ─────────────────────── */
+const COMMITTED_QUESTIONS_KEY = 'pe_committed_question_ids';
+
+/** Mark a PE question as committed (user clicked Upload). */
+export function markQuestionCommitted(questionId: string): void {
+  const ids = getCommittedQuestionIds();
+  ids.add(questionId);
+  try {
+    sessionStorage.setItem(COMMITTED_QUESTIONS_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Unmark a PE question as committed (user removed all images after Upload). */
+export function unmarkQuestionCommitted(questionId: string): void {
+  const ids = getCommittedQuestionIds();
+  ids.delete(questionId);
+  try {
+    sessionStorage.setItem(COMMITTED_QUESTIONS_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Returns the set of question IDs that were committed via Upload. */
+export function getCommittedQuestionIds(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(COMMITTED_QUESTIONS_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+/** Clear the committed-questions tracker (call on protocol change or visit upload). */
+export function clearCommittedQuestionIds(): void {
+  try {
+    sessionStorage.removeItem(COMMITTED_QUESTIONS_KEY);
+  } catch {
+    /* ignore */
+  }
+}

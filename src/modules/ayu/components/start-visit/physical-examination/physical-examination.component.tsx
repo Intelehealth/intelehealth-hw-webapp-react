@@ -12,12 +12,14 @@ import {
   EXT_URL_JOB_AID_TYPE,
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
   PE_OPTION_KIND_CAMERA,
 } from '../../../../ayu-library/utils/constants';
 import { transformFhirPhysExamToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
+import { getPendingImages } from '../../../services/obs.service';
 import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
@@ -71,6 +73,18 @@ const ayuAnswersToPhysicalExamAnswers = (
 const readExt = (q: AyuQuestion, url: string): string | undefined =>
   q.extension?.find(e => e.url === url)?.valueString;
 
+/**
+ * Client-side fallback: maps PE question keys (case-insensitive) to bundled
+ * asset filenames when the server FHIR data carries neither FHIR extensions
+ * nor legacy `job-aid-file` properties.
+ *
+ * Keys are LOWER-CASED question keys (EXT_URL_PE_QUESTION_KEY); values are
+ * filenames (without extension) that resolve via `getJobAidUrl()`.
+ */
+const JOB_AID_FALLBACK: Record<string, string> = {
+  tenderness: 'abdominalregions9',
+};
+
 const isCameraOption = (
   opt: NonNullable<AyuQuestion['answerOption']>[number]
 ): boolean =>
@@ -88,8 +102,13 @@ export const PhysicalExamination = (props: SectionProps) => {
     physicalExamFilter,
     ayuConfigFiles,
   } = props;
-  const { data, visitId, setPhysicalExamData, saveSectionToTemp } =
-    useStartVisitData();
+  const {
+    data,
+    visitId,
+    setPhysicalExamData,
+    saveSectionToTemp,
+    setPhysExamPendingImages,
+  } = useStartVisitData();
   const { showVitalConfirmationModal } = useGlobalModal();
   const patientDemographics = usePatientDemographics();
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
@@ -145,7 +164,11 @@ export const PhysicalExamination = (props: SectionProps) => {
   const jobAidUrlFor = useCallback((questionId: string): string | null => {
     const q = questionByLinkIdRef.current.get(questionId);
     if (!q) return null;
-    const file = readExt(q, EXT_URL_JOB_AID_FILE);
+    const file =
+      readExt(q, EXT_URL_JOB_AID_FILE) ??
+      JOB_AID_FALLBACK[
+        (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
+      ];
     if (!file) return null;
     return getJobAidUrl(file) ?? null;
   }, []);
@@ -157,7 +180,11 @@ export const PhysicalExamination = (props: SectionProps) => {
       // Prefer the type of the ACTUAL bundled asset (matches the URL the user
       // sees) over the FHIR job-aid-type, which can be wrong — e.g. a pallor
       // reference declared "video" while the file is a .jpg.
-      const file = readExt(q, EXT_URL_JOB_AID_FILE);
+      const file =
+        readExt(q, EXT_URL_JOB_AID_FILE) ??
+        JOB_AID_FALLBACK[
+          (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
+        ];
       if (file) {
         const actual = getJobAidType(file);
         if (actual) return actual;
@@ -260,6 +287,10 @@ export const PhysicalExamination = (props: SectionProps) => {
             items: s.items,
           }));
           setPhysicalExamData(physExamAnswers, details, detailsSections);
+          // Snapshot pending images into React context so Visit Summary can
+          // reliably read them even if the module-level pendingImages array
+          // is lost during Vite HMR or module reloading.
+          setPhysExamPendingImages(getPendingImages());
           saveSectionToTemp({
             physicalExam: {
               answers: physExamAnswers,
@@ -275,6 +306,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       topLevelItems,
       showVitalConfirmationModal,
       setPhysicalExamData,
+      setPhysExamPendingImages,
       saveSectionToTemp,
       originalOnNext,
     ]

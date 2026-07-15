@@ -11,6 +11,11 @@ import {
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
+import { clearPendingImages } from '../../services/obs.service';
+import {
+  clearCommittedQuestionIds,
+  clearDeletedAssetIds,
+} from '../../services/temp-storage.service';
 import {
   PATIENT_AGE_KEY,
   PATIENT_GENDER_KEY,
@@ -91,6 +96,11 @@ export const StartVisit = () => {
   const handleProtocolCleared = useCallback(() => {
     clearPhysicalExamData();
     clearMedicalHistoryData();
+    // Clear any captured/committed PE images so they don't carry over to the
+    // new protocol.
+    clearPendingImages();
+    clearDeletedAssetIds();
+    clearCommittedQuestionIds();
     saveSectionToTemp({
       physicalExam: null,
       medicalHistory: null,

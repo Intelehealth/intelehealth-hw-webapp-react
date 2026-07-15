@@ -497,6 +497,7 @@ describe('AyuNestedRenderer', () => {
       const items: AyuQuestion[] = [
         { linkId: 'string-1', text: 'String Item', type: 'string' },
         { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+        { linkId: 'choice-2', text: 'Choice Item 2', type: 'choice' },
       ];
 
       render(
@@ -520,6 +521,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+        { linkId: 'choice-2', text: 'Choice Item 2', type: 'choice' },
       ];
 
       render(
@@ -542,6 +544,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+        { linkId: 'choice-2', text: 'Choice Item 2', type: 'choice' },
       ];
 
       render(
@@ -565,6 +568,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'choice-1', text: 'Choice Item', type: 'choice' },
+        { linkId: 'choice-2', text: 'Choice Item 2', type: 'choice' },
       ];
 
       const { container } = render(
@@ -588,6 +592,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'int-1', text: 'Integer Item', type: 'integer' },
+        { linkId: 'int-2', text: 'Integer Item 2', type: 'integer' },
       ];
 
       const { container } = render(
@@ -926,6 +931,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -970,6 +976,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1007,6 +1014,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1037,6 +1045,7 @@ describe('AyuNestedRenderer', () => {
             { linkId: 'nested-1', text: 'Nested', type: 'string' },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1073,6 +1082,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1108,6 +1118,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1227,6 +1238,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'int-1', text: 'Int Item', type: 'integer' },
+        { linkId: 'int-2', text: 'Int Item 2', type: 'integer' },
       ];
 
       render(
@@ -1359,6 +1371,7 @@ describe('AyuNestedRenderer', () => {
     it('should have option-group class in selectable mode', () => {
       const items: AyuQuestion[] = [
         { linkId: 'child-1', text: 'Question', type: 'choice' },
+        { linkId: 'child-2', text: 'Question 2', type: 'choice' },
       ];
 
       const { container } = render(
@@ -1394,6 +1407,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1437,6 +1451,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1506,6 +1521,7 @@ describe('AyuNestedRenderer', () => {
             { linkId: 'a-child', text: 'A Child', type: 'string' },
           ],
         },
+        { linkId: 'option-c', text: 'Option C', type: 'choice' },
       ];
 
       render(
@@ -1531,6 +1547,7 @@ describe('AyuNestedRenderer', () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         { linkId: 'option-a', text: 'Option A', type: 'choice' },
+        { linkId: 'option-b', text: 'Option B', type: 'choice' },
       ];
 
       render(
@@ -1623,6 +1640,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'choice-sibling', text: 'Sibling', type: 'choice' },
       ];
 
       render(
@@ -1691,6 +1709,7 @@ describe('AyuNestedRenderer', () => {
             },
           ],
         },
+        { linkId: 'level-1b', text: 'Level 1b', type: 'choice' },
       ];
 
       render(
