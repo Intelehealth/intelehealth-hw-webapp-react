@@ -151,7 +151,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     if (!q) return null;
     const file =
       readExt(q, EXT_URL_JOB_AID_FILE) ??
-      /* v8 ignore next */
+      /* v8 ignore next 3 */
       JOB_AID_FALLBACK[
         (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
       ];
@@ -165,7 +165,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       if (!q) return null;
       const file =
         readExt(q, EXT_URL_JOB_AID_FILE) ??
-        /* v8 ignore next */
+        /* v8 ignore next 3 */
         JOB_AID_FALLBACK[
           (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
         ];

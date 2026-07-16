@@ -1234,6 +1234,29 @@ describe('AyuNestedRenderer', () => {
       expect(mockSetAnswer).toHaveBeenCalledWith(items[0], 'typed value');
     });
 
+    it('should call setAnswer for string-type child rendered alongside multiple non-string selectable options', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'choice-a', text: 'Choice A', type: 'choice' },
+        { linkId: 'choice-b', text: 'Choice B', type: 'choice' },
+        { linkId: 'describe', text: 'Describe', type: 'string' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // String child is rendered directly (not behind a pill selection)
+      const input = screen.getByTestId('input-describe');
+      fireEvent.change(input, { target: { value: 'some text' } });
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(items[2], 'some text');
+    });
+
     it('should call setAnswer for selected non-string children in selectable mode', async () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [

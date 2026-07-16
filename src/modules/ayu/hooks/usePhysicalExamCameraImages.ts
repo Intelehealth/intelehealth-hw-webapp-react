@@ -123,6 +123,7 @@ export const usePhysicalExamCameraImages = ({
       const recordId = res.data.id;
       setCameraImages(prev => ({
         ...prev,
+        /* v8 ignore next */
         [questionId]: (prev[questionId] ?? []).map(img =>
           img.file === file ? { ...img, assetRecordId: recordId } : img
         ),

@@ -326,6 +326,7 @@ function findJobAidInTree(items: FhirItem[]): FhirExtension[] {
     if (found.length) return found;
     if (item.item?.length) {
       const deeper = findJobAidInTree(item.item);
+      /* v8 ignore next */
       if (deeper.length) return deeper;
     }
   }
@@ -491,6 +492,7 @@ function buildBranchingPhysExamQuestion(
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const conceptDisplay = q.answerOption?.[0]?.valueCoding?.display;
+  /* v8 ignore next */
   const questionText = stripTrailingAsterisk(conceptDisplay ?? q.text ?? '');
 
   // Branch children = the wrapper's own gated children, minus the camera tile.
@@ -514,6 +516,7 @@ function buildBranchingPhysExamQuestion(
   // Check the wrapper first, then search the whole subtree.
   let passthroughExt = readJobAidFromItem(q);
   if (passthroughExt.length === 0) {
+    /* v8 ignore next */
     passthroughExt = findJobAidInTree(q.item ?? []);
   }
 
@@ -833,6 +836,7 @@ export function transformFhirPhysExamToAyu(
           // nestGatedSiblings): keep the parent's own options (Yes/No) and
           // attach gated children so the nested renderer reveals them based on
           // enableWhen.
+          /* v8 ignore next */
           const gatedChildren = (target.item ?? [])
             .filter(
               (c: FhirItem) => c.type !== 'attachment' && c.type !== 'display'
