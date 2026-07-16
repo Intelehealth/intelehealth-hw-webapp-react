@@ -24,6 +24,7 @@ import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
+  JOB_AID_FALLBACK,
   PE_PICTURE_TAKEN_LABEL,
   PHYSICAL_EXAM_SUMMARY_TITLE,
   SUMMARY_CANCEL_TEXT,
@@ -66,10 +67,6 @@ const ayuAnswersToPhysicalExamAnswers = (
 
 const readExt = (q: AyuQuestion, url: string): string | undefined =>
   q.extension?.find(e => e.url === url)?.valueString;
-
-const JOB_AID_FALLBACK: Record<string, string> = {
-  tenderness: 'abdominalregions9',
-};
 
 const isCameraOption = (
   opt: NonNullable<AyuQuestion['answerOption']>[number]
@@ -151,6 +148,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     if (!q) return null;
     const file =
       readExt(q, EXT_URL_JOB_AID_FILE) ??
+      // Fallback branch: only reached when FHIR data lacks jobAidFile extension
       /* v8 ignore next 3 */
       JOB_AID_FALLBACK[
         (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
@@ -165,6 +163,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       if (!q) return null;
       const file =
         readExt(q, EXT_URL_JOB_AID_FILE) ??
+        // Fallback branch: only reached when FHIR data lacks jobAidFile extension
         /* v8 ignore next 3 */
         JOB_AID_FALLBACK[
           (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()

@@ -837,7 +837,8 @@ export function transformFhirPhysExamToAyu(
           // attach gated children so the nested renderer reveals them based on
           // enableWhen.
           /* v8 ignore next */
-          const gatedChildren = (target.item ?? [])
+          const targetItems = target.item ?? [];
+          const gatedChildren = targetItems
             .filter(
               (c: FhirItem) => c.type !== 'attachment' && c.type !== 'display'
             )

@@ -11,6 +11,21 @@ export const CONFIRM_MODAL_NO = 'No';
 
 export const PHYSCAL_EXAM_DESCRIPTION = 'Please wash/sanitize your hands';
 export const CONFIRM_MODAL_OK = 'Okay';
+
+/**
+ * Asset key for the abdominal region reference image shown alongside
+ * the Tenderness question.
+ */
+export const JOB_AID_ABDOMINAL_REGIONS = 'abdominalregions9';
+
+/**
+ * Fallback mapping from PE question key to job-aid asset filename.
+ * Used when the FHIR questionnaire does not include a jobAidFile extension.
+ */
+export const JOB_AID_FALLBACK: Record<string, string> = {
+  tenderness: JOB_AID_ABDOMINAL_REGIONS,
+};
+
 // --- Selected Reasons ---
 export const SELECTED_REASONS_LABEL = 'Selected reasons';
 export const REMOVE_REASON_CONFIRM_TITLE = 'Remove visit reason?';
@@ -27,6 +42,9 @@ export const VISIT_REASON_HINT =
 export const SEARCH_PLACEHOLDER = 'Type or select reason eg. Fever';
 export const NO_MATCHING_COMPLAINTS = 'No matching complaints found';
 export const MAX_FILTERED_RESULTS = 8;
+
+// --- Breadcrumb Status ---
+export const BREADCRUMB_STATUS_PENDING = 'pending' as const;
 
 // --- Footer ---
 export const BUTTON_BACK = 'Back';

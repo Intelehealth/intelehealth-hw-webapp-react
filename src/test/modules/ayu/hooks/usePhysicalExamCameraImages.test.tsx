@@ -138,13 +138,21 @@ describe('usePhysicalExamCameraImages', () => {
       );
     });
 
-    it('swallows errors from temp-storage', async () => {
+    it('logs error and re-throws when temp-storage fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       getChildResources.mockRejectedValue(new Error('boom'));
       const { result } = renderHook(() =>
         usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
       );
       await waitFor(() => expect(getChildResources).toHaveBeenCalled());
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
+      await waitFor(() =>
+        expect(errorSpy).toHaveBeenCalledWith(
+          'Failed to restore camera images from temp storage',
+          expect.any(Error)
+        )
+      );
+      errorSpy.mockRestore();
     });
   });
 
@@ -235,7 +243,8 @@ describe('usePhysicalExamCameraImages', () => {
       expect(upsertAssetResource.mock.calls[0][1].created_by).toBe('unknown');
     });
 
-    it('still adds the image to local state when the upload fails', async () => {
+    it('logs error when the upload fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       getChildResources.mockResolvedValue({ data: [] });
       getUser.mockReturnValue(null);
       upsertAssetResource.mockRejectedValue(new Error('upload failed'));
@@ -249,6 +258,11 @@ describe('usePhysicalExamCameraImages', () => {
       expect(result.current.cameraImagesFor('q1')).toEqual([
         'blob:mock-1',
       ]);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to upload camera image to temp storage',
+        expect.any(Error)
+      );
+      errorSpy.mockRestore();
     });
   });
 

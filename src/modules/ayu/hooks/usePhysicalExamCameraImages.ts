@@ -51,32 +51,30 @@ export const usePhysicalExamCameraImages = ({
     if (visitId == null || visitId === '') return;
     hasRestoredRef.current = true;
     (async () => {
-      try {
-        const res = await getChildResources<{
-          questionId: string;
-          comment?: string;
-        }>('visit', String(visitId), 'asset');
-        if (!res.data?.length) return;
-        const deletedIds = getDeletedAssetIds();
-        const restored: Record<string, CapturedImage[]> = {};
-        for (const record of res.data) {
-          const qId = record.data?.questionId;
-          if (!qId || !record.file_path) continue;
-          if (deletedIds.has(record.id)) continue;
-          if (!restored[qId]) restored[qId] = [];
-          restored[qId].push({
-            file: null,
-            preview: record.file_path,
-            assetRecordId: record.id,
-          });
-        }
-        if (Object.keys(restored).length > 0) {
-          setCameraImages(restored);
-        }
-      } catch {
-        // noop
+      const res = await getChildResources<{
+        questionId: string;
+        comment?: string;
+      }>('visit', String(visitId), 'asset');
+      if (!res.data?.length) return;
+      const deletedIds = getDeletedAssetIds();
+      const restored: Record<string, CapturedImage[]> = {};
+      for (const record of res.data) {
+        const qId = record.data?.questionId;
+        if (!qId || !record.file_path) continue;
+        if (deletedIds.has(record.id)) continue;
+        if (!restored[qId]) restored[qId] = [];
+        restored[qId].push({
+          file: null,
+          preview: record.file_path,
+          assetRecordId: record.id,
+        });
       }
-    })();
+      if (Object.keys(restored).length > 0) {
+        setCameraImages(restored);
+      }
+    })().catch(err => {
+      console.error('Failed to restore camera images from temp storage', err);
+    });
 
     return () => {
       capturedFileStore.clear();
@@ -128,12 +126,17 @@ export const usePhysicalExamCameraImages = ({
           img.file === file ? { ...img, assetRecordId: recordId } : img
         ),
       }));
-      /* v8 ignore next */
-    } catch {
-      /* v8 ignore next */
+      /* v8 ignore next 3 */
+    } catch (err) {
+      console.error('Failed to upload camera image to temp storage', err);
     }
   };
 
+  /**
+   * Remove a single camera image by index.
+   * Clears pending images for the question and rebuilds the capturedFileStore
+   * from the remaining images so the pending queue stays in sync with UI state.
+   */
   const removeCameraImage = (questionId: string, index: number) => {
     const target = cameraImagesRef.current[questionId]?.[index];
     if (target?.assetRecordId) {
@@ -145,6 +148,7 @@ export const usePhysicalExamCameraImages = ({
     removePendingImagesByQuestionId(questionId);
     setCameraImages(prev => {
       const updated = (prev[questionId] ?? []).filter((_, i) => i !== index);
+      // Rebuild capturedFileStore from remaining images to keep pending queue in sync
       capturedFileStore.set(
         questionId,
         updated

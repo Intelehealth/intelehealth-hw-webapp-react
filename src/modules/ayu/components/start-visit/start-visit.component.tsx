@@ -17,6 +17,7 @@ import {
   clearDeletedAssetIds,
 } from '../../services/temp-storage.service';
 import {
+  BREADCRUMB_STATUS_PENDING,
   PATIENT_AGE_KEY,
   PATIENT_GENDER_KEY,
   PATIENT_NAME_KEY,
@@ -225,12 +226,12 @@ export const StartVisit = () => {
           ? 'completed'
           : index === currentSectionIndex
             ? 'active'
-            : 'pending') as 'completed' | 'active' | 'pending',
+            : BREADCRUMB_STATUS_PENDING) as 'completed' | 'active' | 'pending',
         ...(index < currentSectionIndex && {
           onClick: () => goToSection(index),
         }),
       }))
-      .filter(item => item.status !== 'pending'),
+      .filter(item => item.status !== BREADCRUMB_STATUS_PENDING),
   ]);
 
   useEffect(() => {

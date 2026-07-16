@@ -123,10 +123,12 @@ export const isTopLevelComplete = (
 
   if (!question.item?.length) return true;
 
-  // PE branching questions: complete once Yes/No is selected UNLESS a gated
-  // sub-question (e.g. Tenderness → Yes → "Select location") just became
-  // visible and is unanswered.  Always-visible children (no enableWhen) keep
-  // the original optional behaviour so other PE questions aren't affected.
+  /**
+   * PE branching questions: complete once Yes/No is selected UNLESS a gated
+   * sub-question (e.g. Tenderness → Yes → "Select location") just became
+   * visible and is unanswered.  Always-visible children (no enableWhen) keep
+   * the original optional behaviour so other PE questions aren't affected.
+   */
   if (isPhysicalExamOptionsQuestion(question)) {
     const hasGatedUnansweredChild = question.item?.some(child => {
       if (!child.enableWhen?.length) return false; // always-visible → optional

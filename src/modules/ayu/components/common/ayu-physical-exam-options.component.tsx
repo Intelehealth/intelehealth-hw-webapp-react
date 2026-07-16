@@ -27,6 +27,26 @@ import { getOptionIcon } from '../start-visit/physical-examination/physical-exam
 import AyuButton from './ayu-button.component';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 
+/**
+ * Physical-Exam-specific renderer plugged into componentMap as
+ * `'physicalExamOptions'`. Recognised by the section-key marker that
+ * transformFhirPhysExamToAyu attaches; otherwise inert.
+ *
+ * UX contract:
+ *  - "Take a Picture" composes with the Yes/No answer rather than replacing it —
+ *    the mobile flow lets the user record a finding (Yes/No) AND attach a photo.
+ *    Downstream (buildPhysicalExamData) renders the pair as e.g. "yes [Picture
+ *    Taken]", so the committed answer holds both codes (e.g. ['yes', 'cam']).
+ *  - When the camera tile is NOT in play, a non-camera option commits
+ *    immediately on click (single-choice auto-advances via useFHIRStepper).
+ *  - While the camera tile IS selected, the Yes/No choice is held in LOCAL
+ *    state (pendingRegular) and committed together with the picture on Upload.
+ *    This keeps the stepper from auto-advancing before the user has captured an
+ *    image, and lets Yes/No + picture be chosen together.
+ *  - Submit/Upload button visibility:
+ *      * camera tile selected (locally this session OR already committed), with
+ *        the committed Yes/No (if any) preserved on submit.
+ */
 export const AyuPhysicalExamOptions = ({
   question,
   value,
