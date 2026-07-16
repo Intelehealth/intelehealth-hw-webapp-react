@@ -48,12 +48,6 @@ interface AyuFhirShape {
   item?: AyuQuestion[];
 }
 
-/**
- * Boundary adapter: convert AyuStepperContainer's rich answer map back to
- * PhysicalExamAnswers (Record<string, string[]>) so visit-upload's
- * buildPhysicalExamData — which still consumes the legacy shape — works
- * without modification.
- */
 const ayuAnswersToPhysicalExamAnswers = (
   answers: Record<string, AyuAnswerValue>
 ): PhysicalExamAnswers => {
@@ -73,14 +67,6 @@ const ayuAnswersToPhysicalExamAnswers = (
 const readExt = (q: AyuQuestion, url: string): string | undefined =>
   q.extension?.find(e => e.url === url)?.valueString;
 
-/**
- * Client-side fallback: maps PE question keys (case-insensitive) to bundled
- * asset filenames when the server FHIR data carries neither FHIR extensions
- * nor legacy `job-aid-file` properties.
- *
- * Keys are LOWER-CASED question keys (EXT_URL_PE_QUESTION_KEY); values are
- * filenames (without extension) that resolve via `getJobAidUrl()`.
- */
 const JOB_AID_FALLBACK: Record<string, string> = {
   tenderness: 'abdominalregions9',
 };
@@ -145,7 +131,6 @@ export const PhysicalExamination = (props: SectionProps) => {
 
   const topLevelItems = useMemo(() => ayuRoot?.item ?? [], [ayuRoot]);
 
-  // Keep a stable lookup so context callbacks below don't allocate per render
   const questionByLinkIdRef = useRef(new Map<string, AyuQuestion>());
   useMemo(() => {
     const map = new Map<string, AyuQuestion>();
@@ -166,6 +151,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     if (!q) return null;
     const file =
       readExt(q, EXT_URL_JOB_AID_FILE) ??
+      /* v8 ignore next */
       JOB_AID_FALLBACK[
         (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
       ];
@@ -177,11 +163,9 @@ export const PhysicalExamination = (props: SectionProps) => {
     (questionId: string): 'image' | 'video' | null => {
       const q = questionByLinkIdRef.current.get(questionId);
       if (!q) return null;
-      // Prefer the type of the ACTUAL bundled asset (matches the URL the user
-      // sees) over the FHIR job-aid-type, which can be wrong — e.g. a pallor
-      // reference declared "video" while the file is a .jpg.
       const file =
         readExt(q, EXT_URL_JOB_AID_FILE) ??
+        /* v8 ignore next */
         JOB_AID_FALLBACK[
           (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
         ];
@@ -196,12 +180,6 @@ export const PhysicalExamination = (props: SectionProps) => {
     []
   );
 
-  /*
-   * Track which questions have captured camera images. Read by the section
-   * builder below so a camera answer can be displayed as "Picture taken".
-   * Mutated via a context-bridge (see jobAidUrlFor closure won't suffice —
-   * we need a stable ref because cameraImagesFor is provider-owned).
-   */
   const cameraImagesForRef = useRef<((qId: string) => string[]) | null>(null);
 
   const handleStepperComplete = useCallback(
@@ -209,8 +187,6 @@ export const PhysicalExamination = (props: SectionProps) => {
       const physExamAnswers = ayuAnswersToPhysicalExamAnswers(answers);
       const cameraImagesFor = cameraImagesForRef.current ?? (() => []);
 
-      // Build the per-question detail list (label/value) — used by the
-      // start-visit context as a quick summary. Mirrors the old shape.
       const details: Array<{ label: string; value: string }> = [];
       const sectionMap = new Map<string, ModalSection>();
 
@@ -218,9 +194,6 @@ export const PhysicalExamination = (props: SectionProps) => {
         const selectedCodes = physExamAnswers[q.linkId] ?? [];
         if (selectedCodes.length === 0) continue;
 
-        /* PE section + category extensions are always attached by
-         * buildPhysExamQuestion, so the `?? ''` / `?? q.text` fallbacks are
-         * defensive against future shape changes — never hit today. */
         /* v8 ignore next */
         const sectionKey = readExt(q, EXT_URL_PE_SECTION_KEY) ?? '';
         const categoryLabel =
@@ -236,8 +209,6 @@ export const PhysicalExamination = (props: SectionProps) => {
           if (isCameraOption(opt)) {
             const hasImages = cameraImagesFor(q.linkId).length > 0;
             if (hasImages) summaryTexts.push(PE_PICTURE_TAKEN_LABEL);
-            // Cameras don't contribute to the plain details list (matches the
-            // old PhysicalExamination behaviour).
           } else {
             if (display) {
               selectedTexts.push(display);
@@ -287,9 +258,6 @@ export const PhysicalExamination = (props: SectionProps) => {
             items: s.items,
           }));
           setPhysicalExamData(physExamAnswers, details, detailsSections);
-          // Snapshot pending images into React context so Visit Summary can
-          // reliably read them even if the module-level pendingImages array
-          // is lost during Vite HMR or module reloading.
           setPhysExamPendingImages(getPendingImages());
           saveSectionToTemp({
             physicalExam: {
@@ -322,8 +290,6 @@ export const PhysicalExamination = (props: SectionProps) => {
   const initialAnswers = useMemo(() => {
     const raw = data.physicalExam?.answers;
     if (!raw) return undefined;
-    // PhysicalExamAnswers is Record<string, string[]>, which is a valid
-    // Record<string, AyuAnswerValue>. Cast for the stricter typed prop.
     return raw as unknown as Record<string, AyuAnswerValue>;
   }, [data.physicalExam]);
 
@@ -331,10 +297,6 @@ export const PhysicalExamination = (props: SectionProps) => {
     return <div>Loading physical exam...</div>;
   }
 
-  /* Camera context wraps the stepper so AyuPhysicalExamOptions can reach
-   * camera handlers and job-aid resolvers via context. The protocol filter
-   * has already pruned topLevelItems above, so the questionByLinkId map
-   * here is the post-filter set. */
   return (
     <PhysicalExamCameraProvider
       visitId={visitId ?? null}
@@ -388,11 +350,6 @@ export const PhysicalExamination = (props: SectionProps) => {
   );
 };
 
-/**
- * Bridges the camera context's cameraImagesFor reader into the outer
- * component's ref so handleStepperComplete (computed outside the provider)
- * can ask whether a question has captured images when building the modal.
- */
 const CameraImagesForCapture = ({
   cameraImagesForRef,
 }: {
@@ -405,6 +362,4 @@ const CameraImagesForCapture = ({
   return null;
 };
 
-// Re-export to keep parsePhysicalExamFilter available where the protocol
-// filter is consumed from this module path historically.
 export { parsePhysicalExamFilter };

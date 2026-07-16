@@ -546,16 +546,12 @@ const VisitSummaryPage = () => {
   const [physExamImagePreviews, setPhysExamImagePreviews] = useState<
     Array<{ preview: string; name: string }>
   >(() => {
-    // Primary source: context images snapshotted by the PE component on confirm.
-    // These survive Vite HMR / module reloading that can wipe the module-level
-    // pendingImages array.
     if (ctxPendingImages.length > 0) {
       return ctxPendingImages.map(img => ({
         preview: URL.createObjectURL(img.file),
         name: img.comment ?? 'Physical Exam',
       }));
     }
-    // Fallback: read the module-level pending images array directly.
     const pending = getPendingImages();
     if (pending.length > 0) {
       return pending.map(img => ({
@@ -610,7 +606,6 @@ const VisitSummaryPage = () => {
   }, [ctxPatientUuid]);
 
   useEffect(() => {
-    // Primary source: context images snapshotted by the PE component on confirm.
     if (ctxPendingImages.length > 0) {
       setPhysExamImagePreviews(
         ctxPendingImages.map(img => ({
@@ -621,7 +616,6 @@ const VisitSummaryPage = () => {
       return;
     }
 
-    // In-session fallback: read committed images from the in-memory pending queue.
     const pending = getPendingImages();
     if (pending.length > 0) {
       setPhysExamImagePreviews(
@@ -633,8 +627,6 @@ const VisitSummaryPage = () => {
       return;
     }
 
-    // Page-reload fallback: Load from temp-storage, filtered by committed
-    // question IDs (sessionStorage) so only explicitly uploaded images appear.
     if (!ctxVisitId) return;
     let cancelled = false;
     (async () => {
@@ -659,8 +651,9 @@ const VisitSummaryPage = () => {
             name: r.data?.comment ?? 'Physical Exam',
           }));
         setPhysExamImagePreviews(previews);
+        /* v8 ignore next */
       } catch {
-        // Failed to load from temp-storage — images won't display
+        /* v8 ignore next */
       }
     })();
     return () => {

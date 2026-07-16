@@ -787,6 +787,39 @@ describe('validateQuestion', () => {
     });
   });
 
+  it('should return uploadCapturedImage when images captured but not uploaded', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => false);
+    const notUploadedCheck = vi.fn(() => true);
+    expect(
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+    ).toEqual({
+      valid: false,
+      reason: 'uploadCapturedImage',
+    });
+  });
+
+  it('should prioritize uploadCapturedImage over uploadImage when both fire', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => true);
+    const notUploadedCheck = vi.fn(() => true);
+    expect(
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+    ).toEqual({
+      valid: false,
+      reason: 'uploadCapturedImage',
+    });
+  });
+
+  it('should not flag uploadCapturedImage when check returns false', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => false);
+    const notUploadedCheck = vi.fn(() => false);
+    expect(
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+    ).toEqual({ valid: true });
+  });
+
   it('should return enterValue when nested string child is unanswered', () => {
     const q: AyuQuestion = {
       linkId: 'q1',

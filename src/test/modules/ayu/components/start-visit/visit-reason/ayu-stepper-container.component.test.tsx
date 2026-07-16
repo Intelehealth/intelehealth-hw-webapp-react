@@ -1685,7 +1685,7 @@ describe('AyuStepperContainer', () => {
 
       fireEvent.click(screen.getByTestId('button-submit'));
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Please upload at least one image',
+        'Please upload the captured image',
         undefined,
         'warning'
       );

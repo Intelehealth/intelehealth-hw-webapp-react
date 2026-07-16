@@ -311,6 +311,7 @@ export const AyuStepperContainer = forwardRef<
       showAll,
       validateAllQuestions,
       isCameraAnswerMissingImages,
+      isCameraNotUploaded,
     } = useFHIRStepper({
       questionnaire,
       summaryTitle,
@@ -656,7 +657,8 @@ export const AyuStepperContainer = forwardRef<
                                 const result = validateQuestion(
                                   question,
                                   answers,
-                                  isCameraAnswerMissingImages
+                                  isCameraAnswerMissingImages,
+                                  isCameraNotUploaded
                                 );
                                 if (!result.valid) {
                                   showToast(

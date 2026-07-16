@@ -183,6 +183,7 @@ export const isQuantityInvalid = (
 
 export type QuestionValidationReason =
   | 'uploadImage'
+  | 'uploadCapturedImage'
   | 'allCompulsory'
   | 'enterValue'
   | 'selectOption';
@@ -199,6 +200,10 @@ export const validateQuestion = (
   isCameraAnswerMissingImages?: (
     q: AyuQuestion,
     a: Record<string, AyuAnswerValue>
+  ) => boolean,
+  isCameraNotUploaded?: (
+    q: AyuQuestion,
+    a: Record<string, AyuAnswerValue>
   ) => boolean
 ): QuestionValidationResult => {
   const rawAnswer = answers[question.linkId];
@@ -208,6 +213,7 @@ export const validateQuestion = (
 
   const cameraMissingImages =
     isCameraAnswerMissingImages?.(question, answers) ?? false;
+  const cameraNotUploaded = isCameraNotUploaded?.(question, answers) ?? false;
   const isAssociated =
     resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
   const { yesValues, noValues } = parseYesNoValues(rawAnswer);
@@ -229,6 +235,7 @@ export const validateQuestion = (
 
   const isInvalid =
     cameraMissingImages ||
+    cameraNotUploaded ||
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     isQuantityInvalid(question, answers) ||
@@ -241,15 +248,17 @@ export const validateQuestion = (
 
   if (!isInvalid) return { valid: true };
 
-  const reason: QuestionValidationReason = cameraMissingImages
-    ? 'uploadImage'
-    : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)
-      ? 'allCompulsory'
-      : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
-          (!isPE && isNestedInputValueMissing(question, answers)) ||
-          isQuantityInvalid(question, answers)
-        ? 'enterValue'
-        : 'selectOption';
+  const reason: QuestionValidationReason = cameraNotUploaded
+    ? 'uploadCapturedImage'
+    : cameraMissingImages
+      ? 'uploadImage'
+      : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)
+        ? 'allCompulsory'
+        : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
+            (!isPE && isNestedInputValueMissing(question, answers)) ||
+            isQuantityInvalid(question, answers)
+          ? 'enterValue'
+          : 'selectOption';
 
   return { valid: false, reason };
 };

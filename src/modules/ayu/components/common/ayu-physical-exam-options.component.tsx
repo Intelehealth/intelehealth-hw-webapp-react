@@ -27,26 +27,6 @@ import { getOptionIcon } from '../start-visit/physical-examination/physical-exam
 import AyuButton from './ayu-button.component';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 
-/**
- * Physical-Exam-specific renderer plugged into componentMap as
- * `'physicalExamOptions'`. Recognised by the section-key marker that
- * transformFhirPhysExamToAyu attaches; otherwise inert.
- *
- * UX contract:
- *  - "Take a Picture" composes with the Yes/No answer rather than replacing it —
- *    the mobile flow lets the user record a finding (Yes/No) AND attach a photo.
- *    Downstream (buildPhysicalExamData) renders the pair as e.g. "yes [Picture
- *    Taken]", so the committed answer holds both codes (e.g. ['yes', 'cam']).
- *  - When the camera tile is NOT in play, a non-camera option commits
- *    immediately on click (single-choice auto-advances via useFHIRStepper).
- *  - While the camera tile IS selected, the Yes/No choice is held in LOCAL
- *    state (pendingRegular) and committed together with the picture on Upload.
- *    This keeps the stepper from auto-advancing before the user has captured an
- *    image, and lets Yes/No + picture be chosen together.
- *  - Submit/Upload button visibility:
- *      * camera tile selected (locally this session OR already committed), with
- *        the committed Yes/No (if any) preserved on submit.
- */
 export const AyuPhysicalExamOptions = ({
   question,
   value,
@@ -54,9 +34,6 @@ export const AyuPhysicalExamOptions = ({
 }: AyuRendererBaseProps) => {
   const camera = usePhysicalExamCamera();
   const [cameraLocallySelected, setCameraLocallySelected] = useState(false);
-  /* Yes/No chosen while the camera tile is active, not yet committed. Held
-   * locally so picking it doesn't auto-advance before the picture is captured;
-   * flushed into the answer (alongside the camera code) on Upload. */
   const [pendingRegular, setPendingRegular] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<number | null>(null);
   const [showUploadError, setShowUploadError] = useState(false);
@@ -80,26 +57,16 @@ export const AyuPhysicalExamOptions = ({
       ? [value]
       : [];
 
-  /* The camera tile is "selected" either while the user is actively capturing
-   * this session (cameraLocallySelected) OR when a picture was already
-   * committed to the answer (e.g. on edit / revisit) — so it pre-selects. */
   const cameraCommitted = !!cameraCode && selected.includes(cameraCode);
   const isCameraSelected = cameraLocallySelected || cameraCommitted;
 
-  /* Non-camera (Yes/No) codes currently committed in the answer. */
   const committedRegular = selected.filter(id => id !== cameraCode);
 
-  /* Yes/No selection to render. While the camera tile is in use we surface the
-   * uncommitted local choice (pendingRegular) so the tile selection and the
-   * Yes/No selection can be made together before a single Upload commit. */
   const regularSelected: string[] =
     !isMultiChoice && pendingRegular !== null
       ? [pendingRegular]
       : committedRegular;
 
-  /* Mutual-exclusivity visual disabling: when an exclusive option (e.g. "No
-   * discharge") is selected, disable all non-exclusive options; when any
-   * non-exclusive option is selected, disable exclusive options. */
   const hasExclusiveSelected =
     isMultiChoice &&
     regularSelected.some(code => isMutuallyExclusiveOption(question, code));
@@ -132,16 +99,9 @@ export const AyuPhysicalExamOptions = ({
 
   const handleRegularOptionClick = (optionId: string) => {
     if (isMultiChoice) {
-      /* Toggle through the shared logic so mutually-exclusive options
-      (e.g. "None"/"Normal", marked exclude-from-multi-choice) clear the
-      rest and vice-versa. The camera code is never exclusive, so it is
-      preserved when a normal option is toggled.*/
       const next = computeMultiSelectToggle(question, selected, optionId);
       setAnswer?.(question, next);
     } else if (isCameraSelected) {
-      // Camera is in play: hold the Yes/No locally (toggle off on re-click) and
-      // commit it together with the picture on Upload, so selecting Yes/No here
-      // doesn't drop the picture or trigger the stepper's auto-advance.
       setPendingRegular(prev => (prev === optionId ? null : optionId));
     } else {
       setAnswer?.(question, optionId);
@@ -149,12 +109,7 @@ export const AyuPhysicalExamOptions = ({
   };
 
   const handleCameraTileClick = () => {
-    /* The tile is rendered only when both cameraOption and cameraCode are
-     * present, so this handler always runs with cameraCode set. */
     if (isCameraSelected) {
-      // Deselecting — drop any in-progress images and the pending Yes/No, clear
-      // local state, and strip only the camera code from a committed answer
-      // (edit case), keeping any committed Yes/No selection intact.
       camera?.clearCameraImages(question.linkId);
       setCameraLocallySelected(false);
       setPendingRegular(null);
@@ -177,9 +132,6 @@ export const AyuPhysicalExamOptions = ({
       return;
     }
     setShowUploadError(false);
-    // Commit the Yes/No selection (committed or the pending local choice)
-    // together with the camera code, so a captured picture composes with the
-    // finding instead of replacing it.
     const next = [
       ...regularSelected.filter(id => id !== cameraCode),
       cameraCode!,
@@ -187,19 +139,9 @@ export const AyuPhysicalExamOptions = ({
     setAnswer?.(question, next);
     setPendingRegular(null);
     setSubmittedAt(Date.now());
-    // Commit this question's images to the pending-upload queue only on
-    // explicit Upload click — prevents images from appearing on the Visit
-    // Summary when the user merely captured but never confirmed.
     camera?.commitQuestionImages(question.linkId);
   };
 
-  /* Only the camera-commit case needs an in-component Submit, since a captured
-   * image must be explicitly turned into an answer. Plain multi-choice defers
-   * to the outer stepper container's Submit (which also validates required
-   * fields and advances via goNext) — otherwise two Submit buttons stack.
-   * We show the button whenever the camera tile is selected — either being
-   * captured this session OR already committed (edit), so on edit the user can
-   * review the uploaded pictures, add/remove, and re-submit. */
   const submitVisible = isCameraSelected && cameraImages.length > 0;
 
   const submitJustHappened = !!submittedAt && Date.now() - submittedAt < 1500;
@@ -266,9 +208,6 @@ export const AyuPhysicalExamOptions = ({
         })}
         {cameraOption && cameraCode && (
           <AyuSelectableOption
-            /* Always render the camera tile as "Take a Picture". The
-             * underlying option's display in the FHIR data can be a marker
-             * like "[picture taken]" — never expose that to the user. */
             label={PE_CAMERA_TILE_LABEL}
             value={cameraCode}
             selected={isCameraSelected}
@@ -287,10 +226,6 @@ export const AyuPhysicalExamOptions = ({
             }}
             onRemove={i => camera.removeCameraImage(question.linkId, i)}
           />
-          {/* Block submission without a picture: show the error after a submit
-           * attempt (showUploadError) and also whenever the picture option is
-           * committed but has no images (e.g. all removed on edit) — that is an
-           * invalid state the user must fix before the answer can stand. */}
           {(showUploadError || cameraCommitted) &&
             cameraImages.length === 0 && (
               <p className="text-xs text-red-500 mt-1 px-3">

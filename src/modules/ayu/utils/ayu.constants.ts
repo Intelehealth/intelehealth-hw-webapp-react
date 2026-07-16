@@ -43,6 +43,8 @@ export const VALIDATION_ALL_COMPULSORY =
 export const VALIDATION_ENTER_VALUE = 'Please enter a value';
 export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
+export const VALIDATION_UPLOAD_CAPTURED_IMAGE =
+  'Please upload the captured image';
 
 export const validationMessageForReason = (
   reason: QuestionValidationReason | undefined,
@@ -51,7 +53,8 @@ export const validationMessageForReason = (
   let message: string;
   switch (reason) {
     case 'uploadImage':
-      message = VALIDATION_UPLOAD_IMAGE;
+    case 'uploadCapturedImage':
+      message = VALIDATION_UPLOAD_CAPTURED_IMAGE;
       break;
     case 'allCompulsory':
       message = VALIDATION_ALL_COMPULSORY;
@@ -62,9 +65,13 @@ export const validationMessageForReason = (
     default:
       message = VALIDATION_SELECT_OPTION;
   }
-  return questionNumber
-    ? `Please answer Question ${questionNumber} before proceeding`
-    : message;
+  if (questionNumber) {
+    if (reason === 'uploadCapturedImage' || reason === 'uploadImage') {
+      return `Question ${questionNumber}: ${message}`;
+    }
+    return `Please answer Question ${questionNumber} before proceeding`;
+  }
+  return message;
 };
 
 // --- Physical Exam Camera ---

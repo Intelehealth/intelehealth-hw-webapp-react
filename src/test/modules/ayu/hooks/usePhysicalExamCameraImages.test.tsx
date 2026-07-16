@@ -120,6 +120,24 @@ describe('usePhysicalExamCameraImages', () => {
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });
 
+    it('filters out assets that are in the deleted-asset set', async () => {
+      getDeletedAssetIds.mockReturnValue(new Set([11]));
+      getChildResources.mockResolvedValue({
+        data: [
+          { id: 11, file_path: 'http://cdn/a.png', data: { questionId: 'q1' } },
+          { id: 12, file_path: 'http://cdn/b.png', data: { questionId: 'q1' } },
+        ],
+      });
+      const { result } = renderHook(() =>
+        usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
+      );
+      await waitFor(() =>
+        expect(result.current.cameraImagesFor('q1')).toEqual([
+          'http://cdn/b.png',
+        ])
+      );
+    });
+
     it('swallows errors from temp-storage', async () => {
       getChildResources.mockRejectedValue(new Error('boom'));
       const { result } = renderHook(() =>
@@ -274,6 +292,16 @@ describe('usePhysicalExamCameraImages', () => {
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });
 
+    it('handles removing from a question with no images gracefully', () => {
+      getChildResources.mockResolvedValue({ data: [] });
+      const { result } = renderHook(() =>
+        usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
+      );
+      act(() => result.current.removeCameraImage('nonexistent', 0));
+      expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('nonexistent');
+      expect(result.current.cameraImagesFor('nonexistent')).toEqual([]);
+    });
+
     it('unmarks the question as committed when all images are removed', async () => {
       getChildResources.mockResolvedValue({ data: [] });
       getUser.mockReturnValue(null);
@@ -328,6 +356,17 @@ describe('usePhysicalExamCameraImages', () => {
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
       // q2 is untouched
       expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
+    });
+
+    it('handles clearing a question with no images gracefully', () => {
+      getChildResources.mockResolvedValue({ data: [] });
+      const { result } = renderHook(() =>
+        usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
+      );
+      act(() => result.current.clearCameraImages('nonexistent'));
+      expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('nonexistent');
+      expect(unmarkQuestionCommitted).toHaveBeenCalledWith('nonexistent');
+      expect(deleteAssetResource).not.toHaveBeenCalled();
     });
 
     it('deletes asset records for restored images when clearing', async () => {

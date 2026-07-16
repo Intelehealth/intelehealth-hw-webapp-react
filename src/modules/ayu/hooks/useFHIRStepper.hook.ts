@@ -63,6 +63,11 @@ interface UseFHIRStepperReturn {
     question: AyuQuestion,
     questionAnswers: Record<string, AyuAnswerValue>
   ) => boolean;
+  /** True when images are captured but the UPLOAD button was not clicked. */
+  isCameraNotUploaded: (
+    question: AyuQuestion,
+    questionAnswers: Record<string, AyuAnswerValue>
+  ) => boolean;
 }
 
 export const useFHIRStepper = (
@@ -131,6 +136,33 @@ export const useFHIRStepper = (
     return peCamera.cameraImagesFor(question.linkId).length === 0;
   };
 
+  /**
+   * Images were captured in the camera UI but the user never clicked the
+   * UPLOAD button, so cameraCode is NOT in the committed answer yet.
+   */
+  const isCameraNotUploaded = (
+    question: AyuQuestion,
+    questionAnswers: Record<string, AyuAnswerValue>
+  ): boolean => {
+    if (!peCamera) return false;
+    const cameraCode = question.answerOption?.find(o =>
+      o.extension?.some(
+        e =>
+          e.url === EXT_URL_PE_OPTION_KIND &&
+          e.valueString === PE_OPTION_KIND_CAMERA
+      )
+    )?.valueCoding?.code;
+    if (!cameraCode) return false;
+    const answer = questionAnswers[question.linkId];
+    const codes = Array.isArray(answer)
+      ? answer
+      : typeof answer === 'string'
+        ? [answer]
+        : [];
+    if (codes.includes(cameraCode)) return false;
+    return peCamera.cameraImagesFor(question.linkId).length > 0;
+  };
+
   const goNext = () => {
     if (showAll) {
       handleComplete();
@@ -157,6 +189,16 @@ export const useFHIRStepper = (
         ? index + questionIndexOffset + 1
         : undefined;
 
+      // Images captured but UPLOAD button not clicked — show specific message
+      if (isCameraNotUploaded(question, latestAnswers)) {
+        showToast(
+          validationMessageForReason('uploadCapturedImage', questionNumber),
+          undefined,
+          'warning'
+        );
+        return false;
+      }
+
       // Required questions must have an answer
       if (question.required && isEmpty(answer)) {
         showToast(
@@ -171,7 +213,8 @@ export const useFHIRStepper = (
         const result = validateQuestion(
           question,
           latestAnswers,
-          isCameraAnswerMissingImages
+          isCameraAnswerMissingImages,
+          isCameraNotUploaded
         );
         if (!result.valid) {
           showToast(
@@ -382,5 +425,6 @@ export const useFHIRStepper = (
     showAll,
     validateAllQuestions,
     isCameraAnswerMissingImages,
+    isCameraNotUploaded,
   };
 };

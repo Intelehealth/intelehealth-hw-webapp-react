@@ -384,4 +384,69 @@ describe('temp-storage.service', () => {
       expect(ids2.has('q5')).toBe(true);
     });
   });
+
+  describe('sessionStorage error handling', () => {
+    beforeEach(() => {
+      clearCommittedQuestionIds();
+      clearDeletedAssetIds();
+    });
+
+    it('getCommittedQuestionIds returns empty set when sessionStorage.getItem throws', () => {
+      const spy = vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+        throw new Error('storage error');
+      });
+      expect(getCommittedQuestionIds().size).toBe(0);
+      spy.mockRestore();
+    });
+
+    it('clearCommittedQuestionIds does not throw when sessionStorage.removeItem throws', () => {
+      const spy = vi.spyOn(sessionStorage, 'removeItem').mockImplementation(() => {
+        throw new Error('storage error');
+      });
+      expect(() => clearCommittedQuestionIds()).not.toThrow();
+      spy.mockRestore();
+    });
+
+    it('unmarkQuestionCommitted does not throw when sessionStorage.setItem throws', () => {
+      markQuestionCommitted('q1');
+      const spy = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+        throw new Error('storage full');
+      });
+      expect(() => unmarkQuestionCommitted('q1')).not.toThrow();
+      spy.mockRestore();
+    });
+
+    it('markQuestionCommitted does not throw when sessionStorage.setItem throws', () => {
+      const spy = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+        throw new Error('storage full');
+      });
+      expect(() => markQuestionCommitted('q1')).not.toThrow();
+      spy.mockRestore();
+    });
+
+    it('getDeletedAssetIds returns empty set when sessionStorage.getItem throws', () => {
+      const spy = vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+        throw new Error('storage error');
+      });
+      expect(getDeletedAssetIds().size).toBe(0);
+      spy.mockRestore();
+    });
+
+    it('clearDeletedAssetIds does not throw when sessionStorage.removeItem throws', () => {
+      const spy = vi.spyOn(sessionStorage, 'removeItem').mockImplementation(() => {
+        throw new Error('storage error');
+      });
+      expect(() => clearDeletedAssetIds()).not.toThrow();
+      spy.mockRestore();
+    });
+
+    it('deleteAssetResource does not throw when sessionStorage.setItem throws', () => {
+      mockDelete.mockResolvedValue({ success: true, data: null });
+      const spy = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+        throw new Error('storage full');
+      });
+      expect(() => deleteAssetResource(100)).not.toThrow();
+      spy.mockRestore();
+    });
+  });
 });
