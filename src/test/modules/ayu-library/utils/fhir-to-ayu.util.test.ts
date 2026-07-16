@@ -2352,6 +2352,7 @@ describe('transformFhirPhysExamToAyu', () => {
                     answerOption: [
                       {
                         valueCoding: {
+                          code: 'tenderness-loc',
                           display: 'Select the location where there is tenderness',
                         },
                       },
@@ -2446,6 +2447,7 @@ describe('transformFhirPhysExamToAyu', () => {
                     answerOption: [
                       {
                         valueCoding: {
+                          code: 'tenderness-loc',
                           display: 'Select the location where there is tenderness',
                         },
                       },
