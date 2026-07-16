@@ -1,4 +1,11 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
+import {
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_DATE,
+  FHIR_TYPE_INTEGER,
+  FHIR_TYPE_QUANTITY,
+  FHIR_TYPE_STRING,
+} from '../utils/constants';
 import { findMatchingOptionCode } from '../utils/question.utils';
 import {
   hasExclusiveSelected,
@@ -33,7 +40,7 @@ export const hasVisibleRequiredNestedString = (
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
       if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
-      if (child.type === 'string' && isEmpty(answers[child.linkId]))
+      if (child.type === FHIR_TYPE_STRING && isEmpty(answers[child.linkId]))
         return true;
       return check(child.item);
     });
@@ -77,10 +84,10 @@ export const hasUnansweredRequiredNestedChild = (
       if (child.repeats && isEmpty(answers[child.linkId])) return true;
       // Visible input-type children must have a value entered
       if (
-        (child.type === 'string' ||
-          child.type === 'integer' ||
-          child.type === 'date' ||
-          child.type === 'quantity') &&
+        (child.type === FHIR_TYPE_STRING ||
+          child.type === FHIR_TYPE_INTEGER ||
+          child.type === FHIR_TYPE_DATE ||
+          child.type === FHIR_TYPE_QUANTITY) &&
         isEmpty(answers[child.linkId])
       )
         return true;
@@ -121,10 +128,10 @@ export const isNestedInputValueMissing = (
       }
 
       if (
-        (child.type === 'string' ||
-          child.type === 'integer' ||
-          child.type === 'date' ||
-          child.type === 'quantity') &&
+        (child.type === FHIR_TYPE_STRING ||
+          child.type === FHIR_TYPE_INTEGER ||
+          child.type === FHIR_TYPE_DATE ||
+          child.type === FHIR_TYPE_QUANTITY) &&
         isEmpty(answers[child.linkId])
       )
         return true;
@@ -142,10 +149,14 @@ export const isQuantityInvalid = (
   question: AyuQuestion,
   answers: Record<string, AyuAnswerValue>
 ): boolean => {
-  if (question.type !== 'quantity' && question.type !== 'choice') return false;
+  if (
+    question.type !== FHIR_TYPE_QUANTITY &&
+    question.type !== FHIR_TYPE_CHOICE
+  )
+    return false;
 
   // Recursively check all nested children for invalid duration structure
-  if (question.type === 'choice' && question.item) {
+  if (question.type === FHIR_TYPE_CHOICE && question.item) {
     const checkDurationDeep = (items: AyuQuestion[]): boolean => {
       for (const child of items) {
         if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
@@ -168,7 +179,7 @@ export const isQuantityInvalid = (
 
   // Check top-level answer
   const value = answers[question.linkId];
-  if (!value) return question.type === 'quantity';
+  if (!value) return question.type === FHIR_TYPE_QUANTITY;
 
   // Only validate if it's an object with dropdownValues structure (duration component)
   if (typeof value === 'object' && 'dropdownValues' in value) {
@@ -239,7 +250,7 @@ export const validateQuestion = (
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     isQuantityInvalid(question, answers) ||
-    (question.type === 'choice' &&
+    (question.type === FHIR_TYPE_CHOICE &&
       !!question.repeats &&
       !isAssociated &&
       answerCodes.length === 0) ||

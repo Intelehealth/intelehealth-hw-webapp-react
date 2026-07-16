@@ -13,6 +13,12 @@ import {
   upsertAssetResource,
 } from '../services/temp-storage.service';
 import type { CapturedImage } from '../types/obs.types';
+import {
+  BLOB_URL_PREFIX,
+  DEFAULT_CREATED_BY,
+  RESOURCE_TYPE_ASSET,
+  RESOURCE_TYPE_VISIT,
+} from '../utils/ayu.constants';
 
 export interface UsePhysicalExamCameraImagesParams {
   visitId: string | number | null | undefined;
@@ -54,7 +60,7 @@ export const usePhysicalExamCameraImages = ({
       const res = await getChildResources<{
         questionId: string;
         comment?: string;
-      }>('visit', String(visitId), 'asset');
+      }>(RESOURCE_TYPE_VISIT, String(visitId), RESOURCE_TYPE_ASSET);
       if (!res.data?.length) return;
       const deletedIds = getDeletedAssetIds();
       const restored: Record<string, CapturedImage[]> = {};
@@ -101,7 +107,7 @@ export const usePhysicalExamCameraImages = ({
 
     const resourceId = `${visitId}_${questionId}_${Date.now()}`;
     try {
-      let createdBy = 'unknown';
+      let createdBy = DEFAULT_CREATED_BY;
       try {
         const u = storage.getUser();
         if (u) createdBy = JSON.parse(u).uuid ?? u;
@@ -113,7 +119,7 @@ export const usePhysicalExamCameraImages = ({
         comment: string;
       }>(file, {
         resource_id: resourceId,
-        parent_type: 'visit',
+        parent_type: RESOURCE_TYPE_VISIT,
         parent_id: String(visitId),
         created_by: createdBy,
         data: { questionId, comment },
@@ -142,7 +148,7 @@ export const usePhysicalExamCameraImages = ({
     if (target?.assetRecordId) {
       deleteAssetResource(target.assetRecordId).catch(() => {});
     }
-    if (target?.preview?.startsWith('blob:')) {
+    if (target?.preview?.startsWith(BLOB_URL_PREFIX)) {
       URL.revokeObjectURL(target.preview);
     }
     removePendingImagesByQuestionId(questionId);
@@ -171,7 +177,7 @@ export const usePhysicalExamCameraImages = ({
       if (img.assetRecordId) {
         deleteAssetResource(img.assetRecordId).catch(() => {});
       }
-      if (img.preview?.startsWith('blob:')) {
+      if (img.preview?.startsWith(BLOB_URL_PREFIX)) {
         URL.revokeObjectURL(img.preview);
       }
     }

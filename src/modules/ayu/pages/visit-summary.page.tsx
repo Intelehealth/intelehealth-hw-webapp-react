@@ -72,6 +72,9 @@ import {
   PATIENT_GENDER_KEY,
   PATIENT_NAME_KEY,
   PATIENT_UUID_KEY,
+  PE_DEFAULT_IMAGE_LABEL,
+  RESOURCE_TYPE_ASSET,
+  RESOURCE_TYPE_VISIT,
 } from '../utils/ayu.constants';
 import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
 
@@ -549,14 +552,14 @@ const VisitSummaryPage = () => {
     if (ctxPendingImages.length > 0) {
       return ctxPendingImages.map(img => ({
         preview: URL.createObjectURL(img.file),
-        name: img.comment ?? 'Physical Exam',
+        name: img.comment ?? PE_DEFAULT_IMAGE_LABEL,
       }));
     }
     const pending = getPendingImages();
     if (pending.length > 0) {
       return pending.map(img => ({
         preview: URL.createObjectURL(img.file),
-        name: img.comment ?? 'Physical Exam',
+        name: img.comment ?? PE_DEFAULT_IMAGE_LABEL,
       }));
     }
     return [];
@@ -610,7 +613,7 @@ const VisitSummaryPage = () => {
       setPhysExamImagePreviews(
         ctxPendingImages.map(img => ({
           preview: URL.createObjectURL(img.file),
-          name: img.comment ?? 'Physical Exam',
+          name: img.comment ?? PE_DEFAULT_IMAGE_LABEL,
         }))
       );
       return;
@@ -621,7 +624,7 @@ const VisitSummaryPage = () => {
       setPhysExamImagePreviews(
         pending.map(img => ({
           preview: URL.createObjectURL(img.file),
-          name: img.comment ?? 'Physical Exam',
+          name: img.comment ?? PE_DEFAULT_IMAGE_LABEL,
         }))
       );
       return;
@@ -634,7 +637,7 @@ const VisitSummaryPage = () => {
         const res = await getChildResources<{
           questionId: string;
           comment?: string;
-        }>('visit', ctxVisitId, 'asset');
+        }>(RESOURCE_TYPE_VISIT, ctxVisitId, RESOURCE_TYPE_ASSET);
         if (cancelled || !res.data?.length) return;
         const deletedIds = getDeletedAssetIds();
         const committedIds = getCommittedQuestionIds();
@@ -648,7 +651,7 @@ const VisitSummaryPage = () => {
           )
           .map(r => ({
             preview: r.file_path!,
-            name: r.data?.comment ?? 'Physical Exam',
+            name: r.data?.comment ?? PE_DEFAULT_IMAGE_LABEL,
           }));
         setPhysExamImagePreviews(previews);
         /* v8 ignore next */

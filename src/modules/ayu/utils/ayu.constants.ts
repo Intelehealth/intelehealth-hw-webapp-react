@@ -95,6 +95,21 @@ export const validationMessageForReason = (
 // --- Physical Exam Camera ---
 export const PE_CAMERA_TILE_LABEL = 'Take a Picture';
 export const PE_PICTURE_TAKEN_LABEL = 'Picture Taken';
+export const PE_DEFAULT_IMAGE_LABEL = 'Physical Exam';
+export const PE_DEFAULT_SECTION_LABEL = 'General Exams';
+export const PE_LOADING_TEXT = 'Loading physical exam...';
+export const PE_CONFIG_NAME = 'physExam';
+
+// --- Temp Storage Keys ---
+export const RESOURCE_TYPE_VISIT = 'visit';
+export const RESOURCE_TYPE_ASSET = 'asset';
+export const BLOB_URL_PREFIX = 'blob:';
+export const DEFAULT_CREATED_BY = 'unknown';
+
+// --- Summary Modal ---
+export const SUMMARY_ITEM_TYPE_LABEL_VALUE = 'labelValue';
+export const FHIR_RESOURCE_TYPE_QUESTIONNAIRE = 'Questionnaire';
+export const STEPPER_SKIPPED_LABEL = 'Skipped';
 
 // FHIR Stepper Constants
 export const DEFAULT_VISIT_REASON_TEXT = 'Visit reason';

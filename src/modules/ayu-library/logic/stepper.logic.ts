@@ -3,7 +3,14 @@ import type {
   AyuQuestion,
   DurationAnswer,
 } from '../types/ayu.types';
-import { EXT_URL_MUTUALLY_EXCLUSIVE } from '../utils/constants';
+import {
+  EXT_URL_MUTUALLY_EXCLUSIVE,
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_DATE,
+  FHIR_TYPE_INTEGER,
+  FHIR_TYPE_QUANTITY,
+  FHIR_TYPE_STRING,
+} from '../utils/constants';
 import { findMatchingOptionCode } from '../utils/question.utils';
 import {
   isPhysicalExamOptionsQuestion,
@@ -95,7 +102,7 @@ export const isTopLevelComplete = (
   }
 
   // Recursively check all nested children for incomplete duration structure
-  if (question.type === 'choice' && question.item?.length) {
+  if (question.type === FHIR_TYPE_CHOICE && question.item?.length) {
     const hasIncompleteDuration = (items: AyuQuestion[]): boolean => {
       for (const child of items) {
         if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) continue;
@@ -115,7 +122,7 @@ export const isTopLevelComplete = (
 
   // Also check top-level for duration structure
   const answer = updatedAnswers[question.linkId];
-  if (question.type === 'choice' && isDurationAnswer(answer)) {
+  if (question.type === FHIR_TYPE_CHOICE && isDurationAnswer(answer)) {
     const hasNumber = !!answer.dropdownValues?.number;
     const hasDays = !!answer.dropdownValues?.days;
     if (!hasNumber || !hasDays) return false;
@@ -133,7 +140,7 @@ export const isTopLevelComplete = (
     const hasGatedUnansweredChild = question.item?.some(child => {
       if (!child.enableWhen?.length) return false; // always-visible → optional
       if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) return false;
-      return child.type === 'choice' && !updatedAnswers[child.linkId];
+      return child.type === FHIR_TYPE_CHOICE && !updatedAnswers[child.linkId];
     });
     return !hasGatedUnansweredChild;
   }
@@ -160,17 +167,17 @@ export const isTopLevelComplete = (
 
       // Input-type children must have a value
       if (
-        (child.type === 'string' ||
-          child.type === 'integer' ||
-          child.type === 'date' ||
-          child.type === 'quantity') &&
+        (child.type === FHIR_TYPE_STRING ||
+          child.type === FHIR_TYPE_INTEGER ||
+          child.type === FHIR_TYPE_DATE ||
+          child.type === FHIR_TYPE_QUANTITY) &&
         !updatedAnswers[child.linkId]
       ) {
         return false;
       }
 
       // Choice children must have a selection
-      if (child.type === 'choice' && !updatedAnswers[child.linkId]) {
+      if (child.type === FHIR_TYPE_CHOICE && !updatedAnswers[child.linkId]) {
         return false;
       }
 

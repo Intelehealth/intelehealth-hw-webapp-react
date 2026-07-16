@@ -24,6 +24,10 @@ import {
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
+  FHIR_TYPE_ATTACHMENT,
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_DISPLAY,
+  FHIR_TYPE_GROUP,
   GENDER_CODE_FEMALE,
   GENDER_CODE_MALE,
   GENDER_CODE_OTHER,
@@ -241,14 +245,14 @@ export function resolveLabel(
 
   // Previous display item
   if (
-    previousSibling?.type === 'display' &&
+    previousSibling?.type === FHIR_TYPE_DISPLAY &&
     previousSibling.extension !== undefined
   ) {
     return getRowLabel(question);
   }
 
   // Parent group text
-  if (parent?.type === 'group' && parent.extension !== undefined) {
+  if (parent?.type === FHIR_TYPE_GROUP && parent.extension !== undefined) {
     return getRowLabel(question);
   }
 
@@ -367,13 +371,13 @@ function findWrappedInnerChoice(q: FhirItem): FhirItem | null {
   // instead, which collapses those branches into selectable options.
   const gatedReal = (q.item ?? []).filter(
     c =>
-      c.type !== 'attachment' &&
-      c.type !== 'display' &&
+      c.type !== FHIR_TYPE_ATTACHMENT &&
+      c.type !== FHIR_TYPE_DISPLAY &&
       c.enableWhen?.some(ew => ew.question === q.linkId)
   );
   if (gatedReal.length > 1) return null;
 
-  const inner = gatedReal.find(c => c.type === 'choice');
+  const inner = gatedReal.find(c => c.type === FHIR_TYPE_CHOICE);
   return inner ?? null;
 }
 
@@ -424,7 +428,7 @@ function unwrapWrappedChoice(q: FhirItem): {
  */
 function hasSubQuestionChildren(item: FhirItem): boolean {
   return (item.item ?? []).some(
-    c => c.type !== 'attachment' && c.type !== 'display'
+    c => c.type !== FHIR_TYPE_ATTACHMENT && c.type !== FHIR_TYPE_DISPLAY
   );
 }
 
@@ -455,7 +459,7 @@ function stripFhirAttachmentDescendants(item: FhirItem): FhirItem {
   return {
     ...item,
     item: item.item
-      .filter(c => c.type !== 'attachment')
+      .filter(c => c.type !== FHIR_TYPE_ATTACHMENT)
       .map(stripFhirAttachmentDescendants),
   };
 }
@@ -499,8 +503,8 @@ function buildBranchingPhysExamQuestion(
   /* v8 ignore next */
   const branches = (q.item ?? []).filter(
     c =>
-      c.type !== 'attachment' &&
-      c.type !== 'display' &&
+      c.type !== FHIR_TYPE_ATTACHMENT &&
+      c.type !== FHIR_TYPE_DISPLAY &&
       c.enableWhen?.some(ew => ew.question === q.linkId) &&
       matchesDemographics(c.extension, demographics)
   );
@@ -581,7 +585,7 @@ function buildBranchingPhysExamQuestion(
  */
 function findFirstAttachment(items: FhirItem[]): FhirItem | null {
   for (const item of items) {
-    if (item.type === 'attachment') return item;
+    if (item.type === FHIR_TYPE_ATTACHMENT) return item;
     if (item.item?.length) {
       const found = findFirstAttachment(item.item);
       if (found) return found;
@@ -591,7 +595,7 @@ function findFirstAttachment(items: FhirItem[]): FhirItem | null {
 }
 
 function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
-  if (child.type !== 'attachment') return null;
+  if (child.type !== FHIR_TYPE_ATTACHMENT) return null;
   /* Use the attachment's own linkId as the camera answer code. The previous
    * `enableWhen[0].answerCoding.code` derivation collided with a real option:
    * cameras are commonly gated on the Yes/No codes (enableBehavior "any"), so
@@ -632,7 +636,7 @@ function buildPhysExamQuestion(
   gatedChildren?: AyuQuestion[]
 ): AyuQuestion | null {
   /* v8 ignore next */
-  if (q.type !== 'choice') return null;
+  if (q.type !== FHIR_TYPE_CHOICE) return null;
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const questionText = stripTrailingAsterisk(q.text ?? '');
@@ -658,7 +662,9 @@ function buildPhysExamQuestion(
    *
    * Real choices like Yes/No are preserved because their display text does
    * not match the camera-proxy pattern. */
-  const hasAttachmentChild = (q.item ?? []).some(c => c.type === 'attachment');
+  const hasAttachmentChild = (q.item ?? []).some(
+    c => c.type === FHIR_TYPE_ATTACHMENT
+  );
   const answerOption: AyuAnswerOption[] = (q.answerOption ?? [])
     .filter(opt => {
       const langExt = opt.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
@@ -780,7 +786,7 @@ export function transformFhirPhysExamToAyu(
     // Build concept-tag map from original items BEFORE restructuring, so each
     // question retains the correct label regardless of position changes.
     const originalChoiceItems = (section.item ?? []).filter(
-      (i: FhirItem) => i.type === 'choice'
+      (i: FhirItem) => i.type === FHIR_TYPE_CHOICE
     );
     const conceptTagByLinkId = new Map<string, string>();
     originalChoiceItems.forEach((q: FhirItem, idx: number) => {
@@ -791,7 +797,7 @@ export function transformFhirPhysExamToAyu(
     // nested under that sibling so wrapper-unwrap and branching detection work.
     const restructured = nestGatedSiblings(section.item ?? []);
     const choiceItems = restructured.filter(
-      (i: FhirItem) => i.type === 'choice'
+      (i: FhirItem) => i.type === FHIR_TYPE_CHOICE
     );
 
     choiceItems.forEach((q: FhirItem) => {
@@ -840,7 +846,8 @@ export function transformFhirPhysExamToAyu(
           const targetItems = target.item ?? [];
           const gatedChildren = targetItems
             .filter(
-              (c: FhirItem) => c.type !== 'attachment' && c.type !== 'display'
+              (c: FhirItem) =>
+                c.type !== FHIR_TYPE_ATTACHMENT && c.type !== FHIR_TYPE_DISPLAY
             )
             .filter((c: FhirItem) =>
               matchesDemographics(c.extension, demographics)

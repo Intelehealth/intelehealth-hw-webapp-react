@@ -24,11 +24,16 @@ import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
+  FHIR_RESOURCE_TYPE_QUESTIONNAIRE,
   JOB_AID_FALLBACK,
+  PE_CONFIG_NAME,
+  PE_DEFAULT_SECTION_LABEL,
+  PE_LOADING_TEXT,
   PE_PICTURE_TAKEN_LABEL,
   PHYSICAL_EXAM_SUMMARY_TITLE,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
+  SUMMARY_ITEM_TYPE_LABEL_VALUE,
 } from '../../../utils/ayu.constants';
 import {
   filterAyuQuestionsForPhysExam,
@@ -100,7 +105,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   const physExamJson = useMemo(
     () =>
       ayuConfigFiles?.find(
-        f => f.name.replace(/\.json$/i, '').trim() === 'physExam'
+        f => f.name.replace(/\.json$/i, '').trim() === PE_CONFIG_NAME
       )?.json ?? null,
     [ayuConfigFiles]
   );
@@ -120,7 +125,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       physicalExamFilter ?? ''
     );
     return {
-      resourceType: 'Questionnaire',
+      resourceType: FHIR_RESOURCE_TYPE_QUESTIONNAIRE,
       text: root.text,
       item: filteredItems,
     };
@@ -139,7 +144,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     const q = questionByLinkIdRef.current.get(questionId);
     return (
       readExt(q ?? ({} as AyuQuestion), EXT_URL_PE_SECTION_KEY) ??
-      'General Exams'
+      PE_DEFAULT_SECTION_LABEL
     );
   }, []);
 
@@ -233,7 +238,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           });
         }
         sectionMap.get(sectionKey)!.items.push({
-          type: 'labelValue',
+          type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
           label: categoryLabel,
           value: summaryTexts.join(', '),
         });
@@ -293,7 +298,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   }, [data.physicalExam]);
 
   if (!ayuRoot || topLevelItems.length === 0) {
-    return <div>Loading physical exam...</div>;
+    return <div>{PE_LOADING_TEXT}</div>;
   }
 
   return (
