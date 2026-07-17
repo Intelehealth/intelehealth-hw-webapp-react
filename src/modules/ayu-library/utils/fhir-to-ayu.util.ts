@@ -24,6 +24,10 @@ import {
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
+  FHIR_TYPE_ATTACHMENT,
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_DISPLAY,
+  FHIR_TYPE_GROUP,
   GENDER_CODE_FEMALE,
   GENDER_CODE_MALE,
   GENDER_CODE_OTHER,
@@ -241,14 +245,14 @@ export function resolveLabel(
 
   // Previous display item
   if (
-    previousSibling?.type === 'display' &&
+    previousSibling?.type === FHIR_TYPE_DISPLAY &&
     previousSibling.extension !== undefined
   ) {
     return getRowLabel(question);
   }
 
   // Parent group text
-  if (parent?.type === 'group' && parent.extension !== undefined) {
+  if (parent?.type === FHIR_TYPE_GROUP && parent.extension !== undefined) {
     return getRowLabel(question);
   }
 
@@ -290,6 +294,50 @@ function isCheckBoxItem(item: FhirItem): boolean {
 }
 
 /**
+ * Read job-aid-file / job-aid-type from a FHIR item, checking:
+ *  1. FHIR extensions (standard)
+ *  2. Direct JSON properties `job-aid-file` / `job-aid-type` (legacy format
+ *     that some servers emit alongside FHIR structure without converting to
+ *     proper extensions)
+ * Returns synthesized FhirExtension[] ready to attach to the output question.
+ */
+function readJobAidFromItem(item: FhirItem): FhirExtension[] {
+  // 1. FHIR extensions
+  const fromExt = (item.extension ?? []).filter(
+    e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
+  );
+  if (fromExt.length > 0) return fromExt;
+
+  // 2. Legacy direct properties (present at runtime even if not in the TS type)
+  const raw = item as unknown as Record<string, unknown>;
+  const file =
+    typeof raw['job-aid-file'] === 'string' ? raw['job-aid-file'] : undefined;
+  const type =
+    typeof raw['job-aid-type'] === 'string' ? raw['job-aid-type'] : undefined;
+  const result: FhirExtension[] = [];
+  if (type) result.push({ url: EXT_URL_JOB_AID_TYPE, valueString: type });
+  if (file) result.push({ url: EXT_URL_JOB_AID_FILE, valueString: file });
+  return result;
+}
+
+/**
+ * Search a FHIR item tree for job-aid info. Checks the root item first, then
+ * recurses into children. Returns the first hit (extensions or legacy props).
+ */
+function findJobAidInTree(items: FhirItem[]): FhirExtension[] {
+  for (const item of items) {
+    const found = readJobAidFromItem(item);
+    if (found.length) return found;
+    if (item.item?.length) {
+      const deeper = findJobAidInTree(item.item);
+      /* v8 ignore next */
+      if (deeper.length) return deeper;
+    }
+  }
+  return [];
+}
+
+/**
  * Physical Exam questions are often wrapped one level deep: a "concept-tag"
  * choice with a single answerOption whose code corresponds to a nested choice
  * item that carries the real question text, answer options, and (optionally)
@@ -315,10 +363,21 @@ function findWrappedInnerChoice(q: FhirItem): FhirItem | null {
   // Caller (transformFhirPhysExamToAyu) only invokes this on choice items, so
   // no defensive type check needed here.
   if (!q.answerOption || q.answerOption.length !== 1) return null;
-  const inner = (q.item ?? []).find(
+
+  // Count real (non-attachment, non-display) children gated on this item.
+  // When there are multiple gated children the wrapper is actually a
+  // *branching* question (e.g. Tenderness → "No tenderness" + "Yes") and must
+  // NOT be unwrapped — it should be handled by buildBranchingPhysExamQuestion
+  // instead, which collapses those branches into selectable options.
+  const gatedReal = (q.item ?? []).filter(
     c =>
-      c.type === 'choice' && c.enableWhen?.some(ew => ew.question === q.linkId)
+      c.type !== FHIR_TYPE_ATTACHMENT &&
+      c.type !== FHIR_TYPE_DISPLAY &&
+      c.enableWhen?.some(ew => ew.question === q.linkId)
   );
+  if (gatedReal.length > 1) return null;
+
+  const inner = gatedReal.find(c => c.type === FHIR_TYPE_CHOICE);
   return inner ?? null;
 }
 
@@ -369,7 +428,7 @@ function unwrapWrappedChoice(q: FhirItem): {
  */
 function hasSubQuestionChildren(item: FhirItem): boolean {
   return (item.item ?? []).some(
-    c => c.type !== 'attachment' && c.type !== 'display'
+    c => c.type !== FHIR_TYPE_ATTACHMENT && c.type !== FHIR_TYPE_DISPLAY
   );
 }
 
@@ -400,7 +459,7 @@ function stripFhirAttachmentDescendants(item: FhirItem): FhirItem {
   return {
     ...item,
     item: item.item
-      .filter(c => c.type !== 'attachment')
+      .filter(c => c.type !== FHIR_TYPE_ATTACHMENT)
       .map(stripFhirAttachmentDescendants),
   };
 }
@@ -437,14 +496,15 @@ function buildBranchingPhysExamQuestion(
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const conceptDisplay = q.answerOption?.[0]?.valueCoding?.display;
+  /* v8 ignore next */
   const questionText = stripTrailingAsterisk(conceptDisplay ?? q.text ?? '');
 
   // Branch children = the wrapper's own gated children, minus the camera tile.
   /* v8 ignore next */
   const branches = (q.item ?? []).filter(
     c =>
-      c.type !== 'attachment' &&
-      c.type !== 'display' &&
+      c.type !== FHIR_TYPE_ATTACHMENT &&
+      c.type !== FHIR_TYPE_DISPLAY &&
       c.enableWhen?.some(ew => ew.question === q.linkId) &&
       matchesDemographics(c.extension, demographics)
   );
@@ -455,9 +515,14 @@ function buildBranchingPhysExamQuestion(
     { url: EXT_URL_PE_CATEGORY_LABEL, valueString: categoryLabel },
     { url: EXT_URL_PE_QUESTION_KEY, valueString: questionKey },
   ];
-  const passthroughExt = (q.extension ?? []).filter(
-    e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
-  );
+  // Job-aid extensions may live on the outermost wrapper, on an inner
+  // branch/sub-question, or as legacy direct properties (`job-aid-file`).
+  // Check the wrapper first, then search the whole subtree.
+  let passthroughExt = readJobAidFromItem(q);
+  if (passthroughExt.length === 0) {
+    /* v8 ignore next */
+    passthroughExt = findJobAidInTree(q.item ?? []);
+  }
 
   // One answer option per branch (No / Yes), coded by the branch's linkId.
   const answerOption: AyuAnswerOption[] = branches.map(b => ({
@@ -467,14 +532,14 @@ function buildBranchingPhysExamQuestion(
     },
   }));
 
-  // Append camera tile when the wrapper has an attachment child.
+  // Append camera tile when an attachment child exists anywhere in the subtree.
+  // Simple wrappers (Skin Rash) have it as a direct child; double-nested
+  // wrappers (Tenderness) may bury it under the inner "Yes" branch or deeper.
   /* v8 ignore next */
-  for (const child of q.item ?? []) {
-    const cameraOpt = buildPhysExamCameraOption(child);
-    if (cameraOpt) {
-      answerOption.push(cameraOpt);
-      break;
-    }
+  const firstAttachment = findFirstAttachment(q.item ?? []);
+  if (firstAttachment) {
+    const cameraOpt = buildPhysExamCameraOption(firstAttachment);
+    if (cameraOpt) answerOption.push(cameraOpt);
   }
 
   // Lift each branch's sub-questions and re-gate them onto this question's
@@ -511,8 +576,26 @@ function buildBranchingPhysExamQuestion(
   };
 }
 
+/**
+ * Recursively search through a list of FHIR items and their descendants to
+ * find the first attachment child. Used by the branching builder to discover
+ * camera attachment nodes that may be nested at any depth (e.g. Tenderness
+ * has the attachment under "Yes" → "Select the location", not as a direct
+ * child of the outermost wrapper).
+ */
+function findFirstAttachment(items: FhirItem[]): FhirItem | null {
+  for (const item of items) {
+    if (item.type === FHIR_TYPE_ATTACHMENT) return item;
+    if (item.item?.length) {
+      const found = findFirstAttachment(item.item);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
-  if (child.type !== 'attachment') return null;
+  if (child.type !== FHIR_TYPE_ATTACHMENT) return null;
   /* Use the attachment's own linkId as the camera answer code. The previous
    * `enableWhen[0].answerCoding.code` derivation collided with a real option:
    * cameras are commonly gated on the Yes/No codes (enableBehavior "any"), so
@@ -545,10 +628,15 @@ function buildPhysExamQuestion(
   sectionKey: string,
   categoryLabel: string,
   questionKey: string,
-  demographics?: PatientDemographics
+  demographics?: PatientDemographics,
+  /** Pre-transformed child questions to attach as nested items. Used when a
+   *  non-wrapper parent has gated children (e.g. Tenderness Yes/No with a
+   *  nested location question) that should render inline via
+   *  AyuNestedRenderer rather than as separate stepper steps. */
+  gatedChildren?: AyuQuestion[]
 ): AyuQuestion | null {
   /* v8 ignore next */
-  if (q.type !== 'choice') return null;
+  if (q.type !== FHIR_TYPE_CHOICE) return null;
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const questionText = stripTrailingAsterisk(q.text ?? '');
@@ -558,9 +646,7 @@ function buildPhysExamQuestion(
     { url: EXT_URL_PE_CATEGORY_LABEL, valueString: categoryLabel },
     { url: EXT_URL_PE_QUESTION_KEY, valueString: questionKey },
   ];
-  const passthroughExt = (q.extension ?? []).filter(
-    e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
-  );
+  const passthroughExt = readJobAidFromItem(q);
 
   /* Drop camera-proxy answerOptions. They are not user-facing choices — they
    * are a proxy for the attachment child below, which we surface separately
@@ -576,7 +662,9 @@ function buildPhysExamQuestion(
    *
    * Real choices like Yes/No are preserved because their display text does
    * not match the camera-proxy pattern. */
-  const hasAttachmentChild = (q.item ?? []).some(c => c.type === 'attachment');
+  const hasAttachmentChild = (q.item ?? []).some(
+    c => c.type === FHIR_TYPE_ATTACHMENT
+  );
   const answerOption: AyuAnswerOption[] = (q.answerOption ?? [])
     .filter(opt => {
       const langExt = opt.extension?.find(e => e.url === EXT_URL_LANGUGAE_TEXT);
@@ -606,7 +694,7 @@ function buildPhysExamQuestion(
     }
   }
 
-  return {
+  const result: AyuQuestion = {
     linkId: q.linkId,
     text: questionText,
     type: 'choice',
@@ -615,6 +703,56 @@ function buildPhysExamQuestion(
     answerOption,
     extension: [...peExt, ...passthroughExt],
   };
+
+  if (gatedChildren?.length) {
+    result.item = gatedChildren;
+  }
+
+  return result;
+}
+
+/**
+ * Restructure flat section items so that gated children — items whose
+ * `enableWhen` references a sibling's linkId — are nested under that sibling.
+ *
+ * Some FHIR data encodes parent/child questions as flat siblings at the section
+ * level (e.g. "Tenderness" Yes/No + "Tenderness location" gated on Yes), while
+ * the wrapper-unwrap logic expects the child to be inside the parent's `item[]`
+ * array. This function detects the flat pattern and restructures into nested
+ * form so the existing unwrap and branching builders can handle them correctly,
+ * avoiding the child showing up as a separate question in the stepper.
+ */
+function nestGatedSiblings(items: FhirItem[]): FhirItem[] {
+  const linkIds = new Set(items.map(i => i.linkId));
+
+  // Identify items gated on a sibling
+  const gatedChildIds = new Set<string>();
+  const parentToChildren = new Map<string, FhirItem[]>();
+
+  for (const item of items) {
+    const parentRef = item.enableWhen?.find(ew => linkIds.has(ew.question));
+    if (parentRef) {
+      gatedChildIds.add(item.linkId);
+      const children = parentToChildren.get(parentRef.question) ?? [];
+      children.push(item);
+      parentToChildren.set(parentRef.question, children);
+    }
+  }
+
+  if (gatedChildIds.size === 0) return items; // No restructuring needed
+
+  // Recursively enrich items with their gated children (handles chains like
+  // A → B → C where B is gated on A and C is gated on B).
+  function enrich(item: FhirItem): FhirItem {
+    const children = parentToChildren.get(item.linkId);
+    if (!children?.length) return item;
+    return {
+      ...item,
+      item: [...(item.item ?? []), ...children.map(enrich)],
+    };
+  }
+
+  return items.filter(i => !gatedChildIds.has(i.linkId)).map(enrich);
 }
 
 /**
@@ -645,9 +783,24 @@ export function transformFhirPhysExamToAyu(
       .map(o => o.valueCoding?.display)
       .filter((d): d is string => typeof d === 'string');
 
-    const choiceItems = (section.item ?? []).filter(i => i.type === 'choice');
+    // Build concept-tag map from original items BEFORE restructuring, so each
+    // question retains the correct label regardless of position changes.
+    const originalChoiceItems = (section.item ?? []).filter(
+      (i: FhirItem) => i.type === FHIR_TYPE_CHOICE
+    );
+    const conceptTagByLinkId = new Map<string, string>();
+    originalChoiceItems.forEach((q: FhirItem, idx: number) => {
+      if (conceptTags[idx]) conceptTagByLinkId.set(q.linkId, conceptTags[idx]);
+    });
 
-    choiceItems.forEach((q, idx) => {
+    // Restructure flat siblings: items gated on a sibling via enableWhen are
+    // nested under that sibling so wrapper-unwrap and branching detection work.
+    const restructured = nestGatedSiblings(section.item ?? []);
+    const choiceItems = restructured.filter(
+      (i: FhirItem) => i.type === FHIR_TYPE_CHOICE
+    );
+
+    choiceItems.forEach((q: FhirItem) => {
       const { target, didUnwrap } = unwrapWrappedChoice(q);
       // When unwrapping, the OUTERMOST wrapper's text (e.g., "Eyes: Jaundice"
       // or "Tenderness") is the body-part:finding label users see in the
@@ -656,7 +809,7 @@ export function transformFhirPhysExamToAyu(
       const wrapperText = didUnwrap
         ? stripTrailingAsterisk(q.text ?? '')
         : undefined;
-      const conceptTag = conceptTags[idx];
+      const conceptTag = conceptTagByLinkId.get(q.linkId);
       const questionText = stripTrailingAsterisk(target.text ?? '');
       const categoryLabel = wrapperText ?? conceptTag ?? questionText;
       const questionKey = categoryLabel;
@@ -665,21 +818,64 @@ export function transformFhirPhysExamToAyu(
        * mixed types) cannot be flattened into a single tile. Keep the original
        * outer item `q` as a nested tree so the same AyuNestedRenderer the Visit
        * Reason flow uses can render the follow-ups; everything else flattens. */
-      const transformed = hasSubQuestionChildren(target)
-        ? buildBranchingPhysExamQuestion(
+      let transformed: AyuQuestion | null;
+      /* A concept-tag wrapper has exactly 1 answerOption; items with 2+
+       * answerOptions carry real user-facing options (Yes/No, locations, …).
+       * `didUnwrap` is always true when the wrapper was one, but it can be
+       * false when the wrapper's children are all non-choice (e.g. string),
+       * so the answerOption count is the stable discriminator. */
+      const isConceptTagWrapper = q.answerOption?.length === 1 || didUnwrap;
+
+      if (hasSubQuestionChildren(target)) {
+        if (isConceptTagWrapper) {
+          // Wrapper pattern with sub-questions (e.g. Skin Rash → Yes → mixed
+          // follow-ups): use the branching builder which collapses the wrapper.
+          transformed = buildBranchingPhysExamQuestion(
             q,
             sectionKey,
             categoryLabel,
             questionKey,
             demographics
-          )
-        : buildPhysExamQuestion(
+          );
+        } else {
+          // Non-wrapper with sub-questions (e.g. flat-sibling Tenderness after
+          // nestGatedSiblings): keep the parent's own options (Yes/No) and
+          // attach gated children so the nested renderer reveals them based on
+          // enableWhen.
+          /* v8 ignore next */
+          const targetItems = target.item ?? [];
+          const gatedChildren = targetItems
+            .filter(
+              (c: FhirItem) =>
+                c.type !== FHIR_TYPE_ATTACHMENT && c.type !== FHIR_TYPE_DISPLAY
+            )
+            .filter((c: FhirItem) =>
+              matchesDemographics(c.extension, demographics)
+            )
+            .map((c: FhirItem) =>
+              transformItem(
+                stripFhirAttachmentDescendants(c) as unknown as AyuQuestion,
+                demographics
+              )
+            );
+          transformed = buildPhysExamQuestion(
             target,
             sectionKey,
             categoryLabel,
             questionKey,
-            demographics
+            demographics,
+            gatedChildren
           );
+        }
+      } else {
+        transformed = buildPhysExamQuestion(
+          target,
+          sectionKey,
+          categoryLabel,
+          questionKey,
+          demographics
+        );
+      }
       if (transformed) flatQuestions.push(transformed);
     });
   }

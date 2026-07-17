@@ -18,6 +18,7 @@ import {
 
 const mockShowVitalConfirmationModal = vi.fn();
 const mockSetPhysicalExamData = vi.fn();
+const mockSetPhysExamPendingImages = vi.fn();
 const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
 const mockStepperConfirm = vi.fn();
 const mockStepperShowSummary = vi.fn();
@@ -86,6 +87,7 @@ vi.mock(
               addCameraImage: vi.fn(),
               removeCameraImage: vi.fn(),
               clearCameraImages: vi.fn(),
+              commitQuestionImages: vi.fn(),
               jobAidUrlFor: () => null,
               jobAidTypeFor: () => null,
             },
@@ -139,6 +141,8 @@ vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
     setMedicalHistoryAnswers: vi.fn(),
     saveSectionToTemp: mockSaveSectionToTemp,
     clearVisitId: vi.fn(),
+    physExamPendingImages: [],
+    setPhysExamPendingImages: mockSetPhysExamPendingImages,
   }),
 }));
 
@@ -152,6 +156,11 @@ vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   // anything else → undefined (no bundled asset → fall back to FHIR type).
   getJobAidType: (file: string) =>
     file === 'vidfile' ? 'video' : file === 'imgfile' ? 'image' : undefined,
+}));
+
+const mockGetPendingImages = vi.fn().mockReturnValue([]);
+vi.mock('../../../../../modules/ayu/services/obs.service', () => ({
+  getPendingImages: () => mockGetPendingImages(),
 }));
 
 vi.mock('../../../../../assets/icons/icon-physical-examination.svg', () => ({
@@ -647,6 +656,31 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           detailsSections: expect.any(Array),
         },
       });
+    });
+
+    it('on Confirm: snapshots pending images into context via setPhysExamPendingImages', async () => {
+      const user = userEvent.setup();
+      const pendingImages = [
+        { file: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }), comment: 'General' },
+      ];
+      mockGetPendingImages.mockReturnValue(pendingImages);
+
+      const questions = [
+        makeQuestion('q1', 'General', 'Jaundice', [
+          { code: 'yes', display: 'Yes' },
+        ]),
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles(questions)}
+        />
+      );
+      capturedStepperProps._completeAnswers = { q1: ['yes'] };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      modalConfig.onConfirm();
+      expect(mockSetPhysExamPendingImages).toHaveBeenCalledWith(pendingImages);
     });
 
     it('coerces a single-string AyuAnswerValue into [string] for the upload-shaped output', async () => {

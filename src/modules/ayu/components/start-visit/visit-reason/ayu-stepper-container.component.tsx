@@ -16,6 +16,14 @@ import type {
   FhirQuestionnaire,
 } from '../../../../ayu-library/types/ayu.types';
 import {
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_DATE,
+  FHIR_TYPE_GROUP,
+  FHIR_TYPE_INTEGER,
+  FHIR_TYPE_QUANTITY,
+  FHIR_TYPE_STRING,
+} from '../../../../ayu-library/utils/constants';
+import {
   collectDescendantLinkIds,
   getRowLabel,
 } from '../../../../ayu-library/utils/question.utils';
@@ -29,6 +37,7 @@ import {
 import {
   BUTTON_SKIP,
   BUTTON_SUBMIT,
+  SUMMARY_ITEM_TYPE_LABEL_VALUE,
   validationMessageForReason,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
@@ -83,7 +92,7 @@ const formatAnswerValue = (
   }
 
   if (typeof answer === 'string') {
-    if (item.type === 'choice' && item.answerOption) {
+    if (item.type === FHIR_TYPE_CHOICE && item.answerOption) {
       return getOptionDisplay(item, answer);
     }
     return answer;
@@ -183,7 +192,7 @@ const AyuAnsweredDisplay = ({
           {getRowLabel(question)}
         </p>
         {summaryItems.map((item, idx) =>
-          item.type === 'labelValue' ? (
+          item.type === SUMMARY_ITEM_TYPE_LABEL_VALUE ? (
             <p key={idx} className="text-sm font-semibold text-[#2e1e91]">
               {item.label
                 ? item.value != null && String(item.value).trim() !== ''
@@ -288,7 +297,7 @@ export const AyuStepperContainer = forwardRef<
     const handleStepperComplete = useCallback(
       (finalAnswers: Record<string, AyuAnswerValue>) => {
         const completeTotal = (questionnaire?.item || []).filter(
-          item => item.type !== 'group'
+          item => item.type !== FHIR_TYPE_GROUP
         ).length;
         if (completeTotal > 0) {
           onProgressUpdate?.(completeTotal, completeTotal);
@@ -311,6 +320,7 @@ export const AyuStepperContainer = forwardRef<
       showAll,
       validateAllQuestions,
       isCameraAnswerMissingImages,
+      isCameraNotUploaded,
     } = useFHIRStepper({
       questionnaire,
       summaryTitle,
@@ -527,7 +537,7 @@ export const AyuStepperContainer = forwardRef<
 
                             // Check if top-level has dropdownValues
                             const isDurationChoice =
-                              question.type === 'choice' &&
+                              question.type === FHIR_TYPE_CHOICE &&
                               answer &&
                               typeof answer === 'object' &&
                               'dropdownValues' in answer;
@@ -571,10 +581,10 @@ export const AyuStepperContainer = forwardRef<
                                   };
                                 }
                                 if (
-                                  child.type === 'string' ||
-                                  child.type === 'integer' ||
-                                  child.type === 'date' ||
-                                  child.type === 'quantity'
+                                  child.type === FHIR_TYPE_STRING ||
+                                  child.type === FHIR_TYPE_INTEGER ||
+                                  child.type === FHIR_TYPE_DATE ||
+                                  child.type === FHIR_TYPE_QUANTITY
                                 ) {
                                   return {
                                     hasDuration: false,
@@ -598,7 +608,7 @@ export const AyuStepperContainer = forwardRef<
                             };
 
                             const nestedFlags =
-                              question.type === 'choice'
+                              question.type === FHIR_TYPE_CHOICE
                                 ? checkNestedDeep(question.item)
                                 : {
                                     hasDuration: false,
@@ -615,7 +625,7 @@ export const AyuStepperContainer = forwardRef<
                               answers[question.linkId] !== undefined
                             ) {
                               const isSingleChoiceWithoutNestedSubmit =
-                                question.type === 'choice' &&
+                                question.type === FHIR_TYPE_CHOICE &&
                                 !question.repeats &&
                                 !hasNestedRepeats &&
                                 !hasVisibleNestedInput &&
@@ -626,13 +636,13 @@ export const AyuStepperContainer = forwardRef<
                             }
 
                             return (
-                              (question.type === 'string' &&
+                              (question.type === FHIR_TYPE_STRING &&
                                 answers[question.linkId] !== undefined) ||
-                              (question.type === 'quantity' &&
+                              (question.type === FHIR_TYPE_QUANTITY &&
                                 answers[question.linkId] !== undefined) ||
-                              question.type === 'date' ||
-                              question.type === 'integer' ||
-                              (question.type === 'choice' &&
+                              question.type === FHIR_TYPE_DATE ||
+                              question.type === FHIR_TYPE_INTEGER ||
+                              (question.type === FHIR_TYPE_CHOICE &&
                                 question.repeats) ||
                               resolveAyuComponent(question) ===
                                 ASSOCIATED_SYMPTOMS_COMPONENT ||
@@ -656,7 +666,8 @@ export const AyuStepperContainer = forwardRef<
                                 const result = validateQuestion(
                                   question,
                                   answers,
-                                  isCameraAnswerMissingImages
+                                  isCameraAnswerMissingImages,
+                                  isCameraNotUploaded
                                 );
                                 if (!result.valid) {
                                   showToast(

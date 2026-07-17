@@ -23,6 +23,7 @@ const cameraState = {
   addCameraImage: vi.fn(),
   removeCameraImage: vi.fn(),
   clearCameraImages: vi.fn(),
+  commitQuestionImages: vi.fn(),
   jobAidUrl: null as string | null,
   jobAidType: null as 'image' | 'video' | null,
   cameraReturnsNull: false,
@@ -39,6 +40,7 @@ vi.mock(
             addCameraImage: cameraState.addCameraImage,
             removeCameraImage: cameraState.removeCameraImage,
             clearCameraImages: cameraState.clearCameraImages,
+            commitQuestionImages: cameraState.commitQuestionImages,
             jobAidUrlFor: () => cameraState.jobAidUrl,
             jobAidTypeFor: () => cameraState.jobAidType,
           },
@@ -111,6 +113,7 @@ beforeEach(() => {
   cameraState.addCameraImage.mockReset();
   cameraState.removeCameraImage.mockReset();
   cameraState.clearCameraImages.mockReset();
+  cameraState.commitQuestionImages.mockReset();
 });
 
 describe('AyuPhysicalExamOptions', () => {
@@ -787,6 +790,48 @@ describe('AyuPhysicalExamOptions', () => {
         screen.getByRole('button', { name: /Upload \(1\)/ })
       );
       expect(setAnswer).toHaveBeenCalledWith(question, ['cam']);
+    });
+
+    it('calls commitQuestionImages on Upload click to move images to pending queue', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Upload \(1\)/ })
+      );
+      expect(cameraState.commitQuestionImages).toHaveBeenCalledWith(
+        'inner-jaundice'
+      );
+    });
+
+    it('does not call commitQuestionImages when Upload is clicked with no images', async () => {
+      const images = ['img-1'];
+      cameraState.imagesByQ['inner-jaundice'] = images;
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={undefined}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      // Mutate array to empty before click
+      images.length = 0;
+      await userEvent.click(
+        screen.getByRole('button', { name: /Upload \(1\)/ })
+      );
+      // Upload guard kicked in — commitQuestionImages was NOT called
+      expect(cameraState.commitQuestionImages).not.toHaveBeenCalled();
     });
 
     it('lets a single-choice Yes/No be selected together with the camera tile and commits both on Submit', async () => {

@@ -4242,7 +4242,7 @@ describe('useFHIRStepper', () => {
       );
       expect(result.current.validateAllQuestions()).toBe(false);
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Please answer Question 1 before proceeding',
+        'Question 1: Please upload the captured image',
         undefined,
         'warning'
       );
@@ -4301,6 +4301,24 @@ describe('useFHIRStepper', () => {
         })
       );
       expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
+    it('blocks completion when images are captured but UPLOAD button was not clicked', () => {
+      // Camera returns images, but the camera code is NOT in the answer
+      // (simulates capture without clicking UPLOAD)
+      cameraHolder.current = { cameraImagesFor: () => ['blob:http://localhost/img1'] };
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['yes'] }, // regular option only, no camera code
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please upload the captured image',
+        undefined,
+        'warning'
+      );
     });
 
     it('ignores a question with no camera option even when the PE camera context is present', () => {

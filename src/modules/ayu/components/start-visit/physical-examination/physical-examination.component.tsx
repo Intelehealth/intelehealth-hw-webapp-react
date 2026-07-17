@@ -12,20 +12,28 @@ import {
   EXT_URL_JOB_AID_TYPE,
   EXT_URL_PE_CATEGORY_LABEL,
   EXT_URL_PE_OPTION_KIND,
+  EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
   PE_OPTION_KIND_CAMERA,
 } from '../../../../ayu-library/utils/constants';
 import { transformFhirPhysExamToAyu } from '../../../../ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
+import { getPendingImages } from '../../../services/obs.service';
 import type { PhysicalExamAnswers } from '../../../types/physical-exam.types';
 import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
+  FHIR_RESOURCE_TYPE_QUESTIONNAIRE,
+  JOB_AID_FALLBACK,
+  PE_CONFIG_NAME,
+  PE_DEFAULT_SECTION_LABEL,
+  PE_LOADING_TEXT,
   PE_PICTURE_TAKEN_LABEL,
   PHYSICAL_EXAM_SUMMARY_TITLE,
   SUMMARY_CANCEL_TEXT,
   SUMMARY_CONFIRM_TEXT,
+  SUMMARY_ITEM_TYPE_LABEL_VALUE,
 } from '../../../utils/ayu.constants';
 import {
   filterAyuQuestionsForPhysExam,
@@ -46,12 +54,6 @@ interface AyuFhirShape {
   item?: AyuQuestion[];
 }
 
-/**
- * Boundary adapter: convert AyuStepperContainer's rich answer map back to
- * PhysicalExamAnswers (Record<string, string[]>) so visit-upload's
- * buildPhysicalExamData — which still consumes the legacy shape — works
- * without modification.
- */
 const ayuAnswersToPhysicalExamAnswers = (
   answers: Record<string, AyuAnswerValue>
 ): PhysicalExamAnswers => {
@@ -88,8 +90,13 @@ export const PhysicalExamination = (props: SectionProps) => {
     physicalExamFilter,
     ayuConfigFiles,
   } = props;
-  const { data, visitId, setPhysicalExamData, saveSectionToTemp } =
-    useStartVisitData();
+  const {
+    data,
+    visitId,
+    setPhysicalExamData,
+    saveSectionToTemp,
+    setPhysExamPendingImages,
+  } = useStartVisitData();
   const { showVitalConfirmationModal } = useGlobalModal();
   const patientDemographics = usePatientDemographics();
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
@@ -98,7 +105,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   const physExamJson = useMemo(
     () =>
       ayuConfigFiles?.find(
-        f => f.name.replace(/\.json$/i, '').trim() === 'physExam'
+        f => f.name.replace(/\.json$/i, '').trim() === PE_CONFIG_NAME
       )?.json ?? null,
     [ayuConfigFiles]
   );
@@ -118,7 +125,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       physicalExamFilter ?? ''
     );
     return {
-      resourceType: 'Questionnaire',
+      resourceType: FHIR_RESOURCE_TYPE_QUESTIONNAIRE,
       text: root.text,
       item: filteredItems,
     };
@@ -126,7 +133,6 @@ export const PhysicalExamination = (props: SectionProps) => {
 
   const topLevelItems = useMemo(() => ayuRoot?.item ?? [], [ayuRoot]);
 
-  // Keep a stable lookup so context callbacks below don't allocate per render
   const questionByLinkIdRef = useRef(new Map<string, AyuQuestion>());
   useMemo(() => {
     const map = new Map<string, AyuQuestion>();
@@ -138,14 +144,20 @@ export const PhysicalExamination = (props: SectionProps) => {
     const q = questionByLinkIdRef.current.get(questionId);
     return (
       readExt(q ?? ({} as AyuQuestion), EXT_URL_PE_SECTION_KEY) ??
-      'General Exams'
+      PE_DEFAULT_SECTION_LABEL
     );
   }, []);
 
   const jobAidUrlFor = useCallback((questionId: string): string | null => {
     const q = questionByLinkIdRef.current.get(questionId);
     if (!q) return null;
-    const file = readExt(q, EXT_URL_JOB_AID_FILE);
+    const file =
+      readExt(q, EXT_URL_JOB_AID_FILE) ??
+      // Fallback branch: only reached when FHIR data lacks jobAidFile extension
+      /* v8 ignore next 3 */
+      JOB_AID_FALLBACK[
+        (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
+      ];
     if (!file) return null;
     return getJobAidUrl(file) ?? null;
   }, []);
@@ -154,10 +166,13 @@ export const PhysicalExamination = (props: SectionProps) => {
     (questionId: string): 'image' | 'video' | null => {
       const q = questionByLinkIdRef.current.get(questionId);
       if (!q) return null;
-      // Prefer the type of the ACTUAL bundled asset (matches the URL the user
-      // sees) over the FHIR job-aid-type, which can be wrong — e.g. a pallor
-      // reference declared "video" while the file is a .jpg.
-      const file = readExt(q, EXT_URL_JOB_AID_FILE);
+      const file =
+        readExt(q, EXT_URL_JOB_AID_FILE) ??
+        // Fallback branch: only reached when FHIR data lacks jobAidFile extension
+        /* v8 ignore next 3 */
+        JOB_AID_FALLBACK[
+          (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
+        ];
       if (file) {
         const actual = getJobAidType(file);
         if (actual) return actual;
@@ -169,12 +184,6 @@ export const PhysicalExamination = (props: SectionProps) => {
     []
   );
 
-  /*
-   * Track which questions have captured camera images. Read by the section
-   * builder below so a camera answer can be displayed as "Picture taken".
-   * Mutated via a context-bridge (see jobAidUrlFor closure won't suffice —
-   * we need a stable ref because cameraImagesFor is provider-owned).
-   */
   const cameraImagesForRef = useRef<((qId: string) => string[]) | null>(null);
 
   const handleStepperComplete = useCallback(
@@ -182,8 +191,6 @@ export const PhysicalExamination = (props: SectionProps) => {
       const physExamAnswers = ayuAnswersToPhysicalExamAnswers(answers);
       const cameraImagesFor = cameraImagesForRef.current ?? (() => []);
 
-      // Build the per-question detail list (label/value) — used by the
-      // start-visit context as a quick summary. Mirrors the old shape.
       const details: Array<{ label: string; value: string }> = [];
       const sectionMap = new Map<string, ModalSection>();
 
@@ -191,9 +198,6 @@ export const PhysicalExamination = (props: SectionProps) => {
         const selectedCodes = physExamAnswers[q.linkId] ?? [];
         if (selectedCodes.length === 0) continue;
 
-        /* PE section + category extensions are always attached by
-         * buildPhysExamQuestion, so the `?? ''` / `?? q.text` fallbacks are
-         * defensive against future shape changes — never hit today. */
         /* v8 ignore next */
         const sectionKey = readExt(q, EXT_URL_PE_SECTION_KEY) ?? '';
         const categoryLabel =
@@ -209,8 +213,6 @@ export const PhysicalExamination = (props: SectionProps) => {
           if (isCameraOption(opt)) {
             const hasImages = cameraImagesFor(q.linkId).length > 0;
             if (hasImages) summaryTexts.push(PE_PICTURE_TAKEN_LABEL);
-            // Cameras don't contribute to the plain details list (matches the
-            // old PhysicalExamination behaviour).
           } else {
             if (display) {
               selectedTexts.push(display);
@@ -236,7 +238,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           });
         }
         sectionMap.get(sectionKey)!.items.push({
-          type: 'labelValue',
+          type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
           label: categoryLabel,
           value: summaryTexts.join(', '),
         });
@@ -260,6 +262,7 @@ export const PhysicalExamination = (props: SectionProps) => {
             items: s.items,
           }));
           setPhysicalExamData(physExamAnswers, details, detailsSections);
+          setPhysExamPendingImages(getPendingImages());
           saveSectionToTemp({
             physicalExam: {
               answers: physExamAnswers,
@@ -275,6 +278,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       topLevelItems,
       showVitalConfirmationModal,
       setPhysicalExamData,
+      setPhysExamPendingImages,
       saveSectionToTemp,
       originalOnNext,
     ]
@@ -290,19 +294,13 @@ export const PhysicalExamination = (props: SectionProps) => {
   const initialAnswers = useMemo(() => {
     const raw = data.physicalExam?.answers;
     if (!raw) return undefined;
-    // PhysicalExamAnswers is Record<string, string[]>, which is a valid
-    // Record<string, AyuAnswerValue>. Cast for the stricter typed prop.
     return raw as unknown as Record<string, AyuAnswerValue>;
   }, [data.physicalExam]);
 
   if (!ayuRoot || topLevelItems.length === 0) {
-    return <div>Loading physical exam...</div>;
+    return <div>{PE_LOADING_TEXT}</div>;
   }
 
-  /* Camera context wraps the stepper so AyuPhysicalExamOptions can reach
-   * camera handlers and job-aid resolvers via context. The protocol filter
-   * has already pruned topLevelItems above, so the questionByLinkId map
-   * here is the post-filter set. */
   return (
     <PhysicalExamCameraProvider
       visitId={visitId ?? null}
@@ -356,11 +354,6 @@ export const PhysicalExamination = (props: SectionProps) => {
   );
 };
 
-/**
- * Bridges the camera context's cameraImagesFor reader into the outer
- * component's ref so handleStepperComplete (computed outside the provider)
- * can ask whether a question has captured images when building the modal.
- */
 const CameraImagesForCapture = ({
   cameraImagesForRef,
 }: {
@@ -373,6 +366,4 @@ const CameraImagesForCapture = ({
   return null;
 };
 
-// Re-export to keep parsePhysicalExamFilter available where the protocol
-// filter is consumed from this module path historically.
 export { parsePhysicalExamFilter };
