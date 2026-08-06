@@ -82,6 +82,27 @@ const isCameraOption = (
       ext.valueString === PE_OPTION_KIND_CAMERA
   );
 
+/** Recursively collect nested child answers (e.g. Systolic/Diastolic under BP). */
+const collectNestedChildValues = (
+  items: AyuQuestion[] | undefined,
+  answers: Record<string, AyuAnswerValue>
+): { label: string; value: string }[] => {
+  if (!items) return [];
+  const rows: { label: string; value: string }[] = [];
+  for (const child of items) {
+    const answer = answers[child.linkId];
+    if (answer !== undefined && answer !== null && answer !== '') {
+      const label = child.text ?? '';
+      const value = typeof answer === 'string' ? answer : String(answer);
+      if (label && value) {
+        rows.push({ label, value });
+      }
+    }
+    rows.push(...collectNestedChildValues(child.item, answers));
+  }
+  return rows;
+};
+
 export const PhysicalExamination = (props: SectionProps) => {
   const {
     onNextQuestion: originalOnNext,
@@ -221,6 +242,9 @@ export const PhysicalExamination = (props: SectionProps) => {
           }
         }
 
+        // Collect nested child values (e.g. Systolic/Diastolic under Blood Pressure)
+        const nestedValues = collectNestedChildValues(q.item, answers);
+
         if (selectedTexts.length > 0) {
           details.push({
             label: categoryLabel,
@@ -228,7 +252,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           });
         }
 
-        if (summaryTexts.length === 0) continue;
+        if (summaryTexts.length === 0 && nestedValues.length === 0) continue;
 
         if (!sectionMap.has(sectionKey)) {
           sectionMap.set(sectionKey, {
@@ -237,11 +261,25 @@ export const PhysicalExamination = (props: SectionProps) => {
             onChange: () => setIsReviewMode(true),
           });
         }
-        sectionMap.get(sectionKey)!.items.push({
-          type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
-          label: categoryLabel,
-          value: summaryTexts.join(', '),
-        });
+
+        if (nestedValues.length > 0) {
+          const nestedDisplay = nestedValues.map(nv => {
+            const label = nv.label.replace(/^Enter\s+/i, '');
+            details.push({ label, value: nv.value });
+            return `${label}: ${nv.value}`;
+          });
+          sectionMap.get(sectionKey)!.items.push({
+            type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+            label: categoryLabel,
+            value: nestedDisplay.join(', '),
+          });
+        } else {
+          sectionMap.get(sectionKey)!.items.push({
+            type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+            label: categoryLabel,
+            value: summaryTexts.join(', '),
+          });
+        }
       }
 
       const sections = Array.from(sectionMap.values());

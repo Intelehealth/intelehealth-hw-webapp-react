@@ -16,12 +16,14 @@ import type {
   FhirQuestionnaire,
 } from '../../../../ayu-library/types/ayu.types';
 import {
+  EXT_URL_PE_OPTION_KIND,
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_DATE,
   FHIR_TYPE_GROUP,
   FHIR_TYPE_INTEGER,
   FHIR_TYPE_QUANTITY,
   FHIR_TYPE_STRING,
+  PE_OPTION_KIND_CAMERA,
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
@@ -106,6 +108,22 @@ const formatAnswerValue = (
 const isPlaceholderText = (text: string): boolean =>
   /^\s*\[.*\]\s*$/.test(text);
 
+/** True when a PE question has only one non-camera regular option (auto-selected). */
+const isSingleOptionPE = (question: AyuQuestion): boolean => {
+  if (resolveAyuComponent(question) !== PHYSICAL_EXAM_OPTIONS_COMPONENT)
+    return false;
+  const allOpts = question.answerOption ?? [];
+  const regularCount = allOpts.filter(
+    o =>
+      !o.extension?.some(
+        ext =>
+          ext.url === EXT_URL_PE_OPTION_KIND &&
+          ext.valueString === PE_OPTION_KIND_CAMERA
+      )
+  ).length;
+  return regularCount === 1;
+};
+
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>
@@ -158,12 +176,16 @@ const AyuAnsweredDisplay = ({
     return sections.flatMap(s => s.items);
   }, [question, answers, isAssociatedSymptoms, isSkipped]);
 
+  // Hide the auto-selected option label (e.g. "Take the patient's BP lying
+  // down") for single-option PE questions — only show the nested child values.
+  const hidePrimaryValue = isSingleOptionPE(question);
+
   const primaryValue = useMemo(
     () =>
-      isSkipped || isAssociatedSymptoms
+      isSkipped || isAssociatedSymptoms || hidePrimaryValue
         ? null
         : formatAnswerValue(question, answers[question.linkId]),
-    [question, answers, isSkipped, isAssociatedSymptoms]
+    [question, answers, isSkipped, isAssociatedSymptoms, hidePrimaryValue]
   );
 
   const nestedRows = useMemo(

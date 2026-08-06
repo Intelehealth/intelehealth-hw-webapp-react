@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import iconCamera from '../../../../assets/icons/icon-camera.svg';
 import {
   computeMultiSelectToggle,
@@ -58,9 +58,7 @@ export const AyuPhysicalExamOptions = ({
   const [submittedAt, setSubmittedAt] = useState<number | null>(null);
   const [showUploadError, setShowUploadError] = useState(false);
 
-  if (!question) return null;
-
-  const allOptions = question.answerOption ?? [];
+  const allOptions = question?.answerOption ?? [];
   const cameraOption = allOptions.find(o =>
     o.extension?.some(
       ext =>
@@ -70,7 +68,25 @@ export const AyuPhysicalExamOptions = ({
   );
   const cameraCode = cameraOption?.valueCoding?.code;
   const regularOptions = allOptions.filter(o => o !== cameraOption);
-  const isMultiChoice = !!question.repeats;
+  const isSingleOption = regularOptions.length === 1;
+  const isMultiChoice = !!question?.repeats;
+
+  // Auto-select when only one non-camera regular option exists so child
+  // questions (e.g. Systolic / Diastolic) appear immediately without the user
+  // having to click the single option tile first.
+  const singleOptionCode = isSingleOption
+    ? (regularOptions[0]?.valueCoding?.code ?? regularOptions[0]?.valueString)
+    : undefined;
+
+  useEffect(() => {
+    if (singleOptionCode && !value && question) {
+      setAnswer?.(question, singleOptionCode);
+    }
+    // Run only on mount; singleOptionCode and question are structurally stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!question) return null;
   const selected: string[] = Array.isArray(value)
     ? value
     : typeof value === 'string'
@@ -205,37 +221,54 @@ export const AyuPhysicalExamOptions = ({
         </div>
       )}
       <hr className="border-gray-200" />
-      <p className="pt-2 text-xs text-gray-500">
-        {isMultiChoice ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
-      </p>
-      <div className="flex flex-wrap gap-3 pt-2 pb-3">
-        {regularOptions.map(opt => {
-          const optId = codeOf(opt);
-          if (!optId) return null;
-          return (
+      {isSingleOption ? (
+        /* Single non-camera option: auto-selected, show only camera if present */
+        cameraOption && cameraCode ? (
+          <div className="flex flex-wrap gap-3 pt-2 pb-3">
             <AyuSelectableOption
-              key={optId}
-              label={opt.valueCoding?.display ?? opt.valueString ?? optId}
-              value={optId}
-              selected={regularSelected.includes(optId)}
-              disabled={isOptionDisabled(optId)}
-              leftIcon={getOptionIcon(
-                opt.valueCoding?.display ?? opt.valueString ?? ''
-              )}
-              onClick={() => handleRegularOptionClick(optId)}
+              label={PE_CAMERA_TILE_LABEL}
+              value={cameraCode}
+              selected={isCameraSelected}
+              leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
+              onClick={handleCameraTileClick}
             />
-          );
-        })}
-        {cameraOption && cameraCode && (
-          <AyuSelectableOption
-            label={PE_CAMERA_TILE_LABEL}
-            value={cameraCode}
-            selected={isCameraSelected}
-            leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
-            onClick={handleCameraTileClick}
-          />
-        )}
-      </div>
+          </div>
+        ) : null
+      ) : (
+        <>
+          <p className="pt-2 text-xs text-gray-500">
+            {isMultiChoice ? SELECT_ONE_OR_MORE : SELECT_ANY_ONE}
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2 pb-3">
+            {regularOptions.map(opt => {
+              const optId = codeOf(opt);
+              if (!optId) return null;
+              return (
+                <AyuSelectableOption
+                  key={optId}
+                  label={opt.valueCoding?.display ?? opt.valueString ?? optId}
+                  value={optId}
+                  selected={regularSelected.includes(optId)}
+                  disabled={isOptionDisabled(optId)}
+                  leftIcon={getOptionIcon(
+                    opt.valueCoding?.display ?? opt.valueString ?? ''
+                  )}
+                  onClick={() => handleRegularOptionClick(optId)}
+                />
+              );
+            })}
+            {cameraOption && cameraCode && (
+              <AyuSelectableOption
+                label={PE_CAMERA_TILE_LABEL}
+                value={cameraCode}
+                selected={isCameraSelected}
+                leftIcon={<img src={iconCamera} alt="" className="w-4 h-4" />}
+                onClick={handleCameraTileClick}
+              />
+            )}
+          </div>
+        </>
+      )}
       {isCameraSelected && camera && (
         <div className="pb-3">
           <PhysicalExamImageCapture

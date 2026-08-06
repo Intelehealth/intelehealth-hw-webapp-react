@@ -5297,6 +5297,61 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('isSingleOptionPE hides primary value for single-option PE questions', () => {
+    it('should hide primary value when PE question has one regular option and one camera option', () => {
+      const question: AyuQuestion = {
+        linkId: 'bp-pe',
+        text: 'Blood Pressure',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'lying', display: 'Lying down' } },
+          {
+            valueCoding: { code: 'cam', display: 'Camera' },
+            extension: [
+              {
+                url: 'urn:intelehealth:physical-exam/option-kind',
+                valueString: 'camera',
+              },
+            ],
+          },
+        ],
+        item: [
+          { linkId: 'systolic', text: 'Systolic', type: 'integer' },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'bp-pe': 'lying', systolic: '120' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'bp-pe': 'lying', systolic: '120' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Primary value ("Lying down") should be hidden for single-option PE
+      expect(screen.queryByText('Lying down')).not.toBeInTheDocument();
+      // Nested value should still appear
+      expect(screen.getByText('120')).toBeInTheDocument();
+    });
+  });
+
   describe('PE question selectable prop', () => {
     it('should pass selectable=true to AyuNestedRenderer for physicalExamOptions questions', () => {
       const question: AyuQuestion = {

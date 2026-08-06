@@ -232,7 +232,10 @@ describe('AyuPhysicalExamOptions', () => {
         extension: [
           { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
         ],
-        answerOption: [{ valueString: 'plain-string' }],
+        answerOption: [
+          { valueString: 'plain-string' },
+          { valueCoding: { code: 'other', display: 'Other' } },
+        ],
       };
       const setAnswer = vi.fn();
       render(
@@ -357,7 +360,10 @@ describe('AyuPhysicalExamOptions', () => {
         extension: [
           { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
         ],
-        answerOption: [{ valueCoding: { code: 'only-code' } }],
+        answerOption: [
+          { valueCoding: { code: 'only-code' } },
+          { valueCoding: { code: 'other', display: 'Other' } },
+        ],
       };
       render(
         <AyuPhysicalExamOptions
@@ -408,6 +414,101 @@ describe('AyuPhysicalExamOptions', () => {
       expect(
         screen.queryByRole('button', { name: /picture taken/i })
       ).not.toBeInTheDocument();
+    });
+
+    it('auto-selects and hides the tile when there is only one non-camera regular option', () => {
+      const question: AyuQuestion = {
+        linkId: 'bp',
+        text: 'Blood Pressure',
+        type: 'choice',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        ],
+        answerOption: [
+          {
+            valueCoding: {
+              code: 'lying-down',
+              display: 'Take the patient\'s BP lying down',
+            },
+          },
+        ],
+      };
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      // The single option tile should NOT be visible
+      expect(
+        screen.queryByRole('button', { name: /lying down/i })
+      ).not.toBeInTheDocument();
+      // setAnswer should have been called to auto-select
+      expect(setAnswer).toHaveBeenCalledWith(question, 'lying-down');
+    });
+
+    it('auto-selects using valueString fallback when valueCoding.code is absent', () => {
+      const question: AyuQuestion = {
+        linkId: 'bp2',
+        text: 'Blood Pressure',
+        type: 'choice',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        ],
+        answerOption: [
+          { valueString: 'lying-vs' },
+        ],
+      };
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      expect(setAnswer).toHaveBeenCalledWith(question, 'lying-vs');
+    });
+
+    it('shows camera tile when single regular option with camera option present', () => {
+      const question: AyuQuestion = {
+        linkId: 'bp-cam',
+        text: 'Blood Pressure',
+        type: 'choice',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        ],
+        answerOption: [
+          {
+            valueCoding: { code: 'lying-down', display: 'Lying down' },
+          },
+          {
+            valueCoding: { code: 'cam', display: 'Take a Picture' },
+            extension: [
+              { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+            ],
+          },
+        ],
+      };
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      // Auto-selected single regular option
+      expect(setAnswer).toHaveBeenCalledWith(question, 'lying-down');
+      // Regular option tile hidden but camera tile visible
+      expect(
+        screen.queryByRole('button', { name: /Lying down/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Take a Picture/i })
+      ).toBeInTheDocument();
     });
   });
 
