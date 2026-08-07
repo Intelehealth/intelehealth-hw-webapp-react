@@ -229,17 +229,12 @@ export const AyuNestedRenderer = ({
                           value={answers[child.linkId]}
                           onChange={val => setAnswer(child, val)}
                         />
-                        {hasAnswerOptionItemMapping(child)
-                          ? renderInlineNestedItems(child)
-                          : child.item && (
-                              <AyuNestedRenderer
-                                items={child.item}
-                                answers={answers}
-                                setAnswer={setAnswer}
-                                clearAnswers={clearAnswers}
-                                selectable={selectable}
-                              />
-                            )}
+                        {/* After flattening (lines 144-161), only
+                            hasAnswerOptionItemMapping children retain
+                            child.item — all others were replaced by their
+                            grandchildren. So we only need the inline path. */}
+                        {hasAnswerOptionItemMapping(child) &&
+                          renderInlineNestedItems(child)}
                       </div>
                     </div>
                   ))}

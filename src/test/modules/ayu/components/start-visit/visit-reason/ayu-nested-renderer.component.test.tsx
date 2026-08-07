@@ -862,9 +862,42 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('selectable-fully-gated')).toBeInTheDocument();
     });
 
-    // Note: Lines 232-239 (child.item recursive rendering in pill branch) are
-    // unreachable after the flattening logic was added — items with child.item
-    // that aren't hasAnswerOptionItemMapping get flattened before pill rendering.
+    it('should keep non-container enableWhen entries when only some reference the flattened parent', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'other', text: 'Other', type: 'choice' },
+        {
+          linkId: 'container',
+          text: 'Container',
+          type: 'group',
+          item: [
+            {
+              linkId: 'partial-gated',
+              text: 'Partial Gated',
+              type: 'integer',
+              enableWhen: [
+                // This one references the container → stripped
+                { question: 'container', operator: '=', answerString: 'yes' },
+                // This one references an external question → kept
+                { question: 'external-q', operator: '=', answerString: 'x' },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // The container entry is stripped but the external-q entry survives,
+      // so the child keeps its (filtered) enableWhen and renders as a pill.
+      expect(screen.getByTestId('selectable-partial-gated')).toBeInTheDocument();
+    });
   });
 
   describe('Grouping by Parent Answer Label', () => {
