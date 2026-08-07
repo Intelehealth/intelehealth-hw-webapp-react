@@ -136,19 +136,23 @@ export const AyuNestedRenderer = ({
   return (
     <div className="space-y-4 px-3">
       {Array.from(groups.entries()).map(([label, children]) => {
-        // In selectable mode, flatten container items so their children appear
-        // directly as pills instead of requiring an extra click on the container.
-        // e.g. "Take the patient's BP lying down" → [Systolic, Diastolic]
-        // Keep branching choice items intact (type=choice + answerOption + item)
-        // because they need option-based reveal via renderInlineNestedItems.
+        /*
+         * In selectable mode, flatten container items so their children appear
+         * directly as pills instead of requiring an extra click on the container.
+         * e.g. "Take the patient's BP lying down" → [Systolic, Diastolic]
+         * Keep branching choice items intact (type=choice + answerOption + item)
+         * because they need option-based reveal via renderInlineNestedItems.
+         */
         const displayChildren = selectable
           ? children.flatMap(child => {
               if (!child.item?.length) return [child];
               if (hasAnswerOptionItemMapping(child)) return [child];
-              // Replace the container with its children. Strip any enableWhen
-              // that references the removed container so the children remain
-              // visible (they are already gated by the container's own
-              // enableWhen on the parent question).
+              /*
+               * Replace the container with its children. Strip any enableWhen
+               * that references the removed container so the children remain
+               * visible (they are already gated by the container's own
+               * enableWhen on the parent question).
+               */
               return child.item.map(sub => {
                 if (!sub.enableWhen?.some(ew => ew.question === child.linkId))
                   return sub;
@@ -176,14 +180,16 @@ export const AyuNestedRenderer = ({
                           selected={selectedOption === item.linkId}
                           onClick={() => {
                             if (selectedOption === item.linkId) {
-                              // Deselecting current option — only clear for choice types
-                              // (input-type items like integer/string keep their entered value)
+                              /*
+                               * Deselecting current option — only clear for choice types
+                               * (input-type items like integer/string keep their entered value)
+                               */
                               if (item.type === FHIR_TYPE_CHOICE) {
                                 clearNestedAnswers(item);
                               }
                               setSelectedOption(null);
                             } else {
-                              // Switching to a new option — only clear previous for choice types
+                              /* Switching to a new option — only clear previous for choice types */
                               if (selectedOption) {
                                 const prevItem = displayChildren.find(
                                   c => c.linkId === selectedOption
@@ -242,9 +248,11 @@ export const AyuNestedRenderer = ({
             ) : (
               /* Render all items directly via AyuRenderer */
               displayChildren.map((child, childIndex) => {
-                // Show triangle for string items only when the group has multiple children
-                // (standalone question like "How often...?"), not when it's the sole child
-                // of an option (describe field like "Describe..." under a "Describe" option)
+                /*
+                 * Show triangle for string items only when the group has multiple children
+                 * (standalone question like "How often...?"), not when it's the sole child
+                 * of an option (describe field like "Describe..." under a "Describe" option)
+                 */
                 const isDescribeField =
                   child.type === FHIR_TYPE_STRING &&
                   displayChildren.length === 1;

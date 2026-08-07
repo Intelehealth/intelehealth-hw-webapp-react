@@ -91,7 +91,7 @@ const collectNestedChildValues = (
   const rows: { label: string; value: string }[] = [];
   for (const child of items) {
     const answer = answers[child.linkId];
-    if (answer !== undefined && answer !== null && answer !== '') {
+    if (answer) {
       const label = child.text ?? '';
       const value = typeof answer === 'string' ? answer : String(answer);
       if (label && value) {
@@ -174,7 +174,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     if (!q) return null;
     const file =
       readExt(q, EXT_URL_JOB_AID_FILE) ??
-      // Fallback branch: only reached when FHIR data lacks jobAidFile extension
+      /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
       /* v8 ignore next 3 */
       JOB_AID_FALLBACK[
         (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
@@ -189,7 +189,7 @@ export const PhysicalExamination = (props: SectionProps) => {
       if (!q) return null;
       const file =
         readExt(q, EXT_URL_JOB_AID_FILE) ??
-        // Fallback branch: only reached when FHIR data lacks jobAidFile extension
+        /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
         /* v8 ignore next 3 */
         JOB_AID_FALLBACK[
           (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
@@ -242,7 +242,7 @@ export const PhysicalExamination = (props: SectionProps) => {
           }
         }
 
-        // Collect nested child values (e.g. Systolic/Diastolic under Blood Pressure)
+        /* Collect nested child values (e.g. Systolic/Diastolic under Blood Pressure) */
         const nestedValues = collectNestedChildValues(q.item, answers);
 
         if (selectedTexts.length > 0) {

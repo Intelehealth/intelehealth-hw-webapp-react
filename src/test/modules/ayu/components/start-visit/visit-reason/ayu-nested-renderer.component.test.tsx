@@ -757,8 +757,8 @@ describe('AyuNestedRenderer', () => {
           linkId: 'take-bp',
           text: 'Take the patient\'s BP lying down',
           type: 'string',
-          // Non-choice type with answerOption — still a container, not a
-          // branching choice. Should be flattened.
+          /* Non-choice type with answerOption — still a container, not a
+             branching choice. Should be flattened. */
           answerOption: [
             { valueCoding: { code: 'systolic', display: 'Systolic' } },
             { valueCoding: { code: 'diastolic', display: 'Diastolic' } },
@@ -857,8 +857,8 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // All enableWhen entries referenced the flattened container, so they are
-      // all removed — child should be visible (enableWhen becomes undefined)
+      /* All enableWhen entries referenced the flattened container, so they are
+         all removed — child should be visible (enableWhen becomes undefined) */
       expect(screen.getByTestId('selectable-fully-gated')).toBeInTheDocument();
     });
 
@@ -894,8 +894,8 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // The container entry is stripped but the external-q entry survives,
-      // so the child keeps its (filtered) enableWhen and renders as a pill.
+      /* The container entry is stripped but the external-q entry survives,
+         so the child keeps its (filtered) enableWhen and renders as a pill. */
       expect(screen.getByTestId('selectable-partial-gated')).toBeInTheDocument();
     });
   });
@@ -2010,8 +2010,8 @@ describe('AyuNestedRenderer', () => {
       );
 
       expect(screen.getByTestId('renderer-level-1')).toBeInTheDocument();
-      // level-2 is rendered via recursive AyuNestedRenderer (selectable=true)
-      // In selectable mode, string-type items render directly
+      /* level-2 is rendered via recursive AyuNestedRenderer (selectable=true)
+         In selectable mode, string-type items render directly */
       expect(screen.getByTestId('renderer-level-2')).toBeInTheDocument();
     });
 

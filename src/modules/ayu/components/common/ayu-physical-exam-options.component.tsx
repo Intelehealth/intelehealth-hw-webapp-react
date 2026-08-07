@@ -71,9 +71,11 @@ export const AyuPhysicalExamOptions = ({
   const isSingleOption = regularOptions.length === 1;
   const isMultiChoice = !!question?.repeats;
 
-  // Auto-select when only one non-camera regular option exists so child
-  // questions (e.g. Systolic / Diastolic) appear immediately without the user
-  // having to click the single option tile first.
+  /*
+   * Auto-select when only one non-camera regular option exists so child
+   * questions (e.g. Systolic / Diastolic) appear immediately without the user
+   * having to click the single option tile first.
+   */
   const singleOptionCode = isSingleOption
     ? (regularOptions[0]?.valueCoding?.code ?? regularOptions[0]?.valueString)
     : undefined;
@@ -82,7 +84,7 @@ export const AyuPhysicalExamOptions = ({
     if (singleOptionCode && !value && question) {
       setAnswer?.(question, singleOptionCode);
     }
-    // Run only on mount; singleOptionCode and question are structurally stable.
+    /* Run only on mount; singleOptionCode and question are structurally stable. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

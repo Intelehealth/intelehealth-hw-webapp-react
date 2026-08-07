@@ -78,10 +78,12 @@ vi.mock(
   })
 );
 
-// Shape produced by transformFhirPhysExamToAyu for the real physExam.json
-// wrapper pattern — the inner choice surfaced as the AyuQuestion with PE
-// section/category extensions, real Yes/No options, and a camera option
-// derived from the attachment child.
+/*
+ * Shape produced by transformFhirPhysExamToAyu for the real physExam.json
+ * wrapper pattern — the inner choice surfaced as the AyuQuestion with PE
+ * section/category extensions, real Yes/No options, and a camera option
+ * derived from the attachment child.
+ */
 const makePeQuestion = (overrides: Partial<AyuQuestion> = {}): AyuQuestion => ({
   linkId: 'inner-jaundice',
   text: 'Is there jaundice?',
@@ -351,8 +353,8 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('falls back to optId for the option label and icon when display and valueString are absent', () => {
-      // Covers the `?? optId` and `?? ''` fallbacks in the regular options
-      // map (label resolution + getOptionIcon argument).
+      /* Covers the `?? optId` and `?? ''` fallbacks in the regular options
+         map (label resolution + getOptionIcon argument). */
       const question: AyuQuestion = {
         linkId: 'q',
         text: 'Q',
@@ -379,9 +381,11 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('renders the camera tile with the hardcoded "Take a Picture" label regardless of the option display', () => {
-      // The component intentionally ignores the option's display value because
-      // physExam.json sometimes carries marker strings (e.g. "[picture taken]")
-      // in that slot. The tile must always read "Take a Picture".
+      /*
+       * The component intentionally ignores the option's display value because
+       * physExam.json sometimes carries marker strings (e.g. "[picture taken]")
+       * in that slot. The tile must always read "Take a Picture".
+       */
       const question: AyuQuestion = {
         linkId: 'q',
         text: 'Q',
@@ -545,8 +549,8 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('pre-selects the camera tile when a committed answer holds the camera code (edit)', () => {
-      // On revisit/edit the saved answer carries the camera code; the tile must
-      // come back pre-selected instead of looking unanswered.
+      /* On revisit/edit the saved answer carries the camera code; the tile must
+         come back pre-selected instead of looking unanswered. */
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
@@ -593,8 +597,8 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('shows the upload-required error on edit when the picture option is committed but has no images', () => {
-      // committed camera answer but no images (all removed / restore empty) is
-      // an invalid state — the user must add a picture before it can stand.
+      /* committed camera answer but no images (all removed / restore empty) is
+         an invalid state — the user must add a picture before it can stand. */
       cameraState.imagesByQ = {};
       render(
         <AyuPhysicalExamOptions
@@ -781,8 +785,8 @@ describe('AyuPhysicalExamOptions', () => {
       );
       const camTile = screen.getByRole('button', { name: /Take a Picture/ });
       await userEvent.click(camTile);
-      // Tile becomes selected, but the answer hasn't been written yet — that
-      // happens on Submit (with images present).
+      /* Tile becomes selected, but the answer hasn't been written yet — that
+         happens on Submit (with images present). */
       expect(camTile).toHaveClass('selected');
       expect(setAnswer).not.toHaveBeenCalled();
     });
@@ -814,8 +818,8 @@ describe('AyuPhysicalExamOptions', () => {
         ],
         answerOption: [{ valueCoding: { code: 'no', display: 'No' } }],
       };
-      // No tile to click since no camera option — verify the component renders
-      // and doesn't throw.
+      /* No tile to click since no camera option — verify the component renders
+         and doesn't throw. */
       render(
         <AyuPhysicalExamOptions
           question={question}
@@ -936,9 +940,11 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('lets a single-choice Yes/No be selected together with the camera tile and commits both on Submit', async () => {
-      // Mobile parity: "Take a Picture" composes with the Yes/No finding instead
-      // of replacing it. Selecting the camera tile first, then Yes, must keep
-      // both highlighted and commit ['yes', 'cam'] on Upload.
+      /*
+       * Mobile parity: "Take a Picture" composes with the Yes/No finding instead
+       * of replacing it. Selecting the camera tile first, then Yes, must keep
+       * both highlighted and commit ['yes', 'cam'] on Upload.
+       */
       cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
       const setAnswer = vi.fn();
       const question = makePeQuestion();
@@ -1081,9 +1087,11 @@ describe('AyuPhysicalExamOptions', () => {
     });
 
     it('shows upload-required error when images are emptied between render and click', async () => {
-      // Covers the defensive guard in handleSubmit (lines 125-128): if images
-      // disappear after the Upload button was rendered but before the click
-      // handler runs, the error state is set instead of committing.
+      /*
+       * Covers the defensive guard in handleSubmit (lines 125-128): if images
+       * disappear after the Upload button was rendered but before the click
+       * handler runs, the error state is set instead of committing.
+       */
       const images = ['img-1'];
       cameraState.imagesByQ['inner-jaundice'] = images;
       render(

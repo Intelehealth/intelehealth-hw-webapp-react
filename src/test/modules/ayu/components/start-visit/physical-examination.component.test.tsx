@@ -55,14 +55,16 @@ vi.mock(
   }
 );
 
-// Captures the props passed to PhysicalExamCameraProvider so tests can
-// invoke the resolver callbacks the orchestrator wires up
-// (sectionCommentFor, jobAidUrlFor, jobAidTypeFor).
+/*
+ * Captures the props passed to PhysicalExamCameraProvider so tests can
+ * invoke the resolver callbacks the orchestrator wires up
+ * (sectionCommentFor, jobAidUrlFor, jobAidTypeFor).
+ */
 const capturedProviderProps: {
   current: Record<string, unknown> | null;
 } = { current: null };
-// When set to true the mocked usePhysicalExamCamera hook returns null so
-// CameraImagesForCapture exercises its `camera == null` fallback branch.
+/* When set to true the mocked usePhysicalExamCamera hook returns null so
+   CameraImagesForCapture exercises its `camera == null` fallback branch. */
 const cameraConsumerReturnsNull = { value: false };
 
 vi.mock(
@@ -146,14 +148,16 @@ vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   }),
 }));
 
-// Stub getJobAidUrl so jobAidUrlFor returns a predictable URL when the
-// orchestrator wires it through the provider. Returns null for the magic
-// filename "missing" so we can exercise the `?? null` fallback branch.
+/*
+ * Stub getJobAidUrl so jobAidUrlFor returns a predictable URL when the
+ * orchestrator wires it through the provider. Returns null for the magic
+ * filename "missing" so we can exercise the `?? null` fallback branch.
+ */
 vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   getJobAidUrl: (file: string) =>
     file === 'missing' ? null : `assets/${file}.png`,
-  // Derives type from the bundled asset: 'vidfile' → video, 'imgfile' → image,
-  // anything else → undefined (no bundled asset → fall back to FHIR type).
+  /* Derives type from the bundled asset: 'vidfile' → video, 'imgfile' → image,
+     anything else → undefined (no bundled asset → fall back to FHIR type). */
   getJobAidType: (file: string) =>
     file === 'vidfile' ? 'video' : file === 'imgfile' ? 'image' : undefined,
 }));
@@ -211,9 +215,11 @@ const makeAyuConfigFiles = (questions: AyuQuestion[]) => [
     json: {
       resourceType: 'Questionnaire' as const,
       title: 'Physical exam',
-      // We feed the transformed-shape directly under the section-group structure
-      // expected by transformFhirPhysExamToAyu. Sections wrap choice items with
-      // concept-tag answerOptions.
+      /*
+       * We feed the transformed-shape directly under the section-group structure
+       * expected by transformFhirPhysExamToAyu. Sections wrap choice items with
+       * concept-tag answerOptions.
+       */
       item: [
         {
           linkId: 'sec-general',
@@ -246,9 +252,11 @@ const makeAyuConfigFiles = (questions: AyuQuestion[]) => [
               text: q.text,
               type: 'choice',
               required: q.required,
-              // Forward job-aid extensions so the orchestrator's resolver
-              // callbacks (jobAidUrlFor / jobAidTypeFor) can find them on the
-              // transformed AyuQuestion.
+              /*
+               * Forward job-aid extensions so the orchestrator's resolver
+               * callbacks (jobAidUrlFor / jobAidTypeFor) can find them on the
+               * transformed AyuQuestion.
+               */
               extension: q.extension?.filter(
                 e =>
                   e.url ===
@@ -282,9 +290,11 @@ const makeAyuConfigFiles = (questions: AyuQuestion[]) => [
                     ],
                     text: o.valueCoding?.display,
                   })) ?? []),
-                // Preserve original children (string/integer sub-items
-                // like Systolic/Diastolic) so the transform attaches
-                // them as nested items on the AyuQuestion.
+                /*
+                 * Preserve original children (string/integer sub-items
+                 * like Systolic/Diastolic) so the transform attaches
+                 * them as nested items on the AyuQuestion.
+                 */
                 ...(q.item ?? []),
               ],
             })),
@@ -730,9 +740,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       capturedStepperProps._completeAnswers = { q1: ['yes'] };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      // wrappedOnNextQuestion already toggled review mode when the modal
-      // opened, but exercising the per-section onChange callback should not
-      // throw and should keep review mode on.
+      /*
+       * wrappedOnNextQuestion already toggled review mode when the modal
+       * opened, but exercising the per-section onChange callback should not
+       * throw and should keep review mode on.
+       */
       expect(typeof modalConfig.sections[0].onChange).toBe('function');
       modalConfig.sections[0].onChange();
       expect(screen.getByText('Save & Next')).toBeInTheDocument();
@@ -881,8 +893,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
     });
 
     it('jobAidTypeFor prefers the actual bundled asset type over the FHIR job-aid-type', () => {
-      // job-aid-file resolves to an image asset even though the FHIR type
-      // (mislabelled) says "video" — the actual file wins.
+      /* job-aid-file resolves to an image asset even though the FHIR type
+         (mislabelled) says "video" — the actual file wins. */
       const q = makeQuestion('q-file', 'General', 'Pallor', [
         { code: 'yes', display: 'Yes' },
       ]);
@@ -946,8 +958,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
     });
 
     it('renders the loading placeholder when transformFhirPhysExamToAyu yields no items', () => {
-      // physExam.json has the right shape but no section items → transform
-      // returns root with empty item[] → topLevelItems is empty → loader
+      /* physExam.json has the right shape but no section items → transform
+         returns root with empty item[] → topLevelItems is empty → loader */
       render(
         <PhysicalExamination
           {...defaultProps}
@@ -1001,9 +1013,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      // Filter "Head:Injury" keeps q2 (matches) and drops q1 since its
-      // section "General" isn't in the filter and isn't the always-included
-      // section ("General Exams").
+      /*
+       * Filter "Head:Injury" keeps q2 (matches) and drops q1 since its
+       * section "General" isn't in the filter and isn't the always-included
+       * section ("General Exams").
+       */
       const items = (
         capturedStepperProps.questionnaire as { item: { linkId: string }[] }
       ).item;
@@ -1024,10 +1038,12 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      // With no filter, `physicalExamFilter ?? ''` resolves to '' so only the
-      // always-included "General Exams" section survives. These questions are
-      // in "General"/"Head", so everything is pruned and the stepper isn't
-      // rendered -> loading placeholder.
+      /*
+       * With no filter, `physicalExamFilter ?? ''` resolves to '' so only the
+       * always-included "General Exams" section survives. These questions are
+       * in "General"/"Head", so everything is pruned and the stepper isn't
+       * rendered -> loading placeholder.
+       */
       expect(
         screen.getByText(/Loading physical exam/i)
       ).toBeInTheDocument();
@@ -1061,10 +1077,12 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
     });
 
     it('CameraImagesForCapture writes null to the ref when no camera provider is mounted', async () => {
-      // Force the consumer hook to return null so the ref-bridge takes its
-      // `?? null` fallback branch — and supply a camera answer so the
-      // handleStepperComplete loop actually invokes the () => [] fallback
-      // function (covers the fallback lambda body too).
+      /*
+       * Force the consumer hook to return null so the ref-bridge takes its
+       * `?? null` fallback branch — and supply a camera answer so the
+       * handleStepperComplete loop actually invokes the () => [] fallback
+       * function (covers the fallback lambda body too).
+       */
       cameraConsumerReturnsNull.value = true;
       const user = userEvent.setup();
       const questions = [
@@ -1098,8 +1116,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
           ayuConfigFiles={makeAyuConfigFiles(questions)}
         />
       );
-      // 'stale-code' isn't in q1's answerOption — orchestrator must `continue`
-      // past it without contributing to the summary.
+      /* 'stale-code' isn't in q1's answerOption — orchestrator must `continue`
+         past it without contributing to the summary. */
       capturedStepperProps._completeAnswers = { q1: ['stale-code'] };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
@@ -1108,9 +1126,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
 
     it('includes nested child values (e.g. Systolic/Diastolic) in the modal summary and details', async () => {
       const user = userEvent.setup();
-      // Build a question that has nested string-type children like BP.
-      // After transformFhirPhysExamToAyu the question should have `item`
-      // children for Systolic and Diastolic.
+      /*
+       * Build a question that has nested string-type children like BP.
+       * After transformFhirPhysExamToAyu the question should have `item`
+       * children for Systolic and Diastolic.
+       */
       const bpQuestion = makeQuestion('bp-q', 'General', 'Lying BP', [
         { code: 'take-bp', display: 'Take the patient\'s BP lying down' },
         { code: 'skip', display: 'Skip' },
@@ -1134,8 +1154,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       };
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
-      // The nested values branch should have produced a labelValue entry with
-      // categoryLabel as label and concatenated nested display as value.
+      /* The nested values branch should have produced a labelValue entry with
+         categoryLabel as label and concatenated nested display as value. */
       const section = modalConfig.sections.find(
         (s: { title: string }) => s.title === 'General'
       );
@@ -1163,9 +1183,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
 
     it('collectNestedChildValues recurses through deeply nested items', async () => {
       const user = userEvent.setup();
-      // Need 2+ answerOptions so the FHIR transform doesn't treat this as a
-      // concept-tag wrapper (single-option wrapper takes a different path that
-      // requires enableWhen-gated children).
+      /*
+       * Need 2+ answerOptions so the FHIR transform doesn't treat this as a
+       * concept-tag wrapper (single-option wrapper takes a different path that
+       * requires enableWhen-gated children).
+       */
       const nestedQuestion = makeQuestion('nq', 'General', 'Nested Q', [
         { code: 'opt', display: 'Option' },
         { code: 'skip', display: 'Skip' },
@@ -1231,8 +1253,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       const section = modalConfig.sections[0];
-      // Only the "good" child should appear; no-label skipped (empty label),
-      // empty-ans skipped (empty string answer)
+      /* Only the "good" child should appear; no-label skipped (empty label),
+         empty-ans skipped (empty string answer) */
       expect(section.items[0].value).toBe('good: yes');
     });
 
@@ -1292,15 +1314,15 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
 
     it('treats an option without a display string as an empty value', async () => {
       const user = userEvent.setup();
-      // Option with a code but display=undefined — exercises the `?? ''`
-      // fallback. `?? ''` returns '' which is then dropped from the summary.
+      /* Option with a code but display=undefined — exercises the `?? ''`
+         fallback. `?? ''` returns '' which is then dropped from the summary. */
       const questions = [
         makeQuestion('q1', 'General', 'Jaundice', [
           { code: 'yes', display: '' },
         ]),
       ];
-      // Strip the display property so it's undefined (not empty-string —
-      // `??` only falls back on null/undefined).
+      /* Strip the display property so it's undefined (not empty-string —
+         `??` only falls back on null/undefined). */
       questions[0].answerOption![0].valueCoding!.display = undefined;
       render(
         <PhysicalExamination
