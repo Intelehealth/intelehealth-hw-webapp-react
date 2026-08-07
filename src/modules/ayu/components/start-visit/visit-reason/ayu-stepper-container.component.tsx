@@ -16,12 +16,14 @@ import type {
   FhirQuestionnaire,
 } from '../../../../ayu-library/types/ayu.types';
 import {
+  EXT_URL_PE_OPTION_KIND,
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_DATE,
   FHIR_TYPE_GROUP,
   FHIR_TYPE_INTEGER,
   FHIR_TYPE_QUANTITY,
   FHIR_TYPE_STRING,
+  PE_OPTION_KIND_CAMERA,
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
@@ -106,6 +108,22 @@ const formatAnswerValue = (
 const isPlaceholderText = (text: string): boolean =>
   /^\s*\[.*\]\s*$/.test(text);
 
+/** True when a PE question has only one non-camera regular option (auto-selected). */
+const isSingleOptionPE = (question: AyuQuestion): boolean => {
+  if (resolveAyuComponent(question) !== PHYSICAL_EXAM_OPTIONS_COMPONENT)
+    return false;
+  const allOpts = question.answerOption ?? [];
+  const regularCount = allOpts.filter(
+    o =>
+      !o.extension?.some(
+        ext =>
+          ext.url === EXT_URL_PE_OPTION_KIND &&
+          ext.valueString === PE_OPTION_KIND_CAMERA
+      )
+  ).length;
+  return regularCount === 1;
+};
+
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>
@@ -146,8 +164,10 @@ const AyuAnsweredDisplay = ({
   answers: Record<string, AyuAnswerValue>;
   isSkipped?: boolean;
 }) => {
-  // Associated symptoms have their own nuanced "Patient reports / Patient denies"
-  // formatting — defer to the shared visit-summary builder for those.
+  /*
+   * Associated symptoms have their own nuanced "Patient reports / Patient denies"
+   * formatting — defer to the shared visit-summary builder for those.
+   */
   const isAssociatedSymptoms =
     resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
 
@@ -158,12 +178,18 @@ const AyuAnsweredDisplay = ({
     return sections.flatMap(s => s.items);
   }, [question, answers, isAssociatedSymptoms, isSkipped]);
 
+  /*
+   * Hide the auto-selected option label (e.g. "Take the patient's BP lying
+   * down") for single-option PE questions — only show the nested child values.
+   */
+  const hidePrimaryValue = isSingleOptionPE(question);
+
   const primaryValue = useMemo(
     () =>
-      isSkipped || isAssociatedSymptoms
+      isSkipped || isAssociatedSymptoms || hidePrimaryValue
         ? null
         : formatAnswerValue(question, answers[question.linkId]),
-    [question, answers, isSkipped, isAssociatedSymptoms]
+    [question, answers, isSkipped, isAssociatedSymptoms, hidePrimaryValue]
   );
 
   const nestedRows = useMemo(
@@ -398,9 +424,11 @@ export const AyuStepperContainer = forwardRef<
       onProgressUpdate?.(totalSteps, completedSteps);
     }, [currentIndex, totalSteps, onProgressUpdate, showAll]);
 
-    // When the stepper auto-advances past a question (single-choice with autoNext,
-    // for example), there's no Submit click to add it to submittedQuestions. Backfill
-    // here so those questions transition to the white answered card.
+    /*
+     * When the stepper auto-advances past a question (single-choice with autoNext,
+     * for example), there's no Submit click to add it to submittedQuestions. Backfill
+     * here so those questions transition to the white answered card.
+     */
     useEffect(() => {
       const prev = prevIndexRef.current;
       if (currentIndex <= prev) {
@@ -448,7 +476,7 @@ export const AyuStepperContainer = forwardRef<
               !editingQuestions.has(question.linkId);
             const isLastRendered = index === visibleCount - 1;
 
-            // Wrapper that clears submitted/skipped icons when the user changes an answer
+            /* Wrapper that clears submitted/skipped icons when the user changes an answer */
             const handleSetAnswer = (q: AyuQuestion, val: AyuAnswerValue) => {
               setAnswer(q, val);
               setSubmittedQuestions(prev => {
@@ -528,21 +556,23 @@ export const AyuStepperContainer = forwardRef<
                         <div className="mt-3 flex gap-3 md:justify-end">
                           {/* SUBMIT for required string and quantity types */}
                           {(() => {
-                            // Always show Submit while a question is being edited so the
-                            // user has an explicit way to confirm and return to the white card.
+                            /*
+                             * Always show Submit while a question is being edited so the
+                             * user has an explicit way to confirm and return to the white card.
+                             */
                             if (editingQuestions.has(question.linkId))
                               return true;
 
                             const answer = answers[question.linkId];
 
-                            // Check if top-level has dropdownValues
+                            /* Check if top-level has dropdownValues */
                             const isDurationChoice =
                               question.type === FHIR_TYPE_CHOICE &&
                               answer &&
                               typeof answer === 'object' &&
                               'dropdownValues' in answer;
 
-                            // Recursive check for nested duration, repeats, and input fields
+                            /* Recursive check for nested duration, repeats, and input fields */
                             const checkNestedDeep = (
                               items: AyuQuestion[] | undefined
                             ): {
@@ -619,7 +649,7 @@ export const AyuStepperContainer = forwardRef<
                             const hasNestedRepeats = nestedFlags.hasRepeats;
                             const hasVisibleNestedInput = nestedFlags.hasInput;
 
-                            // In review mode, show Submit for answered questions except pure single-choice
+                            /* In review mode, show Submit for answered questions except pure single-choice */
                             if (
                               showAll &&
                               answers[question.linkId] !== undefined
@@ -697,10 +727,12 @@ export const AyuStepperContainer = forwardRef<
                                   return next;
                                 });
 
-                                // Editing an already-answered past question must not
-                                // advance the stepper. The last question is an exception —
-                                // re-submitting it must always invoke goNext so a previously
-                                // cancelled summary modal can be re-opened.
+                                /*
+                                 * Editing an already-answered past question must not
+                                 * advance the stepper. The last question is an exception —
+                                 * re-submitting it must always invoke goNext so a previously
+                                 * cancelled summary modal can be re-opened.
+                                 */
                                 if (isActive && (isLast || !wasEditing)) {
                                   if (isLast) {
                                     onProgressUpdate?.(totalSteps, totalSteps);
@@ -735,7 +767,7 @@ export const AyuStepperContainer = forwardRef<
                                     question.linkId
                                   );
 
-                                  // Clear answer data for this question and all its descendants
+                                  /* Clear answer data for this question and all its descendants */
                                   const descendantIds =
                                     collectDescendantLinkIds(question);
                                   clearAnswers([
