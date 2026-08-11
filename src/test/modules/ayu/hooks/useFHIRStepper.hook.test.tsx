@@ -512,12 +512,12 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(2); // Should advance
     });
 
-    it('should NOT auto-advance on last question', () => {
+    it('should NOT auto-advance on last question when it is an integer type', () => {
       const { result } = renderHook(() =>
         useFHIRStepper({ questionnaire: mockQuestionnaire })
       );
 
-      // Move to last question
+      // Move to last question (q3, type: integer)
       act(() => {
         result.current.goNext();
         result.current.goNext();
@@ -533,7 +533,112 @@ describe('useFHIRStepper', () => {
         vi.advanceTimersByTime(300);
       });
 
-      expect(result.current.currentIndex).toBe(2); // Should NOT advance
+      // Integer type questions never auto-advance (user must click Submit)
+      expect(result.current.currentIndex).toBe(2);
+    });
+
+    it('should auto-advance on last question when it is a simple choice and call handleComplete', () => {
+      // Oedema fix: last question with simple single-select choice should
+      // auto-advance to trigger the Visit Reason Summary popup.
+      const choiceLastQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Question 1',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'a', display: 'A' } },
+              { valueCoding: { code: 'b', display: 'B' } },
+            ],
+          },
+          {
+            linkId: 'q2',
+            text: 'Question 2 (last)',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+              { valueCoding: { code: 'no', display: 'No' } },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: choiceLastQuestionnaire })
+      );
+
+      // Move to last question
+      act(() => {
+        result.current.goNext();
+      });
+      expect(result.current.isLast).toBe(true);
+      expect(result.current.currentQuestion?.linkId).toBe('q2');
+
+      act(() => {
+        result.current.setAnswer(result.current.currentQuestion!, 'yes');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+
+      // Auto-advance fires goNext → handleComplete → shows summary modal
+      expect(mockShowVitalConfirmationModal).toHaveBeenCalledTimes(1);
+    });
+
+    it('should auto-advance on last question and skip summary when skipSummary is true', () => {
+      const choiceLastQuestionnaire = {
+        item: [
+          {
+            linkId: 'q1',
+            text: 'Question 1',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'a', display: 'A' } },
+            ],
+          },
+          {
+            linkId: 'q2',
+            text: 'Last question',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+              { valueCoding: { code: 'no', display: 'No' } },
+            ],
+          },
+        ],
+      };
+      const onComplete = vi.fn();
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: choiceLastQuestionnaire,
+          skipSummary: true,
+          onComplete,
+        })
+      );
+
+      // Move to last question
+      act(() => {
+        result.current.goNext();
+      });
+      expect(result.current.isLast).toBe(true);
+
+      act(() => {
+        result.current.setAnswer(result.current.currentQuestion!, 'no');
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+
+      // skipSummary → onComplete called directly, no modal
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(mockShowVitalConfirmationModal).not.toHaveBeenCalled();
     });
 
     it('should NOT auto-advance when visible string child exists', () => {
