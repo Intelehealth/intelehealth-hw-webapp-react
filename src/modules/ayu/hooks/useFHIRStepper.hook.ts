@@ -382,15 +382,12 @@ export const useFHIRStepper = (
       );
       const hasVisibleStringChild = deepCheck.hasString;
 
-      const isLastQuestion = currentIndex === structuralTotal - 1;
-
       const hasNestedRepeats = deepCheck.hasRepeats;
 
       if (
         shouldMoveNext &&
         !hasVisibleStringChild &&
         !isAdvancingRef.current &&
-        (!isLastQuestion || skipSummary) &&
         !(
           currentQuestion.type === FHIR_TYPE_CHOICE && currentQuestion.repeats
         ) &&
