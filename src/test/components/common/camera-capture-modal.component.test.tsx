@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CameraCaptureModal from '../../../components/common/camera-capture-modal.component';
+import {
+  CAMERA_ERROR_NOT_READABLE,
+  CAMERA_ERROR_TRACK_START,
+  CAMERA_MAX_RETRIES,
+  CAMERA_RETRY_DELAY_MS,
+} from '../../../utils/constant';
 
 const mockOnClose = vi.fn();
 const mockOnCapture = vi.fn();
@@ -192,16 +198,16 @@ describe('CameraCaptureModal', () => {
 
   it('shows error when camera is in use (NotReadableError) after retries', async () => {
     vi.useFakeTimers();
-    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
     });
 
-    // Advance through all 3 retries (600ms, 1200ms, 1800ms)
-    for (let i = 1; i <= 3; i++) {
+    // Advance through all retries
+    for (let i = 1; i <= CAMERA_MAX_RETRIES; i++) {
       await act(async () => {
-        vi.advanceTimersByTime(600 * i + 100);
+        vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS * i + 100);
       });
     }
 
@@ -213,16 +219,16 @@ describe('CameraCaptureModal', () => {
 
   it('shows error for TrackStartError after retries', async () => {
     vi.useFakeTimers();
-    mockGetUserMedia.mockRejectedValue(makeNamedError('TrackStartError', 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_TRACK_START, 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
     });
 
-    // Advance through all 3 retries
-    for (let i = 1; i <= 3; i++) {
+    // Advance through all retries
+    for (let i = 1; i <= CAMERA_MAX_RETRIES; i++) {
       await act(async () => {
-        vi.advanceTimersByTime(600 * i + 100);
+        vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS * i + 100);
       });
     }
 
@@ -509,19 +515,19 @@ describe('CameraCaptureModal', () => {
 
     // First call fails with NotReadableError, second succeeds
     mockGetUserMedia
-      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
+      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
       .mockResolvedValueOnce(mockStream);
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
     });
 
-    // First attempt failed — retry is scheduled with a 600ms delay
+    // First attempt failed — retry is scheduled
     expect(mockGetUserMedia).toHaveBeenCalledTimes(1);
 
     // Advance past the retry delay
     await act(async () => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS + 100);
     });
 
     // Second attempt should succeed
@@ -546,21 +552,21 @@ describe('CameraCaptureModal', () => {
     vi.useFakeTimers();
 
     // All attempts fail
-    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
     });
 
-    // Attempt 1 failed, advance through retries 2, 3, 4 (MAX_RETRIES = 3)
-    for (let i = 1; i <= 3; i++) {
+    // Attempt 1 failed, advance through all retries
+    for (let i = 1; i <= CAMERA_MAX_RETRIES; i++) {
       await act(async () => {
-        vi.advanceTimersByTime(600 * i + 100);
+        vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS * i + 100);
       });
     }
 
-    // Total calls: 1 initial + 3 retries = 4
-    expect(mockGetUserMedia).toHaveBeenCalledTimes(4);
+    // Total calls: 1 initial + CAMERA_MAX_RETRIES retries
+    expect(mockGetUserMedia).toHaveBeenCalledTimes(1 + CAMERA_MAX_RETRIES);
 
     expect(
       screen.getByText('Camera is already in use. Please close other apps using the camera and try again.')
@@ -572,7 +578,7 @@ describe('CameraCaptureModal', () => {
   it('does not retry after component unmounts during retry delay', async () => {
     vi.useFakeTimers();
 
-    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
 
     let unmountFn: () => void;
     await act(async () => {
@@ -602,27 +608,27 @@ describe('CameraCaptureModal', () => {
     vi.useFakeTimers();
     vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
 
-    // First 3 attempts fail, 4th succeeds (retryCount === MAX_RETRIES - 1 = 2 uses relaxed)
+    // First attempts fail, final retry succeeds with relaxed constraints
     mockGetUserMedia
-      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
-      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
+      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
+      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
       .mockResolvedValueOnce(mockStream);
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
     });
 
-    // Advance through retry 1 (600ms delay)
+    // Advance through retry 1
     await act(async () => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS + 100);
     });
 
-    // Advance through retry 2 (1200ms delay)
+    // Advance through retry 2
     await act(async () => {
-      vi.advanceTimersByTime(1300);
+      vi.advanceTimersByTime(CAMERA_RETRY_DELAY_MS * 2 + 100);
     });
 
-    // Third call (retryCount=2, which is MAX_RETRIES-1) should use relaxed constraints
+    // Third call (retryCount = CAMERA_MAX_RETRIES - 1) should use relaxed constraints
     expect(mockGetUserMedia).toHaveBeenCalledTimes(3);
     const lastCall = mockGetUserMedia.mock.calls[2][0];
     expect(lastCall.video).toBe(true);

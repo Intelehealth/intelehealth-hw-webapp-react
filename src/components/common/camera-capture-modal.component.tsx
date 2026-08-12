@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  CAMERA_ERROR_NOT_READABLE,
+  CAMERA_ERROR_TRACK_START,
+  CAMERA_MAX_RETRIES,
+  CAMERA_RETRY_DELAY_MS,
+} from '../../utils/constant';
 
 interface CameraCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCapture: (file: File) => void;
 }
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 600;
 
 const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   isOpen,
@@ -58,7 +61,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
        * struggle with specific facingMode / resolution constraints.
        */
       const videoConstraints: MediaTrackConstraints | boolean =
-        retryCount < MAX_RETRIES - 1
+        retryCount < CAMERA_MAX_RETRIES - 1
           ? {
               facingMode: 'user',
               width: { ideal: 1280 },
@@ -101,15 +104,16 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
          * fully released yet from a previous session / rapid re-open).
          */
         const isHardwareError =
-          err.name === 'NotReadableError' || err.name === 'TrackStartError';
+          err.name === CAMERA_ERROR_NOT_READABLE ||
+          err.name === CAMERA_ERROR_TRACK_START;
 
         if (
           isHardwareError &&
-          retryCount < MAX_RETRIES &&
+          retryCount < CAMERA_MAX_RETRIES &&
           requestId === requestIdRef.current
         ) {
           await new Promise(resolve =>
-            setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1))
+            setTimeout(resolve, CAMERA_RETRY_DELAY_MS * (retryCount + 1))
           );
           /* Re-check after delay — modal may have closed during the wait */
           if (requestId === requestIdRef.current) {
@@ -125,9 +129,9 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             'Camera permission denied. Please allow camera access.',
           NotFoundError: 'No camera found on this device.',
           DevicesNotFoundError: 'No camera found on this device.',
-          NotReadableError:
+          [CAMERA_ERROR_NOT_READABLE]:
             'Camera is already in use. Please close other apps using the camera and try again.',
-          TrackStartError:
+          [CAMERA_ERROR_TRACK_START]:
             'Camera is already in use. Please close other apps using the camera and try again.',
         };
         setError(
