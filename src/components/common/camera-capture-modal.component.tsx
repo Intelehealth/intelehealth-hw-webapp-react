@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  CAMERA_ERROR_NOT_READABLE,
-  CAMERA_ERROR_TRACK_START,
   CAMERA_MAX_RETRIES,
   CAMERA_RETRY_DELAY_MS,
 } from '../../utils/constant';
@@ -104,8 +102,7 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
          * fully released yet from a previous session / rapid re-open).
          */
         const isHardwareError =
-          err.name === CAMERA_ERROR_NOT_READABLE ||
-          err.name === CAMERA_ERROR_TRACK_START;
+          err.name === 'NotReadableError' || err.name === 'TrackStartError';
 
         if (
           isHardwareError &&
@@ -129,9 +126,9 @@ const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             'Camera permission denied. Please allow camera access.',
           NotFoundError: 'No camera found on this device.',
           DevicesNotFoundError: 'No camera found on this device.',
-          [CAMERA_ERROR_NOT_READABLE]:
+          NotReadableError:
             'Camera is already in use. Please close other apps using the camera and try again.',
-          [CAMERA_ERROR_TRACK_START]:
+          TrackStartError:
             'Camera is already in use. Please close other apps using the camera and try again.',
         };
         setError(

@@ -2,8 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CameraCaptureModal from '../../../components/common/camera-capture-modal.component';
 import {
-  CAMERA_ERROR_NOT_READABLE,
-  CAMERA_ERROR_TRACK_START,
   CAMERA_MAX_RETRIES,
   CAMERA_RETRY_DELAY_MS,
 } from '../../../utils/constant';
@@ -198,7 +196,7 @@ describe('CameraCaptureModal', () => {
 
   it('shows error when camera is in use (NotReadableError) after retries', async () => {
     vi.useFakeTimers();
-    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
@@ -219,7 +217,7 @@ describe('CameraCaptureModal', () => {
 
   it('shows error for TrackStartError after retries', async () => {
     vi.useFakeTimers();
-    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_TRACK_START, 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError('TrackStartError', 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
@@ -515,7 +513,7 @@ describe('CameraCaptureModal', () => {
 
     // First call fails with NotReadableError, second succeeds
     mockGetUserMedia
-      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
+      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
       .mockResolvedValueOnce(mockStream);
 
     await act(async () => {
@@ -552,7 +550,7 @@ describe('CameraCaptureModal', () => {
     vi.useFakeTimers();
 
     // All attempts fail
-    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
 
     await act(async () => {
       render(<CameraCaptureModal {...baseProps} />);
@@ -578,7 +576,7 @@ describe('CameraCaptureModal', () => {
   it('does not retry after component unmounts during retry delay', async () => {
     vi.useFakeTimers();
 
-    mockGetUserMedia.mockRejectedValue(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'));
+    mockGetUserMedia.mockRejectedValue(makeNamedError('NotReadableError', 'in use'));
 
     let unmountFn: () => void;
     await act(async () => {
@@ -610,8 +608,8 @@ describe('CameraCaptureModal', () => {
 
     // First attempts fail, final retry succeeds with relaxed constraints
     mockGetUserMedia
-      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
-      .mockRejectedValueOnce(makeNamedError(CAMERA_ERROR_NOT_READABLE, 'in use'))
+      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
+      .mockRejectedValueOnce(makeNamedError('NotReadableError', 'in use'))
       .mockResolvedValueOnce(mockStream);
 
     await act(async () => {
