@@ -6,6 +6,7 @@ import type {
   AyuAnswerValue,
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
+import { evaluateEnableWhen } from '../../../../ayu-library';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import {
   EXT_URL_JOB_AID_FILE,
@@ -82,7 +83,13 @@ const isCameraOption = (
       ext.valueString === PE_OPTION_KIND_CAMERA
   );
 
-/** Recursively collect nested child answers (e.g. Systolic/Diastolic under BP). */
+/** Recursively collect nested child answers (e.g. Systolic/Diastolic under BP).
+ *  For choice-type children, resolves the stored answer code to the option's
+ *  display text so the summary shows "Moves" instead of a raw code like
+ *  "ID-123". When the child has no `text`, the resolved display value is used
+ *  as the label so the row is not silently dropped.
+ *  Gated children whose `enableWhen` condition is not met are skipped so that
+ *  stale answers from previously-visible branches do not leak into the summary. */
 const collectNestedChildValues = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>
@@ -90,12 +97,33 @@ const collectNestedChildValues = (
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
   for (const child of items) {
+    /* Skip gated children whose condition is not satisfied */
+    if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+
     const answer = answers[child.linkId];
-    if (answer) {
+    if (answer != null && answer !== '') {
       const label = child.text ?? '';
-      const value = typeof answer === 'string' ? answer : String(answer);
-      if (label && value) {
-        rows.push({ label, value });
+      const rawValue = typeof answer === 'string' ? answer : String(answer);
+
+      // For choice questions, resolve the answer code to display text
+      let displayValue = rawValue;
+      if (child.answerOption?.length) {
+        const codes = Array.isArray(answer)
+          ? answer.filter((v): v is string => typeof v === 'string')
+          : typeof answer === 'string'
+            ? [answer]
+            : [];
+        const resolved = codes.map(code => {
+          const opt = child.answerOption?.find(
+            o => o.valueCoding?.code === code || o.valueString === code
+          );
+          return opt?.valueCoding?.display ?? opt?.valueString ?? code;
+        });
+        if (resolved.length > 0) displayValue = resolved.join(', ');
+      }
+
+      if (displayValue) {
+        rows.push({ label: label || displayValue, value: displayValue });
       }
     }
     rows.push(...collectNestedChildValues(child.item, answers));
@@ -245,6 +273,7 @@ export const PhysicalExamination = (props: SectionProps) => {
         /* Collect nested child values (e.g. Systolic/Diastolic under Blood Pressure) */
         const nestedValues = collectNestedChildValues(q.item, answers);
 
+        /* Always include the parent's selected texts in the details. */
         if (selectedTexts.length > 0) {
           details.push({
             label: categoryLabel,
@@ -263,16 +292,25 @@ export const PhysicalExamination = (props: SectionProps) => {
         }
 
         if (nestedValues.length > 0) {
-          const nestedDisplay = nestedValues.map(nv => {
+          /* Parent answer (e.g. "Yes") as its own row */
+          if (summaryTexts.length > 0) {
+            sectionMap.get(sectionKey)!.items.push({
+              type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+              label: categoryLabel,
+              value: summaryTexts.join(', '),
+            });
+          }
+          /* Each child answer as an indented row below the parent. */
+          for (const nv of nestedValues) {
             const label = nv.label.replace(/^Enter\s+/i, '');
             details.push({ label, value: nv.value });
-            return `${label}: ${nv.value}`;
-          });
-          sectionMap.get(sectionKey)!.items.push({
-            type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
-            label: categoryLabel,
-            value: nestedDisplay.join(', '),
-          });
+            sectionMap.get(sectionKey)!.items.push({
+              type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+              label,
+              value: nv.value,
+              isChild: true,
+            });
+          }
         } else {
           sectionMap.get(sectionKey)!.items.push({
             type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
