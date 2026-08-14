@@ -18,12 +18,17 @@ export const CONFIRM_MODAL_OK = 'Okay';
  */
 export const JOB_AID_ABDOMINAL_REGIONS = 'abdominalregions9';
 
+/** Asset key for the thyroid swelling reference image (Neck section). */
+export const JOB_AID_THYROID_SWELLING = 'thyroidswelling';
+
 /**
  * Fallback mapping from PE question key to job-aid asset filename.
  * Used when the FHIR questionnaire does not include a jobAidFile extension.
+ * Keys must be **lowercase** — the lookup lowercases the PE_QUESTION_KEY.
  */
 export const JOB_AID_FALLBACK: Record<string, string> = {
   tenderness: JOB_AID_ABDOMINAL_REGIONS,
+  'thyroid swelling': JOB_AID_THYROID_SWELLING,
 };
 
 // --- Selected Reasons ---

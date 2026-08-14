@@ -646,7 +646,10 @@ function buildPhysExamQuestion(
     { url: EXT_URL_PE_CATEGORY_LABEL, valueString: categoryLabel },
     { url: EXT_URL_PE_QUESTION_KEY, valueString: questionKey },
   ];
-  const passthroughExt = readJobAidFromItem(q);
+  let passthroughExt = readJobAidFromItem(q);
+  if (passthroughExt.length === 0) {
+    passthroughExt = findJobAidInTree(q.item ?? []);
+  }
 
   /* Drop camera-proxy answerOptions. They are not user-facing choices — they
    * are a proxy for the attachment child below, which we surface separately
@@ -868,8 +871,27 @@ export function transformFhirPhysExamToAyu(
           );
         }
       } else {
+        /* When the question was unwrapped, the outer wrapper `q` may carry
+         * job-aid extensions that the inner `target` does not. Copy them so
+         * the question renders the reference image/video. */
+        let effectiveTarget = target;
+        if (didUnwrap) {
+          const targetJobAid = readJobAidFromItem(target);
+          if (targetJobAid.length === 0) {
+            let wrapperJobAid = readJobAidFromItem(q);
+            if (wrapperJobAid.length === 0) {
+              wrapperJobAid = findJobAidInTree(q.item ?? []);
+            }
+            if (wrapperJobAid.length > 0) {
+              effectiveTarget = {
+                ...target,
+                extension: [...(target.extension ?? []), ...wrapperJobAid],
+              };
+            }
+          }
+        }
         transformed = buildPhysExamQuestion(
-          target,
+          effectiveTarget,
           sectionKey,
           categoryLabel,
           questionKey,

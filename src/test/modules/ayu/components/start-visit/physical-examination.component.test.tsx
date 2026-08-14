@@ -1160,16 +1160,18 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         (s: { title: string }) => s.title === 'General'
       );
       expect(section).toBeDefined();
-      // Nested branch: "Enter systolic BP" → stripped "Enter" → "systolic BP: 96"
-      expect(section.items).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            label: 'Lying BP',
-            value: expect.stringContaining('systolic BP: 96'),
-          }),
-        ])
+      // Parent answer shown as its own row, child values as separate rows below
+      expect(section.items[0]).toEqual(
+        expect.objectContaining({ label: 'Lying BP', value: "Take the patient's BP lying down" })
       );
-      expect(section.items[0].value).toContain('diastolic BP: 82');
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'systolic BP', value: '96', isChild: true })
+      );
+      expect(section.items[2]).toEqual(
+        expect.objectContaining({ label: 'diastolic BP', value: '82', isChild: true })
+      );
+      // Parent item should NOT have isChild
+      expect(section.items[0].isChild).toBeUndefined();
       // On Confirm, details should include the nested values with "Enter" stripped
       modalConfig.onConfirm();
       const detailsArg = mockSetPhysicalExamData.mock.calls[0][1];
@@ -1219,19 +1221,25 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       const section = modalConfig.sections[0];
-      // Both child and grandchild values should appear
-      expect(section.items[0].value).toContain('level 1: value1');
-      expect(section.items[0].value).toContain('level 2: value2');
+      // Parent as row 0, child and grandchild as separate rows below
+      expect(section.items[0].value).toBe('Option');
+      expect(section.items[0].isChild).toBeUndefined();
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'level 1', value: 'value1', isChild: true })
+      );
+      expect(section.items[2]).toEqual(
+        expect.objectContaining({ label: 'level 2', value: 'value2', isChild: true })
+      );
     });
 
-    it('collectNestedChildValues skips children with no label or no answer', async () => {
+    it('collectNestedChildValues includes children with no label using value as fallback, skips empty answers', async () => {
       const user = userEvent.setup();
       const question = makeQuestion('q-skip', 'General', 'Skip Test', [
         { code: 'opt', display: 'Option' },
         { code: 'skip', display: 'Skip' },
       ]);
       question.item = [
-        // No text → empty label → skipped
+        // No text → uses display value as label fallback → included
         { linkId: 'no-label', text: '', type: 'string', required: false, repeats: false },
         // Has label but answer is empty string → skipped
         { linkId: 'empty-ans', text: 'Enter value', type: 'string', required: false, repeats: false },
@@ -1253,19 +1261,25 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       const section = modalConfig.sections[0];
-      /* Only the "good" child should appear; no-label skipped (empty label),
-         empty-ans skipped (empty string answer) */
-      expect(section.items[0].value).toBe('good: yes');
+      /* Parent "Option" as row 0, then child values as separate rows:
+         no-label included using its value as the label; empty-ans still skipped */
+      expect(section.items[0].value).toBe('Option');
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'val', value: 'val' })
+      );
+      expect(section.items[2]).toEqual(
+        expect.objectContaining({ label: 'good', value: 'yes' })
+      );
     });
 
-    it('collectNestedChildValues skips children with undefined text', async () => {
+    it('collectNestedChildValues includes children with undefined text using value as label fallback', async () => {
       const user = userEvent.setup();
       const question = makeQuestion('q-notext', 'General', 'No Text Test', [
         { code: 'opt', display: 'Option' },
         { code: 'skip', display: 'Skip' },
       ]);
       question.item = [
-        // text is explicitly undefined → label becomes '' → skipped
+        // text is explicitly undefined → falls back to display value as label
         { linkId: 'no-text', text: undefined as unknown as string, type: 'string', required: false, repeats: false },
         { linkId: 'has-text', text: 'Enter value', type: 'string', required: false, repeats: false },
       ];
@@ -1283,8 +1297,14 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       const section = modalConfig.sections[0];
-      // Only has-text child included; no-text skipped (empty label from ?? '')
-      expect(section.items[0].value).toBe('value: ok');
+      // Parent "Option" as row 0, then both children as separate rows
+      expect(section.items[0].value).toBe('Option');
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'val', value: 'val' })
+      );
+      expect(section.items[2]).toEqual(
+        expect.objectContaining({ label: 'value', value: 'ok' })
+      );
     });
 
     it('collectNestedChildValues coerces non-string answers via String()', async () => {
@@ -1309,7 +1329,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       await user.click(screen.getByTestId('trigger-complete'));
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       const section = modalConfig.sections[0];
-      expect(section.items[0].value).toContain('number: 42');
+      // Parent as row 0, coerced child as separate row
+      expect(section.items[0].value).toBe('Option');
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'number', value: '42' })
+      );
     });
 
     it('treats an option without a display string as an empty value', async () => {
