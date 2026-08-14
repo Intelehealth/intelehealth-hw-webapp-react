@@ -205,6 +205,9 @@ export const FREQUENCY_FACE_EYE_VARIANTS: readonly FrequencyEyeStyle[] = [
   'cross',
 ];
 
+// Number Input
+export const NUMBER_INPUT_DEFAULT_MIN = 0;
+
 // Range Input
 export const RANGE_DEFAULT_MIN = 0;
 export const RANGE_DEFAULT_MAX = 100;
