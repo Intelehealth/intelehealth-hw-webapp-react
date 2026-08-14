@@ -406,6 +406,29 @@ agreed to it; absent that, treat it as debugging that was forgotten. In this
 codebase a stray `console.log` on a patient object is also a `PHI-001` — cite
 both when the logged value could carry patient data.
 
+**STD-009 · major · Coverage bypassed with an ignore pragma.** A new
+`/* v8 ignore next */`, `/* c8 ignore next */`, `/* c8 ignore start|stop */`,
+`/* istanbul ignore next|else|file */`, or a per-file `coverage` exclusion added
+to `vitest.config.ts`. The project requires 100% branches, functions, lines and
+statements — a pragma does not meet that bar, it removes the code from the
+measurement, so the number stays at 100% while the code goes untested.
+
+Treat the pragma as the signal that the code is hard to test, and say which of
+these it is:
+
+- **Unreachable by construction** — a `default:` on an exhaustive switch, an
+  `if (!x) throw` after the type system already guarantees `x`. The honest fix
+  is usually to delete the branch, not to hide it.
+- **Hard to reach because of a seam** — an error path behind a real `fetch`, a
+  timer, a browser API. Inject the dependency or use the project's wrapper, and
+  the branch becomes reachable in a test.
+- **Genuinely untestable** — rare. Then the pragma stays, and the PR says in a
+  comment on that line why, so the next reader does not have to re-derive it.
+
+Existing pragmas are out of scope; only flag ones this PR adds. There are
+already ~40 in `src/`, so treat each new one as widening a gap rather than
+following a precedent.
+
 ---
 
 ## GEN — Uncategorised
