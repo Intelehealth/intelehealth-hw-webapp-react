@@ -330,7 +330,6 @@ function findJobAidInTree(items: FhirItem[]): FhirExtension[] {
     if (found.length) return found;
     if (item.item?.length) {
       const deeper = findJobAidInTree(item.item);
-      /* v8 ignore next */
       if (deeper.length) return deeper;
     }
   }
@@ -496,12 +495,10 @@ function buildBranchingPhysExamQuestion(
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const conceptDisplay = q.answerOption?.[0]?.valueCoding?.display;
-  /* v8 ignore next */
   const questionText = stripTrailingAsterisk(conceptDisplay ?? q.text ?? '');
 
   // Branch children = the wrapper's own gated children, minus the camera tile.
-  /* v8 ignore next */
-  const branches = (q.item ?? []).filter(
+  const branches = q.item!.filter(
     c =>
       c.type !== FHIR_TYPE_ATTACHMENT &&
       c.type !== FHIR_TYPE_DISPLAY &&
@@ -520,8 +517,7 @@ function buildBranchingPhysExamQuestion(
   // Check the wrapper first, then search the whole subtree.
   let passthroughExt = readJobAidFromItem(q);
   if (passthroughExt.length === 0) {
-    /* v8 ignore next */
-    passthroughExt = findJobAidInTree(q.item ?? []);
+    passthroughExt = findJobAidInTree(q.item!);
   }
 
   // One answer option per branch (No / Yes), coded by the branch's linkId.
@@ -535,8 +531,7 @@ function buildBranchingPhysExamQuestion(
   // Append camera tile when an attachment child exists anywhere in the subtree.
   // Simple wrappers (Skin Rash) have it as a direct child; double-nested
   // wrappers (Tenderness) may bury it under the inner "Yes" branch or deeper.
-  /* v8 ignore next */
-  const firstAttachment = findFirstAttachment(q.item ?? []);
+  const firstAttachment = findFirstAttachment(q.item!);
   if (firstAttachment) {
     const cameraOpt = buildPhysExamCameraOption(firstAttachment);
     if (cameraOpt) answerOption.push(cameraOpt);
@@ -550,8 +545,7 @@ function buildBranchingPhysExamQuestion(
       stripFhirAttachmentDescendants(branch) as unknown as AyuQuestion,
       demographics
     );
-    /* v8 ignore next */
-    for (const sub of subTree.item ?? []) {
+    for (const sub of subTree.item!) {
       item.push({
         ...sub,
         enableWhen: [
@@ -635,8 +629,6 @@ function buildPhysExamQuestion(
    *  AyuNestedRenderer rather than as separate stepper steps. */
   gatedChildren?: AyuQuestion[]
 ): AyuQuestion | null {
-  /* v8 ignore next */
-  if (q.type !== FHIR_TYPE_CHOICE) return null;
   if (!matchesDemographics(q.extension, demographics)) return null;
 
   const questionText = stripTrailingAsterisk(q.text ?? '');
@@ -845,8 +837,7 @@ export function transformFhirPhysExamToAyu(
           // nestGatedSiblings): keep the parent's own options (Yes/No) and
           // attach gated children so the nested renderer reveals them based on
           // enableWhen.
-          /* v8 ignore next */
-          const targetItems = target.item ?? [];
+          const targetItems = target.item!;
           const gatedChildren = targetItems
             .filter(
               (c: FhirItem) =>
@@ -880,8 +871,7 @@ export function transformFhirPhysExamToAyu(
           if (targetJobAid.length === 0) {
             let wrapperJobAid = readJobAidFromItem(q);
             if (wrapperJobAid.length === 0) {
-              /* v8 ignore next */
-              wrapperJobAid = findJobAidInTree(q.item ?? []);
+              wrapperJobAid = findJobAidInTree(q.item!);
             }
             if (wrapperJobAid.length > 0) {
               effectiveTarget = {
