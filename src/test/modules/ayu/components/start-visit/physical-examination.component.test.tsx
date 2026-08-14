@@ -1336,6 +1336,265 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       );
     });
 
+    it('collectNestedChildValues resolves choice-type child answer codes to display text', async () => {
+      const user = userEvent.setup();
+      /* Build a question with a choice-type nested child that has answerOption.
+       * The child stores answer codes (e.g. 'MOVES') and the summary should
+       * show the display text (e.g. 'Moves normally') rather than the raw code. */
+      const question = makeQuestion('q-choice-child', 'General', 'Movement', [
+        { code: 'opt', display: 'Check' },
+        { code: 'skip', display: 'Skip' },
+      ]);
+      question.item = [
+        {
+          linkId: 'child-choice',
+          text: 'Enter movement type',
+          type: 'choice',
+          required: false,
+          repeats: false,
+          answerOption: [
+            { valueCoding: { code: 'MOVES', display: 'Moves normally' } },
+            { valueCoding: { code: 'STIFF', display: 'Stiff' } },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-choice-child': ['opt'],
+        'child-choice': 'MOVES',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      // Parent answer row
+      expect(section.items[0].value).toBe('Check');
+      // Child choice answer should show resolved display text, not raw code
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'movement type', value: 'Moves normally', isChild: true })
+      );
+    });
+
+    it('collectNestedChildValues resolves array answer codes for choice children', async () => {
+      const user = userEvent.setup();
+      /* When a child stores answers as an array of codes (multi-select),
+       * codes should be resolved to display text and joined with ", ". */
+      const question = makeQuestion('q-arr-child', 'General', 'Symptoms', [
+        { code: 'opt', display: 'Assess' },
+        { code: 'skip', display: 'Skip' },
+      ]);
+      question.item = [
+        {
+          linkId: 'arr-child',
+          text: 'Enter symptom type',
+          type: 'choice',
+          required: false,
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'FEVER', display: 'Fever' } },
+            { valueCoding: { code: 'COUGH', display: 'Cough' } },
+            { valueCoding: { code: 'HEADACHE', display: 'Headache' } },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-arr-child': ['opt'],
+        'arr-child': ['FEVER', 'COUGH'],
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      expect(section.items[0].value).toBe('Assess');
+      // Array of codes resolved and joined
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'symptom type', value: 'Fever, Cough', isChild: true })
+      );
+    });
+
+    it('collectNestedChildValues produces empty codes array for non-string non-array answer with answerOption', async () => {
+      const user = userEvent.setup();
+      /* When a choice-type child receives a numeric answer (neither string nor
+       * array), the ternary falls through to the [] branch (line 115). The
+       * resolved array is empty so displayValue stays as String(answer). */
+      const question = makeQuestion('q-num-choice', 'General', 'Numeric', [
+        { code: 'opt', display: 'Check' },
+        { code: 'skip', display: 'Skip' },
+      ]);
+      question.item = [
+        {
+          linkId: 'child-num-choice',
+          text: 'Enter level',
+          type: 'choice',
+          required: false,
+          repeats: false,
+          answerOption: [
+            { valueCoding: { code: 'LOW', display: 'Low' } },
+            { valueCoding: { code: 'HIGH', display: 'High' } },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-num-choice': ['opt'],
+        'child-num-choice': 42 as unknown as string,
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      expect(section.items[0].value).toBe('Check');
+      // Numeric answer: codes = [] (empty), resolved is empty, displayValue = String(42) = '42'
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'level', value: '42', isChild: true })
+      );
+    });
+
+    it('collectNestedChildValues falls back to raw code when answerOption has no matching display', async () => {
+      const user = userEvent.setup();
+      const question = makeQuestion('q-no-match', 'General', 'Check', [
+        { code: 'opt', display: 'Yes' },
+        { code: 'skip', display: 'No' },
+      ]);
+      question.item = [
+        {
+          linkId: 'child-no-match',
+          text: 'Enter detail',
+          type: 'choice',
+          required: false,
+          repeats: false,
+          answerOption: [
+            { valueCoding: { code: 'KNOWN', display: 'Known option' } },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-no-match': ['opt'],
+        'child-no-match': 'UNKNOWN_CODE',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      // Falls back to raw code when no matching option found
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'detail', value: 'UNKNOWN_CODE', isChild: true })
+      );
+    });
+
+    it('collectNestedChildValues skips gated children whose enableWhen is not met', async () => {
+      const user = userEvent.setup();
+      /* A nested child gated on a specific parent answer code should be
+       * skipped when the parent answer doesn't satisfy its enableWhen. */
+      const question = makeQuestion('q-gate', 'General', 'Check', [
+        { code: 'opt-a', display: 'Option A' },
+        { code: 'opt-b', display: 'Option B' },
+      ]);
+      question.item = [
+        {
+          linkId: 'child-gated-a',
+          text: 'Enter detail for A',
+          type: 'string',
+          required: false,
+          repeats: false,
+          enableWhen: [
+            { question: 'q-gate', operator: '=', answerCoding: { code: 'opt-a' } },
+          ],
+        },
+        {
+          linkId: 'child-gated-b',
+          text: 'Enter detail for B',
+          type: 'string',
+          required: false,
+          repeats: false,
+          enableWhen: [
+            { question: 'q-gate', operator: '=', answerCoding: { code: 'opt-b' } },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-gate': ['opt-a'],
+        'child-gated-a': 'visible value',
+        'child-gated-b': 'stale hidden value',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      // Parent row
+      expect(section.items[0].value).toBe('Option A');
+      // Only child-gated-a should appear (enableWhen satisfied)
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'detail for A', value: 'visible value', isChild: true })
+      );
+      // child-gated-b should NOT appear (enableWhen not satisfied)
+      expect(section.items).toHaveLength(2);
+    });
+
+    it('collectNestedChildValues resolves valueString-based answerOption', async () => {
+      const user = userEvent.setup();
+      /* When an answerOption uses valueString instead of valueCoding,
+       * the fallback path opt?.valueString should resolve the display. */
+      const question = makeQuestion('q-vs', 'General', 'Level', [
+        { code: 'opt', display: 'Check' },
+        { code: 'skip', display: 'Skip' },
+      ]);
+      question.item = [
+        {
+          linkId: 'child-vs',
+          text: 'Enter grade',
+          type: 'choice',
+          required: false,
+          repeats: false,
+          answerOption: [
+            { valueString: 'grade-1' },
+            { valueString: 'grade-2' },
+          ],
+        },
+      ];
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'q-vs': ['opt'],
+        'child-vs': 'grade-1',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      expect(section.items[0].value).toBe('Check');
+      // Resolved via valueString match
+      expect(section.items[1]).toEqual(
+        expect.objectContaining({ label: 'grade', value: 'grade-1', isChild: true })
+      );
+    });
+
     it('treats an option without a display string as an empty value', async () => {
       const user = userEvent.setup();
       /* Option with a code but display=undefined — exercises the `?? ''`

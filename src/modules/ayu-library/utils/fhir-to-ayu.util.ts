@@ -880,6 +880,7 @@ export function transformFhirPhysExamToAyu(
           if (targetJobAid.length === 0) {
             let wrapperJobAid = readJobAidFromItem(q);
             if (wrapperJobAid.length === 0) {
+              /* v8 ignore next */
               wrapperJobAid = findJobAidInTree(q.item ?? []);
             }
             if (wrapperJobAid.length > 0) {

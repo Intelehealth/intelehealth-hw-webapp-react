@@ -2486,6 +2486,81 @@ describe('transformFhirPhysExamToAyu', () => {
       ]);
     });
 
+    it('propagates job-aid found via subtree search when simple wrapper is unwrapped', () => {
+      /* Simple wrapper (1 gated choice child) where neither the wrapper nor the
+       * inner target has direct job-aid, but a display child of the inner
+       * target carries the extensions. findJobAidInTree(q.item) discovers
+       * them and copies to the effective target (lines 886-890). */
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-eyes',
+            text: 'Eyes',
+            type: 'group',
+            item: [
+              {
+                linkId: 'wrap-jaundice',
+                text: 'Eyes: Jaundice',
+                type: 'choice',
+                // No job-aid on wrapper
+                answerOption: [
+                  {
+                    valueCoding: {
+                      code: 'inner-jaundice',
+                      display: 'Is there jaundice?*',
+                    },
+                  },
+                ],
+                item: [
+                  {
+                    linkId: 'inner-jaundice',
+                    text: 'Is there jaundice?*',
+                    type: 'choice',
+                    // No job-aid on inner target
+                    enableWhen: [
+                      {
+                        question: 'wrap-jaundice',
+                        operator: '=',
+                        answerCoding: { code: 'inner-jaundice' },
+                      },
+                    ],
+                    answerOption: [
+                      { valueCoding: { code: 'no', display: 'No' } },
+                      { valueCoding: { code: 'yes', display: 'Yes' } },
+                    ],
+                    item: [
+                      // Display child carries job-aid (not a sub-question)
+                      {
+                        linkId: 'jaundice-ref',
+                        text: 'Reference image',
+                        type: 'display',
+                        extension: [
+                          { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+                          { url: EXT_URL_JOB_AID_FILE, valueString: 'jaundice-ref-img' },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+
+      const q = root?.item?.[0];
+      expect(q?.linkId).toBe('inner-jaundice');
+      // Job-aid should be propagated from the subtree display child
+      const jobAidExt = q?.extension?.filter(
+        e => e.url === EXT_URL_JOB_AID_TYPE || e.url === EXT_URL_JOB_AID_FILE
+      );
+      expect(jobAidExt).toEqual([
+        { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+        { url: EXT_URL_JOB_AID_FILE, valueString: 'jaundice-ref-img' },
+      ]);
+    });
+
     it('reads job-aid from legacy direct properties when FHIR extensions are absent', () => {
       const root = transformFhirPhysExamToAyu({
         resourceType: 'Questionnaire',
