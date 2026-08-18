@@ -6,6 +6,7 @@ import {
   validationMessageForReason,
   VALIDATION_ALL_COMPULSORY,
   VALIDATION_ENTER_VALUE,
+  VALIDATION_OUT_OF_RANGE,
   VALIDATION_SELECT_OPTION,
   VALIDATION_UPLOAD_CAPTURED_IMAGE,
 } from '../../../../modules/ayu/utils/ayu.constants';
@@ -62,6 +63,17 @@ describe('ayu.constants', () => {
       );
     });
 
+    it('returns out of range message for "outOfRange" reason', () => {
+      expect(validationMessageForReason('outOfRange')).toBe(
+        VALIDATION_OUT_OF_RANGE
+      );
+    });
+
+    it('returns "Please answer Question N before proceeding" for outOfRange with questionNumber', () => {
+      const result = validationMessageForReason('outOfRange', 7);
+      expect(result).toBe('Please answer Question 7 before proceeding');
+    });
+
     it('returns select option message for undefined reason (default)', () => {
       expect(validationMessageForReason(undefined)).toBe(
         VALIDATION_SELECT_OPTION
@@ -96,6 +108,31 @@ describe('ayu.constants', () => {
     it('does not prepend question number when questionNumber is 0 (falsy)', () => {
       const result = validationMessageForReason('allCompulsory', 0);
       expect(result).toBe(VALIDATION_ALL_COMPULSORY);
+    });
+
+    it('returns systolic BP range message when outOfRangeText contains "systolic"', () => {
+      const result = validationMessageForReason('outOfRange', undefined, 'Enter systolic BP');
+      expect(result).toBe('Systolic BP must be between 60–260');
+    });
+
+    it('returns diastolic BP range message when outOfRangeText contains "diastolic"', () => {
+      const result = validationMessageForReason('outOfRange', undefined, 'Enter diastolic BP');
+      expect(result).toBe('Diastolic BP must be between 30–150');
+    });
+
+    it('returns generic out-of-range message when outOfRangeText has no BP keyword', () => {
+      const result = validationMessageForReason('outOfRange', undefined, 'Enter pulse rate');
+      expect(result).toBe(VALIDATION_OUT_OF_RANGE);
+    });
+
+    it('returns generic out-of-range message when outOfRangeText is undefined', () => {
+      const result = validationMessageForReason('outOfRange', undefined, undefined);
+      expect(result).toBe(VALIDATION_OUT_OF_RANGE);
+    });
+
+    it('returns "Please answer Question N" for outOfRange with questionNumber and systolic text', () => {
+      const result = validationMessageForReason('outOfRange', 5, 'Enter systolic BP');
+      expect(result).toBe('Please answer Question 5 before proceeding');
     });
   });
 });

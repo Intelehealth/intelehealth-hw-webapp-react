@@ -705,7 +705,8 @@ export const AyuStepperContainer = forwardRef<
                                       result.reason,
                                       showAll
                                         ? index + questionIndexOffset + 1
-                                        : undefined
+                                        : undefined,
+                                      result.outOfRangeText
                                     ),
                                     undefined,
                                     'warning'

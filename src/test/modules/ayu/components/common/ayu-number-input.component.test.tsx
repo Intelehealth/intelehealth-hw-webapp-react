@@ -380,7 +380,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(3.14);
     });
 
-    it('should clamp negative value to min (default 0)', () => {
+    it('should pass raw negative value to onChange and show error', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -394,7 +394,8 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-15' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(0);
+      expect(mockOnChange).toHaveBeenCalledWith(-15);
+      expect(screen.getByText('Value must be at least 0')).toBeInTheDocument();
     });
 
     it('should return empty string when input value is empty', () => {
@@ -508,7 +509,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenNthCalledWith(3, 123);
     });
 
-    it('should clamp negative decimal to min (default 0)', () => {
+    it('should pass raw negative decimal to onChange and show error', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -522,7 +523,8 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-2.5' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(0);
+      expect(mockOnChange).toHaveBeenCalledWith(-2.5);
+      expect(screen.getByText('Value must be at least 0')).toBeInTheDocument();
     });
 
     it('should handle value prop correctly', () => {
@@ -584,7 +586,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(1000);
     });
 
-    it('should clamp value exceeding max to max when FHIR maxValue is set', () => {
+    it('should pass raw value exceeding max to onChange and show error when FHIR maxValue is set', () => {
       const mockOnChange = vi.fn();
       const questionWithMax: AyuQuestion = {
         ...mockQuestion,
@@ -611,10 +613,11 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '75' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(50);
+      expect(mockOnChange).toHaveBeenCalledWith(75);
+      expect(screen.getByText('Value must be at most 50')).toBeInTheDocument();
     });
 
-    it('should clamp negative zero to min (default 0)', () => {
+    it('should accept negative zero as valid (equals min default 0)', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -628,7 +631,8 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-0' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(0);
+      expect(mockOnChange).toHaveBeenCalledWith(-0);
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
     });
 
     it('should display empty string when value is null', () => {
@@ -671,6 +675,293 @@ describe('AyuNumberInput', () => {
 
       const input = screen.getByRole('spinbutton') as HTMLInputElement;
       expect(input.value).toBe('0');
+    });
+  });
+
+  describe('Range validation error messages', () => {
+    const questionWithRange: AyuQuestion = {
+      ...mockQuestion,
+      extension: [
+        {
+          url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+          valueInteger: 60,
+        },
+        {
+          url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+          valueInteger: 260,
+        },
+      ],
+    };
+
+    it('should show error when value is below min', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '50' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(50);
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+    });
+
+    it('should show error when value is above max', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '300' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(300);
+      expect(screen.getByText('Value must be at most 260')).toBeInTheDocument();
+    });
+
+    it('should not show error when value is within range', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '120' } });
+
+      expect(mockOnChange).toHaveBeenCalledWith(120);
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should clear error when valid value is entered after invalid', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '10' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: '120' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should clear error when input is cleared', () => {
+      const mockOnChange = vi.fn();
+      const { rerender } = render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '10' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+
+      // Re-render with the out-of-range value so the controlled input reflects it
+      rerender(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          value={10}
+          onChange={mockOnChange}
+        />
+      );
+
+      fireEvent.change(input, { target: { value: '' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should apply red border class when error is present', () => {
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '10' } });
+
+      expect(input).toHaveClass('border-red-500');
+      expect(input).not.toHaveClass('border-[#20c997]');
+    });
+
+    it('should apply green border class when no error', () => {
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '120' } });
+
+      expect(input).toHaveClass('border-[#20c997]');
+      expect(input).not.toHaveClass('border-red-500');
+    });
+
+    it('should accept boundary values without error', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={questionWithRange}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+
+      fireEvent.change(input, { target: { value: '60' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: '260' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('BP text-based fallback validation', () => {
+    const systolicQuestion: AyuQuestion = {
+      linkId: 'systolic',
+      text: 'Enter systolic BP',
+      type: 'integer',
+    };
+    const diastolicQuestion: AyuQuestion = {
+      linkId: 'diastolic',
+      text: 'Enter diastolic BP',
+      type: 'integer',
+    };
+
+    it('should show error for systolic value below 60', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '50' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+      expect(mockOnChange).toHaveBeenCalledWith(50);
+    });
+
+    it('should show error for systolic value above 260', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '300' } });
+      expect(screen.getByText('Value must be at most 260')).toBeInTheDocument();
+    });
+
+    it('should show error for diastolic value below 30', () => {
+      render(
+        <AyuNumberInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '20' } });
+      expect(screen.getByText('Value must be at least 30')).toBeInTheDocument();
+    });
+
+    it('should show error for diastolic value above 150', () => {
+      render(
+        <AyuNumberInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '160' } });
+      expect(screen.getByText('Value must be at most 150')).toBeInTheDocument();
+    });
+
+    it('should not show error for valid systolic value', () => {
+      render(
+        <AyuNumberInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '120' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should not show error for valid diastolic value', () => {
+      render(
+        <AyuNumberInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '80' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should prefer FHIR extensions over BP fallback', () => {
+      const questionWithExtensions: AyuQuestion = {
+        ...systolicQuestion,
+        extension: [
+          {
+            url: 'http://hl7.org/fhir/StructureDefinition/minValue',
+            valueInteger: 10,
+          },
+          {
+            url: 'http://hl7.org/fhir/StructureDefinition/maxValue',
+            valueInteger: 100,
+          },
+        ],
+      };
+      render(
+        <AyuNumberInput
+          question={questionWithExtensions}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      // Value 50 is valid for extension range (10-100), even though it's below BP systolic min (60)
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '50' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
     });
   });
 });

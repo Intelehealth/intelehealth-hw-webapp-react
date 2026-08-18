@@ -1,10 +1,13 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import {
+  EXT_URL_MAX_VALUE,
+  EXT_URL_MIN_VALUE,
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_DATE,
   FHIR_TYPE_INTEGER,
   FHIR_TYPE_QUANTITY,
   FHIR_TYPE_STRING,
+  getBPRangeFromText,
 } from '../utils/constants';
 import { findMatchingOptionCode } from '../utils/question.utils';
 import {
@@ -143,6 +146,95 @@ export const isNestedInputValueMissing = (
 };
 
 /**
+ * Check if a question's answer is outside its valid numeric range.
+ * Checks FHIR extension min/max first, then falls back to known BP ranges
+ * derived from the question text. Also handles string-type BP fields whose
+ * answers are parseable numbers.
+ */
+export const isNumericOutOfRange = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  const rawValue = answers[question.linkId];
+
+  // Resolve the numeric value: integer type stores a number directly,
+  // string type may store a numeric string (e.g. "120" for BP).
+  let numValue: number | undefined;
+  if (question.type === FHIR_TYPE_INTEGER) {
+    if (typeof rawValue !== 'number') return false;
+    numValue = rawValue;
+  } else if (question.type === FHIR_TYPE_STRING) {
+    if (typeof rawValue !== 'string' || rawValue.trim() === '') return false;
+    const parsed = parseFloat(rawValue);
+    if (isNaN(parsed)) return false;
+    numValue = parsed;
+  } else {
+    return false;
+  }
+
+  // Check FHIR extensions first
+  const minExt = question.extension?.find(
+    e => e.url === EXT_URL_MIN_VALUE
+  )?.valueInteger;
+  const maxExt = question.extension?.find(
+    e => e.url === EXT_URL_MAX_VALUE
+  )?.valueInteger;
+
+  if (minExt !== undefined && numValue < minExt) return true;
+  if (maxExt !== undefined && numValue > maxExt) return true;
+
+  // Fallback: check known BP ranges based on question text
+  if (minExt === undefined && maxExt === undefined) {
+    const bpRange = getBPRangeFromText(question.text);
+    if (bpRange) {
+      if (numValue < bpRange.min || numValue > bpRange.max) return true;
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Recursively check nested children for out-of-range integer values.
+ */
+export const hasNestedOutOfRangeValue = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  const check = (items: AyuQuestion[] | undefined): boolean => {
+    if (!items) return false;
+    return items.some(child => {
+      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      if (isNumericOutOfRange(child, answers)) return true;
+      return check(child.item);
+    });
+  };
+  return check(question.item);
+};
+
+/**
+ * Find the text of the first out-of-range question (top-level or nested child).
+ * Returns the question text or undefined if no out-of-range field is found.
+ */
+export const findOutOfRangeQuestionText = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): string | undefined => {
+  if (isNumericOutOfRange(question, answers)) return question.text;
+  const find = (items: AyuQuestion[] | undefined): string | undefined => {
+    if (!items) return undefined;
+    for (const child of items) {
+      if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+      if (isNumericOutOfRange(child, answers)) return child.text;
+      const nested = find(child.item);
+      if (nested) return nested;
+    }
+    return undefined;
+  };
+  return find(question.item);
+};
+
+/**
  * Check if a quantity/duration field is improperly filled (missing number or days).
  */
 export const isQuantityInvalid = (
@@ -197,12 +289,15 @@ export type QuestionValidationReason =
   | 'uploadCapturedImage'
   | 'allCompulsory'
   | 'enterValue'
-  | 'selectOption';
+  | 'selectOption'
+  | 'outOfRange';
 
 export interface QuestionValidationResult {
   valid: boolean;
   /** Only set when `valid` is false. */
   reason?: QuestionValidationReason;
+  /** Text of the question whose value is out of range (only set when reason is 'outOfRange'). */
+  outOfRangeText?: string;
 }
 
 export const validateQuestion = (
@@ -244,12 +339,17 @@ export const validateQuestion = (
   // skip nested child validation — the question is valid once Yes/No is answered.
   const isPE = isPhysicalExamOptionsQuestion(question);
 
+  const numericOutOfRange =
+    isNumericOutOfRange(question, answers) ||
+    hasNestedOutOfRangeValue(question, answers);
+
   const isInvalid =
     cameraMissingImages ||
     cameraNotUploaded ||
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     isQuantityInvalid(question, answers) ||
+    numericOutOfRange ||
     (question.type === FHIR_TYPE_CHOICE &&
       !!question.repeats &&
       !isAssociated &&
@@ -265,11 +365,21 @@ export const validateQuestion = (
       ? 'uploadImage'
       : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)
         ? 'allCompulsory'
-        : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
-            (!isPE && isNestedInputValueMissing(question, answers)) ||
-            isQuantityInvalid(question, answers)
-          ? 'enterValue'
-          : 'selectOption';
+        : numericOutOfRange
+          ? 'outOfRange'
+          : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
+              (!isPE && isNestedInputValueMissing(question, answers)) ||
+              isQuantityInvalid(question, answers)
+            ? 'enterValue'
+            : 'selectOption';
+
+  if (reason === 'outOfRange') {
+    return {
+      valid: false,
+      reason,
+      outOfRangeText: findOutOfRangeQuestionText(question, answers),
+    };
+  }
 
   return { valid: false, reason };
 };

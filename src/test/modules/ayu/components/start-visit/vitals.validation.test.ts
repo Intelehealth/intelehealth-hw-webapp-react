@@ -15,8 +15,8 @@ describe('vitals.validation', () => {
       expect(VITAL_RANGES.height_cm).toEqual({ min: 50, max: 250 });
       expect(VITAL_RANGES.weight_kg).toEqual({ min: 2, max: 300 });
       expect(VITAL_RANGES.bmi).toEqual({ min: 10, max: 60 });
-      expect(VITAL_RANGES.bp_systolic).toEqual({ min: 70, max: 200, warning_high: 140 });
-      expect(VITAL_RANGES.bp_diastolic).toEqual({ min: 40, max: 130, warning_high: 90 });
+      expect(VITAL_RANGES.bp_systolic).toEqual({ min: 60, max: 260, warning_high: 140 });
+      expect(VITAL_RANGES.bp_diastolic).toEqual({ min: 30, max: 150, warning_high: 90 });
       expect(VITAL_RANGES.pulse_bpm).toEqual({ min: 30, max: 200 });
       expect(VITAL_RANGES.temprature_f).toEqual({ min: 90, max: 110 });
       expect(VITAL_RANGES.spo2).toEqual({ min: 50, max: 100 });
@@ -287,8 +287,8 @@ describe('vitals.validation', () => {
       };
       const schema = createVitalsValidationSchema([field]);
       await expect(schema.validate({ bp_systolic: 120 })).resolves.toBeDefined();
-      await expect(schema.validate({ bp_systolic: 60 })).rejects.toThrow();
-      await expect(schema.validate({ bp_systolic: 210 })).rejects.toThrow();
+      await expect(schema.validate({ bp_systolic: 50 })).rejects.toThrow();
+      await expect(schema.validate({ bp_systolic: 270 })).rejects.toThrow();
     });
 
     it('should validate SpO2 with range', async () => {

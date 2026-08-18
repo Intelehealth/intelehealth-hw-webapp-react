@@ -83,6 +83,35 @@ export const GENDER_CODE_MALE = '1';
 export const GENDER_CODE_OTHER = 'other';
 
 // ========================
+// Physical Examination BP Ranges
+// ========================
+/**
+ * Known BP validation ranges keyed by keyword found in the question text.
+ * Used as a fallback when the FHIR questionnaire lacks minValue/maxValue
+ * extensions on BP integer sub-items.
+ */
+export const PE_BP_FIELD_RANGES: Record<string, { min: number; max: number }> =
+  {
+    systolic: { min: 60, max: 260 },
+    diastolic: { min: 30, max: 150 },
+  };
+
+/**
+ * Return the BP validation range matching a question's text, or `undefined`
+ * if the text does not contain a known BP keyword (systolic / diastolic).
+ */
+export const getBPRangeFromText = (
+  text?: string
+): { min: number; max: number } | undefined => {
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  for (const [keyword, range] of Object.entries(PE_BP_FIELD_RANGES)) {
+    if (lower.includes(keyword)) return range;
+  }
+  return undefined;
+};
+
+// ========================
 // FHIR Question Types
 // ========================
 export const FHIR_TYPE_CHOICE = 'choice';

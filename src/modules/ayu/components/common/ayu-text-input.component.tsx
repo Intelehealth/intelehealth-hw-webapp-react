@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import type { AyuQuestion } from '../../../ayu-library/types/ayu.types';
+import { getBPRangeFromText } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import {
   ADDITIONAL_INFORMATION_LABEL,
@@ -37,9 +39,30 @@ export function AyuTextInput({
     : undefined;
   const inputId = `ayu-input-${question?.linkId}`;
   const hideLabel = isInlineDescribeField(question, parent);
+  const [error, setError] = useState<string | null>(null);
+
+  const bpRange = getBPRangeFromText(question?.text);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
+
+    if (bpRange && newValue.trim() !== '') {
+      const parsed = parseFloat(newValue);
+      if (!isNaN(parsed)) {
+        if (parsed < bpRange.min) {
+          setError(`Value must be at least ${bpRange.min}`);
+        } else if (parsed > bpRange.max) {
+          setError(`Value must be at most ${bpRange.max}`);
+        } else {
+          setError(null);
+        }
+      } else {
+        setError(null);
+      }
+    } else {
+      setError(null);
+    }
+
     onChange?.(newValue);
   };
 
@@ -77,8 +100,11 @@ export function AyuTextInput({
             : TEXT_INPUT_DEFAULT_PLACEHOLDER
         }
         rows={2}
-        className="border bg-white border-solid border-[#20c997] rounded-md px-3 py-2 outline-none resize-y"
+        className={`border bg-white border-solid rounded-md px-3 py-2 outline-none resize-y ${
+          error ? 'border-red-500' : 'border-[#20c997]'
+        }`}
       />
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }

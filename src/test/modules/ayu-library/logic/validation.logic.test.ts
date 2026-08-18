@@ -23,6 +23,9 @@ import {
   hasVisibleRequiredNestedString,
   hasUnansweredRequiredNestedChild,
   isNestedInputValueMissing,
+  isNumericOutOfRange,
+  hasNestedOutOfRangeValue,
+  findOutOfRangeQuestionText,
   isQuantityInvalid,
   validateQuestion,
 } from '../../../../modules/ayu-library/logic/validation.logic';
@@ -585,6 +588,271 @@ describe('isNestedInputValueMissing', () => {
   });
 });
 
+describe('isNumericOutOfRange', () => {
+  it('should return false for non-integer/non-string types', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(isNumericOutOfRange(q, { q1: 'text' })).toBe(false);
+  });
+
+  it('should return false for string type with non-numeric answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(isNumericOutOfRange(q, { q1: 'abc' })).toBe(false);
+  });
+
+  it('should return false for string type with empty string answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(isNumericOutOfRange(q, { q1: '' })).toBe(false);
+  });
+
+  it('should return false for string type with whitespace-only answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', text: 'Enter systolic BP' };
+    expect(isNumericOutOfRange(q, { q1: '  ' })).toBe(false);
+  });
+
+  it('should return false when answer is not a number', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
+    expect(isNumericOutOfRange(q, { q1: 'text' })).toBe(false);
+  });
+
+  it('should return false when no extensions are set', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
+    expect(isNumericOutOfRange(q, { q1: 120 })).toBe(false);
+  });
+
+  it('should return false when value is within range', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 120 })).toBe(false);
+  });
+
+  it('should return false when value equals min boundary', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 60 })).toBe(false);
+  });
+
+  it('should return false when value equals max boundary', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 260 })).toBe(false);
+  });
+
+  it('should return true when value is below min', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 50 })).toBe(true);
+  });
+
+  it('should return true when value is above max', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 300 })).toBe(true);
+  });
+
+  it('should check only min when max is not set', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 50 })).toBe(true);
+    expect(isNumericOutOfRange(q, { q1: 999 })).toBe(false);
+  });
+
+  it('should check only max when min is not set', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'integer',
+      extension: [
+        { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+      ],
+    };
+    expect(isNumericOutOfRange(q, { q1: 300 })).toBe(true);
+    expect(isNumericOutOfRange(q, { q1: -10 })).toBe(false);
+  });
+
+  describe('BP text-based fallback', () => {
+    it('should return true for integer systolic value below 60 (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 's1', type: 'integer', text: 'Enter systolic BP' };
+      expect(isNumericOutOfRange(q, { s1: 50 })).toBe(true);
+    });
+
+    it('should return true for integer systolic value above 260 (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 's1', type: 'integer', text: 'Enter systolic BP' };
+      expect(isNumericOutOfRange(q, { s1: 300 })).toBe(true);
+    });
+
+    it('should return false for integer systolic value within range (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 's1', type: 'integer', text: 'Enter systolic BP' };
+      expect(isNumericOutOfRange(q, { s1: 120 })).toBe(false);
+    });
+
+    it('should return true for integer diastolic value above 150 (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 'd1', type: 'integer', text: 'Enter diastolic BP' };
+      expect(isNumericOutOfRange(q, { d1: 160 })).toBe(true);
+    });
+
+    it('should return false for integer diastolic value within range (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 'd1', type: 'integer', text: 'Enter diastolic BP' };
+      expect(isNumericOutOfRange(q, { d1: 80 })).toBe(false);
+    });
+
+    it('should return true for string systolic value below 60 (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 's1', type: 'string', text: 'Enter systolic BP' };
+      expect(isNumericOutOfRange(q, { s1: '50' })).toBe(true);
+    });
+
+    it('should return false for string systolic value within range (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 's1', type: 'string', text: 'Enter systolic BP' };
+      expect(isNumericOutOfRange(q, { s1: '120' })).toBe(false);
+    });
+
+    it('should return true for string diastolic value above 150 (no extensions)', () => {
+      const q: AyuQuestion = { linkId: 'd1', type: 'string', text: 'Enter diastolic BP' };
+      expect(isNumericOutOfRange(q, { d1: '160' })).toBe(true);
+    });
+
+    it('should not apply BP fallback when FHIR extensions exist', () => {
+      const q: AyuQuestion = {
+        linkId: 's1',
+        type: 'integer',
+        text: 'Enter systolic BP',
+        extension: [
+          { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 10 },
+          { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 100 },
+        ],
+      };
+      // Value 50 is within extension range (10-100) even though below BP systolic min (60)
+      expect(isNumericOutOfRange(q, { s1: 50 })).toBe(false);
+    });
+
+    it('should return false for non-BP text with no extensions', () => {
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer', text: 'Enter pulse rate' };
+      expect(isNumericOutOfRange(q, { q1: 999 })).toBe(false);
+    });
+  });
+});
+
+describe('hasNestedOutOfRangeValue', () => {
+  it('should return false when question has no children', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    expect(hasNestedOutOfRangeValue(q, {})).toBe(false);
+  });
+
+  it('should return true when nested integer child is out of range', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+            { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+          ],
+        },
+      ],
+    };
+    expect(hasNestedOutOfRangeValue(q, { q1: 'yes', systolic: 300 })).toBe(true);
+  });
+
+  it('should return false when nested integer child is within range', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+            { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+          ],
+        },
+      ],
+    };
+    expect(hasNestedOutOfRangeValue(q, { q1: 'yes', systolic: 120 })).toBe(false);
+  });
+
+  it('should skip hidden children (enableWhen false)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          enableWhen: [
+            { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+            { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+          ],
+        },
+      ],
+    };
+    expect(hasNestedOutOfRangeValue(q, { q1: 'no', systolic: 300 })).toBe(false);
+  });
+
+  it('should recurse into deeply nested children', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'group',
+          type: 'choice',
+          item: [
+            {
+              linkId: 'diastolic',
+              type: 'integer',
+              extension: [
+                { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 30 },
+                { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 150 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(hasNestedOutOfRangeValue(q, { q1: 'yes', group: 'val', diastolic: 200 })).toBe(true);
+  });
+});
+
 describe('isQuantityInvalid', () => {
   it('should return false for non-quantity/choice types', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'string' };
@@ -1116,6 +1384,180 @@ describe('validateQuestion', () => {
         valid: false,
         reason: 'enterValue',
       });
+    });
+  });
+
+  describe('outOfRange validation', () => {
+    it('should return outOfRange for top-level integer out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'integer',
+        text: 'Enter systolic BP',
+        extension: [
+          { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+          { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+        ],
+      };
+      expect(validateQuestion(q, { q1: 300 })).toEqual({
+        valid: false,
+        reason: 'outOfRange',
+        outOfRangeText: 'Enter systolic BP',
+      });
+    });
+
+    it('should return outOfRange for nested integer child out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'systolic',
+            type: 'integer',
+            text: 'Enter systolic BP',
+            extension: [
+              { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+              { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+            ],
+          },
+        ],
+      };
+      expect(validateQuestion(q, { q1: 'yes', systolic: 300 })).toEqual({
+        valid: false,
+        reason: 'outOfRange',
+        outOfRangeText: 'Enter systolic BP',
+      });
+    });
+
+    it('should return valid when integer value is within range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'integer',
+        extension: [
+          { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+          { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+        ],
+      };
+      expect(validateQuestion(q, { q1: 120 })).toEqual({ valid: true });
+    });
+
+    it('should return outOfRangeText for nested string-type BP child', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          { linkId: 'sys', type: 'string', text: 'Enter systolic BP' },
+          { linkId: 'dia', type: 'string', text: 'Enter diastolic BP' },
+        ],
+      };
+      expect(validateQuestion(q, { bp1: 'yes', sys: '300', dia: '80' })).toEqual({
+        valid: false,
+        reason: 'outOfRange',
+        outOfRangeText: 'Enter systolic BP',
+      });
+    });
+
+    it('should return diastolic outOfRangeText when diastolic is out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          { linkId: 'sys', type: 'string', text: 'Enter systolic BP' },
+          { linkId: 'dia', type: 'string', text: 'Enter diastolic BP' },
+        ],
+      };
+      expect(validateQuestion(q, { bp1: 'yes', sys: '120', dia: '20' })).toEqual({
+        valid: false,
+        reason: 'outOfRange',
+        outOfRangeText: 'Enter diastolic BP',
+      });
+    });
+  });
+
+  describe('findOutOfRangeQuestionText', () => {
+    it('should return top-level question text when it is out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'string',
+        text: 'Enter systolic BP',
+      };
+      expect(findOutOfRangeQuestionText(q, { q1: '300' })).toBe('Enter systolic BP');
+    });
+
+    it('should return nested child text when child is out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          { linkId: 'dia', type: 'string', text: 'Enter diastolic BP' },
+        ],
+      };
+      expect(findOutOfRangeQuestionText(q, { bp1: 'yes', dia: '20' })).toBe('Enter diastolic BP');
+    });
+
+    it('should return undefined when no field is out of range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'string',
+        text: 'Enter systolic BP',
+      };
+      expect(findOutOfRangeQuestionText(q, { q1: '120' })).toBeUndefined();
+    });
+
+    it('should return undefined when question has no items and is in range', () => {
+      const q: AyuQuestion = {
+        linkId: 'q1',
+        type: 'integer',
+        text: 'Enter pulse',
+      };
+      expect(findOutOfRangeQuestionText(q, { q1: 72 })).toBeUndefined();
+    });
+
+    it('should return first out-of-range child in deeply nested structure', () => {
+      const q: AyuQuestion = {
+        linkId: 'root',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'group1',
+            type: 'choice',
+            item: [
+              { linkId: 'sys', type: 'string', text: 'Enter systolic BP' },
+            ],
+          },
+        ],
+      };
+      expect(findOutOfRangeQuestionText(q, { root: 'yes', group1: 'yes', sys: '300' })).toBe('Enter systolic BP');
+    });
+
+    it('should return undefined when children exist but all values are in range', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          { linkId: 'sys', type: 'string', text: 'Enter systolic BP' },
+          { linkId: 'dia', type: 'string', text: 'Enter diastolic BP' },
+        ],
+      };
+      expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '120', dia: '80' })).toBeUndefined();
+    });
+
+    it('should skip children whose enableWhen evaluates to false', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'sys',
+            type: 'string',
+            text: 'Enter systolic BP',
+            enableWhen: [
+              { question: 'bp1', operator: '=', answerCoding: { code: 'HIDDEN' } },
+            ],
+          },
+        ],
+      };
+      // sys has out-of-range value 300, but enableWhen hides it
+      expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '300' })).toBeUndefined();
     });
   });
 });
