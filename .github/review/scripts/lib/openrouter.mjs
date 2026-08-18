@@ -286,8 +286,19 @@ export async function complete(opts) {
     ],
     temperature: 0.1,
     max_tokens: maxTokens,
+    // Ask for OpenRouter's own accounting in every reply, rather than relying
+    // on the provider including it by default.
+    usage: { include: true },
   };
   if (chain.length > 1) body.models = chain;
+
+  /*
+   * One model id is served by several providers at different prices, and the
+   * default routing balances price against uptime. Two identical runs came
+   * back ~70% apart per token because of it. Input tokens are ~99% of this
+   * workload, so the provider's rate is effectively the whole bill.
+   */
+  body.provider = { sort: 'price' };
   /*
    * `json_object` guarantees syntactically valid JSON and nothing else — the
    * model is free to name the keys whatever it likes. Observed in production:
@@ -357,9 +368,13 @@ export async function complete(opts) {
         text: json.choices?.[0]?.message?.content ?? '',
         model: json.model || chain[0],
         usage: json.usage || null,
+        // The exact body sent, for the debug artifact. The API key travels in
+        // a header, never in the body, so this is safe to persist.
+        request: body,
       };
     } catch (err) {
       lastErr = err;
+      lastErr.request = body;
       // The non-retryable throw above lands here too, so honour it — otherwise
       // every 4xx is retried the full count before failing identically.
       if (err.fatal || attempt === retries) throw lastErr;
