@@ -105,6 +105,57 @@ VITE_APP_ENV=production
 
 **Note:** `VITE_SENTRY_DSN` is only required in production. Sentry is automatically disabled in development for better performance.
 
+## 🤖 Automated PR Review
+
+Pull requests into `main` or `dev` are reviewed against a written rulebook at [.github/review/review-rules.md](.github/review/review-rules.md) — 67 rules in twelve categories:
+
+| Prefix  | Covers                                             | Prefix | Covers                                   |
+| ------- | -------------------------------------------------- | ------ | ---------------------------------------- |
+| `SEC`   | Security                                           | `TS`   | TypeScript and code health               |
+| `PHI`   | Patient and personal data                          | `OPS`  | Configuration, deployment, observability |
+| `DATA`  | Databases, ORMs, migrations                        | `API`  | Interfaces and contracts                 |
+| `ASYNC` | Async, errors, and control flow                    | `TEST` | Tests                                    |
+| `RT`    | Realtime: Socket.IO and WebRTC                     | `STD`  | Project standards from this README       |
+| `FE`    | Frontend: React, Angular, Vue, Ionic, React Native | `GEN`  | Uncategorised                            |
+
+### How it runs
+
+**Every PR is reviewed automatically when you open it.** No label needed.
+
+| You do                 | What happens                                         |
+| ---------------------- | ---------------------------------------------------- |
+| Open a PR              | Reviewed automatically. Red if it finds something    |
+| Push a commit          | Check goes red: the review is stale. Nothing re-runs |
+| Add **`review-again`** | Fresh review of the new code                         |
+
+Pushing does not re-review on its own — that would spend a review on every
+commit. It marks the existing result stale so a passing review cannot cover code
+you have since changed.
+
+### What blocks a merge
+
+Two independent gates, and it is worth knowing they are separate:
+
+| Gate                       | Cleared by                                        | Enforced by              |
+| -------------------------- | ------------------------------------------------- | ------------------------ |
+| The `review` check         | Fixing the code, then asking for a fresh review   | This workflow            |
+| Unresolved review comments | Clicking **Resolve conversation** on every thread | GitHub branch protection |
+
+**Resolving a comment does not clear the check.** The reviewer recomputes from the current diff each time — if the code still has the problem, the next review finds it again. Resolve the thread _and_ fix the code.
+
+A push always resets the check to red: a review that passed against code you have since changed should not keep the merge open.
+
+### Adding a rule
+
+Edit [.github/review/review-rules.md](.github/review/review-rules.md) — that file is the entire configuration. There is no generated companion file and no sync step to run. Format is one bold line plus prose:
+
+```markdown
+**FE-008 · minor · Inline styles on a new component.** Style via the project's
+CSS modules instead, so theming stays in one place.
+```
+
+Severity (`blocker | major | minor | nit`) decides what survives the comment cap and what the merge gate blocks on. Design notes: [.github/review/README.md](.github/review/README.md).
+
 ## 📁 Project Structure
 
 ```

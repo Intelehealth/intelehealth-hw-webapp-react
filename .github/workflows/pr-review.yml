@@ -1,0 +1,232 @@
+name: PR Review
+
+# Automated PR review using OpenRouter free models.
+#
+# A pull request is reviewed automatically when it is opened. Pushing to it does
+# not re-review — that only marks the existing review stale; add the
+# `review-again` label when you want a fresh one.
+#
+# But the check still reports on every pull_request event, because it is a
+# REQUIRED check and a required check that never reports leaves a PR
+# unmergeable forever. So:
+#
+#   PR opened / reopened / ready   -> full review, RED on findings        <=4 requests
+#                                     or GREEN when clean
+#   push to an open PR             -> check RED  "review is stale"        0 requests
+#   `review-again` label           -> re-review                           <=4 requests
+#   draft / skip-review / other base -> check GREEN, gate bypassed        0 requests
+#
+# A push always sends the check back to red. That is the point: a review that
+# passed against code which has since changed must not keep a merge unblocked.
+#
+# There is deliberately no `/review` comment trigger. A comment handler can only
+# request a review by applying the label, and GitHub does not start workflow
+# runs from events created by GITHUB_TOKEN — so the `labeled` event never fires
+# and the comment silently does nothing. Enabling it needs a PAT or GitHub App
+# token; the label works today and needs neither.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    # Base branch, i.e. what the PR merges INTO. PRs targeting anything else
+    # (qa, staging, feature branches) are not reviewed and are not gated.
+    branches: [main, dev]
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Every pull_request event runs this job, including the ones that do no
+    # work. A required check must always report, or the PR can never merge.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Decide what this run should do
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ACTION: ${{ github.event.action }}
+          LABEL_NAME: ${{ github.event.label.name }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          DATA=$(gh pr view "$NUMBER" --repo "$REPO" \
+            --json headRefOid,baseRefOid,baseRefName,isDraft,labels,state)
+
+          BASE_REF=$(echo "$DATA" | jq -r .baseRefName)
+          IS_DRAFT=$(echo "$DATA" | jq -r .isDraft)
+          STATE=$(echo "$DATA" | jq -r .state)
+          SKIP=$(echo "$DATA" | jq -r '[.labels[].name] | index("skip-review") // ""')
+
+          # --- bypass: report green, spend nothing -----------------------------
+          if [ "$STATE" != "OPEN" ] || [ "$IS_DRAFT" = "true" ] || [ -n "$SKIP" ]; then
+            echo "Not gating #${NUMBER} (state=${STATE} draft=${IS_DRAFT} skip=${SKIP:-no})."
+            echo "mode=bypass" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # --- review: opened by default, or somebody asked again --------------
+          #
+          # A PR is reviewed on sight. `review-again` re-reviews after a push,
+          # since `synchronize` deliberately does not spend a review on every
+          # commit — it only sends the check back to red.
+          if [ "$ACTION" = "opened" ] || [ "$ACTION" = "reopened" ] \
+             || [ "$ACTION" = "ready_for_review" ] \
+             || { [ "$ACTION" = "labeled" ] && [ "$LABEL_NAME" = "review-again" ]; }; then
+            {
+              echo "mode=review"
+              echo "number=${NUMBER}"
+              echo "head_sha=$(echo "$DATA" | jq -r .headRefOid)"
+              echo "base_sha=$(echo "$DATA" | jq -r .baseRefOid)"
+            } >> "$GITHUB_OUTPUT"
+            echo "Reviewing #${NUMBER} into ${BASE_REF}."
+            exit 0
+          fi
+
+          # --- a label we do not act on: leave the check as it was --------------
+          if [ "$ACTION" = "labeled" ]; then
+            echo "Labeled '${LABEL_NAME}'. Not a review request."
+            echo "mode=bypass" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # --- pending: no review has been requested for this code -------------
+          echo "mode=pending" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.pr.outputs.mode == 'review'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        if: steps.pr.outputs.mode == 'review'
+        with:
+          node-version: '20'
+
+      - name: Prepare diff
+        if: steps.pr.outputs.mode == 'review'
+        env:
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p .claude-review
+
+          MERGE_BASE="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+
+          git diff --unified=3 "$MERGE_BASE" "$HEAD_SHA" \
+            -- . ':(exclude)**/*.lock' ':(exclude)**/package-lock.json' \
+               ':(exclude)**/yarn.lock' ':(exclude)**/pnpm-lock.yaml' \
+               ':(exclude)**/*.snap' ':(exclude)**/dist/**' \
+               ':(exclude)**/build/**' ':(exclude)**/*.min.js' \
+            > .claude-review/pr.diff
+
+          git diff --name-status "$MERGE_BASE" "$HEAD_SHA" > .claude-review/changed-files.txt
+          echo "Diff: $(wc -c < .claude-review/pr.diff) bytes, $(wc -l < .claude-review/changed-files.txt) file(s)."
+
+      - name: Generate findings
+        if: steps.pr.outputs.mode == 'review'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODELS: ${{ vars.OPENROUTER_MODELS }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          # Passed as env, not interpolated into a shell command — a PR title is
+          # attacker-controlled text and must never reach a `run:` block inline.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          # ~3% of this repo's merged PRs exceed 4 requests (measured across 40:
+          # median 28KB / 1 batch, but #297 needed 5 and #301 exactly 4). Files
+          # beyond the cap are dropped and the review reports inconclusive.
+          MAX_REQUESTS: '6'
+          # Reasoning is switched off at the request (see lib/openrouter.mjs),
+          # so this budget is the reply alone.
+          MAX_OUTPUT_TOKENS: '8000'
+        run: node .github/review/scripts/review.mjs
+
+      - name: Post review
+        if: steps.pr.outputs.mode == 'review'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          REQUEST_CHANGES_ON_BLOCKER: '0'
+          # Unresolved findings fail this step, which fails the check, which
+          # blocks the merge. Only findings do this — every reviewer failure
+          # path still exits zero, so a provider outage cannot wedge merges.
+          # ENFORCEMENT SWITCH — owner-controlled, repo variable REVIEW_ENFORCE.
+          # Unset or anything but 'true' = advisory: the review still runs and
+          # still comments, it just never fails the check. Set REVIEW_ENFORCE to
+          # 'true' when the rulebook has earned the right to block merges.
+          BLOCK_ON_FINDINGS: ${{ vars.REVIEW_ENFORCE == 'true' && '1' || '0' }}
+          REQUIRE_COMPLETE_REVIEW: ${{ vars.REVIEW_ENFORCE == 'true' && '1' || '0' }}
+          # Least severe finding that still blocks: blocker | major | minor | nit
+          BLOCK_MIN_SEVERITY: 'nit'
+        run: node .github/review/scripts/post-review.mjs
+
+      - name: Slack review digest
+        # Opt-in debugging. REVIEW_SLACK_DEBUG is a repo variable; the webhook
+        # is a secret, because a Slack webhook URL is a bearer credential —
+        # anyone holding it can post to the channel.
+        if: always() && steps.pr.outputs.mode == 'review' && vars.REVIEW_SLACK_DEBUG == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_ID: ${{ github.run_id }}
+        run: node .github/review/scripts/notify-slack.mjs
+
+      - name: Clear the review-again label
+        # Removed so it can be applied again. A label that stays put can only
+        # trigger once, which is a confusing way for an on-demand switch to fail.
+        if: always() && steps.pr.outputs.mode == 'review'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ steps.pr.outputs.number }}/labels/review-again" \
+            --silent || true
+
+      - name: Upload artifacts
+        if: always() && steps.pr.outputs.mode == 'review'
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-${{ steps.pr.outputs.number }}
+          path: .claude-review/
+          retention-days: 14
+          if-no-files-found: warn
+          # .claude-review is a dot-directory and upload-artifact@v4 skips hidden
+          # paths by default — without this the artifact is silently empty.
+          include-hidden-files: true
+
+      - name: No review has been requested for this code
+        if: steps.pr.outputs.mode == 'pending'
+        env:
+          ENFORCE: ${{ vars.REVIEW_ENFORCE == 'true' && '1' || '0' }}
+        run: |
+          if [ "$ENFORCE" != "1" ]; then
+            echo "::notice title=Review is stale::Advisory mode — add the \`review-again\` label for a fresh review. Not blocking."
+            exit 0
+          fi
+          echo "::error title=Review is stale::This pull request has changed since it was last reviewed."
+          cat <<'MSG'
+          The code has changed since the last review, so the previous result no
+          longer applies.
+
+          Add the `review-again` label for a fresh review.
+
+          Pushing new commits sends this check back to red on purpose — a review
+          that passed against code you have since changed should not keep the
+          merge unblocked.
+          MSG
+          exit 1
