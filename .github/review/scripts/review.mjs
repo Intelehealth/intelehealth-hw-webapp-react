@@ -87,6 +87,8 @@ ${files}
 DIFF
 ${diff}
 
+Rules apply only to files under src/ — the application. Do not report findings on other paths (.github/, config files, CI scripts); they are tooling, not the app. The exceptions are SEC and PHI rules, which apply everywhere: a committed credential or a leaked patient identifier is a defect wherever it sits.
+
 Report only problems in lines this diff ADDS or MODIFIES. Lines starting with "+" are added; lines starting with " " are unchanged context shown for reference only — do not report issues in them.
 
 You are seeing only the diff, not the whole repository. If judging something would require code you cannot see, either lower your confidence accordingly or leave it out.
@@ -104,8 +106,7 @@ Reply with exactly this JSON shape:
       "severity": "blocker | major | minor | nit",
       "confidence": 0.85,
       "title": "one line, under 80 characters",
-      "body": "why this is a problem here and what to do about it",
-      "suggestion": "optional: exact replacement code for those lines, no code fences"
+      "body": "ONE sentence: why it is a problem and what to do. Two only when one truly cannot carry it."
     }
   ]
 }
@@ -117,6 +118,78 @@ Reply with exactly this JSON shape:
 If you find nothing worth reporting, return an empty findings array. That is a perfectly good answer.`;
 }
 
+/*
+ * The shape we force the model into via `response_format: json_schema`.
+ *
+ * This is deliberately a separate, looser object from findings.schema.json.
+ * Strict mode requires every property to appear in `required` and forbids
+ * additionalProperties, so genuinely optional fields (endLine, suggestion)
+ * have to be declared nullable rather than omitted. findings.schema.json stays
+ * the stricter contract that post-review.mjs validates the written file
+ * against; this one only has to survive the provider's validator.
+ */
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'findings'],
+  properties: {
+    summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'ruleId',
+          'file',
+          'line',
+          'endLine',
+          'severity',
+          'confidence',
+          'title',
+          'body',
+        ],
+        properties: {
+          ruleId: { type: 'string' },
+          file: { type: 'string' },
+          line: { type: 'integer' },
+          endLine: { type: ['integer', 'null'] },
+          severity: {
+            type: 'string',
+            enum: ['blocker', 'major', 'minor', 'nit'],
+          },
+          confidence: { type: 'number' },
+          title: { type: 'string' },
+          body: { type: 'string' },
+        },
+      },
+    },
+  },
+};
+
+/*
+ * Not every model in the chain supports structured outputs, and the ones that
+ * do not are free to invent key names. Accept the spellings they actually
+ * reach for so a good finding is not discarded over casing.
+ */
+function pick(obj, ...names) {
+  for (const n of names) {
+    if (obj[n] !== undefined && obj[n] !== null) return obj[n];
+  }
+  return undefined;
+}
+
+/*
+ * The rulebook's scope, enforced in code. The Scope section says rules apply
+ * to src/** and not to tooling — but prose in a prompt is advisory, and the
+ * model demonstrably reports STD findings on .github/** anyway. SEC and PHI
+ * are the exception: a committed credential is a defect wherever it appears.
+ */
+function inScope(file, ruleId) {
+  if (ruleId.startsWith('SEC-') || ruleId.startsWith('PHI-')) return true;
+  return file.startsWith('src/');
+}
+
 /** Keep only findings that name a file we actually sent and a rule that exists. */
 function sanitise(findings, chunkFiles, validRuleIds) {
   const fileSet = new Set(chunkFiles);
@@ -126,22 +199,37 @@ function sanitise(findings, chunkFiles, validRuleIds) {
   for (const f of Array.isArray(findings) ? findings : []) {
     if (!f || typeof f !== 'object') continue;
 
-    const ruleId = String(f.ruleId || '')
+    const rawRuleId = pick(f, 'ruleId', 'rule_id', 'ruleID', 'rule', 'id');
+    const file = pick(f, 'file', 'path', 'filename', 'file_path');
+    const ruleId = String(rawRuleId || '')
       .toUpperCase()
       .trim();
-    const line = Number.parseInt(f.line, 10);
-    const endLine = Number.parseInt(f.endLine, 10);
-    const severity = String(f.severity || '')
+    const line = Number.parseInt(
+      pick(f, 'line', 'line_number', 'lineNumber'),
+      10
+    );
+    const endLine = Number.parseInt(pick(f, 'endLine', 'end_line'), 10);
+    const severity = String(pick(f, 'severity', 'level') || '')
       .toLowerCase()
       .trim();
-    const confidence = Number(f.confidence);
+    const confidence = Number(pick(f, 'confidence', 'score'));
 
-    if (!validRuleIds.has(ruleId)) {
-      rejected.push(`invented rule id ${f.ruleId}`);
+    if (!ruleId) {
+      rejected.push(
+        `missing rule id (model returned keys: ${Object.keys(f).join(', ') || 'none'})`
+      );
       continue;
     }
-    if (!fileSet.has(f.file)) {
-      rejected.push(`file not in this batch: ${f.file}`);
+    if (!validRuleIds.has(ruleId)) {
+      rejected.push(`invented rule id ${ruleId}`);
+      continue;
+    }
+    if (!fileSet.has(file)) {
+      rejected.push(`file not in this batch: ${file}`);
+      continue;
+    }
+    if (!inScope(file, ruleId)) {
+      rejected.push(`out of scope for ${ruleId}: ${file}`);
       continue;
     }
     if (!Number.isInteger(line) || line < 1) {
@@ -156,23 +244,22 @@ function sanitise(findings, chunkFiles, validRuleIds) {
       rejected.push(`confidence below threshold on ${ruleId}`);
       continue;
     }
-    if (!f.title || !f.body) {
+    const title = pick(f, 'title', 'summary', 'message');
+    const body = pick(f, 'body', 'description', 'detail', 'explanation');
+    if (!title || !body) {
       rejected.push(`missing title or body on ${ruleId}`);
       continue;
     }
 
     out.push({
       ruleId,
-      file: f.file,
+      file,
       line,
       ...(Number.isInteger(endLine) && endLine >= line ? { endLine } : {}),
       severity,
       confidence: Math.min(1, Math.max(0, confidence)),
-      title: String(f.title).slice(0, 120),
-      body: String(f.body).slice(0, 4000),
-      ...(f.suggestion
-        ? { suggestion: String(f.suggestion).slice(0, 2000) }
-        : {}),
+      title: String(title).slice(0, 120),
+      body: String(body).slice(0, 600),
     });
   }
   return { findings: out, rejected };
@@ -322,11 +409,17 @@ async function main() {
         }),
         maxTokens: MAX_OUTPUT_TOKENS,
         jsonMode,
+        schema: RESPONSE_SCHEMA,
         title: `PR Review #${PR_NUMBER}`,
       });
     } catch (err) {
       console.error(`Batch ${i + 1} failed: ${err.message}`);
-      debug.push({ batch: i + 1, files: chunkFiles, error: err.message });
+      debug.push({
+        batch: i + 1,
+        files: chunkFiles,
+        error: err.message,
+        request: err.request ?? null,
+      });
       failures++;
       continue;
     }
@@ -365,6 +458,8 @@ async function main() {
         files: chunkFiles,
         model: result.model,
         unparseable: result.text.slice(0, 1200),
+        request: result.request,
+        response: result.text,
       });
       failures++;
       continue;
@@ -400,6 +495,8 @@ async function main() {
       usage: result.usage,
       kept: findings.length,
       rejected,
+      request: result.request,
+      response: result.text,
     });
   }
 
@@ -461,9 +558,30 @@ async function main() {
     reviewed: !inconclusive,
     ...(inconclusive ? { inconclusive } : {}),
   });
+  /*
+   * The run's real bill, from the account itself: key usage after minus key
+   * usage before. Catches whatever per-request numbers miss (repair calls,
+   * retries billed without a usage block). May read a little low if
+   * OpenRouter's accounting has not settled by the time this runs.
+   */
+  const statusAfter = await keyStatus(API_KEY);
+  const account =
+    status && statusAfter
+      ? {
+          before: status.usage ?? null,
+          after: statusAfter.usage ?? null,
+          billed:
+            typeof statusAfter.usage === 'number' &&
+            typeof status.usage === 'number'
+              ? Number((statusAfter.usage - status.usage).toFixed(6))
+              : null,
+          limit: statusAfter.limit ?? null,
+        }
+      : null;
+
   writeFileSync(
     DEBUG_PATH,
-    JSON.stringify({ chain: chain.map(m => m.id), debug }, null, 2)
+    JSON.stringify({ chain: chain.map(m => m.id), account, debug }, null, 2)
   );
   console.log(`Wrote ${all.length} finding(s) to ${FINDINGS_PATH}.`);
 }

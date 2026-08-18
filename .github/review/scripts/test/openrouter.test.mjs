@@ -187,6 +187,13 @@ test('returns null rather than guessing on unusable output', () => {
 
 // --- model selection -------------------------------------------------------
 
+/* The chain configured in production, so the tests exercise what actually runs. */
+const LIVE_CHAIN = [
+  { id: 'deepseek/deepseek-v4-pro', context: 204800, structured: true },
+  { id: 'qwen/qwen3-coder', context: 262144, structured: true },
+  { id: 'z-ai/glm-4.7', context: 204800, structured: true },
+];
+
 const AVAILABLE = [
   { id: 'big/model:free', context: 262144, structured: false },
   { id: 'mid/model:free', context: 128000, structured: true },
@@ -252,6 +259,7 @@ test('ranking does not mutate the caller array', () => {
 async function startStub({ replies, models = AVAILABLE }) {
   const calls = [];
   let i = 0;
+  let keyReads = 0;
   const server = createServer((req, res) => {
     let body = '';
     req.on('data', c => (body += c));
@@ -269,8 +277,11 @@ async function startStub({ replies, models = AVAILABLE }) {
           })),
         });
       }
+      // Usage grows on each read so the billed-delta calculation is testable.
       if (req.url.endsWith('/key'))
-        return send(200, { data: { usage: 1, limit: null } });
+        return send(200, {
+          data: { usage: 1 + keyReads++ * 0.005, limit: null },
+        });
       if (req.url.endsWith('/chat/completions')) {
         calls.push(JSON.parse(body));
         const reply = replies[Math.min(i++, replies.length - 1)];
@@ -329,8 +340,13 @@ async function runReview(stub, { diff = DIFF, rules, env = {} } = {}) {
   const findings = JSON.parse(
     await readFile(join(dir, '.claude-review', 'findings.json'), 'utf8')
   );
+  // Early exits (no API key) legitimately write findings without a debug file.
+  const debug = await readFile(
+    join(dir, '.claude-review', 'openrouter-debug.json'),
+    'utf8'
+  ).then(JSON.parse, () => null);
   await rm(dir, { recursive: true, force: true });
-  return { stdout, stderr, findings };
+  return { stdout, stderr, findings, debug };
 }
 
 const RULES_FILE = `# Rulebook
@@ -537,9 +553,11 @@ test('JSON mode is only requested when every model in the chain supports it', as
   });
   try {
     await runReview(allStructured, { rules: RULES_FILE });
-    assert.deepEqual(allStructured.calls[0].response_format, {
-      type: 'json_object',
-    });
+    assert.equal(
+      allStructured.calls[0].response_format.type,
+      'json_schema',
+      'a fully structured chain gets the strict schema, not bare json_object'
+    );
   } finally {
     allStructured.server.close();
   }
@@ -565,4 +583,190 @@ test('structured output still outranks non-reasoning', () => {
     'thinker:v1',
     'JSON support is the harder constraint'
   );
+});
+
+test('pins the reply shape with a strict json_schema, not bare json_object', async () => {
+  // Regression: `json_object` only guarantees valid JSON, not field names. A
+  // model replied with `rule_id` instead of `ruleId` and all five findings were
+  // discarded as "invented rule id undefined".
+  const stub = await startStub({
+    replies: [{ content: OBJ }],
+    models: LIVE_CHAIN,
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    const [call] = stub.calls;
+    assert.equal(call.response_format.type, 'json_schema');
+    assert.equal(call.response_format.json_schema.strict, true);
+    const props = call.response_format.json_schema.schema.properties;
+    assert.ok(props.findings.items.required.includes('ruleId'));
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('every request asks the provider not to reason', async () => {
+  // deepseek-v4-pro spent 4000 of 4001 completion tokens reasoning and returned
+  // the single line "No diff was provided for review." — the diff had been sent
+  // (prompt_tokens 1978), the reply was simply truncated away.
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    assert.ok(stub.calls.length > 0);
+    for (const call of stub.calls)
+      assert.deepEqual(call.reasoning, { enabled: false });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a finding keyed rule_id survives instead of being thrown away', async () => {
+  const snake = JSON.stringify({
+    summary: 'x',
+    findings: [
+      {
+        rule_id: 'SEC-001',
+        path: 'src/a.ts',
+        line_number: 2,
+        level: 'major',
+        score: 0.9,
+        message: 'hardcoded secret',
+        description: 'move it to an env var',
+      },
+    ],
+  });
+  const stub = await startStub({ replies: [{ content: snake }] });
+  try {
+    const { findings } = await runReview(stub, { rules: RULES_FILE });
+    assert.equal(findings.findings.length, 1);
+    assert.equal(findings.findings[0].ruleId, 'SEC-001');
+    assert.equal(findings.findings[0].file, 'src/a.ts');
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('findings outside src/ are rejected unless the rule is SEC or PHI', async () => {
+  // The rulebook scopes rules to src/**, but prose in a prompt is advisory —
+  // a live run reported STD findings on .github/** anyway. Enforced in code.
+  const ciDiff = `diff --git a/.github/scripts/deploy.mjs b/.github/scripts/deploy.mjs
+index 111..222 100644
+--- a/.github/scripts/deploy.mjs
++++ b/.github/scripts/deploy.mjs
+@@ -1,2 +1,4 @@
+ const x = 1;
++console.log(x);
++const token = 'hardcoded';
+`;
+  const reply = JSON.stringify({
+    summary: 'x',
+    findings: [
+      {
+        ruleId: 'STD-008',
+        file: '.github/scripts/deploy.mjs',
+        line: 2,
+        severity: 'major',
+        confidence: 0.9,
+        title: 'console in tooling — out of scope',
+        body: 'b',
+      },
+      {
+        ruleId: 'SEC-001',
+        file: '.github/scripts/deploy.mjs',
+        line: 3,
+        severity: 'blocker',
+        confidence: 0.9,
+        title: 'a credential is in scope anywhere',
+        body: 'b',
+      },
+    ],
+  });
+  const stub = await startStub({ replies: [{ content: reply }] });
+  try {
+    const { findings } = await runReview(stub, {
+      diff: ciDiff,
+      rules: RULES_FILE,
+    });
+    assert.equal(findings.findings.length, 1);
+    assert.equal(findings.findings[0].ruleId, 'SEC-001');
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the model is no longer asked for suggestion blocks', async () => {
+  // Models filled ```suggestion fences with prose; applying one would commit
+  // a sentence into source. Dropped — also most of the paid output tokens.
+  const stub = await startStub({
+    replies: [{ content: OBJ }],
+    models: LIVE_CHAIN,
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    const [call] = stub.calls;
+    const props =
+      call.response_format.json_schema.schema.properties.findings.items;
+    assert.ok(!('suggestion' in props.properties));
+    assert.ok(!props.required.includes('suggestion'));
+    assert.match(call.messages.at(-1).content, /ONE sentence/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('requests route to the cheapest provider', async () => {
+  // Two identical runs billed ~70% apart per token — same model id, different
+  // provider behind it. Input is ~99% of this workload's tokens.
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    for (const call of stub.calls)
+      assert.deepEqual(call.provider, { sort: 'price' });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the debug artifact holds the full request and response per batch', async () => {
+  // The Slack digest shows truncated previews; the artifact is the full
+  // fidelity copy. Without it, debugging a bad reply means re-running the PR.
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    const { debug } = await runReview(stub, { rules: RULES_FILE });
+    const [batch] = debug.debug;
+    assert.ok(batch.request.messages.length >= 2);
+    assert.match(batch.request.messages.at(-1).content, /DIFF/);
+    assert.equal(batch.response, OBJ);
+    assert.ok(
+      !JSON.stringify(batch.request).includes('stub-key'),
+      'the API key must never reach the artifact'
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the debug artifact records what the key was actually billed', async () => {
+  // Per-request cost sums miss repair calls and unsettled accounting. The
+  // key's usage delta, straight from OpenRouter, is the source of truth.
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    const { debug } = await runReview(stub, { rules: RULES_FILE });
+    assert.ok(debug.account);
+    assert.equal(debug.account.billed, 0.005);
+    assert.equal(debug.account.after, 1.005);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('every request asks OpenRouter to include its accounting', async () => {
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    for (const call of stub.calls)
+      assert.deepEqual(call.usage, { include: true });
+  } finally {
+    stub.server.close();
+  }
 });

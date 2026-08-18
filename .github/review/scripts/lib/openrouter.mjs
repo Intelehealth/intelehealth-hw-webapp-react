@@ -256,7 +256,8 @@ export function chooseModels(
  * hit. Retries here are only for transport-level problems.
  *
  * @param {{apiKey:string, models:string[], system:string, user:string,
- *          maxTokens?:number, jsonMode?:boolean, retries?:number,
+ *          maxTokens?:number, jsonMode?:boolean, schema?:object|null,
+ *          disableReasoning?:boolean, retries?:number,
  *          referer?:string, title?:string}} opts
  * @returns {Promise<{text:string, model:string, usage:object|null}>}
  */
@@ -268,6 +269,8 @@ export async function complete(opts) {
     user,
     maxTokens = 4000,
     jsonMode = false,
+    schema = null,
+    disableReasoning = true,
     retries = 2,
     referer = 'https://github.com',
     title = 'PR Review Agent',
@@ -283,9 +286,45 @@ export async function complete(opts) {
     ],
     temperature: 0.1,
     max_tokens: maxTokens,
+    // Ask for OpenRouter's own accounting in every reply, rather than relying
+    // on the provider including it by default.
+    usage: { include: true },
   };
   if (chain.length > 1) body.models = chain;
-  if (jsonMode) body.response_format = { type: 'json_object' };
+
+  /*
+   * One model id is served by several providers at different prices, and the
+   * default routing balances price against uptime. Two identical runs came
+   * back ~70% apart per token because of it. Input tokens are ~99% of this
+   * workload, so the provider's rate is effectively the whole bill.
+   */
+  body.provider = { sort: 'price' };
+  /*
+   * `json_object` guarantees syntactically valid JSON and nothing else — the
+   * model is free to name the keys whatever it likes. Observed in production:
+   * a reply keyed `rule_id` instead of `ruleId` parsed cleanly, then every
+   * finding was thrown away as "invented rule id undefined". `json_schema`
+   * with strict:true is what actually pins the field names down.
+   */
+  if (schema && jsonMode) {
+    body.response_format = {
+      type: 'json_schema',
+      json_schema: { name: 'review_findings', strict: true, schema },
+    };
+  } else if (jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  /*
+   * Reading a diff and emitting findings against a fixed rulebook is
+   * pattern-matching, not multi-step deduction — there is nothing here for a
+   * chain of thought to work out. Left on, a reasoning model spends the whole
+   * output budget thinking and returns a truncated fragment: deepseek-v4-pro
+   * burned 4000 of 4001 completion tokens and replied "No diff was provided
+   * for review." OpenRouter normalises this across providers and ignores it on
+   * models that cannot reason, so it is safe to send unconditionally.
+   */
+  if (disableReasoning) body.reasoning = { enabled: false };
 
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -329,9 +368,13 @@ export async function complete(opts) {
         text: json.choices?.[0]?.message?.content ?? '',
         model: json.model || chain[0],
         usage: json.usage || null,
+        // The exact body sent, for the debug artifact. The API key travels in
+        // a header, never in the body, so this is safe to persist.
+        request: body,
       };
     } catch (err) {
       lastErr = err;
+      lastErr.request = body;
       // The non-retryable throw above lands here too, so honour it — otherwise
       // every 4xx is retried the full count before failing identically.
       if (err.fatal || attempt === retries) throw lastErr;

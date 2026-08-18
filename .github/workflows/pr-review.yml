@@ -143,13 +143,13 @@ jobs:
           # attacker-controlled text and must never reach a `run:` block inline.
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-          MAX_REQUESTS: '4'
-          # Reasoning models spend this budget thinking before they answer, and
-          # what is left is the reply. At 4000 a reasoning model can burn the
-          # lot on reasoning and return a truncated fragment — observed on
-          # deepseek-v4-pro: 4000 of 4001 completion tokens were reasoning, and
-          # the reply was the single line "No diff was provided for review."
-          MAX_OUTPUT_TOKENS: '16000'
+          # ~3% of this repo's merged PRs exceed 4 requests (measured across 40:
+          # median 28KB / 1 batch, but #297 needed 5 and #301 exactly 4). Files
+          # beyond the cap are dropped and the review reports inconclusive.
+          MAX_REQUESTS: '6'
+          # Reasoning is switched off at the request (see lib/openrouter.mjs),
+          # so this budget is the reply alone.
+          MAX_OUTPUT_TOKENS: '8000'
         run: node .github/review/scripts/review.mjs
 
       - name: Post review
@@ -172,6 +172,19 @@ jobs:
           # Least severe finding that still blocks: blocker | major | minor | nit
           BLOCK_MIN_SEVERITY: 'nit'
         run: node .github/review/scripts/post-review.mjs
+
+      - name: Slack review digest
+        # Opt-in debugging. REVIEW_SLACK_DEBUG is a repo variable; the webhook
+        # is a secret, because a Slack webhook URL is a bearer credential —
+        # anyone holding it can post to the channel.
+        if: always() && steps.pr.outputs.mode == 'review' && vars.REVIEW_SLACK_DEBUG == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_ID: ${{ github.run_id }}
+        run: node .github/review/scripts/notify-slack.mjs
 
       - name: Clear the review-again label
         # Removed so it can be applied again. A label that stays put can only

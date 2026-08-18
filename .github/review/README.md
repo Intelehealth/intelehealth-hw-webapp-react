@@ -20,9 +20,9 @@ one that never reports leaves a PR unmergeable forever:
 
 | Event                              | Check                         | Requests |
 | ---------------------------------- | ----------------------------- | -------- |
-| PR opened / reopened / ready       | 🔴 on findings, 🟢 when clean | ≤ 4      |
+| PR opened / reopened / ready       | 🔴 on findings, 🟢 when clean | ≤ 6      |
 | Push to an open PR                 | 🔴 review is stale            | 0        |
-| `review-again` label               | 🔴 on findings, 🟢 when clean | ≤ 4      |
+| `review-again` label               | 🔴 on findings, 🟢 when clean | ≤ 6      |
 | Draft, or a PR into another branch | 🟢 not gated                  | 0        |
 
 A push always sends the check back to red: a review that passed against code you have
@@ -116,7 +116,7 @@ leaves no trace of having been skipped.
 cannot open a config file or grep for a caller, so rules needing repo context miss more
 often. This is the biggest constraint — see the handoff for what would fix it.
 
-**Large diffs cap out** at 4 requests × 40,000 chars. Beyond that, files are dropped and
+**Large diffs cap out** at 6 requests × 40,000 chars. Beyond that, files are dropped and
 the review reports inconclusive. Raise `MAX_REQUESTS` or split the PR.
 
 **Fork PRs are skipped** — GitHub withholds secrets from those runs.
