@@ -1,4 +1,5 @@
 import type { QuestionValidationReason } from '../../ayu-library/logic/validation.logic';
+import { getBPRangeFromText } from '../../ayu-library/utils/constants';
 
 // Visit Reason Constants
 
@@ -68,10 +69,13 @@ export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
 export const VALIDATION_UPLOAD_CAPTURED_IMAGE =
   'Please upload the captured image';
+export const VALIDATION_OUT_OF_RANGE =
+  'Please enter a value within the allowed range';
 
 export const validationMessageForReason = (
   reason: QuestionValidationReason | undefined,
-  questionNumber?: number
+  questionNumber?: number,
+  outOfRangeText?: string
 ): string => {
   let message: string;
   switch (reason) {
@@ -85,6 +89,18 @@ export const validationMessageForReason = (
     case 'enterValue':
       message = VALIDATION_ENTER_VALUE;
       break;
+    case 'outOfRange': {
+      const bpRange = getBPRangeFromText(outOfRangeText);
+      if (bpRange && outOfRangeText) {
+        const fieldName = outOfRangeText.toLowerCase().includes('systolic')
+          ? 'Systolic'
+          : 'Diastolic';
+        message = `${fieldName} BP must be between ${bpRange.min}–${bpRange.max}`;
+      } else {
+        message = VALIDATION_OUT_OF_RANGE;
+      }
+      break;
+    }
     default:
       message = VALIDATION_SELECT_OPTION;
   }

@@ -12,6 +12,8 @@ import {
   SELECT_YES_OR_NO,
   EXCLUDED_JSON_NAMES,
   DURATION_DROPDOWN_CONFIGS,
+  PE_BP_FIELD_RANGES,
+  getBPRangeFromText,
 } from '../../../../modules/ayu-library/utils/constants';
 
 describe('Constants', () => {
@@ -84,6 +86,47 @@ describe('Constants', () => {
 
     it('should have exactly 3 entries', () => {
       expect(EXCLUDED_JSON_NAMES).toHaveLength(3);
+    });
+  });
+
+  describe('PE_BP_FIELD_RANGES', () => {
+    it('should have systolic range 60–260', () => {
+      expect(PE_BP_FIELD_RANGES.systolic).toEqual({ min: 60, max: 260 });
+    });
+
+    it('should have diastolic range 30–150', () => {
+      expect(PE_BP_FIELD_RANGES.diastolic).toEqual({ min: 30, max: 150 });
+    });
+
+    it('should have exactly 2 entries', () => {
+      expect(Object.keys(PE_BP_FIELD_RANGES)).toHaveLength(2);
+    });
+  });
+
+  describe('getBPRangeFromText', () => {
+    it('should return systolic range for text containing "systolic"', () => {
+      expect(getBPRangeFromText('Enter systolic BP')).toEqual({ min: 60, max: 260 });
+    });
+
+    it('should return diastolic range for text containing "diastolic"', () => {
+      expect(getBPRangeFromText('Enter diastolic BP')).toEqual({ min: 30, max: 150 });
+    });
+
+    it('should be case-insensitive', () => {
+      expect(getBPRangeFromText('Enter Systolic BP')).toEqual({ min: 60, max: 260 });
+      expect(getBPRangeFromText('DIASTOLIC reading')).toEqual({ min: 30, max: 150 });
+    });
+
+    it('should return undefined for text without BP keywords', () => {
+      expect(getBPRangeFromText('Enter pulse rate')).toBeUndefined();
+    });
+
+    it('should return undefined for undefined text', () => {
+      expect(getBPRangeFromText(undefined)).toBeUndefined();
+    });
+
+    it('should return undefined for empty string', () => {
+      expect(getBPRangeFromText('')).toBeUndefined();
     });
   });
 

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import {
   EXT_URL_MAX_VALUE,
   EXT_URL_MIN_VALUE,
+  getBPRangeFromText,
 } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import { NUMBER_INPUT_DEFAULT_MIN } from '../../utils/ayu.constants';
@@ -13,22 +15,34 @@ export function AyuNumberInput({
   onChange,
 }: AyuRendererBaseProps) {
   const inputId = `ayu-number-${question?.linkId}`;
+  const [error, setError] = useState<string | null>(null);
 
-  const min =
-    question?.extension?.find(e => e.url === EXT_URL_MIN_VALUE)?.valueInteger ??
-    NUMBER_INPUT_DEFAULT_MIN;
-  const max = question?.extension?.find(
+  const bpRange = getBPRangeFromText(question?.text);
+  const extMin = question?.extension?.find(
+    e => e.url === EXT_URL_MIN_VALUE
+  )?.valueInteger;
+  const extMax = question?.extension?.find(
     e => e.url === EXT_URL_MAX_VALUE
   )?.valueInteger;
+  const min = extMin ?? bpRange?.min ?? NUMBER_INPUT_DEFAULT_MIN;
+  const max = extMax ?? bpRange?.max;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.value) {
+      setError(null);
       onChange?.('' as unknown as number);
       return;
     }
-    let parsed = parseFloat(e.target.value);
-    parsed = Math.max(parsed, min);
-    if (max !== undefined) parsed = Math.min(parsed, max);
+    const parsed = parseFloat(e.target.value);
+
+    if (parsed < min) {
+      setError(`Value must be at least ${min}`);
+    } else if (max !== undefined && parsed > max) {
+      setError(`Value must be at most ${max}`);
+    } else {
+      setError(null);
+    }
+
     onChange?.(parsed);
   };
 
@@ -59,8 +73,11 @@ export function AyuNumberInput({
         onChange={handleChange}
         onWheel={e => (e.target as HTMLInputElement).blur()}
         disabled={question?.readOnly}
-        className="border bg-white border-solid border-[#20c997] rounded px-3 py-2 outline-none resize-y"
+        className={`border bg-white border-solid rounded px-3 py-2 outline-none resize-y ${
+          error ? 'border-red-500' : 'border-[#20c997]'
+        }`}
       />
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }

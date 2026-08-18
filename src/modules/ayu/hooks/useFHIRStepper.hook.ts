@@ -224,7 +224,11 @@ export const useFHIRStepper = (
         );
         if (!result.valid) {
           showToast(
-            validationMessageForReason(result.reason, questionNumber),
+            validationMessageForReason(
+              result.reason,
+              questionNumber,
+              result.outOfRangeText
+            ),
             undefined,
             'warning'
           );

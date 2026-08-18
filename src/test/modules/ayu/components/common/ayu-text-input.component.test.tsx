@@ -768,6 +768,224 @@ describe('AyuTextInput', () => {
     });
   });
 
+  describe('BP Inline Validation', () => {
+    const systolicQuestion: AyuQuestion = {
+      linkId: 'systolic-1',
+      text: 'Enter systolic BP',
+      type: 'string',
+      readOnly: false,
+    };
+
+    const diastolicQuestion: AyuQuestion = {
+      linkId: 'diastolic-1',
+      text: 'Enter diastolic BP',
+      type: 'string',
+      readOnly: false,
+    };
+
+    it('should show error when systolic value is below 60', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '50' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+      expect(mockOnChange).toHaveBeenCalledWith('50');
+    });
+
+    it('should show error when systolic value is above 260', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '300' } });
+      expect(screen.getByText('Value must be at most 260')).toBeInTheDocument();
+    });
+
+    it('should not show error for valid systolic value', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '120' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should show error when diastolic value is below 30', () => {
+      render(
+        <AyuTextInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '20' } });
+      expect(screen.getByText('Value must be at least 30')).toBeInTheDocument();
+    });
+
+    it('should show error when diastolic value is above 150', () => {
+      render(
+        <AyuTextInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '160' } });
+      expect(screen.getByText('Value must be at most 150')).toBeInTheDocument();
+    });
+
+    it('should not show error for valid diastolic value', () => {
+      render(
+        <AyuTextInput
+          question={diastolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '80' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should clear error when a valid value is entered after invalid', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '50' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+      fireEvent.change(textarea, { target: { value: '120' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should not show error for non-numeric text in BP field', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: 'abc' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should not show error for non-BP questions', () => {
+      render(
+        <AyuTextInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '5' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should apply red border when error is present', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '50' } });
+      expect(textarea).toHaveClass('border-red-500');
+    });
+
+    it('should apply green border when no error', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '120' } });
+      expect(textarea).toHaveClass('border-[#20c997]');
+    });
+
+    it('should show error at boundary value below systolic min', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '59' } });
+      expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
+    });
+
+    it('should not show error at exact systolic min boundary', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '60' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should not show error at exact systolic max boundary', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '260' } });
+      expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+
+    it('should show error at boundary value above systolic max', () => {
+      render(
+        <AyuTextInput
+          question={systolicQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: '261' } });
+      expect(screen.getByText('Value must be at most 260')).toBeInTheDocument();
+    });
+  });
+
   describe('Inline describe-field label hiding (structural)', () => {
     const soleChildParent = (childType: AyuQuestion['type']): AyuQuestion => ({
       linkId: 'p1',
