@@ -137,6 +137,12 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           MAX_REQUESTS: '4'
+          # Reasoning models spend this budget thinking before they answer, and
+          # what is left is the reply. At 4000 a reasoning model can burn the
+          # lot on reasoning and return a truncated fragment — observed on
+          # deepseek-v4-pro: 4000 of 4001 completion tokens were reasoning, and
+          # the reply was the single line "No diff was provided for review."
+          MAX_OUTPUT_TOKENS: '16000'
         run: node .github/review/scripts/review.mjs
 
       - name: Post review
