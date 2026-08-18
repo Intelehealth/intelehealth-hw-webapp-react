@@ -1528,5 +1528,36 @@ describe('validateQuestion', () => {
       };
       expect(findOutOfRangeQuestionText(q, { root: 'yes', group1: 'yes', sys: '300' })).toBe('Enter systolic BP');
     });
+
+    it('should return undefined when children exist but all values are in range', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          { linkId: 'sys', type: 'string', text: 'Enter systolic BP' },
+          { linkId: 'dia', type: 'string', text: 'Enter diastolic BP' },
+        ],
+      };
+      expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '120', dia: '80' })).toBeUndefined();
+    });
+
+    it('should skip children whose enableWhen evaluates to false', () => {
+      const q: AyuQuestion = {
+        linkId: 'bp1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'sys',
+            type: 'string',
+            text: 'Enter systolic BP',
+            enableWhen: [
+              { question: 'bp1', operator: '=', answerCoding: { code: 'HIDDEN' } },
+            ],
+          },
+        ],
+      };
+      // sys has out-of-range value 300, but enableWhen hides it
+      expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '300' })).toBeUndefined();
+    });
   });
 });
