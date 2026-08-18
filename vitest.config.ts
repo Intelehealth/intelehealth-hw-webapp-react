@@ -63,6 +63,12 @@ export default defineConfig({
     env: {
       VITE_OPENMRS_API_URL: 'http://localhost:8080/openmrs/ws/rest/v1',
     },
+    /**
+     * Scope vitest to the app. Without this its default glob sweeps the whole
+     * repo and picks up .github/review/scripts/test/*.test.mjs, which are
+     * node:test files and fail with "No test suite found".
+     */
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'coverage/**', 'src/examples/**'],
     coverage: {
       provider: 'v8',
