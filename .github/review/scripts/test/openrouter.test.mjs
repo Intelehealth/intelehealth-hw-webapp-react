@@ -187,6 +187,13 @@ test('returns null rather than guessing on unusable output', () => {
 
 // --- model selection -------------------------------------------------------
 
+/* The chain configured in production, so the tests exercise what actually runs. */
+const LIVE_CHAIN = [
+  { id: 'deepseek/deepseek-v4-pro', context: 204800, structured: true },
+  { id: 'qwen/qwen3-coder', context: 262144, structured: true },
+  { id: 'z-ai/glm-4.7', context: 204800, structured: true },
+];
+
 const AVAILABLE = [
   { id: 'big/model:free', context: 262144, structured: false },
   { id: 'mid/model:free', context: 128000, structured: true },
@@ -537,9 +544,11 @@ test('JSON mode is only requested when every model in the chain supports it', as
   });
   try {
     await runReview(allStructured, { rules: RULES_FILE });
-    assert.deepEqual(allStructured.calls[0].response_format, {
-      type: 'json_object',
-    });
+    assert.equal(
+      allStructured.calls[0].response_format.type,
+      'json_schema',
+      'a fully structured chain gets the strict schema, not bare json_object'
+    );
   } finally {
     allStructured.server.close();
   }
@@ -565,4 +574,65 @@ test('structured output still outranks non-reasoning', () => {
     'thinker:v1',
     'JSON support is the harder constraint'
   );
+});
+
+test('pins the reply shape with a strict json_schema, not bare json_object', async () => {
+  // Regression: `json_object` only guarantees valid JSON, not field names. A
+  // model replied with `rule_id` instead of `ruleId` and all five findings were
+  // discarded as "invented rule id undefined".
+  const stub = await startStub({
+    replies: [{ content: OBJ }],
+    models: LIVE_CHAIN,
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    const [call] = stub.calls;
+    assert.equal(call.response_format.type, 'json_schema');
+    assert.equal(call.response_format.json_schema.strict, true);
+    const props = call.response_format.json_schema.schema.properties;
+    assert.ok(props.findings.items.required.includes('ruleId'));
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('every request asks the provider not to reason', async () => {
+  // deepseek-v4-pro spent 4000 of 4001 completion tokens reasoning and returned
+  // the single line "No diff was provided for review." — the diff had been sent
+  // (prompt_tokens 1978), the reply was simply truncated away.
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    assert.ok(stub.calls.length > 0);
+    for (const call of stub.calls)
+      assert.deepEqual(call.reasoning, { enabled: false });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a finding keyed rule_id survives instead of being thrown away', async () => {
+  const snake = JSON.stringify({
+    summary: 'x',
+    findings: [
+      {
+        rule_id: 'SEC-001',
+        path: 'src/a.ts',
+        line_number: 2,
+        level: 'major',
+        score: 0.9,
+        message: 'hardcoded secret',
+        description: 'move it to an env var',
+      },
+    ],
+  });
+  const stub = await startStub({ replies: [{ content: snake }] });
+  try {
+    const { findings } = await runReview(stub, { rules: RULES_FILE });
+    assert.equal(findings.findings.length, 1);
+    assert.equal(findings.findings[0].ruleId, 'SEC-001');
+    assert.equal(findings.findings[0].file, 'src/a.ts');
+  } finally {
+    stub.server.close();
+  }
 });

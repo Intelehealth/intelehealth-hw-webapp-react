@@ -256,7 +256,8 @@ export function chooseModels(
  * hit. Retries here are only for transport-level problems.
  *
  * @param {{apiKey:string, models:string[], system:string, user:string,
- *          maxTokens?:number, jsonMode?:boolean, retries?:number,
+ *          maxTokens?:number, jsonMode?:boolean, schema?:object|null,
+ *          disableReasoning?:boolean, retries?:number,
  *          referer?:string, title?:string}} opts
  * @returns {Promise<{text:string, model:string, usage:object|null}>}
  */
@@ -268,6 +269,8 @@ export async function complete(opts) {
     user,
     maxTokens = 4000,
     jsonMode = false,
+    schema = null,
+    disableReasoning = true,
     retries = 2,
     referer = 'https://github.com',
     title = 'PR Review Agent',
@@ -285,7 +288,32 @@ export async function complete(opts) {
     max_tokens: maxTokens,
   };
   if (chain.length > 1) body.models = chain;
-  if (jsonMode) body.response_format = { type: 'json_object' };
+  /*
+   * `json_object` guarantees syntactically valid JSON and nothing else — the
+   * model is free to name the keys whatever it likes. Observed in production:
+   * a reply keyed `rule_id` instead of `ruleId` parsed cleanly, then every
+   * finding was thrown away as "invented rule id undefined". `json_schema`
+   * with strict:true is what actually pins the field names down.
+   */
+  if (schema && jsonMode) {
+    body.response_format = {
+      type: 'json_schema',
+      json_schema: { name: 'review_findings', strict: true, schema },
+    };
+  } else if (jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  /*
+   * Reading a diff and emitting findings against a fixed rulebook is
+   * pattern-matching, not multi-step deduction — there is nothing here for a
+   * chain of thought to work out. Left on, a reasoning model spends the whole
+   * output budget thinking and returns a truncated fragment: deepseek-v4-pro
+   * burned 4000 of 4001 completion tokens and replied "No diff was provided
+   * for review." OpenRouter normalises this across providers and ignores it on
+   * models that cannot reason, so it is safe to send unconditionally.
+   */
+  if (disableReasoning) body.reasoning = { enabled: false };
 
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {

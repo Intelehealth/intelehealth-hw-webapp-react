@@ -117,6 +117,69 @@ Reply with exactly this JSON shape:
 If you find nothing worth reporting, return an empty findings array. That is a perfectly good answer.`;
 }
 
+/*
+ * The shape we force the model into via `response_format: json_schema`.
+ *
+ * This is deliberately a separate, looser object from findings.schema.json.
+ * Strict mode requires every property to appear in `required` and forbids
+ * additionalProperties, so genuinely optional fields (endLine, suggestion)
+ * have to be declared nullable rather than omitted. findings.schema.json stays
+ * the stricter contract that post-review.mjs validates the written file
+ * against; this one only has to survive the provider's validator.
+ */
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'findings'],
+  properties: {
+    summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'ruleId',
+          'file',
+          'line',
+          'endLine',
+          'severity',
+          'confidence',
+          'title',
+          'body',
+          'suggestion',
+        ],
+        properties: {
+          ruleId: { type: 'string' },
+          file: { type: 'string' },
+          line: { type: 'integer' },
+          endLine: { type: ['integer', 'null'] },
+          severity: {
+            type: 'string',
+            enum: ['blocker', 'major', 'minor', 'nit'],
+          },
+          confidence: { type: 'number' },
+          title: { type: 'string' },
+          body: { type: 'string' },
+          suggestion: { type: ['string', 'null'] },
+        },
+      },
+    },
+  },
+};
+
+/*
+ * Not every model in the chain supports structured outputs, and the ones that
+ * do not are free to invent key names. Accept the spellings they actually
+ * reach for so a good finding is not discarded over casing.
+ */
+function pick(obj, ...names) {
+  for (const n of names) {
+    if (obj[n] !== undefined && obj[n] !== null) return obj[n];
+  }
+  return undefined;
+}
+
 /** Keep only findings that name a file we actually sent and a rule that exists. */
 function sanitise(findings, chunkFiles, validRuleIds) {
   const fileSet = new Set(chunkFiles);
@@ -126,22 +189,33 @@ function sanitise(findings, chunkFiles, validRuleIds) {
   for (const f of Array.isArray(findings) ? findings : []) {
     if (!f || typeof f !== 'object') continue;
 
-    const ruleId = String(f.ruleId || '')
+    const rawRuleId = pick(f, 'ruleId', 'rule_id', 'ruleID', 'rule', 'id');
+    const file = pick(f, 'file', 'path', 'filename', 'file_path');
+    const ruleId = String(rawRuleId || '')
       .toUpperCase()
       .trim();
-    const line = Number.parseInt(f.line, 10);
-    const endLine = Number.parseInt(f.endLine, 10);
-    const severity = String(f.severity || '')
+    const line = Number.parseInt(
+      pick(f, 'line', 'line_number', 'lineNumber'),
+      10
+    );
+    const endLine = Number.parseInt(pick(f, 'endLine', 'end_line'), 10);
+    const severity = String(pick(f, 'severity', 'level') || '')
       .toLowerCase()
       .trim();
-    const confidence = Number(f.confidence);
+    const confidence = Number(pick(f, 'confidence', 'score'));
 
-    if (!validRuleIds.has(ruleId)) {
-      rejected.push(`invented rule id ${f.ruleId}`);
+    if (!ruleId) {
+      rejected.push(
+        `missing rule id (model returned keys: ${Object.keys(f).join(', ') || 'none'})`
+      );
       continue;
     }
-    if (!fileSet.has(f.file)) {
-      rejected.push(`file not in this batch: ${f.file}`);
+    if (!validRuleIds.has(ruleId)) {
+      rejected.push(`invented rule id ${ruleId}`);
+      continue;
+    }
+    if (!fileSet.has(file)) {
+      rejected.push(`file not in this batch: ${file}`);
       continue;
     }
     if (!Number.isInteger(line) || line < 1) {
@@ -156,20 +230,22 @@ function sanitise(findings, chunkFiles, validRuleIds) {
       rejected.push(`confidence below threshold on ${ruleId}`);
       continue;
     }
-    if (!f.title || !f.body) {
+    const title = pick(f, 'title', 'summary', 'message');
+    const body = pick(f, 'body', 'description', 'detail', 'explanation');
+    if (!title || !body) {
       rejected.push(`missing title or body on ${ruleId}`);
       continue;
     }
 
     out.push({
       ruleId,
-      file: f.file,
+      file,
       line,
       ...(Number.isInteger(endLine) && endLine >= line ? { endLine } : {}),
       severity,
       confidence: Math.min(1, Math.max(0, confidence)),
-      title: String(f.title).slice(0, 120),
-      body: String(f.body).slice(0, 4000),
+      title: String(title).slice(0, 120),
+      body: String(body).slice(0, 4000),
       ...(f.suggestion
         ? { suggestion: String(f.suggestion).slice(0, 2000) }
         : {}),
@@ -322,6 +398,7 @@ async function main() {
         }),
         maxTokens: MAX_OUTPUT_TOKENS,
         jsonMode,
+        schema: RESPONSE_SCHEMA,
         title: `PR Review #${PR_NUMBER}`,
       });
     } catch (err) {
