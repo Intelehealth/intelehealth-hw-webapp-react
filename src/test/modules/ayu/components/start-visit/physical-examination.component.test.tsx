@@ -1595,6 +1595,261 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       );
     });
 
+    it('collectNestedChildValues suppresses a branching container whose label matches the parent option display (Jaundice-style)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Structure:
+       *   Jaundice? (choice: yes→"Yes") [top-level PE question]
+       *     └── "Yes" (choice, enableWhen: parent=yes, options: when→"When")
+       *           └── "When" (string, enableWhen: yesContainer=when)
+       *
+       * The "Yes" container row should be suppressed.
+       * Only "When: 20 hours" should appear as a child row.
+       */
+      const whenLeaf: AyuQuestion = {
+        linkId: 'j-yes-when',
+        text: 'When',
+        type: 'string',
+        enableWhen: [
+          { question: 'j-yes', operator: '=', answerCoding: { code: 'when' } },
+        ],
+      };
+      const yesContainer: AyuQuestion = {
+        linkId: 'j-yes',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'j', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'when', display: 'When' } }],
+        item: [whenLeaf],
+      };
+      const question = makeQuestion('j', 'General', 'Jaundice', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [yesContainer];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        j: ['yes'],
+        'j-yes': 'when',
+        'j-yes-when': '20 hours',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+
+      const childLabels = section.items
+        .filter((i: { isChild?: boolean }) => i.isChild)
+        .map((i: { label: string }) => i.label);
+
+      // The redundant "Yes" container must not produce a child row
+      expect(childLabels).not.toContain('Yes');
+      // Only the leaf "When" row should remain
+      expect(childLabels).toEqual(['When']);
+      expect(
+        section.items.find(
+          (i: { label: string; value: string }) =>
+            i.label === 'When' && i.value === '20 hours'
+        )
+      ).toBeDefined();
+    });
+
+    it('collectNestedChildValues strips the option prefix from a composite leaf label ("Yes - When" → "When")', async () => {
+      const user = userEvent.setup();
+      /*
+       * Blood-transfusion pattern: the leaf item itself carries the composite
+       * label "Yes - When". The prefix "Yes " is redundant with the already-
+       * displayed parent answer so the row should show just "When: 17 Years".
+       */
+      const leafContainer: AyuQuestion = {
+        linkId: 'bt-leaf',
+        text: 'Yes - When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const question = makeQuestion('bt', 'General', 'Blood Transfusion', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [leafContainer];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        bt: ['yes'],
+        'bt-leaf': '17 Years',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+
+      // Full composite label must not appear
+      expect(
+        childItems.some(
+          (i: { label: string }) => i.label === 'Yes - When'
+        )
+      ).toBe(false);
+      // Only the stripped label "When" with value "17 Years"
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'When', value: '17 Years' });
+    });
+
+    it('collectNestedChildValues strips prefix via GROUP container (no answerOption on intermediate)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Scenario: a GROUP container (no answerOption, no stored answer) sits
+       * between the parent choice question and the composite "Yes - When" leaf.
+       * The container's enableWhen references the parent ("bt"), the leaf's
+       * enableWhen also references the parent ("bt") — so the direct parent
+       * check ("rule.question === parent.linkId") fails for the leaf because
+       * its parent is the GROUP container, not "bt".
+       *
+       * Expected: the branch display ("Yes") propagates through the GROUP
+       * container so that "Yes - When" is still stripped to "When".
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'string',
+        // enableWhen references the grandparent "bt", not the GROUP "bt-group"
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'bt-group',
+        text: 'Yes',
+        type: 'group',
+        // No answerOption — this is a plain GROUP container
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question = makeQuestion('bt', 'General', 'Blood Transfusion', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [groupContainer];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        bt: ['yes'],
+        // bt-group has no stored answer (it's a GROUP)
+        'bt-yes-when': '17 Years',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+
+      // Full composite label must not appear
+      expect(
+        childItems.some((i: { label: string }) => i.label === 'Yes - When')
+      ).toBe(false);
+      // Prefix stripped: should show "When" not "Yes - When"
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'When', value: '17 Years' });
+    });
+
+    it('collectNestedChildValues strips "Yes - When" to "When" via exact-match optDisplay (3-level structure)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Real blood-transfusion structure: THREE levels with an intermediate
+       * choice node whose answerOption display IS the composite label.
+       *
+       *   bt  (choice: yes → "Yes")
+       *     └── bt-yes  (choice: yes-when → "Yes - When", enableWhen bt=yes)
+       *           └── bt-yes-when  (string "Yes - When", enableWhen bt-yes=yes-when)
+       *
+       * Problem: Check 1 for bt-yes-when finds optDisplay="Yes - When" === rawLabel
+       * "Yes - When" (exact match) → hasOptionPrefix=true but effectiveLabel stays
+       * "Yes - When". Check 3 must strip branchOptionDisplay "Yes - " from
+       * effectiveLabel → "When".
+       *
+       * Expected: child item label = "When", NOT "Yes - When".
+       */
+      const btYesWhen: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt-yes', operator: '=', answerCoding: { code: 'yes-when' } },
+        ],
+      };
+      const btYes: AyuQuestion = {
+        linkId: 'bt-yes',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes-when', display: 'Yes - When' } },
+        ],
+        item: [btYesWhen],
+      };
+      const question = makeQuestion('bt', 'General', 'Blood Transfusion', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [btYes];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        bt: ['yes'],
+        'bt-yes': 'yes-when',
+        'bt-yes-when': '17 hours',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+
+      // "Yes - When" must NOT appear as a label
+      expect(
+        childItems.some((i: { label: string }) => i.label === 'Yes - When')
+      ).toBe(false);
+      // Check 3 strips branchOptionDisplay "Yes - " → label = "When"
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'When', value: '17 hours' });
+    });
+
     it('treats an option without a display string as an empty value', async () => {
       const user = userEvent.setup();
       /* Option with a code but display=undefined — exercises the `?? ''`

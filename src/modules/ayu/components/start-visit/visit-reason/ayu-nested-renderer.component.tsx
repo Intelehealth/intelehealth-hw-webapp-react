@@ -102,6 +102,24 @@ export const AyuNestedRenderer = ({
   const isEnabled = (item: AyuQuestion) =>
     evaluateEnableWhen(item.enableWhen, answers);
 
+  /**
+   * Strip the group label prefix from a child question's display text so that
+   * a child labelled "Yes - When" renders as "When" when its group is "Yes".
+   */
+  const NESTED_SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '] as const;
+  const stripGroupPrefix = (
+    text: string | undefined,
+    groupLabel: string | null
+  ): string | undefined => {
+    if (!groupLabel || !text) return text;
+    for (const sep of NESTED_SEPARATORS) {
+      if (text.startsWith(groupLabel + sep)) {
+        return text.slice(groupLabel.length + sep.length).trim() || text;
+      }
+    }
+    return text;
+  };
+
   const getParentAnswerLabel = (item: AyuQuestion): string | null => {
     if (!item.enableWhen?.length || !parentQuestion) return null;
 
@@ -175,7 +193,9 @@ export const AyuNestedRenderer = ({
                       !!item?.text && (
                         <AyuSelectableOption
                           key={item.linkId}
-                          label={item.text}
+                          label={
+                            stripGroupPrefix(item.text, label) ?? item.text
+                          }
                           value={item.linkId}
                           selected={selectedOption === item.linkId}
                           onClick={() => {
@@ -283,7 +303,10 @@ export const AyuNestedRenderer = ({
                     )}
                     <div className="flex-1">
                       <AyuRenderer
-                        question={child}
+                        question={{
+                          ...child,
+                          text: stripGroupPrefix(child.text, label),
+                        }}
                         parent={parentQuestion}
                         previousSibling={prevSibling}
                         value={answers[child.linkId]}

@@ -143,6 +143,7 @@ describe('Tooltip', () => {
 
     unmount();
     expect(clearTimeoutSpy).toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
   });
 
   it('handles missing trigger ref gracefully', () => {

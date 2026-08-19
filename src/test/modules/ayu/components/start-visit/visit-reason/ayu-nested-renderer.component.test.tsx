@@ -2053,4 +2053,128 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-level-2')).toBeInTheDocument();
     });
   });
+
+  describe('Parent-option prefix stripping', () => {
+    it('strips "Yes - When" to "When" in non-selectable mode when parent option is "Yes"', () => {
+      // Mirrors "Any h/o use of needles?" → Yes → "Yes - When" child
+      const parentQuestion: AyuQuestion = {
+        linkId: 'needles',
+        type: 'choice',
+        text: 'Any h/o use of needles?',
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'needles-when',
+          type: 'string',
+          text: 'Yes - When',
+          enableWhen: [
+            { question: 'needles', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ needles: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // The renderer receives "When", not "Yes - When"
+      const rendererDiv = screen.getByTestId('renderer-needles-when');
+      expect(rendererDiv).toBeInTheDocument();
+      expect(rendererDiv.textContent).toContain('When');
+      expect(rendererDiv.textContent).not.toContain('Yes - When');
+    });
+
+    it('strips "Yes - When" pill label to "When" in selectable mode', async () => {
+      const user = userEvent.setup();
+      const parentQuestion: AyuQuestion = {
+        linkId: 'needles',
+        type: 'choice',
+        text: 'Any h/o use of needles?',
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'needles-when',
+          type: 'string',
+          text: 'Yes - When',
+          enableWhen: [
+            { question: 'needles', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+        {
+          linkId: 'needles-other',
+          type: 'string',
+          text: 'Yes - Other detail',
+          enableWhen: [
+            { question: 'needles', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ needles: 'yes' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // Pills show stripped labels
+      const whenPill = screen.getByTestId('selectable-needles-when');
+      expect(whenPill.textContent).toBe('When');
+      const otherPill = screen.getByTestId('selectable-needles-other');
+      expect(otherPill.textContent).toBe('Other detail');
+
+      // After clicking a pill, the renderer receives the stripped text
+      await user.click(whenPill);
+      const rendererDiv = screen.getByTestId('renderer-needles-when');
+      expect(rendererDiv.textContent).not.toContain('Yes - When');
+    });
+
+    it('does not strip when child text does not start with the parent option prefix', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        text: 'Question?',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+      };
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q-desc',
+          type: 'string',
+          text: 'Describe the condition',
+          enableWhen: [
+            { question: 'q', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ q: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Text doesn't start with "Yes - " so it stays unchanged
+      const rendererDiv = screen.getByTestId('renderer-q-desc');
+      expect(rendererDiv.textContent).toContain('Describe the condition');
+    });
+  });
 });

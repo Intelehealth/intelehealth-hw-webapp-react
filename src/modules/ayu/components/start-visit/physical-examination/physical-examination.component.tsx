@@ -89,20 +89,70 @@ const isCameraOption = (
  *  "ID-123". When the child has no `text`, the resolved display value is used
  *  as the label so the row is not silently dropped.
  *  Gated children whose `enableWhen` condition is not met are skipped so that
- *  stale answers from previously-visible branches do not leak into the summary. */
+ *  stale answers from previously-visible branches do not leak into the summary.
+ *
+ *  Labels that are path-composite (e.g. "Yes - When", "Yes – When", "Yes: When")
+ *  have the redundant parent-option prefix stripped so the summary shows just
+ *  "When" instead of "Yes - When". Branching containers whose label exactly or
+ *  prefixably matches the parent option display are suppressed when they have
+ *  nested items — the children produce the meaningful rows instead.
+ *
+ *  `branchOptionDisplay` carries the active option label (e.g. "Yes") through
+ *  GROUP containers that have no `answerOption` themselves, so that deeply
+ *  nested composite labels ("Yes - When") can still have the prefix stripped
+ *  even when their immediate parent is an un-answered GROUP item. */
 const collectNestedChildValues = (
   items: AyuQuestion[] | undefined,
-  answers: Record<string, AyuAnswerValue>
+  answers: Record<string, AyuAnswerValue>,
+  parent?: AyuQuestion,
+  branchOptionDisplay?: string
 ): { label: string; value: string }[] => {
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
+  const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '] as const;
   for (const child of items) {
     /* Skip gated children whose condition is not satisfied */
     if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
 
+    /*
+     * Determine the branch display to carry into this child's descendants.
+     * When a GROUP container (no answerOption / no stored answer) sits between
+     * the originating choice question and composite sub-items ("Yes - When"),
+     * we propagate the option display ("Yes") so the prefix can still be
+     * stripped at a deeper level even when the enableWhen reference skips the
+     * intermediate GROUP.
+     */
+    let nextBranchDisplay: string | undefined;
+    if (parent && child.enableWhen?.length) {
+      const rule = child.enableWhen![0];
+      if (rule.question === parent.linkId) {
+        const expected =
+          rule.answerBoolean ??
+          rule.answerString ??
+          rule.answerInteger ??
+          rule.answerCoding?.code;
+        const opt = parent.answerOption?.find(
+          o => o.valueCoding?.code === expected || o.valueString === expected
+        );
+        const optDisplay = opt?.valueCoding?.display || opt?.valueString;
+        if (optDisplay) {
+          const lbl = child.text ?? '';
+          if (
+            lbl === optDisplay ||
+            SEPARATORS.some(sep => lbl.startsWith(optDisplay + sep))
+          ) {
+            nextBranchDisplay = optDisplay;
+          }
+        }
+      }
+    }
+    if (!nextBranchDisplay && branchOptionDisplay != null) {
+      nextBranchDisplay = branchOptionDisplay;
+    }
+
     const answer = answers[child.linkId];
     if (answer != null && answer !== '') {
-      const label = child.text ?? '';
+      const rawLabel = child.text ?? '';
       const rawValue = typeof answer === 'string' ? answer : String(answer);
 
       // For choice questions, resolve the answer code to display text
@@ -123,10 +173,100 @@ const collectNestedChildValues = (
       }
 
       if (displayValue) {
-        rows.push({ label: label || displayValue, value: displayValue });
+        /*
+         * Strip redundant parent-option prefix from composite labels
+         * ("Yes - When" → "When", "Yes – When" → "When", "Yes: When" → "When").
+         * If the label exactly matches the parent option display ("Yes") AND the
+         * child has nested items, suppress the row entirely — the children
+         * provide the actual detail rows.
+         *
+         * Check 1 – direct parent has the matching answerOption entry.
+         * Check 2 – fallback to `branchOptionDisplay` when the immediate parent
+         *           is a GROUP (no answerOption) or enableWhen skips an ancestor.
+         */
+        let effectiveLabel = rawLabel;
+        let hasOptionPrefix = false;
+
+        if (parent && child.enableWhen?.length) {
+          const rule = child.enableWhen![0];
+          if (rule.question === parent.linkId) {
+            const expected =
+              rule.answerBoolean ??
+              rule.answerString ??
+              rule.answerInteger ??
+              rule.answerCoding?.code;
+            const opt = parent.answerOption?.find(
+              o =>
+                o.valueCoding?.code === expected || o.valueString === expected
+            );
+            const optDisplay =
+              opt?.valueCoding?.display || opt?.valueString || null;
+
+            if (optDisplay != null) {
+              if (optDisplay === rawLabel) {
+                hasOptionPrefix = true;
+              } else {
+                for (const sep of SEPARATORS) {
+                  if (rawLabel.startsWith(optDisplay + sep)) {
+                    hasOptionPrefix = true;
+                    effectiveLabel =
+                      rawLabel.slice(optDisplay.length + sep.length).trim() ||
+                      rawLabel;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Check 2: parent is a GROUP without answerOption, or enableWhen
+        // references a non-immediate ancestor — use propagated branch display.
+        if (!hasOptionPrefix && branchOptionDisplay != null) {
+          if (branchOptionDisplay === rawLabel) {
+            hasOptionPrefix = true;
+          } else {
+            for (const sep of SEPARATORS) {
+              if (rawLabel.startsWith(branchOptionDisplay + sep)) {
+                hasOptionPrefix = true;
+                effectiveLabel =
+                  rawLabel
+                    .slice(branchOptionDisplay.length + sep.length)
+                    .trim() || rawLabel;
+                break;
+              }
+            }
+          }
+        }
+
+        // Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
+        // Check 1 matched exactly (optDisplay === rawLabel), leaving effectiveLabel
+        // as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
+        // has already been represented by the parent row; reduce to just "When".
+        if (branchOptionDisplay) {
+          for (const sep of SEPARATORS) {
+            if (effectiveLabel.startsWith(branchOptionDisplay + sep)) {
+              effectiveLabel =
+                effectiveLabel
+                  .slice(branchOptionDisplay.length + sep.length)
+                  .trim() || effectiveLabel;
+              break;
+            }
+          }
+        }
+
+        const isRedundantContainer = hasOptionPrefix && !!child.item?.length;
+        if (!isRedundantContainer) {
+          rows.push({
+            label: effectiveLabel || displayValue,
+            value: displayValue,
+          });
+        }
       }
     }
-    rows.push(...collectNestedChildValues(child.item, answers));
+    rows.push(
+      ...collectNestedChildValues(child.item, answers, child, nextBranchDisplay)
+    );
   }
   return rows;
 };
@@ -271,7 +411,7 @@ export const PhysicalExamination = (props: SectionProps) => {
         }
 
         /* Collect nested child values (e.g. Systolic/Diastolic under Blood Pressure) */
-        const nestedValues = collectNestedChildValues(q.item, answers);
+        const nestedValues = collectNestedChildValues(q.item, answers, q);
 
         /* Always include the parent's selected texts in the details. */
         if (selectedTexts.length > 0) {

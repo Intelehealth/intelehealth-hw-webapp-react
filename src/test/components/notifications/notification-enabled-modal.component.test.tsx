@@ -26,6 +26,7 @@ describe('NotificationEnabledModal', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 

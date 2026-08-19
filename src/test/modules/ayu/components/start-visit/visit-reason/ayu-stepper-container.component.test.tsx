@@ -4928,6 +4928,446 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('collectAnsweredRows redundant container rows (Jaundice-style)', () => {
+    it('should skip a child row whose label matches the parent answer option display when it has nested items', () => {
+      /*
+       * Simulates the Jaundice pattern:
+       *   Top: "Jaundice?" (choice: yes→"Yes" / no→"No")
+       *     └── "Yes" (choice, enableWhen: parent=yes, text="Yes") ← redundant container
+       *           └── "When" (string, enableWhen: yesContainer=when)
+       *
+       * Before fix: displayed "Yes → Yes: When → When: 20 hours"
+       * After fix:  displays  "Yes → When: 20 hours"
+       */
+      const whenLeaf: AyuQuestion = {
+        linkId: 'q1-yes-when',
+        text: 'When',
+        type: 'string',
+        enableWhen: [
+          { question: 'q1-yes', operator: '=', answerCoding: { code: 'when' } },
+        ],
+      };
+      const yesContainer: AyuQuestion = {
+        linkId: 'q1-yes',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'when', display: 'When' } }],
+        item: [whenLeaf],
+      };
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Jaundice?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [yesContainer],
+      };
+
+      const answers = {
+        q1: 'yes',
+        'q1-yes': 'when',
+        'q1-yes-when': '20 hours',
+      };
+
+      // required: true prevents q2 from being auto-added to skippedQuestions,
+      // which would render a "Skipped" <p class="text-sm font-semibold text-[#7F7B92]">
+      // that would collide with the row-label CSS selector used below.
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      const { container } = render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // The leaf value and its label should appear exactly once each
+      expect(screen.getByText('20 hours')).toBeInTheDocument();
+      expect(screen.getByText('When')).toBeInTheDocument();
+
+      // "Yes" should appear as the primary answer value, NOT as a nested row label
+      const rowLabels = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
+      const labelTexts = [...rowLabels].map(el => el.textContent);
+      expect(labelTexts).not.toContain('Yes');
+
+      // There should be exactly one nested row (When: 20 hours) — no duplicate Yes row
+      expect(rowLabels).toHaveLength(1);
+      expect(labelTexts[0]).toBe('When');
+    });
+
+    it('should not skip a child row when the child has no nested items (leaf choice)', () => {
+      /*
+       * A leaf choice question whose label matches a parent option display
+       * should still produce a row, because there are no children to provide
+       * the detail.
+       */
+      const leafChoice: AyuQuestion = {
+        linkId: 'q1-yes',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'mild', display: 'Mild' } }],
+        // no item — this is a leaf
+      };
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Jaundice?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [leafChoice],
+      };
+
+      const answers = { q1: 'yes', 'q1-yes': 'mild' };
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // The leaf row should still appear because there are no nested items to replace it
+      expect(screen.getByText('Mild')).toBeInTheDocument();
+    });
+
+    it('should strip the option prefix from a leaf label ("Yes - When" → "When") when the child has no nested items', () => {
+      /*
+       * Blood-transfusion pattern where the container IS the leaf (no sub-items).
+       * Label "Yes - When" should be stripped to "When" so the row reads
+       * "When: 17 Years" instead of "Yes - When: 17 Years".
+       */
+      const leafContainer: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const question: AyuQuestion = {
+        linkId: 'bt',
+        text: 'Blood transfusion recently?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [leafContainer],
+      };
+
+      const answers = { bt: 'yes', 'bt-yes-when': '17 Years' };
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      const { container } = render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('17 Years')).toBeInTheDocument();
+
+      const rowLabels = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
+      const labelTexts = [...rowLabels].map(el => el.textContent);
+
+      // Full composite label must not appear — only the stripped "When"
+      expect(labelTexts).not.toContain('Yes - When');
+      expect(rowLabels).toHaveLength(1);
+      expect(labelTexts[0]).toBe('When');
+    });
+
+    it('should skip a child row whose label is a path-composite prefix of the parent option (e.g. "Yes - When")', () => {
+      /*
+       * Blood-transfusion pattern: the questionnaire names the container with a
+       * composite path label "Yes - When" instead of just "Yes".
+       * This is still redundant ("Yes" is already the primary value) and must
+       * be suppressed, leaving only the leaf "When: 17 Years" row.
+       */
+      const whenLeaf: AyuQuestion = {
+        linkId: 'bt-yes-when-val',
+        text: 'When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt-yes-when', operator: '=', answerCoding: { code: 'val' } },
+        ],
+      };
+      const yesWhenContainer: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'choice',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'val', display: 'When' } }],
+        item: [whenLeaf],
+      };
+      const question: AyuQuestion = {
+        linkId: 'bt',
+        text: 'Blood transfusion recently?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [yesWhenContainer],
+      };
+
+      const answers = {
+        bt: 'yes',
+        'bt-yes-when': 'val',
+        'bt-yes-when-val': '17 Years',
+      };
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      const { container } = render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('17 Years')).toBeInTheDocument();
+
+      const rowLabels = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
+      const labelTexts = [...rowLabels].map(el => el.textContent);
+
+      // The composite "Yes - When" container must not appear as a row label
+      expect(labelTexts).not.toContain('Yes - When');
+      // Only the leaf label "When" should remain
+      expect(rowLabels).toHaveLength(1);
+      expect(labelTexts[0]).toBe('When');
+    });
+
+    it('strips "Yes - When" prefix via GROUP container (no answerOption on intermediate)', () => {
+      /*
+       * A GROUP container (no answerOption, no stored answer) sits between the
+       * parent choice question and the composite "Yes - When" leaf. The leaf's
+       * enableWhen references the GRANDPARENT ("bt"), not the GROUP ("bt-group"),
+       * so the direct-parent check fails. The branch display ("Yes") must be
+       * propagated through the GROUP so the prefix is still stripped.
+       *
+       *   Blood Transfusion [bt] (choice: yes→"Yes")
+       *     └── GROUP "Yes" [bt-group] (no answerOption, no stored answer)
+       *           └── "Yes - When" [bt-yes-when] (enableWhen: bt=yes)
+       *
+       * Expected: row label "When", not "Yes - When".
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'bt-group',
+        text: 'Yes',
+        type: 'group',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question: AyuQuestion = {
+        linkId: 'bt',
+        text: 'Blood Transfusion?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [groupContainer],
+      };
+
+      const answers = {
+        bt: 'yes',
+        // bt-group has no stored answer (GROUP type)
+        'bt-yes-when': '17 Years',
+      };
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      const { container } = render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('17 Years')).toBeInTheDocument();
+
+      const rowLabels = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
+      const labelTexts = [...rowLabels].map(el => el.textContent);
+
+      // Full composite label must not appear
+      expect(labelTexts).not.toContain('Yes - When');
+      // Prefix stripped via GROUP propagation: should show "When"
+      expect(rowLabels).toHaveLength(1);
+      expect(labelTexts[0]).toBe('When');
+    });
+
+    it('strips "Yes - When" to "When" via exact-match optDisplay (real blood-transfusion 3-level structure)', () => {
+      /*
+       * The real blood-transfusion questionnaire has THREE levels:
+       *   bt  (choice: yes → "Yes")
+       *     └── bt-yes  (choice: yes-when → "Yes - When", enableWhen bt=yes)
+       *           └── bt-yes-when  (string "Yes - When", enableWhen bt-yes=yes-when)
+       *
+       * Problem: Check 1 for bt-yes-when finds optDisplay="Yes - When" === rawLabel
+       * "Yes - When" (exact match), sets hasOptionPrefix=true but leaves effectiveLabel
+       * as "Yes - When". Check 3 must then strip branchOptionDisplay "Yes - " from
+       * effectiveLabel, yielding "When".
+       *
+       * Expected: label = "When", NOT "Yes - When".
+       */
+      const btYesWhen: AyuQuestion = {
+        linkId: 'bt-yes-when',
+        text: 'Yes - When',
+        type: 'string',
+        enableWhen: [
+          { question: 'bt-yes', operator: '=', answerCoding: { code: 'yes-when' } },
+        ],
+      };
+      const btYes: AyuQuestion = {
+        linkId: 'bt-yes',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes-when', display: 'Yes - When' } },
+        ],
+        item: [btYesWhen],
+      };
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        text: 'Blood transfusion recently?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [btYes],
+      };
+
+      const answers = { bt: 'yes', 'bt-yes': 'yes-when', 'bt-yes-when': '17 hours' };
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [btQuestion, q2],
+        isLast: false,
+      });
+
+      const { container } = render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([btQuestion, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('17 hours')).toBeInTheDocument();
+
+      const rowLabels = container.querySelectorAll('p.text-sm.text-\\[\\#7F7B92\\]');
+      const labelTexts = [...rowLabels].map(el => el.textContent);
+
+      // "Yes - When" must NOT appear as a label — only the stripped "When"
+      expect(labelTexts).not.toContain('Yes - When');
+      expect(rowLabels).toHaveLength(1);
+      expect(labelTexts[0]).toBe('When');
+    });
+  });
+
   describe('Auto-advance backfill effect (lines 367, 373)', () => {
     it('line 367: should skip undefined items in topLevelItems during backfill', () => {
       const questions: AyuQuestion[] = [

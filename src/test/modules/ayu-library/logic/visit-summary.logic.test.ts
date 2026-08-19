@@ -851,6 +851,75 @@ describe('buildVisitSummary', () => {
     });
   });
 
+  describe('single-select choice with composite "Yes - When" child — no double-Yes', () => {
+    it('should not duplicate the option display when the child option text starts with it', () => {
+      // Mirrors the real "Blood transfusion" questionnaire structure:
+      //   bt (choice: yes/no)
+      //     └─ bt-yes (choice: "Yes - When" option, enableWhen bt=yes)
+      //          └─ bt-yes-when (string, enableWhen bt-yes="yes-when")
+      // Expected: value = "Yes - When – 17 Years"  (NOT "Yes - Yes - When – 17 Years")
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        type: 'choice',
+        text: 'Blood transfusion',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Blood transfusion',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'bt-yes',
+            type: 'choice',
+            text: 'Yes',
+            enableWhen: [
+              { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'yes-when', display: 'Yes - When' } },
+            ],
+            item: [
+              {
+                linkId: 'bt-yes-when',
+                type: 'string',
+                text: 'Yes - When',
+                enableWhen: [
+                  {
+                    question: 'bt-yes',
+                    operator: '=',
+                    answerCoding: { code: 'yes-when' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['bt', 'yes'],
+        ['bt-yes', 'yes-when'],
+        ['bt-yes-when', '17 Years'],
+      ]);
+
+      const result = buildVisitSummary([btQuestion], answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        // "Yes" appears exactly once — no "Yes - Yes - When"
+        expect(item.value).toBe('Yes - When – 17 Years');
+        const yesCount = String(item.value).split('Yes').length - 1;
+        expect(yesCount).toBe(1);
+      }
+    });
+  });
+
   describe('multi-select with nested children — duplicate-label dedup', () => {
     it('should not repeat the option display when the nested question text matches it', () => {
       const questions: AyuQuestion[] = [

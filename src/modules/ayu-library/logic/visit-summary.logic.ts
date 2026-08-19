@@ -310,7 +310,24 @@ function buildSummaryForItems(
           const omitLabel =
             item.type === 'string' || !itemLabel || itemLabel === parentDisplay;
           if (omitLabel) {
-            parts.push(combinedValue);
+            // Strip the parentDisplay prefix from combinedValue to prevent
+            // double-prepending (e.g. "Yes - Yes - When – 17 years").
+            // The caller already prepends `display` ("Yes") before labeledParts,
+            // so if combinedValue starts with "Yes - When – …" we trim "Yes - ".
+            let effectiveCombinedValue = combinedValue;
+            if (parentDisplay) {
+              const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '];
+              for (const sep of SEPARATORS) {
+                if (effectiveCombinedValue.startsWith(parentDisplay + sep)) {
+                  effectiveCombinedValue =
+                    effectiveCombinedValue
+                      .slice(parentDisplay.length + sep.length)
+                      .trim() || effectiveCombinedValue;
+                  break;
+                }
+              }
+            }
+            parts.push(effectiveCombinedValue);
           } else if (LABEL_PLACEHOLDER_RE.test(itemLabel)) {
             parts.push(itemLabel.replace(LABEL_PLACEHOLDER_RE, combinedValue));
           } else {
