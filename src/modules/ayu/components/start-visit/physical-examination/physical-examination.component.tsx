@@ -220,8 +220,10 @@ const collectNestedChildValues = (
           }
         }
 
-        // Check 2: parent is a GROUP without answerOption, or enableWhen
-        // references a non-immediate ancestor — use propagated branch display.
+        /*
+         * Check 2: parent is a GROUP without answerOption, or enableWhen
+         * references a non-immediate ancestor — use propagated branch display.
+         */
         if (!hasOptionPrefix && branchOptionDisplay != null) {
           if (branchOptionDisplay === rawLabel) {
             hasOptionPrefix = true;
@@ -239,10 +241,12 @@ const collectNestedChildValues = (
           }
         }
 
-        // Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
-        // Check 1 matched exactly (optDisplay === rawLabel), leaving effectiveLabel
-        // as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
-        // has already been represented by the parent row; reduce to just "When".
+        /*
+         * Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
+         * Check 1 matched exactly (optDisplay === rawLabel), leaving effectiveLabel
+         * as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
+         * has already been represented by the parent row; reduce to just "When".
+         */
         if (branchOptionDisplay) {
           for (const sep of SEPARATORS) {
             if (effectiveLabel.startsWith(branchOptionDisplay + sep)) {

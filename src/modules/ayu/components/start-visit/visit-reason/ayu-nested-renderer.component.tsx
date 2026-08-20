@@ -193,9 +193,7 @@ export const AyuNestedRenderer = ({
                       !!item?.text && (
                         <AyuSelectableOption
                           key={item.linkId}
-                          label={
-                            stripGroupPrefix(item.text, label) ?? item.text
-                          }
+                          label={stripGroupPrefix(item.text, label)!}
                           value={item.linkId}
                           selected={selectedOption === item.linkId}
                           onClick={() => {

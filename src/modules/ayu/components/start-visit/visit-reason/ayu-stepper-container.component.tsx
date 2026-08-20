@@ -215,7 +215,7 @@ const collectAnsweredRows = (
           if (optDisplay != null) {
             if (optDisplay === label) {
               hasOptionPrefix = true;
-              // effectiveLabel stays as-is for exact matches (handled below)
+              /* effectiveLabel stays as-is for exact matches (handled below) */
             } else {
               for (const sep of SEPARATORS) {
                 if (label.startsWith(optDisplay + sep)) {
@@ -230,8 +230,10 @@ const collectAnsweredRows = (
         }
       }
 
-      // Check 2: parent is a GROUP without answerOption, or enableWhen
-      // references a non-immediate ancestor — use propagated branch display.
+      /*
+       * Check 2: parent is a GROUP without answerOption, or enableWhen
+       * references a non-immediate ancestor — use propagated branch display.
+       */
       if (!hasOptionPrefix && branchOptionDisplay != null) {
         if (branchOptionDisplay === label) {
           hasOptionPrefix = true;
@@ -248,10 +250,12 @@ const collectAnsweredRows = (
         }
       }
 
-      // Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
-      // Check 1 matched exactly (optDisplay === label), leaving effectiveLabel
-      // as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
-      // is already shown as the primary value; reduce the label to just "When".
+      /*
+       * Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
+       * Check 1 matched exactly (optDisplay === label), leaving effectiveLabel
+       * as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
+       * is already shown as the primary value; reduce the label to just "When".
+       */
       if (branchOptionDisplay) {
         for (const sep of SEPARATORS) {
           if (effectiveLabel.startsWith(branchOptionDisplay + sep)) {
@@ -264,9 +268,11 @@ const collectAnsweredRows = (
         }
       }
 
-      // Suppress the row when it is a branching container (has nested items).
-      // For leaf containers with a composite prefix, the prefix is already
-      // stripped from effectiveLabel above so the row renders as "When: …".
+      /*
+       * Suppress the row when it is a branching container (has nested items).
+       * For leaf containers with a composite prefix, the prefix is already
+       * stripped from effectiveLabel above so the row renders as "When: …".
+       */
       const isRedundantContainer = hasOptionPrefix && !!child.item?.length;
 
       if (!isRedundantContainer) {

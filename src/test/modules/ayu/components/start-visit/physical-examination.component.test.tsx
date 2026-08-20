@@ -1850,6 +1850,104 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(childItems[0]).toMatchObject({ label: 'When', value: '17 hours' });
     });
 
+    it('collectNestedChildValues falls back to rawLabel in Check 1 when slice produces empty string (line 214)', async () => {
+      const user = userEvent.setup();
+      /*
+       * rawLabel = "Yes - " (optDisplay + sep with nothing after).
+       * slice("Yes - ".slice(6)).trim() = "" → || rawLabel → effectiveLabel = "Yes - ".
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'check1-leaf',
+        text: 'Yes - ',
+        type: 'string',
+        enableWhen: [
+          { question: 'check1-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const question = makeQuestion('check1-q', 'General', 'Fallback Test', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [leafItem];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'check1-q': ['yes'],
+        'check1-leaf': 'some value',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+
+      /* Check 1: rawLabel "Yes - " starts with optDisplay "Yes" + sep " - ".
+         slice(6) = "" → || rawLabel → effectiveLabel = "Yes - " (line 214 fallback). */
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'Yes - ', value: 'some value' });
+    });
+
+    it('collectNestedChildValues Check 2 exact-match sets hasOptionPrefix when branchOptionDisplay === rawLabel (line 229)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Leaf inside a GROUP container (no answerOption on GROUP).
+       * Leaf has no enableWhen → Check 1 is skipped.
+       * branchOptionDisplay ("Yes") propagated from the GROUP equals rawLabel ("Yes")
+       * → line 229 fires, hasOptionPrefix = true.
+       * Leaf has no children → isRedundantContainer = false → row is rendered.
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'check2-leaf',
+        text: 'Yes',
+        type: 'string',
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'check2-grp',
+        text: 'Yes',
+        type: 'group',
+        enableWhen: [
+          { question: 'check2-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question = makeQuestion('check2-q', 'General', 'Check 2 Exact Match', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [groupContainer];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'check2-q': ['yes'],
+        'check2-leaf': 'detail value',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+
+      /* Check 2 exact match: branchOptionDisplay ("Yes") === rawLabel ("Yes")
+         → hasOptionPrefix = true (line 229).
+         Not a redundant container (leaf has no children) → row is rendered. */
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'Yes', value: 'detail value' });
+    });
+
     it('treats an option without a display string as an empty value', async () => {
       const user = userEvent.setup();
       /* Option with a code but display=undefined — exercises the `?? ''`

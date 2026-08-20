@@ -2145,6 +2145,55 @@ describe('AyuNestedRenderer', () => {
       expect(rendererDiv.textContent).not.toContain('Yes - When');
     });
 
+    it('falls back to original text in stripGroupPrefix when slice produces empty string (line 117)', () => {
+      /*
+       * When item.text equals groupLabel + separator with nothing after
+       * (e.g. "Yes - " = "Yes" + " - " + ""), the slice produces "" and
+       * the || fallback returns the original text unchanged ("Yes - ").
+       */
+      const parentQuestion: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        text: 'Question?',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+      };
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q-empty-suffix',
+          type: 'string',
+          text: 'Yes - ',   // "Yes - " = label "Yes" + " - " + nothing → slice → "" → fallback
+          enableWhen: [
+            { question: 'q', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+        {
+          linkId: 'q-normal',
+          type: 'string',
+          text: 'Yes - When',
+          enableWhen: [
+            { question: 'q', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{ q: 'yes' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      /*
+       * stripGroupPrefix("Yes - ", "Yes") → slice(6).trim() = "" → || "Yes - "
+       * The pill label is the original "Yes - " (the fallback fires on line 117).
+       */
+      const pill = screen.getByTestId('selectable-q-empty-suffix');
+      expect(pill.textContent).toBe('Yes - ');
+    });
+
     it('does not strip when child text does not start with the parent option prefix', () => {
       const parentQuestion: AyuQuestion = {
         linkId: 'q',

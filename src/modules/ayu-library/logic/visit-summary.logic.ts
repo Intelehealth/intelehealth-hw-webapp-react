@@ -307,13 +307,29 @@ function buildSummaryForItems(
               combinedValue = `${formatted} – ${childParts.join(', ')}`;
             }
           }
+          const SEPARATORS_OL = [' - ', ' – ', ' — ', ': ', ' : '];
           const omitLabel =
             item.type === 'string' || !itemLabel || itemLabel === parentDisplay;
+          /*
+           * Detect whether the item label begins with parentDisplay + separator.
+           * e.g. itemLabel="Yes - When", parentDisplay="Yes" → prefixSep=" - "
+           * The caller in processItems already prepends `display` with " - " so
+           * we need to strip that prefix from the label here to avoid producing
+           * "Yes - Yes - When – 15 months" (double "Yes").
+           */
+          const prefixSep =
+            !omitLabel && !!parentDisplay
+              ? SEPARATORS_OL.find(sep =>
+                  itemLabel.startsWith(parentDisplay + sep)
+                )
+              : undefined;
           if (omitLabel) {
-            // Strip the parentDisplay prefix from combinedValue to prevent
-            // double-prepending (e.g. "Yes - Yes - When – 17 years").
-            // The caller already prepends `display` ("Yes") before labeledParts,
-            // so if combinedValue starts with "Yes - When – …" we trim "Yes - ".
+            /*
+             * Strip the parentDisplay prefix from combinedValue to prevent
+             * double-prepending (e.g. "Yes - Yes - When – 17 years").
+             * The caller already prepends `display` ("Yes") before labeledParts,
+             * so if combinedValue starts with "Yes - When – …" we trim "Yes - ".
+             */
             let effectiveCombinedValue = combinedValue;
             if (parentDisplay) {
               const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '];
@@ -328,6 +344,20 @@ function buildSummaryForItems(
               }
             }
             parts.push(effectiveCombinedValue);
+          } else if (prefixSep) {
+            /*
+             * Strip the parentDisplay prefix from the item label and keep the rest.
+             * e.g. "Yes - When" → "When", then push "When – 15 months" so that
+             * processItems assembles "Yes - When – 15 months" (single "Yes").
+             */
+            const strippedLabel = itemLabel
+              .slice(parentDisplay!.length + prefixSep.length)
+              .trim();
+            parts.push(
+              strippedLabel
+                ? `${strippedLabel} – ${combinedValue}`
+                : combinedValue
+            );
           } else if (LABEL_PLACEHOLDER_RE.test(itemLabel)) {
             parts.push(itemLabel.replace(LABEL_PLACEHOLDER_RE, combinedValue));
           } else {

@@ -5794,6 +5794,124 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('collectAnsweredRows Check 2 branches (lines 239, 246)', () => {
+    it('Check 2 exact-match: sets hasOptionPrefix when branchOptionDisplay === label (line 239)', () => {
+      /*
+       * Leaf inside a GROUP container (no answerOption on GROUP).
+       * Leaf has no enableWhen → Check 1 is skipped.
+       * branchOptionDisplay ("Yes") propagated from GROUP equals label ("Yes")
+       * → line 239 fires, hasOptionPrefix = true.
+       * Leaf has no children → isRedundantContainer = false → row is rendered.
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'chk2-leaf',
+        text: 'Yes',
+        type: 'string',
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'chk2-grp',
+        text: 'Yes',
+        type: 'group',
+        enableWhen: [
+          { question: 'chk2-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question: AyuQuestion = {
+        linkId: 'chk2-q',
+        text: 'Check 2 Question',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [groupContainer],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q-next', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'chk2-q': 'yes', 'chk2-leaf': 'detail-answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q-next', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, { linkId: 'q-next', text: 'Next', type: 'string' }])}
+          initialAnswers={{ 'chk2-q': 'yes', 'chk2-leaf': 'detail-answer' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* The leaf row { label: "Yes", value: "detail-answer" } is rendered because
+         Check 2 exact-match sets hasOptionPrefix but leaf has no children. */
+      expect(screen.getByText('detail-answer')).toBeInTheDocument();
+    });
+
+    it('Check 2 fallback: uses || label when slice of branchOptionDisplay prefix produces empty string (line 246)', () => {
+      /*
+       * Leaf label = "Yes - " (branchOptionDisplay + sep with nothing after).
+       * label.startsWith("Yes - ") → true, slice(6).trim() = ""
+       * → || label → effectiveLabel = "Yes - " (line 246 fires).
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'chk2b-leaf',
+        text: 'Yes - ',
+        type: 'string',
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'chk2b-grp',
+        text: 'Yes',
+        type: 'group',
+        enableWhen: [
+          { question: 'chk2b-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question: AyuQuestion = {
+        linkId: 'chk2b-q',
+        text: 'Check 2 Fallback',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [groupContainer],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q-next2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'chk2b-q': 'yes', 'chk2b-leaf': 'fallback-val' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q-next2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, { linkId: 'q-next2', text: 'Next', type: 'string' }])}
+          initialAnswers={{ 'chk2b-q': 'yes', 'chk2b-leaf': 'fallback-val' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* Row: { label: "Yes - ", value: "fallback-val" } — slice(6).trim() = ""
+         forces the || label fallback (line 246) → effectiveLabel = "Yes - ". */
+      expect(screen.getByText('fallback-val')).toBeInTheDocument();
+    });
+  });
+
   describe('PE question selectable prop', () => {
     it('should pass selectable=true to AyuNestedRenderer for physicalExamOptions questions', () => {
       const question: AyuQuestion = {
