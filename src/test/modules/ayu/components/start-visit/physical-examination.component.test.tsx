@@ -1972,5 +1972,167 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       // Display was undefined → fallback '' → not pushed → no section.
       expect(modalConfig.sections).toEqual([]);
     });
+
+    it('collectNestedChildValues resolves parent answerOption with valueString (lines 135/137/139/200/203)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Parent uses valueString-only answerOption (no valueCoding).
+       * child.enableWhen references parent by answerCoding.code.
+       * - getNextBranchDisplay (line 135): o.valueString === expected fires
+       * - getNextBranchDisplay (line 137): opt?.valueString fires
+       * - getNextBranchDisplay (line 139): child.text ?? '' fires (child has no text)
+       * - Check 1 (line 200): o.valueString === expected fires
+       * - Check 1 (line 203): opt?.valueString fires
+       */
+      const childItem: AyuQuestion = {
+        linkId: 'vs-pe-child',
+        // no text property → exercises line 139 (?? '')
+        type: 'string',
+        enableWhen: [
+          { question: 'vs-pe-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const question: AyuQuestion = {
+        linkId: 'vs-pe-q',
+        text: 'ValueString PE Question?',
+        type: 'choice',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'ValueString PE Question' },
+        ],
+        // Two valueString options — ensures transformer keeps it as a real choice question
+        answerOption: [{ valueString: 'yes' }, { valueString: 'no' }],
+        item: [childItem],
+      };
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'vs-pe-q': ['yes'],
+        'vs-pe-child': 'vs-pe-detail',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+      /* opt found via valueString path; rawLabel = '' (child.text undefined → ?? '').
+         effectiveLabel = '' → label falls back to displayValue 'vs-pe-detail'. */
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ value: 'vs-pe-detail' });
+    });
+
+    it('collectNestedChildValues returns null optDisplay when option has only a code (line 203 || null)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Parent option has valueCoding.code but no display and no valueString.
+       * → opt?.valueCoding?.display = undefined, opt?.valueString = undefined
+       * → optDisplay = undefined || undefined || null = null (line 203 || null fires).
+       * hasOptionPrefix stays false, row rendered with original rawLabel.
+       */
+      const childItem: AyuQuestion = {
+        linkId: 'nulldisp-pe-child',
+        text: 'When',
+        type: 'string',
+        enableWhen: [
+          { question: 'nulldisp-pe-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+      };
+      const question: AyuQuestion = {
+        linkId: 'nulldisp-pe-q',
+        text: 'Null Display PE Question?',
+        type: 'choice',
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General' },
+          { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Null Display PE Question' },
+        ],
+        // Two options with code only (no display, no valueString) — ensures transformer
+        // keeps this as a real choice question; covers line 203 || null branch
+        answerOption: [{ valueCoding: { code: 'yes' } }, { valueCoding: { code: 'no' } }],
+        item: [childItem],
+      };
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'nulldisp-pe-q': ['yes'],
+        'nulldisp-pe-child': 'nulldisp-answer',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+      /* optDisplay = null → Check 1 skipped → effectiveLabel stays as rawLabel 'When'. */
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'When', value: 'nulldisp-answer' });
+    });
+
+    it('collectNestedChildValues Check 2 + Check 3 slice fallback when slice produces empty string (lines 237, 256)', async () => {
+      const user = userEvent.setup();
+      /*
+       * Leaf text = "Yes - " (branchOptionDisplay + sep with nothing after).
+       * Leaf has no enableWhen → Check 1 skipped.
+       * Check 2 (line 237): rawLabel.startsWith("Yes - ") → slice(6).trim() = ""
+       *   → || rawLabel → effectiveLabel = "Yes - ".
+       * Check 3 (line 256): effectiveLabel = "Yes - ".startsWith("Yes - ") → slice(6).trim() = ""
+       *   → || effectiveLabel → effectiveLabel stays "Yes - ".
+       */
+      const leafItem: AyuQuestion = {
+        linkId: 'c237-pe-leaf',
+        text: 'Yes - ',
+        type: 'string',
+        // no enableWhen → Check 1 skipped
+      };
+      const groupContainer: AyuQuestion = {
+        linkId: 'c237-pe-grp',
+        text: 'Yes',
+        type: 'group',
+        enableWhen: [
+          { question: 'c237-pe-q', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        item: [leafItem],
+      };
+      const question = makeQuestion('c237-pe-q', 'General', 'Check 2+3 Fallback PE', [
+        { code: 'yes', display: 'Yes' },
+        { code: 'no', display: 'No' },
+      ]);
+      question.item = [groupContainer];
+
+      render(
+        <PhysicalExamination
+          {...defaultProps}
+          ayuConfigFiles={makeAyuConfigFiles([question])}
+        />
+      );
+      capturedStepperProps._completeAnswers = {
+        'c237-pe-q': ['yes'],
+        'c237-pe-leaf': 'c237-answer',
+      };
+      await user.click(screen.getByTestId('trigger-complete'));
+
+      const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+      const section = modalConfig.sections[0];
+      const childItems = section.items.filter(
+        (i: { isChild?: boolean }) => i.isChild
+      );
+      /* rawLabel = "Yes - ", branchOptionDisplay = "Yes".
+         Check 2: slice(6).trim() = "" → || rawLabel (line 237 fires) → effectiveLabel = "Yes - ".
+         Check 3: slice(6).trim() = "" → || effectiveLabel (line 256 fires) → "Yes - ". */
+      expect(childItems).toHaveLength(1);
+      expect(childItems[0]).toMatchObject({ label: 'Yes - ', value: 'c237-answer' });
+    });
   });
 });

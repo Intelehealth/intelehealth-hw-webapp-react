@@ -5912,6 +5912,150 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('collectAnsweredRows Check 1 branches (lines 157/159/210/213/224)', () => {
+    it('resolves parent answerOption with valueString (lines 157/159/210/213)', () => {
+      /*
+       * Parent uses valueString-only answerOption (no valueCoding).
+       * child.enableWhen references parent by answerCoding.code.
+       * - getNextBranchDisplay (line 157): o.valueString === expected fires
+       * - getNextBranchDisplay (line 159): opt?.valueString fires
+       * - Check 1 (line 210): o.valueString === expected fires
+       * - Check 1 (line 213): opt?.valueString fires
+       */
+      const childItem: AyuQuestion = {
+        linkId: 'vstep-child',
+        text: 'Yes - Details',
+        type: 'string',
+        enableWhen: [{ question: 'vstep-parent', operator: '=', answerCoding: { code: 'yes' } }],
+      };
+      const question: AyuQuestion = {
+        linkId: 'vstep-parent',
+        text: 'ValueString Parent',
+        type: 'choice',
+        answerOption: [{ valueString: 'yes' }],
+        item: [childItem],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q-next-vstep', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'vstep-parent': 'yes', 'vstep-child': 'vstep-answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q-next-vstep', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, { linkId: 'q-next-vstep', text: 'Next', type: 'string' }])}
+          initialAnswers={{ 'vstep-parent': 'yes', 'vstep-child': 'vstep-answer' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* opt found via o.valueString === expected (line 157);
+         optDisplay = opt?.valueString (line 159 / 213).
+         Row { label: 'Yes - Details', value: 'vstep-answer' } is rendered. */
+      expect(screen.getByText('vstep-answer')).toBeInTheDocument();
+    });
+
+    it('returns null optDisplay when option has only a code (line 213 || null)', () => {
+      /*
+       * Parent option has valueCoding.code but no display and no valueString.
+       * → opt?.valueCoding?.display = undefined, opt?.valueString = undefined
+       * → optDisplay = undefined || undefined || null = null (line 213 || null fires).
+       */
+      const childItem: AyuQuestion = {
+        linkId: 'nullstep-child',
+        text: 'When',
+        type: 'string',
+        enableWhen: [{ question: 'nullstep-parent', operator: '=', answerCoding: { code: 'yes' } }],
+      };
+      const question: AyuQuestion = {
+        linkId: 'nullstep-parent',
+        text: 'Null Display Parent',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes' } }], // no display, no valueString
+        item: [childItem],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q-next-nullstep', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'nullstep-parent': 'yes', 'nullstep-child': 'nullstep-answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q-next-nullstep', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, { linkId: 'q-next-nullstep', text: 'Next', type: 'string' }])}
+          initialAnswers={{ 'nullstep-parent': 'yes', 'nullstep-child': 'nullstep-answer' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* optDisplay = null → Check 1 skipped → effectiveLabel = 'When' unchanged.
+         Row { label: 'When', value: 'nullstep-answer' } is rendered. */
+      expect(screen.getByText('nullstep-answer')).toBeInTheDocument();
+    });
+
+    it('Check 1 slice fallback when slice produces empty string (line 224)', () => {
+      /*
+       * child.text = "Yes - " (optDisplay "Yes" + sep " - " with nothing after).
+       * label.startsWith("Yes - ") → true.
+       * label.slice(6).trim() = "" → || label → effectiveLabel = "Yes - " (line 224 fires).
+       */
+      const childItem: AyuQuestion = {
+        linkId: 'c224-child',
+        text: 'Yes - ',
+        type: 'string',
+        enableWhen: [{ question: 'c224-parent', operator: '=', answerCoding: { code: 'yes' } }],
+      };
+      const question: AyuQuestion = {
+        linkId: 'c224-parent',
+        text: 'Check 1 Fallback Parent',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [childItem],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q-next-c224', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'c224-parent': 'yes', 'c224-child': 'c224-answer' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q-next-c224', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, { linkId: 'q-next-c224', text: 'Next', type: 'string' }])}
+          initialAnswers={{ 'c224-parent': 'yes', 'c224-child': 'c224-answer' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* "Yes - ".slice(6).trim() = "" → || label = "Yes - " (line 224 fires).
+         Row { label: 'Yes - ', value: 'c224-answer' } is rendered. */
+      expect(screen.getByText('c224-answer')).toBeInTheDocument();
+    });
+  });
+
   describe('PE question selectable prop', () => {
     it('should pass selectable=true to AyuNestedRenderer for physicalExamOptions questions', () => {
       const question: AyuQuestion = {
