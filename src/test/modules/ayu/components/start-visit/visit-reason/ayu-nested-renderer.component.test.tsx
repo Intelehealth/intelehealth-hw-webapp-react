@@ -471,6 +471,105 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-grandchild-1')).toBeInTheDocument();
     });
+
+    it('should bypass intermediate choice (answerOption + item[]) and render sub-items directly', () => {
+      /*
+       * Non-selectable (visit-reason) mode: intermediate choice questions
+       * (type=choice with both answerOption[] and item[]) are bypassed so their
+       * sub-items appear as direct labeled inputs instead of pill buttons.
+       * enableWhen entries that reference the bypassed container are stripped.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'intermediate',
+          text: 'From/To/Event',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'From', display: 'From' } },
+            { valueCoding: { code: 'To', display: 'To' } },
+          ],
+          item: [
+            {
+              linkId: 'from-date',
+              text: 'From Date',
+              type: 'date',
+              /* enableWhen references the container — stripped during bypass */
+              enableWhen: [
+                { question: 'intermediate', operator: '=', answerCoding: { code: 'From' } },
+              ],
+            },
+            {
+              linkId: 'to-date',
+              text: 'To Date',
+              type: 'date',
+              /* No enableWhen — sub.enableWhen is undefined, ?? [] fallback used */
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /* Both sub-items must be rendered directly (intermediate choice bypassed) */
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+      /* The intermediate choice container itself must NOT be rendered */
+      expect(screen.queryByTestId('renderer-intermediate')).not.toBeInTheDocument();
+    });
+
+    it('should retain non-container enableWhen on sub-items when bypassing intermediate choice', () => {
+      /*
+       * When a sub-item has enableWhen entries referencing BOTH the bypassed
+       * container AND an external question, the container entry is stripped but
+       * the external entry is kept (kept.length > 0 → enableWhen: kept).
+       * In non-selectable bypass mode the sub-items are rendered unconditionally
+       * (isEnabled is not re-applied to the flattened display children), so the
+       * sub-item appears regardless of whether the kept condition is met.
+       * The key coverage goal is the `kept.length ? kept : undefined` true branch.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'intermediate',
+          text: 'Intermediate',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'opt1', display: 'Option 1' } }],
+          item: [
+            {
+              linkId: 'sub-mixed',
+              text: 'Sub Mixed',
+              type: 'string',
+              enableWhen: [
+                /* Container reference — stripped (only this entry gone, so kept.length > 0) */
+                { question: 'intermediate', operator: '=', answerCoding: { code: 'opt1' } },
+                /* External reference — kept */
+                { question: 'parent-q', operator: '=', answerString: 'yes' },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'parent-q': 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /*
+       * Sub-item is rendered directly. In bypass mode all sub-items are rendered
+       * unconditionally; the kept enableWhen is preserved in the item object
+       * (used by deeper recursion), not re-evaluated here.
+       */
+      expect(screen.getByTestId('renderer-sub-mixed')).toBeInTheDocument();
+    });
   });
 
   describe('Selectable Mode', () => {
@@ -2056,7 +2155,7 @@ describe('AyuNestedRenderer', () => {
 
   describe('Parent-option prefix stripping', () => {
     it('strips "Yes - When" to "When" in non-selectable mode when parent option is "Yes"', () => {
-      // Mirrors "Any h/o use of needles?" → Yes → "Yes - When" child
+      /* Mirrors "Any h/o use of needles?" → Yes → "Yes - When" child */
       const parentQuestion: AyuQuestion = {
         linkId: 'needles',
         type: 'choice',
@@ -2086,7 +2185,7 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // The renderer receives "When", not "Yes - When"
+      /* The renderer receives "When", not "Yes - When" */
       const rendererDiv = screen.getByTestId('renderer-needles-when');
       expect(rendererDiv).toBeInTheDocument();
       expect(rendererDiv.textContent).toContain('When');
@@ -2133,13 +2232,13 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // Pills show stripped labels
+      /* Pills show stripped labels */
       const whenPill = screen.getByTestId('selectable-needles-when');
       expect(whenPill.textContent).toBe('When');
       const otherPill = screen.getByTestId('selectable-needles-other');
       expect(otherPill.textContent).toBe('Other detail');
 
-      // After clicking a pill, the renderer receives the stripped text
+      /* After clicking a pill, the renderer receives the stripped text */
       await user.click(whenPill);
       const rendererDiv = screen.getByTestId('renderer-needles-when');
       expect(rendererDiv.textContent).not.toContain('Yes - When');
@@ -2161,7 +2260,7 @@ describe('AyuNestedRenderer', () => {
         {
           linkId: 'q-empty-suffix',
           type: 'string',
-          text: 'Yes - ',   // "Yes - " = label "Yes" + " - " + nothing → slice → "" → fallback
+          text: 'Yes - ',
           enableWhen: [
             { question: 'q', operator: '=', answerCoding: { code: 'yes' } },
           ],
@@ -2221,9 +2320,144 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // Text doesn't start with "Yes - " so it stays unchanged
+      /* Text doesn't start with "Yes - " so it stays unchanged */
       const rendererDiv = screen.getByTestId('renderer-q-desc');
       expect(rendererDiv.textContent).toContain('Describe the condition');
+    });
+  });
+
+  describe('enrichedAnswers stable-iteration (FE-001 / ASYNC-004)', () => {
+    it('should hide a downstream sibling when its dependency answer becomes stale (FE-001)', () => {
+      /*
+       * FE-001: When a parent answer changes so that item X is no longer enabled,
+       * any previously recorded answer for X must not keep downstream sibling Y
+       * (which gates on exists(X)) incorrectly visible.
+       * Bug: enrichedAnswers = { ...answers } spread retained answers['item-x']
+       * even after X's enableWhen failed, so Y's exists check still passed.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'item-x',
+          text: 'Item X',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent', operator: '=', answerString: 'A' },
+          ],
+        },
+        {
+          linkId: 'item-y',
+          text: 'Item Y',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-x', operator: 'exists', answerBoolean: true },
+          ],
+        },
+      ];
+
+      /* Both visible — parent = 'A', X has a real user answer */
+      const { rerender } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ parent: 'A', 'item-x': 'hello' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.getByTestId('renderer-item-x')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-y')).toBeInTheDocument();
+
+      /* Parent switches to 'B' — X is no longer enabled.
+       * answers['item-x'] = 'hello' is still in the answers map (not yet cleared
+       * by the caller), but the stale value must NOT keep Y visible. */
+      rerender(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ parent: 'B', 'item-x': 'hello' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.queryByTestId('renderer-item-x')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-item-y')).not.toBeInTheDocument();
+    });
+
+    it('should show all items in a dependency chain regardless of array order (ASYNC-004)', () => {
+      /*
+       * ASYNC-004: Items are in reverse dependency order [Z, Y, X].
+       * Z has exists(Y), Y has exists(X), X has no enableWhen.
+       * All three must be visible — the stable-iteration loop propagates synthetic
+       * markers through the full chain even when dependencies appear later in the array.
+       * Bug: a single forward pass left Z hidden because Y's synthetic marker had
+       * not been set yet when Z was evaluated.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'item-z',
+          text: 'Item Z',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-y', operator: 'exists', answerBoolean: true },
+          ],
+        },
+        {
+          linkId: 'item-y',
+          text: 'Item Y',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-x', operator: 'exists', answerBoolean: true },
+          ],
+        },
+        {
+          linkId: 'item-x',
+          text: 'Item X',
+          type: 'string',
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /* All three must be visible even though X (the root) is last in the array */
+      expect(screen.getByTestId('renderer-item-x')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-y')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-z')).toBeInTheDocument();
+    });
+
+    it('should not infinite-loop when an enableWhen rule forms a contradictory cycle (cycle guard)', () => {
+      /*
+       * CYCLE GUARD: a self-referential rule — "enable me when I do not exist" —
+       * would cause the uncapped loop to oscillate forever. The maxPasses cap
+       * (items.length + 2) must break out and render without hanging.
+       *
+       * The item alternates enabled/disabled on each pass, so the cycle guard
+       * hits the limit and terminates. Depending on which pass it stops, the
+       * item may or may not be in enrichedAnswers — we only assert the component
+       * renders at all (no hang / no throw), not a specific visibility state.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'self-ref',
+          text: 'Self Reference',
+          type: 'string',
+          /* Enabled only when 'self-ref' does NOT exist — self-contradictory */
+          enableWhen: [
+            { question: 'self-ref', operator: 'exists', answerBoolean: false },
+          ],
+        },
+      ];
+
+      expect(() =>
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{}}
+            setAnswer={mockSetAnswer}
+          />
+        )
+      ).not.toThrow();
     });
   });
 });

@@ -69,7 +69,7 @@ export const hasUnansweredRequiredNestedChild = (
     return items.some((child: AyuQuestion) => {
       if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
 
-      // If child maps to a parent answerOption, only validate if that option is selected
+      /* If child maps to a parent answerOption, only validate if that option is selected */
       const matchedCode = findMatchingOptionCode(child, parent);
       if (matchedCode) {
         const parentAnswer = answers[parent.linkId];
@@ -81,11 +81,29 @@ export const hasUnansweredRequiredNestedChild = (
         if (!selectedCodes.includes(matchedCode)) return false;
       }
 
-      // Required children must have an answer
-      if (child.required && isEmpty(answers[child.linkId])) return true;
-      // Visible repeats (multiselect) children must have at least one selection
-      if (child.repeats && isEmpty(answers[child.linkId])) return true;
-      // Visible input-type children must have a value entered
+      /*
+       * Intermediate choice questions (answerOption + item[]) are rendered with
+       * their sub-items shown directly in non-selectable mode (bypassing pill
+       * selection). The choice question itself is never answered by the user, so
+       * skip its required/repeats check to avoid a false "Select any one" toast.
+       */
+      const isIntermediateChoice =
+        !!child.answerOption?.length && !!child.item?.length;
+      /* Required children must have an answer */
+      if (
+        child.required &&
+        isEmpty(answers[child.linkId]) &&
+        !isIntermediateChoice
+      )
+        return true;
+      /* Visible repeats (multiselect) children must have at least one selection */
+      if (
+        child.repeats &&
+        isEmpty(answers[child.linkId]) &&
+        !isIntermediateChoice
+      )
+        return true;
+      /* Visible input-type children must have a value entered */
       if (
         (child.type === FHIR_TYPE_STRING ||
           child.type === FHIR_TYPE_INTEGER ||
@@ -94,7 +112,7 @@ export const hasUnansweredRequiredNestedChild = (
         isEmpty(answers[child.linkId])
       )
         return true;
-      // Recurse into deeper levels
+      /* Recurse into deeper levels */
       return check(child.item, child);
     });
   };
@@ -118,7 +136,7 @@ export const isNestedInputValueMissing = (
     return items.some((child: AyuQuestion) => {
       if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
 
-      // If child maps to a parent answerOption, only validate if that option is selected
+      /* If child maps to a parent answerOption, only validate if that option is selected */
       const matchedCode = findMatchingOptionCode(child, parent);
       if (matchedCode) {
         const parentAnswer = answers[parent.linkId];
@@ -138,7 +156,7 @@ export const isNestedInputValueMissing = (
         isEmpty(answers[child.linkId])
       )
         return true;
-      // Recurse into deeper levels
+      /* Recurse into deeper levels */
       return check(child.item, child);
     });
   };
@@ -157,8 +175,10 @@ export const isNumericOutOfRange = (
 ): boolean => {
   const rawValue = answers[question.linkId];
 
-  // Resolve the numeric value: integer type stores a number directly,
-  // string type may store a numeric string (e.g. "120" for BP).
+  /*
+   * Resolve the numeric value: integer type stores a number directly,
+   * string type may store a numeric string (e.g. "120" for BP).
+   */
   let numValue: number | undefined;
   if (question.type === FHIR_TYPE_INTEGER) {
     if (typeof rawValue !== 'number') return false;
@@ -172,7 +192,7 @@ export const isNumericOutOfRange = (
     return false;
   }
 
-  // Check FHIR extensions first
+  /* Check FHIR extensions first */
   const minExt = question.extension?.find(
     e => e.url === EXT_URL_MIN_VALUE
   )?.valueInteger;
@@ -183,7 +203,7 @@ export const isNumericOutOfRange = (
   if (minExt !== undefined && numValue < minExt) return true;
   if (maxExt !== undefined && numValue > maxExt) return true;
 
-  // Fallback: check known BP ranges based on question text
+  /* Fallback: check known BP ranges based on question text */
   if (minExt === undefined && maxExt === undefined) {
     const bpRange = getBPRangeFromText(question.text);
     if (bpRange) {
@@ -247,7 +267,7 @@ export const isQuantityInvalid = (
   )
     return false;
 
-  // Recursively check all nested children for invalid duration structure
+  /* Recursively check all nested children for invalid duration structure */
   if (question.type === FHIR_TYPE_CHOICE && question.item) {
     const checkDurationDeep = (items: AyuQuestion[]): boolean => {
       for (const child of items) {
@@ -269,18 +289,18 @@ export const isQuantityInvalid = (
     if (checkDurationDeep(question.item)) return true;
   }
 
-  // Check top-level answer
+  /* Check top-level answer */
   const value = answers[question.linkId];
   if (!value) return question.type === FHIR_TYPE_QUANTITY;
 
-  // Only validate if it's an object with dropdownValues structure (duration component)
+  /* Only validate if it's an object with dropdownValues structure (duration component) */
   if (typeof value === 'object' && 'dropdownValues' in value) {
     const hasNumber = !!value.dropdownValues?.number;
     const hasDays = !!value.dropdownValues?.days;
     return !hasNumber || !hasDays;
   }
 
-  // For regular choice questions (string values), not invalid
+  /* For regular choice questions (string values), not invalid */
   return false;
 };
 
@@ -335,8 +355,10 @@ export const validateQuestion = (
     !allOptionsAnswered &&
     !hasExclusiveSelected(question, yesValues);
 
-  // PE branching questions: sub-questions are optional selectable concept-tags;
-  // skip nested child validation — the question is valid once Yes/No is answered.
+  /*
+   * PE branching questions: sub-questions are optional selectable concept-tags;
+   * skip nested child validation — the question is valid once Yes/No is answered.
+   */
   const isPE = isPhysicalExamOptionsQuestion(question);
 
   const numericOutOfRange =

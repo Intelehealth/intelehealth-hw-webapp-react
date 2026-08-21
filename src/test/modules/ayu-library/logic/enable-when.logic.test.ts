@@ -88,4 +88,72 @@ describe('evaluateEnableWhen', () => {
     expect(evaluateEnableWhen(rules, { q1: false })).toBe(true);
     expect(evaluateEnableWhen(rules, { q1: 'yes' })).toBe(false);
   });
+
+  describe('operator: "!="', () => {
+    it('should return true when scalar answer does not equal expected', () => {
+      const rules = [{ question: 'q1', operator: '!=', answerCoding: { code: 'NO' } }];
+      expect(evaluateEnableWhen(rules, { q1: 'YES' })).toBe(true);
+      expect(evaluateEnableWhen(rules, { q1: 'NO' })).toBe(false);
+    });
+
+    it('should return true when answer is missing (undefined !== expected)', () => {
+      const rules = [{ question: 'q1', operator: '!=', answerCoding: { code: 'NO' } }];
+      expect(evaluateEnableWhen(rules, {})).toBe(true);
+    });
+
+    it('should return true for array answer when expected code is not included', () => {
+      const rules = [{ question: 'q1', operator: '!=', answerCoding: { code: 'CODE_A' } }];
+      expect(evaluateEnableWhen(rules, { q1: ['CODE_B', 'CODE_C'] })).toBe(true);
+      expect(evaluateEnableWhen(rules, { q1: ['CODE_A', 'CODE_B'] })).toBe(false);
+    });
+
+    it('should return false when answerString inequality matches', () => {
+      const rules = [{ question: 'q1', operator: '!=', answerString: 'no' }];
+      expect(evaluateEnableWhen(rules, { q1: 'yes' })).toBe(true);
+      expect(evaluateEnableWhen(rules, { q1: 'no' })).toBe(false);
+    });
+  });
+
+  describe('operator: "exists"', () => {
+    it('should return true when answer exists and answerBoolean is true', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: true }];
+      expect(evaluateEnableWhen(rules, { q1: 'YES' })).toBe(true);
+      expect(evaluateEnableWhen(rules, { q1: 'NO' })).toBe(true);
+    });
+
+    it('should return false when answer is missing and answerBoolean is true', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: true }];
+      expect(evaluateEnableWhen(rules, {})).toBe(false);
+    });
+
+    it('should return true when answer is missing and answerBoolean is false (does not exist)', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: false }];
+      expect(evaluateEnableWhen(rules, {})).toBe(true);
+      expect(evaluateEnableWhen(rules, { q1: 'YES' })).toBe(false);
+    });
+
+    it('should treat empty string as not existing', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: true }];
+      expect(evaluateEnableWhen(rules, { q1: '' })).toBe(false);
+    });
+
+    it('should treat empty array as not existing', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: true }];
+      expect(evaluateEnableWhen(rules, { q1: [] })).toBe(false);
+    });
+
+    it('should treat non-empty array as existing', () => {
+      const rules = [{ question: 'q1', operator: 'exists', answerBoolean: true }];
+      expect(evaluateEnableWhen(rules, { q1: ['CODE_A'] })).toBe(true);
+    });
+
+    it('should show sibling fields when parent yes/no question is answered', () => {
+      // Simulates Sleep Disorder Q8: To/Event have exists on Q8 linkId
+      const rules = [{ question: 'q8', operator: 'exists', answerBoolean: true }];
+      // After selecting Yes for Q8, both To and Event should become visible
+      expect(evaluateEnableWhen(rules, { q8: 'YES' })).toBe(true);
+      expect(evaluateEnableWhen(rules, { q8: 'NO' })).toBe(true);
+      expect(evaluateEnableWhen(rules, {})).toBe(false);
+    });
+  });
 });

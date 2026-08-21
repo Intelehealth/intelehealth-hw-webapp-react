@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
 import type {
   AyuAnswerValue,
@@ -38,7 +38,7 @@ export const AyuNestedRenderer = ({
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
-  // Reset selected option when the parent answer changes (different children become visible)
+  /* Reset selected option when the parent answer changes (different children become visible) */
   const parentAnswer = parentQuestion
     ? answers[parentQuestion.linkId]
     : undefined;
@@ -46,7 +46,7 @@ export const AyuNestedRenderer = ({
     setSelectedOption(null);
   }, [parentAnswer]);
 
-  // Clear answers for a selectable option and all its nested descendants
+  /* Clear answers for a selectable option and all its nested descendants */
   const clearNestedAnswers = (item: AyuQuestion) => {
     const linkIds = [item.linkId, ...collectDescendantLinkIds(item)].filter(
       id => answers[id] !== undefined
@@ -56,11 +56,11 @@ export const AyuNestedRenderer = ({
     }
   };
 
-  // Check if a choice question has answerOption → item mapping
+  /* Check if a choice question has answerOption → item mapping */
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
     q.type === FHIR_TYPE_CHOICE && !!q.answerOption?.length && !!q.item?.length;
 
-  // Render deeply nested items inline when their corresponding option is selected
+  /* Render deeply nested items inline when their corresponding option is selected */
   const renderInlineNestedItems = (parentChild: AyuQuestion) => {
     const parentAnswer = answers[parentChild.linkId];
     const selectedCodes: string[] = Array.isArray(parentAnswer)
@@ -97,10 +97,58 @@ export const AyuNestedRenderer = ({
       ));
   };
 
+  /*
+   * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
+   * on a sibling) become visible as soon as that sibling is enabled, even before the
+   * user enters a value.
+   *
+   * We iterate until stable (no entry added or removed) so that deep enableWhen
+   * chains resolve correctly regardless of item order in the array (ASYNC-004).
+   *
+   * Entries for items whose enableWhen is no longer satisfied are deleted each
+   * pass so stale real or synthetic values cannot keep downstream siblings visible
+   * after a parent answer changes (FE-001).
+   *
+   * Memoized on [answers, items]: answers changes by reference on every user input
+   * (triggering recompute as needed); items is the static questionnaire definition
+   * and rarely changes. This avoids re-running the loop when only local state
+   * (e.g. selectedOption) changes — such as when the user clicks a pill button.
+   *
+   * CYCLE GUARD: in a valid acyclic graph of n items at most n state changes can
+   * occur, so convergence is guaranteed within n+1 passes. The cap at items.length+2
+   * ensures the loop always terminates — contradictory or self-referential enableWhen
+   * rules (invalid questionnaire data) cannot cause an infinite loop / frozen UI.
+   * In practice convergence happens in 1–2 passes for typical questionnaire data.
+   */
+  const enrichedAnswers = useMemo<Record<string, AyuAnswerValue>>(() => {
+    if (!items?.length) return {};
+    const result: Record<string, AyuAnswerValue> = { ...answers };
+    let changed = true;
+    let passes = 0;
+    const maxPasses = items.length + 2;
+    while (changed && passes < maxPasses) {
+      changed = false;
+      passes++;
+      for (const item of items) {
+        const enabled = evaluateEnableWhen(item.enableWhen, result);
+        if (!enabled && result[item.linkId] !== undefined) {
+          /* Remove stale entry — enableWhen no longer met */
+          delete result[item.linkId];
+          changed = true;
+        } else if (enabled && result[item.linkId] === undefined) {
+          /* Synthetic marker so subsequent siblings can see this item via 'exists' */
+          result[item.linkId] = true;
+          changed = true;
+        }
+      }
+    }
+    return result;
+  }, [answers, items]);
+
   if (!items?.length) return null;
 
   const isEnabled = (item: AyuQuestion) =>
-    evaluateEnableWhen(item.enableWhen, answers);
+    evaluateEnableWhen(item.enableWhen, enrichedAnswers);
 
   /**
    * Strip the group label prefix from a child question's display text so that
@@ -180,7 +228,24 @@ export const AyuNestedRenderer = ({
                 return { ...sub, enableWhen: kept.length ? kept : undefined };
               });
             })
-          : children;
+          : children.flatMap(child => {
+              /*
+               * In non-selectable (visit-reason) mode, bypass the intermediate
+               * choice question that gates From/To/Event behind pill buttons.
+               * Render all sub-items directly as labeled inputs by stripping
+               * the enableWhen condition that references the removed container.
+               */
+              if (!hasAnswerOptionItemMapping(child)) return [child];
+              return child.item!.map(sub => {
+                const kept =
+                  sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??
+                  [];
+                return {
+                  ...sub,
+                  enableWhen: kept.length ? kept : undefined,
+                };
+              });
+            });
 
         return (
           <div key={label || 'default'}>

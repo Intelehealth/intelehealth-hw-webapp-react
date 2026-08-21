@@ -319,8 +319,7 @@ export function chooseModels(
    * without this the chain silently loses schema enforcement the week an
    * unlucky model happens to rank highest.
    */
-  const namedAreStructured =
-    chain.length > 0 && chain.every(m => m.structured);
+  const namedAreStructured = chain.length > 0 && chain.every(m => m.structured);
   for (const m of available.filter(m => m.free !== false)) {
     if (chain.length >= limit) break;
     if (namedAreStructured && !m.structured) continue;
