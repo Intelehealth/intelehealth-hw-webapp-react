@@ -38,7 +38,7 @@ export const AyuNestedRenderer = ({
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
-  // Reset selected option when the parent answer changes (different children become visible)
+  /* Reset selected option when the parent answer changes (different children become visible) */
   const parentAnswer = parentQuestion
     ? answers[parentQuestion.linkId]
     : undefined;
@@ -46,7 +46,7 @@ export const AyuNestedRenderer = ({
     setSelectedOption(null);
   }, [parentAnswer]);
 
-  // Clear answers for a selectable option and all its nested descendants
+  /* Clear answers for a selectable option and all its nested descendants */
   const clearNestedAnswers = (item: AyuQuestion) => {
     const linkIds = [item.linkId, ...collectDescendantLinkIds(item)].filter(
       id => answers[id] !== undefined
@@ -56,11 +56,11 @@ export const AyuNestedRenderer = ({
     }
   };
 
-  // Check if a choice question has answerOption → item mapping
+  /* Check if a choice question has answerOption → item mapping */
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
     q.type === FHIR_TYPE_CHOICE && !!q.answerOption?.length && !!q.item?.length;
 
-  // Render deeply nested items inline when their corresponding option is selected
+  /* Render deeply nested items inline when their corresponding option is selected */
   const renderInlineNestedItems = (parentChild: AyuQuestion) => {
     const parentAnswer = answers[parentChild.linkId];
     const selectedCodes: string[] = Array.isArray(parentAnswer)
@@ -99,8 +99,24 @@ export const AyuNestedRenderer = ({
 
   if (!items?.length) return null;
 
+  /*
+   * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
+   * on a sibling) become visible as soon as that sibling is enabled, even before the
+   * user enters a value. We iterate in order and accumulate, so From enables To/Event
+   * in the same pass (From marked true → To's exists(From) passes → To marked true).
+   */
+  const enrichedAnswers: Record<string, AyuAnswerValue> = { ...answers };
+  for (const item of items) {
+    if (
+      enrichedAnswers[item.linkId] === undefined &&
+      evaluateEnableWhen(item.enableWhen, enrichedAnswers)
+    ) {
+      enrichedAnswers[item.linkId] = true;
+    }
+  }
+
   const isEnabled = (item: AyuQuestion) =>
-    evaluateEnableWhen(item.enableWhen, answers);
+    evaluateEnableWhen(item.enableWhen, enrichedAnswers);
 
   const getParentAnswerLabel = (item: AyuQuestion): string | null => {
     if (!item.enableWhen?.length || !parentQuestion) return null;
@@ -162,7 +178,24 @@ export const AyuNestedRenderer = ({
                 return { ...sub, enableWhen: kept.length ? kept : undefined };
               });
             })
-          : children;
+          : children.flatMap(child => {
+              /*
+               * In non-selectable (visit-reason) mode, bypass the intermediate
+               * choice question that gates From/To/Event behind pill buttons.
+               * Render all sub-items directly as labeled inputs by stripping
+               * the enableWhen condition that references the removed container.
+               */
+              if (!hasAnswerOptionItemMapping(child)) return [child];
+              return child.item!.map(sub => {
+                const kept =
+                  sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??
+                  [];
+                return {
+                  ...sub,
+                  enableWhen: kept.length ? kept : undefined,
+                };
+              });
+            });
 
         return (
           <div key={label || 'default'}>

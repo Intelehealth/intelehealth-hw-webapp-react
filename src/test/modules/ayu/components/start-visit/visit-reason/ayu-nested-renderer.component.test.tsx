@@ -471,6 +471,105 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-child-1')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-grandchild-1')).toBeInTheDocument();
     });
+
+    it('should bypass intermediate choice (answerOption + item[]) and render sub-items directly', () => {
+      /*
+       * Non-selectable (visit-reason) mode: intermediate choice questions
+       * (type=choice with both answerOption[] and item[]) are bypassed so their
+       * sub-items appear as direct labeled inputs instead of pill buttons.
+       * enableWhen entries that reference the bypassed container are stripped.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'intermediate',
+          text: 'From/To/Event',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'From', display: 'From' } },
+            { valueCoding: { code: 'To', display: 'To' } },
+          ],
+          item: [
+            {
+              linkId: 'from-date',
+              text: 'From Date',
+              type: 'date',
+              /* enableWhen references the container — stripped during bypass */
+              enableWhen: [
+                { question: 'intermediate', operator: '=', answerCoding: { code: 'From' } },
+              ],
+            },
+            {
+              linkId: 'to-date',
+              text: 'To Date',
+              type: 'date',
+              /* No enableWhen — sub.enableWhen is undefined, ?? [] fallback used */
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /* Both sub-items must be rendered directly (intermediate choice bypassed) */
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+      /* The intermediate choice container itself must NOT be rendered */
+      expect(screen.queryByTestId('renderer-intermediate')).not.toBeInTheDocument();
+    });
+
+    it('should retain non-container enableWhen on sub-items when bypassing intermediate choice', () => {
+      /*
+       * When a sub-item has enableWhen entries referencing BOTH the bypassed
+       * container AND an external question, the container entry is stripped but
+       * the external entry is kept (kept.length > 0 → enableWhen: kept).
+       * In non-selectable bypass mode the sub-items are rendered unconditionally
+       * (isEnabled is not re-applied to the flattened display children), so the
+       * sub-item appears regardless of whether the kept condition is met.
+       * The key coverage goal is the `kept.length ? kept : undefined` true branch.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'intermediate',
+          text: 'Intermediate',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'opt1', display: 'Option 1' } }],
+          item: [
+            {
+              linkId: 'sub-mixed',
+              text: 'Sub Mixed',
+              type: 'string',
+              enableWhen: [
+                /* Container reference — stripped (only this entry gone, so kept.length > 0) */
+                { question: 'intermediate', operator: '=', answerCoding: { code: 'opt1' } },
+                /* External reference — kept */
+                { question: 'parent-q', operator: '=', answerString: 'yes' },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'parent-q': 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /*
+       * Sub-item is rendered directly. In bypass mode all sub-items are rendered
+       * unconditionally; the kept enableWhen is preserved in the item object
+       * (used by deeper recursion), not re-evaluated here.
+       */
+      expect(screen.getByTestId('renderer-sub-mixed')).toBeInTheDocument();
+    });
   });
 
   describe('Selectable Mode', () => {

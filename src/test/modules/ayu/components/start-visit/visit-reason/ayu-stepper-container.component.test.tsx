@@ -3059,6 +3059,114 @@ describe('AyuStepperContainer', () => {
 
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
+
+    it('should show submit button for choice question with intermediate choice child containing date sub-items', () => {
+      /*
+       * Covers checkNestedDeep lines 632-645: when a child item is an
+       * intermediate choice (both answerOption[] and item[] present) and its
+       * sub-items include date/string/integer/quantity types, hasDirectInput is
+       * true and the function returns hasInput=true, causing the Submit button
+       * to appear.
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Sleep Disorder Q8',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'from-to-event',
+            text: 'From / To / Event',
+            type: 'choice',
+            /* Both answerOption[] AND item[] → intermediate choice pattern */
+            answerOption: [
+              { valueCoding: { code: 'From', display: 'From' } },
+              { valueCoding: { code: 'To', display: 'To' } },
+              { valueCoding: { code: 'Event', display: 'Event' } },
+            ],
+            item: [
+              { linkId: 'from-date', text: 'From', type: 'date' },
+              { linkId: 'to-date', text: 'To', type: 'date' },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* Submit appears because the intermediate choice has date sub-items (hasInput=true) */
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should show submit button for intermediate choice child with quantity sub-items', () => {
+      /*
+       * Covers line 637: sub.type === FHIR_TYPE_QUANTITY in the .some() predicate.
+       * Using only quantity-type sub-items forces evaluation of all four conditions
+       * (STRING→false, INTEGER→false, DATE→false, QUANTITY→true).
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'BP Question',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'bp-direction',
+            text: 'BP Direction',
+            type: 'choice',
+            answerOption: [
+              { valueCoding: { code: 'Lying', display: 'Lying' } },
+              { valueCoding: { code: 'Standing', display: 'Standing' } },
+            ],
+            item: [
+              { linkId: 'systolic', text: 'Systolic BP', type: 'quantity' },
+              { linkId: 'diastolic', text: 'Diastolic BP', type: 'quantity' },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* Submit appears because the intermediate choice has quantity sub-items (hasInput=true) */
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
   });
 
   describe('isEmpty Additional Coverage', () => {

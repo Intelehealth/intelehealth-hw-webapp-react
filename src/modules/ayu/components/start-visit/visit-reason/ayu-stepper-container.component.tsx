@@ -622,6 +622,30 @@ export const AyuStepperContainer = forwardRef<
                                     hasInput: true,
                                   };
                                 }
+                                /*
+                                 * Intermediate choice (answerOption + item[]): in non-PE
+                                 * mode the sub-items are rendered directly as labeled
+                                 * inputs, bypassing pill selection. Check them without
+                                 * option-gating so the Submit button appears correctly.
+                                 */
+                                if (
+                                  child.answerOption?.length &&
+                                  child.item?.length
+                                ) {
+                                  const hasDirectInput = child.item.some(
+                                    sub =>
+                                      sub.type === FHIR_TYPE_STRING ||
+                                      sub.type === FHIR_TYPE_INTEGER ||
+                                      sub.type === FHIR_TYPE_DATE ||
+                                      sub.type === FHIR_TYPE_QUANTITY
+                                  );
+                                  if (hasDirectInput)
+                                    return {
+                                      hasDuration: false,
+                                      hasRepeats: false,
+                                      hasInput: true,
+                                    };
+                                }
                                 const deep = checkNestedDeep(child.item);
                                 if (
                                   deep.hasDuration ||

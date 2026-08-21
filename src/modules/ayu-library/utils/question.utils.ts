@@ -1,4 +1,5 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
+import { evaluateEnableWhen } from '../logic/enable-when.logic';
 import { EXT_URL_DISPLAY_TEXT } from './constants';
 
 export const getRowLabel = (item: AyuQuestion | undefined): string => {
@@ -16,13 +17,13 @@ export const findMatchingOptionCode = (
   child: AyuQuestion,
   parent: AyuQuestion
 ): string | undefined => {
-  // Strategy 1: linkId prefix match (existing convention)
+  /* Strategy 1: linkId prefix match (existing convention) */
   const prefixMatch = parent.answerOption?.find(opt =>
     child.linkId.startsWith(opt.valueCoding?.code || '\0')
   );
   if (prefixMatch) return prefixMatch.valueCoding?.code;
 
-  // Strategy 2: enableWhen references parent question with a specific answer code
+  /* Strategy 2: enableWhen references parent question with a specific answer code */
   const ewMatch = child.enableWhen?.find(
     ew => ew.question === parent.linkId && ew.answerCoding?.code
   );
@@ -84,18 +85,7 @@ export const clearHiddenDescendantAnswers = (
   const walk = (children: AyuQuestion[]) => {
     for (const child of children) {
       if (child.enableWhen) {
-        const isVisible = child.enableWhen.every(rule => {
-          const expected =
-            rule.answerBoolean ??
-            rule.answerString ??
-            rule.answerInteger ??
-            rule.answerCoding?.code;
-          const parentVal = updated[rule.question];
-          if (Array.isArray(parentVal)) {
-            return parentVal.includes(expected as string);
-          }
-          return parentVal === expected;
-        });
+        const isVisible = evaluateEnableWhen(child.enableWhen, updated);
         if (!isVisible) {
           delete updated[child.linkId];
           if (child.item) clearAll(child.item);
