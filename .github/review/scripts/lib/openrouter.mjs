@@ -309,9 +309,21 @@ export function chooseModels(
   for (const id of preferred) {
     if (byId.has(id)) chain.push(byId.get(id));
   }
-  // Only free models auto-fill. Paid ones must be named.
+  /*
+   * Only free models auto-fill. Paid ones must be named.
+   *
+   * An auto-filled model must not cost the chain its JSON schema. `jsonMode` is
+   * `chain.every(m => m.structured)`, so one model without structured outputs
+   * disables the schema for every model ahead of it — including a paid primary
+   * that was named precisely to get it. The free catalogue churns weekly, so
+   * without this the chain silently loses schema enforcement the week an
+   * unlucky model happens to rank highest.
+   */
+  const namedAreStructured =
+    chain.length > 0 && chain.every(m => m.structured);
   for (const m of available.filter(m => m.free !== false)) {
     if (chain.length >= limit) break;
+    if (namedAreStructured && !m.structured) continue;
     if (!chain.some(c => c.id === m.id)) chain.push(m);
   }
   return chain.slice(0, limit);

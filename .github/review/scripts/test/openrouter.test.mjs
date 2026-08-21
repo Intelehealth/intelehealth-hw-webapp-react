@@ -243,7 +243,27 @@ const AVAILABLE = [
 test('preferred models lead the chain when they are still available', () => {
   const chain = chooseModels(AVAILABLE, ['mid/model:free'], 3);
   assert.equal(chain[0].id, 'mid/model:free');
+});
+
+test('fallbacks are appended when they keep the schema intact', () => {
+  const allStructured = [
+    { id: 'a:free', context: 200000, structured: true },
+    { id: 'b:free', context: 100000, structured: true },
+    { id: 'c:free', context: 50000, structured: true },
+  ];
+  const chain = chooseModels(allStructured, ['b:free'], 3);
+  assert.equal(chain[0].id, 'b:free');
   assert.equal(chain.length, 3, 'the rest are appended as fallbacks');
+});
+
+test('auto-fill never costs a structured primary its JSON schema', () => {
+  // jsonMode is chain.every(m => m.structured), so one non-structured fallback
+  // disables the schema for the paid primary that was named to get it.
+  const chain = chooseModels(AVAILABLE, ['mid/model:free'], 3);
+  assert.ok(
+    chain.every(m => m.structured),
+    'a structured primary must not be joined by non-structured fallbacks'
+  );
 });
 
 test('a preferred model that no longer exists is skipped, not fatal', () => {
@@ -475,7 +495,7 @@ test('invented rule IDs and file paths are discarded', async () => {
   }
 });
 
-test('an unparseable reply triggers exactly one repair attempt', async () => {
+test('an unparseable reply is re-reviewed once on a different model', async () => {
   const stub = await startStub({
     replies: [
       { content: 'I am unable to produce JSON right now.' },
@@ -489,9 +509,98 @@ test('an unparseable reply triggers exactly one repair attempt', async () => {
   });
   try {
     const { findings, stdout } = await runReview(stub, { rules: RULES_FILE });
-    assert.match(stdout, /retrying once/);
+    assert.match(stdout, /re-reviewing on/);
     assert.equal(findings.findings.length, 1);
-    assert.equal(stub.calls.length, 2);
+    assert.equal(stub.calls.length, 2, 'exactly one retry');
+
+    // The model that failed must not lead the retry chain.
+    const served = 'big/model:free';
+    assert.ok(
+      !stub.calls[1].models.includes(served),
+      'the failed model must be dropped from the retry'
+    );
+    // The retry must re-review the diff, not reformat the broken reply.
+    const retryPrompt = stub.calls[1].messages.at(-1).content;
+    assert.match(retryPrompt, /const y = 2/, 'the diff must be re-sent');
+    assert.ok(
+      !retryPrompt.includes('I am unable to produce JSON'),
+      'the broken reply must not be fed back'
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('an empty batch is confirmed against a second model', async () => {
+  // Measured on PR #309: qwen returned [] three times running on a diff where
+  // deepseek found six real findings. An empty result must not be believed on
+  // one cheap model's word.
+  const stub = await startStub({
+    replies: [
+      { content: JSON.stringify({ summary: 'nothing here', findings: [] }) },
+      {
+        content: JSON.stringify({
+          summary: 'actually there is',
+          findings: [goodFinding],
+        }),
+      },
+    ],
+  });
+  try {
+    const { findings, stdout } = await runReview(stub, { rules: RULES_FILE });
+    assert.equal(stub.calls.length, 2, 'the empty batch is re-asked once');
+    assert.ok(
+      !stub.calls[1].models.includes('big/model:free'),
+      'must ask a different model'
+    );
+    assert.equal(findings.findings.length, 1, 'the second opinion is kept');
+    assert.match(stdout, /confirming with/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a batch with findings costs no second opinion', async () => {
+  const stub = await startStub({
+    replies: [
+      { content: JSON.stringify({ summary: 's', findings: [goodFinding] }) },
+    ],
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    assert.equal(stub.calls.length, 1, 'only empty batches pay');
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('SECOND_OPINION=0 keeps the empty result without a second call', async () => {
+  const stub = await startStub({
+    replies: [{ content: JSON.stringify({ summary: 's', findings: [] }) }],
+  });
+  try {
+    const { findings } = await runReview(stub, {
+      rules: RULES_FILE,
+      env: { SECOND_OPINION: '0' },
+    });
+    assert.equal(stub.calls.length, 1);
+    assert.deepEqual(findings.findings, []);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a recovered batch that finds nothing is a real answer, not inconclusive', async () => {
+  const stub = await startStub({
+    replies: [
+      { content: 'no json here' },
+      { content: JSON.stringify({ summary: 'clean', findings: [] }) },
+    ],
+  });
+  try {
+    const { findings } = await runReview(stub, { rules: RULES_FILE });
+    assert.equal(findings.reviewed, true);
+    assert.equal(findings.inconclusive, undefined);
   } finally {
     stub.server.close();
   }
@@ -541,7 +650,7 @@ test('the request budget is respected and what was dropped is reported', async (
     const { findings, stdout } = await runReview(stub, {
       diff: many,
       rules: RULES_FILE,
-      env: { MAX_REQUESTS: '2' },
+      env: { MAX_REQUESTS: '2', SECOND_OPINION: '0' },
     });
     assert.equal(stub.calls.length, 2, 'never exceeds the request budget');
     assert.match(stdout, /Skipped \(request cap\)/);
@@ -831,7 +940,11 @@ test('test bodies are withheld but their names are sent', async () => {
     'diff --git a/src/test/a.test.ts b/src/test/a.test.ts\n--- a/src/test/a.test.ts\n+++ b/src/test/a.test.ts\n@@ -1 +1,2 @@\n+expect(sekritTestBody).toBe(1);\n';
   const stub = await startStub({ replies: [{ content: OBJ }] });
   try {
-    await runReview(stub, { diff: mixed, rules: RULES_FILE });
+    await runReview(stub, {
+      diff: mixed,
+      rules: RULES_FILE,
+      env: { SECOND_OPINION: '0' },
+    });
     assert.equal(stub.calls.length, 1);
     const sent = stub.calls[0].messages.at(-1).content;
     assert.ok(!sent.includes('sekritTestBody'), 'the body must not be sent');
