@@ -24,6 +24,7 @@ import {
   complete,
   estimateTokens,
   extractJson,
+  isTestFile,
   keyStatus,
   listModels,
   MAX_FALLBACK_MODELS,
@@ -43,21 +44,6 @@ const DEBUG_PATH = join(OUT_DIR, 'openrouter-debug.json');
 const API_KEY = process.env.OPENROUTER_API_KEY;
 const PR_NUMBER = process.env.PR_NUMBER || '0';
 const PR_TITLE = process.env.PR_TITLE || '';
-
-/*
- * The description is repeated in every batch, so template boilerplate is paid
- * for N times over. Unfilled PR templates are mostly HTML comments and
- * unchecked boxes — strip both before the length cap, so the cap spends its
- * budget on whatever the author actually wrote.
- */
-function cleanPrBody(body) {
-  return body
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/^\s*-\s*\[\s?\]\s.*$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-const PR_BODY = cleanPrBody(process.env.PR_BODY || '').slice(0, 1500);
 const MAX_REQUESTS = Number(process.env.MAX_REQUESTS) || 4;
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS) || 4000;
 const PREFERRED = (process.env.OPENROUTER_MODELS || '')
@@ -84,20 +70,27 @@ You are strict about false positives. A short review with two real problems is f
 
 Never report: formatting or style that a linter handles, naming preferences, missing comments, speculative refactors, praise, or restatements of what the code does.`;
 
-function userPrompt({ digest, chunk, chunkIndex, chunkCount }) {
+function userPrompt({ digest, chunk, chunkIndex, chunkCount, testFiles }) {
   const files = chunk.map(f => f.file).join('\n');
   const diff = chunk.map(f => f.patch).join('\n');
 
   return `Review this pull request diff against the rules below.
 
-${PR_TITLE ? `PULL REQUEST TITLE\n${PR_TITLE}\n` : ''}${PR_BODY ? `\nDESCRIPTION\n${PR_BODY}\n` : ''}
+${PR_TITLE ? `PULL REQUEST TITLE\n${PR_TITLE}\n` : ''}
 RULES — every finding must cite one of these rule IDs. If you find a real problem that no rule covers, use GEN-000 and name the missing rule in the body.
 
 ${digest}
 
 FILES IN THIS BATCH${chunkCount > 1 ? ` (batch ${chunkIndex + 1} of ${chunkCount})` : ''}
 ${files}
-
+${
+  testFiles.length
+    ? `
+TEST FILES THIS PR ALSO CHANGES — names only, bodies deliberately not sent. Treat these as tests that exist, so do not report a missing test for behaviour they cover, and do not report findings against these paths.
+${testFiles.join('\n')}
+`
+    : ''
+}
 DIFF
 ${diff}
 
@@ -385,7 +378,33 @@ async function main() {
     Math.floor(budgetTokens * CHARS_PER_TOKEN)
   );
 
-  const files = splitDiffByFile(diff);
+  const allFiles = splitDiffByFile(diff);
+  const files = allFiles.filter(f => !isTestFile(f.file));
+  const testFiles = allFiles.filter(f => isTestFile(f.file)).map(f => f.file);
+  if (testFiles.length) {
+    console.log(
+      `Skipping ${testFiles.length} unit-test file(s); names still sent so ` +
+        `"missing test" rules stay answerable.`
+    );
+  }
+
+  /*
+   * A tests-only PR has nothing left to review. That is a clean pass, not a
+   * failed one — reporting it inconclusive would wedge the merge behind a
+   * review that had no application code to look at.
+   */
+  if (files.length === 0) {
+    writeFindings({
+      summary: testFiles.length
+        ? `Only unit-test files changed (${testFiles.length}); no application code to review.`
+        : 'No reviewable changes in this pull request.',
+      findings: [],
+      reviewed: true,
+    });
+    console.log('No application code in this diff. Nothing to review.');
+    return;
+  }
+
   const { chunks, skipped, truncated } = packChunks(files, {
     budgetChars,
     maxChunks: MAX_REQUESTS,
@@ -409,18 +428,21 @@ async function main() {
     const chunkFiles = chunk.map(f => f.file);
     if (i > 0) await sleep(REQUEST_SPACING_MS);
 
+    const prompt = userPrompt({
+      digest,
+      chunk,
+      chunkIndex: i,
+      chunkCount: chunks.length,
+      testFiles,
+    });
+
     let result;
     try {
       result = await complete({
         apiKey: API_KEY,
         models: chain.map(m => m.id),
         system: SYSTEM_PROMPT,
-        user: userPrompt({
-          digest,
-          chunk,
-          chunkIndex: i,
-          chunkCount: chunks.length,
-        }),
+        user: prompt,
         maxTokens: MAX_OUTPUT_TOKENS,
         jsonMode,
         schema: RESPONSE_SCHEMA,
@@ -440,29 +462,43 @@ async function main() {
 
     let parsed = extractJson(result.text);
 
-    // Free models sometimes narrate before the JSON. One cheap repair attempt.
+    /*
+     * A reply we cannot parse means this model failed on this input, so retry
+     * on a DIFFERENT one — the degeneracy is model- and input-specific, and
+     * asking the same model the same question tends to fail the same way.
+     *
+     * Send the original prompt, not the broken reply. The old repair pass fed
+     * the garbage back and asked for it as JSON, which produced a tidy summary
+     * of noise and an empty findings array — a batch that never reviewed the
+     * diff but no longer looked like a failure.
+     */
     if (!parsed) {
+      const others = chain.map(m => m.id).filter(id => id !== result.model);
       console.log(
-        `Batch ${i + 1}: unparseable reply from ${result.model}, retrying once.`
+        `Batch ${i + 1}: unparseable reply from ${result.model}; ` +
+          (others.length
+            ? `re-reviewing on ${others[0]}.`
+            : 'no other model in the chain to try.')
       );
       repaired++;
-      await sleep(REQUEST_SPACING_MS);
-      try {
-        const repair = await complete({
-          apiKey: API_KEY,
-          models: chain.map(m => m.id),
-          system: SYSTEM_PROMPT,
-          user:
-            'Your previous reply was not valid JSON. Return the same content as a single JSON ' +
-            'object with keys "summary" and "findings", and nothing else.\n\n' +
-            'Previous reply:\n' +
-            result.text.slice(0, 6000),
-          maxTokens: MAX_OUTPUT_TOKENS,
-          jsonMode,
-        });
-        parsed = extractJson(repair.text);
-      } catch (err) {
-        console.error(`Batch ${i + 1} repair failed: ${err.message}`);
+      if (others.length) {
+        await sleep(REQUEST_SPACING_MS);
+        try {
+          const retry = await complete({
+            apiKey: API_KEY,
+            models: others,
+            system: SYSTEM_PROMPT,
+            user: prompt,
+            maxTokens: MAX_OUTPUT_TOKENS,
+            jsonMode,
+            schema: RESPONSE_SCHEMA,
+            title: `PR Review #${PR_NUMBER}`,
+          });
+          parsed = extractJson(retry.text);
+          if (parsed) result = retry;
+        } catch (err) {
+          console.error(`Batch ${i + 1} retry failed: ${err.message}`);
+        }
       }
     }
 
@@ -558,9 +594,14 @@ async function main() {
     inconclusive = `${skipped.length} file(s) exceeded the ${MAX_REQUESTS}-request budget and were never read: ${skipped.join(', ')}`;
   } else if (all.length === 0 && GAVE_UP.test(summaries.join(' '))) {
     inconclusive = 'the model reported that it did not see the code';
-  } else if (all.length === 0 && repaired > 0) {
-    inconclusive = `${repaired} batch(es) returned unparseable output and then found nothing, which usually means the model did not engage with the diff`;
   }
+  /*
+   * An unparseable batch that never recovered is already counted in `failures`
+   * above. `repaired` only records that a retry was needed — and that retry now
+   * re-reviews the diff on a different model rather than reformatting the
+   * broken reply, so a recovered batch finding nothing is a real answer and
+   * must not be reported as a review that did not happen.
+   */
 
   if (inconclusive) {
     console.log(`Review is inconclusive: ${inconclusive}.`);
