@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path';
 import {
   chooseModels,
   extractJson,
+  isTestFile,
   packChunks,
   rankModels,
   splitDiffByFile,
@@ -68,6 +69,34 @@ test('a renamed file is keyed by its new path', () => {
 test('an empty diff yields no sections', () => {
   assert.deepEqual(splitDiffByFile(''), []);
   assert.deepEqual(splitDiffByFile('   '), []);
+});
+
+// --- test-file detection ---------------------------------------------------
+
+test('recognises this repo’s unit-test paths', () => {
+  for (const p of [
+    'src/App.test.tsx',
+    'src/hooks/useColumnSort.test.ts',
+    'src/test/utils.tsx',
+    'src/test/mocks/react-datepicker.ts',
+    'src/test/modules/ayu/physical-examination.component.test.tsx',
+    'src/foo.spec.js',
+    'src/__tests__/thing.ts',
+    'src/__mocks__/thing.ts',
+  ]) {
+    assert.ok(isTestFile(p), `${p} should be treated as a test file`);
+  }
+});
+
+test('does not mistake application code for a test', () => {
+  for (const p of [
+    'src/modules/ayu-library/logic/visit-summary.logic.ts',
+    'src/features/latest/index.ts', // contains "test" but is not a test dir
+    'src/components/Contest.tsx',
+    'src/utils/testing-helpers-docs.md',
+  ]) {
+    assert.ok(!isTestFile(p), `${p} must stay reviewable`);
+  }
 });
 
 // --- chunk packing ---------------------------------------------------------
@@ -171,6 +200,17 @@ test('handles braces inside strings without losing the object', () => {
 test('handles escaped quotes inside strings', () => {
   const tricky = '{"summary":"he said \\"hi\\" then left","findings":[]}';
   assert.equal(extractJson(tricky).summary, 'he said "hi" then left');
+});
+
+test('a whitespace runaway is salvaged instead of discarded', () => {
+  // Grammar-constrained decoding still permits unlimited whitespace, so a
+  // reply can flood newlines to max_tokens and never close its object.
+  const flooded = '{\n  "findings": []\n' + '\n'.repeat(20000);
+  assert.deepEqual(extractJson(flooded), { findings: [] });
+
+  const midString =
+    '{"findings": [], "summary": "the export is off by' + '\n'.repeat(5000);
+  assert.equal(extractJson(midString).summary, 'the export is off by');
 });
 
 test('returns null rather than guessing on unusable output', () => {
@@ -528,13 +568,15 @@ test('the fallback chain is sent so OpenRouter can reroute on rate limits', asyn
   }
 });
 
-test('a frequency penalty is sent to discourage repetition loops', async () => {
+test('repetition loops are discouraged and cut off at the provider', async () => {
   const stub = await startStub({
     replies: [{ content: JSON.stringify({ summary: 's', findings: [] }) }],
   });
   try {
     await runReview(stub, { rules: RULES_FILE });
     assert.ok(stub.calls[0].frequency_penalty > 0);
+    // Without this the whitespace flood bills all the way to max_tokens.
+    assert.deepEqual(stub.calls[0].stop, ['\n\n\n\n']);
   } finally {
     stub.server.close();
   }
@@ -783,15 +825,47 @@ test('every request asks OpenRouter to include its accounting', async () => {
   }
 });
 
-test('PR template boilerplate never reaches the model', async () => {
-  // The description rides along in every batch. An unfilled template is HTML
-  // comments and unchecked boxes — N batches of paid tokens saying nothing.
+test('test bodies are withheld but their names are sent', async () => {
+  const mixed =
+    'diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1,2 @@\n+const y = 2;\n' +
+    'diff --git a/src/test/a.test.ts b/src/test/a.test.ts\n--- a/src/test/a.test.ts\n+++ b/src/test/a.test.ts\n@@ -1 +1,2 @@\n+expect(sekritTestBody).toBe(1);\n';
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, { diff: mixed, rules: RULES_FILE });
+    assert.equal(stub.calls.length, 1);
+    const sent = stub.calls[0].messages.at(-1).content;
+    assert.ok(!sent.includes('sekritTestBody'), 'the body must not be sent');
+    assert.match(sent, /src\/test\/a\.test\.ts/, 'the name must be sent');
+    assert.match(sent, /const y = 2/, 'application code still reviewed');
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a tests-only PR passes cleanly instead of reporting inconclusive', async () => {
+  const testsOnly =
+    'diff --git a/src/test/a.test.ts b/src/test/a.test.ts\n--- a/src/test/a.test.ts\n+++ b/src/test/a.test.ts\n@@ -1 +1,2 @@\n+expect(1).toBe(1);\n';
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    const { findings } = await runReview(stub, {
+      diff: testsOnly,
+      rules: RULES_FILE,
+    });
+    assert.equal(stub.calls.length, 0, 'must not spend a request');
+    assert.equal(findings.reviewed, true, 'must not wedge the merge');
+    assert.equal(findings.inconclusive, undefined);
+    assert.match(findings.summary, /only unit-test files changed/i);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the PR description never reaches the model, template or not', async () => {
   const template = [
     '# Pull Request',
     '<!-- Provide a brief description of the changes in this PR -->',
     'fixes the visit export off-by-one',
     '- [ ] Bug fix (non-breaking change which fixes an issue)',
-    '- [ ] New feature (non-breaking change which adds functionality)',
     '- [x] Test updates',
   ].join('\n');
   const stub = await startStub({ replies: [{ content: OBJ }] });
@@ -801,10 +875,10 @@ test('PR template boilerplate never reaches the model', async () => {
       env: { PR_BODY: template },
     });
     const sent = stub.calls[0].messages.at(-1).content;
+    assert.ok(!sent.includes('DESCRIPTION'));
+    assert.ok(!sent.includes('fixes the visit export off-by-one'));
     assert.ok(!sent.includes('<!--'));
     assert.ok(!sent.includes('- [ ]'));
-    assert.match(sent, /fixes the visit export off-by-one/);
-    assert.match(sent, /- \[x\] Test updates/);
   } finally {
     stub.server.close();
   }
