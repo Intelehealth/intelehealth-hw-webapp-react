@@ -46,6 +46,8 @@ const PR_NUMBER = process.env.PR_NUMBER || '0';
 const PR_TITLE = process.env.PR_TITLE || '';
 const MAX_REQUESTS = Number(process.env.MAX_REQUESTS) || 4;
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS) || 4000;
+/** Confirm an empty batch against a second model. `0` disables it. */
+const SECOND_OPINION = process.env.SECOND_OPINION !== '0';
 const PREFERRED = (process.env.OPENROUTER_MODELS || '')
   .split(',')
   .map(s => s.trim())
@@ -422,6 +424,7 @@ async function main() {
   const seen = new Set();
   let failures = 0;
   let repaired = 0;
+  let secondOpinions = 0;
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -515,11 +518,77 @@ async function main() {
       continue;
     }
 
-    const { findings, rejected } = sanitise(
+    let { findings, rejected } = sanitise(
       parsed.findings,
       chunkFiles,
       validRuleIds
     );
+
+    /*
+     * "No findings" is the one answer that is indistinguishable from a review
+     * that never happened, and it is the answer a weak model reaches for. On
+     * this repo's PR #309 — a diff with at least one duplicated constant and
+     * several arrays rebuilt per render — qwen/qwen3-coder returned an empty
+     * array on three consecutive runs while deepseek-v4-pro found six findings
+     * on the same input, for +$0.0015. So an empty result is confirmed by a
+     * second model before it is believed; anything else lets a clean report
+     * rest on the cheapest model having said nothing.
+     *
+     * Only empty batches pay for this, and only once.
+     */
+    if (findings.length === 0 && SECOND_OPINION) {
+      const others = chain.map(m => m.id).filter(id => id !== result.model);
+      if (others.length) {
+        console.log(
+          `Batch ${i + 1}: no findings from ${result.model}; ` +
+            `confirming with ${others[0]}.`
+        );
+        await sleep(REQUEST_SPACING_MS);
+        try {
+          const second = await complete({
+            apiKey: API_KEY,
+            models: others,
+            system: SYSTEM_PROMPT,
+            user: prompt,
+            maxTokens: MAX_OUTPUT_TOKENS,
+            jsonMode,
+            schema: RESPONSE_SCHEMA,
+            title: `PR Review #${PR_NUMBER}`,
+          });
+          const reparsed = extractJson(second.text);
+          if (reparsed) {
+            const confirm = sanitise(
+              reparsed.findings,
+              chunkFiles,
+              validRuleIds
+            );
+            findings = confirm.findings;
+            rejected = [...rejected, ...confirm.rejected];
+            secondOpinions++;
+            console.log(
+              `   ${second.model} found ${findings.length} finding(s).`
+            );
+            debug.push({
+              batch: i + 1,
+              files: chunkFiles,
+              model: second.model,
+              secondOpinion: true,
+              usage: second.usage,
+              kept: findings.length,
+              rejected: confirm.rejected,
+              request: second.request,
+              response: second.text,
+            });
+          }
+        } catch (err) {
+          console.error(
+            `Batch ${i + 1} second opinion failed: ${err.message}. ` +
+              `Keeping the empty result.`
+          );
+        }
+      }
+    }
+
     for (const f of findings) {
       const key = `${f.ruleId}|${f.file}|${f.line}`;
       if (seen.has(key)) continue;
