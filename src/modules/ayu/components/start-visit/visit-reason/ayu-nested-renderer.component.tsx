@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
 import type {
   AyuAnswerValue,
@@ -97,8 +97,6 @@ export const AyuNestedRenderer = ({
       ));
   };
 
-  if (!items?.length) return null;
-
   /*
    * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
    * on a sibling) become visible as soon as that sibling is enabled, even before the
@@ -111,36 +109,43 @@ export const AyuNestedRenderer = ({
    * pass so stale real or synthetic values cannot keep downstream siblings visible
    * after a parent answer changes (FE-001).
    *
-   * NOTE: enrichedAnswers is intentionally NOT wrapped in useMemo. As a plain const
-   * in the function body it is recomputed on every render, capturing the current
-   * values of both answers AND items. A useMemo here would need both as dependencies
-   * to avoid stale visibility decisions when items changes without answers changing.
+   * Memoized on [answers, items]: answers changes by reference on every user input
+   * (triggering recompute as needed); items is the static questionnaire definition
+   * and rarely changes. This avoids re-running the loop when only local state
+   * (e.g. selectedOption) changes — such as when the user clicks a pill button.
    *
    * CYCLE GUARD: in a valid acyclic graph of n items at most n state changes can
    * occur, so convergence is guaranteed within n+1 passes. The cap at items.length+2
    * ensures the loop always terminates — contradictory or self-referential enableWhen
    * rules (invalid questionnaire data) cannot cause an infinite loop / frozen UI.
+   * In practice convergence happens in 1–2 passes for typical questionnaire data.
    */
-  const enrichedAnswers: Record<string, AyuAnswerValue> = { ...answers };
-  let changed = true;
-  let passes = 0;
-  const maxPasses = items.length + 2;
-  while (changed && passes < maxPasses) {
-    changed = false;
-    passes++;
-    for (const item of items) {
-      const enabled = evaluateEnableWhen(item.enableWhen, enrichedAnswers);
-      if (!enabled && enrichedAnswers[item.linkId] !== undefined) {
-        /* Remove stale entry — enableWhen no longer met */
-        delete enrichedAnswers[item.linkId];
-        changed = true;
-      } else if (enabled && enrichedAnswers[item.linkId] === undefined) {
-        /* Synthetic marker so subsequent siblings can see this item via 'exists' */
-        enrichedAnswers[item.linkId] = true;
-        changed = true;
+  const enrichedAnswers = useMemo<Record<string, AyuAnswerValue>>(() => {
+    if (!items?.length) return {};
+    const result: Record<string, AyuAnswerValue> = { ...answers };
+    let changed = true;
+    let passes = 0;
+    const maxPasses = items.length + 2;
+    while (changed && passes < maxPasses) {
+      changed = false;
+      passes++;
+      for (const item of items) {
+        const enabled = evaluateEnableWhen(item.enableWhen, result);
+        if (!enabled && result[item.linkId] !== undefined) {
+          /* Remove stale entry — enableWhen no longer met */
+          delete result[item.linkId];
+          changed = true;
+        } else if (enabled && result[item.linkId] === undefined) {
+          /* Synthetic marker so subsequent siblings can see this item via 'exists' */
+          result[item.linkId] = true;
+          changed = true;
+        }
       }
     }
-  }
+    return result;
+  }, [answers, items]);
+
+  if (!items?.length) return null;
 
   const isEnabled = (item: AyuQuestion) =>
     evaluateEnableWhen(item.enableWhen, enrichedAnswers);
