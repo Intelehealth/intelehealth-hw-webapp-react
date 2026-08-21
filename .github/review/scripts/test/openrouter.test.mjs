@@ -528,6 +528,18 @@ test('the fallback chain is sent so OpenRouter can reroute on rate limits', asyn
   }
 });
 
+test('a frequency penalty is sent to discourage repetition loops', async () => {
+  const stub = await startStub({
+    replies: [{ content: JSON.stringify({ summary: 's', findings: [] }) }],
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    assert.ok(stub.calls[0].frequency_penalty > 0);
+  } finally {
+    stub.server.close();
+  }
+});
+
 test('JSON mode is only requested when every model in the chain supports it', async () => {
   const mixed = await startStub({
     replies: [{ content: OBJ }],
@@ -766,6 +778,33 @@ test('every request asks OpenRouter to include its accounting', async () => {
     await runReview(stub, { rules: RULES_FILE });
     for (const call of stub.calls)
       assert.deepEqual(call.usage, { include: true });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('PR template boilerplate never reaches the model', async () => {
+  // The description rides along in every batch. An unfilled template is HTML
+  // comments and unchecked boxes — N batches of paid tokens saying nothing.
+  const template = [
+    '# Pull Request',
+    '<!-- Provide a brief description of the changes in this PR -->',
+    'fixes the visit export off-by-one',
+    '- [ ] Bug fix (non-breaking change which fixes an issue)',
+    '- [ ] New feature (non-breaking change which adds functionality)',
+    '- [x] Test updates',
+  ].join('\n');
+  const stub = await startStub({ replies: [{ content: OBJ }] });
+  try {
+    await runReview(stub, {
+      rules: RULES_FILE,
+      env: { PR_BODY: template },
+    });
+    const sent = stub.calls[0].messages.at(-1).content;
+    assert.ok(!sent.includes('<!--'));
+    assert.ok(!sent.includes('- [ ]'));
+    assert.match(sent, /fixes the visit export off-by-one/);
+    assert.match(sent, /- \[x\] Test updates/);
   } finally {
     stub.server.close();
   }
