@@ -2155,7 +2155,7 @@ describe('AyuNestedRenderer', () => {
 
   describe('Parent-option prefix stripping', () => {
     it('strips "Yes - When" to "When" in non-selectable mode when parent option is "Yes"', () => {
-      // Mirrors "Any h/o use of needles?" → Yes → "Yes - When" child
+      /* Mirrors "Any h/o use of needles?" → Yes → "Yes - When" child */
       const parentQuestion: AyuQuestion = {
         linkId: 'needles',
         type: 'choice',
@@ -2185,7 +2185,7 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // The renderer receives "When", not "Yes - When"
+      /* The renderer receives "When", not "Yes - When" */
       const rendererDiv = screen.getByTestId('renderer-needles-when');
       expect(rendererDiv).toBeInTheDocument();
       expect(rendererDiv.textContent).toContain('When');
@@ -2232,13 +2232,13 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // Pills show stripped labels
+      /* Pills show stripped labels */
       const whenPill = screen.getByTestId('selectable-needles-when');
       expect(whenPill.textContent).toBe('When');
       const otherPill = screen.getByTestId('selectable-needles-other');
       expect(otherPill.textContent).toBe('Other detail');
 
-      // After clicking a pill, the renderer receives the stripped text
+      /* After clicking a pill, the renderer receives the stripped text */
       await user.click(whenPill);
       const rendererDiv = screen.getByTestId('renderer-needles-when');
       expect(rendererDiv.textContent).not.toContain('Yes - When');
@@ -2260,7 +2260,7 @@ describe('AyuNestedRenderer', () => {
         {
           linkId: 'q-empty-suffix',
           type: 'string',
-          text: 'Yes - ',   // "Yes - " = label "Yes" + " - " + nothing → slice → "" → fallback
+          text: 'Yes - ',
           enableWhen: [
             { question: 'q', operator: '=', answerCoding: { code: 'yes' } },
           ],
@@ -2320,9 +2320,110 @@ describe('AyuNestedRenderer', () => {
         />
       );
 
-      // Text doesn't start with "Yes - " so it stays unchanged
+      /* Text doesn't start with "Yes - " so it stays unchanged */
       const rendererDiv = screen.getByTestId('renderer-q-desc');
       expect(rendererDiv.textContent).toContain('Describe the condition');
+    });
+  });
+
+  describe('enrichedAnswers stable-iteration (FE-001 / ASYNC-004)', () => {
+    it('should hide a downstream sibling when its dependency answer becomes stale (FE-001)', () => {
+      /*
+       * FE-001: When a parent answer changes so that item X is no longer enabled,
+       * any previously recorded answer for X must not keep downstream sibling Y
+       * (which gates on exists(X)) incorrectly visible.
+       * Bug: enrichedAnswers = { ...answers } spread retained answers['item-x']
+       * even after X's enableWhen failed, so Y's exists check still passed.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'item-x',
+          text: 'Item X',
+          type: 'string',
+          enableWhen: [
+            { question: 'parent', operator: '=', answerString: 'A' },
+          ],
+        },
+        {
+          linkId: 'item-y',
+          text: 'Item Y',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-x', operator: 'exists', answerBoolean: true },
+          ],
+        },
+      ];
+
+      /* Both visible — parent = 'A', X has a real user answer */
+      const { rerender } = render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ parent: 'A', 'item-x': 'hello' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.getByTestId('renderer-item-x')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-y')).toBeInTheDocument();
+
+      /* Parent switches to 'B' — X is no longer enabled.
+       * answers['item-x'] = 'hello' is still in the answers map (not yet cleared
+       * by the caller), but the stale value must NOT keep Y visible. */
+      rerender(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ parent: 'B', 'item-x': 'hello' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+      expect(screen.queryByTestId('renderer-item-x')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-item-y')).not.toBeInTheDocument();
+    });
+
+    it('should show all items in a dependency chain regardless of array order (ASYNC-004)', () => {
+      /*
+       * ASYNC-004: Items are in reverse dependency order [Z, Y, X].
+       * Z has exists(Y), Y has exists(X), X has no enableWhen.
+       * All three must be visible — the stable-iteration loop propagates synthetic
+       * markers through the full chain even when dependencies appear later in the array.
+       * Bug: a single forward pass left Z hidden because Y's synthetic marker had
+       * not been set yet when Z was evaluated.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'item-z',
+          text: 'Item Z',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-y', operator: 'exists', answerBoolean: true },
+          ],
+        },
+        {
+          linkId: 'item-y',
+          text: 'Item Y',
+          type: 'string',
+          enableWhen: [
+            { question: 'item-x', operator: 'exists', answerBoolean: true },
+          ],
+        },
+        {
+          linkId: 'item-x',
+          text: 'Item X',
+          type: 'string',
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /* All three must be visible even though X (the root) is last in the array */
+      expect(screen.getByTestId('renderer-item-x')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-y')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-item-z')).toBeInTheDocument();
     });
   });
 });

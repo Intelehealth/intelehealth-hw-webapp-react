@@ -102,16 +102,35 @@ export const AyuNestedRenderer = ({
   /*
    * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
    * on a sibling) become visible as soon as that sibling is enabled, even before the
-   * user enters a value. We iterate in order and accumulate, so From enables To/Event
-   * in the same pass (From marked true → To's exists(From) passes → To marked true).
+   * user enters a value.
+   *
+   * We iterate until stable (no entry added or removed) so that deep enableWhen
+   * chains resolve correctly regardless of item order in the array (ASYNC-004).
+   *
+   * Entries for items whose enableWhen is no longer satisfied are deleted each
+   * pass so stale real or synthetic values cannot keep downstream siblings visible
+   * after a parent answer changes (FE-001).
+   *
+   * NOTE: enrichedAnswers is intentionally NOT wrapped in useMemo. As a plain const
+   * in the function body it is recomputed on every render, capturing the current
+   * values of both answers AND items. A useMemo here would need both as dependencies
+   * to avoid stale visibility decisions when items changes without answers changing.
    */
   const enrichedAnswers: Record<string, AyuAnswerValue> = { ...answers };
-  for (const item of items) {
-    if (
-      enrichedAnswers[item.linkId] === undefined &&
-      evaluateEnableWhen(item.enableWhen, enrichedAnswers)
-    ) {
-      enrichedAnswers[item.linkId] = true;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of items) {
+      const enabled = evaluateEnableWhen(item.enableWhen, enrichedAnswers);
+      if (!enabled && enrichedAnswers[item.linkId] !== undefined) {
+        /* Remove stale entry — enableWhen no longer met */
+        delete enrichedAnswers[item.linkId];
+        changed = true;
+      } else if (enabled && enrichedAnswers[item.linkId] === undefined) {
+        /* Synthetic marker so subsequent siblings can see this item via 'exists' */
+        enrichedAnswers[item.linkId] = true;
+        changed = true;
+      }
     }
   }
 
