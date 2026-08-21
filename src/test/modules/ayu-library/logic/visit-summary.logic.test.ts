@@ -851,6 +851,128 @@ describe('buildVisitSummary', () => {
     });
   });
 
+  describe('single-select choice with composite "Yes - When" child — no double-Yes', () => {
+    it('should not duplicate the option display when the child option text starts with it', () => {
+      // Mirrors the real "Blood transfusion" questionnaire structure:
+      //   bt (choice: yes/no)
+      //     └─ bt-yes (choice: "Yes - When" option, enableWhen bt=yes)
+      //          └─ bt-yes-when (string, enableWhen bt-yes="yes-when")
+      // Expected: value = "Yes - When – 17 Years"  (NOT "Yes - Yes - When – 17 Years")
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        type: 'choice',
+        text: 'Blood transfusion',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Blood transfusion',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'bt-yes',
+            type: 'choice',
+            text: 'Yes',
+            enableWhen: [
+              { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'yes-when', display: 'Yes - When' } },
+            ],
+            item: [
+              {
+                linkId: 'bt-yes-when',
+                type: 'string',
+                text: 'Yes - When',
+                enableWhen: [
+                  {
+                    question: 'bt-yes',
+                    operator: '=',
+                    answerCoding: { code: 'yes-when' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['bt', 'yes'],
+        ['bt-yes', 'yes-when'],
+        ['bt-yes-when', '17 Years'],
+      ]);
+
+      const result = buildVisitSummary([btQuestion], answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        // "Yes" appears exactly once — no "Yes - Yes - When"
+        expect(item.value).toBe('Yes - When – 17 Years');
+        const yesCount = String(item.value).split('Yes').length - 1;
+        expect(yesCount).toBe(1);
+      }
+    });
+
+    it('should strip the parentDisplay prefix from the item label when it starts with it', () => {
+      /* Covers the alternate "Blood transfusion" FHIR structure where the direct
+      child item's .text is "Yes - When" (composite) rather than plain "Yes".
+         bt (choice: yes/no)
+          └─ bt-when (choice, text="Yes - When", enableWhen bt=yes)
+       Expected: value = "Yes - When – 15 months"  (NOT "Yes - Yes - When – 15 months")
+     */ 
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        type: 'choice',
+        text: 'Blood transfusion',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Blood transfusion',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'bt-when',
+            type: 'choice',
+            text: 'Yes - When',
+            enableWhen: [
+              { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+            ],
+            answerOption: [
+              { valueCoding: { code: '15-months', display: '15 months' } },
+            ],
+          },
+        ],
+      };
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['bt', 'yes'],
+        ['bt-when', '15-months'],
+      ]);
+
+      const result = buildVisitSummary([btQuestion], answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        // "Yes" appears exactly once — no "Yes - Yes - When"
+        expect(item.value).toBe('Yes - When – 15 months');
+        const yesCount = String(item.value).split('Yes').length - 1;
+        expect(yesCount).toBe(1);
+      }
+    });
+  });
+
   describe('multi-select with nested children — duplicate-label dedup', () => {
     it('should not repeat the option display when the nested question text matches it', () => {
       const questions: AyuQuestion[] = [
@@ -4347,6 +4469,112 @@ describe('buildVisitSummary', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe('Visit reason');
+    });
+  });
+
+  describe('collectLabeledValues fallback branches (lines 341, 357)', () => {
+    it('line 341: falls back to combinedValue when slice of parentDisplay prefix produces empty string', () => {
+      /*
+       * omitLabel=true (item.type="string"). The string answer is exactly
+       * parentDisplay + separator (e.g. "Yes - "). Slicing off "Yes - " leaves
+       * "" which trims to "" — the || fallback at line 341 keeps combinedValue.
+       */
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        type: 'choice',
+        text: 'Blood transfusion',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Blood transfusion',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'bt-details',
+            type: 'string',
+            text: 'Details',
+            enableWhen: [
+              { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+            ],
+          },
+        ],
+      };
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['bt', 'yes'],
+        // answer = "Yes - " (parentDisplay + sep, nothing after) → slice → "" → || fallback
+        ['bt-details', 'Yes - '],
+      ]);
+
+      const result = buildVisitSummary([btQuestion], answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        /*
+         * combinedValue = "Yes - " (fallback kept it since slice produced "").
+         * processItems builds display "Yes" + " - " + "Yes - " = "Yes - Yes - ".
+         */
+        expect(item.value).toBe('Yes - Yes - ');
+      }
+    });
+
+    it('line 357: pushes combinedValue directly when strippedLabel is empty after prefix strip', () => {
+      /*
+       * prefixSep is found (itemLabel="Yes - " starts with parentDisplay "Yes" + " - ").
+       * Slicing "Yes - " off "Yes - " leaves "" (empty) → strippedLabel = "" →
+       * the ternary at line 357 pushes combinedValue directly.
+       */
+      const btQuestion: AyuQuestion = {
+        linkId: 'bt',
+        type: 'choice',
+        text: 'Blood transfusion',
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Blood transfusion',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'bt-child',
+            type: 'choice',   // Non-string → omitLabel=false → prefixSep path
+            text: 'Yes - ',   // itemLabel = parentDisplay + sep → strippedLabel = ""
+            enableWhen: [
+              { question: 'bt', operator: '=', answerCoding: { code: 'yes' } },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'opt', display: 'SomeValue' } },
+            ],
+          },
+        ],
+      };
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['bt', 'yes'],
+        ['bt-child', 'opt'],
+      ]);
+
+      const result = buildVisitSummary([btQuestion], answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const item = result[0].items[0];
+      expect(item.type).toBe('labelValue');
+      if (item.type === 'labelValue') {
+        /*
+         * strippedLabel="" → push combinedValue "SomeValue" directly.
+         * processItems builds "Yes" + " - " + "SomeValue" = "Yes - SomeValue".
+         */
+        expect(item.value).toBe('Yes - SomeValue');
+      }
     });
   });
 });

@@ -126,23 +126,166 @@ const isSingleOptionPE = (question: AyuQuestion): boolean => {
 
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
-  answers: Record<string, AyuAnswerValue>
+  answers: Record<string, AyuAnswerValue>,
+  parent?: AyuQuestion,
+  branchOptionDisplay?: string
 ): { label: string; value: string }[] => {
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
+  const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '] as const;
   for (const child of items) {
     if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+
+    /*
+     * Determine the branch display to carry into this child's descendants.
+     * When a GROUP container (no answerOption / no stored value) sits between
+     * the originating choice question and composite sub-items ("Yes - When"),
+     * we propagate the option display ("Yes") so the prefix can still be
+     * stripped at a deeper level even when the enableWhen reference skips the
+     * intermediate GROUP.
+     */
+    let nextBranchDisplay: string | undefined;
+    if (parent && child.enableWhen?.length) {
+      const rule = child.enableWhen![0];
+      if (rule.question === parent.linkId) {
+        const expected =
+          rule.answerBoolean ??
+          rule.answerString ??
+          rule.answerInteger ??
+          rule.answerCoding?.code;
+        const opt = parent.answerOption?.find(
+          o => o.valueCoding?.code === expected || o.valueString === expected
+        );
+        const optDisplay = opt?.valueCoding?.display || opt?.valueString;
+        if (optDisplay) {
+          const lbl = getRowLabel(child);
+          if (
+            lbl === optDisplay ||
+            SEPARATORS.some(sep => lbl.startsWith(optDisplay + sep))
+          ) {
+            nextBranchDisplay = optDisplay;
+          }
+        }
+      }
+    }
+    if (!nextBranchDisplay && branchOptionDisplay != null) {
+      nextBranchDisplay = branchOptionDisplay;
+    }
+
     const value = formatAnswerValue(child, answers[child.linkId]);
     if (value && !isPlaceholderText(value)) {
       const label = getRowLabel(child);
 
-      if (label && label !== value) {
-        rows.push({ label, value });
-      } else if (!label) {
-        rows.push({ label: '', value });
+      /*
+       * Detect whether this child's label is either:
+       *   (a) an exact match of the parent answer option display ("Yes"), or
+       *   (b) a path-composite label that prefixes the option display with a
+       *       separator ("Yes - When", "Yes – When", "Yes: When").
+       *
+       * In both cases the option name is already shown as the primary value,
+       * so it is redundant in the nested row.
+       *
+       * – With nested items (branching container): suppress the row entirely;
+       *   the children produce the actual detail rows.
+       * – Without nested items (leaf that directly holds the answer) and a
+       *   composite label: strip the redundant prefix so "Yes - When" renders
+       *   as just "When".
+       *
+       * Check 1 – direct parent has the matching answerOption entry.
+       * Check 2 – fallback to `branchOptionDisplay` when the immediate parent
+       *           is a GROUP (no answerOption) or enableWhen skips an ancestor.
+       */
+      let effectiveLabel = label;
+      let hasOptionPrefix = false;
+
+      if (parent && child.enableWhen?.length) {
+        const rule = child.enableWhen![0];
+        if (rule.question === parent.linkId) {
+          const expected =
+            rule.answerBoolean ??
+            rule.answerString ??
+            rule.answerInteger ??
+            rule.answerCoding?.code;
+          const opt = parent.answerOption?.find(
+            o => o.valueCoding?.code === expected || o.valueString === expected
+          );
+          const optDisplay =
+            opt?.valueCoding?.display || opt?.valueString || null;
+
+          if (optDisplay != null) {
+            if (optDisplay === label) {
+              hasOptionPrefix = true;
+              /* effectiveLabel stays as-is for exact matches (handled below) */
+            } else {
+              for (const sep of SEPARATORS) {
+                if (label.startsWith(optDisplay + sep)) {
+                  hasOptionPrefix = true;
+                  effectiveLabel =
+                    label.slice(optDisplay.length + sep.length).trim() || label;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      /*
+       * Check 2: parent is a GROUP without answerOption, or enableWhen
+       * references a non-immediate ancestor — use propagated branch display.
+       */
+      if (!hasOptionPrefix && branchOptionDisplay != null) {
+        if (branchOptionDisplay === label) {
+          hasOptionPrefix = true;
+        } else {
+          for (const sep of SEPARATORS) {
+            if (label.startsWith(branchOptionDisplay + sep)) {
+              hasOptionPrefix = true;
+              effectiveLabel =
+                label.slice(branchOptionDisplay.length + sep.length).trim() ||
+                label;
+              break;
+            }
+          }
+        }
+      }
+
+      /*
+       * Check 3: strip branchOptionDisplay prefix from effectiveLabel even when
+       * Check 1 matched exactly (optDisplay === label), leaving effectiveLabel
+       * as the full composite label (e.g. "Yes - When"). The branch option ("Yes")
+       * is already shown as the primary value; reduce the label to just "When".
+       */
+      if (branchOptionDisplay) {
+        for (const sep of SEPARATORS) {
+          if (effectiveLabel.startsWith(branchOptionDisplay + sep)) {
+            effectiveLabel =
+              effectiveLabel
+                .slice(branchOptionDisplay.length + sep.length)
+                .trim() || effectiveLabel;
+            break;
+          }
+        }
+      }
+
+      /*
+       * Suppress the row when it is a branching container (has nested items).
+       * For leaf containers with a composite prefix, the prefix is already
+       * stripped from effectiveLabel above so the row renders as "When: …".
+       */
+      const isRedundantContainer = hasOptionPrefix && !!child.item?.length;
+
+      if (!isRedundantContainer) {
+        if (effectiveLabel && effectiveLabel !== value) {
+          rows.push({ label: effectiveLabel, value });
+        } else if (!effectiveLabel) {
+          rows.push({ label: '', value });
+        }
       }
     }
-    rows.push(...collectAnsweredRows(child.item, answers));
+    rows.push(
+      ...collectAnsweredRows(child.item, answers, child, nextBranchDisplay)
+    );
   }
   return rows;
 };
@@ -196,7 +339,7 @@ const AyuAnsweredDisplay = ({
     () =>
       isSkipped || isAssociatedSymptoms
         ? []
-        : collectAnsweredRows(question.item, answers),
+        : collectAnsweredRows(question.item, answers, question),
     [question, answers, isSkipped, isAssociatedSymptoms]
   );
 
