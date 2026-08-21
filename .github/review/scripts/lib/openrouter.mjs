@@ -44,6 +44,25 @@ export function splitDiffByFile(diff) {
 }
 
 /**
+ * Is this a unit-test file rather than application code?
+ *
+ * Test bodies are the bulk of a typical PR here and the least rewarding thing
+ * to spend input tokens on: a table-driven suite is hundreds of near-identical
+ * lines, which is also what sends a model into a repetition loop. Their names
+ * still travel with the prompt, so TEST-001/002 ("fix with no regression test")
+ * stay answerable without paying for the bodies.
+ *
+ * @param {string} path
+ */
+export function isTestFile(path) {
+  return (
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(path) ||
+    /(^|\/)__(tests|mocks)__\//.test(path) ||
+    /(^|\/)tests?\//.test(path)
+  );
+}
+
+/**
  * Pack per-file diffs into as few requests as possible without blowing the
  * context window.
  *
@@ -152,7 +171,57 @@ export function extractJson(text) {
       if (depth === 0) return attempt(s.slice(start, i + 1));
     }
   }
-  return null;
+  return salvageJson(s.slice(start));
+}
+
+/*
+ * Close a reply that ran out of output budget before it closed its brackets.
+ *
+ * Under `json_schema` the decoder is grammar-constrained, but JSON permits
+ * unlimited whitespace between tokens — so an emitted `{"findings": []` may be
+ * followed by thousands of newlines until max_tokens, legally, and the object
+ * never closes. Observed repeatedly on one file in PR #309: 8000 completion
+ * tokens, 255k chars, no `}`. A penalty only shifts the odds of a legal token;
+ * it cannot forbid it, which is why this must be recoverable rather than merely
+ * discouraged.
+ *
+ * The bytes the model did emit are its real answer. Drop the whitespace flood,
+ * shut any string and bracket still open, and parse what is left.
+ */
+export function salvageJson(text) {
+  const stack = [];
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (const c of text) {
+    if (inString) {
+      out += c;
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (/\s/.test(c)) continue;
+    out += c;
+    if (c === '"') inString = true;
+    else if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') stack.pop();
+  }
+
+  if (inString) out += '"';
+  // A dangling `,` or `:` is the start of a value that never arrived.
+  out = out.replace(/[,:]+$/, '');
+  while (stack.length) out += stack.pop();
+
+  try {
+    const parsed = JSON.parse(out);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -286,6 +355,14 @@ export async function complete(opts) {
     ],
     temperature: 0.1,
     max_tokens: maxTokens,
+    frequency_penalty: 0.4,
+    /*
+     * Cut the whitespace runaway at the provider instead of paying for it to
+     * reach max_tokens. Pretty-printed JSON never contains a blank line, let
+     * alone four, so this cannot truncate a healthy reply — and salvageJson
+     * closes whatever the stop leaves open.
+     */
+    stop: ['\n\n\n\n'],
     // Ask for OpenRouter's own accounting in every reply, rather than relying
     // on the provider including it by default.
     usage: { include: true },

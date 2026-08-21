@@ -24,6 +24,7 @@ import {
   complete,
   estimateTokens,
   extractJson,
+  isTestFile,
   keyStatus,
   listModels,
   MAX_FALLBACK_MODELS,
@@ -43,7 +44,6 @@ const DEBUG_PATH = join(OUT_DIR, 'openrouter-debug.json');
 const API_KEY = process.env.OPENROUTER_API_KEY;
 const PR_NUMBER = process.env.PR_NUMBER || '0';
 const PR_TITLE = process.env.PR_TITLE || '';
-const PR_BODY = (process.env.PR_BODY || '').slice(0, 1500);
 const MAX_REQUESTS = Number(process.env.MAX_REQUESTS) || 4;
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS) || 4000;
 const PREFERRED = (process.env.OPENROUTER_MODELS || '')
@@ -70,20 +70,27 @@ You are strict about false positives. A short review with two real problems is f
 
 Never report: formatting or style that a linter handles, naming preferences, missing comments, speculative refactors, praise, or restatements of what the code does.`;
 
-function userPrompt({ digest, chunk, chunkIndex, chunkCount }) {
+function userPrompt({ digest, chunk, chunkIndex, chunkCount, testFiles }) {
   const files = chunk.map(f => f.file).join('\n');
   const diff = chunk.map(f => f.patch).join('\n');
 
   return `Review this pull request diff against the rules below.
 
-${PR_TITLE ? `PULL REQUEST TITLE\n${PR_TITLE}\n` : ''}${PR_BODY ? `\nDESCRIPTION\n${PR_BODY}\n` : ''}
+${PR_TITLE ? `PULL REQUEST TITLE\n${PR_TITLE}\n` : ''}
 RULES — every finding must cite one of these rule IDs. If you find a real problem that no rule covers, use GEN-000 and name the missing rule in the body.
 
 ${digest}
 
 FILES IN THIS BATCH${chunkCount > 1 ? ` (batch ${chunkIndex + 1} of ${chunkCount})` : ''}
 ${files}
-
+${
+  testFiles.length
+    ? `
+TEST FILES THIS PR ALSO CHANGES — names only, bodies deliberately not sent. Treat these as tests that exist, so do not report a missing test for behaviour they cover, and do not report findings against these paths.
+${testFiles.join('\n')}
+`
+    : ''
+}
 DIFF
 ${diff}
 
@@ -371,7 +378,33 @@ async function main() {
     Math.floor(budgetTokens * CHARS_PER_TOKEN)
   );
 
-  const files = splitDiffByFile(diff);
+  const allFiles = splitDiffByFile(diff);
+  const files = allFiles.filter(f => !isTestFile(f.file));
+  const testFiles = allFiles.filter(f => isTestFile(f.file)).map(f => f.file);
+  if (testFiles.length) {
+    console.log(
+      `Skipping ${testFiles.length} unit-test file(s); names still sent so ` +
+        `"missing test" rules stay answerable.`
+    );
+  }
+
+  /*
+   * A tests-only PR has nothing left to review. That is a clean pass, not a
+   * failed one — reporting it inconclusive would wedge the merge behind a
+   * review that had no application code to look at.
+   */
+  if (files.length === 0) {
+    writeFindings({
+      summary: testFiles.length
+        ? `Only unit-test files changed (${testFiles.length}); no application code to review.`
+        : 'No reviewable changes in this pull request.',
+      findings: [],
+      reviewed: true,
+    });
+    console.log('No application code in this diff. Nothing to review.');
+    return;
+  }
+
   const { chunks, skipped, truncated } = packChunks(files, {
     budgetChars,
     maxChunks: MAX_REQUESTS,
@@ -406,6 +439,7 @@ async function main() {
           chunk,
           chunkIndex: i,
           chunkCount: chunks.length,
+          testFiles,
         }),
         maxTokens: MAX_OUTPUT_TOKENS,
         jsonMode,
