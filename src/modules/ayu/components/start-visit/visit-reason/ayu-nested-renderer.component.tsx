@@ -115,11 +115,19 @@ export const AyuNestedRenderer = ({
    * in the function body it is recomputed on every render, capturing the current
    * values of both answers AND items. A useMemo here would need both as dependencies
    * to avoid stale visibility decisions when items changes without answers changing.
+   *
+   * CYCLE GUARD: in a valid acyclic graph of n items at most n state changes can
+   * occur, so convergence is guaranteed within n+1 passes. The cap at items.length+2
+   * ensures the loop always terminates — contradictory or self-referential enableWhen
+   * rules (invalid questionnaire data) cannot cause an infinite loop / frozen UI.
    */
   const enrichedAnswers: Record<string, AyuAnswerValue> = { ...answers };
   let changed = true;
-  while (changed) {
+  let passes = 0;
+  const maxPasses = items.length + 2;
+  while (changed && passes < maxPasses) {
     changed = false;
+    passes++;
     for (const item of items) {
       const enabled = evaluateEnableWhen(item.enableWhen, enrichedAnswers);
       if (!enabled && enrichedAnswers[item.linkId] !== undefined) {

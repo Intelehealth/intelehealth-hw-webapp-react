@@ -2425,5 +2425,39 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-item-y')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-item-z')).toBeInTheDocument();
     });
+
+    it('should not infinite-loop when an enableWhen rule forms a contradictory cycle (cycle guard)', () => {
+      /*
+       * CYCLE GUARD: a self-referential rule — "enable me when I do not exist" —
+       * would cause the uncapped loop to oscillate forever. The maxPasses cap
+       * (items.length + 2) must break out and render without hanging.
+       *
+       * The item alternates enabled/disabled on each pass, so the cycle guard
+       * hits the limit and terminates. Depending on which pass it stops, the
+       * item may or may not be in enrichedAnswers — we only assert the component
+       * renders at all (no hang / no throw), not a specific visibility state.
+       */
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'self-ref',
+          text: 'Self Reference',
+          type: 'string',
+          /* Enabled only when 'self-ref' does NOT exist — self-contradictory */
+          enableWhen: [
+            { question: 'self-ref', operator: 'exists', answerBoolean: false },
+          ],
+        },
+      ];
+
+      expect(() =>
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{}}
+            setAnswer={mockSetAnswer}
+          />
+        )
+      ).not.toThrow();
+    });
   });
 });
