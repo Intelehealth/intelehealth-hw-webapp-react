@@ -142,7 +142,6 @@ jobs:
           # Passed as env, not interpolated into a shell command — a PR title is
           # attacker-controlled text and must never reach a `run:` block inline.
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
           # ~3% of this repo's merged PRs exceed 4 requests (measured across 40:
           # median 28KB / 1 batch, but #297 needed 5 and #301 exactly 4). Files
           # beyond the cap are dropped and the review reports inconclusive.
