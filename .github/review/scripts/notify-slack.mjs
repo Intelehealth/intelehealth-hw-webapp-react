@@ -70,8 +70,11 @@ async function main() {
   const rejected = batches.reduce((n, b) => n + (b.rejected?.length || 0), 0);
   const served = [...new Set(batches.map(b => b.model).filter(Boolean))];
 
-  const inconclusive =
-    findings?.reviewed === false ? findings.inconclusive : null;
+  const inconclusive = findings
+    ? findings.reviewed === false
+      ? findings.inconclusive
+      : null
+    : 'no findings.json was produced — the job likely failed before review.mjs ran';
   const status = inconclusive
     ? '🔴 inconclusive'
     : kept > 0

@@ -528,6 +528,18 @@ test('the fallback chain is sent so OpenRouter can reroute on rate limits', asyn
   }
 });
 
+test('a frequency penalty is sent to discourage repetition loops', async () => {
+  const stub = await startStub({
+    replies: [{ content: JSON.stringify({ summary: 's', findings: [] }) }],
+  });
+  try {
+    await runReview(stub, { rules: RULES_FILE });
+    assert.ok(stub.calls[0].frequency_penalty > 0);
+  } finally {
+    stub.server.close();
+  }
+});
+
 test('JSON mode is only requested when every model in the chain supports it', async () => {
   const mixed = await startStub({
     replies: [{ content: OBJ }],
