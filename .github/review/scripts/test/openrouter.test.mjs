@@ -475,7 +475,7 @@ test('invented rule IDs and file paths are discarded', async () => {
   }
 });
 
-test('an unparseable reply triggers exactly one repair attempt', async () => {
+test('an unparseable reply is re-reviewed once on a different model', async () => {
   const stub = await startStub({
     replies: [
       { content: 'I am unable to produce JSON right now.' },
@@ -489,9 +489,39 @@ test('an unparseable reply triggers exactly one repair attempt', async () => {
   });
   try {
     const { findings, stdout } = await runReview(stub, { rules: RULES_FILE });
-    assert.match(stdout, /retrying once/);
+    assert.match(stdout, /re-reviewing on/);
     assert.equal(findings.findings.length, 1);
-    assert.equal(stub.calls.length, 2);
+    assert.equal(stub.calls.length, 2, 'exactly one retry');
+
+    // The model that failed must not lead the retry chain.
+    const served = 'big/model:free';
+    assert.ok(
+      !stub.calls[1].models.includes(served),
+      'the failed model must be dropped from the retry'
+    );
+    // The retry must re-review the diff, not reformat the broken reply.
+    const retryPrompt = stub.calls[1].messages.at(-1).content;
+    assert.match(retryPrompt, /const y = 2/, 'the diff must be re-sent');
+    assert.ok(
+      !retryPrompt.includes('I am unable to produce JSON'),
+      'the broken reply must not be fed back'
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a recovered batch that finds nothing is a real answer, not inconclusive', async () => {
+  const stub = await startStub({
+    replies: [
+      { content: 'no json here' },
+      { content: JSON.stringify({ summary: 'clean', findings: [] }) },
+    ],
+  });
+  try {
+    const { findings } = await runReview(stub, { rules: RULES_FILE });
+    assert.equal(findings.reviewed, true);
+    assert.equal(findings.inconclusive, undefined);
   } finally {
     stub.server.close();
   }
