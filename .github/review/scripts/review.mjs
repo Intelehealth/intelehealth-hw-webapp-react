@@ -428,19 +428,21 @@ async function main() {
     const chunkFiles = chunk.map(f => f.file);
     if (i > 0) await sleep(REQUEST_SPACING_MS);
 
+    const prompt = userPrompt({
+      digest,
+      chunk,
+      chunkIndex: i,
+      chunkCount: chunks.length,
+      testFiles,
+    });
+
     let result;
     try {
       result = await complete({
         apiKey: API_KEY,
         models: chain.map(m => m.id),
         system: SYSTEM_PROMPT,
-        user: userPrompt({
-          digest,
-          chunk,
-          chunkIndex: i,
-          chunkCount: chunks.length,
-          testFiles,
-        }),
+        user: prompt,
         maxTokens: MAX_OUTPUT_TOKENS,
         jsonMode,
         schema: RESPONSE_SCHEMA,
@@ -460,29 +462,43 @@ async function main() {
 
     let parsed = extractJson(result.text);
 
-    // Free models sometimes narrate before the JSON. One cheap repair attempt.
+    /*
+     * A reply we cannot parse means this model failed on this input, so retry
+     * on a DIFFERENT one — the degeneracy is model- and input-specific, and
+     * asking the same model the same question tends to fail the same way.
+     *
+     * Send the original prompt, not the broken reply. The old repair pass fed
+     * the garbage back and asked for it as JSON, which produced a tidy summary
+     * of noise and an empty findings array — a batch that never reviewed the
+     * diff but no longer looked like a failure.
+     */
     if (!parsed) {
+      const others = chain.map(m => m.id).filter(id => id !== result.model);
       console.log(
-        `Batch ${i + 1}: unparseable reply from ${result.model}, retrying once.`
+        `Batch ${i + 1}: unparseable reply from ${result.model}; ` +
+          (others.length
+            ? `re-reviewing on ${others[0]}.`
+            : 'no other model in the chain to try.')
       );
       repaired++;
-      await sleep(REQUEST_SPACING_MS);
-      try {
-        const repair = await complete({
-          apiKey: API_KEY,
-          models: chain.map(m => m.id),
-          system: SYSTEM_PROMPT,
-          user:
-            'Your previous reply was not valid JSON. Return the same content as a single JSON ' +
-            'object with keys "summary" and "findings", and nothing else.\n\n' +
-            'Previous reply:\n' +
-            result.text.slice(0, 6000),
-          maxTokens: MAX_OUTPUT_TOKENS,
-          jsonMode,
-        });
-        parsed = extractJson(repair.text);
-      } catch (err) {
-        console.error(`Batch ${i + 1} repair failed: ${err.message}`);
+      if (others.length) {
+        await sleep(REQUEST_SPACING_MS);
+        try {
+          const retry = await complete({
+            apiKey: API_KEY,
+            models: others,
+            system: SYSTEM_PROMPT,
+            user: prompt,
+            maxTokens: MAX_OUTPUT_TOKENS,
+            jsonMode,
+            schema: RESPONSE_SCHEMA,
+            title: `PR Review #${PR_NUMBER}`,
+          });
+          parsed = extractJson(retry.text);
+          if (parsed) result = retry;
+        } catch (err) {
+          console.error(`Batch ${i + 1} retry failed: ${err.message}`);
+        }
       }
     }
 
@@ -578,9 +594,14 @@ async function main() {
     inconclusive = `${skipped.length} file(s) exceeded the ${MAX_REQUESTS}-request budget and were never read: ${skipped.join(', ')}`;
   } else if (all.length === 0 && GAVE_UP.test(summaries.join(' '))) {
     inconclusive = 'the model reported that it did not see the code';
-  } else if (all.length === 0 && repaired > 0) {
-    inconclusive = `${repaired} batch(es) returned unparseable output and then found nothing, which usually means the model did not engage with the diff`;
   }
+  /*
+   * An unparseable batch that never recovered is already counted in `failures`
+   * above. `repaired` only records that a retry was needed — and that retry now
+   * re-reviews the diff on a different model rather than reformatting the
+   * broken reply, so a recovered batch finding nothing is a real answer and
+   * must not be reported as a review that did not happen.
+   */
 
   if (inconclusive) {
     console.log(`Review is inconclusive: ${inconclusive}.`);
