@@ -50,9 +50,10 @@ export const isMutuallyExclusiveOption = (
   // Fallback: no extension present — treat any option whose code or display is
   // "none" (case-insensitive) as exclusive so backend data without the extension
   // still gets correct mutual-exclusive behaviour.
-  const code = option.valueCoding?.code?.toLowerCase();
-  const display = option.valueCoding?.display?.toLowerCase();
-  return code === 'none' || display === 'none';
+  return (
+    optionCode.toLowerCase() === 'none' ||
+    option.valueCoding?.display?.toLowerCase() === 'none'
+  );
 };
 
 /**
