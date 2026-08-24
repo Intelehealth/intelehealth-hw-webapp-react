@@ -66,6 +66,27 @@ describe('isMutuallyExclusiveOption', () => {
     expect(isMutuallyExclusiveOption(question, 'normal')).toBe(true);
   });
 
+  it('should return false when extension is present but valueString is "false"', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        {
+          valueCoding: { code: 'none', display: 'None' },
+          extension: [
+            {
+              url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+              valueString: 'false',
+            },
+          ],
+        },
+      ],
+    };
+    // Extension is present and authoritative — "false" means NOT exclusive, fallback is skipped
+    expect(isMutuallyExclusiveOption(q, 'none')).toBe(false);
+  });
+
   it('should return false for options without mutually-exclusive extension', () => {
     expect(isMutuallyExclusiveOption(question, 'optA')).toBe(false);
     expect(isMutuallyExclusiveOption(question, 'optB')).toBe(false);
@@ -78,6 +99,58 @@ describe('isMutuallyExclusiveOption', () => {
   it('should return false when question has no answerOptions', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
     expect(isMutuallyExclusiveOption(q, 'any')).toBe(false);
+  });
+
+  it('should return true for option with code "none" and no extension (fallback)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q2',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'none', display: 'None' } },
+        { valueCoding: { code: 'optA', display: 'Option A' } },
+      ],
+    };
+    expect(isMutuallyExclusiveOption(q, 'none')).toBe(true);
+  });
+
+  it('should return true for option with code "NONE" (case-insensitive, no extension)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q2',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'NONE', display: 'NONE' } },
+        { valueCoding: { code: 'optA', display: 'Option A' } },
+      ],
+    };
+    expect(isMutuallyExclusiveOption(q, 'NONE')).toBe(true);
+  });
+
+  it('should return true for option with display "None" and non-none code (no extension)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q2',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'n01', display: 'None' } },
+        { valueCoding: { code: 'optA', display: 'Option A' } },
+      ],
+    };
+    expect(isMutuallyExclusiveOption(q, 'n01')).toBe(true);
+  });
+
+  it('should return false for option with display "None of the above" (not exact match)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q2',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'nota', display: 'None of the above' } },
+        { valueCoding: { code: 'optA', display: 'Option A' } },
+      ],
+    };
+    expect(isMutuallyExclusiveOption(q, 'nota')).toBe(false);
   });
 });
 
@@ -121,6 +194,35 @@ describe('computeMultiSelectToggle', () => {
 
   it('should remove exclusive options when normal option is selected', () => {
     expect(computeMultiSelectToggle(question, ['none'], 'a')).toEqual(['a']);
+  });
+});
+
+describe('computeMultiSelectToggle — None fallback (no extension)', () => {
+  const questionNoExt: AyuQuestion = {
+    linkId: 'q2',
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { code: 'none', display: 'None' } },
+      { valueCoding: { code: 'a', display: 'A' } },
+      { valueCoding: { code: 'b', display: 'B' } },
+    ],
+  };
+
+  it('should replace all selections with "None" even without extension', () => {
+    expect(computeMultiSelectToggle(questionNoExt, ['a', 'b'], 'none')).toEqual(['none']);
+  });
+
+  it('should deselect "None" (no extension) if already selected', () => {
+    expect(computeMultiSelectToggle(questionNoExt, ['none'], 'none')).toEqual([]);
+  });
+
+  it('should remove "None" (no extension) when a normal option is selected', () => {
+    expect(computeMultiSelectToggle(questionNoExt, ['none'], 'a')).toEqual(['a']);
+  });
+
+  it('should add normal options to empty array when no None selected', () => {
+    expect(computeMultiSelectToggle(questionNoExt, [], 'a')).toEqual(['a']);
   });
 });
 

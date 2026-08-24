@@ -25,7 +25,8 @@ export const isDurationAnswer = (value: unknown): value is DurationAnswer => {
 };
 
 /**
- * Check if an answer option is marked as mutually exclusive via FHIR extension.
+ * Check if an answer option is marked as mutually exclusive via FHIR extension,
+ * or by having a display/code value of "none" (case-insensitive fallback).
  */
 export const isMutuallyExclusiveOption = (
   question: AyuQuestion,
@@ -35,11 +36,23 @@ export const isMutuallyExclusiveOption = (
     opt => opt.valueCoding?.code === optionCode
   );
 
-  return !!option?.extension?.some(
-    ext =>
-      ext.url === EXT_URL_MUTUALLY_EXCLUSIVE &&
-      ext.valueString?.toLowerCase() === 'true'
+  if (!option) return false;
+
+  const exclusiveExt = option.extension?.find(
+    ext => ext.url === EXT_URL_MUTUALLY_EXCLUSIVE
   );
+
+  // Primary: FHIR extension check — if the extension is present, it is authoritative
+  if (exclusiveExt) {
+    return exclusiveExt.valueString?.toLowerCase() === 'true';
+  }
+
+  // Fallback: no extension present — treat any option whose code or display is
+  // "none" (case-insensitive) as exclusive so backend data without the extension
+  // still gets correct mutual-exclusive behaviour.
+  const code = option.valueCoding?.code?.toLowerCase();
+  const display = option.valueCoding?.display?.toLowerCase();
+  return code === 'none' || display === 'none';
 };
 
 /**
