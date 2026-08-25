@@ -1094,6 +1094,95 @@ describe('AyuStepperContainer', () => {
 
       expect(mockGoNext).not.toHaveBeenCalled();
     });
+
+    it('should not call goNext when Skip is clicked on a past (non-current) question — isCurrentQuestion=false', () => {
+      /*
+       * The Skip onClick contains: if (isCurrentQuestion && (isLast || !wasEditing)) goNext()
+       * When clicking Skip on a question at index < currentIndex (a past question),
+       * isCurrentQuestion is false so goNext must NOT be called even though the
+       * skip button is visible via the (index < currentIndex) condition.
+       */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: false },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q2: 'current answer' },   // q1 deliberately unanswered → showAsAnswered=false → Skip visible
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Skip button on q1 is visible because index(0) < currentIndex(1)
+      const skipButtons = screen.getAllByTestId('button-skip');
+      fireEvent.click(skipButtons[0]);  // click Skip on q1 (past, non-current)
+
+      // goNext must NOT be called — q1 is not the current question
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('isCurrentQuestion — action buttons are visible only for the question at currentIndex in step-by-step mode', () => {
+      /*
+       * Action button container condition: isCurrentQuestion || showAll || index < currentIndex
+       * In step-by-step mode (showAll=false), only questions at or before currentIndex are
+       * even rendered (visibleCount = currentIndex + 1). The current question at index
+       * currentIndex satisfies isCurrentQuestion=true; all earlier questions satisfy
+       * index < currentIndex. There is no case where a rendered question has both
+       * isCurrentQuestion=false AND index >= currentIndex — they are filtered by slicing.
+       *
+       * This test verifies the current question (isCurrentQuestion=true) shows its
+       * action buttons even when it is also the first and only visible question.
+       * Uses type 'integer' which unconditionally renders the Submit button regardless
+       * of the answer value.
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'integer',  // integer always renders Submit unconditionally
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // isCurrentQuestion=true (index 0 === currentIndex 0) → both buttons must be visible
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+    });
   });
 
   describe('Answer Management', () => {
@@ -3347,6 +3436,129 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('Stable callback-ref for onProgressUpdate (FE-001)', () => {
+    it('calls the LATEST onProgressUpdate reference when currentIndex changes — not the stale closure', () => {
+      /* The progress useEffect dep array no longer includes onProgressUpdate;
+       * instead onProgressUpdateRef is kept current via a no-dep useLayoutEffect.
+       * This test verifies the NEW reference is invoked even if currentIndex
+       * hasn't changed in between the re-render that swaps the callback. */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+        { linkId: 'q2', text: 'Q2', type: 'string' },
+      ];
+
+      const firstCallback = vi.fn();
+      const secondCallback = vi.fn();
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 2,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={firstCallback}
+        />
+      );
+
+      // Mount: firstCallback receives (2, 0)
+      expect(firstCallback).toHaveBeenCalledWith(2, 0);
+      expect(secondCallback).not.toHaveBeenCalled();
+
+      // Swap in a NEW callback reference — currentIndex stays at 0
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // currentIndex changes to 1 → the stable-ref effect fires with the NEW callback
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // secondCallback must have been called; firstCallback must NOT be called again
+      expect(secondCallback).toHaveBeenCalledWith(2, 1);
+      expect(firstCallback).toHaveBeenCalledTimes(1); // only the initial mount call
+    });
+
+    it('does NOT re-run the progress effect when only the callback reference changes (no index change)', () => {
+      /* If the parent re-renders with a new onProgressUpdate reference but
+       * currentIndex and totalSteps stay the same, the effect must NOT fire
+       * again (prevCompletedRef guard + stable dep array prevents it). */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+      ];
+
+      const firstCallback = vi.fn();
+      const secondCallback = vi.fn();
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={firstCallback}
+        />
+      );
+
+      expect(firstCallback).toHaveBeenCalledTimes(1); // mount call
+
+      // Swap callback, keep everything else identical
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // Neither callback should be called again — prevCompletedRef guard prevents it
+      expect(firstCallback).toHaveBeenCalledTimes(1);
+      expect(secondCallback).not.toHaveBeenCalled();
+    });
+  });
+
   describe('associatedSymptoms answerOption fallback', () => {
     it('should show toast for associatedSymptoms when answerOption is undefined and array is empty', () => {
       const question: AyuQuestion = {
@@ -3388,7 +3600,13 @@ describe('AyuStepperContainer', () => {
   });
 
   describe('Review Mode (showAll)', () => {
-    it('should NOT show Submit button in review mode for pure single-choice question', () => {
+    it('should show Submit button in review mode for pure single-choice question with answer (Option C)', () => {
+      /*
+       * Option C: in review mode (showAll=true) the Submit button is always
+       * rendered when the question has an answer, even for plain single-choice
+       * questions — because autoNext is blocked when showAll=true, the user
+       * needs an explicit Submit to re-confirm the answer.
+       */
       const question: AyuQuestion = {
         linkId: 'q1',
         text: 'Choice Question',
@@ -3404,6 +3622,47 @@ describe('AyuStepperContainer', () => {
         currentIndex: 0,
         total: 1,
         answers: { q1: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should NOT show Submit button in review mode for single-choice question with no answer', () => {
+      /*
+       * Option C guard: the showAll early-return only fires when
+       * answers[question.linkId] !== undefined. Without an answer the normal
+       * type-based logic runs — pure choice without repeats/nested input → no Submit.
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Choice Question',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
         setAnswer: mockSetAnswer,
         clearAnswers: mockClearAnswers,
         goNext: mockGoNext,
@@ -6233,6 +6492,370 @@ describe('AyuStepperContainer', () => {
 
       const nestedRenderer = screen.getByTestId('nested-renderer');
       expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
+    });
+  });
+
+  describe('isActive prop – back navigation from Physical Exam (useLayoutEffect)', () => {
+    const makeQuestion = (linkId: string, required = false): AyuQuestion => ({
+      linkId,
+      text: `Question ${linkId}`,
+      type: 'choice',
+      required,
+      answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+    });
+
+    const buildStepperReturn = (
+      questions: AyuQuestion[],
+      extra: Record<string, unknown> = {}
+    ) => ({
+      currentQuestion: questions[0],
+      currentIndex: 0,
+      total: questions.length,
+      answers: Object.fromEntries(questions.map(q => [q.linkId, 'yes'])),
+      setAnswer: mockSetAnswer,
+      clearAnswers: mockClearAnswers,
+      goNext: mockGoNext,
+      topLevelItems: questions,
+      isLast: questions.length === 1,
+      showAll: true,
+      ...extra,
+    });
+
+    it('default isActive=true — no edit forced on first render (useLayoutEffect guard)', () => {
+      /*
+       * When isActive starts as true (default), prevIsActiveRef.current is
+       * also true after the first useLayoutEffect run, so the false→true
+       * condition never fires and no question is added to editingQuestions.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([q])}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question was already submitted on mount (initialAnswers), so it shows as answered.
+      const loader = screen.getByTestId('question-loader-0');
+      expect(loader).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('false→true transition in showAll mode — useLayoutEffect adds last question to editingQuestions', () => {
+      /*
+       * Simulates back-navigation from Physical Exam:
+       *   render 1: isActive=false → useLayoutEffect runs, prevIsActiveRef←false
+       *   render 2: isActive=true  → useLayoutEffect detects !prev && isActive && showAll,
+       *             adds last question's linkId to editingQuestions via setEditingQuestions.
+       * showAsAnswered becomes false for that question → AyuRenderer is shown.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Transition to isActive=true: useLayoutEffect fires and adds q1 to editingQuestions
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // editingQuestions.has(q1) → showAsAnswered=false → AyuRenderer must be visible
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+      // QuestionLoader must NOT treat it as answered
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+    });
+
+    it('false→true transition with showAll=false — does NOT add to editingQuestions', () => {
+      /*
+       * useLayoutEffect condition requires showAll=true. Without it the
+       * condition is skipped and no question is added to editingQuestions.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(
+        buildStepperReturn([q], { showAll: false, currentIndex: 1, topLevelItems: [q, makeQuestion('q2')] })
+      );
+
+      const questionnaire = createMockQuestionnaire([q, makeQuestion('q2')]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // No edit forced: question was never submitted, so renderer is shown in normal active mode
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+    });
+
+    it('false→true transition in showAll mode — Skip button visible for non-required last question', () => {
+      /*
+       * Once the last question is added to editingQuestions, the Skip button
+       * condition (!question.required && (... || editingQuestions.has(...)))
+       * evaluates to true, so the Skip button appears alongside Submit.
+       */
+      const q = makeQuestion('q-last', false); // non-required
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'q-last': 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'q-last': 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('isActive stays false — last question stays answered, editingQuestions untouched', () => {
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([q])}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // No false→true transition → editingQuestions empty → showAsAnswered stays true
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('useLayoutEffect adds only the last question to editingQuestions, not earlier ones', () => {
+      /*
+       * When there are two questions, only topLevelItems[last] (q2) is added
+       * to editingQuestions on the false→true transition; q1 stays answered.
+       */
+      const q1 = makeQuestion('q1');
+      const q2 = makeQuestion('q2');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q1,
+        currentIndex: 0,
+        total: 2,
+        answers: { q1: 'yes', q2: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [q1, q2],
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([q1, q2]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes', q2: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes', q2: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // First question stays answered (not in editingQuestions)
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      // Last question is in editingQuestions → showAsAnswered=false → AyuRenderer shown
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.getByTestId('renderer-q2')).toBeInTheDocument();
+    });
+
+    it('idempotent: second false→true transition leaves editingQuestions unchanged when last question already editing', () => {
+      /*
+       * Guard inside useLayoutEffect: if (prev.has(lastQuestion.linkId)) return prev;
+       * On a second back-navigation cycle (false→true→false→true) the last
+       * question is already in editingQuestions from the first cycle, so the
+       * set is not recreated. The question must remain in edit mode.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // First false→true: adds q1 to editingQuestions
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Navigate away again (true→false)
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Second false→true: guard fires, prev.has(q1) → returns same set
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question must still be in edit mode (AyuRenderer visible, not answered card)
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+    });
+
+    it('does not crash when topLevelItems is empty — useLayoutEffect lastQuestion guard', () => {
+      /*
+       * Guard inside useLayoutEffect: if (lastQuestion) { ... }
+       * When topLevelItems is empty there is no last question and the effect
+       * must exit silently without calling setEditingQuestions.
+       */
+      const q = makeQuestion('q1');
+      // currentQuestion is needed to avoid the early `if (!currentQuestion) return null`
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q,
+        currentIndex: 0,
+        total: 0,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [],
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Should not throw even though topLevelItems is empty
+      expect(() =>
+        rerender(
+          <AyuStepperContainer
+            questionnaire={questionnaire}
+            onComplete={mockOnComplete}
+            onProgressUpdate={mockOnProgressUpdate}
+            isActive={true}
+          />
+        )
+      ).not.toThrow();
+    });
+
+    it('spurious re-render with isActive=true throughout — does NOT force edit (FE-001 regression)', () => {
+      /*
+       * FE-001 guard: the parent derives isActive={currentSectionIndex === 1}.
+       * If the parent re-renders for an unrelated reason while already on the
+       * VisitReason section, isActive stays true on both renders. The
+       * useLayoutEffect condition !prevIsActiveRef.current && isActive is false
+       * (prev === true) so no question is added to editingQuestions.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Spurious re-render: isActive stays true, parent re-renders for other reasons
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question must remain in answered state — no spurious edit was forced
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('renderer-q1')).not.toBeInTheDocument();
     });
   });
 });
