@@ -83,7 +83,7 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-s
         getAnswers: mockStepperGetAnswers,
       }));
       return (
-        <div data-testid="ayu-stepper-container">
+        <div data-testid="ayu-stepper-container" data-is-active={String(!!props.isActive)}>
           <div>Stepper Container</div>
           {props.initialAnswers && (
             <div data-testid="initial-answers">{JSON.stringify(props.initialAnswers)}</div>
@@ -2241,6 +2241,81 @@ describe('VisitReason', () => {
       );
 
       expect(onStepperActiveChange).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  describe('isActive prop forwarding to AyuStepperContainer', () => {
+    const setupStepperVisible = () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: { answers: { q1: 'a' }, reasonNames: ['Fever'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      mockTransformFhirToAyu.mockReturnValue({ linkId: 'root', type: 'group' as const, item: [] });
+
+      return createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+    };
+
+    it('passes isActive=true to AyuStepperContainer when isActive prop is true', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      expect(stepper).toHaveAttribute('data-is-active', 'true');
+    });
+
+    it('passes isActive=false to AyuStepperContainer when isActive prop is false', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      expect(stepper).toHaveAttribute('data-is-active', 'false');
+    });
+
+    it('passes isActive=false to AyuStepperContainer when isActive prop is omitted (undefined)', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      // undefined coerces to false via !!props.isActive in the mock
+      expect(stepper).toHaveAttribute('data-is-active', 'false');
     });
   });
 });

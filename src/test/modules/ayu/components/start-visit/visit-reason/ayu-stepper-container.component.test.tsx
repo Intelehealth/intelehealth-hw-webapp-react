@@ -3388,7 +3388,13 @@ describe('AyuStepperContainer', () => {
   });
 
   describe('Review Mode (showAll)', () => {
-    it('should NOT show Submit button in review mode for pure single-choice question', () => {
+    it('should show Submit button in review mode for pure single-choice question with answer (Option C)', () => {
+      /*
+       * Option C: in review mode (showAll=true) the Submit button is always
+       * rendered when the question has an answer, even for plain single-choice
+       * questions — because autoNext is blocked when showAll=true, the user
+       * needs an explicit Submit to re-confirm the answer.
+       */
       const question: AyuQuestion = {
         linkId: 'q1',
         text: 'Choice Question',
@@ -3404,6 +3410,47 @@ describe('AyuStepperContainer', () => {
         currentIndex: 0,
         total: 1,
         answers: { q1: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should NOT show Submit button in review mode for single-choice question with no answer', () => {
+      /*
+       * Option C guard: the showAll early-return only fires when
+       * answers[question.linkId] !== undefined. Without an answer the normal
+       * type-based logic runs — pure choice without repeats/nested input → no Submit.
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Choice Question',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
         setAnswer: mockSetAnswer,
         clearAnswers: mockClearAnswers,
         goNext: mockGoNext,
@@ -6233,6 +6280,228 @@ describe('AyuStepperContainer', () => {
 
       const nestedRenderer = screen.getByTestId('nested-renderer');
       expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
+    });
+  });
+
+  describe('isActive prop – back navigation from Physical Exam', () => {
+    const makeQuestion = (linkId: string, required = false): AyuQuestion => ({
+      linkId,
+      text: `Question ${linkId}`,
+      type: 'choice',
+      required,
+      answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+    });
+
+    const buildStepperReturn = (
+      questions: AyuQuestion[],
+      extra: Record<string, unknown> = {}
+    ) => ({
+      currentQuestion: questions[0],
+      currentIndex: 0,
+      total: questions.length,
+      answers: Object.fromEntries(questions.map(q => [q.linkId, 'yes'])),
+      setAnswer: mockSetAnswer,
+      clearAnswers: mockClearAnswers,
+      goNext: mockGoNext,
+      topLevelItems: questions,
+      isLast: questions.length === 1,
+      showAll: true,
+      ...extra,
+    });
+
+    it('default isActive=true — renders normally without forceEditOnReturn on first render', () => {
+      /*
+       * When isActive starts as true (default), prevIsActiveRef.current is
+       * also true on the first render, so justBecameActive is false and no
+       * forced edit occurs.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([q])}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question was already submitted on mount (initialAnswers), so it shows as answered.
+      const loader = screen.getByTestId('question-loader-0');
+      expect(loader).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('false→true transition in showAll mode — last question shows AyuRenderer (forceEditOnReturn)', () => {
+      /*
+       * Simulates back-navigation from Physical Exam:
+       *   render 1: isActive=false, showAll=true → prevIsActiveRef=false
+       *   render 2: isActive=true,  showAll=true → justBecameActive=true → forceEditOnReturn=true
+       * The last question's showAsAnswered must be false so AyuRenderer is shown.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // On re-render with isActive=true, justBecameActive fires
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // forceEditOnReturn suppresses showAsAnswered → AyuRenderer must be visible
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+      // QuestionLoader must NOT treat it as answered
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+    });
+
+    it('false→true transition with showAll=false — does NOT force edit', () => {
+      /*
+       * justBecameActive requires showAll=true. Without it, forceEditOnReturn
+       * is always false and the question stays in its normal state.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(
+        buildStepperReturn([q], { showAll: false, currentIndex: 1, topLevelItems: [q, makeQuestion('q2')] })
+      );
+
+      const questionnaire = createMockQuestionnaire([q, makeQuestion('q2')]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // No force-edit: question was never submitted, so renderer is shown in normal active mode
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+    });
+
+    it('false→true transition in showAll mode — shows Skip button for non-required last question', () => {
+      /*
+       * forceEditOnReturn also controls Skip-button visibility:
+       *   !question.required && (... || forceEditOnReturn)
+       * So the Skip button must appear alongside the Submit button on back nav.
+       */
+      const q = makeQuestion('q-last', false); // non-required
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'q-last': 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'q-last': 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('isActive stays false — does not force edit', () => {
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([q])}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Stays answered — no false→true transition occurred
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('forceEditOnReturn only applies to the last question in the list', () => {
+      /*
+       * When there are two questions, only the last one (index 1) should have
+       * forceEditOnReturn=true; the first one stays answered.
+       */
+      const q1 = makeQuestion('q1');
+      const q2 = makeQuestion('q2');
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q1,
+        currentIndex: 0,
+        total: 2,
+        answers: { q1: 'yes', q2: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [q1, q2],
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([q1, q2]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes', q2: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes', q2: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // First question stays answered
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      // Last question is forced into edit mode
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.getByTestId('renderer-q2')).toBeInTheDocument();
     });
   });
 });

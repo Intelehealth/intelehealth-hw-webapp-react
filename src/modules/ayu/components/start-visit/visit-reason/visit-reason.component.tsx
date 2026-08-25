@@ -45,6 +45,7 @@ export const VisitReason = ({
   onReasonsConfirmed,
   onStepperActiveChange,
   onProtocolCleared,
+  isActive,
 }: SectionProps) => {
   const {
     search,
@@ -243,6 +244,7 @@ export const VisitReason = ({
               onComplete={handleStepperComplete}
               onProgressUpdate={handleStepperProgress}
               onSummaryShown={() => setSummaryShown(true)}
+              isActive={isActive}
             />
           </div>
         </div>

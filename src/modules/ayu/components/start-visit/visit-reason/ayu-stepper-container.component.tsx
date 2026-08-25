@@ -443,6 +443,9 @@ interface AyuStepperContainerProps {
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
   onSummaryShown?: () => void;
+  /** When the parent section toggles visibility (e.g. back from Physical Exam),
+   *  a false→true transition opens the last question in edit mode. */
+  isActive?: boolean;
 }
 
 export const AyuStepperContainer = forwardRef<
@@ -460,6 +463,7 @@ export const AyuStepperContainer = forwardRef<
       onComplete,
       onProgressUpdate,
       onSummaryShown,
+      isActive = true,
     },
     ref
   ) => {
@@ -549,6 +553,7 @@ export const AyuStepperContainer = forwardRef<
 
     const prevCompletedRef = useRef<number>(-1);
     const prevIndexRef = useRef<number>(currentIndex);
+    const prevIsActiveRef = useRef<boolean>(isActive);
 
     useEffect(() => {
       if (showAll && totalSteps > 0) {
@@ -603,6 +608,15 @@ export const AyuStepperContainer = forwardRef<
       });
     }, [currentIndex]);
 
+    /*
+     * Detect false→true transition of isActive (back from Physical Exam) synchronously
+     * during render so the edit box is shown on the very first paint — no answered-card
+     * flash. Updating a ref during render is safe here: it is idempotent and scoped to
+     * this component only.
+     */
+    const justBecameActive = !prevIsActiveRef.current && isActive && showAll;
+    prevIsActiveRef.current = isActive;
+
     if (!currentQuestion) return null;
 
     const visibleCount = showAll ? topLevelItems.length : currentIndex + 1;
@@ -614,9 +628,13 @@ export const AyuStepperContainer = forwardRef<
           .map((question: AyuQuestion, index: number) => {
             const isActive = index === currentIndex;
             const isSkipped = skippedQuestions.has(question.linkId);
+            /* Force the last question into edit mode on back navigation (synchronous). */
+            const forceEditOnReturn =
+              justBecameActive && index === topLevelItems.length - 1;
             const showAsAnswered =
               (submittedQuestions.has(question.linkId) || isSkipped) &&
-              !editingQuestions.has(question.linkId);
+              !editingQuestions.has(question.linkId) &&
+              !forceEditOnReturn;
             const isLastRendered = index === visibleCount - 1;
 
             /* Wrapper that clears submitted/skipped icons when the user changes an answer */
@@ -816,20 +834,12 @@ export const AyuStepperContainer = forwardRef<
                             const hasNestedRepeats = nestedFlags.hasRepeats;
                             const hasVisibleNestedInput = nestedFlags.hasInput;
 
-                            /* In review mode, show Submit for answered questions except pure single-choice */
+                            /* In review mode, always show Submit — autoNext is blocked when showAll=true */
                             if (
                               showAll &&
                               answers[question.linkId] !== undefined
                             ) {
-                              const isSingleChoiceWithoutNestedSubmit =
-                                question.type === FHIR_TYPE_CHOICE &&
-                                !question.repeats &&
-                                !hasNestedRepeats &&
-                                !hasVisibleNestedInput &&
-                                !isDurationChoice &&
-                                !hasNestedDuration;
-                              if (!isSingleChoiceWithoutNestedSubmit)
-                                return true;
+                              return true;
                             }
 
                             return (
@@ -917,7 +927,9 @@ export const AyuStepperContainer = forwardRef<
                           {!question.required &&
                             (isActive ||
                               index < currentIndex ||
-                              skippedQuestions.has(question.linkId)) && (
+                              skippedQuestions.has(question.linkId) ||
+                              editingQuestions.has(question.linkId) ||
+                              forceEditOnReturn) && (
                               <AyuButton
                                 variant="primary"
                                 className="w-full md:w-[10%]"
