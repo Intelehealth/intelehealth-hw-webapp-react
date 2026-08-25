@@ -555,10 +555,11 @@ export const AyuStepperContainer = forwardRef<
     const prevCompletedRef = useRef<number>(-1);
     const prevIndexRef = useRef<number>(currentIndex);
     const prevIsActiveRef = useRef<boolean>(isActive);
+    const onProgressUpdateRef = useRef(onProgressUpdate);
 
     useEffect(() => {
       if (showAll && totalSteps > 0) {
-        onProgressUpdate?.(totalSteps, totalSteps);
+        onProgressUpdateRef.current?.(totalSteps, totalSteps);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -570,8 +571,8 @@ export const AyuStepperContainer = forwardRef<
       if (prevCompletedRef.current === completedSteps) return;
 
       prevCompletedRef.current = completedSteps;
-      onProgressUpdate?.(totalSteps, completedSteps);
-    }, [currentIndex, totalSteps, onProgressUpdate, showAll]);
+      onProgressUpdateRef.current?.(totalSteps, completedSteps);
+    }, [currentIndex, totalSteps, showAll]);
 
     /*
      * When the stepper auto-advances past a question (single-choice with autoNext,
@@ -608,6 +609,13 @@ export const AyuStepperContainer = forwardRef<
         block: 'start',
       });
     }, [currentIndex]);
+
+    /* Keep onProgressUpdateRef current so the progress effects never need the
+     * callback in their dependency arrays — prevents spurious re-runs when the
+     * parent re-renders with a new function reference (FE-001). */
+    useLayoutEffect(() => {
+      onProgressUpdateRef.current = onProgressUpdate;
+    });
 
     /*
      * Detect false→true transition of isActive (back from Physical Exam) and open the

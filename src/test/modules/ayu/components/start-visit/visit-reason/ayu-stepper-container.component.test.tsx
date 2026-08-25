@@ -3436,6 +3436,129 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('Stable callback-ref for onProgressUpdate (FE-001)', () => {
+    it('calls the LATEST onProgressUpdate reference when currentIndex changes — not the stale closure', () => {
+      /* The progress useEffect dep array no longer includes onProgressUpdate;
+       * instead onProgressUpdateRef is kept current via a no-dep useLayoutEffect.
+       * This test verifies the NEW reference is invoked even if currentIndex
+       * hasn't changed in between the re-render that swaps the callback. */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+        { linkId: 'q2', text: 'Q2', type: 'string' },
+      ];
+
+      const firstCallback = vi.fn();
+      const secondCallback = vi.fn();
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 2,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={firstCallback}
+        />
+      );
+
+      // Mount: firstCallback receives (2, 0)
+      expect(firstCallback).toHaveBeenCalledWith(2, 0);
+      expect(secondCallback).not.toHaveBeenCalled();
+
+      // Swap in a NEW callback reference — currentIndex stays at 0
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // currentIndex changes to 1 → the stable-ref effect fires with the NEW callback
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // secondCallback must have been called; firstCallback must NOT be called again
+      expect(secondCallback).toHaveBeenCalledWith(2, 1);
+      expect(firstCallback).toHaveBeenCalledTimes(1); // only the initial mount call
+    });
+
+    it('does NOT re-run the progress effect when only the callback reference changes (no index change)', () => {
+      /* If the parent re-renders with a new onProgressUpdate reference but
+       * currentIndex and totalSteps stay the same, the effect must NOT fire
+       * again (prevCompletedRef guard + stable dep array prevents it). */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Q1', type: 'string' },
+      ];
+
+      const firstCallback = vi.fn();
+      const secondCallback = vi.fn();
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={firstCallback}
+        />
+      );
+
+      expect(firstCallback).toHaveBeenCalledTimes(1); // mount call
+
+      // Swap callback, keep everything else identical
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={secondCallback}
+        />
+      );
+
+      // Neither callback should be called again — prevCompletedRef guard prevents it
+      expect(firstCallback).toHaveBeenCalledTimes(1);
+      expect(secondCallback).not.toHaveBeenCalled();
+    });
+  });
+
   describe('associatedSymptoms answerOption fallback', () => {
     it('should show toast for associatedSymptoms when answerOption is undefined and array is empty', () => {
       const question: AyuQuestion = {
