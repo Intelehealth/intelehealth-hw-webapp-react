@@ -434,7 +434,7 @@ export interface AyuStepperContainerHandle {
   getAnswers: () => Record<string, AyuAnswerValue>;
 }
 
-interface AyuStepperContainerProps {
+export interface AyuStepperContainerProps {
   questionnaire: FhirQuestionnaire;
   summaryTitle?: string;
   skipSummary?: boolean;
@@ -638,7 +638,8 @@ export const AyuStepperContainer = forwardRef<
         {topLevelItems
           .slice(0, visibleCount)
           .map((question: AyuQuestion, index: number) => {
-            const isActive = index === currentIndex;
+            /* Renamed from isActive to avoid shadowing the same-named section-visibility prop. */
+            const isCurrentQuestion = index === currentIndex;
             const isSkipped = skippedQuestions.has(question.linkId);
             const showAsAnswered =
               (submittedQuestions.has(question.linkId) || isSkipped) &&
@@ -665,7 +666,7 @@ export const AyuStepperContainer = forwardRef<
             return (
               <div
                 key={question.linkId}
-                ref={isActive ? lastQuestionRef : null}
+                ref={isCurrentQuestion ? lastQuestionRef : null}
                 className="relative"
               >
                 {!isLastRendered && (
@@ -721,7 +722,9 @@ export const AyuStepperContainer = forwardRef<
                           />
                         )}
                       {/* ACTION BUTTONS */}
-                      {(isActive || showAll || index < currentIndex) && (
+                      {(isCurrentQuestion ||
+                        showAll ||
+                        index < currentIndex) && (
                         <div className="mt-3 flex gap-3 md:justify-end">
                           {/* SUBMIT for required string and quantity types */}
                           {(() => {
@@ -919,7 +922,10 @@ export const AyuStepperContainer = forwardRef<
                                  * re-submitting it must always invoke goNext so a previously
                                  * cancelled summary modal can be re-opened.
                                  */
-                                if (isActive && (isLast || !wasEditing)) {
+                                if (
+                                  isCurrentQuestion &&
+                                  (isLast || !wasEditing)
+                                ) {
                                   if (isLast) {
                                     onProgressUpdate?.(totalSteps, totalSteps);
                                   }
@@ -933,7 +939,7 @@ export const AyuStepperContainer = forwardRef<
 
                           {/* SKIP for non-required */}
                           {!question.required &&
-                            (isActive ||
+                            (isCurrentQuestion ||
                               index < currentIndex ||
                               skippedQuestions.has(question.linkId) ||
                               editingQuestions.has(question.linkId)) && (
@@ -976,7 +982,10 @@ export const AyuStepperContainer = forwardRef<
                                     next.delete(question.linkId);
                                     return next;
                                   });
-                                  if (isActive && (isLast || !wasEditing)) {
+                                  if (
+                                    isCurrentQuestion &&
+                                    (isLast || !wasEditing)
+                                  ) {
                                     if (isLast) {
                                       onProgressUpdate?.(
                                         totalSteps,

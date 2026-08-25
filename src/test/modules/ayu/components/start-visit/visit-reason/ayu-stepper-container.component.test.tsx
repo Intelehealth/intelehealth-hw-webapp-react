@@ -1094,6 +1094,95 @@ describe('AyuStepperContainer', () => {
 
       expect(mockGoNext).not.toHaveBeenCalled();
     });
+
+    it('should not call goNext when Skip is clicked on a past (non-current) question — isCurrentQuestion=false', () => {
+      /*
+       * The Skip onClick contains: if (isCurrentQuestion && (isLast || !wasEditing)) goNext()
+       * When clicking Skip on a question at index < currentIndex (a past question),
+       * isCurrentQuestion is false so goNext must NOT be called even though the
+       * skip button is visible via the (index < currentIndex) condition.
+       */
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: false },
+        { linkId: 'q2', text: 'Question 2', type: 'string' },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q2: 'current answer' },   // q1 deliberately unanswered → showAsAnswered=false → Skip visible
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Skip button on q1 is visible because index(0) < currentIndex(1)
+      const skipButtons = screen.getAllByTestId('button-skip');
+      fireEvent.click(skipButtons[0]);  // click Skip on q1 (past, non-current)
+
+      // goNext must NOT be called — q1 is not the current question
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('isCurrentQuestion — action buttons are visible only for the question at currentIndex in step-by-step mode', () => {
+      /*
+       * Action button container condition: isCurrentQuestion || showAll || index < currentIndex
+       * In step-by-step mode (showAll=false), only questions at or before currentIndex are
+       * even rendered (visibleCount = currentIndex + 1). The current question at index
+       * currentIndex satisfies isCurrentQuestion=true; all earlier questions satisfy
+       * index < currentIndex. There is no case where a rendered question has both
+       * isCurrentQuestion=false AND index >= currentIndex — they are filtered by slicing.
+       *
+       * This test verifies the current question (isCurrentQuestion=true) shows its
+       * action buttons even when it is also the first and only visible question.
+       * Uses type 'integer' which unconditionally renders the Submit button regardless
+       * of the answer value.
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'integer',  // integer always renders Submit unconditionally
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // isCurrentQuestion=true (index 0 === currentIndex 0) → both buttons must be visible
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
+    });
   });
 
   describe('Answer Management', () => {
