@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -609,13 +610,24 @@ export const AyuStepperContainer = forwardRef<
     }, [currentIndex]);
 
     /*
-     * Detect false→true transition of isActive (back from Physical Exam) synchronously
-     * during render so the edit box is shown on the very first paint — no answered-card
-     * flash. Updating a ref during render is safe here: it is idempotent and scoped to
-     * this component only.
+     * Detect false→true transition of isActive (back from Physical Exam) and open the
+     * last question for editing. useLayoutEffect fires synchronously after the DOM commit
+     * but before paint; the resulting setState triggers a flush before the browser
+     * paints, so there is no answered-card flash. This is also Strict Mode-safe because
+     * the ref mutation happens inside the effect, not during render.
      */
-    const justBecameActive = !prevIsActiveRef.current && isActive && showAll;
-    prevIsActiveRef.current = isActive;
+    useLayoutEffect(() => {
+      if (!prevIsActiveRef.current && isActive && showAll) {
+        const lastQuestion = topLevelItems[topLevelItems.length - 1];
+        if (lastQuestion) {
+          setEditingQuestions(prev => {
+            if (prev.has(lastQuestion.linkId)) return prev;
+            return new Set(prev).add(lastQuestion.linkId);
+          });
+        }
+      }
+      prevIsActiveRef.current = isActive;
+    }, [isActive, showAll, topLevelItems]);
 
     if (!currentQuestion) return null;
 
@@ -628,13 +640,9 @@ export const AyuStepperContainer = forwardRef<
           .map((question: AyuQuestion, index: number) => {
             const isActive = index === currentIndex;
             const isSkipped = skippedQuestions.has(question.linkId);
-            /* Force the last question into edit mode on back navigation (synchronous). */
-            const forceEditOnReturn =
-              justBecameActive && index === topLevelItems.length - 1;
             const showAsAnswered =
               (submittedQuestions.has(question.linkId) || isSkipped) &&
-              !editingQuestions.has(question.linkId) &&
-              !forceEditOnReturn;
+              !editingQuestions.has(question.linkId);
             const isLastRendered = index === visibleCount - 1;
 
             /* Wrapper that clears submitted/skipped icons when the user changes an answer */
@@ -928,8 +936,7 @@ export const AyuStepperContainer = forwardRef<
                             (isActive ||
                               index < currentIndex ||
                               skippedQuestions.has(question.linkId) ||
-                              editingQuestions.has(question.linkId) ||
-                              forceEditOnReturn) && (
+                              editingQuestions.has(question.linkId)) && (
                               <AyuButton
                                 variant="primary"
                                 className="w-full md:w-[10%]"

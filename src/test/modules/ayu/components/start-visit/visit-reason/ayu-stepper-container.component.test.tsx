@@ -6283,7 +6283,7 @@ describe('AyuStepperContainer', () => {
     });
   });
 
-  describe('isActive prop – back navigation from Physical Exam', () => {
+  describe('isActive prop – back navigation from Physical Exam (useLayoutEffect)', () => {
     const makeQuestion = (linkId: string, required = false): AyuQuestion => ({
       linkId,
       text: `Question ${linkId}`,
@@ -6309,11 +6309,11 @@ describe('AyuStepperContainer', () => {
       ...extra,
     });
 
-    it('default isActive=true — renders normally without forceEditOnReturn on first render', () => {
+    it('default isActive=true — no edit forced on first render (useLayoutEffect guard)', () => {
       /*
        * When isActive starts as true (default), prevIsActiveRef.current is
-       * also true on the first render, so justBecameActive is false and no
-       * forced edit occurs.
+       * also true after the first useLayoutEffect run, so the false→true
+       * condition never fires and no question is added to editingQuestions.
        */
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
@@ -6333,12 +6333,13 @@ describe('AyuStepperContainer', () => {
       expect(loader).toHaveAttribute('data-is-answered', 'true');
     });
 
-    it('false→true transition in showAll mode — last question shows AyuRenderer (forceEditOnReturn)', () => {
+    it('false→true transition in showAll mode — useLayoutEffect adds last question to editingQuestions', () => {
       /*
        * Simulates back-navigation from Physical Exam:
-       *   render 1: isActive=false, showAll=true → prevIsActiveRef=false
-       *   render 2: isActive=true,  showAll=true → justBecameActive=true → forceEditOnReturn=true
-       * The last question's showAsAnswered must be false so AyuRenderer is shown.
+       *   render 1: isActive=false → useLayoutEffect runs, prevIsActiveRef←false
+       *   render 2: isActive=true  → useLayoutEffect detects !prev && isActive && showAll,
+       *             adds last question's linkId to editingQuestions via setEditingQuestions.
+       * showAsAnswered becomes false for that question → AyuRenderer is shown.
        */
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
@@ -6354,7 +6355,7 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // On re-render with isActive=true, justBecameActive fires
+      // Transition to isActive=true: useLayoutEffect fires and adds q1 to editingQuestions
       rerender(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -6365,16 +6366,16 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // forceEditOnReturn suppresses showAsAnswered → AyuRenderer must be visible
+      // editingQuestions.has(q1) → showAsAnswered=false → AyuRenderer must be visible
       expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
       // QuestionLoader must NOT treat it as answered
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
     });
 
-    it('false→true transition with showAll=false — does NOT force edit', () => {
+    it('false→true transition with showAll=false — does NOT add to editingQuestions', () => {
       /*
-       * justBecameActive requires showAll=true. Without it, forceEditOnReturn
-       * is always false and the question stays in its normal state.
+       * useLayoutEffect condition requires showAll=true. Without it the
+       * condition is skipped and no question is added to editingQuestions.
        */
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(
@@ -6400,15 +6401,15 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // No force-edit: question was never submitted, so renderer is shown in normal active mode
+      // No edit forced: question was never submitted, so renderer is shown in normal active mode
       expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
     });
 
-    it('false→true transition in showAll mode — shows Skip button for non-required last question', () => {
+    it('false→true transition in showAll mode — Skip button visible for non-required last question', () => {
       /*
-       * forceEditOnReturn also controls Skip-button visibility:
-       *   !question.required && (... || forceEditOnReturn)
-       * So the Skip button must appear alongside the Submit button on back nav.
+       * Once the last question is added to editingQuestions, the Skip button
+       * condition (!question.required && (... || editingQuestions.has(...)))
+       * evaluates to true, so the Skip button appears alongside Submit.
        */
       const q = makeQuestion('q-last', false); // non-required
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
@@ -6438,7 +6439,7 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
 
-    it('isActive stays false — does not force edit', () => {
+    it('isActive stays false — last question stays answered, editingQuestions untouched', () => {
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
 
@@ -6452,14 +6453,14 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Stays answered — no false→true transition occurred
+      // No false→true transition → editingQuestions empty → showAsAnswered stays true
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
     });
 
-    it('forceEditOnReturn only applies to the last question in the list', () => {
+    it('useLayoutEffect adds only the last question to editingQuestions, not earlier ones', () => {
       /*
-       * When there are two questions, only the last one (index 1) should have
-       * forceEditOnReturn=true; the first one stays answered.
+       * When there are two questions, only topLevelItems[last] (q2) is added
+       * to editingQuestions on the false→true transition; q1 stays answered.
        */
       const q1 = makeQuestion('q1');
       const q2 = makeQuestion('q2');
@@ -6497,11 +6498,152 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // First question stays answered
+      // First question stays answered (not in editingQuestions)
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
-      // Last question is forced into edit mode
+      // Last question is in editingQuestions → showAsAnswered=false → AyuRenderer shown
       expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
       expect(screen.getByTestId('renderer-q2')).toBeInTheDocument();
+    });
+
+    it('idempotent: second false→true transition leaves editingQuestions unchanged when last question already editing', () => {
+      /*
+       * Guard inside useLayoutEffect: if (prev.has(lastQuestion.linkId)) return prev;
+       * On a second back-navigation cycle (false→true→false→true) the last
+       * question is already in editingQuestions from the first cycle, so the
+       * set is not recreated. The question must remain in edit mode.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // First false→true: adds q1 to editingQuestions
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Navigate away again (true→false)
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Second false→true: guard fires, prev.has(q1) → returns same set
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question must still be in edit mode (AyuRenderer visible, not answered card)
+      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+    });
+
+    it('does not crash when topLevelItems is empty — useLayoutEffect lastQuestion guard', () => {
+      /*
+       * Guard inside useLayoutEffect: if (lastQuestion) { ... }
+       * When topLevelItems is empty there is no last question and the effect
+       * must exit silently without calling setEditingQuestions.
+       */
+      const q = makeQuestion('q1');
+      // currentQuestion is needed to avoid the early `if (!currentQuestion) return null`
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q,
+        currentIndex: 0,
+        total: 0,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [],
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      // Should not throw even though topLevelItems is empty
+      expect(() =>
+        rerender(
+          <AyuStepperContainer
+            questionnaire={questionnaire}
+            onComplete={mockOnComplete}
+            onProgressUpdate={mockOnProgressUpdate}
+            isActive={true}
+          />
+        )
+      ).not.toThrow();
+    });
+
+    it('spurious re-render with isActive=true throughout — does NOT force edit (FE-001 regression)', () => {
+      /*
+       * FE-001 guard: the parent derives isActive={currentSectionIndex === 1}.
+       * If the parent re-renders for an unrelated reason while already on the
+       * VisitReason section, isActive stays true on both renders. The
+       * useLayoutEffect condition !prevIsActiveRef.current && isActive is false
+       * (prev === true) so no question is added to editingQuestions.
+       */
+      const q = makeQuestion('q1');
+      mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
+
+      const questionnaire = createMockQuestionnaire([q]);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Spurious re-render: isActive stays true, parent re-renders for other reasons
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'yes' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      // Question must remain in answered state — no spurious edit was forced
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('renderer-q1')).not.toBeInTheDocument();
     });
   });
 });

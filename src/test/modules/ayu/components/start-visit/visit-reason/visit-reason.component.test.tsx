@@ -2317,5 +2317,81 @@ describe('VisitReason', () => {
       // undefined coerces to false via !!props.isActive in the mock
       expect(stepper).toHaveAttribute('data-is-active', 'false');
     });
+
+    it('updates AyuStepperContainer data-is-active when isActive transitions false→true', () => {
+      /*
+       * Verifies that VisitReason correctly forwards isActive on every re-render,
+       * not just the initial one. A false→true transition (back-navigation from
+       * Physical Exam) must propagate immediately so AyuStepperContainer's
+       * useLayoutEffect can detect it.
+       */
+      const visitReasons = setupStepperVisible();
+
+      const { rerender } = render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      expect(screen.getByTestId('ayu-stepper-container')).toHaveAttribute('data-is-active', 'false');
+
+      rerender(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('ayu-stepper-container')).toHaveAttribute('data-is-active', 'true');
+    });
+
+    it('VisitReason search-UI state is preserved when isActive changes — no visibility side effects', () => {
+      /*
+       * VisitReason intentionally has no lifecycle effects that depend on
+       * isActive (it is a transparent pass-through to AyuStepperContainer).
+       * Changing isActive must NOT reset or disrupt any internal state such as
+       * the search text, selected reasons list, or footer visibility.
+       */
+      const visitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [],
+      });
+
+      const { rerender } = render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      // Verify the default search UI is present while active
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
+
+      // Simulate navigating away (isActive becomes false)
+      rerender(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      // All UI elements must still be present — no state was disrupted
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
+    });
   });
 });
