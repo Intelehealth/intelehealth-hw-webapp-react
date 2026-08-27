@@ -31,7 +31,12 @@ const PATCH = [
 ].join('\n');
 
 /** Stub GitHub API. Records every request so the test can assert on them. */
-async function startStub({ existingComments = [], failReview = false } = {}) {
+async function startStub({
+  existingComments = [],
+  failReview = false,
+  threads = [],
+  reviews = [],
+} = {}) {
   const requests = [];
   const server = createServer((req, res) => {
     let body = '';
@@ -53,10 +58,13 @@ async function startStub({ existingComments = [], failReview = false } = {}) {
         return send(200, [{ filename: 'src/a.ts', patch: PATCH }]);
       }
       if (req.url.startsWith('/repos/acme/app/pulls/7/reviews')) {
+        if (req.method === 'GET') return send(200, reviews);
         return failReview
           ? send(422, { message: 'line must be part of the diff' })
           : send(200, { id: 1 });
       }
+      if (req.url.startsWith('/graphql'))
+        return send(200, { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: threads } } } } });
       if (req.url.startsWith('/repos/acme/app/issues/7/comments'))
         return send(201, { id: 2 });
       send(404, { message: 'not found' });
@@ -87,6 +95,7 @@ async function runPostReview(findings, stub, env = {}) {
       env: {
         ...process.env,
         GITHUB_API_URL: `http://127.0.0.1:${stub.port}`,
+        GITHUB_GRAPHQL_URL: `http://127.0.0.1:${stub.port}/graphql`,
         GITHUB_TOKEN: 'stub-token',
         REPO: 'acme/app',
         PR_NUMBER: '7',
@@ -146,7 +155,9 @@ test('a finding outside the diff is moved into the summary, not sent inline', as
   const stub = await startStub();
   try {
     await runPostReview(findingsPayload([{ ...base, line: 999 }]), stub);
-    const review = stub.requests.find(r => r.url.includes('/reviews'));
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
     assert.equal(
       review.body.comments.length,
       0,
@@ -165,7 +176,9 @@ test('REQUEST_CHANGES only when explicitly enabled', async () => {
     await runPostReview(findingsPayload([base]), stub, {
       REQUEST_CHANGES_ON_BLOCKER: '1',
     });
-    const review = stub.requests.find(r => r.url.includes('/reviews'));
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
     assert.equal(review.body.event, 'REQUEST_CHANGES');
   } finally {
     stub.server.close();
@@ -176,6 +189,8 @@ test('a finding already posted on an earlier run is not reposted', async () => {
   const existing = [
     {
       id: 100,
+      user: { login: 'github-actions[bot]', type: 'Bot' },
+      path: 'src/a.ts',
       body:
         'old\n<!-- ih-tek-review rule=SEC-001 fid=' +
         (await import('../lib/gate.mjs')).findingId(base) +
@@ -186,7 +201,238 @@ test('a finding already posted on an earlier run is not reposted', async () => {
   try {
     const { stdout } = await runPostReview(findingsPayload([base]), stub);
     assert.match(stdout, /No new findings since the last run/);
-    assert.equal(stub.requests.filter(r => r.method === 'POST').length, 0);
+    // The thread listing for the resolve plan is a POST to /graphql and is
+    // expected even on the quiet path; nothing may be posted to the PR itself.
+    assert.equal(
+      stub.requests.filter(
+        r => r.method === 'POST' && !r.url.startsWith('/graphql')
+      ).length,
+      0
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a marker pasted by a human must not suppress a finding', async () => {
+  // Quote-replying the bot copies its marker verbatim. Only bot-authored
+  // comments count as prior findings, or anyone could bury one.
+  const existing = [
+    {
+      id: 101,
+      user: { login: 'some-developer', type: 'User' },
+      path: 'src/a.ts',
+      body:
+        'quoting the bot:\n<!-- ih-tek-review rule=SEC-001 fid=abc123 bid=zzz -->',
+    },
+  ];
+  const stub = await startStub({ existingComments: existing });
+  try {
+    const { stdout } = await runPostReview(findingsPayload([base]), stub);
+    assert.match(stdout, /0 prior finding\(s\)/);
+    assert.match(stdout, /Posted a review with 1 inline comment/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a fixed finding queues its thread for resolution; a live one never does', async () => {
+  const mkThread = (id, rule, bid, ah) => ({
+    id,
+    isResolved: false,
+    isOutdated: true,
+    path: 'src/a.ts',
+    comments: {
+      nodes: [
+        {
+          databaseId: 900,
+          author: { login: 'github-actions' },
+          body: `x\n<!-- ih-tek-review rule=${rule} fid=f bid=${bid} ah=${ah} sev=major conf=0.9 sha=abc -->`,
+        },
+      ],
+    },
+  });
+  // DATA-001: gone (its bucket and anchor match nothing current).
+  // SEC-001: still live this run — must never be queued.
+  const stub = await startStub({
+    threads: [
+      mkThread('T_fixed', 'DATA-001', 'deadbid', 'deadanchor'),
+      mkThread('T_live', 'SEC-001', 'livebid', 'liveanchor'),
+    ],
+  });
+  try {
+    const { stdout } = await runPostReview(findingsPayload([base]), stub);
+    assert.match(stdout, /1 thread\(s\) queued for resolution/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a live finding on a stale thread is re-anchored: reposted and the old thread superseded', async () => {
+  // The prior comment matches the current finding (rule+file), so it is
+  // standing — but its open thread is outdated and carries no anchor, meaning
+  // it points at code that changed. Expect: a fresh inline comment AND the
+  // stale thread queued for resolution as superseded.
+  const existing = [
+    {
+      id: 300,
+      user: { login: 'github-actions[bot]', type: 'Bot' },
+      path: 'src/a.ts',
+      body: 'old\n<!-- ih-tek-review rule=SEC-001 fid=old sev=blocker conf=0.9 -->',
+    },
+  ];
+  const stub = await startStub({
+    existingComments: existing,
+    threads: [
+      {
+        id: 'T_stale',
+        isResolved: false,
+        isOutdated: true,
+        path: 'src/a.ts',
+        comments: {
+          nodes: [
+            {
+              databaseId: 300,
+              author: { login: 'github-actions' },
+              body: 'old\n<!-- ih-tek-review rule=SEC-001 fid=old sev=blocker conf=0.9 -->',
+            },
+          ],
+        },
+      },
+    ],
+  });
+  try {
+    const { stdout } = await runPostReview(findingsPayload([base]), stub);
+    assert.match(stdout, /1 re-anchored/);
+    assert.match(stdout, /queued for resolution \(1 superseded by a re-anchor\)/);
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
+    assert.ok(review, 'the re-anchored comment must be posted');
+    assert.equal(review.body.comments.length, 1);
+    assert.equal(review.body.comments[0].line, 2);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a live finding whose thread still anchors real code stays quiet', async () => {
+  const existing = [
+    {
+      id: 301,
+      user: { login: 'github-actions[bot]', type: 'Bot' },
+      path: 'src/a.ts',
+      body: 'old\n<!-- ih-tek-review rule=SEC-001 fid=old sev=blocker conf=0.9 -->',
+    },
+  ];
+  const stub = await startStub({
+    existingComments: existing,
+    threads: [
+      {
+        id: 'T_current',
+        isResolved: false,
+        isOutdated: false,
+        path: 'src/a.ts',
+        comments: {
+          nodes: [
+            {
+              databaseId: 301,
+              author: { login: 'github-actions' },
+              body: 'old\n<!-- ih-tek-review rule=SEC-001 fid=old sev=blocker conf=0.9 -->',
+            },
+          ],
+        },
+      },
+    ],
+  });
+  try {
+    const { stdout } = await runPostReview(findingsPayload([base]), stub);
+    assert.match(stdout, /No new findings since the last run/);
+    assert.match(stdout, /0 thread\(s\) queued/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('after the round budget, only a blocker opens a new thread', async () => {
+  // Three prior bot review rounds recorded. A major finding on new code is
+  // then advisory-only, so a developer who keeps fixing can actually finish.
+  const priorReviews = [1, 2, 3].map(n => ({
+    id: n,
+    user: { login: 'github-actions[bot]', type: 'Bot' },
+    body: `## IH Tek review\n<!-- ih-tek-review summary sha=abc123${n} -->`,
+  }));
+  const stub = await startStub({ reviews: priorReviews });
+  try {
+    const { stdout } = await runPostReview(
+      findingsPayload([{ ...base, severity: 'major' }]),
+      stub
+    );
+    assert.match(stdout, /deferring 1 non-blocker finding/);
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
+    assert.equal(review.body.comments.length, 0, 'no new thread is opened');
+    assert.match(review.body.body, /advisory only, not blocking/);
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a blocker still opens a thread past the round budget', async () => {
+  const priorReviews = [1, 2, 3].map(n => ({
+    id: n,
+    user: { login: 'github-actions[bot]', type: 'Bot' },
+    body: `## IH Tek review\n<!-- ih-tek-review summary sha=abc123${n} -->`,
+  }));
+  const stub = await startStub({ reviews: priorReviews });
+  try {
+    await runPostReview(findingsPayload([base]), stub);
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
+    assert.equal(review.body.comments.length, 1, 'a blocker is never deferred');
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('an incomplete run queues nothing for resolution', async () => {
+  const stub = await startStub({
+    threads: [
+      {
+        id: 'T1',
+        isResolved: false,
+        isOutdated: true,
+        path: 'src/a.ts',
+        comments: {
+          nodes: [
+            {
+              databaseId: 901,
+              author: { login: 'github-actions' },
+              body: 'x\n<!-- ih-tek-review rule=DATA-001 fid=f bid=b sev=major conf=0.9 sha=abc -->',
+            },
+          ],
+        },
+      },
+    ],
+  });
+  try {
+    const { stdout, stderr } = await runPostReview(
+      {
+        summary: 'gave up',
+        findings: [],
+        reviewed: false,
+        inconclusive: 'provider fell over',
+      },
+      stub,
+      { REQUIRE_COMPLETE_REVIEW: '0' }
+    );
+    assert.match(
+      stdout + stderr,
+      /0 thread\(s\) queued for resolution/,
+      'model silence on an unread diff must never resolve anything'
+    );
   } finally {
     stub.server.close();
   }
@@ -221,7 +467,9 @@ test('malformed model output is discarded without crashing', async () => {
       stub
     );
     assert.match(stdout, /Parsed 1 valid finding\(s\), 4 discarded/);
-    const review = stub.requests.find(r => r.url.includes('/reviews'));
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
     assert.equal(review.body.comments.length, 1);
   } finally {
     stub.server.close();
@@ -280,6 +528,8 @@ test('findings already posted still block on a re-run', async () => {
   const existing = [
     {
       id: 100,
+      user: { login: 'github-actions[bot]', type: 'Bot' },
+      path: 'src/a.ts',
       body:
         'old\n<!-- ih-tek-review rule=SEC-001 fid=' +
         (await import('../lib/gate.mjs')).findingId(base) +
@@ -410,7 +660,9 @@ test('a clean PR still gets a short summary', async () => {
   const stub = await startStub();
   try {
     await runPostReview(findingsPayload([]), stub);
-    const review = stub.requests.find(r => r.url.includes('/reviews'));
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
     assert.equal(review.body.comments.length, 0);
     assert.match(
       review.body.body,
