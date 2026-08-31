@@ -1,6 +1,6 @@
 import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { evaluateEnableWhen } from '../logic/enable-when.logic';
-import { EXT_URL_DISPLAY_TEXT } from './constants';
+import { EXT_URL_DISPLAY_TEXT, FHIR_TYPE_CHOICE } from './constants';
 
 export const getRowLabel = (item: AyuQuestion | undefined): string => {
   const displayExt = item?.extension?.find(
@@ -75,6 +75,8 @@ export const clearHiddenDescendantAnswers = (
   items: AyuQuestion[],
   updated: Record<string, AyuAnswerValue>
 ) => {
+  const enriched: Record<string, AyuAnswerValue> = { ...updated };
+
   const clearAll = (children: AyuQuestion[]) => {
     for (const child of children) {
       delete updated[child.linkId];
@@ -85,11 +87,25 @@ export const clearHiddenDescendantAnswers = (
   const walk = (children: AyuQuestion[]) => {
     for (const child of children) {
       if (child.enableWhen) {
-        const isVisible = evaluateEnableWhen(child.enableWhen, updated);
+        const isVisible = evaluateEnableWhen(child.enableWhen, enriched);
         if (!isVisible) {
           delete updated[child.linkId];
           if (child.item) clearAll(child.item);
           continue;
+        }
+      }
+      if (enriched[child.linkId] === undefined) {
+        enriched[child.linkId] = true;
+      }
+      if (
+        child.type === FHIR_TYPE_CHOICE &&
+        child.answerOption?.length &&
+        child.item?.length
+      ) {
+        for (const sub of child.item) {
+          if (enriched[sub.linkId] === undefined) {
+            enriched[sub.linkId] = true;
+          }
         }
       }
       if (child.item) walk(child.item);

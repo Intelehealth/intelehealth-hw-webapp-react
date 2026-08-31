@@ -2459,5 +2459,95 @@ describe('AyuNestedRenderer', () => {
         )
       ).not.toThrow();
     });
+
+    describe('intermediate container synthetic marker propagation (SD-001 / SD-002 / SD-003)', () => {
+      const sdItems: AyuQuestion[] = [
+        {
+          linkId: 'from-to-event',
+          type: 'choice',
+          text: 'From/To/Event',
+          enableWhen: [
+            { question: 'sd', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+          answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+          item: [
+            {
+              linkId: 'from-date',
+              type: 'date',
+              text: 'From',
+            },
+          ],
+        },
+        {
+          linkId: 'to-date',
+          type: 'date',
+          text: 'To',
+          enableWhen: [
+            { question: 'from-date', operator: 'exists', answerBoolean: true },
+          ],
+        },
+        {
+          linkId: 'event-describe',
+          type: 'string',
+          text: 'Event (Describe)',
+          enableWhen: [
+            { question: 'to-date', operator: 'exists', answerBoolean: true },
+          ],
+        },
+      ];
+
+      it('SD-001: all three child fields are visible immediately when the parent container is enabled', () => {
+        render(
+          <AyuNestedRenderer
+            items={sdItems}
+            answers={{ sd: 'yes' }}
+            setAnswer={mockSetAnswer}
+          />
+        );
+
+        expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+        expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+        expect(screen.getByTestId('renderer-event-describe')).toBeInTheDocument();
+        expect(screen.queryByTestId('renderer-from-to-event')).not.toBeInTheDocument();
+      });
+
+      it('SD-002: no child fields are visible when the parent container is disabled', () => {
+        const { container } = render(
+          <AyuNestedRenderer
+            items={sdItems}
+            answers={{ sd: 'no' }}
+            setAnswer={mockSetAnswer}
+          />
+        );
+
+        expect(container.firstChild).toBeNull();
+      });
+
+      it('SD-003: switching from yes to no removes synthetic sub-item markers and hides all child fields', () => {
+        const { rerender } = render(
+          <AyuNestedRenderer
+            items={sdItems}
+            answers={{ sd: 'yes' }}
+            setAnswer={mockSetAnswer}
+          />
+        );
+
+        expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+        expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+        expect(screen.getByTestId('renderer-event-describe')).toBeInTheDocument();
+
+        rerender(
+          <AyuNestedRenderer
+            items={sdItems}
+            answers={{ sd: 'no' }}
+            setAnswer={mockSetAnswer}
+          />
+        );
+
+        expect(screen.queryByTestId('renderer-from-date')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('renderer-to-date')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('renderer-event-describe')).not.toBeInTheDocument();
+      });
+    });
   });
 });

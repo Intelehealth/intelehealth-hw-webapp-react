@@ -23,6 +23,7 @@ import {
   hasVisibleRequiredNestedString,
   hasUnansweredRequiredNestedChild,
   isNestedInputValueMissing,
+  hasMissingNestedBPInput,
   isNumericOutOfRange,
   hasNestedOutOfRangeValue,
   findOutOfRangeQuestionText,
@@ -1370,6 +1371,131 @@ describe('validateQuestion', () => {
         reason: 'selectOption',
       });
     });
+
+    it('should return enterValue for PE question with empty nested BP integer (FHIR range extension)', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'systolic',
+            type: 'integer',
+            text: 'Enter systolic BP',
+            extension: [
+              { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+              { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+            ],
+          },
+        ],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({
+        valid: false,
+        reason: 'enterValue',
+      });
+    });
+
+    it('should return enterValue for PE question with empty nested BP integer detected by text keyword', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'sys',
+            type: 'integer',
+            text: 'Systolic blood pressure',
+          },
+        ],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({
+        valid: false,
+        reason: 'enterValue',
+      });
+    });
+
+    it('should return valid for PE BP question when both systolic and diastolic are filled', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'systolic',
+            type: 'integer',
+            text: 'Enter systolic BP',
+            extension: [
+              { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+              { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+            ],
+          },
+          {
+            linkId: 'diastolic',
+            type: 'integer',
+            text: 'Enter diastolic BP',
+            extension: [
+              { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 30 },
+              { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 150 },
+            ],
+          },
+        ],
+      };
+      expect(validateQuestion(q, { pe1: 'yes', systolic: 120, diastolic: 80 })).toEqual({ valid: true });
+    });
+
+    it('should return valid for PE question with non-BP integer child (no range info)', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [{ linkId: 'count', type: 'integer', text: 'Count of findings' }],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({ valid: true });
+    });
+
+    it('should return enterValue for PE question with BP field nested inside a container', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'bp_container',
+            type: 'group',
+            item: [
+              {
+                linkId: 'systolic',
+                type: 'integer',
+                text: 'Systolic BP',
+                extension: [
+                  { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({
+        valid: false,
+        reason: 'enterValue',
+      });
+    });
+
+    it('should return valid for PE BP question when BP field is hidden by enableWhen', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'systolic',
+            type: 'integer',
+            text: 'Systolic BP',
+            enableWhen: [
+              { question: 'other', operator: '=', answerCoding: { code: 'show' } },
+            ],
+            extension: [
+              { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+            ],
+          },
+        ],
+      };
+      expect(validateQuestion(q, { pe1: 'yes', other: 'hide' })).toEqual({ valid: true });
+    });
   });
 
   describe('non-PE question validation (isPE=false)', () => {
@@ -1559,5 +1685,171 @@ describe('validateQuestion', () => {
       // sys has out-of-range value 300, but enableWhen hides it
       expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '300' })).toBeUndefined();
     });
+  });
+});
+
+describe('hasMissingNestedBPInput', () => {
+  it('should return false when question has no nested items', () => {
+    const q: AyuQuestion = { linkId: 'pe1', type: 'choice' };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(false);
+  });
+
+  it('should return false for nested choice child (concept-tag, not a BP field)', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [{ linkId: 'tag', type: 'choice' }],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(false);
+  });
+
+  it('should return false for nested integer child with no range info', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [{ linkId: 'count', type: 'integer', text: 'Count of findings' }],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(false);
+  });
+
+  it('should return true for empty nested integer with FHIR minValue extension', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(true);
+  });
+
+  it('should return true for empty nested integer with FHIR maxValue extension', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'diastolic',
+          type: 'integer',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 150 },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(true);
+  });
+
+  it('should return false when nested BP integer is filled', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+            { url: 'http://hl7.org/fhir/StructureDefinition/maxValue', valueInteger: 260 },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes', systolic: 120 })).toBe(false);
+  });
+
+  it('should return true when second BP integer (diastolic) is missing', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          text: 'Systolic BP',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+          ],
+        },
+        {
+          linkId: 'diastolic',
+          type: 'integer',
+          text: 'Diastolic BP',
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 30 },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes', systolic: 120 })).toBe(true);
+  });
+
+  it('should return true for empty nested string BP field detected by text keyword', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [{ linkId: 'sys', type: 'string', text: 'Enter systolic BP value' }],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(true);
+  });
+
+  it('should return false for nested string BP field that is filled', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [{ linkId: 'sys', type: 'string', text: 'Diastolic reading' }],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes', sys: '80' })).toBe(false);
+  });
+
+  it('should return true for BP field nested inside a container group', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'container',
+          type: 'group',
+          item: [
+            {
+              linkId: 'systolic',
+              type: 'integer',
+              text: 'Systolic',
+              extension: [
+                { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes' })).toBe(true);
+  });
+
+  it('should skip a BP field whose enableWhen is not met', () => {
+    const q: AyuQuestion = {
+      linkId: 'pe1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'systolic',
+          type: 'integer',
+          text: 'Systolic BP',
+          enableWhen: [
+            { question: 'flag', operator: '=', answerCoding: { code: 'show' } },
+          ],
+          extension: [
+            { url: 'http://hl7.org/fhir/StructureDefinition/minValue', valueInteger: 60 },
+          ],
+        },
+      ],
+    };
+    expect(hasMissingNestedBPInput(q, { pe1: 'yes', flag: 'hide' })).toBe(false);
   });
 });

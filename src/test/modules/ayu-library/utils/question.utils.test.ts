@@ -307,4 +307,59 @@ describe('clearHiddenDescendantAnswers', () => {
     clearHiddenDescendantAnswers(items, answers);
     expect(answers['hidden-child']).toBeUndefined();
   });
+
+  describe('enriched-map propagation (SD-C001 / SD-C002 / SD-C003)', () => {
+    const sdItems: AyuQuestion[] = [
+      {
+        linkId: 'from-to-event',
+        type: 'choice',
+        enableWhen: [
+          { question: 'sd', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [{ linkId: 'from-date', type: 'date' }],
+      },
+      {
+        linkId: 'to-date',
+        type: 'date',
+        enableWhen: [
+          { question: 'from-date', operator: 'exists', answerBoolean: true },
+        ],
+      },
+      {
+        linkId: 'event-describe',
+        type: 'string',
+        enableWhen: [
+          { question: 'to-date', operator: 'exists', answerBoolean: true },
+        ],
+      },
+    ];
+
+    it('SD-C001: preserves event-describe answer when container is enabled and chain has no real values', () => {
+      const answers: Record<string, AyuAnswerValue> = {
+        sd: 'yes',
+        'event-describe': 'hello',
+      };
+      clearHiddenDescendantAnswers(sdItems, answers);
+      expect(answers['event-describe']).toBe('hello');
+    });
+
+    it('SD-C002: clears event-describe when the parent container becomes disabled', () => {
+      const answers: Record<string, AyuAnswerValue> = {
+        sd: 'no',
+        'event-describe': 'hello',
+      };
+      clearHiddenDescendantAnswers(sdItems, answers);
+      expect(answers['event-describe']).toBeUndefined();
+    });
+
+    it('SD-C003: preserves to-date answer when from-date has no real value but container is enabled', () => {
+      const answers: Record<string, AyuAnswerValue> = {
+        sd: 'yes',
+        'to-date': '2024-02-01',
+      };
+      clearHiddenDescendantAnswers(sdItems, answers);
+      expect(answers['to-date']).toBe('2024-02-01');
+    });
+  });
 });

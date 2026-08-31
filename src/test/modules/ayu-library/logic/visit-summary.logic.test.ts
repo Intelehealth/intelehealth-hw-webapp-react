@@ -4577,4 +4577,215 @@ describe('buildVisitSummary', () => {
       }
     });
   });
+
+  describe('enableWhen filtering in processItems (gender/pregnancy scenario)', () => {
+    it('excludes a top-level string item whose enableWhen condition is not met', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'gender',
+          type: 'choice',
+          text: 'Gender',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Gender' }],
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+            { valueCoding: { code: 'male', display: 'Male' } },
+          ],
+        },
+        {
+          linkId: 'pregnancy',
+          type: 'string',
+          text: 'Are you pregnant?',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Are you pregnant?' }],
+          enableWhen: [
+            { question: 'gender', operator: '=', answerCoding: { code: 'female' } },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['gender', 'male'],
+        ['pregnancy', 'Yes, currently pregnant'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result).toHaveLength(1);
+      const labels = result[0].items.map(i =>
+        i.type === 'labelValue' ? i.label : ''
+      );
+      expect(labels).not.toContain('Are you pregnant?');
+      expect(labels).toContain('Gender');
+    });
+
+    it('includes a top-level item whose enableWhen condition IS met', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'gender',
+          type: 'choice',
+          text: 'Gender',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Gender' }],
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+            { valueCoding: { code: 'male', display: 'Male' } },
+          ],
+        },
+        {
+          linkId: 'pregnancy',
+          type: 'string',
+          text: 'Are you pregnant?',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Are you pregnant?' }],
+          enableWhen: [
+            { question: 'gender', operator: '=', answerCoding: { code: 'female' } },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['gender', 'female'],
+        ['pregnancy', 'Yes, currently pregnant'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const labels = result.flatMap(s =>
+        s.items.map(i => (i.type === 'labelValue' ? i.label : ''))
+      );
+      expect(labels).toContain('Are you pregnant?');
+    });
+
+    it('excludes a top-level choice item with a stale raw code when enableWhen fails', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'gender',
+          type: 'choice',
+          text: 'Gender',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Gender' }],
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+            { valueCoding: { code: 'male', display: 'Male' } },
+          ],
+        },
+        {
+          linkId: 'pregnancy',
+          type: 'choice',
+          text: 'Pregnancy status',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Pregnancy status' }],
+          answerOption: [
+            { valueCoding: { code: 'ID_1976351356', display: 'Currently pregnant' } },
+          ],
+          enableWhen: [
+            { question: 'gender', operator: '=', answerCoding: { code: 'female' } },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['gender', 'male'],
+        ['pregnancy', 'ID_1976351356'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const allValues = result.flatMap(s =>
+        s.items.map(i => (i.type === 'labelValue' ? String(i.value) : ''))
+      );
+      expect(allValues).not.toContain('ID_1976351356');
+      expect(allValues).not.toContain('Currently pregnant');
+    });
+
+    it('includes a top-level item with no enableWhen regardless of other answers', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'bp',
+          type: 'integer',
+          text: 'Blood pressure',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Blood pressure' }],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([['bp', 120]]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].items[0]).toEqual(
+        expect.objectContaining({ type: 'labelValue', label: 'Blood pressure', value: '120' })
+      );
+    });
+
+    it('excludes a nested item (via recursive processItems) whose enableWhen fails', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          text: 'Parent question',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Parent question' }],
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'child-hidden',
+              type: 'string',
+              text: 'Hidden child',
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Hidden child' }],
+              enableWhen: [
+                { question: 'parent', operator: '=', answerCoding: { code: 'yes' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['parent', 'no'],
+        ['child-hidden', 'stale value'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const allValues = result.flatMap(s =>
+        s.items.map(i => (i.type === 'labelValue' ? String(i.value) : ''))
+      );
+      expect(allValues).not.toContain('stale value');
+    });
+
+    it('shows nested item when both parent and child enableWhen conditions are met', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'gender',
+          type: 'choice',
+          text: 'Gender',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Gender' }],
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+          ],
+          item: [
+            {
+              linkId: 'pregnant',
+              type: 'choice',
+              text: 'Pregnant?',
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Pregnant?' }],
+              answerOption: [
+                { valueCoding: { code: 'yes', display: 'Yes' } },
+              ],
+              enableWhen: [
+                { question: 'gender', operator: '=', answerCoding: { code: 'female' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['gender', 'female'],
+        ['pregnant', 'yes'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result).toHaveLength(1);
+      const valueStr = JSON.stringify(result);
+      expect(valueStr).toContain('Yes');
+    });
+  });
 });

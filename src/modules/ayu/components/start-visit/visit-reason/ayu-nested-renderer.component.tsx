@@ -132,13 +132,32 @@ export const AyuNestedRenderer = ({
       for (const item of items) {
         const enabled = evaluateEnableWhen(item.enableWhen, result);
         if (!enabled && result[item.linkId] !== undefined) {
-          /* Remove stale entry — enableWhen no longer met */
           delete result[item.linkId];
           changed = true;
+          /* Also remove synthetic sub-item markers (=== true) so chained
+           * siblings that gate on them via 'exists' are disabled next pass */
+          if (hasAnswerOptionItemMapping(item)) {
+            for (const sub of item.item!) {
+              if (result[sub.linkId] === true) {
+                delete result[sub.linkId];
+                changed = true;
+              }
+            }
+          }
         } else if (enabled && result[item.linkId] === undefined) {
           /* Synthetic marker so subsequent siblings can see this item via 'exists' */
           result[item.linkId] = true;
           changed = true;
+          /* Sub-items of an intermediate container are not in the flat items
+           * array, so propagate synthetic markers for them too */
+          if (hasAnswerOptionItemMapping(item)) {
+            for (const sub of item.item!) {
+              if (result[sub.linkId] === undefined) {
+                result[sub.linkId] = true;
+                changed = true;
+              }
+            }
+          }
         }
       }
     }
