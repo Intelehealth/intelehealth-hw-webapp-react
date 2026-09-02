@@ -223,16 +223,33 @@ export default function AppointmentScheduleComponent() {
       return;
     }
 
+    // The portal records hwUUID as the appointment's createdBy.
+    if (!hwProfile?.userUuid) {
+      setTimeout(() => {
+        showConfirmModal({
+          icon: iconCalendar,
+          title: 'Booking failed',
+          description:
+            'Your profile is still loading. Please try again in a moment.',
+          confirmText: 'Ok',
+          cancelText: 'Close',
+          type: 'confirm',
+          open: true,
+        });
+      }, 0);
+      return;
+    }
+
     setBooking(true);
     try {
       await appointmentService.bookAppointment(
         visitUuid!,
         selectedSlot!,
         {
-          hwUUID: hwProfile?.userUuid ?? '',
-          hwName: hwProfile?.fullName ?? '',
-          hwAge: hwProfile?.age != null ? String(hwProfile.age) : '',
-          hwGender: hwProfile?.gender ?? '',
+          hwUUID: hwProfile.userUuid,
+          hwName: hwProfile.fullName,
+          hwAge: hwProfile.age != null ? String(hwProfile.age) : '',
+          hwGender: hwProfile.gender,
         },
         isReschedule
           ? { appointmentId: rescheduleId, reason: rescheduleReason }

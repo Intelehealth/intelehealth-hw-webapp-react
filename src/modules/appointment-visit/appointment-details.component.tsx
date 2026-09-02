@@ -95,7 +95,8 @@ export default function AppointmentDetails() {
       });
       closeReasonModal();
       await refetch();
-    } catch {
+    } catch (error) {
+      console.error('Failed to cancel appointment:', error);
       setActionError('Unable to cancel the appointment. Please try again.');
     } finally {
       setSubmitting(false);

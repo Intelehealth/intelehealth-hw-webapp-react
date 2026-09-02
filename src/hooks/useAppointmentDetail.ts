@@ -37,7 +37,8 @@ export const useAppointmentDetail = (id: number | null) => {
       );
       setData(appointment);
       if (!appointment) setError('Appointment not found.');
-    } catch {
+    } catch (error) {
+      console.error('Failed to load appointment:', error);
       setData(null);
       setError('Unable to load the appointment. Please try again.');
     } finally {

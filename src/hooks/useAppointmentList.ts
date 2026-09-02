@@ -30,7 +30,8 @@ export const useAppointmentList = () => {
         to.toLocaleDateString('en-CA')
       );
       setData(appointments);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load appointments:', error);
       setData([]);
       setError('Unable to load appointments. Please try again.');
     } finally {

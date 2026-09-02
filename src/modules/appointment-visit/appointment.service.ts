@@ -7,16 +7,13 @@ import type {
   GetSlotsApiResponse,
   PushAppointment,
   RawBookedAppointment,
-  RawVisitResponse,
   SlotPeriod,
 } from '../../assets/data/appointments.data';
 import {
-  APPOINTMENT_SCHEDULE_ATTR_TYPE,
   BOOKING_VISIT_REP,
   CANCEL_APPOINTMENT_ENDPOINT,
   GET_SLOTS_ENDPOINT,
   PUSH_DATA_ENDPOINT,
-  PUSHDATA_CUSTOM_REP,
 } from '../../assets/data/appointments.data';
 import { HttpService } from '../../services/http';
 import { OpenMRSApi } from '../../services/openmrs';
@@ -41,7 +38,7 @@ class AppointmentApiService extends HttpService {
 
 const AppointmentApi = new AppointmentApiService();
 
-export type { AppointmentSlot, RawVisitResponse, SlotPeriod };
+export type { AppointmentSlot, SlotPeriod };
 
 function fromApiDate(ddmmyyyy: string): string {
   const [day, month, year] = ddmmyyyy.split('/');
@@ -182,68 +179,6 @@ export function buildBookingPayload(
   };
 }
 
-export function buildPushDataPayload(
-  visit: RawVisitResponse,
-  appointmentDatetime: string
-) {
-  const encounters = visit.encounters.map(enc => ({
-    encounterDatetime: enc.encounterDatetime,
-    encounterProviders: enc.encounterProviders.map(ep => ({
-      encounterRole: ep.encounterRole.uuid,
-      provider: ep.provider.uuid,
-    })),
-    encounterType: enc.encounterType.uuid,
-    location: visit.location.uuid,
-    obs: enc.obs.map(o => ({
-      comments: o.comment ?? '',
-      concept: o.concept.uuid,
-      uuid: o.uuid,
-      value: typeof o.value === 'string' ? o.value : o.value.uuid,
-    })),
-    patient: visit.patient.uuid,
-    uuid: enc.uuid,
-    visit: visit.uuid,
-    voided: 0,
-  }));
-
-  const attributes = visit.attributes.map(attr => ({
-    attributeType: attr.attributeType.uuid,
-    uuid: attr.uuid,
-    value:
-      attr.attributeType.uuid === APPOINTMENT_SCHEDULE_ATTR_TYPE
-        ? appointmentDatetime
-        : attr.value,
-  }));
-
-  if (
-    !attributes.some(a => a.attributeType === APPOINTMENT_SCHEDULE_ATTR_TYPE)
-  ) {
-    attributes.push({
-      attributeType: APPOINTMENT_SCHEDULE_ATTR_TYPE,
-      uuid: '',
-      value: appointmentDatetime,
-    });
-  }
-
-  return {
-    appointments: [],
-    encounters,
-    patients: [],
-    persons: [],
-    providers: [],
-    visits: [
-      {
-        attributes,
-        location: visit.location.uuid,
-        patient: visit.patient.uuid,
-        startDatetime: visit.startDatetime,
-        uuid: visit.uuid,
-        visitType: visit.visitType.uuid,
-      },
-    ],
-  };
-}
-
 export const appointmentService = {
   async getAppointmentSlots(
     fromDate: string,
@@ -345,12 +280,6 @@ export const appointmentService = {
       throw new Error(res.message || 'Appointment was not cancelled');
     }
     return res;
-  },
-
-  async getVisitForPushData(visitUuid: string): Promise<RawVisitResponse> {
-    return OpenMRSApi.get<RawVisitResponse>(
-      `/visit/${visitUuid}?v=${PUSHDATA_CUSTOM_REP}`
-    );
   },
 
   async getVisitForBooking(visitUuid: string): Promise<BookingVisitResponse> {

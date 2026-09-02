@@ -1108,7 +1108,7 @@ describe('AppointmentScheduleComponent', () => {
   });
 
   describe('Guards and profile fallbacks', () => {
-    it('sends empty health worker fields when no profile is loaded', async () => {
+    it('refuses to book when the profile has not loaded', async () => {
       mockHwProfile = null;
       vi.useFakeTimers({ now: earlyMorningTime });
       renderComponent();
@@ -1119,13 +1119,13 @@ describe('AppointmentScheduleComponent', () => {
       vi.useRealTimers();
 
       await waitFor(() => {
-        expect(mockBookAppointment).toHaveBeenCalledWith(
-          'test-visit-uuid',
-          expect.anything(),
-          { hwUUID: '', hwName: '', hwAge: '', hwGender: '' },
-          {}
-        );
+        expect(
+          screen.getByText(
+            'Your profile is still loading. Please try again in a moment.'
+          )
+        ).toBeInTheDocument();
       });
+      expect(mockBookAppointment).not.toHaveBeenCalled();
     });
 
     it('sends an empty age when the profile has none', async () => {
