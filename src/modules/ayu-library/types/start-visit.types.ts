@@ -14,6 +14,8 @@ export interface SectionProps {
   onReasonsConfirmed?: (reasons: string[]) => void;
   onStepperActiveChange?: (active: boolean) => void;
   onProtocolCleared?: () => void;
+  /** Whether this section is currently visible (false when hidden behind another section). */
+  isActive?: boolean;
 }
 
 export interface SectionState {

@@ -470,6 +470,7 @@ export const StartVisit = () => {
             onReasonsConfirmed={handleReasonsConfirmed}
             onStepperActiveChange={setIsVisitReasonStepperActive}
             onProtocolCleared={handleProtocolCleared}
+            isActive={currentSectionIndex === 1}
           />
         </div>
 

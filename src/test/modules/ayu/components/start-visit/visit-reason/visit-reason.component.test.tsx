@@ -83,7 +83,7 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-s
         getAnswers: mockStepperGetAnswers,
       }));
       return (
-        <div data-testid="ayu-stepper-container">
+        <div data-testid="ayu-stepper-container" data-is-active={String(!!props.isActive)}>
           <div>Stepper Container</div>
           {props.initialAnswers && (
             <div data-testid="initial-answers">{JSON.stringify(props.initialAnswers)}</div>
@@ -2241,6 +2241,157 @@ describe('VisitReason', () => {
       );
 
       expect(onStepperActiveChange).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  describe('isActive prop forwarding to AyuStepperContainer', () => {
+    const setupStepperVisible = () => {
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: { answers: { q1: 'a' }, reasonNames: ['Fever'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      mockTransformFhirToAyu.mockReturnValue({ linkId: 'root', type: 'group' as const, item: [] });
+
+      return createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+      });
+    };
+
+    it('passes isActive=true to AyuStepperContainer when isActive prop is true', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      expect(stepper).toHaveAttribute('data-is-active', 'true');
+    });
+
+    it('passes isActive=false to AyuStepperContainer when isActive prop is false', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      expect(stepper).toHaveAttribute('data-is-active', 'false');
+    });
+
+    it('passes isActive=false to AyuStepperContainer when isActive prop is omitted (undefined)', () => {
+      const visitReasons = setupStepperVisible();
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+        />
+      );
+
+      const stepper = screen.getByTestId('ayu-stepper-container');
+      // undefined coerces to false via !!props.isActive in the mock
+      expect(stepper).toHaveAttribute('data-is-active', 'false');
+    });
+
+    it('updates AyuStepperContainer data-is-active when isActive transitions false→true', () => {
+      /*
+       * Verifies that VisitReason correctly forwards isActive on every re-render,
+       * not just the initial one. A false→true transition (back-navigation from
+       * Physical Exam) must propagate immediately so AyuStepperContainer's
+       * useLayoutEffect can detect it.
+       */
+      const visitReasons = setupStepperVisible();
+
+      const { rerender } = render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      expect(screen.getByTestId('ayu-stepper-container')).toHaveAttribute('data-is-active', 'false');
+
+      rerender(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('ayu-stepper-container')).toHaveAttribute('data-is-active', 'true');
+    });
+
+    it('VisitReason search-UI state is preserved when isActive changes — no visibility side effects', () => {
+      /*
+       * VisitReason intentionally has no lifecycle effects that depend on
+       * isActive (it is a transparent pass-through to AyuStepperContainer).
+       * Changing isActive must NOT reset or disrupt any internal state such as
+       * the search text, selected reasons list, or footer visibility.
+       */
+      const visitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [],
+      });
+
+      const { rerender } = render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={true}
+        />
+      );
+
+      // Verify the default search UI is present while active
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
+
+      // Simulate navigating away (isActive becomes false)
+      rerender(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={visitReasons}
+          isActive={false}
+        />
+      );
+
+      // All UI elements must still be present — no state was disrupted
+      expect(screen.getByTestId('visit-reason-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
     });
   });
 });

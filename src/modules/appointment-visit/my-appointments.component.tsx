@@ -12,7 +12,7 @@ import iconClock from '../../assets/icons/appointment/icon-apm-clocktime.svg';
 import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconAngleSmallRight from '../../assets/icons/appointment/icon-angle-small-right.svg';
 import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
-import { appointmentsListData } from '../../assets/data/appointments.data';
+import { useAppointmentList } from '../../hooks/useAppointmentList';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 
@@ -32,9 +32,10 @@ export default function MyAppointments() {
     applySort: applyNameSort,
   } = useSortByName();
   const navigate = useNavigate();
+  const { data: appointments, loading, error } = useAppointmentList();
 
   const filteredAppointments = useMemo(() => {
-    const filtered = appointmentsListData.filter(item => {
+    const filtered = appointments.filter(item => {
       const matchTab = item.type === activeTab;
       const matchSearch = item.patientName
         .toLowerCase()
@@ -44,11 +45,11 @@ export default function MyAppointments() {
       return matchTab && matchSearch && matchStatus;
     });
     return applySort(applyNameSort(filtered));
-  }, [activeTab, search, statusFilter, applySort, applyNameSort]);
+  }, [appointments, activeTab, search, statusFilter, applySort, applyNameSort]);
 
   const upcomingCount = useMemo(
     () =>
-      appointmentsListData.filter(a => {
+      appointments.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -56,12 +57,12 @@ export default function MyAppointments() {
         const matchStatus = statusFilter ? a.status === statusFilter : true;
         return a.type === 'upcoming' && matchSearch && matchStatus;
       }).length,
-    [search, statusFilter]
+    [appointments, search, statusFilter]
   );
 
   const pastCount = useMemo(
     () =>
-      appointmentsListData.filter(a => {
+      appointments.filter(a => {
         const matchSearch = a.patientName
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -69,7 +70,7 @@ export default function MyAppointments() {
         const matchStatus = statusFilter ? a.status === statusFilter : true;
         return a.type === 'past' && matchSearch && matchStatus;
       }).length,
-    [search, statusFilter]
+    [appointments, search, statusFilter]
   );
 
   /* c8 ignore next */
@@ -318,7 +319,17 @@ export default function MyAppointments() {
         </div>
       </div>
 
-      {filteredAppointments.length === 0 && (
+      {loading && (
+        <div className="text-center text-gray-500 text-sm py-10">
+          Loading appointments...
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="text-center text-red-500 text-sm py-10">{error}</div>
+      )}
+
+      {!loading && !error && filteredAppointments.length === 0 && (
         <div className="text-center text-gray-500 text-sm py-10">
           No appointments found
         </div>

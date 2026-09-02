@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -433,7 +434,7 @@ export interface AyuStepperContainerHandle {
   getAnswers: () => Record<string, AyuAnswerValue>;
 }
 
-interface AyuStepperContainerProps {
+export interface AyuStepperContainerProps {
   questionnaire: FhirQuestionnaire;
   summaryTitle?: string;
   skipSummary?: boolean;
@@ -443,6 +444,9 @@ interface AyuStepperContainerProps {
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
   onSummaryShown?: () => void;
+  /** When the parent section toggles visibility (e.g. back from Physical Exam),
+   *  a false→true transition opens the last question in edit mode. */
+  isActive?: boolean;
 }
 
 export const AyuStepperContainer = forwardRef<
@@ -460,6 +464,7 @@ export const AyuStepperContainer = forwardRef<
       onComplete,
       onProgressUpdate,
       onSummaryShown,
+      isActive = true,
     },
     ref
   ) => {
@@ -549,10 +554,12 @@ export const AyuStepperContainer = forwardRef<
 
     const prevCompletedRef = useRef<number>(-1);
     const prevIndexRef = useRef<number>(currentIndex);
+    const prevIsActiveRef = useRef<boolean>(isActive);
+    const onProgressUpdateRef = useRef(onProgressUpdate);
 
     useEffect(() => {
       if (showAll && totalSteps > 0) {
-        onProgressUpdate?.(totalSteps, totalSteps);
+        onProgressUpdateRef.current?.(totalSteps, totalSteps);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -564,8 +571,8 @@ export const AyuStepperContainer = forwardRef<
       if (prevCompletedRef.current === completedSteps) return;
 
       prevCompletedRef.current = completedSteps;
-      onProgressUpdate?.(totalSteps, completedSteps);
-    }, [currentIndex, totalSteps, onProgressUpdate, showAll]);
+      onProgressUpdateRef.current?.(totalSteps, completedSteps);
+    }, [currentIndex, totalSteps, showAll]);
 
     /*
      * When the stepper auto-advances past a question (single-choice with autoNext,
@@ -603,6 +610,33 @@ export const AyuStepperContainer = forwardRef<
       });
     }, [currentIndex]);
 
+    /* Keep onProgressUpdateRef current so the progress effects never need the
+     * callback in their dependency arrays — prevents spurious re-runs when the
+     * parent re-renders with a new function reference (FE-001). */
+    useLayoutEffect(() => {
+      onProgressUpdateRef.current = onProgressUpdate;
+    });
+
+    /*
+     * Detect false→true transition of isActive (back from Physical Exam) and open the
+     * last question for editing. useLayoutEffect fires synchronously after the DOM commit
+     * but before paint; the resulting setState triggers a flush before the browser
+     * paints, so there is no answered-card flash. This is also Strict Mode-safe because
+     * the ref mutation happens inside the effect, not during render.
+     */
+    useLayoutEffect(() => {
+      if (!prevIsActiveRef.current && isActive && showAll) {
+        const lastQuestion = topLevelItems[topLevelItems.length - 1];
+        if (lastQuestion) {
+          setEditingQuestions(prev => {
+            if (prev.has(lastQuestion.linkId)) return prev;
+            return new Set(prev).add(lastQuestion.linkId);
+          });
+        }
+      }
+      prevIsActiveRef.current = isActive;
+    }, [isActive, showAll, topLevelItems]);
+
     if (!currentQuestion) return null;
 
     const visibleCount = showAll ? topLevelItems.length : currentIndex + 1;
@@ -612,7 +646,8 @@ export const AyuStepperContainer = forwardRef<
         {topLevelItems
           .slice(0, visibleCount)
           .map((question: AyuQuestion, index: number) => {
-            const isActive = index === currentIndex;
+            /* Renamed from isActive to avoid shadowing the same-named section-visibility prop. */
+            const isCurrentQuestion = index === currentIndex;
             const isSkipped = skippedQuestions.has(question.linkId);
             const showAsAnswered =
               (submittedQuestions.has(question.linkId) || isSkipped) &&
@@ -639,7 +674,7 @@ export const AyuStepperContainer = forwardRef<
             return (
               <div
                 key={question.linkId}
-                ref={isActive ? lastQuestionRef : null}
+                ref={isCurrentQuestion ? lastQuestionRef : null}
                 className="relative"
               >
                 {!isLastRendered && (
@@ -695,7 +730,9 @@ export const AyuStepperContainer = forwardRef<
                           />
                         )}
                       {/* ACTION BUTTONS */}
-                      {(isActive || showAll || index < currentIndex) && (
+                      {(isCurrentQuestion ||
+                        showAll ||
+                        index < currentIndex) && (
                         <div className="mt-3 flex gap-3 md:justify-end">
                           {/* SUBMIT for required string and quantity types */}
                           {(() => {
@@ -816,20 +853,12 @@ export const AyuStepperContainer = forwardRef<
                             const hasNestedRepeats = nestedFlags.hasRepeats;
                             const hasVisibleNestedInput = nestedFlags.hasInput;
 
-                            /* In review mode, show Submit for answered questions except pure single-choice */
+                            /* In review mode, always show Submit — autoNext is blocked when showAll=true */
                             if (
                               showAll &&
                               answers[question.linkId] !== undefined
                             ) {
-                              const isSingleChoiceWithoutNestedSubmit =
-                                question.type === FHIR_TYPE_CHOICE &&
-                                !question.repeats &&
-                                !hasNestedRepeats &&
-                                !hasVisibleNestedInput &&
-                                !isDurationChoice &&
-                                !hasNestedDuration;
-                              if (!isSingleChoiceWithoutNestedSubmit)
-                                return true;
+                              return true;
                             }
 
                             return (
@@ -901,7 +930,10 @@ export const AyuStepperContainer = forwardRef<
                                  * re-submitting it must always invoke goNext so a previously
                                  * cancelled summary modal can be re-opened.
                                  */
-                                if (isActive && (isLast || !wasEditing)) {
+                                if (
+                                  isCurrentQuestion &&
+                                  (isLast || !wasEditing)
+                                ) {
                                   if (isLast) {
                                     onProgressUpdate?.(totalSteps, totalSteps);
                                   }
@@ -915,9 +947,10 @@ export const AyuStepperContainer = forwardRef<
 
                           {/* SKIP for non-required */}
                           {!question.required &&
-                            (isActive ||
+                            (isCurrentQuestion ||
                               index < currentIndex ||
-                              skippedQuestions.has(question.linkId)) && (
+                              skippedQuestions.has(question.linkId) ||
+                              editingQuestions.has(question.linkId)) && (
                               <AyuButton
                                 variant="primary"
                                 className="w-full md:w-[10%]"
@@ -957,7 +990,10 @@ export const AyuStepperContainer = forwardRef<
                                     next.delete(question.linkId);
                                     return next;
                                   });
-                                  if (isActive && (isLast || !wasEditing)) {
+                                  if (
+                                    isCurrentQuestion &&
+                                    (isLast || !wasEditing)
+                                  ) {
                                     if (isLast) {
                                       onProgressUpdate?.(
                                         totalSteps,

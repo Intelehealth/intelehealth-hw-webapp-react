@@ -106,8 +106,8 @@ vi.mock('../../../../../modules/ayu/components/start-visit/vitals/vitals.compone
 }));
 
 vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/visit-reason.component', () => ({
-  VisitReason: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onReasonsConfirmed, onProtocolCleared }) => (
-    <div data-testid="visit-reason-component">
+  VisitReason: vi.fn(({ questionIndex, onNextQuestion, onPrevQuestion, onPrevSection, onReasonsConfirmed, onProtocolCleared, isActive }) => (
+    <div data-testid="visit-reason-component" data-is-active={String(!!isActive)}>
       <div>Visit Reason - Question {questionIndex}</div>
       <button onClick={onPrevSection}>Prev Section</button>
       <button onClick={onPrevQuestion}>Prev Question</button>
@@ -1829,6 +1829,68 @@ describe('StartVisit', () => {
       expect(mockSaveSectionToTemp).toHaveBeenCalledWith(
         expect.objectContaining({ currentSectionIndex: 0 })
       );
+    });
+  });
+
+  describe('isActive prop forwarded to VisitReason (currentSectionIndex === 1)', () => {
+    it('should pass isActive=false to VisitReason when on the Vitals section (index 0)', () => {
+      /*
+       * On initial mount the user is at Vitals (section 0).
+       * VisitReason is always mounted (display:none), so it receives isActive=false.
+       */
+      renderWithRouter(<StartVisit />);
+
+      const visitReason = screen.getByTestId('visit-reason-component');
+      expect(visitReason).toHaveAttribute('data-is-active', 'false');
+    });
+
+    it('should pass isActive=true to VisitReason when navigating to the VisitReason section (index 1)', async () => {
+      /*
+       * After "Next Vitals" click, currentSectionIndex becomes 1 and
+       * isActive={currentSectionIndex === 1} evaluates to true.
+       */
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      await user.click(screen.getByText('Next Vitals'));
+
+      const visitReason = screen.getByTestId('visit-reason-component');
+      expect(visitReason).toHaveAttribute('data-is-active', 'true');
+    });
+
+    it('should pass isActive=false to VisitReason when navigating past it (index 2)', async () => {
+      /*
+       * After "Next Question" on VisitReason, currentSectionIndex becomes 2
+       * (Physical Exam), so isActive becomes false again for VisitReason.
+       */
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      await user.click(screen.getByText('Next Vitals'));
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Next Question'));
+
+      expect(visitReason).toHaveAttribute('data-is-active', 'false');
+    });
+
+    it('should pass isActive=true again when navigating back to VisitReason section', async () => {
+      /*
+       * Back-navigation: Physical Exam → Visit Reason (Prev Section)
+       * must restore isActive=true so AyuStepperContainer opens in edit mode.
+       */
+      const user = userEvent.setup();
+      renderWithRouter(<StartVisit />);
+
+      // Go forward to Physical Exam
+      await user.click(screen.getByText('Next Vitals'));
+      const visitReason = screen.getByTestId('visit-reason-component');
+      await user.click(within(visitReason).getByText('Next Question'));
+
+      // Go back to Visit Reason via Prev Section
+      const physExam = screen.getByTestId('physical-exam-component');
+      await user.click(within(physExam).getByText('Prev Section'));
+
+      expect(visitReason).toHaveAttribute('data-is-active', 'true');
     });
   });
 });

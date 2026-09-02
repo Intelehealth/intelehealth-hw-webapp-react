@@ -5,6 +5,7 @@ import iconSearch from '../../assets/icons/icon-search.svg';
 
 import type { AppointmentListItem } from '../../assets/data/appointments.data';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconClock from '../../assets/icons/appointment/icon-apm-clocktime.svg';
 import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-recevied.svg';
 import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/violet-field-apm-appointment-details-icon.svg';
 import { ReusableGridTable } from '../../components/common/reusable-grid-table.component';
@@ -108,6 +109,17 @@ export const AppointmentListComponent = ({
           {row.status}
         </span>
       ),
+    },
+    {
+      header: 'Time Until',
+      accessor: 'timeUntil',
+      render: (row: AppointmentListItem) =>
+        row.timeUntil ? (
+          <span className="flex items-center gap-1 text-xs text-green-600">
+            <img src={iconClock} alt="" className="w-3.5 h-3.5 shrink-0" />
+            {row.timeUntil}
+          </span>
+        ) : null,
     },
   ];
 

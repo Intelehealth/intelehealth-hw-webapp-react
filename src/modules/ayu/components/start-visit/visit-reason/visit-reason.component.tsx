@@ -45,6 +45,7 @@ export const VisitReason = ({
   onReasonsConfirmed,
   onStepperActiveChange,
   onProtocolCleared,
+  isActive,
 }: SectionProps) => {
   const {
     search,
@@ -235,6 +236,12 @@ export const VisitReason = ({
       <div className="w-full flex flex-col mt-4">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-[996px]">
+            {/*
+             * isActive is forwarded verbatim from the parent section so
+             * AyuStepperContainer can detect false→true transitions and open
+             * the last question for editing when the user navigates back from
+             * Physical Exam. VisitReason itself has no per-render use for it.
+             */}
             <AyuStepperContainer
               ref={stepperRef}
               questionnaire={stableSchema}
@@ -243,6 +250,7 @@ export const VisitReason = ({
               onComplete={handleStepperComplete}
               onProgressUpdate={handleStepperProgress}
               onSummaryShown={() => setSummaryShown(true)}
+              isActive={isActive}
             />
           </div>
         </div>

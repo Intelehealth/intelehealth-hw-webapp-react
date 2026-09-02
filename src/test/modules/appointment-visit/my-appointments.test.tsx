@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MyAppointments from '../../../modules/appointment-visit/my-appointments.component';
 import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
+import * as useAppointmentListModule from '../../../hooks/useAppointmentList';
+import { appointmentsListData } from '../../../assets/data/appointments.data';
 
 const mockNavigate = vi.fn();
 
@@ -18,6 +20,12 @@ const renderComponent = () => render(<BreadcrumbProvider><MyAppointments /></Bre
 describe('MyAppointments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+      data: appointmentsListData,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
   });
 
   describe('Initial render', () => {
@@ -403,6 +411,32 @@ describe('MyAppointments', () => {
       renderComponent();
       const angleIcons = document.querySelectorAll('img[alt=">"]');
       expect(angleIcons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Loading and error states', () => {
+    it('shows a loading message while fetching', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [],
+        loading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderComponent();
+      expect(screen.getByText('Loading appointments...')).toBeInTheDocument();
+    });
+
+    it('shows the error message when the fetch fails', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [],
+        loading: false,
+        error: 'Unable to load appointments. Please try again.',
+        refetch: vi.fn(),
+      });
+      renderComponent();
+      expect(
+        screen.getByText('Unable to load appointments. Please try again.')
+      ).toBeInTheDocument();
     });
   });
 });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentListComponent } from '../../../modules/dashboard/appointment-list.component';
 import * as useAppointmentListModule from '../../../hooks/useAppointmentList';
+import { appointmentsListData } from '../../../assets/data/appointments.data';
 
 const mockNavigate = vi.fn();
 
@@ -32,6 +33,12 @@ const renderComponent = (props?: { initialRowCount?: number }) =>
 describe('AppointmentListComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+      data: appointmentsListData,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
   });
 
   describe('Initial render', () => {
@@ -297,6 +304,7 @@ describe('AppointmentListComponent', () => {
         data: [],
         loading: true,
         error: null,
+        refetch: vi.fn(),
       });
       renderComponent();
       expect(screen.getByText('Loading...')).toBeInTheDocument();
@@ -309,11 +317,50 @@ describe('AppointmentListComponent', () => {
         data: [],
         loading: false,
         error: 'Failed to load appointments',
+        refetch: vi.fn(),
       });
       renderComponent();
       expect(
         screen.getByText('Failed to load appointments')
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Time Until column', () => {
+    it('renders the Time Until header', () => {
+      renderComponent();
+      expect(screen.getAllByText('Time Until').length).toBeGreaterThan(0);
+    });
+
+    it('shows the countdown for upcoming appointments', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [
+          {
+            ...appointmentsListData[0],
+            type: 'upcoming',
+            timeUntil: 'in 7 Hours 9 min',
+          },
+        ],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderComponent();
+      expect(screen.getAllByText('in 7 Hours 9 min').length).toBeGreaterThan(0);
+    });
+
+    it('renders nothing when there is no countdown', () => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [
+          { ...appointmentsListData[0], type: 'upcoming', timeUntil: '' },
+        ],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderComponent();
+      expect(screen.getAllByText('Time Until').length).toBeGreaterThan(0);
+      expect(screen.queryByText(/^in \d/)).not.toBeInTheDocument();
     });
   });
 });
