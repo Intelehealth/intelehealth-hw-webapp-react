@@ -4,7 +4,11 @@ import { GlobalModalProvider } from '../../../components/modal/global-modal-cont
 import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 
 const mockNavigate = vi.fn();
-let mockLocationState: { speciality?: string } | null = { speciality: 'General Physician' };
+let mockLocationState: {
+  speciality?: string;
+  appointmentId?: number;
+  reason?: string;
+} | null = { speciality: 'General Physician' };
 let mockVisitUuid: string | undefined = 'test-visit-uuid';
 
 vi.mock('react-router-dom', async () => {
@@ -22,10 +26,23 @@ const morningTimes = ['09:00 am', '09:30 am', '10:00 am', '10:30 am', '11:00 am'
 const afternoonTimes = ['12:00 pm', '12:30 pm', '01:00 pm', '01:30 pm', '02:00 pm', '02:30 pm', '03:00 pm', '03:30 pm', '04:00 pm', '04:30 pm', '05:00 pm', '05:30 pm', '06:00 pm'];
 const eveningTimes = ['06:30 pm', '07:00 pm', '07:30 pm', '08:00 pm', '08:30 pm', '09:00 pm', '09:30 pm', '10:00 pm', '10:30 pm', '11:00 pm'];
 
+const slotMeta = (date: string, time: string) => {
+  const [d, m, y] = [date.slice(8, 10), date.slice(5, 7), date.slice(0, 4)];
+  return {
+    slotDay: new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long' }),
+    slotDate: `${d}/${m}/${y}`,
+    slotTime: time.toUpperCase(),
+    slotDuration: 30,
+    slotDurationUnit: 'minutes',
+    userUuid: 'doctor-uuid-1',
+    drName: 'Doctor One',
+  };
+};
+
 const buildSlotsForDate = (date: string, allAvailable = true) => [
-  ...morningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: allAvailable, period: 'Morning' as const, speciality: 'General Physician' })),
-  ...afternoonTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Afternoon' as const, speciality: 'General Physician' })),
-  ...eveningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Evening' as const, speciality: 'General Physician' })),
+  ...morningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: allAvailable, period: 'Morning' as const, speciality: 'General Physician', ...slotMeta(date, time) })),
+  ...afternoonTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Afternoon' as const, speciality: 'General Physician', ...slotMeta(date, time) })),
+  ...eveningTimes.map(time => ({ slotId: `${date}-${time.replace(/\s+/g, '-')}`, date, time, isAvailable: true, period: 'Evening' as const, speciality: 'General Physician', ...slotMeta(date, time) })),
 ];
 
 // Generate slots for today and next 90 days to cover future-month navigation tests
@@ -44,6 +61,22 @@ let mockSlotsReturn: { data: typeof defaultSlots; loading: boolean; error: strin
   loading: false,
   error: null,
 };
+
+let mockHwProfile: {
+  userUuid: string;
+  fullName: string;
+  age: number | null;
+  gender: string;
+} | null = {
+  userUuid: 'hw-uuid-1',
+  fullName: 'Jane Test Smith',
+  age: 28,
+  gender: 'F',
+};
+
+vi.mock('../../../context/ProfileContext', () => ({
+  useProfileContext: () => ({ hwProfile: mockHwProfile }),
+}));
 
 vi.mock('../../../hooks/useAppointmentSlots', () => ({
   useAppointmentSlots: () => mockSlotsReturn,
@@ -106,6 +139,12 @@ describe('AppointmentScheduleComponent', () => {
     mockSlotsReturn = { data: defaultSlots, loading: false, error: null };
     mockVisitUuid = 'test-visit-uuid';
     mockLocationState = { speciality: 'General Physician' };
+    mockHwProfile = {
+      userUuid: 'hw-uuid-1',
+      fullName: 'Jane Test Smith',
+      age: 28,
+      gender: 'F',
+    };
     Object.defineProperty(window, 'innerWidth', {
       value: 500,
       writable: true,
@@ -777,7 +816,9 @@ describe('AppointmentScheduleComponent', () => {
       await waitFor(() => {
         expect(mockBookAppointment).toHaveBeenCalledWith(
           'test-visit-uuid',
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T09:00:00\.000\+0530$/)
+          expect.objectContaining({ time: '09:00 am', slotTime: '09:00 AM' }),
+          expect.objectContaining({ hwUUID: 'hw-uuid-1', hwName: 'Jane Test Smith' }),
+          {}
         );
         expect(screen.getByText('Appointment booked successfully!')).toBeInTheDocument();
       });
@@ -824,7 +865,9 @@ describe('AppointmentScheduleComponent', () => {
       await waitFor(() => {
         expect(mockBookAppointment).toHaveBeenCalledWith(
           'test-visit-uuid',
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T13:00:00\.000\+0530$/)
+          expect.objectContaining({ time: '01:00 pm', slotTime: '01:00 PM' }),
+          expect.objectContaining({ hwUUID: 'hw-uuid-1' }),
+          {}
         );
       });
     });
@@ -840,7 +883,9 @@ describe('AppointmentScheduleComponent', () => {
       await waitFor(() => {
         expect(mockBookAppointment).toHaveBeenCalledWith(
           'test-visit-uuid',
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T12:00:00\.000\+0530$/)
+          expect.objectContaining({ time: '12:00 pm', slotTime: '12:00 PM' }),
+          expect.objectContaining({ hwUUID: 'hw-uuid-1' }),
+          {}
         );
       });
     });
@@ -854,6 +899,7 @@ describe('AppointmentScheduleComponent', () => {
         isAvailable: true,
         period: 'Morning' as const,
         speciality: 'General Physician',
+        ...slotMeta(todayStr, '12:00 am'),
       };
       mockSlotsReturn = { data: [...defaultSlots, midnightSlot], loading: false, error: null };
       vi.useFakeTimers({ now: earlyMorningTime });
@@ -866,7 +912,9 @@ describe('AppointmentScheduleComponent', () => {
       await waitFor(() => {
         expect(mockBookAppointment).toHaveBeenCalledWith(
           'test-visit-uuid',
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00\.000\+0530$/)
+          expect.objectContaining({ time: '12:00 am', slotTime: '12:00 AM' }),
+          expect.objectContaining({ hwUUID: 'hw-uuid-1' }),
+          {}
         );
       });
     });
@@ -994,6 +1042,115 @@ describe('AppointmentScheduleComponent', () => {
       const buttons = getDateArea().querySelectorAll('button');
       expect(buttons.length).toBeGreaterThan(0);
       expect(buttons.length).toBeLessThanOrEqual(31);
+    });
+  });
+
+  describe('Reschedule mode', () => {
+    beforeEach(() => {
+      mockLocationState = {
+        speciality: 'General Physician',
+        appointmentId: 11,
+        reason: 'Doctor is not available',
+      };
+    });
+
+    it('forwards appointmentId and reason to bookAppointment', async () => {
+      vi.useFakeTimers({ now: earlyMorningTime });
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.objectContaining({ slotTime: '09:00 AM' }),
+          expect.objectContaining({ hwUUID: 'hw-uuid-1' }),
+          { appointmentId: 11, reason: 'Doctor is not available' }
+        );
+      });
+    });
+
+    it('shows the rescheduled success message', async () => {
+      vi.useFakeTimers({ now: earlyMorningTime });
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Appointment rescheduled successfully!')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows the reschedule failure message', async () => {
+      mockBookAppointment.mockRejectedValueOnce(new Error('Network error'));
+      vi.useFakeTimers({ now: earlyMorningTime });
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to reschedule the appointment. Please try again.')
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Guards and profile fallbacks', () => {
+    it('sends empty health worker fields when no profile is loaded', async () => {
+      mockHwProfile = null;
+      vi.useFakeTimers({ now: earlyMorningTime });
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.anything(),
+          { hwUUID: '', hwName: '', hwAge: '', hwGender: '' },
+          {}
+        );
+      });
+    });
+
+    it('sends an empty age when the profile has none', async () => {
+      mockHwProfile = {
+        userUuid: 'hw-uuid-1',
+        fullName: 'Jane Test Smith',
+        age: null,
+        gender: 'F',
+      };
+      vi.useFakeTimers({ now: earlyMorningTime });
+      renderComponent();
+      fireEvent.click(screen.getByText('09:00 am'));
+      fireEvent.click(screen.getByRole('button', { name: 'Book Appointment' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+      await act(async () => { await vi.runAllTimersAsync(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(mockBookAppointment).toHaveBeenCalledWith(
+          'test-visit-uuid',
+          expect.anything(),
+          expect.objectContaining({ hwAge: '' }),
+          {}
+        );
+      });
     });
   });
 });

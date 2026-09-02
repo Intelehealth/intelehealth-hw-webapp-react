@@ -9,6 +9,13 @@ export interface AppointmentSlot {
   isAvailable: boolean;
   period: SlotPeriod;
   speciality?: string;
+  slotDay: string;
+  slotDate: string;
+  slotTime: string;
+  slotDuration: number;
+  slotDurationUnit: string;
+  userUuid: string;
+  drName: string;
 }
 
 export interface RawAppointmentSlot {
@@ -83,6 +90,92 @@ export const APPOINTMENT_SCHEDULE_ATTR_TYPE =
 
 // API endpoints
 export const PUSH_DATA_ENDPOINT = '/push/pushdata';
+
+export const GET_SLOTS_ENDPOINT = '/appointment/getSlots';
+
+export const CANCEL_APPOINTMENT_ENDPOINT = '/appointment/cancelAppointment';
+
+export const BOOKING_VISIT_REP =
+  'custom:(uuid,location:(uuid),' +
+  'patient:(uuid,identifiers:(identifier),' +
+  'person:(display,gender,age)))';
+
+export interface BookingVisitResponse {
+  uuid: string;
+  location: { uuid: string };
+  patient: {
+    uuid: string;
+    identifiers: { identifier: string }[];
+    person: { display: string; gender: string | null; age: number | null };
+  };
+}
+
+export interface PushAppointment {
+  appointmentId: number;
+  uuid: string;
+  visitUuid: string;
+  patientId: string;
+  openMrsId: string;
+  patientName: string;
+  patientAge: string;
+  patientGender: string;
+  patientPic: string;
+  hwUUID: string;
+  hwName: string;
+  hwAge: string;
+  hwGender: string;
+  userUuid: string;
+  drName: string;
+  locationUuid: string;
+  slotDay: string;
+  slotDate: string;
+  slotTime: string;
+  slotDuration: number;
+  slotDurationUnit: string;
+  speciality: string;
+  sync: string;
+  reason?: string;
+}
+
+export interface BookingHealthWorker {
+  hwUUID: string;
+  hwName: string;
+  hwAge: string;
+  hwGender: string;
+}
+
+export interface RawBookedAppointment {
+  id: number;
+  slotDay: string;
+  slotDate: string;
+  slotJsDate: string;
+  slotDuration: number;
+  slotDurationUnit: string;
+  slotTime: string;
+  speciality: string;
+  userUuid: string;
+  drName: string;
+  visitUuid: string;
+  patientId: string;
+  locationUuid: string;
+  hwUUID: string;
+  patientName: string;
+  openMrsId: string;
+  status: string;
+  reason: string | null;
+  patientAge: string | null;
+  patientGender: string | null;
+  hwName: string | null;
+  type: string;
+  createdAt: string;
+  rescheduledAppointments?: RawBookedAppointment[];
+}
+
+export interface GetSlotsApiResponse {
+  status: boolean;
+  data: RawBookedAppointment[];
+  cancelledAppointments: RawBookedAppointment[];
+}
 
 // ─── Appointment List API Types ───────────────────────────────────────────────
 
