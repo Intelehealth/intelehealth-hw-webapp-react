@@ -34,10 +34,17 @@ export function ReusableGridTable<T>({
   const visibleData = showAll ? data : data.slice(0, initialRowCount);
   const hasMore = data.length > initialRowCount;
 
+  const gridTemplate = {
+    gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+  };
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* Desktop Header – fixed at top */}
-      <div className="hidden lg:grid lg:grid-cols-6 gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500 bg-white z-10 py-2 shrink-0">
+      <div
+        style={gridTemplate}
+        className="hidden lg:grid gap-4 px-6 lg:px-4 mt-1 text-sm font-medium text-gray-500 bg-white z-10 py-2 shrink-0"
+      >
         {columns.map((col, index) => {
           const isActive = sortKey === String(col.accessor);
           return (
@@ -88,7 +95,10 @@ export function ReusableGridTable<T>({
             </div>
 
             {/* DESKTOP VIEW */}
-            <div className="hidden lg:grid lg:grid-cols-6 lg:items-center gap-4 px-2 h-[46px] text-sm">
+            <div
+              style={gridTemplate}
+              className="hidden lg:grid lg:items-center gap-4 px-2 h-[46px] text-sm"
+            >
               {columns.map((col, colIndex) => (
                 <div key={colIndex} className="truncate">
                   {col.render

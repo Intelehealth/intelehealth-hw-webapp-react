@@ -9,8 +9,9 @@ import iconsvioletFieldAppointmentDetails from '../../assets/icons/appointment/v
 import iconCalendar from '../../assets/icons/appointment/icon-apm-calendar.svg';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import { useAppointmentSlots } from '../../hooks/useAppointmentSlots';
+import { useProfileContext } from '../../context/ProfileContext';
 import { appointmentService } from './appointment.service';
-import type { SlotPeriod } from './appointment.service';
+import type { AppointmentSlot, SlotPeriod } from './appointment.service';
 
 const MONTHS = [
   'January',
@@ -34,12 +35,23 @@ export default function AppointmentScheduleComponent() {
   const location = useLocation();
   const { visitUuid: visitUuidParam } = useParams<{ visitUuid: string }>();
   const { showConfirmModal } = useGlobalModal();
-  const locationState = location.state as { speciality?: string } | null;
+  const { hwProfile } = useProfileContext();
+  const locationState = location.state as {
+    speciality?: string;
+    appointmentId?: number;
+    reason?: string;
+  } | null;
   const visitUuid = visitUuidParam;
   const speciality = locationState?.speciality ?? 'General Physician';
+  const rescheduleId = locationState?.appointmentId;
+  const rescheduleReason = locationState?.reason;
+  const isReschedule = rescheduleId != null;
 
   const [selectedDate, setSelectedDate] = useState(today);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(
+    null
+  );
+  const selectedTime = selectedSlot?.time ?? null;
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [booking, setBooking] = useState(false);
   const [dateOffset, setDateOffset] = useState(0);
@@ -85,7 +97,7 @@ export default function AppointmentScheduleComponent() {
       setSelectedDate(
         isCurrentMonth ? today : prevMonth.toLocaleDateString('en-CA')
       );
-      setSelectedTime(null);
+      setSelectedSlot(null);
       setDateOffset(0);
     }
   };
@@ -94,7 +106,7 @@ export default function AppointmentScheduleComponent() {
     const nextMonth = new Date(year, month + 1, 1);
     setCurrentMonth(nextMonth);
     setSelectedDate(nextMonth.toLocaleDateString('en-CA'));
-    setSelectedTime(null);
+    setSelectedSlot(null);
     setDateOffset(0);
   };
 
@@ -143,13 +155,23 @@ export default function AppointmentScheduleComponent() {
 
   const displaySlots: Record<
     SlotPeriod,
-    { time: string; available: boolean; passed: boolean }[]
+    {
+      time: string;
+      available: boolean;
+      passed: boolean;
+      slot: AppointmentSlot;
+    }[]
   > = useMemo(() => {
     const now = new Date();
     const isToday = selectedDate === today;
     const grouped: Record<
       SlotPeriod,
-      { time: string; available: boolean; passed: boolean }[]
+      {
+        time: string;
+        available: boolean;
+        passed: boolean;
+        slot: AppointmentSlot;
+      }[]
     > = {
       Morning: [],
       Afternoon: [],
@@ -174,6 +196,7 @@ export default function AppointmentScheduleComponent() {
           time: slot.time,
           available: slot.isAvailable,
           passed,
+          slot,
         });
       }
     }
@@ -200,21 +223,45 @@ export default function AppointmentScheduleComponent() {
       return;
     }
 
-    setBooking(true);
-    const [time, meridiem] = selectedTime!.split(' ');
-    const [hourStr, min] = time.split(':');
-    let hour = parseInt(hourStr, 10);
-    if (meridiem.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-    if (meridiem.toLowerCase() === 'am' && hour === 12) hour = 0;
-    const appointmentDatetime = `${selectedDate}T${String(hour).padStart(2, '0')}:${min}:00.000+0530`;
+    // The portal records hwUUID as the appointment's createdBy.
+    if (!hwProfile?.userUuid) {
+      setTimeout(() => {
+        showConfirmModal({
+          icon: iconCalendar,
+          title: 'Booking failed',
+          description:
+            'Your profile is still loading. Please try again in a moment.',
+          confirmText: 'Ok',
+          cancelText: 'Close',
+          type: 'confirm',
+          open: true,
+        });
+      }, 0);
+      return;
+    }
 
+    setBooking(true);
     try {
-      await appointmentService.bookAppointment(visitUuid!, appointmentDatetime);
+      await appointmentService.bookAppointment(
+        visitUuid!,
+        selectedSlot!,
+        {
+          hwUUID: hwProfile.userUuid,
+          hwName: hwProfile.fullName,
+          hwAge: hwProfile.age != null ? String(hwProfile.age) : '',
+          hwGender: hwProfile.gender,
+        },
+        isReschedule
+          ? { appointmentId: rescheduleId, reason: rescheduleReason }
+          : {}
+      );
 
       setTimeout(() => {
         showConfirmModal({
           icon: iconCalendar,
-          title: 'Appointment booked successfully!',
+          title: isReschedule
+            ? 'Appointment rescheduled successfully!'
+            : 'Appointment booked successfully!',
           confirmText: 'Ok',
           cancelText: 'Close',
           type: 'confirm',
@@ -230,7 +277,9 @@ export default function AppointmentScheduleComponent() {
         showConfirmModal({
           icon: iconCalendar,
           title: 'Booking failed',
-          description: 'Failed to book the appointment. Please try again.',
+          description: isReschedule
+            ? 'Failed to reschedule the appointment. Please try again.'
+            : 'Failed to book the appointment. Please try again.',
           confirmText: 'Ok',
           cancelText: 'Close',
           type: 'confirm',
@@ -338,7 +387,7 @@ export default function AppointmentScheduleComponent() {
                 key={date}
                 onClick={() => {
                   setSelectedDate(date);
-                  setSelectedTime(null);
+                  setSelectedSlot(null);
                 }}
                 className={`w-[50px] h-[60px] shrink-0 rounded-xl border flex flex-col items-center justify-center text-xs transition
                   ${
@@ -406,7 +455,7 @@ export default function AppointmentScheduleComponent() {
               </div>
 
               <div className="grid grid-cols-3 md:grid-cols-6 lg:flex lg:flex-wrap gap-3">
-                {slots.map(({ time, available, passed }) => {
+                {slots.map(({ time, available, passed, slot }) => {
                   const selected = selectedTime === time;
                   const disabled = !available || passed;
 
@@ -414,7 +463,7 @@ export default function AppointmentScheduleComponent() {
                     <button
                       key={time}
                       disabled={!selectedDate || disabled}
-                      onClick={() => setSelectedTime(selected ? null : time)}
+                      onClick={() => setSelectedSlot(selected ? null : slot)}
                       className={`h-[37px] min-w-[97px] rounded-lg text-xs font-medium border transition
                         ${
                           selected
