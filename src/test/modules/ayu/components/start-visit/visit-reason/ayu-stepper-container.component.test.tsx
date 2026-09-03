@@ -7167,4 +7167,288 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
     });
   });
+
+  describe('submittedQuestions set-membership fast paths', () => {
+    it('should not re-add last item to submittedQuestions when already present on complete', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+        showAll: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire(questions)}
+          initialAnswers={{ q1: 'a' }}
+          skipSummary
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+
+      const hookOnComplete = _mockUseFHIRStepper.mock.calls.at(-1)?.[0]?.onComplete;
+      hookOnComplete?.({ q1: 'a' });
+
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'a' });
+      expect(screen.getByTestId('question-loader-0')).toBeInTheDocument();
+    });
+
+    it('should not re-add last question when showAll transitions false→true and question already submitted', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+      ];
+
+      const makeReturn = (showAll: boolean) => ({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+        showAll,
+      });
+
+      mockUseFHIRStepper.mockReturnValue(makeReturn(false));
+
+      const questionnaire = createMockQuestionnaire(questions);
+      // initialAnswers puts q1 into submittedQuestions at construction time
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      mockUseFHIRStepper.mockReturnValue(makeReturn(true));
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('should return prev unchanged from useLayoutEffect when no new answered items exist', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+      ];
+
+      const makeReturn = (showAll: boolean) => ({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+        showAll,
+      });
+
+      mockUseFHIRStepper.mockReturnValue(makeReturn(true));
+
+      const questionnaire = createMockQuestionnaire(questions);
+
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          isActive={true}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // isActive: true → false (prevIsActiveRef becomes false)
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          isActive={false}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          isActive={true}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+
+    it('should not double-add question via backfill when already in submittedQuestions', () => {
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+        { linkId: 'q2', text: 'Question 2', type: 'string', required: true },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 2,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      // initialAnswers puts q1 into submittedQuestions at construction time.
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // currentIndex advances to 1; backfill effect iterates from 0 to 1 and
+      // tries to add q1. q1 is already in submittedQuestions → prevSet.has('q1')
+      // → true fast-path returns prevSet unchanged.
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: true,
+        showAll: false,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ q1: 'a' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+    });
+  });
+
+  describe('onResetAnswers callback', () => {
+    it('should call onResetAnswers prop when useFHIRStepper triggers a reset', () => {
+      const mockOnResetAnswers = vi.fn();
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+        showAll: false,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          onResetAnswers={mockOnResetAnswers}
+        />
+      );
+
+      // Invoke the onResetAnswers callback that was wired into useFHIRStepper.
+      // This calls resetAnswersRef.current(), which calls onResetAnswers?.() at line 595.
+      const hookOnResetAnswers = _mockUseFHIRStepper.mock.calls.at(-1)?.[0]
+        ?.onResetAnswers as () => void;
+      hookOnResetAnswers();
+
+      expect(mockOnResetAnswers).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update submittedQuestions with new answered items when isActive transitions false to true', () => {
+      // Covers line 694 "return next" branch:
+      // prev is empty (no initialAnswers), latestAnswers has q1 → next.size > prev.size → returns next.
+      const questions: AyuQuestion[] = [
+        { linkId: 'q1', text: 'Question 1', type: 'string', required: true },
+      ];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: questions[0],
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'a' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      // isActive=false → prevIsActiveRef initialises as false.
+      // No initialAnswers → submittedQuestions starts empty.
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          isActive={false}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // isActive: false → true triggers useLayoutEffect body.
+      // prev is empty, latestAnswers has q1 → next adds q1 → next.size(1) != prev.size(0) → returns next.
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          isActive={true}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+  });
 });

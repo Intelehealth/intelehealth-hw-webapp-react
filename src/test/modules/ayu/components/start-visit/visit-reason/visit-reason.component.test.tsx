@@ -109,6 +109,12 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-s
           >
             Summary Shown
           </button>
+          <button
+            data-testid="stepper-reset-button"
+            onClick={() => props.onResetAnswers?.()}
+          >
+            Reset Answers
+          </button>
         </div>
       );
     }),
@@ -2440,6 +2446,67 @@ describe('VisitReason', () => {
       await waitFor(() => {
         expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('handleResetAnswers (onResetAnswers prop forwarded to AyuStepperContainer)', () => {
+    it('should clear all visit-reason state and call onProgressUpdate and onProtocolCleared when reset is triggered', async () => {
+      const user = userEvent.setup();
+      const mockOnProtocolCleared = vi.fn();
+      const mockClearReasons = vi.fn();
+
+      mockTransformFhirToAyu.mockReturnValue({
+        linkId: 'root',
+        type: 'group' as const,
+        item: [],
+      });
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: { answers: { q1: 'a' }, reasonNames: ['Fever'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      defaultVisitReasons = createDefaultVisitReasons({
+        selectedReasons: ['Fever'],
+        selectedComplaints: [createMockAyuJsonItem()],
+        clearReasons: mockClearReasons,
+      });
+
+      render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          onProgressUpdate={mockOnProgressUpdate}
+          onProtocolCleared={mockOnProtocolCleared}
+          visitReasons={defaultVisitReasons}
+        />
+      );
+
+      // savedAnswers exist so stepper renders immediately
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+
+      mockClearVisitReasonData.mockClear();
+      mockSaveSectionToTemp.mockClear();
+      mockOnProgressUpdate.mockClear();
+
+      await user.click(screen.getByTestId('stepper-reset-button'));
+
+      expect(mockClearReasons).toHaveBeenCalledTimes(1);
+      expect(mockClearVisitReasonData).toHaveBeenCalledTimes(1);
+      expect(mockSaveSectionToTemp).toHaveBeenCalledWith({ visitReason: null, confirmedReasons: [] });
+      expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
+      expect(mockOnProtocolCleared).toHaveBeenCalledTimes(1);
     });
   });
 });
