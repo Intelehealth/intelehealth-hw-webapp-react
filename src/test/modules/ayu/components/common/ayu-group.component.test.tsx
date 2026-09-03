@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { AyuGroup } from '../../../../../modules/ayu/components/common/ayu-group.component';
-import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import type { AyuAnswerValue, AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import { EXT_URL_DISPLAY_TEXT } from '../../../../../modules/ayu-library/utils/constants';
 import { AyuRenderer } from '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component';
 
@@ -281,7 +281,7 @@ describe('AyuGroup', () => {
       const mockSetAnswer = vi.fn();
       AyuRendererMock.mockClear();
 
-      let capturedOnChange: ((val: unknown) => void) | undefined;
+      let capturedOnChange: ((value: AyuAnswerValue) => void) | undefined;
       AyuRendererMock.mockImplementationOnce(({ onChange }) => {
         capturedOnChange = onChange;
         return <div data-testid="renderer-child-1" />;
