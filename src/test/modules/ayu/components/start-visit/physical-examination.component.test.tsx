@@ -644,7 +644,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
               expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
             ]),
           }),
-        ])
+        ]),
+        { q1: ['yes'] }
       );
       expect(originalOnNext).toHaveBeenCalledTimes(1);
     });
@@ -669,6 +670,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSaveSectionToTemp).toHaveBeenCalledWith({
         physicalExam: {
           answers: { q1: ['yes'] },
+          rawAnswers: { q1: ['yes'] },
           details: expect.any(Array),
           detailsSections: expect.any(Array),
         },
@@ -720,7 +722,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: ['yes'] },
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
+        { q1: 'yes' }
       );
     });
 
@@ -1072,7 +1075,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: [] },
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
+        { q1: 42 }
       );
     });
 

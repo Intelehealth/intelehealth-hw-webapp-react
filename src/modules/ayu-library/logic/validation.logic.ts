@@ -163,16 +163,6 @@ export const isNestedInputValueMissing = (
   return check(question.item, question);
 };
 
-/**
- * Check if a Physical Exam question has a nested BP input (integer or string
- * with range constraints) whose value is still missing. A field is treated as a
- * BP input when it carries FHIR minValue/maxValue extensions OR its text
- * contains a known BP keyword (e.g. "systolic", "diastolic").
- *
- * This is intentionally narrower than hasUnansweredRequiredNestedChild so that
- * optional PE concept-tag subtrees are left unaffected — only fields that look
- * like numeric BP measurements are enforced.
- */
 export const hasMissingNestedBPInput = (
   question: AyuQuestion,
   answers: Record<string, AyuAnswerValue>

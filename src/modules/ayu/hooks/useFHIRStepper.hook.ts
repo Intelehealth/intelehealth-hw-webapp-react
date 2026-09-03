@@ -49,6 +49,8 @@ interface UseFHIRStepperProps {
   questionIndexOffset?: number;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onSummaryShown?: () => void;
+  resetLinkIds?: string[];
+  onResetAnswers?: () => void;
 }
 
 interface UseFHIRStepperReturn {
@@ -88,6 +90,8 @@ export const useFHIRStepper = (
     questionIndexOffset = 0,
     onComplete,
     onSummaryShown,
+    resetLinkIds,
+    onResetAnswers,
   } = props;
   const hasInitialAnswers =
     initialAnswers && Object.keys(initialAnswers).length > 0;
@@ -304,6 +308,39 @@ export const useFHIRStepper = (
   const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {
     const linkId = question.linkId;
 
+    let precomputedFinalValue: AyuAnswerValue = value;
+    if (question.type === FHIR_TYPE_CHOICE && question.repeats) {
+      if (Array.isArray(value)) {
+        precomputedFinalValue = value;
+      } else {
+        const currentValue = answersRef.current[linkId];
+        const currentArray: string[] = Array.isArray(currentValue)
+          ? currentValue
+          : [];
+        precomputedFinalValue = computeMultiSelectToggle(
+          question,
+          currentArray,
+          value as string
+        );
+      }
+    }
+
+    if (
+      resetLinkIds?.includes(linkId) &&
+      answersRef.current[linkId] !== undefined &&
+      answersRef.current[linkId] !== precomputedFinalValue
+    ) {
+      const reset: Record<string, AyuAnswerValue> = {
+        [linkId]: precomputedFinalValue,
+      };
+      answersRef.current = reset;
+      setAnswers(() => reset);
+      setCurrentIndex(0);
+      setShowAll(false);
+      onResetAnswers?.();
+      return;
+    }
+
     setAnswers(prev => {
       let finalValue: AyuAnswerValue = value;
 
@@ -330,14 +367,6 @@ export const useFHIRStepper = (
         [linkId]: finalValue,
       };
 
-      /**
-       * When any answer changes, clear stale answers for ALL items whose
-       * enableWhen conditions are no longer met. Walking from topLevelItems
-       * covers both:
-       *   1. Children of the answered question (nested descendants)
-       *   2. Sibling top-level items (e.g. a Pregnancy question gated on
-       *      gender that sits alongside the Gender question at the same level)
-       */
       clearHiddenDescendantAnswers(topLevelItems, updated);
 
       if (!autoNext || !currentQuestion) return updated;

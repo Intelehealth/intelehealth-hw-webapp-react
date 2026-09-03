@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import iconPhysicalExam from '../../../../../assets/icons/icon-physical-examination.svg';
 import type { ModalSection } from '../../../../../components/modal/global-modal-context';
 import { useGlobalModal } from '../../../../../components/modal/global-modal-context';
@@ -282,6 +282,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     onProgressUpdate,
     physicalExamFilter,
     ayuConfigFiles,
+    isActive,
   } = props;
   const {
     data,
@@ -294,6 +295,10 @@ export const PhysicalExamination = (props: SectionProps) => {
   const patientDemographics = usePatientDemographics();
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
   const [isReviewMode, setIsReviewMode] = useState(() => !!data.physicalExam);
+
+  useEffect(() => {
+    if (data.physicalExam) setIsReviewMode(true);
+  }, [data.physicalExam]);
 
   const physExamJson = useMemo(
     () =>
@@ -481,11 +486,17 @@ export const PhysicalExamination = (props: SectionProps) => {
             title: s.title,
             items: s.items,
           }));
-          setPhysicalExamData(physExamAnswers, details, detailsSections);
+          setPhysicalExamData(
+            physExamAnswers,
+            details,
+            detailsSections,
+            answers
+          );
           setPhysExamPendingImages(getPendingImages());
           saveSectionToTemp({
             physicalExam: {
               answers: physExamAnswers,
+              rawAnswers: answers,
               details,
               detailsSections,
             },
@@ -512,9 +523,10 @@ export const PhysicalExamination = (props: SectionProps) => {
   );
 
   const initialAnswers = useMemo(() => {
-    const raw = data.physicalExam?.answers;
-    if (!raw) return undefined;
-    return raw as unknown as Record<string, AyuAnswerValue>;
+    const pe = data.physicalExam;
+    if (!pe) return undefined;
+    if (pe.rawAnswers) return pe.rawAnswers;
+    return pe.answers as unknown as Record<string, AyuAnswerValue>;
   }, [data.physicalExam]);
 
   if (!ayuRoot || topLevelItems.length === 0) {
@@ -533,6 +545,7 @@ export const PhysicalExamination = (props: SectionProps) => {
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-[996px]">
             <AyuStepperContainer
+              key={initialAnswers ? 'restored' : 'fresh'}
               ref={stepperRef}
               questionnaire={ayuRoot as never}
               summaryTitle={PHYSICAL_EXAM_SUMMARY_TITLE}
@@ -540,6 +553,7 @@ export const PhysicalExamination = (props: SectionProps) => {
               initialAnswers={initialAnswers}
               onComplete={handleStepperComplete}
               onProgressUpdate={handleProgressUpdate}
+              isActive={isActive}
             />
           </div>
         </div>

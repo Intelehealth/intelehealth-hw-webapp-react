@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest';
+
+configure({ asyncUtilTimeout: 5000 });
 
 // Mock react-datepicker CSS import
 vi.mock('react-datepicker/dist/react-datepicker.css', () => ({}));

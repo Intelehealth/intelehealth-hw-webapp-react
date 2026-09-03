@@ -2,6 +2,7 @@ import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import {
   ASSOCIATED_SYMPTOMS_TEXT,
   EXT_URL_LANGUGAE_TEXT,
+  FHIR_TYPE_CHOICE,
   NEGATED_ID_PREFIX,
   NEGATED_PREFIX,
   PATIENT_DENIES_LABEL,
@@ -100,6 +101,31 @@ function buildSummaryForItems(
   const processed = new Set<string>();
   const answersObj = Object.fromEntries(answersMap);
 
+  const bypassedContainerIds = new Set<string>();
+  (function collectBypassed(items: AyuQuestion[]) {
+    for (const item of items) {
+      if (
+        item.type === FHIR_TYPE_CHOICE &&
+        item.answerOption?.length &&
+        item.item?.length &&
+        !answersMap.has(item.linkId)
+      ) {
+        bypassedContainerIds.add(item.linkId);
+      }
+      if (item.item) collectBypassed(item.item);
+    }
+  })(questionnaire);
+
+  function isItemVisible(enableWhen: AyuQuestion['enableWhen']): boolean {
+    if (!enableWhen) return true;
+    const effectiveRules = enableWhen.filter(
+      ew => !(bypassedContainerIds.has(ew.question) && ew.operator === '=')
+    );
+    return effectiveRules.length > 0
+      ? evaluateEnableWhen(effectiveRules, answersObj)
+      : true;
+  }
+
   function getExtensionLabel(item: AyuQuestion): string {
     return item.text || '';
   }
@@ -179,7 +205,7 @@ function buildSummaryForItems(
     const values: string[] = [];
     for (const child of items) {
       if (processed.has(child.linkId)) continue;
-      if (!evaluateEnableWhen(child.enableWhen, answersObj)) continue;
+      if (!isItemVisible(child.enableWhen)) continue;
       values.push(...collectNestedOwnValues(child));
       processed.add(child.linkId);
       values.push(...collectDescendantValues(child.item));
@@ -378,12 +404,7 @@ function buildSummaryForItems(
   function processItems(items: AyuQuestion[]) {
     items?.forEach(item => {
       if (processed.has(item.linkId)) return;
-      /*
-       * Skip items whose enableWhen condition is not currently met so that
-       * stale answers from hidden questions (e.g. a Pregnancy question after
-       * gender changes from Female to Male) never appear in the summary.
-       */
-      if (!evaluateEnableWhen(item.enableWhen, answersObj)) return;
+      if (!isItemVisible(item.enableWhen)) return;
 
       const answerValue = getAnswerValue(item);
       const label = getExtensionLabel(item);

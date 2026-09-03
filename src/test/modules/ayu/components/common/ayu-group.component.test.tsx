@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { AyuGroup } from '../../../../../modules/ayu/components/common/ayu-group.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import { EXT_URL_DISPLAY_TEXT } from '../../../../../modules/ayu-library/utils/constants';
+import { AyuRenderer } from '../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component';
 
 vi.mock('../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question }) => <div data-testid={`renderer-${question.linkId}`}>{question.text}</div>),
 }));
+
+const AyuRendererMock = vi.mocked(AyuRenderer);
 
 describe('AyuGroup', () => {
   const mockChildQuestion1: AyuQuestion = {
@@ -270,6 +273,31 @@ describe('AyuGroup', () => {
       const { container } = render(<AyuGroup question={mockGroupQuestion} />);
       const wrapper = container.firstChild as HTMLElement;
       expect(wrapper).toHaveClass('p-4');
+    });
+  });
+
+  describe('onChange prop forwarding (line 22)', () => {
+    it('calls setAnswer with the child question and new value when onChange fires', () => {
+      const mockSetAnswer = vi.fn();
+      AyuRendererMock.mockClear();
+
+      let capturedOnChange: ((val: unknown) => void) | undefined;
+      AyuRendererMock.mockImplementationOnce(({ onChange }) => {
+        capturedOnChange = onChange;
+        return <div data-testid="renderer-child-1" />;
+      });
+
+      const singleItemQuestion: AyuQuestion = {
+        ...mockGroupQuestion,
+        item: [mockChildQuestion1],
+      };
+
+      const existingAnswers = { 'child-1': 'existing-answer' };
+      render(<AyuGroup question={singleItemQuestion} setAnswer={mockSetAnswer} answers={existingAnswers} />);
+
+      act(() => { capturedOnChange?.('new-value'); });
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(mockChildQuestion1, 'new-value');
     });
   });
 });

@@ -4787,5 +4787,88 @@ describe('buildVisitSummary', () => {
       const valueStr = JSON.stringify(result);
       expect(valueStr).toContain('Yes');
     });
+
+    it('shows a describe-field value when its enableWhen references a bypassed intermediate container (sentinel undefined bug)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'topQ',
+          type: 'choice',
+          text: 'Type of palpitation',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Type of palpitation' }],
+          answerOption: [
+            { valueCoding: { code: 'other', display: 'Other' } },
+          ],
+          item: [
+            {
+              linkId: 'container',
+              type: 'choice',
+              text: 'Container',
+              answerOption: [{ valueCoding: { code: 'X', display: 'X Option' } }],
+              item: [
+                {
+                  linkId: 'describe',
+                  type: 'string',
+                  text: 'Please describe',
+                  extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Please describe' }],
+                  enableWhen: [
+                    { question: 'container', operator: '=', answerCoding: { code: 'X' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['topQ', 'other'],
+        ['describe', 'Irregular fast heartbeat'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Palpitation');
+
+      const allValues = result.flatMap(s =>
+        s.items.map(i => (i.type === 'labelValue' ? String(i.value) : ''))
+      );
+      expect(allValues.some(v => v.includes('Irregular fast heartbeat'))).toBe(true);
+    });
+
+    it('still hides a describe-field when its REAL parent answer does not match (not a bypassed container)', () => {
+      const questions: AyuQuestion[] = [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          text: 'Parent',
+          extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Parent' }],
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'describe',
+              type: 'string',
+              text: 'Please describe',
+              extension: [{ url: 'urn:intelehealth:original-question-text', valueString: 'Please describe' }],
+              enableWhen: [
+                { question: 'parent', operator: '=', answerCoding: { code: 'yes' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const answers = new Map<string, AyuAnswerValue>([
+        ['parent', 'no'],
+        ['describe', 'stale typed text'],
+      ]);
+
+      const result = buildVisitSummary(questions, answers, 'Visit');
+
+      const allValues = result.flatMap(s =>
+        s.items.map(i => (i.type === 'labelValue' ? String(i.value) : ''))
+      );
+      expect(allValues).not.toContain('stale typed text');
+    });
   });
 });

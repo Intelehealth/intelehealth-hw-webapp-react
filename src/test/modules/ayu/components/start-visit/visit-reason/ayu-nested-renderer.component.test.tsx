@@ -2548,6 +2548,35 @@ describe('AyuNestedRenderer', () => {
         expect(screen.queryByTestId('renderer-to-date')).not.toBeInTheDocument();
         expect(screen.queryByTestId('renderer-event-describe')).not.toBeInTheDocument();
       });
+
+      it('SD-004: sub-item synthetic markers are deleted when intermediate container becomes disabled in a later pass (lines 138-144)', () => {
+        const aSub: AyuQuestion = { linkId: 'a-sub', type: 'string', text: 'A Sub' };
+        const itemA: AyuQuestion = {
+          linkId: 'item-a',
+          type: 'choice',
+          text: 'Item A',
+          enableWhen: [{ question: 'item-x', operator: 'exists', answerBoolean: true }],
+          answerOption: [{ valueCoding: { code: 'opt', display: 'Option' } }],
+          item: [aSub],
+        };
+        const itemX: AyuQuestion = {
+          linkId: 'item-x',
+          type: 'choice',
+          text: 'Item X',
+          enableWhen: [{ question: 'trigger', operator: '=', answerString: 'yes' }],
+        };
+        const items = [itemA, itemX];
+
+        const { container } = render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'item-x': 'stale-value', trigger: 'no' }}
+            setAnswer={mockSetAnswer}
+          />
+        );
+
+        expect(container.firstChild).toBeNull();
+      });
     });
   });
 });

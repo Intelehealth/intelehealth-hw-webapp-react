@@ -134,8 +134,6 @@ export const AyuNestedRenderer = ({
         if (!enabled && result[item.linkId] !== undefined) {
           delete result[item.linkId];
           changed = true;
-          /* Also remove synthetic sub-item markers (=== true) so chained
-           * siblings that gate on them via 'exists' are disabled next pass */
           if (hasAnswerOptionItemMapping(item)) {
             for (const sub of item.item!) {
               if (result[sub.linkId] === true) {
@@ -145,11 +143,8 @@ export const AyuNestedRenderer = ({
             }
           }
         } else if (enabled && result[item.linkId] === undefined) {
-          /* Synthetic marker so subsequent siblings can see this item via 'exists' */
           result[item.linkId] = true;
           changed = true;
-          /* Sub-items of an intermediate container are not in the flat items
-           * array, so propagate synthetic markers for them too */
           if (hasAnswerOptionItemMapping(item)) {
             for (const sub of item.item!) {
               if (result[sub.linkId] === undefined) {

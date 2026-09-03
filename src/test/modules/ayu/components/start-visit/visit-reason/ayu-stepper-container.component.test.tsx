@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuAnswerValue, AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
@@ -5654,6 +5654,130 @@ describe('AyuStepperContainer', () => {
       expect(labelTexts[0]).toBe('When');
     });
 
+    it('shows nested leaf answers when intermediate container is bypassed (no stored answer, operator=)', () => {
+      const leaf: AyuQuestion = {
+        linkId: 'leaf',
+        text: 'When',
+        type: 'string',
+        enableWhen: [
+          { question: 'container', operator: '=', answerCoding: { code: 'when' } },
+        ],
+      };
+      const container: AyuQuestion = {
+        linkId: 'container',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'when', display: 'When' } }],
+        item: [leaf],
+      };
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Have you eaten outside food recently?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [container],
+      };
+
+      const answers: Record<string, AyuAnswerValue> = {
+        q1: 'yes',
+        leaf: '20 hours',
+      };
+
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('20 hours')).toBeInTheDocument();
+      expect(screen.getByText('When')).toBeInTheDocument();
+    });
+
+    it('shows nested leaf answers when intermediate container is bypassed (no stored answer, operator exists)', () => {
+      const leaf: AyuQuestion = {
+        linkId: 'leaf2',
+        text: 'Duration',
+        type: 'string',
+        enableWhen: [
+          { question: 'container2', operator: 'exists', answerBoolean: true },
+        ],
+      };
+      const container2: AyuQuestion = {
+        linkId: 'container2',
+        text: 'Yes',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q2', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'opt', display: 'Option' } }],
+        item: [leaf],
+      };
+      const question2: AyuQuestion = {
+        linkId: 'q2',
+        text: 'Jaundice present?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [container2],
+      };
+
+      const answers2: Record<string, AyuAnswerValue> = {
+        q2: 'yes',
+        leaf2: '3 days',
+      };
+
+      const q3: AyuQuestion = { linkId: 'q3', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q3,
+        currentIndex: 1,
+        total: 2,
+        answers: answers2,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question2, q3],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question2, q3])}
+          initialAnswers={answers2}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('3 days')).toBeInTheDocument();
+      expect(screen.getByText('Duration')).toBeInTheDocument();
+    });
+
     it('strips "Yes - When" to "When" via exact-match optDisplay (real blood-transfusion 3-level structure)', () => {
       /*
        * The real blood-transfusion questionnaire has THREE levels:
@@ -6545,14 +6669,7 @@ describe('AyuStepperContainer', () => {
       expect(loader).toHaveAttribute('data-is-answered', 'true');
     });
 
-    it('false→true transition in showAll mode — useLayoutEffect adds last question to editingQuestions', () => {
-      /*
-       * Simulates back-navigation from Physical Exam:
-       *   render 1: isActive=false → useLayoutEffect runs, prevIsActiveRef←false
-       *   render 2: isActive=true  → useLayoutEffect detects !prev && isActive && showAll,
-       *             adds last question's linkId to editingQuestions via setEditingQuestions.
-       * showAsAnswered becomes false for that question → AyuRenderer is shown.
-       */
+    it('false→true transition in showAll mode — last question shows as answered card (Edit icon visible)', () => {
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
 
@@ -6567,7 +6684,6 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Transition to isActive=true: useLayoutEffect fires and adds q1 to editingQuestions
       rerender(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -6578,10 +6694,8 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // editingQuestions.has(q1) → showAsAnswered=false → AyuRenderer must be visible
-      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
-      // QuestionLoader must NOT treat it as answered
-      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('renderer-q1')).not.toBeInTheDocument();
     });
 
     it('false→true transition with showAll=false — does NOT add to editingQuestions', () => {
@@ -6617,12 +6731,7 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
     });
 
-    it('false→true transition in showAll mode — Skip button visible for non-required last question', () => {
-      /*
-       * Once the last question is added to editingQuestions, the Skip button
-       * condition (!question.required && (... || editingQuestions.has(...)))
-       * evaluates to true, so the Skip button appears alongside Submit.
-       */
+    it('false→true transition in showAll mode — last question shows answered card, not edit buttons', () => {
       const q = makeQuestion('q-last', false); // non-required
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
 
@@ -6647,8 +6756,9 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      expect(screen.getByTestId('button-skip')).toBeInTheDocument();
-      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('button-skip')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
     });
 
     it('isActive stays false — last question stays answered, editingQuestions untouched', () => {
@@ -6669,11 +6779,7 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
     });
 
-    it('useLayoutEffect adds only the last question to editingQuestions, not earlier ones', () => {
-      /*
-       * When there are two questions, only topLevelItems[last] (q2) is added
-       * to editingQuestions on the false→true transition; q1 stays answered.
-       */
+    it('back-navigation restores all answered questions to answered-card state', () => {
       const q1 = makeQuestion('q1');
       const q2 = makeQuestion('q2');
       mockUseFHIRStepper.mockReturnValue({
@@ -6710,20 +6816,12 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // First question stays answered (not in editingQuestions)
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
-      // Last question is in editingQuestions → showAsAnswered=false → AyuRenderer shown
-      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
-      expect(screen.getByTestId('renderer-q2')).toBeInTheDocument();
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('renderer-q2')).not.toBeInTheDocument();
     });
 
-    it('idempotent: second false→true transition leaves editingQuestions unchanged when last question already editing', () => {
-      /*
-       * Guard inside useLayoutEffect: if (prev.has(lastQuestion.linkId)) return prev;
-       * On a second back-navigation cycle (false→true→false→true) the last
-       * question is already in editingQuestions from the first cycle, so the
-       * set is not recreated. The question must remain in edit mode.
-       */
+    it('idempotent: second false→true transition keeps last question as answered card', () => {
       const q = makeQuestion('q1');
       mockUseFHIRStepper.mockReturnValue(buildStepperReturn([q]));
 
@@ -6738,7 +6836,6 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // First false→true: adds q1 to editingQuestions
       rerender(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -6760,7 +6857,6 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Second false→true: guard fires, prev.has(q1) → returns same set
       rerender(
         <AyuStepperContainer
           questionnaire={questionnaire}
@@ -6771,17 +6867,11 @@ describe('AyuStepperContainer', () => {
         />
       );
 
-      // Question must still be in edit mode (AyuRenderer visible, not answered card)
-      expect(screen.getByTestId('renderer-q1')).toBeInTheDocument();
-      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.queryByTestId('renderer-q1')).not.toBeInTheDocument();
     });
 
-    it('does not crash when topLevelItems is empty — useLayoutEffect lastQuestion guard', () => {
-      /*
-       * Guard inside useLayoutEffect: if (lastQuestion) { ... }
-       * When topLevelItems is empty there is no last question and the effect
-       * must exit silently without calling setEditingQuestions.
-       */
+    it('does not crash when topLevelItems is empty — useLayoutEffect iterates empty array', () => {
       const q = makeQuestion('q1');
       // currentQuestion is needed to avoid the early `if (!currentQuestion) return null`
       mockUseFHIRStepper.mockReturnValue({
@@ -6856,6 +6946,225 @@ describe('AyuStepperContainer', () => {
       // Question must remain in answered state — no spurious edit was forced
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
       expect(screen.queryByTestId('renderer-q1')).not.toBeInTheDocument();
+    });
+
+    it('back-navigation clears editingQuestions for ALL questions — not just the last one (PE Q7-Q13 regression)', () => {
+      const q1 = makeQuestion('q1');
+      const q2 = makeQuestion('q2');
+      const q3 = makeQuestion('q3');
+      const q4 = makeQuestion('q4');
+      const questions = [q1, q2, q3, q4];
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q1,
+        currentIndex: 0,
+        total: 4,
+        answers: { q1: 'yes', q2: 'yes', q3: 'yes', q4: 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: questions,
+        isLast: false,
+        showAll: true,
+      });
+
+      const questionnaire = createMockQuestionnaire(questions);
+      const initialAnswers = { q1: 'yes', q2: 'yes', q3: 'yes', q4: 'yes' };
+
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={initialAnswers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-2')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-3')).toHaveAttribute('data-is-answered', 'true');
+
+      fireEvent.click(screen.getByTestId('edit-1'));
+      fireEvent.click(screen.getByTestId('edit-2'));
+
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.getByTestId('question-loader-2')).toHaveAttribute('data-is-answered', 'false');
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={initialAnswers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={false}
+        />
+      );
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={initialAnswers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          isActive={true}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-2')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('question-loader-3')).toHaveAttribute('data-is-answered', 'true');
+    });
+  });
+
+  describe('Last question Edit icon after auto-advance (regression fix)', () => {
+    const lastQuestionFixQuestions: AyuQuestion[] = [
+      {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+      },
+      {
+        linkId: 'q2',
+        text: 'Question 2 (last)',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'b', display: 'B' } }],
+      },
+    ];
+
+    it('should show Edit icon for last question after handleStepperComplete is called (skipSummary / PE path)', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: lastQuestionFixQuestions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'a', q2: 'b' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: lastQuestionFixQuestions,
+        isLast: true,
+        showAll: false,
+        isCameraNotUploaded: () => false,
+      });
+
+      const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          skipSummary
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+      expect(screen.queryByTestId('edit-1')).not.toBeInTheDocument();
+
+      const hookProps = _mockUseFHIRStepper.mock.calls[0][0] as {
+        onComplete?: (a: Record<string, AyuAnswerValue>) => void;
+      };
+      act(() => {
+        hookProps.onComplete?.({ q1: 'a', q2: 'b' });
+      });
+
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('edit-1')).toBeInTheDocument();
+    });
+
+    it('should show Edit icon for last question when showAll transitions false → true (Visit Reason summary path)', () => {
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: lastQuestionFixQuestions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'a', q2: 'b' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: lastQuestionFixQuestions,
+        isLast: true,
+        showAll: false,
+        isCameraNotUploaded: () => false,
+      });
+
+      const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
+      const { rerender } = render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'false');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: lastQuestionFixQuestions[1],
+        currentIndex: 1,
+        total: 2,
+        answers: { q1: 'a', q2: 'b' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: lastQuestionFixQuestions,
+        isLast: true,
+        showAll: true,
+        isCameraNotUploaded: () => false,
+      });
+
+      rerender(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-1')).toHaveAttribute('data-is-answered', 'true');
+      expect(screen.getByTestId('edit-1')).toBeInTheDocument();
+    });
+  });
+
+  describe('resetLinkIds — onResetAnswers clears UI state (lines 558-561)', () => {
+    it('calling onResetAnswers clears submittedQuestions so the card leaves answered state', () => {
+      const question: AyuQuestion = {
+        linkId: 'gender',
+        text: 'Gender',
+        type: 'choice',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { gender: 'female' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: false,
+        isCameraNotUploaded: () => false,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ gender: 'female' }}
+          resetLinkIds={['gender']}
+        />
+      );
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+
+      const hookProps = _mockUseFHIRStepper.mock.calls[0][0] as { onResetAnswers?: () => void };
+      act(() => { hookProps.onResetAnswers?.(); });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
     });
   });
 });

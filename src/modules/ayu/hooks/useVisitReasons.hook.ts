@@ -86,6 +86,10 @@ export const useVisitReasons = () => {
     setSelectedReasons(prev => prev.filter(r => r !== reason));
   };
 
+  const clearReasons = () => {
+    setSelectedReasons([]);
+  };
+
   const grouped = useMemo(() => {
     return groupByFirstLetter(names);
   }, [names]);
@@ -118,6 +122,7 @@ export const useVisitReasons = () => {
     disabledReasons,
     addReason,
     removeReason,
+    clearReasons,
     grouped,
     selectedComplaints,
     ayuConfigFiles,

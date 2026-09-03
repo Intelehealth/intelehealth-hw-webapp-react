@@ -2394,4 +2394,52 @@ describe('VisitReason', () => {
       expect(screen.getByTestId('reason-search-input')).toBeInTheDocument();
     });
   });
+
+  describe('Restore scenario — ayuSchema rebuilt when selectedComplaints arrive asynchronously', () => {
+    it('shows Screen 2 after complaints populate from the restore effect (back-from-PE regression)', async () => {
+      const savedAnswers = { q1: 'answer' };
+      const mockSchema = { linkId: 'root', type: 'group' as const, item: [] };
+      mockTransformFhirToAyu.mockReturnValue(mockSchema);
+
+      mockUseStartVisitData.mockReturnValue({
+        data: {
+          vitals: null,
+          visitReason: { answers: savedAnswers, reasonNames: ['Fever'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+        },
+        setVisitReasonData: mockSetVisitReasonData,
+        clearVisitReasonData: mockClearVisitReasonData,
+        saveSectionToTemp: mockSaveSectionToTemp,
+      } as any);
+
+      const { rerender } = render(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={createDefaultVisitReasons({ selectedComplaints: [] })}
+        />
+      );
+
+      expect(screen.queryByTestId('ayu-stepper-container')).not.toBeInTheDocument();
+
+      rerender(
+        <VisitReason
+          questionIndex={0}
+          onNextQuestion={mockOnNextQuestion}
+          onPrevQuestion={mockOnPrevQuestion}
+          visitReasons={createDefaultVisitReasons({
+            selectedReasons: ['Fever'],
+            selectedComplaints: [createMockAyuJsonItem()],
+          })}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ayu-stepper-container')).toBeInTheDocument();
+      });
+    });
+  });
 });

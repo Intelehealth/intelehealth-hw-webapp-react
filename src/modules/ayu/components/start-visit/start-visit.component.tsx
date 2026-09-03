@@ -484,6 +484,7 @@ export const StartVisit = () => {
             onProgressUpdate={handlePhysicalExamProgress}
             physicalExamFilter={physicalExamFilter}
             ayuConfigFiles={ayuConfigFiles}
+            isActive={currentSectionIndex === 2}
           />
         </div>
 
