@@ -1,8 +1,12 @@
-import type { AyuQuestion } from '../../../ayu-library/types/ayu.types';
+import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import { getRowLabel } from '../../../ayu-library/utils/question.utils';
 import { AyuRenderer } from '../start-visit/visit-reason/ayu-renderer.component';
 
-export function AyuGroup({ question }: { question?: AyuQuestion }) {
+export function AyuGroup({
+  question,
+  answers,
+  setAnswer,
+}: AyuRendererBaseProps) {
   const label = getRowLabel(question);
   return (
     <div className="space-y-4 bg-gray-50 p-4 rounded-md border border-gray-200">
@@ -14,6 +18,10 @@ export function AyuGroup({ question }: { question?: AyuQuestion }) {
           question={child}
           parent={question}
           previousSibling={index > 0 ? arr[index - 1] : undefined}
+          value={answers?.[child.linkId]}
+          onChange={val => setAnswer?.(child, val)}
+          answers={answers}
+          setAnswer={setAnswer}
         />
       ))}
     </div>

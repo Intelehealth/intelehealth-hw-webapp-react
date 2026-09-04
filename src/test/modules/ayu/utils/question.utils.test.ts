@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { AyuAnswerValue, AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+import { EXT_URL_DISPLAY_TEXT } from '../../../../modules/ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
   clearHiddenDescendantAnswers,
   findMatchingOptionCode,
+  getRowLabel,
+  extractGenderLinkIds,
   isDescendantLinkId,
 } from '../../../../modules/ayu-library/utils/question.utils';
 
@@ -428,6 +431,220 @@ describe('question.utils', () => {
       clearHiddenDescendantAnswers(items, answers);
       expect(answers['yes-child']).toBe('keep');
       expect(answers['no-child']).toBeUndefined();
+    });
+
+    it('should mark a child with no answer as sentinel-true and filter its dependants enableWhen rules', () => {
+
+      const items: AyuQuestion[] = [
+        { linkId: 'root', type: 'string' },
+        {
+          linkId: 'child',
+          type: 'string',
+          enableWhen: [{ question: 'root', operator: '=', answerString: 'something' }],
+        },
+      ];
+      const answers: Record<string, AyuAnswerValue> = {
+        child: 'keep me',
+      };
+      clearHiddenDescendantAnswers(items, answers);
+      expect(answers.child).toBe('keep me');
+    });
+
+    it('should enrich sub-items of a choice question with both answerOption and item into the enriched map', () => {
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'parent-choice',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'opt-a', display: 'Option A' } }],
+          item: [
+            {
+              linkId: 'follow-up',
+              type: 'string',
+              enableWhen: [
+                { question: 'parent-choice', operator: '=', answerCoding: { code: 'opt-a' } },
+              ],
+            },
+          ],
+        },
+      ];
+      const answers: Record<string, AyuAnswerValue> = {
+        'parent-choice': 'opt-a',
+      };
+      clearHiddenDescendantAnswers(items, answers);
+      expect(answers['parent-choice']).toBe('opt-a');
+      expect(answers['follow-up']).toBeUndefined();
+    });
+  });
+
+  describe('getRowLabel', () => {
+    it('should return valueString from display extension when present', () => {
+      const item: AyuQuestion = {
+        linkId: 'q1',
+        type: 'string',
+        text: 'Some text',
+        extension: [{ url: EXT_URL_DISPLAY_TEXT, valueString: 'Display Override' }],
+      };
+      expect(getRowLabel(item)).toBe('Display Override');
+    });
+
+    it('should return item.text when no display extension is present', () => {
+      const item: AyuQuestion = { linkId: 'q1', type: 'string', text: 'My Text' };
+      expect(getRowLabel(item)).toBe('My Text');
+    });
+
+    it('should return empty string when item has no text and no display extension', () => {
+      const item: AyuQuestion = { linkId: 'q1', type: 'string' };
+      expect(getRowLabel(item)).toBe('');
+    });
+
+    it('should return empty string when item is undefined', () => {
+      expect(getRowLabel(undefined)).toBe('');
+    });
+
+    it('should ignore extensions with a different URL', () => {
+      const item: AyuQuestion = {
+        linkId: 'q1',
+        type: 'string',
+        text: 'Fallback',
+        extension: [{ url: 'http://other.org/ext', valueString: 'Other' }],
+      };
+      expect(getRowLabel(item)).toBe('Fallback');
+    });
+  });
+
+  describe('extractGenderLinkIds', () => {
+    it('should return empty array for empty items list', () => {
+      expect(extractGenderLinkIds([])).toEqual([]);
+    });
+
+    it('should not include non-choice type questions', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'gender-q', type: 'string', text: 'Gender' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual([]);
+    });
+
+    it('should include choice question whose linkId contains "gender"', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'patient-gender', type: 'choice', text: 'Something else' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['patient-gender']);
+    });
+
+    it('should include choice question whose last linkId segment is "sex"', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'profile:sex', type: 'choice', text: 'Something else' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['profile:sex']);
+    });
+
+    it('should include choice question whose text contains "gender"', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'q1', type: 'choice', text: 'What is the patient gender?' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['q1']);
+    });
+
+    it('should include choice question whose text is exactly "sex"', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'q1', type: 'choice', text: 'sex' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['q1']);
+    });
+
+    it('should return empty when choice question has fewer than 2 options', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q1',
+          type: 'choice',
+          text: 'Something',
+          answerOption: [{ valueCoding: { code: 'male', display: 'Male' } }],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual([]);
+    });
+
+    it('should include when options have both female and male codes', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q1',
+          type: 'choice',
+          text: 'Something',
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'F' } },
+            { valueCoding: { code: 'male', display: 'M' } },
+          ],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['q1']);
+    });
+
+    it('should include when options have both female and male via valueString', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q1',
+          type: 'choice',
+          text: 'Something',
+          answerOption: [
+            { valueString: 'woman' },
+            { valueString: 'man' },
+          ],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['q1']);
+    });
+
+    it('should include when options have both female and male via display', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q1',
+          type: 'choice',
+          text: 'Something',
+          answerOption: [
+            { valueCoding: { code: 'opt-f', display: 'Woman' } },
+            { valueCoding: { code: 'opt-m', display: 'Man' } },
+          ],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['q1']);
+    });
+
+    it('should not include when only female option is present (no male match)', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'q1',
+          type: 'choice',
+          text: 'Something',
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+            { valueCoding: { code: 'other', display: 'Other' } },
+          ],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual([]);
+    });
+
+    it('should recursively find gender questions in nested items', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'parent-group',
+          type: 'group',
+          text: 'Group',
+          item: [
+            { linkId: 'patient-gender', type: 'choice', text: 'Gender' },
+          ],
+        },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual(['patient-gender']);
+    });
+
+    it('should return empty for a choice question with no text and no answerOption', () => {
+
+      const items: AyuQuestion[] = [
+        { linkId: 'something', type: 'choice' },
+      ];
+      expect(extractGenderLinkIds(items)).toEqual([]);
     });
   });
 });

@@ -125,17 +125,33 @@ const isSingleOptionPE = (question: AyuQuestion): boolean => {
   return regularCount === 1;
 };
 
+const isChildVisible = (
+  enableWhen: AyuQuestion['enableWhen'],
+  answers: Record<string, AyuAnswerValue>,
+  bypassedContainers: ReadonlySet<string>
+): boolean => {
+  if (!enableWhen) return true;
+  const effectiveRules = enableWhen.filter(
+    ew => !bypassedContainers.has(ew.question)
+  );
+  return effectiveRules.length > 0
+    ? evaluateEnableWhen(effectiveRules, answers)
+    : true;
+};
+
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>,
   parent?: AyuQuestion,
-  branchOptionDisplay?: string
+  branchOptionDisplay?: string,
+  bypassedContainers: ReadonlySet<string> = new Set()
 ): { label: string; value: string }[] => {
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
   const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '] as const;
   for (const child of items) {
-    if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+    if (!isChildVisible(child.enableWhen, answers, bypassedContainers))
+      continue;
 
     /*
      * Determine the branch display to carry into this child's descendants.
@@ -284,8 +300,21 @@ const collectAnsweredRows = (
         }
       }
     }
+    const childBypassedContainers: ReadonlySet<string> =
+      child.type === FHIR_TYPE_CHOICE &&
+      !!child.answerOption?.length &&
+      !!child.item?.length &&
+      answers[child.linkId] === undefined
+        ? new Set([...bypassedContainers, child.linkId])
+        : bypassedContainers;
     rows.push(
-      ...collectAnsweredRows(child.item, answers, child, nextBranchDisplay)
+      ...collectAnsweredRows(
+        child.item,
+        answers,
+        child,
+        nextBranchDisplay,
+        childBypassedContainers
+      )
     );
   }
   return rows;
@@ -447,6 +476,8 @@ export interface AyuStepperContainerProps {
   /** When the parent section toggles visibility (e.g. back from Physical Exam),
    *  a false→true transition opens the last question in edit mode. */
   isActive?: boolean;
+  resetLinkIds?: string[];
+  onResetAnswers?: () => void;
 }
 
 export const AyuStepperContainer = forwardRef<
@@ -465,21 +496,33 @@ export const AyuStepperContainer = forwardRef<
       onProgressUpdate,
       onSummaryShown,
       isActive = true,
+      resetLinkIds,
+      onResetAnswers,
     },
     ref
   ) => {
     const handleStepperComplete = useCallback(
       (finalAnswers: Record<string, AyuAnswerValue>) => {
-        const completeTotal = (questionnaire?.item || []).filter(
+        const allTopLevel = (questionnaire?.item || []).filter(
           item => item.type !== FHIR_TYPE_GROUP
-        ).length;
+        );
+        const completeTotal = allTopLevel.length;
         if (completeTotal > 0) {
           onProgressUpdate?.(completeTotal, completeTotal);
+        }
+        const lastItem = allTopLevel[allTopLevel.length - 1];
+        if (lastItem && finalAnswers[lastItem.linkId] !== undefined) {
+          setSubmittedQuestions(prev => {
+            if (prev.has(lastItem.linkId)) return prev;
+            return new Set(prev).add(lastItem.linkId);
+          });
         }
         onComplete?.(finalAnswers);
       },
       [questionnaire, onComplete, onProgressUpdate]
     );
+
+    const resetAnswersRef = useRef<() => void>(() => {});
 
     const {
       currentQuestion,
@@ -503,6 +546,8 @@ export const AyuStepperContainer = forwardRef<
       questionIndexOffset,
       onComplete: handleStepperComplete,
       onSummaryShown,
+      resetLinkIds,
+      onResetAnswers: () => resetAnswersRef.current(),
     });
 
     useImperativeHandle(
@@ -552,10 +597,20 @@ export const AyuStepperContainer = forwardRef<
       () => new Set()
     );
 
+    resetAnswersRef.current = () => {
+      setSubmittedQuestions(new Set());
+      setSkippedQuestions(new Set());
+      setEditingQuestions(new Set());
+      onResetAnswers?.();
+    };
+
     const prevCompletedRef = useRef<number>(-1);
     const prevIndexRef = useRef<number>(currentIndex);
     const prevIsActiveRef = useRef<boolean>(isActive);
     const onProgressUpdateRef = useRef(onProgressUpdate);
+    const prevShowAllRef = useRef<boolean>(showAll);
+    const latestAnswersRef = useRef(answers);
+    latestAnswersRef.current = answers;
 
     useEffect(() => {
       if (showAll && totalSteps > 0) {
@@ -604,6 +659,23 @@ export const AyuStepperContainer = forwardRef<
     }, [currentIndex, topLevelItems, answers, skippedQuestions]);
 
     useEffect(() => {
+      const wasShowAll = prevShowAllRef.current;
+      prevShowAllRef.current = showAll;
+      if (!showAll || wasShowAll) return;
+      const lastQ = topLevelItems[topLevelItems.length - 1];
+      if (
+        lastQ &&
+        answers[lastQ.linkId] !== undefined &&
+        !skippedQuestions.has(lastQ.linkId)
+      ) {
+        setSubmittedQuestions(prev => {
+          if (prev.has(lastQ.linkId)) return prev;
+          return new Set(prev).add(lastQ.linkId);
+        });
+      }
+    }, [showAll, topLevelItems, answers, skippedQuestions]);
+
+    useEffect(() => {
       lastQuestionRef.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
@@ -617,22 +689,19 @@ export const AyuStepperContainer = forwardRef<
       onProgressUpdateRef.current = onProgressUpdate;
     });
 
-    /*
-     * Detect false→true transition of isActive (back from Physical Exam) and open the
-     * last question for editing. useLayoutEffect fires synchronously after the DOM commit
-     * but before paint; the resulting setState triggers a flush before the browser
-     * paints, so there is no answered-card flash. This is also Strict Mode-safe because
-     * the ref mutation happens inside the effect, not during render.
-     */
     useLayoutEffect(() => {
       if (!prevIsActiveRef.current && isActive && showAll) {
-        const lastQuestion = topLevelItems[topLevelItems.length - 1];
-        if (lastQuestion) {
-          setEditingQuestions(prev => {
-            if (prev.has(lastQuestion.linkId)) return prev;
-            return new Set(prev).add(lastQuestion.linkId);
-          });
-        }
+        setEditingQuestions(new Set());
+        setSubmittedQuestions(prev => {
+          const latestAnswers = latestAnswersRef.current;
+          const next = new Set(prev);
+          for (const item of topLevelItems) {
+            if (latestAnswers[item.linkId] !== undefined) {
+              next.add(item.linkId);
+            }
+          }
+          return next.size === prev.size ? prev : next;
+        });
       }
       prevIsActiveRef.current = isActive;
     }, [isActive, showAll, topLevelItems]);

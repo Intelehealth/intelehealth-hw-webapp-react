@@ -2,6 +2,7 @@ import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import {
   ASSOCIATED_SYMPTOMS_TEXT,
   EXT_URL_LANGUGAE_TEXT,
+  FHIR_TYPE_CHOICE,
   NEGATED_ID_PREFIX,
   NEGATED_PREFIX,
   PATIENT_DENIES_LABEL,
@@ -100,6 +101,31 @@ function buildSummaryForItems(
   const processed = new Set<string>();
   const answersObj = Object.fromEntries(answersMap);
 
+  const bypassedContainerIds = new Set<string>();
+  (function collectBypassed(items: AyuQuestion[]) {
+    for (const item of items) {
+      if (
+        item.type === FHIR_TYPE_CHOICE &&
+        item.answerOption?.length &&
+        item.item?.length &&
+        !answersMap.has(item.linkId)
+      ) {
+        bypassedContainerIds.add(item.linkId);
+      }
+      if (item.item) collectBypassed(item.item);
+    }
+  })(questionnaire);
+
+  function isItemVisible(enableWhen: AyuQuestion['enableWhen']): boolean {
+    if (!enableWhen) return true;
+    const effectiveRules = enableWhen.filter(
+      ew => !(bypassedContainerIds.has(ew.question) && ew.operator === '=')
+    );
+    return effectiveRules.length > 0
+      ? evaluateEnableWhen(effectiveRules, answersObj)
+      : true;
+  }
+
   function getExtensionLabel(item: AyuQuestion): string {
     return item.text || '';
   }
@@ -179,7 +205,7 @@ function buildSummaryForItems(
     const values: string[] = [];
     for (const child of items) {
       if (processed.has(child.linkId)) continue;
-      if (!evaluateEnableWhen(child.enableWhen, answersObj)) continue;
+      if (!isItemVisible(child.enableWhen)) continue;
       values.push(...collectNestedOwnValues(child));
       processed.add(child.linkId);
       values.push(...collectDescendantValues(child.item));
@@ -201,7 +227,6 @@ function buildSummaryForItems(
         const display = getDisplay(nestedItem, code);
         if (!display) return;
 
-        // Check if this selected code has matching child items with their own answers
         const matchingChild = nestedItem.item?.find((child: AyuQuestion) =>
           child.enableWhen?.some(cond => cond.answerCoding?.code === code)
         );
@@ -259,7 +284,6 @@ function buildSummaryForItems(
           const display = getDisplay(item, code);
           if (!display) return;
 
-          // Check if this option has a nested child with answers
           const child = item.item?.find((c: AyuQuestion) =>
             c.enableWhen?.some(cond => cond.answerCoding?.code === code)
           );
@@ -380,11 +404,11 @@ function buildSummaryForItems(
   function processItems(items: AyuQuestion[]) {
     items?.forEach(item => {
       if (processed.has(item.linkId)) return;
+      if (!isItemVisible(item.enableWhen)) return;
 
       const answerValue = getAnswerValue(item);
       const label = getExtensionLabel(item);
 
-      // Associated Symptoms Special Handling
       const isAssociatedSymptoms =
         resolveAyuComponent(item) === 'associatedSymptoms';
 
@@ -460,7 +484,6 @@ function buildSummaryForItems(
               ? ''
               : ((langExt?.valueString || item.text) as string);
 
-            // Separate positive codes and negated "None" (exclusive) option
             const positiveCodes: string[] = [];
             let exclusiveNoDisplay: string | null = null;
             answerValue.forEach(code => {
@@ -502,7 +525,6 @@ function buildSummaryForItems(
               const display = getDisplay(item, code);
               if (!display) return;
 
-              // Collect nested values with their labels
               const matchingChildren =
                 item.item?.filter((child: AyuQuestion) =>
                   child.enableWhen?.some(
@@ -522,7 +544,6 @@ function buildSummaryForItems(
               });
 
               if (multiSelectChild) {
-                // Collect each medication's details and combine into one value
                 const childAnswer = getAnswerValue(
                   multiSelectChild
                 ) as string[];
@@ -570,7 +591,6 @@ function buildSummaryForItems(
                   }
                 }
 
-                // Process any remaining non-multi-select matching children
                 matchingChildren.forEach(c => {
                   if (c.linkId !== multiSelectChild.linkId) {
                     processed.add(c.linkId);
@@ -626,7 +646,6 @@ function buildSummaryForItems(
         return;
       }
 
-      // Multi Select
       if (Array.isArray(answerValue) && item.answerOption) {
         // Check if any selected option has nested children with answers —
         // if so, display each option as its own summary row for readability.
@@ -635,14 +654,12 @@ function buildSummaryForItems(
             child.enableWhen?.some(cond => cond.answerCoding?.code === code)
           );
           if (!nested) return false;
-          // Check if the nested item itself or any of its children have answers
           if (answersMap.has(nested.linkId)) return true;
           const nestedItems = nested.item || [];
           return nestedItems.some(c => answersMap.has(c.linkId));
         });
 
         if (hasNestedAnswers) {
-          // Collect each option's nested values with labels
           const optionEntries: string[] = [];
           answerValue.forEach(code => {
             const display = getDisplay(item, code);
@@ -678,7 +695,6 @@ function buildSummaryForItems(
             });
           }
         } else {
-          // Simple multi-select without nested values — single row
           const flatValues: string[] = answerValue
             .map(code => getDisplay(item, code))
             .filter((d): d is string => !!d);
@@ -693,10 +709,7 @@ function buildSummaryForItems(
         }
 
         processed.add(item.linkId);
-      }
-
-      // Single Select
-      else if (
+      } else if (
         answerValue &&
         typeof answerValue === 'string' &&
         item.answerOption
@@ -726,8 +739,6 @@ function buildSummaryForItems(
             const childAnswer = getAnswerValue(multiSelectChild) as string[];
             processed.add(multiSelectChild.linkId);
 
-            // Collect each medication's details (name, from date, to date)
-            // and combine into one comma-separated value
             const medicationEntries: string[] = [];
             childAnswer.forEach(childCode => {
               const childDisplay = getDisplay(multiSelectChild, childCode);
@@ -762,7 +773,6 @@ function buildSummaryForItems(
               });
             }
 
-            // Mark remaining matching children as processed
             matchingNested.forEach(c => processed.add(c.linkId));
           } else {
             const labeledParts: string[] = [];
@@ -797,10 +807,7 @@ function buildSummaryForItems(
         }
 
         processed.add(item.linkId);
-      }
-
-      // Simple Types (string, integer, quantity)
-      else if (answerValue) {
+      } else if (answerValue) {
         if (typeof answerValue === 'string' && answerValue === label) {
           processed.add(item.linkId);
         } else {
@@ -817,7 +824,6 @@ function buildSummaryForItems(
         }
       }
 
-      // Process children recursively
       if (item.item?.length) {
         processItems(item.item);
       }

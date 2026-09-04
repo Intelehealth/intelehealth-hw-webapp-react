@@ -251,6 +251,18 @@ describe('useVisitReasons', () => {
     expect(result.current.selectedReasons).toEqual(['Fever']);
   });
 
+  it('should clear all selected reasons', () => {
+    const { result } = renderHook(() => useVisitReasons());
+
+    act(() => {
+      result.current.addReason('Fever');
+      result.current.addReason('Cough');
+      result.current.clearReasons();
+    });
+
+    expect(result.current.selectedReasons).toEqual([]);
+  });
+
   it('should handle empty ayuJsonList', () => {
     mockUseAyuJsonList.mockReturnValue([] as any);
 

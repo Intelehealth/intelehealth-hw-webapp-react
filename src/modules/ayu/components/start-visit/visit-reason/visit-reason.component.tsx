@@ -7,6 +7,7 @@ import type {
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
 import { mergeProtocols } from '../../../../ayu-library/utils/merge-protocols.util';
+import { extractGenderLinkIds } from '../../../../ayu-library/utils/question.utils';
 import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
 import { usePatientDemographics } from '../../../hooks/useVisitReasons.hook';
@@ -55,6 +56,7 @@ export const VisitReason = ({
     disabledReasons,
     addReason,
     removeReason,
+    clearReasons,
     grouped,
     selectedComplaints,
   } = visitReasons!;
@@ -73,6 +75,13 @@ export const VisitReason = ({
     }
     return null;
   });
+
+  useEffect(() => {
+    if (savedAnswers && selectedComplaints.length > 0 && !ayuSchema) {
+      setAyuSchema(mergeProtocols(selectedComplaints, patientDemographics));
+    }
+  }, [savedAnswers, selectedComplaints, ayuSchema, patientDemographics]);
+
   const { showConfirmModal } = useGlobalModal();
   const stepperRef = useRef<AyuStepperContainerHandle>(null);
 
@@ -105,6 +114,28 @@ export const VisitReason = ({
   };
 
   const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
+
+  const genderLinkIds = useMemo(
+    () => extractGenderLinkIds(stableSchema?.item ?? []),
+    [stableSchema]
+  );
+
+  const handleResetAnswers = useCallback(() => {
+    clearReasons();
+    clearVisitReasonData();
+    saveSectionToTemp({ visitReason: null, confirmedReasons: [] });
+    setAyuSchema(null);
+    setShowStepper(false);
+    setSummaryShown(false);
+    onProgressUpdate?.(1, 0);
+    onProtocolCleared?.();
+  }, [
+    clearReasons,
+    clearVisitReasonData,
+    saveSectionToTemp,
+    onProgressUpdate,
+    onProtocolCleared,
+  ]);
 
   const hasAnsweredQuestions =
     !!savedAnswers && Object.keys(savedAnswers).length > 0;
@@ -251,6 +282,8 @@ export const VisitReason = ({
               onProgressUpdate={handleStepperProgress}
               onSummaryShown={() => setSummaryShown(true)}
               isActive={isActive}
+              resetLinkIds={genderLinkIds}
+              onResetAnswers={handleResetAnswers}
             />
           </div>
         </div>

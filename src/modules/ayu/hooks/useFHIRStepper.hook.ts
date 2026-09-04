@@ -49,6 +49,8 @@ interface UseFHIRStepperProps {
   questionIndexOffset?: number;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onSummaryShown?: () => void;
+  resetLinkIds?: string[];
+  onResetAnswers?: () => void;
 }
 
 interface UseFHIRStepperReturn {
@@ -88,6 +90,8 @@ export const useFHIRStepper = (
     questionIndexOffset = 0,
     onComplete,
     onSummaryShown,
+    resetLinkIds,
+    onResetAnswers,
   } = props;
   const hasInitialAnswers =
     initialAnswers && Object.keys(initialAnswers).length > 0;
@@ -195,7 +199,6 @@ export const useFHIRStepper = (
         ? index + questionIndexOffset + 1
         : undefined;
 
-      // Images captured but UPLOAD button not clicked — show specific message
       if (isCameraNotUploaded(question, latestAnswers)) {
         showToast(
           validationMessageForReason('uploadCapturedImage', questionNumber),
@@ -205,7 +208,6 @@ export const useFHIRStepper = (
         return false;
       }
 
-      // Required questions must have an answer
       if (question.required && isEmpty(answer)) {
         showToast(
           validationMessageForReason('selectOption', questionNumber),
@@ -257,7 +259,6 @@ export const useFHIRStepper = (
       questionnaire?.text || DEFAULT_VISIT_REASON_TEXT
     );
 
-    // Add per-section onChange callbacks
     sections.forEach(section => {
       section.onChange = () => {
         const targetIndex = topLevelItems.findIndex(item => {
@@ -266,7 +267,7 @@ export const useFHIRStepper = (
               ext => ext.valueString === ASSOCIATED_SYMPTOMS_LABEL
             );
           }
-          return true; // main section → first question
+          return true;
         });
         setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
         setShowAll(true);
@@ -307,10 +308,42 @@ export const useFHIRStepper = (
   const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) => {
     const linkId = question.linkId;
 
+    let precomputedFinalValue: AyuAnswerValue = value;
+    if (question.type === FHIR_TYPE_CHOICE && question.repeats) {
+      if (Array.isArray(value)) {
+        precomputedFinalValue = value;
+      } else {
+        const currentValue = answersRef.current[linkId];
+        const currentArray: string[] = Array.isArray(currentValue)
+          ? currentValue
+          : [];
+        precomputedFinalValue = computeMultiSelectToggle(
+          question,
+          currentArray,
+          value as string
+        );
+      }
+    }
+
+    if (
+      resetLinkIds?.includes(linkId) &&
+      answersRef.current[linkId] !== undefined &&
+      answersRef.current[linkId] !== precomputedFinalValue
+    ) {
+      const reset: Record<string, AyuAnswerValue> = {
+        [linkId]: precomputedFinalValue,
+      };
+      answersRef.current = reset;
+      setAnswers(() => reset);
+      setCurrentIndex(0);
+      setShowAll(false);
+      onResetAnswers?.();
+      return;
+    }
+
     setAnswers(prev => {
       let finalValue: AyuAnswerValue = value;
 
-      // Handle repeats (multi-select toggle)
       if (question.type === FHIR_TYPE_CHOICE && question.repeats) {
         if (Array.isArray(value)) {
           // Value is a pre-computed array (e.g. from AyuAssociatedSymptoms) — store directly.
@@ -334,10 +367,7 @@ export const useFHIRStepper = (
         [linkId]: finalValue,
       };
 
-      // When a parent answer changes, clear answers for children that are no longer visible
-      if (question.item?.length) {
-        clearHiddenDescendantAnswers(question.item, updated);
-      }
+      clearHiddenDescendantAnswers(topLevelItems, updated);
 
       if (!autoNext || !currentQuestion) return updated;
 
@@ -351,7 +381,6 @@ export const useFHIRStepper = (
         return updated;
       }
 
-      // If changed question is not current top-level, don't auto advance
       if (currentQuestion.linkId !== getTopLevelLinkId(linkId)) {
         return updated;
       }
@@ -413,7 +442,6 @@ export const useFHIRStepper = (
   const getTopLevelLinkId = (linkId: string) => {
     if (currentQuestion?.linkId === linkId) return linkId;
 
-    // Recursively check all descendants, not just immediate children
     if (currentQuestion && isDescendantLinkId(currentQuestion, linkId)) {
       return currentQuestion.linkId;
     }

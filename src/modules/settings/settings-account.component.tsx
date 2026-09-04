@@ -55,6 +55,15 @@ const SettingsAccount: React.FC = () => {
   );
   const selectedGender = profile?.gender || 'male';
 
+  useEffect(() => {
+    if (!showAdminAlert) return;
+    const timer = setTimeout(
+      () => setShowAdminAlert(false),
+      ADMIN_TOAST_DURATION
+    );
+    return () => clearTimeout(timer);
+  }, [showAdminAlert]);
+
   const handleReadOnlyClick = useCallback(() => {
     if (showAdminAlert) return;
     setShowAdminAlert(true);
@@ -71,7 +80,6 @@ const SettingsAccount: React.FC = () => {
         },
       }
     );
-    setTimeout(() => setShowAdminAlert(false), ADMIN_TOAST_DURATION);
   }, [showAdminAlert]);
 
   const onSubmit = useCallback(

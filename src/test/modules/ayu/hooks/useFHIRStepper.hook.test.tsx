@@ -3914,6 +3914,56 @@ describe('useFHIRStepper', () => {
       expect(result.current.answers['yes-child']).toBeUndefined();
       expect(result.current.answers['always-child']).toBe('val2');
     });
+
+    it('should NOT erase typed text in a describe-field whose enableWhen references a bypassed intermediate container (sentinel true bug)', () => {
+      const questionnaire = {
+        item: [
+          {
+            linkId: 'topQ',
+            text: 'Top Question',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'other', display: 'Other' } }],
+            item: [
+              {
+                linkId: 'container',
+                type: 'choice',
+                text: 'Container',
+                answerOption: [{ valueCoding: { code: 'X', display: 'X Option' } }],
+                item: [
+                  {
+                    linkId: 'describe',
+                    text: 'Please describe',
+                    type: 'string',
+                    enableWhen: [
+                      { question: 'container', operator: '=', answerCoding: { code: 'X' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire, autoNext: false })
+      );
+
+      const topQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(topQ, 'other');
+      });
+
+      act(() => {
+        result.current.setAnswer(
+          { linkId: 'describe', text: 'Please describe', type: 'string' },
+          'typed text'
+        );
+      });
+
+      expect(result.current.answers['describe']).toBe('typed text');
+    });
   });
 
   describe('skipSummary mode', () => {
@@ -4445,6 +4495,365 @@ describe('useFHIRStepper', () => {
         })
       );
       expect(result.current.validateAllQuestions()).toBe(true);
+    });
+  });
+
+  describe('Sibling top-level enableWhen clearing (gender/pregnancy scenario)', () => {
+    const genderPregnancyQuestionnaire = {
+      item: [
+        {
+          linkId: 'gender',
+          text: 'Gender',
+          type: 'choice',
+          required: true,
+          answerOption: [
+            { valueCoding: { code: 'female', display: 'Female' } },
+            { valueCoding: { code: 'male', display: 'Male' } },
+          ],
+        },
+        {
+          linkId: 'pregnancy',
+          text: 'Are you pregnant?',
+          type: 'choice',
+          required: false,
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          enableWhen: [
+            {
+              question: 'gender',
+              operator: '=',
+              answerCoding: { code: 'female' },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('clears a sibling top-level answer when its enableWhen becomes false', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: genderPregnancyQuestionnaire })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const pregnancyQ = result.current.topLevelItems[1];
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+      });
+      act(() => {
+        result.current.setAnswer(pregnancyQ, 'yes');
+      });
+      expect(result.current.answers['pregnancy']).toBe('yes');
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'male');
+      });
+
+      expect(result.current.answers['pregnancy']).toBeUndefined();
+    });
+
+    it('does not clear sibling answer when enableWhen is still met', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: genderPregnancyQuestionnaire })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const pregnancyQ = result.current.topLevelItems[1];
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+      });
+      act(() => {
+        result.current.setAnswer(pregnancyQ, 'no');
+      });
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+      });
+
+      expect(result.current.answers['pregnancy']).toBe('no');
+    });
+
+    it('clears nested descendants of the hidden sibling as well', () => {
+      const deepQuestionnaire = {
+        item: [
+          {
+            linkId: 'gender',
+            text: 'Gender',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'female', display: 'Female' } },
+              { valueCoding: { code: 'male', display: 'Male' } },
+            ],
+          },
+          {
+            linkId: 'pregnancy',
+            text: 'Are you pregnant?',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            enableWhen: [
+              {
+                question: 'gender',
+                operator: '=',
+                answerCoding: { code: 'female' },
+              },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy-weeks',
+                text: 'How many weeks?',
+                type: 'integer',
+                enableWhen: [
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'yes' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: deepQuestionnaire })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const pregnancyQ = result.current.topLevelItems[1];
+      const weeksQ = pregnancyQ.item![0];
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+        result.current.setAnswer(pregnancyQ, 'yes');
+        result.current.setAnswer(weeksQ, 12);
+      });
+      expect(result.current.answers['pregnancy']).toBe('yes');
+      expect(result.current.answers['pregnancy-weeks']).toBe(12);
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'male');
+      });
+
+      expect(result.current.answers['pregnancy']).toBeUndefined();
+      expect(result.current.answers['pregnancy-weeks']).toBeUndefined();
+    });
+
+    it('does not clear items that have no enableWhen (always visible)', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: genderPregnancyQuestionnaire })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+      });
+      act(() => {
+        result.current.setAnswer(genderQ, 'male');
+      });
+
+      expect(result.current.answers['gender']).toBe('male');
+    });
+
+    it('excludes cleared sibling answer from onComplete payload', () => {
+      const onComplete = vi.fn();
+      const questionnaire = {
+        item: [
+          {
+            linkId: 'gender',
+            text: 'Gender',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'female', display: 'Female' } },
+              { valueCoding: { code: 'male', display: 'Male' } },
+            ],
+          },
+          {
+            linkId: 'pregnancy',
+            text: 'Are you pregnant?',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'ID_1976351356', display: 'Yes' } },
+            ],
+            enableWhen: [
+              {
+                question: 'gender',
+                operator: '=',
+                answerCoding: { code: 'female' },
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire,
+          skipSummary: true,
+          autoNext: false,
+          onComplete,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const pregnancyQ = result.current.topLevelItems[1];
+
+      act(() => {
+        result.current.setAnswer(genderQ, 'female');
+      });
+      act(() => {
+        result.current.setAnswer(pregnancyQ, 'ID_1976351356');
+      });
+      act(() => {
+        result.current.setAnswer(genderQ, 'male');
+      });
+
+      expect(result.current.answers['pregnancy']).toBeUndefined();
+
+      act(() => {
+        result.current.goNext();
+      });
+      act(() => {
+        result.current.goNext();
+      });
+
+      expect(onComplete).toHaveBeenCalled();
+      const completedAnswers = onComplete.mock.calls[0][0];
+      expect(completedAnswers['pregnancy']).toBeUndefined();
+      expect(completedAnswers['gender']).toBe('male');
+    });
+  });
+
+  describe('resetLinkIds — full answer reset on trigger question change', () => {
+    const makeQuestionnaire = () => ({
+      item: [
+        { linkId: 'gender', text: 'Gender', type: 'choice', required: true },
+        { linkId: 'symptom', text: 'Symptom', type: 'choice', required: false },
+        { linkId: 'notes', text: 'Notes', type: 'string', required: false },
+      ],
+    });
+
+    it('clears all other answers and resets index when a resetLinkId answer changes', () => {
+      const onResetAnswers = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: makeQuestionnaire(),
+          autoNext: false,
+          skipSummary: true,
+          resetLinkIds: ['gender'],
+          onResetAnswers,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const symptomQ = result.current.topLevelItems[1];
+
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+      act(() => { result.current.setAnswer(symptomQ, 'fever'); });
+      act(() => { result.current.goNext(); });
+
+      expect(result.current.answers['symptom']).toBe('fever');
+      expect(result.current.currentIndex).toBe(1);
+
+      act(() => { result.current.setAnswer(genderQ, 'male'); });
+
+      expect(result.current.answers['gender']).toBe('male');
+      expect(result.current.answers['symptom']).toBeUndefined();
+      expect(result.current.answers['notes']).toBeUndefined();
+      expect(result.current.currentIndex).toBe(0);
+    });
+
+    it('does not reset when the resetLinkId question is answered for the first time', () => {
+      const onResetAnswers = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: makeQuestionnaire(),
+          autoNext: false,
+          skipSummary: true,
+          resetLinkIds: ['gender'],
+          onResetAnswers,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const symptomQ = result.current.topLevelItems[1];
+
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+      act(() => { result.current.setAnswer(symptomQ, 'fever'); });
+
+      expect(result.current.answers['symptom']).toBe('fever');
+      expect(onResetAnswers).not.toHaveBeenCalled();
+    });
+
+    it('does not reset when the same value is re-selected for a resetLinkId question', () => {
+      const onResetAnswers = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: makeQuestionnaire(),
+          autoNext: false,
+          skipSummary: true,
+          resetLinkIds: ['gender'],
+          onResetAnswers,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const symptomQ = result.current.topLevelItems[1];
+
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+      act(() => { result.current.setAnswer(symptomQ, 'fever'); });
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+
+      expect(result.current.answers['symptom']).toBe('fever');
+      expect(onResetAnswers).not.toHaveBeenCalled();
+    });
+
+    it('calls onResetAnswers callback after resetting', () => {
+      const onResetAnswers = vi.fn();
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: makeQuestionnaire(),
+          autoNext: false,
+          skipSummary: true,
+          resetLinkIds: ['gender'],
+          onResetAnswers,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+      act(() => { result.current.setAnswer(genderQ, 'male'); });
+
+      expect(onResetAnswers).toHaveBeenCalledTimes(1);
+    });
+
+    it('behaves normally (no reset) when resetLinkIds is not provided', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: makeQuestionnaire(),
+          autoNext: false,
+          skipSummary: true,
+        })
+      );
+
+      const genderQ = result.current.topLevelItems[0];
+      const symptomQ = result.current.topLevelItems[1];
+
+      act(() => { result.current.setAnswer(genderQ, 'female'); });
+      act(() => { result.current.setAnswer(symptomQ, 'fever'); });
+      act(() => { result.current.setAnswer(genderQ, 'male'); });
+
+      expect(result.current.answers['symptom']).toBe('fever');
     });
   });
 });

@@ -461,6 +461,28 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
     });
   });
 
+  it('prefers rawAnswers over answers when rawAnswers is present in data.physicalExam', () => {
+    mockContextData = {
+      physicalExam: {
+        answers: { q1: ['normalized-answer'] },
+        rawAnswers: { q1: ['raw-answer'] },
+        details: [],
+      } as any,
+    };
+    const questions = [
+      makeQuestion('q1', 'General', 'Jaundice', [
+        { code: 'raw-answer', display: 'Raw' },
+      ]),
+    ];
+    render(
+      <PhysicalExamination
+        {...defaultProps}
+        ayuConfigFiles={makeAyuConfigFiles(questions)}
+      />
+    );
+    expect(capturedStepperProps.initialAnswers).toEqual({ q1: ['raw-answer'] });
+  });
+
   it('calls onPrevSection when the Back button is clicked', async () => {
     const user = userEvent.setup();
     const onPrev = vi.fn();
@@ -644,7 +666,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
               expect.objectContaining({ label: 'Jaundice', value: 'Yes' }),
             ]),
           }),
-        ])
+        ]),
+        { q1: ['yes'] }
       );
       expect(originalOnNext).toHaveBeenCalledTimes(1);
     });
@@ -669,6 +692,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSaveSectionToTemp).toHaveBeenCalledWith({
         physicalExam: {
           answers: { q1: ['yes'] },
+          rawAnswers: { q1: ['yes'] },
           details: expect.any(Array),
           detailsSections: expect.any(Array),
         },
@@ -720,7 +744,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: ['yes'] },
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
+        { q1: 'yes' }
       );
     });
 
@@ -1072,7 +1097,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       expect(mockSetPhysicalExamData).toHaveBeenCalledWith(
         { q1: [] },
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
+        { q1: 42 }
       );
     });
 

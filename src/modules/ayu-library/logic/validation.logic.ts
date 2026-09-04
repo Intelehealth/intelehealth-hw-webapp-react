@@ -163,6 +163,31 @@ export const isNestedInputValueMissing = (
   return check(question.item, question);
 };
 
+export const hasMissingNestedBPInput = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  const isBPField = (child: AyuQuestion): boolean => {
+    if (child.type !== FHIR_TYPE_INTEGER && child.type !== FHIR_TYPE_STRING)
+      return false;
+    const hasRangeExt =
+      child.extension?.some(e => e.url === EXT_URL_MIN_VALUE) ||
+      child.extension?.some(e => e.url === EXT_URL_MAX_VALUE);
+    if (hasRangeExt) return true;
+    return getBPRangeFromText(child.text) !== undefined;
+  };
+
+  const check = (items: AyuQuestion[] | undefined): boolean => {
+    if (!items) return false;
+    return items.some(child => {
+      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      if (isBPField(child) && isEmpty(answers[child.linkId])) return true;
+      return check(child.item);
+    });
+  };
+  return check(question.item);
+};
+
 /**
  * Check if a question's answer is outside its valid numeric range.
  * Checks FHIR extension min/max first, then falls back to known BP ranges
@@ -370,6 +395,7 @@ export const validateQuestion = (
     cameraNotUploaded ||
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
+    (isPE && hasMissingNestedBPInput(question, answers)) ||
     isQuantityInvalid(question, answers) ||
     numericOutOfRange ||
     (question.type === FHIR_TYPE_CHOICE &&
@@ -391,6 +417,7 @@ export const validateQuestion = (
           ? 'outOfRange'
           : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
               (!isPE && isNestedInputValueMissing(question, answers)) ||
+              (isPE && hasMissingNestedBPInput(question, answers)) ||
               isQuantityInvalid(question, answers)
             ? 'enterValue'
             : 'selectOption';
