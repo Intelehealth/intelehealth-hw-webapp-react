@@ -5778,6 +5778,165 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByText('Duration')).toBeInTheDocument();
     });
 
+    it('shows nested leaf answers when intermediate container is bypassed (no stored answer, operator!=)', () => {
+      /*
+       * Verifies that the bypassedContainers Set approach strips ALL operators,
+       * not just "=" (old filter only stripped operator="=").
+       *
+       * Structure:
+       *   question (choice, answered: 'yes')
+       *     └── container3 (choice, answerOption, item[], NO answer) ← bypassed
+       *           └── leaf3 (string, enableWhen: container3 != 'opt-a', answered: '7 kg')
+       *
+       * Because container3 is bypassed (no answer + has answerOption + item[]),
+       * its enableWhen reference is stripped regardless of operator.
+       * leaf3's answer must appear in the summary.
+       */
+      const leaf3: AyuQuestion = {
+        linkId: 'leaf3',
+        text: 'Weight change',
+        type: 'string',
+        enableWhen: [
+          { question: 'container3', operator: '!=', answerString: 'opt-a' },
+        ],
+      };
+      const container3: AyuQuestion = {
+        linkId: 'container3',
+        text: 'Change type',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q3', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'Increase' } }],
+        item: [leaf3],
+      };
+      const question3: AyuQuestion = {
+        linkId: 'q3',
+        text: 'Weight changed?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: [container3],
+      };
+
+      const answers3: Record<string, AyuAnswerValue> = {
+        q3: 'yes',
+        leaf3: '7 kg',
+      };
+
+      const q4: AyuQuestion = { linkId: 'q4', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q4,
+        currentIndex: 1,
+        total: 2,
+        answers: answers3,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question3, q4],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question3, q4])}
+          initialAnswers={answers3}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('7 kg')).toBeInTheDocument();
+      expect(screen.getByText('Weight change')).toBeInTheDocument();
+    });
+
+    it('does not bypass a container that has a real answer (boolean true), and correctly hides its leaf', () => {
+      /*
+       * Regression test for the old true-sentinel heuristic.
+       *
+       * OLD BUG: isChildVisible checked answers[container] === true to detect bypass.
+       * A real boolean answer of `true` on a choice container would cause its
+       * children's enableWhen "=" rules to be incorrectly stripped, making hidden
+       * leaves appear in the summary.
+       *
+       * NEW behaviour: bypass is tracked via a separate bypassedContainers Set.
+       * A container with answers[container] !== undefined is never bypassed,
+       * so its leaf's enableWhen is evaluated normally.
+       *
+       * Structure:
+       *   question (choice, answered: 'yes')
+       *     └── bool-container (choice, answerOption, item[], answered: true ← real boolean)
+       *           └── leaf4 (string, enableWhen: bool-container = 'opt-a', answered: 'stale')
+       *
+       * bool-container answer is `true` (boolean), but the leaf gating requires 'opt-a'.
+       * true !== 'opt-a' → leaf is hidden → its answer must NOT appear in the summary.
+       */
+      const leaf4: AyuQuestion = {
+        linkId: 'leaf4',
+        text: 'Detail',
+        type: 'string',
+        enableWhen: [
+          { question: 'bool-container', operator: '=', answerString: 'opt-a' },
+        ],
+      };
+      const boolContainer: AyuQuestion = {
+        linkId: 'bool-container',
+        text: 'Confirmed',
+        type: 'choice',
+        enableWhen: [
+          { question: 'q5', operator: '=', answerCoding: { code: 'yes' } },
+        ],
+        answerOption: [{ valueCoding: { code: 'opt-a', display: 'Option A' } }],
+        item: [leaf4],
+      };
+      const question5: AyuQuestion = {
+        linkId: 'q5',
+        text: 'Confirmed present?',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+        item: [boolContainer],
+      };
+
+      const answers5: Record<string, AyuAnswerValue> = {
+        q5: 'yes',
+        'bool-container': true,   // real boolean answer, not a bypass sentinel
+        leaf4: 'stale answer',    // should be hidden because bool-container !== 'opt-a'
+      };
+
+      const q6: AyuQuestion = { linkId: 'q6', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q6,
+        currentIndex: 1,
+        total: 2,
+        answers: answers5,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question5, q6],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question5, q6])}
+          initialAnswers={answers5}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // leaf4's enableWhen (bool-container = 'opt-a') is NOT met (true !== 'opt-a'),
+      // so the stale answer must not appear in the answered summary.
+      expect(screen.queryByText('stale answer')).not.toBeInTheDocument();
+      expect(screen.queryByText('Detail')).not.toBeInTheDocument();
+    });
+
     it('strips "Yes - When" to "When" via exact-match optDisplay (real blood-transfusion 3-level structure)', () => {
       /*
        * The real blood-transfusion questionnaire has THREE levels:

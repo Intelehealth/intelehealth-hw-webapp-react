@@ -127,11 +127,12 @@ const isSingleOptionPE = (question: AyuQuestion): boolean => {
 
 const isChildVisible = (
   enableWhen: AyuQuestion['enableWhen'],
-  answers: Record<string, AyuAnswerValue>
+  answers: Record<string, AyuAnswerValue>,
+  bypassedContainers: ReadonlySet<string>
 ): boolean => {
   if (!enableWhen) return true;
   const effectiveRules = enableWhen.filter(
-    ew => !(answers[ew.question] === true && ew.operator === '=')
+    ew => !bypassedContainers.has(ew.question)
   );
   return effectiveRules.length > 0
     ? evaluateEnableWhen(effectiveRules, answers)
@@ -142,13 +143,15 @@ const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>,
   parent?: AyuQuestion,
-  branchOptionDisplay?: string
+  branchOptionDisplay?: string,
+  bypassedContainers: ReadonlySet<string> = new Set()
 ): { label: string; value: string }[] => {
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
   const SEPARATORS = [' - ', ' – ', ' — ', ': ', ' : '] as const;
   for (const child of items) {
-    if (!isChildVisible(child.enableWhen, answers)) continue;
+    if (!isChildVisible(child.enableWhen, answers, bypassedContainers))
+      continue;
 
     /*
      * Determine the branch display to carry into this child's descendants.
@@ -297,15 +300,21 @@ const collectAnsweredRows = (
         }
       }
     }
-    const childAnswers: Record<string, AyuAnswerValue> =
+    const childBypassedContainers: ReadonlySet<string> =
       child.type === FHIR_TYPE_CHOICE &&
       !!child.answerOption?.length &&
       !!child.item?.length &&
       answers[child.linkId] === undefined
-        ? { ...answers, [child.linkId]: true }
-        : answers;
+        ? new Set([...bypassedContainers, child.linkId])
+        : bypassedContainers;
     rows.push(
-      ...collectAnsweredRows(child.item, childAnswers, child, nextBranchDisplay)
+      ...collectAnsweredRows(
+        child.item,
+        answers,
+        child,
+        nextBranchDisplay,
+        childBypassedContainers
+      )
     );
   }
   return rows;
