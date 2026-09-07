@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import iconCamera from '../../../../assets/icons/icon-camera.svg';
 import {
   computeMultiSelectToggle,
-  isMutuallyExclusiveOption,
   SELECT_ANY_ONE,
   SELECT_ONE_OR_MORE,
 } from '../../../ayu-library';
@@ -104,21 +103,6 @@ export const AyuPhysicalExamOptions = ({
     !isMultiChoice && pendingRegular !== null
       ? [pendingRegular]
       : committedRegular;
-
-  const hasExclusiveSelected =
-    isMultiChoice &&
-    regularSelected.some(code => isMutuallyExclusiveOption(question, code));
-  const hasNonExclusiveSelected =
-    isMultiChoice &&
-    regularSelected.some(code => !isMutuallyExclusiveOption(question, code));
-
-  const isOptionDisabled = (optionCode: string): boolean => {
-    if (!isMultiChoice) return false;
-    const isExcl = isMutuallyExclusiveOption(question, optionCode);
-    if (hasExclusiveSelected && !isExcl) return true;
-    if (hasNonExclusiveSelected && isExcl) return true;
-    return false;
-  };
 
   const categoryLabel = question.extension?.find(
     e => e.url === EXT_URL_PE_CATEGORY_LABEL
@@ -251,7 +235,6 @@ export const AyuPhysicalExamOptions = ({
                   label={opt.valueCoding?.display ?? opt.valueString ?? optId}
                   value={optId}
                   selected={regularSelected.includes(optId)}
-                  disabled={isOptionDisabled(optId)}
                   leftIcon={getOptionIcon(
                     opt.valueCoding?.display ?? opt.valueString ?? ''
                   )}

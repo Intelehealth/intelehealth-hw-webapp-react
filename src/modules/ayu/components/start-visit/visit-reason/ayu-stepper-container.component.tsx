@@ -25,6 +25,7 @@ import {
   FHIR_TYPE_QUANTITY,
   FHIR_TYPE_STRING,
   PE_OPTION_KIND_CAMERA,
+  getBPRangeFromText,
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
@@ -108,6 +109,15 @@ const formatAnswerValue = (
 
 const isPlaceholderText = (text: string): boolean =>
   /^\s*\[.*\]\s*$/.test(text);
+
+const hasNestedBPInputs = (question: AyuQuestion): boolean => {
+  if (!question.item?.length) return false;
+  return question.item.some(
+    child =>
+      (child.type === FHIR_TYPE_INTEGER || child.type === FHIR_TYPE_STRING) &&
+      getBPRangeFromText(child.text) !== undefined
+  );
+};
 
 /** True when a PE question has only one non-camera regular option (auto-selected). */
 const isSingleOptionPE = (question: AyuQuestion): boolean => {
@@ -794,7 +804,8 @@ export const AyuStepperContainer = forwardRef<
                             showAllTriangles
                             selectable={
                               resolveAyuComponent(question) ===
-                              PHYSICAL_EXAM_OPTIONS_COMPONENT
+                                PHYSICAL_EXAM_OPTIONS_COMPONENT &&
+                              !hasNestedBPInputs(question)
                             }
                           />
                         )}

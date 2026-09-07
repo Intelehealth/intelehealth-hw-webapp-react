@@ -6776,6 +6776,152 @@ describe('AyuStepperContainer', () => {
       const nestedRenderer = screen.getByTestId('nested-renderer');
       expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
     });
+
+    it('should pass selectable=false to AyuNestedRenderer for PE questions with nested integer systolic/diastolic children', () => {
+      const question: AyuQuestion = {
+        linkId: 'arm-lying-bp',
+        text: 'Arm Lying BP',
+        type: 'choice',
+        item: [
+          { linkId: 'systolic', text: 'Enter systolic BP', type: 'integer' },
+          { linkId: 'diastolic', text: 'Enter diastolic BP', type: 'integer' },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
+    });
+
+    it('should pass selectable=false to AyuNestedRenderer for PE questions with nested string systolic/diastolic children', () => {
+      const question: AyuQuestion = {
+        linkId: 'arm-lying-bp',
+        text: 'Arm Lying BP',
+        type: 'choice',
+        item: [
+          { linkId: 'systolic', text: 'Enter systolic BP', type: 'string' },
+          { linkId: 'diastolic', text: 'Enter diastolic BP', type: 'string' },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'false');
+    });
+
+    it('should pass selectable=true to AyuNestedRenderer for PE questions with integer child that has no BP keyword in text', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-rash',
+        text: 'Skin Rash',
+        type: 'choice',
+        item: [{ linkId: 'count', text: 'How many lesions?', type: 'integer' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'true');
+    });
+
+    it('should pass selectable=true to AyuNestedRenderer for PE questions where BP keyword appears in a choice-type child (not integer/string)', () => {
+      const question: AyuQuestion = {
+        linkId: 'arm-lying-bp',
+        text: 'Arm Lying BP',
+        type: 'choice',
+        item: [{ linkId: 'systolic-choice', text: 'Enter systolic BP', type: 'choice' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'true');
+    });
   });
 
   describe('isActive prop – back navigation from Physical Exam (useLayoutEffect)', () => {
