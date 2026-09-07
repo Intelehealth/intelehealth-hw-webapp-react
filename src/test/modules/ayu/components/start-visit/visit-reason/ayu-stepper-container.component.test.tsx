@@ -6922,6 +6922,41 @@ describe('AyuStepperContainer', () => {
       const nestedRenderer = screen.getByTestId('nested-renderer');
       expect(nestedRenderer).toHaveAttribute('data-selectable', 'true');
     });
+
+    it('should pass selectable=true to AyuNestedRenderer for PE questions with an empty item array', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-nail',
+        text: 'Nail abnormality',
+        type: 'choice',
+        item: [],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const nestedRenderer = screen.getByTestId('nested-renderer');
+      expect(nestedRenderer).toHaveAttribute('data-selectable', 'true');
+    });
   });
 
   describe('isActive prop – back navigation from Physical Exam (useLayoutEffect)', () => {
