@@ -165,6 +165,8 @@ function transformItem(
 
   const children = originalChildren
     .filter(child => matchesDemographics(child.extension, demographics))
+
+    .filter(child => child.type !== FHIR_TYPE_ATTACHMENT)
     .map(child => transformItem(child, demographics));
 
   const isOptionOrphanedByDemographics = (optCode: string): boolean => {

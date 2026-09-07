@@ -1152,7 +1152,7 @@ describe('AyuPhysicalExamOptions', () => {
       ],
     });
 
-    it('applies disabled class to non-exclusive options when exclusive option is selected', () => {
+    it('does not apply disabled class to non-exclusive options when exclusive option is selected', () => {
       render(
         <AyuPhysicalExamOptions
           question={makeExclusiveQuestion()}
@@ -1160,14 +1160,14 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={vi.fn()}
         />
       );
-      // Exclusive option "None" is selected → normal options get disabled class
-      expect(screen.getByRole('button', { name: /^Rash$/ })).toHaveClass('disabled');
-      expect(screen.getByRole('button', { name: /^Pallor$/ })).toHaveClass('disabled');
-      // Exclusive option itself is NOT disabled
+      // Exclusive option "None" is selected → normal options remain enabled so user can re-select them
+      expect(screen.getByRole('button', { name: /^Rash$/ })).not.toHaveClass('disabled');
+      expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
+      // Exclusive option itself is also NOT disabled
       expect(screen.getByRole('button', { name: /^None$/ })).not.toHaveClass('disabled');
     });
 
-    it('applies disabled class to exclusive option when non-exclusive options are selected', () => {
+    it('does not apply disabled class to exclusive option when non-exclusive options are selected', () => {
       render(
         <AyuPhysicalExamOptions
           question={makeExclusiveQuestion()}
@@ -1175,9 +1175,7 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={vi.fn()}
         />
       );
-      // Non-exclusive options selected → exclusive option gets disabled class
-      expect(screen.getByRole('button', { name: /^None$/ })).toHaveClass('disabled');
-      // Non-exclusive options are NOT disabled
+      expect(screen.getByRole('button', { name: /^None$/ })).not.toHaveClass('disabled');
       expect(screen.getByRole('button', { name: /^Rash$/ })).not.toHaveClass('disabled');
       expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
     });
@@ -1212,7 +1210,7 @@ describe('AyuPhysicalExamOptions', () => {
       expect(screen.getByRole('button', { name: /^Pallor$/ })).not.toHaveClass('disabled');
     });
 
-    it('disabled buttons are still clickable (visual-only) and toggle correctly', async () => {
+    it('clicking exclusive option when non-exclusive options are selected toggles correctly', async () => {
       const setAnswer = vi.fn();
       render(
         <AyuPhysicalExamOptions
@@ -1221,9 +1219,8 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={setAnswer}
         />
       );
-      // "None" is visually disabled but should still be clickable
       const noneButton = screen.getByRole('button', { name: /^None$/ });
-      expect(noneButton).toHaveClass('disabled');
+      expect(noneButton).not.toHaveClass('disabled');
       await userEvent.click(noneButton);
       // computeMultiSelectToggle should replace 'rash' with 'none'
       expect(setAnswer).toHaveBeenCalledWith(
