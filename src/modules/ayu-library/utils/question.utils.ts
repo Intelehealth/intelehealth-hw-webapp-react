@@ -48,14 +48,13 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
     return false;
   }
 
-  const gatedCount = new Map<string, number>();
+  const gatedCodes = new Set<string>();
   for (const child of q.item) {
     if (child.answerOption?.length) return false;
     const code = findMatchingOptionCode(child, q);
     if (!code) continue;
-    const next = (gatedCount.get(code) ?? 0) + 1;
-    if (next > 1) return false;
-    gatedCount.set(code, next);
+    if (gatedCodes.has(code)) return false;
+    gatedCodes.add(code);
   }
 
   return true;

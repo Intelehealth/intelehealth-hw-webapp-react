@@ -28,6 +28,25 @@ interface NestedProps {
   showAllTriangles?: boolean;
 }
 
+const FOLLOW_NEWEST = { kind: 'followNewest' } as const;
+const ALL_COLLAPSED = { kind: 'allCollapsed' } as const;
+
+type OpenBranch =
+  | typeof FOLLOW_NEWEST
+  | typeof ALL_COLLAPSED
+  | { kind: 'branch'; label: string };
+
+const getOptionDisplay = (
+  question: AyuQuestion | undefined,
+  code: string | undefined
+): string | null => {
+  if (!question || !code) return null;
+  const option = question.answerOption?.find(
+    opt => opt.valueCoding?.code === code || opt.valueString === code
+  );
+  return option?.valueCoding?.display || option?.valueString || null;
+};
+
 export const AyuNestedRenderer = ({
   items,
   parentQuestion,
@@ -39,9 +58,7 @@ export const AyuNestedRenderer = ({
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
-  const [openOverride, setOpenOverride] = useState<string | null | undefined>(
-    undefined
-  );
+  const [openBranch, setOpenBranch] = useState<OpenBranch>(FOLLOW_NEWEST);
 
   /* Reset selected option when the parent answer changes (different children become visible) */
   const parentAnswer = parentQuestion
@@ -49,24 +66,18 @@ export const AyuNestedRenderer = ({
     : undefined;
   useEffect(() => {
     setSelectedOption(null);
-    setOpenOverride(undefined);
+    setOpenBranch(FOLLOW_NEWEST);
   }, [parentAnswer]);
 
-  const lastAnswerCode = Array.isArray(parentAnswer)
-    ? (parentAnswer as string[]).at(-1)
+  const selectedCodes: string[] = Array.isArray(parentAnswer)
+    ? parentAnswer
     : typeof parentAnswer === 'string'
-      ? parentAnswer
-      : undefined;
-
-  const newestBranchLabel = useMemo<string | null>(() => {
-    if (!parentQuestion || !lastAnswerCode) return null;
-    const option = parentQuestion.answerOption?.find(
-      opt =>
-        opt.valueCoding?.code === lastAnswerCode ||
-        opt.valueString === lastAnswerCode
-    );
-    return option?.valueCoding?.display || option?.valueString || null;
-  }, [parentQuestion, lastAnswerCode]);
+      ? [parentAnswer]
+      : [];
+  const newestBranchLabel = getOptionDisplay(
+    parentQuestion,
+    selectedCodes.at(-1)
+  );
 
   /* Clear answers for a selectable option and all its nested descendants */
   const clearNestedAnswers = (item: AyuQuestion) => {
@@ -215,11 +226,10 @@ export const AyuNestedRenderer = ({
       rule.answerInteger ??
       rule.answerCoding?.code;
 
-    const option = parentQuestion.answerOption?.find(
-      opt => opt.valueCoding?.code === expected || opt.valueString === expected
+    return getOptionDisplay(
+      parentQuestion,
+      typeof expected === 'string' ? expected : undefined
     );
-
-    return option?.valueCoding?.display || option?.valueString || null;
   };
 
   const enabledItems = items.filter(isEnabled);
@@ -244,8 +254,9 @@ export const AyuNestedRenderer = ({
     newestBranchLabel && branchLabels.includes(newestBranchLabel)
       ? newestBranchLabel
       : branchLabels[0];
-  const openLabel =
-    openOverride === undefined ? defaultOpenLabel : openOverride;
+  let openLabel: string | null = null;
+  if (openBranch.kind === 'followNewest') openLabel = defaultOpenLabel ?? null;
+  else if (openBranch.kind === 'branch') openLabel = openBranch.label;
 
   return (
     <div className="space-y-4 px-3">
@@ -302,7 +313,11 @@ export const AyuNestedRenderer = ({
             {collapsible && (
               <button
                 type="button"
-                onClick={() => setOpenOverride(expanded ? null : label)}
+                onClick={() =>
+                  setOpenBranch(
+                    expanded ? ALL_COLLAPSED : { kind: 'branch', label }
+                  )
+                }
                 aria-expanded={expanded}
                 className="flex w-full items-center gap-2 py-2 text-left"
               >

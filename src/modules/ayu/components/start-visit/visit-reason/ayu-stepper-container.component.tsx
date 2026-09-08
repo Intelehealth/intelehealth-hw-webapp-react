@@ -157,12 +157,15 @@ const getBranchQualifier = (
   if (!parent?.answerOption?.length) return undefined;
 
   const parentAnswer = answers[parent.linkId];
-  if (!Array.isArray(parentAnswer) || parentAnswer.length < 2) return undefined;
+  const selectedCodes: string[] = Array.isArray(parentAnswer)
+    ? parentAnswer.filter((c): c is string => typeof c === 'string')
+    : [];
+  if (selectedCodes.length < 2) return undefined;
 
   const code = child.enableWhen?.find(
     rule => rule.question === parent.linkId && rule.answerCoding?.code
   )?.answerCoding?.code;
-  if (!code || !parentAnswer.includes(code)) return undefined;
+  if (!code || !selectedCodes.includes(code)) return undefined;
 
   const option = parent.answerOption.find(
     opt => opt.valueCoding?.code === code || opt.valueString === code
