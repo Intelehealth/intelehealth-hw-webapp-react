@@ -82,13 +82,11 @@ export const hasUnansweredRequiredNestedChild = (
       }
 
       /*
-       * Intermediate choice questions (answerOption + item[]) are rendered with
-       * their sub-items shown directly in non-selectable mode (bypassing pill
-       * selection). The choice question itself is never answered by the user, so
-       * skip its required/repeats check to avoid a false "Select any one" toast.
        */
       const isIntermediateChoice =
-        !!child.answerOption?.length && !!child.item?.length;
+        child.answerOption?.length === 1 &&
+        !!child.item?.length &&
+        !child.repeats;
       /* Required children must have an answer */
       if (
         child.required &&

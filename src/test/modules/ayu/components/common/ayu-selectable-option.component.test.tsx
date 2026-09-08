@@ -74,6 +74,11 @@ describe('AyuSelectableOption', () => {
       expect(screen.getByText('Test Option')).toBeInTheDocument();
     });
 
+    it('should apply label class to label element', () => {
+      render(<AyuSelectableOption label="Test Option" value="test" selected={false} />);
+      expect(screen.getByText('Test Option')).toHaveClass('label');
+    });
+
     it('should display empty label', () => {
       render(<AyuSelectableOption label="" value="test" selected={false} />);
       const button = screen.getByRole('button');
@@ -156,6 +161,18 @@ describe('AyuSelectableOption', () => {
       expect(screen.getByTestId('left-icon').parentElement).toHaveClass('option-icon');
     });
 
+    it('should apply flex-shrink-0 class to leftIcon wrapper', () => {
+      render(
+        <AyuSelectableOption
+          label="Option"
+          value="opt"
+          selected={false}
+          leftIcon={<span data-testid="left-icon">L</span>}
+        />
+      );
+      expect(screen.getByTestId('left-icon').parentElement).toHaveClass('flex-shrink-0');
+    });
+
     it('should not render leftIcon wrapper when not provided', () => {
       const { container } = render(
         <AyuSelectableOption label="Option" value="opt" selected={false} />
@@ -174,6 +191,18 @@ describe('AyuSelectableOption', () => {
       );
       expect(screen.getByTestId('right-icon')).toBeInTheDocument();
       expect(screen.getByTestId('right-icon').parentElement).toHaveClass('right-icon');
+    });
+
+    it('should apply icon class to rightIcon wrapper', () => {
+      render(
+        <AyuSelectableOption
+          label="Option"
+          value="opt"
+          selected={false}
+          rightIcon={<span data-testid="right-icon">R</span>}
+        />
+      );
+      expect(screen.getByTestId('right-icon').parentElement).toHaveClass('icon');
     });
 
     it('should not render rightIcon wrapper when not provided', () => {

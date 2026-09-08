@@ -18,24 +18,24 @@ vi.mock(
   })
 );
 
+import { hasExclusiveSelected } from '../../../../modules/ayu-library/logic/associated-symptoms.logic';
 import {
-  isEmpty,
-  hasVisibleRequiredNestedString,
-  hasUnansweredRequiredNestedChild,
-  isNestedInputValueMissing,
-  hasMissingNestedBPInput,
-  isNumericOutOfRange,
-  hasNestedOutOfRangeValue,
+  isPhysicalExamOptionsQuestion,
+  isStrictAssociatedSymptoms,
+  resolveAyuComponent,
+} from '../../../../modules/ayu-library/logic/decision-matrix';
+import {
   findOutOfRangeQuestionText,
+  hasMissingNestedBPInput,
+  hasNestedOutOfRangeValue,
+  hasUnansweredRequiredNestedChild,
+  hasVisibleRequiredNestedString,
+  isEmpty,
+  isNestedInputValueMissing,
+  isNumericOutOfRange,
   isQuantityInvalid,
   validateQuestion,
 } from '../../../../modules/ayu-library/logic/validation.logic';
-import {
-  resolveAyuComponent,
-  isStrictAssociatedSymptoms,
-  isPhysicalExamOptionsQuestion,
-} from '../../../../modules/ayu-library/logic/decision-matrix';
-import { hasExclusiveSelected } from '../../../../modules/ayu-library/logic/associated-symptoms.logic';
 
 describe('isEmpty', () => {
   it('should return true for undefined', () => {
@@ -380,6 +380,66 @@ describe('hasUnansweredRequiredNestedChild', () => {
       ],
     };
     expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
+  });
+
+  describe('isIntermediateChoice (single-option gateway bypass)', () => {
+    it('should skip required/repeats validation for a single-option non-repeats gateway child', () => {
+      const q: AyuQuestion = {
+        linkId: 'parent',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'gateway',
+            type: 'choice',
+            required: true,
+            repeats: false,
+            answerOption: [{ valueCoding: { code: 'event', display: 'Event' } }],
+            item: [{ linkId: 'gateway-detail', type: 'string' }],
+          },
+        ],
+      };
+      expect(hasUnansweredRequiredNestedChild(q, { parent: 'yes' })).toBe(true);
+      expect(hasUnansweredRequiredNestedChild(q, { parent: 'yes', 'gateway-detail': 'filled' })).toBe(false);
+    });
+
+    it('should validate normally for a multi-option (2+) non-repeats choice child', () => {
+      const q: AyuQuestion = {
+        linkId: 'parent',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'age-question',
+            type: 'choice',
+            required: true,
+            repeats: false,
+            answerOption: [
+              { valueCoding: { code: 'lt40', display: 'Less than 40' } },
+              { valueCoding: { code: 'gt40', display: 'More than 40' } },
+            ],
+          },
+        ],
+      };
+      expect(hasUnansweredRequiredNestedChild(q, { parent: 'yes' })).toBe(true);
+      expect(hasUnansweredRequiredNestedChild(q, { parent: 'yes', 'age-question': 'lt40' })).toBe(false);
+    });
+
+    it('should validate normally for a repeats:true child regardless of answerOption count', () => {
+      const q: AyuQuestion = {
+        linkId: 'parent',
+        type: 'choice',
+        item: [
+          {
+            linkId: 'medication',
+            type: 'choice',
+            required: true,
+            repeats: true,
+            answerOption: [{ valueCoding: { code: 'MED1', display: 'Medication 1' } }],
+            item: [{ linkId: 'med1-start', type: 'date' }],
+          },
+        ],
+      };
+      expect(hasUnansweredRequiredNestedChild(q, { parent: 'yes' })).toBe(true);
+    });
   });
 });
 

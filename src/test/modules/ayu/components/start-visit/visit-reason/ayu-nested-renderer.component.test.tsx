@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AyuNestedRenderer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
+import { AyuNestedRenderer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 
 // Mock AyuRenderer component
 vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
@@ -472,21 +472,16 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-grandchild-1')).toBeInTheDocument();
     });
 
-    it('should bypass intermediate choice (answerOption + item[]) and render sub-items directly', () => {
+    it('should bypass single-option intermediate choice gateway and render sub-items directly', () => {
       /*
-       * Non-selectable (visit-reason) mode: intermediate choice questions
-       * (type=choice with both answerOption[] and item[]) are bypassed so their
-       * sub-items appear as direct labeled inputs instead of pill buttons.
-       * enableWhen entries that reference the bypassed container are stripped.
        */
       const items: AyuQuestion[] = [
         {
           linkId: 'intermediate',
-          text: 'From/To/Event',
+          text: 'Drug Event',
           type: 'choice',
           answerOption: [
-            { valueCoding: { code: 'From', display: 'From' } },
-            { valueCoding: { code: 'To', display: 'To' } },
+            { valueCoding: { code: 'event', display: 'Event' } },
           ],
           item: [
             {
@@ -495,7 +490,7 @@ describe('AyuNestedRenderer', () => {
               type: 'date',
               /* enableWhen references the container — stripped during bypass */
               enableWhen: [
-                { question: 'intermediate', operator: '=', answerCoding: { code: 'From' } },
+                { question: 'intermediate', operator: '=', answerCoding: { code: 'event' } },
               ],
             },
             {
@@ -521,6 +516,89 @@ describe('AyuNestedRenderer', () => {
       expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
       /* The intermediate choice container itself must NOT be rendered */
       expect(screen.queryByTestId('renderer-intermediate')).not.toBeInTheDocument();
+    });
+
+    it('should NOT bypass a multi-option choice question (2+ answerOptions)', () => {
+
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'age-question',
+          text: 'Age when first diagnosed',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'lt40', display: 'Less than 40' } },
+            { valueCoding: { code: 'gt40', display: 'More than 40' } },
+          ],
+          item: [
+            {
+              linkId: 'lt40-rec',
+              text: 'Recommendation under 40',
+              type: 'string',
+              enableWhen: [
+                { question: 'age-question', operator: '=', answerCoding: { code: 'lt40' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      /* Age question must be rendered directly (NOT bypassed) */
+      expect(screen.getByTestId('renderer-age-question')).toBeInTheDocument();
+      /* Sub-items must NOT appear directly — they live inside the age question */
+      expect(screen.queryByTestId('renderer-lt40-rec')).not.toBeInTheDocument();
+    });
+
+    it('should NOT bypass a repeats:true multi-select choice question (medication names)', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'medication',
+          text: 'Select medications',
+          type: 'choice',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'MED1', display: 'Medication name 1' } },
+            { valueCoding: { code: 'MED2', display: 'Medication name 2' } },
+          ],
+          item: [
+            {
+              linkId: 'med1-sub',
+              text: 'Med 1 Start Date',
+              type: 'date',
+              enableWhen: [
+                { question: 'medication', operator: '=', answerCoding: { code: 'MED1' } },
+              ],
+            },
+            {
+              linkId: 'med2-sub',
+              text: 'Med 2 Start Date',
+              type: 'date',
+              enableWhen: [
+                { question: 'medication', operator: '=', answerCoding: { code: 'MED2' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-medication')).toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-med1-sub')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-med2-sub')).not.toBeInTheDocument();
     });
 
     it('should retain non-container enableWhen on sub-items when bypassing intermediate choice', () => {

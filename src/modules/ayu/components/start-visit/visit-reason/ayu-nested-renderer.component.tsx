@@ -7,6 +7,8 @@ import type {
 import {
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_STRING,
+  SELECT_ANY_ONE,
+  SELECT_ONE_OR_MORE,
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
@@ -249,7 +251,12 @@ export const AyuNestedRenderer = ({
                * Render all sub-items directly as labeled inputs by stripping
                * the enableWhen condition that references the removed container.
                */
-              if (!hasAnswerOptionItemMapping(child)) return [child];
+              if (
+                !hasAnswerOptionItemMapping(child) ||
+                child.repeats ||
+                (child.answerOption?.length ?? 0) > 1
+              )
+                return [child];
               return child.item!.map(sub => {
                 const kept =
                   sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??
@@ -266,7 +273,13 @@ export const AyuNestedRenderer = ({
             {selectable && displayChildren.length > 1 ? (
               <>
                 {/* Multiple children: render as selectable option pills */}
-                <div className="option-group mt-4 mb-3">
+                <div className="text-sm text-gray-500 mt-4 mb-1">
+                  {parentQuestion?.repeats ||
+                  displayChildren.some(c => c.repeats)
+                    ? SELECT_ONE_OR_MORE
+                    : SELECT_ANY_ONE}
+                </div>
+                <div className="option-group mt-2 mb-3">
                   {displayChildren.map(
                     item =>
                       !!item?.text && (

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AyuSelectableOptionGroup } from '../../../../../modules/ayu/components/common/ayu-selectable-option-group';
+import { describe, expect, it, vi } from 'vitest';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { AyuSelectableOptionGroup } from '../../../../../modules/ayu/components/common/ayu-selectable-option-group';
 
 vi.mock('../../../../../ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
@@ -19,6 +19,11 @@ describe('AyuSelectableOptionGroup', () => {
       { valueString: 'Option B' },
       { valueCoding: { display: 'Option C', code: 'opt-c' } },
     ],
+  };
+
+  const multiSelectQuestion: AyuQuestion = {
+    ...mockQuestion,
+    repeats: true,
   };
 
   describe('Rendering', () => {
@@ -561,13 +566,9 @@ describe('AyuSelectableOptionGroup', () => {
       expect(onChange).toHaveBeenCalledWith(null);
     });
 
-    it('should call onChange with optionValue for multi-select even when already selected', async () => {
+    it('should call onChange with array with option removed when clicking an already selected option (multi-select)', async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
-      const multiSelectQuestion: AyuQuestion = {
-        ...mockQuestion,
-        repeats: true,
-      };
 
       render(
         <AyuSelectableOptionGroup
@@ -579,11 +580,10 @@ describe('AyuSelectableOptionGroup', () => {
         />
       );
 
-      // Click already selected option — multi-select toggle is handled by computeMultiSelectToggle upstream
       const optionA = screen.getByRole('button', { name: 'Option A' });
       await user.click(optionA);
 
-      expect(onChange).toHaveBeenCalledWith('Option A');
+      expect(onChange).toHaveBeenCalledWith([]);
     });
   });
 
@@ -652,6 +652,188 @@ describe('AyuSelectableOptionGroup', () => {
       );
 
       const optionA = screen.getByRole('button', { name: 'Option A' });
+      expect(optionA).not.toHaveClass('selected');
+    });
+  });
+
+  describe('Multi-Select Behavior (repeats: true)', () => {
+    it('should call onChange with array containing option when clicking unselected option with empty selection', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={[]}
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      expect(onChange).toHaveBeenCalledWith(['Option A']);
+    });
+
+    it('should call onChange with appended array when clicking unselected option while others are selected', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['opt-c']}
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      expect(onChange).toHaveBeenCalledWith(['opt-c', 'Option A']);
+    });
+
+    it('should treat non-array value as empty array and add the clicked option', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={'not-an-array' as any}
+          onChange={onChange}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await user.click(optionA);
+
+      // Non-array value is treated as [] → appends clicked option
+      expect(onChange).toHaveBeenCalledWith(['Option A']);
+    });
+
+    it('should not throw when onChange is undefined (multi-select)', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={[]}
+          onChange={undefined}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      await expect(user.click(optionA)).resolves.not.toThrow();
+    });
+
+    it('should replace all selections with mutually exclusive option when clicked', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      const questionWithNone: AyuQuestion = {
+        ...multiSelectQuestion,
+        answerOption: [
+          { valueCoding: { code: 'MED1', display: 'Medication 1' } },
+          { valueCoding: { code: 'MED2', display: 'Medication 2' } },
+          { valueCoding: { code: 'none', display: 'None of the above' } },
+        ],
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithNone}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['MED1', 'MED2']}
+          onChange={onChange}
+        />
+      );
+
+      const noneOption = screen.getByRole('button', { name: 'None of the above' });
+      await user.click(noneOption);
+
+      // All previous selections cleared, only 'none' remains
+      expect(onChange).toHaveBeenCalledWith(['none']);
+    });
+
+    it('should deselect mutually exclusive option when clicked again', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      const questionWithNone: AyuQuestion = {
+        ...multiSelectQuestion,
+        answerOption: [
+          { valueCoding: { code: 'MED1', display: 'Medication 1' } },
+          { valueCoding: { code: 'none', display: 'None of the above' } },
+        ],
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithNone}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['none']}
+          onChange={onChange}
+        />
+      );
+
+      const noneOption = screen.getByRole('button', { name: 'None of the above' });
+      await user.click(noneOption);
+
+      expect(onChange).toHaveBeenCalledWith([]);
+    });
+
+    it('should remove mutually exclusive option when a normal option is clicked', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      const questionWithNone: AyuQuestion = {
+        ...multiSelectQuestion,
+        answerOption: [
+          { valueCoding: { code: 'MED1', display: 'Medication 1' } },
+          { valueCoding: { code: 'none', display: 'None of the above' } },
+        ],
+      };
+
+      render(
+        <AyuSelectableOptionGroup
+          question={questionWithNone}
+          parent={undefined}
+          previousSibling={undefined}
+          value={['none']}
+          onChange={onChange}
+        />
+      );
+
+      const med1Option = screen.getByRole('button', { name: 'Medication 1' });
+      await user.click(med1Option);
+
+      expect(onChange).toHaveBeenCalledWith(['MED1']);
+    });
+
+    it('should mark option as not selected when value is not an array (multi-select)', () => {
+      render(
+        <AyuSelectableOptionGroup
+          question={multiSelectQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={'Option A' as any}
+          onChange={vi.fn()}
+        />
+      );
+
+      const optionA = screen.getByRole('button', { name: 'Option A' });
+      // value is a string, not array → isSelected is false for repeats questions
       expect(optionA).not.toHaveClass('selected');
     });
   });

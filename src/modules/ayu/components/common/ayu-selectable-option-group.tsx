@@ -1,4 +1,5 @@
 import { resolveAyuComponent } from '../../../ayu-library/logic/decision-matrix';
+import { computeMultiSelectToggle } from '../../../ayu-library/logic/stepper.logic';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
 import {
@@ -59,11 +60,21 @@ export function AyuSelectableOptionGroup({
               label={opt?.valueString || opt?.valueCoding?.display}
               value={optionValue}
               selected={isSelected}
-              onClick={() =>
-                onChange?.(
-                  isSelected && !question?.repeats ? null : optionValue
-                )
-              }
+              onClick={() => {
+                if (question?.repeats) {
+                  const currentArr = Array.isArray(value)
+                    ? (value as string[])
+                    : [];
+                  const next = computeMultiSelectToggle(
+                    question,
+                    currentArr,
+                    optionValue
+                  );
+                  onChange?.(next);
+                } else {
+                  onChange?.(isSelected ? null : optionValue);
+                }
+              }}
             />
           );
         })}
