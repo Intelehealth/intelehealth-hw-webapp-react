@@ -149,12 +149,37 @@ const isChildVisible = (
     : true;
 };
 
+const getBranchQualifier = (
+  child: AyuQuestion,
+  parent: AyuQuestion | undefined,
+  answers: Record<string, AyuAnswerValue>
+): string | undefined => {
+  if (!parent?.answerOption?.length) return undefined;
+
+  const parentAnswer = answers[parent.linkId];
+  const selectedCodes: string[] = Array.isArray(parentAnswer)
+    ? parentAnswer.filter((c): c is string => typeof c === 'string')
+    : [];
+  if (selectedCodes.length < 2) return undefined;
+
+  const code = child.enableWhen?.find(
+    rule => rule.question === parent.linkId && rule.answerCoding?.code
+  )?.answerCoding?.code;
+  if (!code || !selectedCodes.includes(code)) return undefined;
+
+  const option = parent.answerOption.find(
+    opt => opt.valueCoding?.code === code || opt.valueString === code
+  );
+  return option?.valueCoding?.display || option?.valueString || undefined;
+};
+
 const collectAnsweredRows = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>,
   parent?: AyuQuestion,
   branchOptionDisplay?: string,
-  bypassedContainers: ReadonlySet<string> = new Set()
+  bypassedContainers: ReadonlySet<string> = new Set(),
+  branchQualifier?: string
 ): { label: string; value: string }[] => {
   if (!items) return [];
   const rows: { label: string; value: string }[] = [];
@@ -198,6 +223,9 @@ const collectAnsweredRows = (
     if (!nextBranchDisplay && branchOptionDisplay != null) {
       nextBranchDisplay = branchOptionDisplay;
     }
+
+    const childQualifier =
+      branchQualifier ?? getBranchQualifier(child, parent, answers);
 
     const value = formatAnswerValue(child, answers[child.linkId]);
     if (value && !isPlaceholderText(value)) {
@@ -302,10 +330,17 @@ const collectAnsweredRows = (
        */
       const isRedundantContainer = hasOptionPrefix && !!child.item?.length;
 
+      const qualifiedLabel =
+        childQualifier &&
+        effectiveLabel &&
+        !effectiveLabel.startsWith(childQualifier)
+          ? `${childQualifier} - ${effectiveLabel}`
+          : effectiveLabel;
+
       if (!isRedundantContainer) {
-        if (effectiveLabel && effectiveLabel !== value) {
-          rows.push({ label: effectiveLabel, value });
-        } else if (!effectiveLabel) {
+        if (qualifiedLabel && qualifiedLabel !== value) {
+          rows.push({ label: qualifiedLabel, value });
+        } else if (!qualifiedLabel) {
           rows.push({ label: '', value });
         }
       }
@@ -323,7 +358,8 @@ const collectAnsweredRows = (
         answers,
         child,
         nextBranchDisplay,
-        childBypassedContainers
+        childBypassedContainers,
+        childQualifier
       )
     );
   }
