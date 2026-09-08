@@ -43,6 +43,24 @@ export const findMatchingOptionCode = (
   return undefined;
 };
 
+export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
+  if (q.type !== 'choice' || !q.answerOption?.length || !q.item?.length) {
+    return false;
+  }
+
+  const gatedCount = new Map<string, number>();
+  for (const child of q.item) {
+    if (child.answerOption?.length) return false;
+    const code = findMatchingOptionCode(child, q);
+    if (!code) continue;
+    const next = (gatedCount.get(code) ?? 0) + 1;
+    if (next > 1) return false;
+    gatedCount.set(code, next);
+  }
+
+  return true;
+};
+
 /**
  * Check whether a linkId belongs to any descendant of the given question (recursive).
  */

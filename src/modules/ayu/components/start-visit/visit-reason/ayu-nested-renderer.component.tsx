@@ -11,6 +11,7 @@ import {
 import {
   collectDescendantLinkIds,
   findMatchingOptionCode,
+  isFieldLabelContainer,
 } from '../../../../ayu-library/utils/question.utils';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
 import '../../common/selectable-option.css';
@@ -38,13 +39,31 @@ export const AyuNestedRenderer = ({
 }: NestedProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
+  const [openOverride, setOpenOverride] = useState<string | null | undefined>(
+    undefined
+  );
+
   /* Reset selected option when the parent answer changes (different children become visible) */
   const parentAnswer = parentQuestion
     ? answers[parentQuestion.linkId]
     : undefined;
   useEffect(() => {
     setSelectedOption(null);
+    setOpenOverride(undefined);
   }, [parentAnswer]);
+
+  const newestBranchLabel = useMemo<string | null>(() => {
+    if (!parentQuestion) return null;
+    let codes: string[] = [];
+    if (Array.isArray(parentAnswer)) codes = parentAnswer as string[];
+    else if (typeof parentAnswer === 'string') codes = [parentAnswer];
+    const lastCode = codes.at(-1);
+    if (!lastCode) return null;
+    const option = parentQuestion.answerOption?.find(
+      opt => opt.valueCoding?.code === lastCode || opt.valueString === lastCode
+    );
+    return option?.valueCoding?.display || option?.valueString || null;
+  }, [parentQuestion, parentAnswer]);
 
   /* Clear answers for a selectable option and all its nested descendants */
   const clearNestedAnswers = (item: AyuQuestion) => {
@@ -213,9 +232,23 @@ export const AyuNestedRenderer = ({
     groups.get(label)!.push(item);
   }
 
+  const groupEntries = Array.from(groups.entries());
+  const branchLabels = groupEntries
+    .map(([label]) => label)
+    .filter((label): label is string => label !== null);
+  const isAccordion = branchLabels.length > 1;
+  const defaultOpenLabel =
+    newestBranchLabel && branchLabels.includes(newestBranchLabel)
+      ? newestBranchLabel
+      : branchLabels[0];
+  const openLabel =
+    openOverride === undefined ? defaultOpenLabel : openOverride;
+
   return (
     <div className="space-y-4 px-3">
-      {Array.from(groups.entries()).map(([label, children]) => {
+      {groupEntries.map(([label, children]) => {
+        const collapsible = isAccordion && label !== null;
+        const expanded = !collapsible || openLabel === label;
         /*
          * In selectable mode, flatten container items so their children appear
          * directly as pills instead of requiring an extra click on the container.
@@ -249,7 +282,7 @@ export const AyuNestedRenderer = ({
                * Render all sub-items directly as labeled inputs by stripping
                * the enableWhen condition that references the removed container.
                */
-              if (!hasAnswerOptionItemMapping(child)) return [child];
+              if (!isFieldLabelContainer(child)) return [child];
               return child.item!.map(sub => {
                 const kept =
                   sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??
@@ -263,148 +296,175 @@ export const AyuNestedRenderer = ({
 
         return (
           <div key={label || 'default'}>
-            {selectable && displayChildren.length > 1 ? (
-              <>
-                {/* Multiple children: render as selectable option pills */}
-                <div className="option-group mt-4 mb-3">
-                  {displayChildren.map(
-                    item =>
-                      !!item?.text && (
-                        <AyuSelectableOption
-                          key={item.linkId}
-                          label={stripGroupPrefix(item.text, label)!}
-                          value={item.linkId}
-                          selected={selectedOption === item.linkId}
-                          onClick={() => {
-                            if (selectedOption === item.linkId) {
-                              /*
-                               * Deselecting current option — only clear for choice types
-                               * (input-type items like integer/string keep their entered value)
-                               */
-                              if (item.type === FHIR_TYPE_CHOICE) {
-                                clearNestedAnswers(item);
-                              }
-                              setSelectedOption(null);
-                            } else {
-                              /* Switching to a new option — only clear previous for choice types */
-                              if (selectedOption) {
-                                const prevItem = displayChildren.find(
-                                  c => c.linkId === selectedOption
-                                );
-                                if (
-                                  prevItem &&
-                                  prevItem.type === FHIR_TYPE_CHOICE
-                                ) {
-                                  clearNestedAnswers(prevItem);
+            {collapsible && (
+              <button
+                type="button"
+                onClick={() => setOpenOverride(expanded ? null : label)}
+                aria-expanded={expanded}
+                className="flex w-full items-center gap-2 py-2 text-left"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="#20c997"
+                  className={`flex-shrink-0 transition-transform ${
+                    expanded ? 'rotate-90' : ''
+                  }`}
+                >
+                  <path d="M4 2 L14 8 L4 14 Z" />
+                </svg>
+                <span className="text-md font-medium text-black-500">
+                  {label}
+                </span>
+              </button>
+            )}
+            <div style={expanded ? undefined : { display: 'none' }}>
+              {selectable && displayChildren.length > 1 ? (
+                <>
+                  {/* Multiple children: render as selectable option pills */}
+                  <div className="option-group mt-4 mb-3">
+                    {displayChildren.map(
+                      item =>
+                        !!item?.text && (
+                          <AyuSelectableOption
+                            key={item.linkId}
+                            label={stripGroupPrefix(item.text, label)!}
+                            value={item.linkId}
+                            selected={selectedOption === item.linkId}
+                            onClick={() => {
+                              if (selectedOption === item.linkId) {
+                                /*
+                                 * Deselecting current option — only clear for choice types
+                                 * (input-type items like integer/string keep their entered value)
+                                 */
+                                if (item.type === FHIR_TYPE_CHOICE) {
+                                  clearNestedAnswers(item);
                                 }
+                                setSelectedOption(null);
+                              } else {
+                                /* Switching to a new option — only clear previous for choice types */
+                                if (selectedOption) {
+                                  const prevItem = displayChildren.find(
+                                    c => c.linkId === selectedOption
+                                  );
+                                  if (
+                                    prevItem &&
+                                    prevItem.type === FHIR_TYPE_CHOICE
+                                  ) {
+                                    clearNestedAnswers(prevItem);
+                                  }
+                                }
+                                setSelectedOption(item.linkId);
                               }
-                              setSelectedOption(item.linkId);
-                            }
-                          }}
-                        />
-                      )
-                  )}
-                </div>
+                            }}
+                          />
+                        )
+                    )}
+                  </div>
 
-                {/* Render input component for the selected item.
-                 * Suppress the question text to avoid repeating the pill label. */}
-                {displayChildren
-                  .filter(
-                    child => !!child.text && selectedOption === child.linkId
-                  )
-                  .map(child => (
+                  {/* Render input component for the selected item.
+                   * Suppress the question text to avoid repeating the pill label. */}
+                  {displayChildren
+                    .filter(
+                      child => !!child.text && selectedOption === child.linkId
+                    )
+                    .map(child => (
+                      <div
+                        key={child.linkId}
+                        className="flex items-start gap-2 mt-2"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="#20c997"
+                          className="flex-shrink-0 mt-4"
+                        >
+                          <path d="M4 2 L14 8 L4 14 Z" />
+                        </svg>
+                        <div className="flex-1">
+                          <AyuRenderer
+                            question={{ ...child, text: undefined }}
+                            value={answers[child.linkId]}
+                            onChange={val => setAnswer(child, val)}
+                          />
+                          {/* After flattening (lines 144-161), only
+                            hasAnswerOptionItemMapping children retain
+                            child.item — all others were replaced by their
+                            grandchildren. So we only need the inline path. */}
+                          {hasAnswerOptionItemMapping(child) &&
+                            renderInlineNestedItems(child)}
+                        </div>
+                      </div>
+                    ))}
+                </>
+              ) : (
+                /* Render all items directly via AyuRenderer */
+                displayChildren.map((child, childIndex) => {
+                  /*
+                   * Show triangle for string items only when the group has multiple children
+                   * (standalone question like "How often...?"), not when it's the sole child
+                   * of an option (describe field like "Describe..." under a "Describe" option)
+                   */
+                  const isDescribeField =
+                    child.type === FHIR_TYPE_STRING &&
+                    displayChildren.length === 1;
+                  const showTriangle = isDescribeField
+                    ? false
+                    : showAllTriangles ||
+                      child.type !== FHIR_TYPE_STRING ||
+                      displayChildren.length > 1;
+
+                  const prevSibling =
+                    childIndex > 0
+                      ? displayChildren[childIndex - 1]
+                      : undefined;
+
+                  return (
                     <div
                       key={child.linkId}
                       className="flex items-start gap-2 mt-2"
                     >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 16 16"
-                        fill="#20c997"
-                        className="flex-shrink-0 mt-4"
-                      >
-                        <path d="M4 2 L14 8 L4 14 Z" />
-                      </svg>
+                      {showTriangle && (
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="#20c997"
+                          className="flex-shrink-0 mt-1"
+                        >
+                          <path d="M4 2 L14 8 L4 14 Z" />
+                        </svg>
+                      )}
                       <div className="flex-1">
                         <AyuRenderer
-                          question={{ ...child, text: undefined }}
+                          question={{
+                            ...child,
+                            text: stripGroupPrefix(child.text, label),
+                          }}
+                          parent={parentQuestion}
+                          previousSibling={prevSibling}
                           value={answers[child.linkId]}
                           onChange={val => setAnswer(child, val)}
-                        />
-                        {/* After flattening (lines 144-161), only
-                            hasAnswerOptionItemMapping children retain
-                            child.item — all others were replaced by their
-                            grandchildren. So we only need the inline path. */}
-                        {hasAnswerOptionItemMapping(child) &&
-                          renderInlineNestedItems(child)}
-                      </div>
-                    </div>
-                  ))}
-              </>
-            ) : (
-              /* Render all items directly via AyuRenderer */
-              displayChildren.map((child, childIndex) => {
-                /*
-                 * Show triangle for string items only when the group has multiple children
-                 * (standalone question like "How often...?"), not when it's the sole child
-                 * of an option (describe field like "Describe..." under a "Describe" option)
-                 */
-                const isDescribeField =
-                  child.type === FHIR_TYPE_STRING &&
-                  displayChildren.length === 1;
-                const showTriangle = isDescribeField
-                  ? false
-                  : showAllTriangles ||
-                    child.type !== FHIR_TYPE_STRING ||
-                    displayChildren.length > 1;
-
-                const prevSibling =
-                  childIndex > 0 ? displayChildren[childIndex - 1] : undefined;
-
-                return (
-                  <div
-                    key={child.linkId}
-                    className="flex items-start gap-2 mt-2"
-                  >
-                    {showTriangle && (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 16 16"
-                        fill="#20c997"
-                        className="flex-shrink-0 mt-1"
-                      >
-                        <path d="M4 2 L14 8 L4 14 Z" />
-                      </svg>
-                    )}
-                    <div className="flex-1">
-                      <AyuRenderer
-                        question={{
-                          ...child,
-                          text: stripGroupPrefix(child.text, label),
-                        }}
-                        parent={parentQuestion}
-                        previousSibling={prevSibling}
-                        value={answers[child.linkId]}
-                        onChange={val => setAnswer(child, val)}
-                        answers={answers}
-                        setAnswer={setAnswer}
-                      />
-                      {child.item && (
-                        <AyuNestedRenderer
-                          items={child.item}
-                          parentQuestion={child}
                           answers={answers}
                           setAnswer={setAnswer}
-                          clearAnswers={clearAnswers}
                         />
-                      )}
+                        {child.item && (
+                          <AyuNestedRenderer
+                            items={child.item}
+                            parentQuestion={child}
+                            answers={answers}
+                            setAnswer={setAnswer}
+                            clearAnswers={clearAnswers}
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         );
       })}
