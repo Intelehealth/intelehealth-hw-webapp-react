@@ -52,18 +52,21 @@ export const AyuNestedRenderer = ({
     setOpenOverride(undefined);
   }, [parentAnswer]);
 
+  const lastAnswerCode = Array.isArray(parentAnswer)
+    ? (parentAnswer as string[]).at(-1)
+    : typeof parentAnswer === 'string'
+      ? parentAnswer
+      : undefined;
+
   const newestBranchLabel = useMemo<string | null>(() => {
-    if (!parentQuestion) return null;
-    let codes: string[] = [];
-    if (Array.isArray(parentAnswer)) codes = parentAnswer as string[];
-    else if (typeof parentAnswer === 'string') codes = [parentAnswer];
-    const lastCode = codes.at(-1);
-    if (!lastCode) return null;
+    if (!parentQuestion || !lastAnswerCode) return null;
     const option = parentQuestion.answerOption?.find(
-      opt => opt.valueCoding?.code === lastCode || opt.valueString === lastCode
+      opt =>
+        opt.valueCoding?.code === lastAnswerCode ||
+        opt.valueString === lastAnswerCode
     );
     return option?.valueCoding?.display || option?.valueString || null;
-  }, [parentQuestion, parentAnswer]);
+  }, [parentQuestion, lastAnswerCode]);
 
   /* Clear answers for a selectable option and all its nested descendants */
   const clearNestedAnswers = (item: AyuQuestion) => {
