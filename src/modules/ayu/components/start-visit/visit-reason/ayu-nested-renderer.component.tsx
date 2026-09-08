@@ -69,11 +69,13 @@ export const AyuNestedRenderer = ({
     setOpenBranch(FOLLOW_NEWEST);
   }, [parentAnswer]);
 
-  const selectedCodes: string[] = Array.isArray(parentAnswer)
-    ? parentAnswer
-    : typeof parentAnswer === 'string'
-      ? [parentAnswer]
-      : [];
+  let selectedCodes: string[] = [];
+  if (Array.isArray(parentAnswer)) {
+    selectedCodes = parentAnswer;
+  } else if (typeof parentAnswer === 'string') {
+    selectedCodes = [parentAnswer];
+  }
+
   const newestBranchLabel = getOptionDisplay(
     parentQuestion,
     selectedCodes.at(-1)
