@@ -73,10 +73,7 @@ interface UseFHIRStepperReturn {
     question: AyuQuestion,
     questionAnswers: Record<string, AyuAnswerValue>
   ) => boolean;
-  cameraUploadIssue: (
-    question: AyuQuestion,
-    questionAnswers: Record<string, AyuAnswerValue>
-  ) => CameraUploadIssue | null;
+  cameraUploadIssue: (question: AyuQuestion) => CameraUploadIssue | null;
 }
 
 export const useFHIRStepper = (

@@ -3642,6 +3642,79 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
 
+    it('should not collapse an edited PE question whose selection reveals sub-questions', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-rash',
+        text: 'Is there any rash?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+        item: [
+          {
+            linkId: 'pe-rash-describe',
+            text: 'Describe the rash',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'pe-rash',
+                operator: '=',
+                answerCoding: { code: 'yes' },
+              },
+            ],
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-rash': 'no' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'pe-rash': 'no' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('edit-0'));
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+
+      /* Picking "yes" reveals the nested Describe input, so the card must stay open. */
+      fireEvent.change(screen.getByTestId('input-pe-rash'), {
+        target: { value: 'yes' },
+      });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+    });
+
     it('should STILL show Submit in review mode for a PE question with a camera option', () => {
       const question: AyuQuestion = {
         linkId: 'pe-jaundice',
@@ -7821,7 +7894,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
@@ -7860,7 +7932,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
@@ -7885,7 +7956,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: true,
-        isCameraNotUploaded: () => false,
       });
 
       rerender(
@@ -7921,7 +7991,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: [question],
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire([question]);

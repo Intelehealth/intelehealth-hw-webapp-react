@@ -666,7 +666,7 @@ export const AyuStepperContainer = forwardRef<
       onResetAnswers: () => resetAnswersRef.current(),
     });
 
-    const warnOnOpenEdit = (): boolean => {
+    const warnOnOpenEdit = useCallback((): boolean => {
       const pendingIndex = topLevelItems.findIndex(q =>
         editingQuestionsRef.current.has(q.linkId)
       );
@@ -677,7 +677,7 @@ export const AyuStepperContainer = forwardRef<
         'warning'
       );
       return true;
-    };
+    }, [topLevelItems, questionIndexOffset]);
 
     useImperativeHandle(
       ref,
@@ -693,8 +693,13 @@ export const AyuStepperContainer = forwardRef<
         },
         getAnswers: () => answers,
       }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [answers, handleStepperComplete, goNext, validateAllQuestions]
+      [
+        answers,
+        handleStepperComplete,
+        goNext,
+        validateAllQuestions,
+        warnOnOpenEdit,
+      ]
     );
 
     const totalSteps = topLevelItems.length;
@@ -861,9 +866,16 @@ export const AyuStepperContainer = forwardRef<
             const handleSetAnswer = (q: AyuQuestion, val: AyuAnswerValue) => {
               setAnswer(q, val);
 
+              /*
+               * Evaluate against the post-selection answers: a branching PE
+               * question reveals its sub-questions via enableWhen on the option
+               * just picked, and against the stale map those children still
+               * look hidden.
+               */
+              const nextAnswers = { ...answers, [q.linkId]: val };
               const collapseOnSelect =
                 editingQuestions.has(question.linkId) &&
-                isPlainSingleChoicePE(question, answers) &&
+                isPlainSingleChoicePE(question, nextAnswers) &&
                 !hasCameraOption(question);
 
               setSubmittedQuestions(prev => {

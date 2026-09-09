@@ -398,10 +398,7 @@ export const validateQuestion = (
     q: AyuQuestion,
     a: Record<string, AyuAnswerValue>
   ) => boolean,
-  cameraUploadIssue?: (
-    q: AyuQuestion,
-    a: Record<string, AyuAnswerValue>
-  ) => CameraUploadIssue | null
+  cameraUploadIssue?: (q: AyuQuestion) => CameraUploadIssue | null
 ): QuestionValidationResult => {
   const rawAnswer = answers[question.linkId];
   const answerCodes: string[] = Array.isArray(rawAnswer)
@@ -410,7 +407,7 @@ export const validateQuestion = (
 
   const cameraMissingImages =
     isCameraAnswerMissingImages?.(question, answers) ?? false;
-  const uploadIssue = cameraUploadIssue?.(question, answers) ?? null;
+  const uploadIssue = cameraUploadIssue?.(question) ?? null;
   const isAssociated =
     resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
   const { yesValues, noValues } = parseYesNoValues(rawAnswer);
