@@ -57,13 +57,6 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
     gatedCodes.add(code);
   }
 
-  /*
-   * A field-label container carries one input field per answer option
-   * (From/To/Event). A real question may also nest items, but only to gate a
-   * subset of its options — e.g. "High BP" offers Mother/Father/Sister/Brother
-   * plus a "[Describe relation]" option that opens a single text box. Fewer
-   * fields than options means the options are genuine choices, not labels.
-   */
   return q.item.length >= q.answerOption.length;
 };
 
