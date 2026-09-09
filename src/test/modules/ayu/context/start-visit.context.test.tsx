@@ -665,6 +665,209 @@ describe('StartVisitProvider', () => {
     expect(screen.getByTestId('vitals')).toHaveTextContent('null');
   });
 
+  // ── Gender change detection ──────────────────────────────────────────────
+
+  it('should clear gender-specific data and reset to section 1 when gender changes and vitals exist', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 5,
+        data: {
+          patientGender: 'Female',
+          vitals: { formValues: { height_cm: 165 }, config: [] },
+          visitReason: { answers: { q1: 'yes' }, reasonNames: ['Pregnancy'], details: [], detailsSections: [] },
+          physicalExam: { answers: { eyes: ['normal'] }, details: [] },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+          medicalHistoryAnswers: { patHist: { q1: 'yes' } },
+          currentSectionIndex: 3,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialGender="Male">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('set');
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    expect(screen.getByTestId('physicalExam')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistory')).toHaveTextContent('null');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('null');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('1');
+  });
+
+  it('should reset to section 0 when gender changes and no vitals exist', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 6,
+        data: {
+          patientGender: 'Female',
+          vitals: null,
+          visitReason: { answers: {}, reasonNames: ['Cough'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+          currentSectionIndex: 1,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialGender="Male">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('null');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('0');
+  });
+
+  it('should restore all data normally when gender matches saved gender', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 7,
+        data: {
+          patientGender: 'Female',
+          vitals: { formValues: { height_cm: 165 }, config: [] },
+          visitReason: { answers: { q1: 'yes' }, reasonNames: ['Cough'], details: [] },
+          physicalExam: { answers: {}, details: [] },
+          medicalHistory: { patHistSummary: [], famHistSummary: [] },
+          medicalHistoryAnswers: { patHist: { q1: 'yes' } },
+          currentSectionIndex: 2,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialGender="Female">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('vitals')).toHaveTextContent('set');
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('set');
+    expect(screen.getByTestId('physicalExam')).toHaveTextContent('set');
+    expect(screen.getByTestId('medicalHistory')).toHaveTextContent('set');
+    expect(screen.getByTestId('medicalHistoryAnswers')).toHaveTextContent('set');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('2');
+  });
+
+  it('should not treat as gender change when savedGender is null', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 8,
+        data: {
+          patientGender: null,
+          vitals: { formValues: {}, config: [] },
+          visitReason: { answers: {}, reasonNames: ['Cough'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+          currentSectionIndex: 1,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialGender="Male">
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('set');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('1');
+  });
+
+  it('should not treat as gender change when initialGender is null', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 9,
+        data: {
+          patientGender: 'Female',
+          vitals: null,
+          visitReason: { answers: {}, reasonNames: ['Cough'], details: [] },
+          physicalExam: null,
+          medicalHistory: null,
+          medicalHistoryAnswers: null,
+          currentSectionIndex: 1,
+        },
+      },
+    });
+
+    render(
+      <StartVisitProvider initialGender={null}>
+        <ContextConsumer />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('visitReason')).toHaveTextContent('set');
+    expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('1');
+  });
+
+  it('should stamp patientGender in saved data via saveSectionToTemp', async () => {
+    render(
+      <StartVisitProvider initialGender="Female">
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    expect(mockUpsertResource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          patientGender: 'Female',
+        }),
+      })
+    );
+  });
+
+  it('should stamp patientGender as undefined when initialGender is not provided', async () => {
+    render(
+      <StartVisitProvider>
+        <ContextUpdater />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockGetResource).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      screen.getByTestId('btn-saveSectionToTemp').click();
+    });
+
+    const lastCall = mockUpsertResource.mock.calls.at(-1)?.[0];
+    expect(lastCall.data.patientGender).toBeUndefined();
+  });
+
   it('should restore restoredSectionIndex as 0 when saved as 0', async () => {
     mockGetResource.mockResolvedValue({
       data: {

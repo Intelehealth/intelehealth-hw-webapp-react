@@ -445,22 +445,55 @@ function buildSummaryForItems(
 
                 matchingChildren.forEach((nested: AyuQuestion) => {
                   const ownValues = collectNestedOwnValues(nested);
-                  const descendantValues = collectDescendantValues(nested.item);
                   processed.add(nested.linkId);
 
-                  if (!ownValues.length && !descendantValues.length) return;
-                  if (descendantValues.length) anyNestedValue = true;
-
                   const nestedLabel = getExtensionLabel(nested);
-                  const head = ownValues.length
-                    ? ownValues.join(', ')
-                    : descendantValues.join(', ');
-                  const tail =
-                    ownValues.length && descendantValues.length
-                      ? `: ${descendantValues.join(', ')}`
-                      : '';
                   const omitLabel = !nestedLabel || nestedLabel === display;
 
+                  if (!ownValues.length) {
+                    // The nested question has no direct answer (e.g. it is a group /
+                    // container).  Collect child values with their labels preserved so
+                    // that sub-question labels like "Weight gain", "Weight loss" and
+                    // "Since when" appear in the summary instead of bare values.
+                    if (!nested.item?.length) return;
+                    const childLabeledParts: string[] = [];
+                    const multipleKids = nested.item.length > 1;
+                    nested.item.forEach((grandchild: AyuQuestion) => {
+                      if (processed.has(grandchild.linkId)) return;
+                      if (!isItemVisible(grandchild.enableWhen)) return;
+                      collectLabeledValues(
+                        grandchild,
+                        childLabeledParts,
+                        display,
+                        false,
+                        multipleKids
+                      );
+                      processed.add(grandchild.linkId);
+                    });
+                    if (!childLabeledParts.length) return;
+                    anyNestedValue = true;
+                    labeledParts.push(
+                      omitLabel
+                        ? childLabeledParts.join('; ')
+                        : `${nestedLabel} - ${childLabeledParts.join('; ')}`
+                    );
+                    return;
+                  }
+
+                  const descendantValues = collectDescendantValues(nested.item);
+
+                  if (!descendantValues.length) {
+                    labeledParts.push(
+                      omitLabel
+                        ? ownValues.join(', ')
+                        : `${nestedLabel} - ${ownValues.join(', ')}`
+                    );
+                    return;
+                  }
+
+                  anyNestedValue = true;
+                  const head = ownValues.join(', ');
+                  const tail = `: ${descendantValues.join(', ')}`;
                   labeledParts.push(
                     omitLabel ? head + tail : `${nestedLabel} - ${head}${tail}`
                   );

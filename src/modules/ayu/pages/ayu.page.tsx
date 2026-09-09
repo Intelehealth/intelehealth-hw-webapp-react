@@ -17,6 +17,7 @@ import {
 } from '../context/start-visit.context';
 import {
   EXIT_ASSESSMENT_MODAL,
+  PATIENT_GENDER_KEY,
   PATIENT_UUID_KEY,
   UUID_REGEX,
 } from '../utils/ayu.constants';
@@ -85,9 +86,13 @@ const AyuPage = () => {
     paramUuid && UUID_REGEX.test(paramUuid) ? paramUuid : undefined;
   const resolvedUuid =
     stateUuid || validParamUuid || storage.get(PATIENT_UUID_KEY) || null;
+  const resolvedGender = storage.get(PATIENT_GENDER_KEY) ?? null;
 
   return (
-    <StartVisitProvider initialPatientUuid={resolvedUuid}>
+    <StartVisitProvider
+      initialPatientUuid={resolvedUuid}
+      initialGender={resolvedGender}
+    >
       <AyuLeaveGuard />
       <div className="mx-auto p-2 space-y-6">
         <Routes>
