@@ -51,6 +51,7 @@ export interface TempVisitData {
   medicalHistoryAnswers?: Record<string, Record<string, AyuAnswerValue>>;
   currentSectionIndex?: number;
   confirmedReasons?: string[];
+  patientGender?: string | null;
 }
 
 interface StartVisitContextType {
@@ -102,9 +103,11 @@ const StartVisitContext = createContext<StartVisitContextType | null>(null);
 export const StartVisitProvider = ({
   children,
   initialPatientUuid,
+  initialGender,
 }: {
   children: React.ReactNode;
   initialPatientUuid?: string | null;
+  initialGender?: string | null;
 }) => {
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
@@ -148,17 +151,38 @@ export const StartVisitProvider = ({
           return;
         }
         const saved = res.data.data;
-        setTempRecordId(res.data.id);
-        if (saved.currentSectionIndex != null) {
-          currentSectionIndexRef.current = saved.currentSectionIndex;
-          setRestoredSectionIndex(saved.currentSectionIndex);
+
+        const savedGender = saved.patientGender;
+        const genderChanged =
+          savedGender !== null &&
+          savedGender !== undefined &&
+          initialGender !== null &&
+          initialGender !== undefined &&
+          savedGender !== initialGender;
+
+        if (genderChanged) {
+          const targetIndex = saved.vitals ? 1 : 0;
+          currentSectionIndexRef.current = targetIndex;
+          setRestoredSectionIndex(targetIndex);
+          // tempRecordId intentionally not set — backend record has stale data for
+          // the previous gender; the next saveSectionToTemp will overwrite it and
+          // set the ID from the fresh response.
+        } else {
+          setTempRecordId(res.data.id);
+          if (saved.currentSectionIndex != null) {
+            currentSectionIndexRef.current = saved.currentSectionIndex;
+            setRestoredSectionIndex(saved.currentSectionIndex);
+          }
         }
+
         setData({
           vitals: saved.vitals ?? null,
-          visitReason: saved.visitReason ?? null,
-          physicalExam: saved.physicalExam ?? null,
-          medicalHistory: saved.medicalHistory ?? null,
-          medicalHistoryAnswers: saved.medicalHistoryAnswers ?? null,
+          visitReason: genderChanged ? null : (saved.visitReason ?? null),
+          physicalExam: genderChanged ? null : (saved.physicalExam ?? null),
+          medicalHistory: genderChanged ? null : (saved.medicalHistory ?? null),
+          medicalHistoryAnswers: genderChanged
+            ? null
+            : (saved.medicalHistoryAnswers ?? null),
         });
       } catch {
         // No existing temp record — start fresh
@@ -169,7 +193,7 @@ export const StartVisitProvider = ({
     return () => {
       cancelled = true;
     };
-  }, [visitId, patientUuid]);
+  }, [visitId, patientUuid, initialGender]);
 
   const saveSectionToTemp = useCallback(
     async (sectionData: Partial<TempVisitData>) => {
@@ -185,6 +209,7 @@ export const StartVisitProvider = ({
         medicalHistoryAnswers: current.medicalHistoryAnswers ?? undefined,
         currentSectionIndex: currentSectionIndexRef.current,
         ...sectionData,
+        patientGender: initialGender ?? undefined,
       };
       try {
         let createdBy = null;
@@ -207,7 +232,7 @@ export const StartVisitProvider = ({
         // Save failed silently — context state is still the source of truth
       }
     },
-    [visitId, patientUuid]
+    [visitId, patientUuid, initialGender]
   );
 
   const clearVisitId = useCallback(() => {
