@@ -151,21 +151,28 @@ export const StartVisitProvider = ({
           return;
         }
         const saved = res.data.data;
-        setTempRecordId(res.data.id);
 
         const savedGender = saved.patientGender;
         const genderChanged =
-          savedGender != null &&
-          initialGender != null &&
+          savedGender !== null &&
+          savedGender !== undefined &&
+          initialGender !== null &&
+          initialGender !== undefined &&
           savedGender !== initialGender;
 
         if (genderChanged) {
           const targetIndex = saved.vitals ? 1 : 0;
           currentSectionIndexRef.current = targetIndex;
           setRestoredSectionIndex(targetIndex);
-        } else if (saved.currentSectionIndex != null) {
-          currentSectionIndexRef.current = saved.currentSectionIndex;
-          setRestoredSectionIndex(saved.currentSectionIndex);
+          // tempRecordId intentionally not set — backend record has stale data for
+          // the previous gender; the next saveSectionToTemp will overwrite it and
+          // set the ID from the fresh response.
+        } else {
+          setTempRecordId(res.data.id);
+          if (saved.currentSectionIndex != null) {
+            currentSectionIndexRef.current = saved.currentSectionIndex;
+            setRestoredSectionIndex(saved.currentSectionIndex);
+          }
         }
 
         setData({
