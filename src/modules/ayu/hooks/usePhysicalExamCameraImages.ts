@@ -165,7 +165,10 @@ export const usePhysicalExamCameraImages = ({
       });
       setImageStatus(questionId, file, 'done', res.data.id);
     } catch (err) {
-      console.error('Failed to upload camera image to temp storage', err);
+      console.error(
+        'Failed to upload camera image to temp storage',
+        err instanceof Error ? err.message : 'unknown error'
+      );
       setImageStatus(questionId, file, 'failed');
     }
   };

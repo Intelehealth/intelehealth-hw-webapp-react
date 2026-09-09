@@ -260,7 +260,7 @@ describe('usePhysicalExamCameraImages', () => {
       ]);
       expect(errorSpy).toHaveBeenCalledWith(
         'Failed to upload camera image to temp storage',
-        expect.any(Error)
+        'upload failed'
       );
       errorSpy.mockRestore();
     });
