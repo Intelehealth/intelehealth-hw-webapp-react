@@ -1,7 +1,10 @@
+export type CapturedImageStatus = 'uploading' | 'done' | 'failed';
+
 export interface CapturedImage {
   file: File | null;
   preview: string;
   assetRecordId?: number;
+  status: CapturedImageStatus;
 }
 
 export interface ObsPushDTO {

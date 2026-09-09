@@ -340,7 +340,7 @@ describe('AyuTextInput', () => {
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 
-    it('should render label with muted CSS classes for other labels', () => {
+    it('should render label with the standard question-label classes for other labels', () => {
       const questionWithLabel: AyuQuestion = {
         ...mockQuestion,
         text: 'Some other label',
@@ -353,7 +353,7 @@ describe('AyuTextInput', () => {
         />
       );
       const label = screen.getByText('Some other label');
-      expect(label).toHaveClass('block', 'text-base');
+      expect(label).toHaveClass('block', 'text-large-label');
     });
   });
 

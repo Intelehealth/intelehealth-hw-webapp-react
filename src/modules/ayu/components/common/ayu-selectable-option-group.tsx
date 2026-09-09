@@ -6,6 +6,10 @@ import {
   SELECT_ONE_OR_MORE,
 } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  QUESTION_LABEL_CLASS_NESTED,
+  QUESTION_LABEL_CLASS_TOP,
+} from '../../utils/ayu.constants';
 import { AyuSelectableOption } from './ayu-selectable-option.component';
 import './selectable-option.css';
 export function AyuSelectableOptionGroup({
@@ -30,8 +34,8 @@ export function AyuSelectableOptionGroup({
           <label
             className={
               isAssociatedSymptomsParent || parent
-                ? 'block text-large-label text-(--color-dark)'
-                : 'text-md font-medium text-black-500'
+                ? QUESTION_LABEL_CLASS_NESTED
+                : QUESTION_LABEL_CLASS_TOP
             }
           >
             {label}

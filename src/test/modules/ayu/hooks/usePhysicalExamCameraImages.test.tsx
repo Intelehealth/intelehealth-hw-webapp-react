@@ -281,8 +281,8 @@ describe('usePhysicalExamCameraImages', () => {
         await result.current.addCameraImage('q1', new File(['b'], 'b.png'));
       });
 
-      act(() => {
-        result.current.removeCameraImage('q1', 1);
+      await act(async () => {
+        await result.current.removeCameraImage('q1', 1);
       });
       // Uses removePendingImagesByQuestionId instead of flat index
       expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('q1');
@@ -301,17 +301,21 @@ describe('usePhysicalExamCameraImages', () => {
       await waitFor(() =>
         expect(result.current.cameraImagesFor('q1').length).toBe(1)
       );
-      act(() => result.current.removeCameraImage('q1', 0));
+      await act(async () => {
+        await result.current.removeCameraImage('q1', 0);
+      });
       expect(deleteAssetResource).toHaveBeenCalledWith(42);
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });
 
-    it('handles removing from a question with no images gracefully', () => {
+    it('handles removing from a question with no images gracefully', async () => {
       getChildResources.mockResolvedValue({ data: [] });
       const { result } = renderHook(() =>
         usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
       );
-      act(() => result.current.removeCameraImage('nonexistent', 0));
+      await act(async () => {
+        await result.current.removeCameraImage('nonexistent', 0);
+      });
       expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('nonexistent');
       expect(result.current.cameraImagesFor('nonexistent')).toEqual([]);
     });
@@ -329,7 +333,9 @@ describe('usePhysicalExamCameraImages', () => {
         await result.current.addCameraImage('q1', new File(['a'], 'a.png'));
       });
 
-      act(() => result.current.removeCameraImage('q1', 0));
+      await act(async () => {
+        await result.current.removeCameraImage('q1', 0);
+      });
       expect(unmarkQuestionCommitted).toHaveBeenCalledWith('q1');
     });
   });
@@ -363,7 +369,9 @@ describe('usePhysicalExamCameraImages', () => {
         await result.current.addCameraImage('q2', new File(['b'], 'b.png'));
       });
 
-      act(() => result.current.clearCameraImages('q1'));
+      await act(async () => {
+        await result.current.clearCameraImages('q1');
+      });
 
       expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('q1');
       expect(unmarkQuestionCommitted).toHaveBeenCalledWith('q1');
@@ -372,12 +380,14 @@ describe('usePhysicalExamCameraImages', () => {
       expect(result.current.cameraImagesFor('q2')).toHaveLength(1);
     });
 
-    it('handles clearing a question with no images gracefully', () => {
+    it('handles clearing a question with no images gracefully', async () => {
       getChildResources.mockResolvedValue({ data: [] });
       const { result } = renderHook(() =>
         usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
       );
-      act(() => result.current.clearCameraImages('nonexistent'));
+      await act(async () => {
+        await result.current.clearCameraImages('nonexistent');
+      });
       expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('nonexistent');
       expect(unmarkQuestionCommitted).toHaveBeenCalledWith('nonexistent');
       expect(deleteAssetResource).not.toHaveBeenCalled();
@@ -396,7 +406,9 @@ describe('usePhysicalExamCameraImages', () => {
         expect(result.current.cameraImagesFor('q1').length).toBe(1)
       );
 
-      act(() => result.current.clearCameraImages('q1'));
+      await act(async () => {
+        await result.current.clearCameraImages('q1');
+      });
       expect(deleteAssetResource).toHaveBeenCalledWith(5);
       expect(result.current.cameraImagesFor('q1')).toEqual([]);
     });

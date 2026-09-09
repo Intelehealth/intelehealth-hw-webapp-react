@@ -20,14 +20,24 @@ import {
  *   - control jobAidUrlFor / jobAidTypeFor return values per case */
 const cameraState = {
   imagesByQ: {} as Record<string, string[]>,
+  uploadingByQ: {} as Record<string, boolean>,
+  failedByQ: {} as Record<string, boolean>,
   addCameraImage: vi.fn(),
   removeCameraImage: vi.fn(),
   clearCameraImages: vi.fn(),
   commitQuestionImages: vi.fn(),
+  retryCameraImage: vi.fn(),
   jobAidUrl: null as string | null,
   jobAidType: null as 'image' | 'video' | null,
   cameraReturnsNull: false,
 };
+
+const imageStatesFor = (qId: string) =>
+  (cameraState.imagesByQ[qId] ?? []).map(preview => ({
+    file: null,
+    preview,
+    status: 'done' as const,
+  }));
 
 vi.mock(
   '../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-camera-context',
@@ -37,10 +47,16 @@ vi.mock(
         ? null
         : {
             cameraImagesFor: (qId: string) => cameraState.imagesByQ[qId] ?? [],
+            cameraImageStatesFor: imageStatesFor,
             addCameraImage: cameraState.addCameraImage,
             removeCameraImage: cameraState.removeCameraImage,
             clearCameraImages: cameraState.clearCameraImages,
             commitQuestionImages: cameraState.commitQuestionImages,
+            retryCameraImage: cameraState.retryCameraImage,
+            isCameraUploading: (qId: string) =>
+              cameraState.uploadingByQ[qId] ?? false,
+            hasFailedUploads: (qId: string) =>
+              cameraState.failedByQ[qId] ?? false,
             jobAidUrlFor: () => cameraState.jobAidUrl,
             jobAidTypeFor: () => cameraState.jobAidType,
           },
@@ -55,10 +71,12 @@ vi.mock(
     PhysicalExamImageCapture: ({
       onAdd,
       onRemove,
+      onRetry,
     }: {
-      images: string[];
+      images: unknown[];
       onAdd: (f: File) => void;
       onRemove: (i: number) => void;
+      onRetry: (i: number) => void;
     }) => (
       <div>
         <button
@@ -72,6 +90,9 @@ vi.mock(
           onClick={() => onRemove(0)}
         >
           remove
+        </button>
+        <button data-testid="image-capture-retry" onClick={() => onRetry(0)}>
+          retry
         </button>
       </div>
     ),
@@ -109,6 +130,9 @@ const makePeQuestion = (overrides: Partial<AyuQuestion> = {}): AyuQuestion => ({
 
 beforeEach(() => {
   cameraState.imagesByQ = {};
+  cameraState.uploadingByQ = {};
+  cameraState.failedByQ = {};
+  cameraState.retryCameraImage.mockReset();
   cameraState.jobAidUrl = null;
   cameraState.jobAidType = null;
   cameraState.cameraReturnsNull = false;
@@ -579,7 +603,7 @@ describe('AyuPhysicalExamOptions', () => {
       expect(setAnswer).toHaveBeenCalledWith(makePeQuestion(), '');
     });
 
-    it('shows uploaded pictures, add/remove and the Upload button on edit (no prior click)', () => {
+    it('shows uploaded pictures with add/remove on edit (no prior click)', () => {
       cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
       render(
         <AyuPhysicalExamOptions
@@ -588,12 +612,11 @@ describe('AyuPhysicalExamOptions', () => {
           setAnswer={vi.fn()}
         />
       );
-      // capture panel + Upload button appear immediately in edit mode
       expect(screen.getByTestId('image-capture-add')).toBeInTheDocument();
       expect(screen.getByTestId('image-capture-remove')).toBeInTheDocument();
       expect(
-        screen.getByRole('button', { name: /Upload \(2\)/ })
-      ).toBeInTheDocument();
+        screen.queryByRole('button', { name: /Upload/ })
+      ).not.toBeInTheDocument();
     });
 
     it('shows the upload-required error on edit when the picture option is committed but has no images', () => {
@@ -858,8 +881,8 @@ describe('AyuPhysicalExamOptions', () => {
     });
   });
 
-  describe('camera Submit behaviour', () => {
-    it('shows Upload button with image count once images are captured', async () => {
+  describe('camera capture commit behaviour', () => {
+    it('never renders an inner Upload button, even with images captured', async () => {
       cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
       render(
         <AyuPhysicalExamOptions
@@ -871,14 +894,12 @@ describe('AyuPhysicalExamOptions', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      // Submit button now visible, labelled with image count
       expect(
-        screen.getByRole('button', { name: /Upload \(2\)/ })
-      ).toBeInTheDocument();
+        screen.queryByRole('button', { name: /Upload/ })
+      ).not.toBeInTheDocument();
     });
 
-    it('commits the camera code as the answer for single-choice on Submit', async () => {
-      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+    it('commits the camera code as the answer as soon as an image is captured', async () => {
       const setAnswer = vi.fn();
       const question = makePeQuestion();
       render(
@@ -891,14 +912,17 @@ describe('AyuPhysicalExamOptions', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
+      expect(setAnswer).not.toHaveBeenCalled();
+
+      await userEvent.click(screen.getByTestId('image-capture-add'));
+      expect(cameraState.addCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        expect.any(File)
       );
       expect(setAnswer).toHaveBeenCalledWith(question, ['cam']);
     });
 
-    it('calls commitQuestionImages on Upload click to move images to pending queue', async () => {
-      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+    it('moves images to the pending queue on capture, with no Upload press', async () => {
       render(
         <AyuPhysicalExamOptions
           question={makePeQuestion()}
@@ -909,91 +933,42 @@ describe('AyuPhysicalExamOptions', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
-      );
+      await userEvent.click(screen.getByTestId('image-capture-add'));
       expect(cameraState.commitQuestionImages).toHaveBeenCalledWith(
         'inner-jaundice'
       );
     });
 
-    it('does not call commitQuestionImages when Upload is clicked with no images', async () => {
-      const images = ['img-1'];
-      cameraState.imagesByQ['inner-jaundice'] = images;
-      render(
-        <AyuPhysicalExamOptions
-          question={makePeQuestion()}
-          value={undefined}
-          setAnswer={vi.fn()}
-        />
-      );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Take a Picture/ })
-      );
-      // Mutate array to empty before click
-      images.length = 0;
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
-      );
-      // Upload guard kicked in — commitQuestionImages was NOT called
-      expect(cameraState.commitQuestionImages).not.toHaveBeenCalled();
-    });
-
-    it('lets a single-choice Yes/No be selected together with the camera tile and commits both on Submit', async () => {
-      /*
-       * Mobile parity: "Take a Picture" composes with the Yes/No finding instead
-       * of replacing it. Selecting the camera tile first, then Yes, must keep
-       * both highlighted and commit ['yes', 'cam'] on Upload.
-       */
-      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+    it('keeps a Yes/No finding alongside the picture when capturing after answering', async () => {
       const setAnswer = vi.fn();
       const question = makePeQuestion();
       render(
         <AyuPhysicalExamOptions
           question={question}
-          value={undefined}
+          value={'yes'}
           setAnswer={setAnswer}
         />
       );
-      const camTile = screen.getByRole('button', { name: /Take a Picture/ });
-      await userEvent.click(camTile);
-      const yes = screen.getByRole('button', { name: /^Yes$/ });
-      await userEvent.click(yes);
-      // Both highlighted; picking Yes does NOT commit yet (no auto-advance).
-      expect(camTile).toHaveClass('selected');
-      expect(yes).toHaveClass('selected');
-      expect(setAnswer).not.toHaveBeenCalled();
-      // Upload commits the pair.
       await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
+        screen.getByRole('button', { name: /Take a Picture/ })
       );
+      await userEvent.click(screen.getByTestId('image-capture-add'));
       expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
     });
 
-    it('toggles off the pending Yes/No when re-clicked while the camera is active', async () => {
+    it('commits Yes/No immediately while the camera tile is active', async () => {
       cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
       const setAnswer = vi.fn();
       const question = makePeQuestion();
       render(
         <AyuPhysicalExamOptions
           question={question}
-          value={undefined}
+          value={['cam']}
           setAnswer={setAnswer}
         />
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Take a Picture/ })
-      );
-      const yes = screen.getByRole('button', { name: /^Yes$/ });
-      await userEvent.click(yes);
-      expect(yes).toHaveClass('selected');
-      await userEvent.click(yes);
-      expect(yes).not.toHaveClass('selected');
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
-      );
-      // Yes was toggled off → camera-only answer.
-      expect(setAnswer).toHaveBeenCalledWith(question, ['cam']);
+      await userEvent.click(screen.getByRole('button', { name: /^Yes$/ }));
+      expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
     });
 
     it('keeps a committed Yes/No when deselecting an already-committed camera tile', async () => {
@@ -1031,8 +1006,7 @@ describe('AyuPhysicalExamOptions', () => {
       ).toHaveClass('selected');
     });
 
-    it('appends the camera code to existing selections for multi-choice on Submit', async () => {
-      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+    it('appends the camera code to existing selections for multi-choice on capture', async () => {
       const setAnswer = vi.fn();
       const question = makePeQuestion({ repeats: true });
       render(
@@ -1045,74 +1019,8 @@ describe('AyuPhysicalExamOptions', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /Take a Picture/ })
       );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
-      );
+      await userEvent.click(screen.getByTestId('image-capture-add'));
       expect(setAnswer).toHaveBeenCalledWith(question, ['yes', 'cam']);
-    });
-
-    it('does not show Upload button when camera tile is selected but no images are captured', async () => {
-      render(
-        <AyuPhysicalExamOptions
-          question={makePeQuestion()}
-          value={undefined}
-          setAnswer={vi.fn()}
-        />
-      );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Take a Picture/ })
-      );
-      // Upload button hidden when no images — prevents premature submission
-      expect(
-        screen.queryByRole('button', { name: /Upload/ })
-      ).not.toBeInTheDocument();
-    });
-
-    it('shows Upload button once an image is captured after selecting camera tile', async () => {
-      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
-      render(
-        <AyuPhysicalExamOptions
-          question={makePeQuestion()}
-          value={undefined}
-          setAnswer={vi.fn()}
-        />
-      );
-      await userEvent.click(
-        screen.getByRole('button', { name: /Take a Picture/ })
-      );
-      // Upload button appears now that images > 0
-      expect(
-        screen.getByRole('button', { name: /Upload \(1\)/ })
-      ).toBeInTheDocument();
-    });
-
-    it('shows upload-required error when images are emptied between render and click', async () => {
-      /*
-       * Covers the defensive guard in handleSubmit (lines 125-128): if images
-       * disappear after the Upload button was rendered but before the click
-       * handler runs, the error state is set instead of committing.
-       */
-      const images = ['img-1'];
-      cameraState.imagesByQ['inner-jaundice'] = images;
-      render(
-        <AyuPhysicalExamOptions
-          question={makePeQuestion()}
-          value={undefined}
-          setAnswer={vi.fn()}
-        />
-      );
-      // Select the camera tile → Upload button appears (images.length > 0)
-      await userEvent.click(
-        screen.getByRole('button', { name: /Take a Picture/ })
-      );
-      const uploadBtn = screen.getByRole('button', { name: /Upload \(1\)/ });
-      // Mutate the SAME array reference to empty — the closure still holds it
-      images.length = 0;
-      // Click the Upload button — handleSubmit sees cameraImages.length === 0
-      await userEvent.click(uploadBtn);
-      expect(
-        screen.getByText('Please upload at least one image')
-      ).toBeInTheDocument();
     });
 
     it('does not render an inner Submit button for plain multi-choice (defers to outer stepper)', () => {
@@ -1126,6 +1034,61 @@ describe('AyuPhysicalExamOptions', () => {
       expect(
         screen.queryByRole('button', { name: /Submit/i })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('upload-in-flight guards', () => {
+    it('ignores camera tile clicks while an upload is in flight', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      cameraState.uploadingByQ['inner-jaundice'] = true;
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      expect(cameraState.clearCameraImages).not.toHaveBeenCalled();
+      expect(setAnswer).not.toHaveBeenCalled();
+    });
+
+    it('still allows deselecting the camera tile once uploads have settled', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      cameraState.uploadingByQ['inner-jaundice'] = false;
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /Take a Picture/ })
+      );
+      expect(cameraState.clearCameraImages).toHaveBeenCalledWith(
+        'inner-jaundice'
+      );
+    });
+
+    it('forwards a retry request for a failed image to the camera context', async () => {
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      cameraState.failedByQ['inner-jaundice'] = true;
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={vi.fn()}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-retry'));
+      expect(cameraState.retryCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        0
+      );
     });
   });
 

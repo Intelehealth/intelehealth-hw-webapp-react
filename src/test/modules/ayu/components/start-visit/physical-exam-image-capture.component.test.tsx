@@ -36,11 +36,16 @@ import { PhysicalExamImageCapture } from '../../../../../modules/ayu/components/
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+const mkImage = (
+  preview: string,
+  status: 'uploading' | 'done' | 'failed' = 'done'
+) => ({ file: null, preview, status });
+
 const defaultProps = {
-  images: [] as string[],
+  images: [] as ReturnType<typeof mkImage>[],
   onAdd: vi.fn(),
   onRemove: vi.fn(),
-  onUpload: vi.fn(),
+  onRetry: vi.fn(),
 };
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -89,7 +94,7 @@ describe('PhysicalExamImageCapture', () => {
   describe('with images', () => {
     const propsWithImages = {
       ...defaultProps,
-      images: ['data:image/png;base64,AAA', 'data:image/png;base64,BBB'],
+      images: [mkImage('data:image/png;base64,AAA'), mkImage('data:image/png;base64,BBB')],
     };
 
     it('should render thumbnails for each image', () => {
@@ -200,11 +205,56 @@ describe('PhysicalExamImageCapture', () => {
       render(
         <PhysicalExamImageCapture
           {...defaultProps}
-          images={['data:image/png;base64,XYZ']}
+          images={[mkImage('data:image/png;base64,XYZ')]}
         />
       );
       const img = screen.getByAltText('capture-0') as HTMLImageElement;
       expect(img.src).toBe('data:image/png;base64,XYZ');
+    });
+  });
+
+
+  describe('upload status', () => {
+    it('should show a spinner and disable removal while an image is uploading', () => {
+      render(
+        <PhysicalExamImageCapture
+          {...defaultProps}
+          images={[mkImage('blob:a', 'uploading')]}
+        />
+      );
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByText('✕')).toBeDisabled();
+    });
+
+    it('should allow removal once the upload has settled', () => {
+      render(
+        <PhysicalExamImageCapture {...defaultProps} images={[mkImage('blob:a')]} />
+      );
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(screen.getByText('✕')).not.toBeDisabled();
+    });
+
+    it('should call onRetry when a failed image is clicked', async () => {
+      const user = userEvent.setup();
+      const onRetry = vi.fn();
+      render(
+        <PhysicalExamImageCapture
+          {...defaultProps}
+          images={[mkImage('blob:a', 'failed')]}
+          onRetry={onRetry}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetry).toHaveBeenCalledWith(0);
+    });
+
+    it('should not offer retry for a settled image', () => {
+      render(
+        <PhysicalExamImageCapture {...defaultProps} images={[mkImage('blob:a')]} />
+      );
+      expect(
+        screen.queryByRole('button', { name: 'Retry' })
+      ).not.toBeInTheDocument();
     });
   });
 });

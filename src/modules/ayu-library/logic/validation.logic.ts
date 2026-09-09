@@ -369,7 +369,19 @@ export type QuestionValidationReason =
   | 'allCompulsory'
   | 'enterValue'
   | 'selectOption'
-  | 'outOfRange';
+  | 'outOfRange'
+  | 'uploadInProgress'
+  | 'uploadFailed';
+
+export type CameraUploadIssue = 'uploading' | 'failed';
+
+export const UPLOAD_ISSUE_REASON: Record<
+  CameraUploadIssue,
+  QuestionValidationReason
+> = {
+  uploading: 'uploadInProgress',
+  failed: 'uploadFailed',
+};
 
 export interface QuestionValidationResult {
   valid: boolean;
@@ -386,10 +398,10 @@ export const validateQuestion = (
     q: AyuQuestion,
     a: Record<string, AyuAnswerValue>
   ) => boolean,
-  isCameraNotUploaded?: (
+  cameraUploadIssue?: (
     q: AyuQuestion,
     a: Record<string, AyuAnswerValue>
-  ) => boolean
+  ) => CameraUploadIssue | null
 ): QuestionValidationResult => {
   const rawAnswer = answers[question.linkId];
   const answerCodes: string[] = Array.isArray(rawAnswer)
@@ -398,7 +410,7 @@ export const validateQuestion = (
 
   const cameraMissingImages =
     isCameraAnswerMissingImages?.(question, answers) ?? false;
-  const cameraNotUploaded = isCameraNotUploaded?.(question, answers) ?? false;
+  const uploadIssue = cameraUploadIssue?.(question, answers) ?? null;
   const isAssociated =
     resolveAyuComponent(question) === ASSOCIATED_SYMPTOMS_COMPONENT;
   const { yesValues, noValues } = parseYesNoValues(rawAnswer);
@@ -426,7 +438,7 @@ export const validateQuestion = (
 
   const isInvalid =
     cameraMissingImages ||
-    cameraNotUploaded ||
+    uploadIssue !== null ||
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     (isPE && hasMissingNestedBPInput(question, answers)) ||
@@ -441,8 +453,8 @@ export const validateQuestion = (
 
   if (!isInvalid) return { valid: true };
 
-  const reason: QuestionValidationReason = cameraNotUploaded
-    ? 'uploadCapturedImage'
+  const reason: QuestionValidationReason = uploadIssue
+    ? UPLOAD_ISSUE_REASON[uploadIssue]
     : cameraMissingImages
       ? 'uploadImage'
       : isAssociatedIncomplete && isStrictAssociatedSymptoms(question)

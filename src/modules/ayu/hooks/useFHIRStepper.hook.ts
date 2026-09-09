@@ -9,8 +9,10 @@ import {
 } from '../../ayu-library/logic/stepper.logic';
 import {
   isEmpty,
+  UPLOAD_ISSUE_REASON,
   validateQuestion,
 } from '../../ayu-library/logic/validation.logic';
+import type { CameraUploadIssue } from '../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
@@ -71,11 +73,10 @@ interface UseFHIRStepperReturn {
     question: AyuQuestion,
     questionAnswers: Record<string, AyuAnswerValue>
   ) => boolean;
-  /** True when images are captured but the UPLOAD button was not clicked. */
-  isCameraNotUploaded: (
+  cameraUploadIssue: (
     question: AyuQuestion,
     questionAnswers: Record<string, AyuAnswerValue>
-  ) => boolean;
+  ) => CameraUploadIssue | null;
 }
 
 export const useFHIRStepper = (
@@ -146,31 +147,13 @@ export const useFHIRStepper = (
     return peCamera.cameraImagesFor(question.linkId).length === 0;
   };
 
-  /**
-   * Images were captured in the camera UI but the user never clicked the
-   * UPLOAD button, so cameraCode is NOT in the committed answer yet.
-   */
-  const isCameraNotUploaded = (
-    question: AyuQuestion,
-    questionAnswers: Record<string, AyuAnswerValue>
-  ): boolean => {
-    if (!peCamera) return false;
-    const cameraCode = question.answerOption?.find(o =>
-      o.extension?.some(
-        e =>
-          e.url === EXT_URL_PE_OPTION_KIND &&
-          e.valueString === PE_OPTION_KIND_CAMERA
-      )
-    )?.valueCoding?.code;
-    if (!cameraCode) return false;
-    const answer = questionAnswers[question.linkId];
-    const codes = Array.isArray(answer)
-      ? answer
-      : typeof answer === 'string'
-        ? [answer]
-        : [];
-    if (codes.includes(cameraCode)) return false;
-    return peCamera.cameraImagesFor(question.linkId).length > 0;
+  const cameraUploadIssue = (
+    question: AyuQuestion
+  ): CameraUploadIssue | null => {
+    if (!peCamera) return null;
+    if (peCamera.isCameraUploading(question.linkId)) return 'uploading';
+    if (peCamera.hasFailedUploads(question.linkId)) return 'failed';
+    return null;
   };
 
   const goNext = () => {
@@ -199,9 +182,13 @@ export const useFHIRStepper = (
         ? index + questionIndexOffset + 1
         : undefined;
 
-      if (isCameraNotUploaded(question, latestAnswers)) {
+      const uploadIssue = cameraUploadIssue(question);
+      if (uploadIssue) {
         showToast(
-          validationMessageForReason('uploadCapturedImage', questionNumber),
+          validationMessageForReason(
+            UPLOAD_ISSUE_REASON[uploadIssue],
+            questionNumber
+          ),
           undefined,
           'warning'
         );
@@ -222,7 +209,7 @@ export const useFHIRStepper = (
           question,
           latestAnswers,
           isCameraAnswerMissingImages,
-          isCameraNotUploaded
+          cameraUploadIssue
         );
         if (!result.valid) {
           showToast(
@@ -371,6 +358,8 @@ export const useFHIRStepper = (
 
       if (!autoNext || !currentQuestion) return updated;
 
+      if (cameraUploadIssue(currentQuestion)) return updated;
+
       // Disable autoNext for input-based questions — user must explicitly submit
       if (
         currentQuestion.type === FHIR_TYPE_STRING ||
@@ -462,6 +451,6 @@ export const useFHIRStepper = (
     showAll,
     validateAllQuestions,
     isCameraAnswerMissingImages,
-    isCameraNotUploaded,
+    cameraUploadIssue,
   };
 };

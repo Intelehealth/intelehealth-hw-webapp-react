@@ -1091,36 +1091,48 @@ describe('validateQuestion', () => {
     });
   });
 
-  it('should return uploadCapturedImage when images captured but not uploaded', () => {
+  it('should return uploadInProgress while an image is still uploading', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
     const cameraCheck = vi.fn(() => false);
-    const notUploadedCheck = vi.fn(() => true);
+    const uploadIssue = vi.fn(() => 'uploading' as const);
     expect(
-      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, uploadIssue)
     ).toEqual({
       valid: false,
-      reason: 'uploadCapturedImage',
+      reason: 'uploadInProgress',
     });
   });
 
-  it('should prioritize uploadCapturedImage over uploadImage when both fire', () => {
+  it('should return uploadFailed when an image failed to reach storage', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
+    const cameraCheck = vi.fn(() => false);
+    const uploadIssue = vi.fn(() => 'failed' as const);
+    expect(
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, uploadIssue)
+    ).toEqual({
+      valid: false,
+      reason: 'uploadFailed',
+    });
+  });
+
+  it('should prioritize the upload issue over uploadImage when both fire', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
     const cameraCheck = vi.fn(() => true);
-    const notUploadedCheck = vi.fn(() => true);
+    const uploadIssue = vi.fn(() => 'failed' as const);
     expect(
-      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, uploadIssue)
     ).toEqual({
       valid: false,
-      reason: 'uploadCapturedImage',
+      reason: 'uploadFailed',
     });
   });
 
-  it('should not flag uploadCapturedImage when check returns false', () => {
+  it('should not flag an upload issue when the check returns null', () => {
     const q: AyuQuestion = { linkId: 'q1', type: 'choice' };
     const cameraCheck = vi.fn(() => false);
-    const notUploadedCheck = vi.fn(() => false);
+    const uploadIssue = vi.fn(() => null);
     expect(
-      validateQuestion(q, { q1: 'answer' }, cameraCheck, notUploadedCheck)
+      validateQuestion(q, { q1: 'answer' }, cameraCheck, uploadIssue)
     ).toEqual({ valid: true });
   });
 

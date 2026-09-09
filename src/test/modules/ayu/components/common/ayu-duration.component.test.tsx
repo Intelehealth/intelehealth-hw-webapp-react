@@ -374,7 +374,7 @@ describe('AyuDuration', () => {
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 
-    it('should render nested label with muted CSS classes when parent is provided', () => {
+    it('should render nested label with the standard question-label classes when parent is provided', () => {
       const parent = {
         linkId: 'parent-1',
         text: 'Parent question',
@@ -382,7 +382,11 @@ describe('AyuDuration', () => {
       };
       render(<AyuDuration question={mockQuestion} parent={parent} />);
       const label = screen.getByText('How long?');
-      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+      expect(label).toHaveClass(
+        'block',
+        'text-large-label',
+        'text-(--color-dark)'
+      );
     });
 
     it('should append required asterisk when question.required is true and label has none', () => {

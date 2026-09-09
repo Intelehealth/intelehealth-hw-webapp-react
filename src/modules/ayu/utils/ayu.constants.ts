@@ -60,7 +60,6 @@ export const BUTTON_SAVE_NEXT = 'Save & Next';
 
 // --- Stepper ---
 export const BUTTON_SUBMIT = 'Submit';
-export const BUTTON_UPLOAD = 'Upload';
 export const BUTTON_SKIP = 'Skip';
 export const VALIDATION_ALL_COMPULSORY =
   'All questions are compulsory, please answer';
@@ -69,6 +68,8 @@ export const VALIDATION_SELECT_OPTION = 'Please select any one option';
 export const VALIDATION_UPLOAD_IMAGE = 'Please upload at least one image';
 export const VALIDATION_UPLOAD_CAPTURED_IMAGE =
   'Please upload the captured image';
+export const VALIDATION_SUBMIT_EDIT =
+  'Please submit your changes before proceeding';
 export const VALIDATION_OUT_OF_RANGE =
   'Please enter a value within the allowed range';
 
@@ -82,6 +83,12 @@ export const validationMessageForReason = (
     case 'uploadImage':
     case 'uploadCapturedImage':
       message = VALIDATION_UPLOAD_CAPTURED_IMAGE;
+      break;
+    case 'uploadInProgress':
+      message = VALIDATION_UPLOAD_IN_PROGRESS;
+      break;
+    case 'uploadFailed':
+      message = VALIDATION_UPLOAD_FAILED;
       break;
     case 'allCompulsory':
       message = VALIDATION_ALL_COMPULSORY;
@@ -105,7 +112,12 @@ export const validationMessageForReason = (
       message = VALIDATION_SELECT_OPTION;
   }
   if (questionNumber) {
-    if (reason === 'uploadCapturedImage' || reason === 'uploadImage') {
+    if (
+      reason === 'uploadCapturedImage' ||
+      reason === 'uploadImage' ||
+      reason === 'uploadInProgress' ||
+      reason === 'uploadFailed'
+    ) {
       return `Question ${questionNumber}: ${message}`;
     }
     return `Please answer Question ${questionNumber} before proceeding`;
@@ -114,6 +126,14 @@ export const validationMessageForReason = (
 };
 
 // --- Physical Exam Camera ---
+export const PE_IMAGE_UPLOADING_LABEL = 'Uploading image';
+export const PE_IMAGE_RETRY_LABEL = 'Retry';
+export const PE_IMAGE_UPLOAD_FAILED =
+  'Upload failed — tap to retry before submitting';
+export const VALIDATION_UPLOAD_IN_PROGRESS =
+  'Please wait for the image upload to finish';
+export const VALIDATION_UPLOAD_FAILED =
+  'An image failed to upload — retry it before submitting';
 export const PE_CAMERA_TILE_LABEL = 'Take a Picture';
 export const PE_PICTURE_TAKEN_LABEL = 'Picture Taken';
 export const PE_DEFAULT_IMAGE_LABEL = 'Physical Exam';
@@ -143,6 +163,10 @@ export const SUMMARY_CANCEL_TEXT = 'Back';
 
 // Visit Reasons Hook
 export const AYU_JSON_KEY_NAME = 'IDA6';
+
+export const QUESTION_LABEL_CLASS_NESTED =
+  'block text-large-label text-(--color-dark)';
+export const QUESTION_LABEL_CLASS_TOP = 'text-md font-medium text-black-500';
 
 // Text Input
 export const ADDITIONAL_INFORMATION_LABEL = 'Additional information';
