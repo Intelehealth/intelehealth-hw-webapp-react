@@ -52,14 +52,18 @@ vi.mock('../../../../modules/ayu/components/start-visit/start-visit.component', 
 // Mock the StartVisitProvider – capture the initialPatientUuid prop. The inline
 // AyuLeaveGuard reads visit state via useStartVisitData, so return a controllable
 // context object (default: no progress, not uploaded → guard stays inactive).
-const mockStartVisitProviderProps: { initialPatientUuid?: string | null } = {};
+const mockStartVisitProviderProps: {
+  initialPatientUuid?: string | null;
+  initialGender?: string | null;
+} = {};
 const mockCtx: { data: Record<string, unknown>; isUploaded: boolean } = {
   data: {},
   isUploaded: false,
 };
 vi.mock('../../../../modules/ayu/context/start-visit.context', () => ({
-  StartVisitProvider: vi.fn(({ children, initialPatientUuid }: any) => {
+  StartVisitProvider: vi.fn(({ children, initialPatientUuid, initialGender }: any) => {
     mockStartVisitProviderProps.initialPatientUuid = initialPatientUuid;
+    mockStartVisitProviderProps.initialGender = initialGender;
     return <div data-testid="start-visit-provider">{children}</div>;
   }),
   useStartVisitData: () => mockCtx,
@@ -93,6 +97,7 @@ beforeEach(() => {
   mockStorageGet.mockReturnValue(null);
   mockStorageSet.mockReset();
   mockStartVisitProviderProps.initialPatientUuid = undefined;
+  mockStartVisitProviderProps.initialGender = undefined;
   mockCtx.data = {};
   mockCtx.isUploaded = false;
   mockBlockerState.state = 'unblocked';
@@ -343,6 +348,51 @@ describe('AyuPage', () => {
       );
 
       expect(mockStartVisitProviderProps.initialPatientUuid).toBeNull();
+    });
+  });
+
+  /* ── Patient gender resolution ──────────────────────────────────────────── */
+
+  describe('Patient gender resolution', () => {
+    it('should read gender from storage with PATIENT_GENDER_KEY and pass as initialGender', () => {
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientGender' ? 'Female' : null
+      );
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStorageGet).toHaveBeenCalledWith('patientGender');
+      expect(mockStartVisitProviderProps.initialGender).toBe('Female');
+    });
+
+    it('should pass initialGender as null when storage returns null for gender key', () => {
+      mockStorageGet.mockReturnValue(null);
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialGender).toBeNull();
+    });
+
+    it('should pass Male gender correctly when stored', () => {
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientGender' ? 'Male' : null
+      );
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialGender).toBe('Male');
     });
   });
 

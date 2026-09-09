@@ -448,6 +448,82 @@ describe('buildVisitSummary', () => {
       }
     });
 
+    it('should label each sub-question when the matching container has no direct answer (weight change scenario)', () => {
+      // Represents a symptom like "Weight change" whose container child has no
+      // own stored answer, but three typed grandchildren (Weight gain, Weight loss,
+      // Since when) that should each appear with their own label in the summary.
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+        item: [
+          {
+            linkId: 'wc_container',
+            text: 'Weight change',
+            type: 'group',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'WC' },
+              },
+            ],
+            item: [
+              {
+                linkId: 'wg_q',
+                text: 'Weight gain',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              },
+              {
+                linkId: 'wl_q',
+                text: 'Weight loss',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              },
+              {
+                linkId: 'sw_q',
+                text: 'Since when',
+                type: 'quantity',
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const sections = buildVisitSummary(
+        [question],
+        new Map<string, AyuAnswerValue>([
+          ['assoc', ['WC']],
+          ['wg_q', 'YES'],
+          ['wl_q', 'YES'],
+          ['sw_q', { dropdownValues: { number: '3', days: 'months' } }],
+        ]),
+        'Visit'
+      );
+
+      const assocSection = sections.find(s => s.title === 'Associated symptoms');
+      const reports = assocSection?.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Weight change');
+        expect(reports.values[0]).toContain('Weight gain');
+        expect(reports.values[0]).toContain('Weight loss');
+        expect(reports.values[0]).toContain('Since when');
+        expect(reports.values[0]).toContain('3 months');
+      }
+    });
+
     it('should omit the label when the sub-question has no text', () => {
       const question = {
         linkId: 'assoc',
@@ -5211,5 +5287,172 @@ describe('buildVisitSummary - sibling labels under a shared option', () => {
 
     expect(value).toContain('the knee');
     expect(value).not.toContain('[describe where]');
+  });
+});
+
+describe('buildVisitSummary — group-container grandchild branches (lines 462-473)', () => {
+  it('line 462: skips a grandchild whose linkId was already added to processed by a prior symptom', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [
+        { valueCoding: { code: 'WC', display: 'Weight change' } },
+        { valueCoding: { code: 'AP', display: 'Abdominal pain' } },
+      ],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            { linkId: 'shared_gc', text: 'Since when', type: 'string' } as AyuQuestion,
+          ],
+        },
+        {
+          linkId: 'ap_container',
+          text: 'Abdominal pain',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'AP' } }],
+          item: [
+            { linkId: 'shared_gc', text: 'Since when', type: 'string' } as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC', 'AP']],
+        ['shared_gc', '3 weeks'],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).toContain('Abdominal pain');
+      const occurrences = reports.values[0].split('3 weeks').length - 1;
+      expect(occurrences).toBe(1);
+    }
+  });
+
+  it('line 463: skips a grandchild whose enableWhen condition is not met', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            {
+              linkId: 'gc_visible',
+              text: 'Weight gain',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+            } as unknown as AyuQuestion,
+            {
+              linkId: 'gc_gated',
+              text: 'Weight loss',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              enableWhen: [{ question: 'trigger', operator: '=', answerCoding: { code: 'FIRE' } }],
+            } as unknown as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC']],
+        ['trigger', 'NO'],
+        ['gc_visible', 'YES'],
+        ['gc_gated', 'YES'],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).toContain('Weight gain');
+      expect(reports.values[0]).not.toContain('Weight loss');
+    }
+  });
+
+  it('line 473: returns early when no grandchild produces labeled output (all unanswered)', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            {
+              linkId: 'gc_unanswered',
+              text: 'Weight gain',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+            } as unknown as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC']],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).not.toContain('Weight gain');
+    }
   });
 });

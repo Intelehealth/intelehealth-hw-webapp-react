@@ -153,11 +153,6 @@ export const StartVisitProvider = ({
         const saved = res.data.data;
         setTempRecordId(res.data.id);
 
-        // Detect gender change: if the gender stored with this visit session
-        // differs from the current patient gender, clear all gender-specific
-        // data (visit reason and downstream sections) so stale answers
-        // (e.g. pregnancy data for a Female patient that is now Male) are
-        // not shown after the patient's gender is edited.
         const savedGender = saved.patientGender;
         const genderChanged =
           savedGender != null &&
@@ -165,7 +160,6 @@ export const StartVisitProvider = ({
           savedGender !== initialGender;
 
         if (genderChanged) {
-          // Reset to visit-reason section (1) if vitals exist, otherwise start
           const targetIndex = saved.vitals ? 1 : 0;
           currentSectionIndexRef.current = targetIndex;
           setRestoredSectionIndex(targetIndex);
@@ -208,9 +202,6 @@ export const StartVisitProvider = ({
         medicalHistoryAnswers: current.medicalHistoryAnswers ?? undefined,
         currentSectionIndex: currentSectionIndexRef.current,
         ...sectionData,
-        // Always stamp the current gender so it can be compared on next
-        // restore to detect a gender change (placed after spread so callers
-        // cannot accidentally override it).
         patientGender: initialGender ?? undefined,
       };
       try {
