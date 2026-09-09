@@ -262,7 +262,8 @@ function buildSummaryForItems(
     item: AyuQuestion,
     parts: string[],
     parentDisplay?: string | null,
-    skipEchoedLabel = false
+    skipEchoedLabel = false,
+    labelSiblings = false
   ) {
     const answer = getAnswerValue(item);
 
@@ -333,7 +334,9 @@ function buildSummaryForItems(
           }
           const SEPARATORS_OL = [' - ', ' – ', ' — ', ': ', ' : '];
           const omitLabel =
-            item.type === 'string' || !itemLabel || itemLabel === parentDisplay;
+            (item.type === 'string' && !labelSiblings) ||
+            !itemLabel ||
+            itemLabel === parentDisplay;
           /*
            * Detect whether the item label begins with parentDisplay + separator.
            * e.g. itemLabel="Yes - When", parentDisplay="Yes" → prefixSep=" - "
@@ -437,16 +440,69 @@ function buildSummaryForItems(
                 ) || [];
 
               if (matchingChildren.length > 0) {
-                const nestedValues: string[] = [];
+                const labeledParts: string[] = [];
+                let anyNestedValue = false;
 
                 matchingChildren.forEach((nested: AyuQuestion) => {
-                  nestedValues.push(...collectNestedOwnValues(nested));
-                  nestedValues.push(...collectDescendantValues(nested.item));
+                  const ownValues = collectNestedOwnValues(nested);
                   processed.add(nested.linkId);
+
+                  const nestedLabel = getExtensionLabel(nested);
+                  const omitLabel = !nestedLabel || nestedLabel === display;
+
+                  if (!ownValues.length) {
+                    // The nested question has no direct answer (e.g. it is a group /
+                    // container).  Collect child values with their labels preserved so
+                    // that sub-question labels like "Weight gain", "Weight loss" and
+                    // "Since when" appear in the summary instead of bare values.
+                    if (!nested.item?.length) return;
+                    const childLabeledParts: string[] = [];
+                    const multipleKids = nested.item.length > 1;
+                    nested.item.forEach((grandchild: AyuQuestion) => {
+                      if (processed.has(grandchild.linkId)) return;
+                      if (!isItemVisible(grandchild.enableWhen)) return;
+                      collectLabeledValues(
+                        grandchild,
+                        childLabeledParts,
+                        display,
+                        false,
+                        multipleKids
+                      );
+                      processed.add(grandchild.linkId);
+                    });
+                    if (!childLabeledParts.length) return;
+                    anyNestedValue = true;
+                    labeledParts.push(
+                      omitLabel
+                        ? childLabeledParts.join('; ')
+                        : `${nestedLabel} - ${childLabeledParts.join('; ')}`
+                    );
+                    return;
+                  }
+
+                  const descendantValues = collectDescendantValues(nested.item);
+
+                  if (!descendantValues.length) {
+                    labeledParts.push(
+                      omitLabel
+                        ? ownValues.join(', ')
+                        : `${nestedLabel} - ${ownValues.join(', ')}`
+                    );
+                    return;
+                  }
+
+                  anyNestedValue = true;
+                  const head = ownValues.join(', ');
+                  const tail = `: ${descendantValues.join(', ')}`;
+                  labeledParts.push(
+                    omitLabel ? head + tail : `${nestedLabel} - ${head}${tail}`
+                  );
                 });
 
-                if (nestedValues.length) {
-                  displayValue += ` - ${nestedValues.join(' - ')}`;
+                if (labeledParts.length) {
+                  displayValue += anyNestedValue
+                    ? ` - Yes; ${labeledParts.join('; ')}`
+                    : ` - ${labeledParts.join('; ')}`;
                 }
               }
 
@@ -673,8 +729,15 @@ function buildSummaryForItems(
 
             if (nestedChildren.length) {
               const labeledParts: string[] = [];
+              const needsSiblingLabels = nestedChildren.length > 1;
               nestedChildren.forEach(nested => {
-                collectLabeledValues(nested, labeledParts, display);
+                collectLabeledValues(
+                  nested,
+                  labeledParts,
+                  display,
+                  false,
+                  needsSiblingLabels
+                );
                 processed.add(nested.linkId);
               });
 
@@ -777,10 +840,18 @@ function buildSummaryForItems(
           } else {
             const labeledParts: string[] = [];
 
+            const needsSiblingLabels = matchingNested.length > 1;
+
             matchingNested.forEach((nested: AyuQuestion) => {
               /* skipEchoedLabel=true mirrors the legacy collectNestedOwnValues
                behaviour for single-select paths (skip "Same Label – Same Label").*/
-              collectLabeledValues(nested, labeledParts, display, true);
+              collectLabeledValues(
+                nested,
+                labeledParts,
+                display,
+                true,
+                needsSiblingLabels
+              );
               processed.add(nested.linkId);
             });
 

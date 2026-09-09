@@ -6288,6 +6288,90 @@ describe('AyuStepperContainer', () => {
     });
   });
 
+  describe('getBranchQualifier fallbacks (lines 165, 170)', () => {
+    const makeParent = (
+      options: AyuQuestion['answerOption'],
+      childCode: string
+    ): AyuQuestion => ({
+      linkId: 'site',
+      text: 'Site',
+      type: 'choice',
+      repeats: true,
+      answerOption: options,
+      item: [
+        {
+          linkId: 'hip',
+          type: 'string',
+          text: 'Hip',
+          enableWhen: [
+            { question: 'site', operator: '=', answerCoding: { code: childCode } },
+          ],
+        },
+      ],
+    });
+
+    const renderWith = (parent: AyuQuestion, answers: Record<string, string | string[]>) => {
+      const next = { linkId: 'q2', text: 'Next', type: 'string' } as AyuQuestion;
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: next,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [parent, next],
+        isLast: true,
+      });
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([parent, next])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+    };
+
+    it('should not qualify a child that is not gated by the repeating parent', () => {
+      const parent: AyuQuestion = {
+        linkId: 'site',
+        text: 'Site',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'RIGHT', display: 'Right leg' } },
+          { valueCoding: { code: 'LEFT', display: 'Left leg' } },
+        ],
+        item: [{ linkId: 'hip', type: 'string', text: 'Hip' }],
+      };
+      renderWith(parent, { site: ['RIGHT', 'LEFT'], hip: 'sore' });
+
+      expect(screen.getByText('Hip')).toBeInTheDocument();
+      expect(screen.getByText('sore')).toBeInTheDocument();
+    });
+
+    it('should not qualify when the matched option carries no display text', () => {
+      const parent = makeParent(
+        [{ valueCoding: { code: 'RIGHT' } }, { valueCoding: { code: 'LEFT' } }],
+        'RIGHT'
+      );
+      renderWith(parent, { site: ['RIGHT', 'LEFT'], hip: 'sore' });
+
+      expect(screen.getByText('Hip')).toBeInTheDocument();
+    });
+
+    it('should fall back to valueString when the option has no valueCoding', () => {
+      const parent = makeParent(
+        [{ valueString: 'RIGHT' }, { valueString: 'LEFT' }],
+        'RIGHT'
+      );
+      renderWith(parent, { site: ['RIGHT', 'LEFT'], hip: 'sore' });
+
+      expect(screen.getByText('RIGHT - Hip')).toBeInTheDocument();
+    });
+  });
+
   describe('AyuAnsweredDisplay labelValue without label (line 188)', () => {
     it('should render just the value when labelValue item has empty label', () => {
       const question: AyuQuestion = {
@@ -7790,5 +7874,92 @@ describe('AyuStepperContainer', () => {
 
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
     });
+  });
+});
+
+describe('AyuStepperContainer - answered rows across repeating branches', () => {
+  const SYS = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
+  const RIGHT = 'ID_274596701';
+  const LEFT = 'ID_1753721531';
+  const gate = (question: string, code: string) => [
+    { question, operator: '=', answerCoding: { system: SYS, code } },
+  ];
+  const part = (linkId: string, text: string, leg: string) =>
+    ({ linkId, text, type: 'string', enableWhen: gate('site', leg) }) as unknown as AyuQuestion;
+
+  const site = {
+    linkId: 'site',
+    text: 'Which part of the leg or hip do you feel pain?*',
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { system: SYS, code: RIGHT, display: 'Right leg' } },
+      { valueCoding: { system: SYS, code: LEFT, display: 'Left leg' } },
+    ],
+    item: [
+      part('r-hip', 'Hip', RIGHT),
+      part('r-calf', 'Calf', RIGHT),
+      part('l-hip', 'Hip', LEFT),
+      part('l-calf', 'Calf', LEFT),
+    ],
+  } as unknown as AyuQuestion;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateAllQuestions.mockReturnValue(true);
+    Element.prototype.scrollIntoView = vi.fn();
+    mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
+    mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+    mockResolveAyuComponentLogic.mockReturnValue('selectableOptionGroup');
+    mockIsStrictAssociatedSymptomsLogic.mockReturnValue(false);
+  });
+
+  const renderAndSubmit = (answers: Record<string, AyuAnswerValue>) => {
+    mockUseFHIRStepper.mockReturnValue({
+      currentQuestion: site,
+      currentIndex: 0,
+      total: 1,
+      answers,
+      setAnswer: vi.fn(),
+      clearAnswers: vi.fn(),
+      goNext: vi.fn(),
+      topLevelItems: [site],
+      isLast: true,
+      showAll: false,
+    });
+
+    const utils = render(
+      <AyuStepperContainer questionnaire={{ item: [site] }} onComplete={vi.fn()} />
+    );
+    fireEvent.click(screen.getByText('Submit'));
+    return utils;
+  };
+
+  it('qualifies duplicated labels with their branch', () => {
+    const { container } = renderAndSubmit({
+      site: [RIGHT, LEFT],
+      'r-hip': 'dsv',
+      'r-calf': 'sdv',
+      'l-hip': 'abc',
+      'l-calf': 'xyz',
+    });
+
+    const text = container.textContent ?? '';
+    expect(text).toContain('Right leg - Hip');
+    expect(text).toContain('Left leg - Hip');
+    expect(text).toContain('Right leg - Calf');
+    expect(text).toContain('Left leg - Calf');
+  });
+
+  it('leaves labels unqualified when only one branch is answered', () => {
+    const { container } = renderAndSubmit({
+      site: [RIGHT],
+      'r-hip': 'dsv',
+      'r-calf': 'sdv',
+    });
+
+    const text = container.textContent ?? '';
+    expect(text).not.toContain('Right leg - Hip');
+    expect(text).toContain('Hip');
   });
 });

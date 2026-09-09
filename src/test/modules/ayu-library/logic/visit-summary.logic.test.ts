@@ -309,6 +309,339 @@ describe('buildVisitSummary', () => {
       ],
     });
 
+    it('should label each sub-answer of a reported symptom', () => {
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'COUGH', display: 'Cough' } }],
+        item: [
+          {
+            linkId: 'dry',
+            text: 'Dry',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'COUGH' },
+              },
+            ],
+          },
+          {
+            linkId: 'productive',
+            text: 'Productive (With sputum)',
+            type: 'choice',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'COUGH' },
+              },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'COLOR', display: 'Color of sputum' } },
+            ],
+            item: [
+              {
+                linkId: 'color',
+                text: 'Color of sputum',
+                type: 'choice',
+                enableWhen: [
+                  {
+                    question: 'productive',
+                    operator: '=',
+                    answerCoding: { code: 'COLOR' },
+                  },
+                ],
+                answerOption: [
+                  { valueCoding: { code: 'YELLOW', display: 'Yellow' } },
+                ],
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const sections = buildVisitSummary(
+        [question],
+        new Map<string, AyuAnswerValue>([
+          ['assoc', ['COUGH']],
+          ['dry', 'yes'],
+          ['productive', 'COLOR'],
+          ['color', 'YELLOW'],
+        ]),
+        'Visit'
+      );
+
+      const reports = sections[0].items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toBe(
+          'Cough - Yes; Dry - yes; Productive (With sputum) - Color of sputum: Yellow.'
+        );
+      }
+    });
+
+    it('should use descendant values when the sub-question itself is unanswered', () => {
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'COUGH', display: 'Cough' } }],
+        item: [
+          {
+            linkId: 'productive',
+            text: 'Productive (With sputum)',
+            type: 'choice',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'COUGH' },
+              },
+            ],
+            item: [
+              {
+                linkId: 'note',
+                text: 'Note',
+                type: 'string',
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const sections = buildVisitSummary(
+        [question],
+        new Map<string, AyuAnswerValue>([
+          ['assoc', ['COUGH']],
+          ['note', 'thick'],
+        ]),
+        'Visit'
+      );
+
+      const reports = sections[0].items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toBe(
+          'Cough - Yes; Productive (With sputum) - thick.'
+        );
+      }
+    });
+
+    it('should label each sub-question when the matching container has no direct answer (weight change scenario)', () => {
+      // Represents a symptom like "Weight change" whose container child has no
+      // own stored answer, but three typed grandchildren (Weight gain, Weight loss,
+      // Since when) that should each appear with their own label in the summary.
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+        item: [
+          {
+            linkId: 'wc_container',
+            text: 'Weight change',
+            type: 'group',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'WC' },
+              },
+            ],
+            item: [
+              {
+                linkId: 'wg_q',
+                text: 'Weight gain',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              },
+              {
+                linkId: 'wl_q',
+                text: 'Weight loss',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              },
+              {
+                linkId: 'sw_q',
+                text: 'Since when',
+                type: 'quantity',
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const sections = buildVisitSummary(
+        [question],
+        new Map<string, AyuAnswerValue>([
+          ['assoc', ['WC']],
+          ['wg_q', 'YES'],
+          ['wl_q', 'YES'],
+          ['sw_q', { dropdownValues: { number: '3', days: 'months' } }],
+        ]),
+        'Visit'
+      );
+
+      const assocSection = sections.find(s => s.title === 'Associated symptoms');
+      const reports = assocSection?.items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      expect(reports).toBeDefined();
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toContain('Weight change');
+        expect(reports.values[0]).toContain('Weight gain');
+        expect(reports.values[0]).toContain('Weight loss');
+        expect(reports.values[0]).toContain('Since when');
+        expect(reports.values[0]).toContain('3 months');
+      }
+    });
+
+    it('should omit the label when the sub-question has no text', () => {
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'COUGH', display: 'Cough' } }],
+        item: [
+          {
+            linkId: 'unlabelled',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'COUGH' },
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const sections = buildVisitSummary(
+        [question],
+        new Map<string, AyuAnswerValue>([
+          ['assoc', ['COUGH']],
+          ['unlabelled', 'wheezy'],
+        ]),
+        'Visit'
+      );
+
+      const reports = sections[0].items.find(
+        i => i.type === 'subheading' && i.heading === 'Patient reports'
+      );
+      if (reports && reports.type === 'subheading') {
+        expect(reports.values[0]).toBe('Cough - wheezy.');
+      }
+    });
+
+    it('should not repeat the symptom name when the sub-question echoes it', () => {
+      const question = {
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        required: true,
+        extension: [
+          {
+            url: 'urn:intelehealth:original-question-text',
+            valueString: 'Associated symptoms',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'COUGH', display: 'Cough' } }],
+        item: [
+          {
+            linkId: 'cough',
+            text: 'Cough',
+            type: 'choice',
+            enableWhen: [
+              {
+                question: 'assoc',
+                operator: '=',
+                answerCoding: { code: 'COUGH' },
+              },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'DRY', display: 'Dry' } },
+              {
+                valueCoding: {
+                  code: 'PROD',
+                  display: 'Productive (With sputum)',
+                },
+              },
+            ],
+            item: [
+              {
+                linkId: 'color',
+                text: 'Color of sputum',
+                type: 'choice',
+                enableWhen: [
+                  {
+                    question: 'cough',
+                    operator: '=',
+                    answerCoding: { code: 'PROD' },
+                  },
+                ],
+                answerOption: [
+                  { valueCoding: { code: 'YELLOW', display: 'Yellow' } },
+                ],
+              },
+            ],
+          },
+        ],
+      } as unknown as AyuQuestion;
+
+      const summarise = (answers: Record<string, AyuAnswerValue>) => {
+        const sections = buildVisitSummary(
+          [question],
+          new Map(Object.entries(answers)),
+          'Visit'
+        );
+        const reports = sections[0].items.find(
+          i => i.type === 'subheading' && i.heading === 'Patient reports'
+        );
+        return reports && reports.type === 'subheading' ? reports.values[0] : '';
+      };
+
+      expect(summarise({ assoc: ['COUGH'], cough: 'DRY' })).toBe('Cough - Dry.');
+      expect(
+        summarise({ assoc: ['COUGH'], cough: 'PROD', color: 'YELLOW' })
+      ).toBe('Cough - Yes; Productive (With sputum): Yellow.');
+    });
+
     it('should separate reports and denies', () => {
       const questions = [makeAssociatedSymptomsQuestion()];
       const answers = new Map<string, AyuAnswerValue>([
@@ -4870,5 +5203,256 @@ describe('buildVisitSummary', () => {
       );
       expect(allValues).not.toContain('stale typed text');
     });
+  });
+});
+
+describe('buildVisitSummary - sibling labels under a shared option', () => {
+  const SYS = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
+  const RIGHT = 'ID_274596701';
+  const LEFT = 'ID_1753721531';
+  const gate = (question: string, code: string) => [
+    { question, operator: '=', answerCoding: { system: SYS, code } },
+  ];
+  const part = (linkId: string, text: string, leg: string) =>
+    ({ linkId, text, type: 'string', enableWhen: gate('site', leg) }) as unknown as AyuQuestion;
+
+  const site = {
+    linkId: 'site',
+    text: 'Which part of the leg or hip do you feel pain?*',
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { system: SYS, code: RIGHT, display: 'Right leg' } },
+      { valueCoding: { system: SYS, code: LEFT, display: 'Left leg' } },
+    ],
+    item: [
+      part('r-hip', 'Hip', RIGHT),
+      part('r-calf', 'Calf', RIGHT),
+      part('l-hip', 'Hip', LEFT),
+      part('l-calf', 'Calf', LEFT),
+    ],
+  } as unknown as AyuQuestion;
+
+  const valueOf = (answers: Record<string, AyuAnswerValue>) => {
+    const sections = buildVisitSummary([site], new Map(Object.entries(answers)), 'Visit');
+    const item = sections[0].items[0];
+    return item.type === 'labelValue' ? String(item.value) : '';
+  };
+
+  it('labels each sibling so values can be attributed', () => {
+    const value = valueOf({
+      site: [RIGHT, LEFT],
+      'r-hip': 'sore',
+      'r-calf': 'aching',
+      'l-hip': 'mild',
+      'l-calf': 'none',
+    });
+
+    expect(value).toContain('Right leg – Hip – sore');
+    expect(value).toContain('Calf – aching');
+    expect(value).toContain('Left leg – Hip – mild');
+  });
+
+  it('keeps both legs distinguishable when labels repeat across branches', () => {
+    const value = valueOf({ site: [RIGHT, LEFT], 'r-hip': 'sore', 'l-hip': 'mild' });
+    expect(value.indexOf('Right leg')).toBeLessThan(value.indexOf('Left leg'));
+    expect(value).toContain('Right leg – Hip – sore');
+    expect(value).toContain('Left leg – Hip – mild');
+  });
+
+  it('omits the label when an option has a single child (describe field)', () => {
+    const describeParent = {
+      linkId: 'radiation',
+      text: 'Radiation',
+      type: 'choice',
+      repeats: true,
+      answerOption: [{ valueCoding: { system: SYS, code: 'RAD', display: 'Pain radiates to' } }],
+      item: [
+        {
+          linkId: 'radiation-where',
+          text: 'Pain radiates to [describe where]',
+          type: 'string',
+          enableWhen: gate('radiation', 'RAD'),
+        },
+      ],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [describeParent],
+      new Map(Object.entries({ radiation: ['RAD'], 'radiation-where': 'the knee' })),
+      'Visit'
+    );
+    const item = sections[0].items[0];
+    const value = item.type === 'labelValue' ? String(item.value) : '';
+
+    expect(value).toContain('the knee');
+    expect(value).not.toContain('[describe where]');
+  });
+});
+
+describe('buildVisitSummary — group-container grandchild branches (lines 462-473)', () => {
+  it('line 462: skips a grandchild whose linkId was already added to processed by a prior symptom', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [
+        { valueCoding: { code: 'WC', display: 'Weight change' } },
+        { valueCoding: { code: 'AP', display: 'Abdominal pain' } },
+      ],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            { linkId: 'shared_gc', text: 'Since when', type: 'string' } as AyuQuestion,
+          ],
+        },
+        {
+          linkId: 'ap_container',
+          text: 'Abdominal pain',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'AP' } }],
+          item: [
+            { linkId: 'shared_gc', text: 'Since when', type: 'string' } as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC', 'AP']],
+        ['shared_gc', '3 weeks'],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).toContain('Abdominal pain');
+      const occurrences = reports.values[0].split('3 weeks').length - 1;
+      expect(occurrences).toBe(1);
+    }
+  });
+
+  it('line 463: skips a grandchild whose enableWhen condition is not met', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            {
+              linkId: 'gc_visible',
+              text: 'Weight gain',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+            } as unknown as AyuQuestion,
+            {
+              linkId: 'gc_gated',
+              text: 'Weight loss',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+              enableWhen: [{ question: 'trigger', operator: '=', answerCoding: { code: 'FIRE' } }],
+            } as unknown as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC']],
+        ['trigger', 'NO'],
+        ['gc_visible', 'YES'],
+        ['gc_gated', 'YES'],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).toContain('Weight gain');
+      expect(reports.values[0]).not.toContain('Weight loss');
+    }
+  });
+
+  it('line 473: returns early when no grandchild produces labeled output (all unanswered)', () => {
+    const question: AyuQuestion = {
+      linkId: 'assoc',
+      text: 'Associated symptoms',
+      type: 'choice',
+      required: true,
+      extension: [
+        { url: 'urn:intelehealth:original-question-text', valueString: 'Associated symptoms' },
+      ],
+      answerOption: [{ valueCoding: { code: 'WC', display: 'Weight change' } }],
+      item: [
+        {
+          linkId: 'wc_container',
+          text: 'Weight change',
+          type: 'group',
+          enableWhen: [{ question: 'assoc', operator: '=', answerCoding: { code: 'WC' } }],
+          item: [
+            {
+              linkId: 'gc_unanswered',
+              text: 'Weight gain',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'YES', display: 'Yes' } }],
+            } as unknown as AyuQuestion,
+          ],
+        },
+      ] as unknown as AyuQuestion[],
+    } as unknown as AyuQuestion;
+
+    const sections = buildVisitSummary(
+      [question],
+      new Map<string, AyuAnswerValue>([
+        ['assoc', ['WC']],
+      ]),
+      'Visit'
+    );
+
+    const assocSection = sections.find(s => s.title === 'Associated symptoms');
+    expect(assocSection).toBeDefined();
+    const reports = assocSection!.items.find(
+      i => i.type === 'subheading' && i.heading === 'Patient reports'
+    );
+    expect(reports).toBeDefined();
+    if (reports && reports.type === 'subheading') {
+      expect(reports.values[0]).toContain('Weight change');
+      expect(reports.values[0]).not.toContain('Weight gain');
+    }
   });
 });

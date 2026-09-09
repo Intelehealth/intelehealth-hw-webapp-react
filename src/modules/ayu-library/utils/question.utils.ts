@@ -43,6 +43,30 @@ export const findMatchingOptionCode = (
   return undefined;
 };
 
+export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
+  if (q.type !== 'choice' || !q.answerOption?.length || !q.item?.length) {
+    return false;
+  }
+
+  if (q.repeats) return false;
+
+  const gatedCodes = new Set<string>();
+  for (const child of q.item) {
+    if (child.answerOption?.length) return false;
+    const code = findMatchingOptionCode(child, q);
+    if (!code) continue;
+    if (gatedCodes.has(code)) return false;
+    gatedCodes.add(code);
+  }
+
+  if (gatedCodes.size === 0) return true;
+
+  return (q.answerOption ?? []).every(opt => {
+    const code = opt.valueCoding?.code || opt.valueString;
+    return code ? gatedCodes.has(code) : true;
+  });
+};
+
 /**
  * Check whether a linkId belongs to any descendant of the given question (recursive).
  */

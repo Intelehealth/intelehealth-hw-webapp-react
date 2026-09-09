@@ -1378,6 +1378,186 @@ describe('AyuNestedRenderer', () => {
     });
   });
 
+    it('should NOT bypass a real question whose one option gates several sub-items', () => {
+      
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'thermometer',
+          text: 'Did you recently measure fever using thermometer?*',
+          type: 'choice',
+          required: true,
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'when',
+              text: 'When',
+              type: 'date',
+              enableWhen: [
+                {
+                  question: 'thermometer',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+            },
+            {
+              linkId: 'temp',
+              text: 'Body Temperature (F)',
+              type: 'integer',
+              enableWhen: [
+                {
+                  question: 'thermometer',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-thermometer')).toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-when')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-temp')).not.toBeInTheDocument();
+    });
+
+    it('should NOT bypass a question whose gated child is itself a choice question', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'thermometer',
+          text: 'Did you recently measure fever using thermometer?*',
+          type: 'choice',
+          required: true,
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'yes-branch',
+              text: 'Yes',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'thermometer',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'when', display: 'When' } },
+                {
+                  valueCoding: { code: 'temp', display: 'Body Temperature (F)' },
+                },
+              ],
+              item: [
+                {
+                  linkId: 'when',
+                  text: 'When',
+                  type: 'date',
+                  enableWhen: [
+                    {
+                      question: 'yes-branch',
+                      operator: '=',
+                      answerCoding: { code: 'when' },
+                    },
+                  ],
+                },
+                {
+                  linkId: 'temp',
+                  text: 'Body Temperature (F)',
+                  type: 'integer',
+                  enableWhen: [
+                    {
+                      question: 'yes-branch',
+                      operator: '=',
+                      answerCoding: { code: 'temp' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-thermometer')).toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-yes-branch')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-when')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-temp')).not.toBeInTheDocument();
+    });
+
+    it('should reveal both sub-items together once the gating option is chosen', () => {
+      const items: AyuQuestion[] = [
+        {
+          linkId: 'thermometer',
+          text: 'Did you recently measure fever using thermometer?*',
+          type: 'choice',
+          required: true,
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+          ],
+          item: [
+            {
+              linkId: 'when',
+              text: 'When',
+              type: 'date',
+              enableWhen: [
+                {
+                  question: 'thermometer',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+            },
+            {
+              linkId: 'temp',
+              text: 'Body Temperature (F)',
+              type: 'integer',
+              enableWhen: [
+                {
+                  question: 'thermometer',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ thermometer: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-when')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-temp')).toBeInTheDocument();
+    });
+
   describe('hasAnswerOptionItemMapping', () => {
     it('should use renderInlineNestedItems when child has answerOption and item', async () => {
       const user = userEvent.setup();
@@ -2656,5 +2836,130 @@ describe('AyuNestedRenderer', () => {
         expect(container.firstChild).toBeNull();
       });
     });
+  });
+});
+
+describe('AyuNestedRenderer - branch accordion', () => {
+  const SYS = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
+  const RIGHT = 'ID_274596701';
+  const LEFT = 'ID_1753721531';
+  const gate = (question: string, code: string) => [
+    { question, operator: '=', answerCoding: { system: SYS, code } },
+  ];
+
+  const site = {
+    linkId: 'site',
+    text: 'Site',
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { system: SYS, code: RIGHT, display: 'Right leg' } },
+      { valueCoding: { system: SYS, code: LEFT, display: 'Left leg' } },
+    ],
+    item: [
+      { linkId: 'r-hip', text: 'Hip', type: 'string', enableWhen: gate('site', RIGHT) },
+      { linkId: 'l-hip', text: 'Hip', type: 'string', enableWhen: gate('site', LEFT) },
+    ],
+  } as unknown as AyuQuestion;
+
+  const isHidden = (linkId: string) => {
+    let node: HTMLElement | null = screen.getByTestId(`renderer-${linkId}`);
+    while (node) {
+      if (node.style?.display === 'none') return true;
+      node = node.parentElement;
+    }
+    return false;
+  };
+
+  const renderSite = (answer: string[]) =>
+    render(
+      <AyuNestedRenderer
+        items={site.item}
+        parentQuestion={site}
+        answers={{ site: answer }}
+        setAnswer={vi.fn()}
+      />
+    );
+
+  it('renders a header per branch and expands only the newest one', () => {
+    renderSite([RIGHT, LEFT]);
+    expect(screen.getByText('Right leg')).toBeTruthy();
+    expect(screen.getByText('Left leg')).toBeTruthy();
+    expect(isHidden('l-hip')).toBe(false);
+    expect(isHidden('r-hip')).toBe(true);
+  });
+
+  it('keeps collapsed branches mounted so validation still sees them', () => {
+    renderSite([RIGHT, LEFT]);
+    expect(screen.getByTestId('renderer-r-hip')).toBeTruthy();
+  });
+
+  it('expands a branch when its header is clicked, collapsing the other', () => {
+    renderSite([RIGHT, LEFT]);
+    fireEvent.click(screen.getByText('Right leg'));
+    expect(isHidden('r-hip')).toBe(false);
+    expect(isHidden('l-hip')).toBe(true);
+  });
+
+  it('collapses everything when the open header is clicked again', () => {
+    renderSite([RIGHT, LEFT]);
+    fireEvent.click(screen.getByText('Right leg'));
+    fireEvent.click(screen.getByText('Right leg'));
+    expect(isHidden('r-hip')).toBe(true);
+    expect(isHidden('l-hip')).toBe(true);
+  });
+
+  it('keeps every branch visible when the newest option carries no display text', () => {
+    const undisplayed = {
+      ...site,
+      answerOption: [
+        { valueCoding: { system: SYS, code: RIGHT, display: 'Right leg' } },
+        { valueCoding: { system: SYS, code: LEFT } },
+      ],
+    } as unknown as AyuQuestion;
+
+    render(
+      <AyuNestedRenderer
+        items={undisplayed.item}
+        parentQuestion={undisplayed}
+        answers={{ site: [RIGHT, LEFT] }}
+        setAnswer={vi.fn()}
+      />
+    );
+
+    expect(isHidden('r-hip')).toBe(false);
+    expect(isHidden('l-hip')).toBe(false);
+  });
+
+  it('does not add an accordion when only one branch is open', () => {
+    renderSite([RIGHT]);
+    expect(screen.queryByText('Right leg')).toBeNull();
+    expect(isHidden('r-hip')).toBe(false);
+  });
+
+  it('falls back to the first branch when the newest code is unknown', () => {
+    render(
+      <AyuNestedRenderer
+        items={site.item}
+        parentQuestion={site}
+        answers={{ site: [RIGHT, LEFT, 'UNKNOWN_CODE'] }}
+        setAnswer={vi.fn()}
+      />
+    );
+    expect(isHidden('r-hip')).toBe(false);
+    expect(isHidden('l-hip')).toBe(true);
+  });
+
+  it('handles a non-repeating string answer for the parent', () => {
+    render(
+      <AyuNestedRenderer
+        items={site.item}
+        parentQuestion={site}
+        answers={{ site: RIGHT }}
+        setAnswer={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Right leg')).toBeNull();
+    expect(isHidden('r-hip')).toBe(false);
   });
 });

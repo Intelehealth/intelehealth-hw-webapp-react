@@ -9,7 +9,10 @@ import {
   FHIR_TYPE_STRING,
   getBPRangeFromText,
 } from '../utils/constants';
-import { findMatchingOptionCode } from '../utils/question.utils';
+import {
+  findMatchingOptionCode,
+  isFieldLabelContainer,
+} from '../utils/question.utils';
 import {
   hasExclusiveSelected,
   parseYesNoValues,
@@ -31,6 +34,30 @@ export const isEmpty = (val: unknown): boolean =>
   (typeof val === 'string' && val.trim() === '') ||
   (Array.isArray(val) && val.length === 0);
 
+const hasAnyAnswer = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean =>
+  !isEmpty(answers[question.linkId]) ||
+  (question.item ?? []).some(child => hasAnyAnswer(child, answers));
+
+const isSiblingBranchAnswered = (
+  child: AyuQuestion,
+  siblings: AyuQuestion[],
+  parent: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  if (child.required) return false;
+  const matchedCode = findMatchingOptionCode(child, parent);
+  if (!matchedCode) return false;
+  return siblings.some(
+    sibling =>
+      sibling.linkId !== child.linkId &&
+      findMatchingOptionCode(sibling, parent) === matchedCode &&
+      hasAnyAnswer(sibling, answers)
+  );
+};
+
 /**
  * Check if a question has a visible required nested string child that is still unanswered.
  * Recurses into all nesting depths.
@@ -39,16 +66,23 @@ export const hasVisibleRequiredNestedString = (
   question: AyuQuestion,
   answers: Record<string, AyuAnswerValue>
 ): boolean => {
-  const check = (items: AyuQuestion[] | undefined): boolean => {
+  const check = (
+    items: AyuQuestion[] | undefined,
+    parent: AyuQuestion
+  ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
       if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
-      if (child.type === FHIR_TYPE_STRING && isEmpty(answers[child.linkId]))
+      if (
+        child.type === FHIR_TYPE_STRING &&
+        isEmpty(answers[child.linkId]) &&
+        !isSiblingBranchAnswered(child, items, parent, answers)
+      )
         return true;
-      return check(child.item);
+      return check(child.item, child);
     });
   };
-  return check(question.item);
+  return check(question.item, question);
 };
 
 /**
@@ -81,12 +115,13 @@ export const hasUnansweredRequiredNestedChild = (
         if (!selectedCodes.includes(matchedCode)) return false;
       }
 
-      /*
-       */
-      const isIntermediateChoice =
-        child.answerOption?.length === 1 &&
-        !!child.item?.length &&
-        !child.repeats;
+      const isIntermediateChoice = isFieldLabelContainer(child);
+      const siblingBranchAnswered = isSiblingBranchAnswered(
+        child,
+        items,
+        parent,
+        answers
+      );
       /* Required children must have an answer */
       if (
         child.required &&
@@ -107,7 +142,8 @@ export const hasUnansweredRequiredNestedChild = (
           child.type === FHIR_TYPE_INTEGER ||
           child.type === FHIR_TYPE_DATE ||
           child.type === FHIR_TYPE_QUANTITY) &&
-        isEmpty(answers[child.linkId])
+        isEmpty(answers[child.linkId]) &&
+        !siblingBranchAnswered
       )
         return true;
       /* Recurse into deeper levels */

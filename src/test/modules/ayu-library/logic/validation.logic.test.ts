@@ -156,6 +156,41 @@ describe('hasUnansweredRequiredNestedChild', () => {
     expect(hasUnansweredRequiredNestedChild(q, {})).toBe(false);
   });
 
+  it('should not demand an optional input when a sibling branch under the same option is answered', () => {
+    const q: AyuQuestion = {
+      linkId: 'assoc',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'COUGH', display: 'Cough' } }],
+      item: [
+        {
+          linkId: 'dry',
+          type: 'string',
+          text: 'Dry',
+          enableWhen: [
+            { question: 'assoc', operator: '=', answerCoding: { code: 'COUGH' } },
+          ],
+        },
+        {
+          linkId: 'productive',
+          type: 'choice',
+          text: 'Productive (With sputum)',
+          enableWhen: [
+            { question: 'assoc', operator: '=', answerCoding: { code: 'COUGH' } },
+          ],
+        },
+      ],
+    };
+
+    expect(hasUnansweredRequiredNestedChild(q, { assoc: ['COUGH'] })).toBe(true);
+
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        assoc: ['COUGH'],
+        productive: 'COLOR',
+      })
+    ).toBe(false);
+  });
+
   it('should return true when required child has no answer', () => {
     const q: AyuQuestion = {
       linkId: 'q1',
