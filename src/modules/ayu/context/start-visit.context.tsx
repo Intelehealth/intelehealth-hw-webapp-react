@@ -51,6 +51,7 @@ export interface TempVisitData {
   medicalHistoryAnswers?: Record<string, Record<string, AyuAnswerValue>>;
   currentSectionIndex?: number;
   confirmedReasons?: string[];
+  patientGender?: string | null;
 }
 
 interface StartVisitContextType {
@@ -102,9 +103,11 @@ const StartVisitContext = createContext<StartVisitContextType | null>(null);
 export const StartVisitProvider = ({
   children,
   initialPatientUuid,
+  initialGender,
 }: {
   children: React.ReactNode;
   initialPatientUuid?: string | null;
+  initialGender?: string | null;
 }) => {
   const [patientUuid, setPatientUuid] = useState<string | null>(
     initialPatientUuid ?? null
@@ -149,16 +152,36 @@ export const StartVisitProvider = ({
         }
         const saved = res.data.data;
         setTempRecordId(res.data.id);
-        if (saved.currentSectionIndex != null) {
+
+        // Detect gender change: if the gender stored with this visit session
+        // differs from the current patient gender, clear all gender-specific
+        // data (visit reason and downstream sections) so stale answers
+        // (e.g. pregnancy data for a Female patient that is now Male) are
+        // not shown after the patient's gender is edited.
+        const savedGender = saved.patientGender;
+        const genderChanged =
+          savedGender != null &&
+          initialGender != null &&
+          savedGender !== initialGender;
+
+        if (genderChanged) {
+          // Reset to visit-reason section (1) if vitals exist, otherwise start
+          const targetIndex = saved.vitals ? 1 : 0;
+          currentSectionIndexRef.current = targetIndex;
+          setRestoredSectionIndex(targetIndex);
+        } else if (saved.currentSectionIndex != null) {
           currentSectionIndexRef.current = saved.currentSectionIndex;
           setRestoredSectionIndex(saved.currentSectionIndex);
         }
+
         setData({
           vitals: saved.vitals ?? null,
-          visitReason: saved.visitReason ?? null,
-          physicalExam: saved.physicalExam ?? null,
-          medicalHistory: saved.medicalHistory ?? null,
-          medicalHistoryAnswers: saved.medicalHistoryAnswers ?? null,
+          visitReason: genderChanged ? null : (saved.visitReason ?? null),
+          physicalExam: genderChanged ? null : (saved.physicalExam ?? null),
+          medicalHistory: genderChanged ? null : (saved.medicalHistory ?? null),
+          medicalHistoryAnswers: genderChanged
+            ? null
+            : (saved.medicalHistoryAnswers ?? null),
         });
       } catch {
         // No existing temp record — start fresh
@@ -185,6 +208,10 @@ export const StartVisitProvider = ({
         medicalHistoryAnswers: current.medicalHistoryAnswers ?? undefined,
         currentSectionIndex: currentSectionIndexRef.current,
         ...sectionData,
+        // Always stamp the current gender so it can be compared on next
+        // restore to detect a gender change (placed after spread so callers
+        // cannot accidentally override it).
+        patientGender: initialGender ?? undefined,
       };
       try {
         let createdBy = null;
@@ -207,7 +234,7 @@ export const StartVisitProvider = ({
         // Save failed silently — context state is still the source of truth
       }
     },
-    [visitId, patientUuid]
+    [visitId, patientUuid, initialGender]
   );
 
   const clearVisitId = useCallback(() => {
