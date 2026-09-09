@@ -100,6 +100,8 @@ export const usePhysicalExamCameraImages = ({
 
   const inFlightRef = useRef(new Map<string, Set<Promise<unknown>>>());
 
+  const assetIdByFileRef = useRef(new Map<File, number>());
+
   const trackInFlight = (questionId: string, p: Promise<unknown>) => {
     const set = inFlightRef.current.get(questionId) ?? new Set();
     set.add(p);
@@ -114,6 +116,10 @@ export const usePhysicalExamCameraImages = ({
     if (!set?.size) return;
     await Promise.allSettled(set);
   };
+
+  const assetIdOf = (img: CapturedImage | undefined): number | undefined =>
+    img?.assetRecordId ??
+    (img?.file ? assetIdByFileRef.current.get(img.file) : undefined);
 
   const setImageStatus = (
     questionId: string,
@@ -163,6 +169,7 @@ export const usePhysicalExamCameraImages = ({
         created_by: createdBy,
         data: { questionId, comment },
       });
+      assetIdByFileRef.current.set(file, res.data.id);
       setImageStatus(questionId, file, 'done', res.data.id);
     } catch (err) {
       console.error(
@@ -200,8 +207,8 @@ export const usePhysicalExamCameraImages = ({
 
   const retryCameraImage = async (questionId: string, index: number) => {
     const target = cameraImagesRef.current[questionId]?.[index];
+
     if (!target?.file || target.status !== 'failed') return;
-    if (visitId == null || visitId === '') return;
 
     const p = uploadImage(
       questionId,
@@ -226,9 +233,11 @@ export const usePhysicalExamCameraImages = ({
   const removeCameraImage = async (questionId: string, index: number) => {
     await settleInFlight(questionId);
     const target = cameraImagesRef.current[questionId]?.[index];
-    if (target?.assetRecordId) {
-      deleteAssetResource(target.assetRecordId).catch(() => {});
+    const targetAssetId = assetIdOf(target);
+    if (targetAssetId) {
+      deleteAssetResource(targetAssetId).catch(() => {});
     }
+    if (target?.file) assetIdByFileRef.current.delete(target.file);
     if (target?.preview?.startsWith(BLOB_URL_PREFIX)) {
       URL.revokeObjectURL(target.preview);
     }
@@ -256,9 +265,11 @@ export const usePhysicalExamCameraImages = ({
     await settleInFlight(questionId);
     const imgs = cameraImagesRef.current[questionId] ?? [];
     for (const img of imgs) {
-      if (img.assetRecordId) {
-        deleteAssetResource(img.assetRecordId).catch(() => {});
+      const assetId = assetIdOf(img);
+      if (assetId) {
+        deleteAssetResource(assetId).catch(() => {});
       }
+      if (img.file) assetIdByFileRef.current.delete(img.file);
       if (img.preview?.startsWith(BLOB_URL_PREFIX)) {
         URL.revokeObjectURL(img.preview);
       }

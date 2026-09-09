@@ -4471,6 +4471,24 @@ describe('useFHIRStepper', () => {
       expect(result.current.validateAllQuestions()).toBe(true);
     });
 
+    it('does not auto-advance while an image for the question is uploading', () => {
+      cameraHolder.current = makeCamera(['blob:http://localhost/img1'], {
+        uploading: true,
+      });
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any })
+      );
+
+      act(() => {
+        result.current.setAnswer(
+          peCameraQuestionnaire.item[0] as any,
+          'jaundice_cam'
+        );
+      });
+
+      expect(result.current.currentIndex).toBe(0);
+    });
+
     it('blocks completion while an image is still uploading', () => {
       cameraHolder.current = makeCamera(['blob:http://localhost/img1'], {
         uploading: true,

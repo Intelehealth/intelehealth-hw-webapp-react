@@ -887,7 +887,6 @@ export const AyuStepperContainer = forwardRef<
               });
               if (collapseOnSelect) {
                 setEditingQuestions(prev => {
-                  if (!prev.has(question.linkId)) return prev;
                   const next = new Set(prev);
                   next.delete(question.linkId);
                   return next;
