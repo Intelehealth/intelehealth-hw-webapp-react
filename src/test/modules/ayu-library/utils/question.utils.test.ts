@@ -8,6 +8,7 @@ import {
   clearHiddenDescendantAnswers,
   collectDescendantLinkIds,
   getRowLabel,
+  isFieldLabelContainer,
 } from '../../../../modules/ayu-library/utils/question.utils';
 
 describe('getRowLabel', () => {
@@ -361,5 +362,64 @@ describe('clearHiddenDescendantAnswers', () => {
       clearHiddenDescendantAnswers(sdItems, answers);
       expect(answers['to-date']).toBe('2024-02-01');
     });
+  });
+});
+
+describe('isFieldLabelContainer', () => {
+  it('should NOT treat a real question as a container when only some options open a field', () => {
+    /*
+     * Family History "High BP": four relation options plus a
+     * "[Describe relation]" option that opens one text box. One field for five
+     * options means these are genuine choices, not field labels — bypassing it
+     * would render only the text box and hide Mother/Father/Sister/Brother.
+     */
+    const highBp: AyuQuestion = {
+      linkId: 'ID-1078855957',
+      text: 'High BP',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'ID_1854447992', display: 'Mother' } },
+        { valueCoding: { code: 'ID_1609028547', display: 'Father' } },
+        { valueCoding: { code: 'ID_839417744', display: 'Sister' } },
+        { valueCoding: { code: 'ID_1586264392', display: 'Brother' } },
+        {
+          valueCoding: { code: 'ID_1668112188', display: '[Describe relation]' },
+        },
+      ],
+      item: [
+        {
+          linkId: 'ID-1078855957_ID_1668112188',
+          text: '[Describe relation]',
+          type: 'string',
+          enableWhen: [
+            {
+              question: 'ID-1078855957',
+              operator: '=',
+              answerCoding: { code: 'ID_1668112188' },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(isFieldLabelContainer(highBp)).toBe(false);
+  });
+
+  it('should treat a question with one field per option as a container', () => {
+    const fromTo: AyuQuestion = {
+      linkId: 'from-to',
+      text: 'From/To',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'From', display: 'From' } },
+        { valueCoding: { code: 'To', display: 'To' } },
+      ],
+      item: [
+        { linkId: 'from-date', text: 'From Date', type: 'date' },
+        { linkId: 'to-date', text: 'To Date', type: 'date' },
+      ],
+    };
+
+    expect(isFieldLabelContainer(fromTo)).toBe(true);
   });
 });

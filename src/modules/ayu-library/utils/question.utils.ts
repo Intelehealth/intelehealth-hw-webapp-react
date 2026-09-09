@@ -1,5 +1,5 @@
-import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { evaluateEnableWhen } from '../logic/enable-when.logic';
+import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { EXT_URL_DISPLAY_TEXT, FHIR_TYPE_CHOICE } from './constants';
 
 const GENDER_LINK_ID_KEYWORDS = ['gender'];
@@ -57,7 +57,14 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
     gatedCodes.add(code);
   }
 
-  return true;
+  /*
+   * A field-label container carries one input field per answer option
+   * (From/To/Event). A real question may also nest items, but only to gate a
+   * subset of its options — e.g. "High BP" offers Mother/Father/Sister/Brother
+   * plus a "[Describe relation]" option that opens a single text box. Fewer
+   * fields than options means the options are genuine choices, not labels.
+   */
+  return q.item.length >= q.answerOption.length;
 };
 
 /**
