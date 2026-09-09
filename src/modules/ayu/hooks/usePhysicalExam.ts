@@ -102,6 +102,7 @@ export const usePhysicalExam = ({
             file: null,
             preview: record.file_path,
             assetRecordId: record.id,
+            status: 'done',
           });
         }
         if (Object.keys(restored).length > 0) {
@@ -269,7 +270,12 @@ export const usePhysicalExam = ({
       ...prev,
       [questionId]: [
         ...(prev[questionId] ?? []),
-        { file, preview, assetRecordId },
+        {
+          file,
+          preview,
+          assetRecordId,
+          status: assetRecordId == null ? 'failed' : 'done',
+        },
       ],
     }));
   };

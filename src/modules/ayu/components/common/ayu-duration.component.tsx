@@ -1,6 +1,10 @@
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import { DURATION_DROPDOWN_CONFIGS } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  QUESTION_LABEL_CLASS_NESTED,
+  QUESTION_LABEL_CLASS_TOP,
+} from '../../utils/ayu.constants';
 import { AyuDropdown } from './ayu-dropdown.component';
 
 export function AyuDuration({
@@ -37,9 +41,7 @@ export function AyuDuration({
       {label && (
         <label
           className={
-            parent
-              ? 'block text-base text-(--color-muted)'
-              : 'text-md font-medium text-black-500'
+            parent ? QUESTION_LABEL_CLASS_NESTED : QUESTION_LABEL_CLASS_TOP
           }
         >
           {label}

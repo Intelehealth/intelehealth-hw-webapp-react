@@ -12,7 +12,7 @@ import {
   unmarkQuestionCommitted,
   upsertAssetResource,
 } from '../services/temp-storage.service';
-import type { CapturedImage } from '../types/obs.types';
+import type { CapturedImage, CapturedImageStatus } from '../types/obs.types';
 import {
   BLOB_URL_PREFIX,
   DEFAULT_CREATED_BY,
@@ -27,10 +27,14 @@ export interface UsePhysicalExamCameraImagesParams {
 
 export interface UsePhysicalExamCameraImagesReturn {
   cameraImagesFor: (questionId: string) => string[];
+  cameraImageStatesFor: (questionId: string) => CapturedImage[];
   addCameraImage: (questionId: string, file: File) => Promise<void>;
-  removeCameraImage: (questionId: string, index: number) => void;
-  clearCameraImages: (questionId: string) => void;
+  removeCameraImage: (questionId: string, index: number) => Promise<void>;
+  clearCameraImages: (questionId: string) => Promise<void>;
   commitQuestionImages: (questionId: string) => void;
+  isCameraUploading: (questionId: string) => boolean;
+  hasFailedUploads: (questionId: string) => boolean;
+  retryCameraImage: (questionId: string, index: number) => Promise<void>;
 }
 
 const capturedFileStore = new Map<
@@ -73,6 +77,7 @@ export const usePhysicalExamCameraImages = ({
           file: null,
           preview: record.file_path,
           assetRecordId: record.id,
+          status: 'done',
         });
       }
       if (Object.keys(restored).length > 0) {
@@ -90,30 +95,70 @@ export const usePhysicalExamCameraImages = ({
   const cameraImagesFor = (questionId: string): string[] =>
     (cameraImages[questionId] ?? []).map(img => img.preview);
 
-  const addCameraImage = async (questionId: string, file: File) => {
-    const comment = sectionCommentFor(questionId);
-    const preview = URL.createObjectURL(file);
+  const cameraImageStatesFor = (questionId: string): CapturedImage[] =>
+    cameraImages[questionId] ?? [];
 
-    const bucket = capturedFileStore.get(questionId) ?? [];
-    bucket.push({ file, comment });
-    capturedFileStore.set(questionId, bucket);
+  const inFlightRef = useRef(new Map<string, Set<Promise<unknown>>>());
 
+  const assetIdByFileRef = useRef(new Map<File, number>());
+
+  const trackInFlight = (questionId: string, p: Promise<unknown>) => {
+    const set = inFlightRef.current.get(questionId) ?? new Set();
+    set.add(p);
+    inFlightRef.current.set(questionId, set);
+    void p.finally(() => {
+      set.delete(p);
+    });
+  };
+
+  const settleInFlight = async (questionId: string) => {
+    const set = inFlightRef.current.get(questionId);
+    if (!set?.size) return;
+    await Promise.allSettled(set);
+  };
+
+  const assetIdOf = (img: CapturedImage | undefined): number | undefined =>
+    img?.assetRecordId ??
+    (img?.file ? assetIdByFileRef.current.get(img.file) : undefined);
+
+  const setImageStatus = (
+    questionId: string,
+    file: File,
+    status: CapturedImageStatus,
+    assetRecordId?: number
+  ) => {
     setCameraImages(prev => ({
       ...prev,
-      [questionId]: [...(prev[questionId] ?? []), { file, preview }],
+      /* v8 ignore next */
+      [questionId]: (prev[questionId] ?? []).map(img =>
+        img.file === file
+          ? {
+              ...img,
+              status,
+              ...(assetRecordId != null ? { assetRecordId } : {}),
+            }
+          : img
+      ),
     }));
+  };
 
-    if (visitId == null || visitId === '') return;
+  const uploadImage = async (
+    questionId: string,
+    file: File,
+    comment: string
+  ) => {
+    setImageStatus(questionId, file, 'uploading');
 
     const resourceId = `${visitId}_${questionId}_${Date.now()}`;
+    let createdBy = DEFAULT_CREATED_BY;
     try {
-      let createdBy = DEFAULT_CREATED_BY;
-      try {
-        const u = storage.getUser();
-        if (u) createdBy = JSON.parse(u).uuid ?? u;
-      } catch {
-        /* fallback */
-      }
+      const u = storage.getUser();
+      if (u) createdBy = JSON.parse(u).uuid ?? u;
+    } catch {
+      /* fallback */
+    }
+
+    try {
       const res = await upsertAssetResource<{
         questionId: string;
         comment: string;
@@ -124,30 +169,75 @@ export const usePhysicalExamCameraImages = ({
         created_by: createdBy,
         data: { questionId, comment },
       });
-      const recordId = res.data.id;
-      setCameraImages(prev => ({
-        ...prev,
-        /* v8 ignore next */
-        [questionId]: (prev[questionId] ?? []).map(img =>
-          img.file === file ? { ...img, assetRecordId: recordId } : img
-        ),
-      }));
-      /* v8 ignore next 3 */
+      assetIdByFileRef.current.set(file, res.data.id);
+      setImageStatus(questionId, file, 'done', res.data.id);
     } catch (err) {
-      console.error('Failed to upload camera image to temp storage', err);
+      console.error(
+        'Failed to upload camera image to temp storage',
+        err instanceof Error ? err.message : 'unknown error'
+      );
+      setImageStatus(questionId, file, 'failed');
     }
   };
+
+  const addCameraImage = async (questionId: string, file: File) => {
+    const comment = sectionCommentFor(questionId);
+    const preview = URL.createObjectURL(file);
+
+    const bucket = capturedFileStore.get(questionId) ?? [];
+    bucket.push({ file, comment });
+    capturedFileStore.set(questionId, bucket);
+
+    const hasVisit = visitId != null && visitId !== '';
+
+    setCameraImages(prev => ({
+      ...prev,
+      [questionId]: [
+        ...(prev[questionId] ?? []),
+        { file, preview, status: hasVisit ? 'uploading' : 'done' },
+      ],
+    }));
+
+    if (!hasVisit) return;
+
+    const p = uploadImage(questionId, file, comment);
+    trackInFlight(questionId, p);
+    await p;
+  };
+
+  const retryCameraImage = async (questionId: string, index: number) => {
+    const target = cameraImagesRef.current[questionId]?.[index];
+
+    if (!target?.file || target.status !== 'failed') return;
+
+    const p = uploadImage(
+      questionId,
+      target.file,
+      sectionCommentFor(questionId)
+    );
+    trackInFlight(questionId, p);
+    await p;
+  };
+
+  const isCameraUploading = (questionId: string): boolean =>
+    (cameraImages[questionId] ?? []).some(img => img.status === 'uploading');
+
+  const hasFailedUploads = (questionId: string): boolean =>
+    (cameraImages[questionId] ?? []).some(img => img.status === 'failed');
 
   /**
    * Remove a single camera image by index.
    * Clears pending images for the question and rebuilds the capturedFileStore
    * from the remaining images so the pending queue stays in sync with UI state.
    */
-  const removeCameraImage = (questionId: string, index: number) => {
+  const removeCameraImage = async (questionId: string, index: number) => {
+    await settleInFlight(questionId);
     const target = cameraImagesRef.current[questionId]?.[index];
-    if (target?.assetRecordId) {
-      deleteAssetResource(target.assetRecordId).catch(() => {});
+    const targetAssetId = assetIdOf(target);
+    if (targetAssetId) {
+      deleteAssetResource(targetAssetId).catch(() => {});
     }
+    if (target?.file) assetIdByFileRef.current.delete(target.file);
     if (target?.preview?.startsWith(BLOB_URL_PREFIX)) {
       URL.revokeObjectURL(target.preview);
     }
@@ -171,12 +261,15 @@ export const usePhysicalExamCameraImages = ({
     });
   };
 
-  const clearCameraImages = (questionId: string) => {
+  const clearCameraImages = async (questionId: string) => {
+    await settleInFlight(questionId);
     const imgs = cameraImagesRef.current[questionId] ?? [];
     for (const img of imgs) {
-      if (img.assetRecordId) {
-        deleteAssetResource(img.assetRecordId).catch(() => {});
+      const assetId = assetIdOf(img);
+      if (assetId) {
+        deleteAssetResource(assetId).catch(() => {});
       }
+      if (img.file) assetIdByFileRef.current.delete(img.file);
       if (img.preview?.startsWith(BLOB_URL_PREFIX)) {
         URL.revokeObjectURL(img.preview);
       }
@@ -200,9 +293,13 @@ export const usePhysicalExamCameraImages = ({
 
   return {
     cameraImagesFor,
+    cameraImageStatesFor,
     addCameraImage,
     removeCameraImage,
     clearCameraImages,
     commitQuestionImages,
+    isCameraUploading,
+    hasFailedUploads,
+    retryCameraImage,
   };
 };

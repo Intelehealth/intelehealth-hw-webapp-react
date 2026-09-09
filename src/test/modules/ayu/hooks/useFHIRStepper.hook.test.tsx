@@ -31,7 +31,11 @@ vi.mock('../../../../assets/icons/visit-reason.svg', () => ({
 // driven. `current` null = non-PE flow (no provider).
 const { cameraHolder } = vi.hoisted(() => ({
   cameraHolder: {
-    current: null as null | { cameraImagesFor: (q: string) => string[] },
+    current: null as null | {
+      cameraImagesFor: (q: string) => string[];
+      isCameraUploading: (q: string) => boolean;
+      hasFailedUploads: (q: string) => boolean;
+    },
   },
 }));
 vi.mock(
@@ -40,6 +44,15 @@ vi.mock(
 );
 
 import { useFHIRStepper } from '../../../../modules/ayu/hooks/useFHIRStepper.hook';
+
+const makeCamera = (
+  images: string[],
+  { uploading = false, failed = false } = {}
+) => ({
+  cameraImagesFor: () => images,
+  isCameraUploading: () => uploading,
+  hasFailedUploads: () => failed,
+});
 
 describe('useFHIRStepper', () => {
   beforeEach(() => {
@@ -4388,7 +4401,7 @@ describe('useFHIRStepper', () => {
     };
 
     it('blocks completion when the picture option is selected but has no images', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4404,7 +4417,7 @@ describe('useFHIRStepper', () => {
     });
 
     it('allows completion when the picture option has at least one image', () => {
-      cameraHolder.current = { cameraImagesFor: () => ['data:image/png;base64,x'] };
+      cameraHolder.current = makeCamera(['data:image/png;base64,x']);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4415,7 +4428,7 @@ describe('useFHIRStepper', () => {
     });
 
     it('does not block a non-camera answer for the same question', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4426,7 +4439,7 @@ describe('useFHIRStepper', () => {
     });
 
     it('handles a string (non-array) camera answer with no images', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4437,7 +4450,7 @@ describe('useFHIRStepper', () => {
     });
 
     it('does not flag a camera question that has no answer at all', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4448,7 +4461,7 @@ describe('useFHIRStepper', () => {
     });
 
     it('treats a non-array, non-string camera answer as having no camera code', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
@@ -4458,26 +4471,73 @@ describe('useFHIRStepper', () => {
       expect(result.current.validateAllQuestions()).toBe(true);
     });
 
-    it('blocks completion when images are captured but UPLOAD button was not clicked', () => {
-      // Camera returns images, but the camera code is NOT in the answer
-      // (simulates capture without clicking UPLOAD)
-      cameraHolder.current = { cameraImagesFor: () => ['blob:http://localhost/img1'] };
+    it('does not auto-advance while an image for the question is uploading', () => {
+      cameraHolder.current = makeCamera(['blob:http://localhost/img1'], {
+        uploading: true,
+      });
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any })
+      );
+
+      act(() => {
+        result.current.setAnswer(
+          peCameraQuestionnaire.item[0] as any,
+          'jaundice_cam'
+        );
+      });
+
+      expect(result.current.currentIndex).toBe(0);
+    });
+
+    it('blocks completion while an image is still uploading', () => {
+      cameraHolder.current = makeCamera(['blob:http://localhost/img1'], {
+        uploading: true,
+      });
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: peCameraQuestionnaire as any,
-          initialAnswers: { jaundice: ['yes'] }, // regular option only, no camera code
+          initialAnswers: { jaundice: ['jaundice_cam'] },
         })
       );
       expect(result.current.validateAllQuestions()).toBe(false);
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Question 1: Please upload the captured image',
+        'Question 1: Please wait for the image upload to finish',
         undefined,
         'warning'
       );
     });
 
+    it('blocks completion when an image failed to upload', () => {
+      cameraHolder.current = makeCamera(['blob:http://localhost/img1'], {
+        failed: true,
+      });
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['jaundice_cam'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: An image failed to upload — retry it before submitting',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('does not block when images are captured without the camera code committed', () => {
+      cameraHolder.current = makeCamera(['blob:http://localhost/img1']);
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: peCameraQuestionnaire as any,
+          initialAnswers: { jaundice: ['yes'] },
+        })
+      );
+      expect(result.current.validateAllQuestions()).toBe(true);
+    });
+
     it('ignores a question with no camera option even when the PE camera context is present', () => {
-      cameraHolder.current = { cameraImagesFor: () => [] };
+      cameraHolder.current = makeCamera([]);
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: {

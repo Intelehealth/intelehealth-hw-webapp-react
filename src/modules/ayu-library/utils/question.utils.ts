@@ -1,5 +1,5 @@
-import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { evaluateEnableWhen } from '../logic/enable-when.logic';
+import type { AyuAnswerValue, AyuQuestion } from '../types/ayu.types';
 import { EXT_URL_DISPLAY_TEXT, FHIR_TYPE_CHOICE } from './constants';
 
 const GENDER_LINK_ID_KEYWORDS = ['gender'];
@@ -57,7 +57,7 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
     gatedCodes.add(code);
   }
 
-  return true;
+  return q.item.length >= q.answerOption.length;
 };
 
 /**

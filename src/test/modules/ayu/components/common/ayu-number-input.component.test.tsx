@@ -166,7 +166,7 @@ describe('AyuNumberInput', () => {
       expect(label).toHaveClass('text-md', 'font-medium', 'text-black-500');
     });
 
-    it('should render nested label with muted CSS classes when parent is provided', () => {
+    it('should render nested label with the standard question-label classes when parent is provided', () => {
       const parent: AyuQuestion = {
         linkId: 'parent-1',
         text: 'Parent Question',
@@ -180,7 +180,11 @@ describe('AyuNumberInput', () => {
         />
       );
       const label = screen.getByText('Enter your age');
-      expect(label).toHaveClass('block', 'text-base', 'text-(--color-muted)');
+      expect(label).toHaveClass(
+        'block',
+        'text-large-label',
+        'text-(--color-dark)'
+      );
     });
   });
 

@@ -6,7 +6,11 @@ import {
   getBPRangeFromText,
 } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
-import { NUMBER_INPUT_DEFAULT_MIN } from '../../utils/ayu.constants';
+import {
+  NUMBER_INPUT_DEFAULT_MIN,
+  QUESTION_LABEL_CLASS_NESTED,
+  QUESTION_LABEL_CLASS_TOP,
+} from '../../utils/ayu.constants';
 
 export function AyuNumberInput({
   question,
@@ -56,9 +60,7 @@ export function AyuNumberInput({
       {label && (
         <label
           className={
-            parent
-              ? 'block text-base text-(--color-muted)'
-              : 'text-md font-medium text-black-500'
+            parent ? QUESTION_LABEL_CLASS_NESTED : QUESTION_LABEL_CLASS_TOP
           }
         >
           {label}

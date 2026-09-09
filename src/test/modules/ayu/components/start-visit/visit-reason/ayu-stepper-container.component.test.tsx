@@ -19,6 +19,16 @@ vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.compon
   )),
 }));
 
+const { peCameraHolder } = vi.hoisted(() => ({
+  peCameraHolder: {
+    current: null as null | { cameraImagesFor: (q: string) => string[] },
+  },
+}));
+vi.mock(
+  '../../../../../../modules/ayu/components/start-visit/physical-examination/physical-exam-camera-context',
+  () => ({ usePhysicalExamCamera: () => peCameraHolder.current })
+);
+
 vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-renderer.component', () => ({
   AyuRenderer: vi.fn(({ question, value, onChange }) => (
     <div data-testid={`renderer-${question.linkId}`}>
@@ -137,6 +147,7 @@ describe('AyuStepperContainer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    peCameraHolder.current = null;
     mockValidateAllQuestions.mockReturnValue(true);
 
     Element.prototype.scrollIntoView = vi.fn();
@@ -3642,6 +3653,609 @@ describe('AyuStepperContainer', () => {
       expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
 
+    it('should show Submit for a stepping PE question that has captured images', () => {
+      peCameraHolder.current = { cameraImagesFor: () => ['blob:img-1'] };
+      const question: AyuQuestion = {
+        linkId: 'pe-images',
+        text: 'Is there jaundice?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          {
+            valueCoding: { code: 'cam', display: 'Take a picture' },
+            extension: [
+              {
+                url: 'urn:intelehealth:physical-exam/option-kind',
+                valueString: 'camera',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-images': ['yes', 'cam'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should collapse an edited PE question that declares no answer options', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-no-options',
+        text: 'Observation',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-no-options': 'seen' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'pe-no-options': 'seen' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('edit-0'));
+      fireEvent.change(screen.getByTestId('input-pe-no-options'), {
+        target: { value: 'again' },
+      });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'true'
+      );
+    });
+
+    it('should show Submit in review mode for a non-choice PE question', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-str',
+        text: 'PE question',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        type: 'string',
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-str': 'typed' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should show Submit in review mode for a multi-select PE question', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-rep',
+        text: 'PE question',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        type: 'choice',
+        repeats: true,
+        answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-rep': ['a'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should show Submit in review mode for a PE question answered with a duration', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-dur',
+        text: 'PE question',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-dur': { dropdownValues: { number: '2', days: 'Days' } } },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should collapse an edited plain single-choice PE question on selection', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-pinch',
+        text: 'Pinch skin',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'normal', display: 'Normal' } },
+          { valueCoding: { code: 'slow', display: 'Slow' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-pinch': 'normal' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'pe-pinch': 'normal' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('edit-0'));
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+
+      fireEvent.change(screen.getByTestId('input-pe-pinch'), {
+        target: { value: 'slow' },
+      });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'true'
+      );
+    });
+
+    it('should not collapse an edited PE question that offers a camera option', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-cam',
+        text: 'Is there jaundice?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          {
+            valueCoding: { code: 'cam', display: 'Take a picture' },
+            extension: [
+              {
+                url: 'urn:intelehealth:physical-exam/option-kind',
+                valueString: 'camera',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-cam': 'no' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'pe-cam': 'no' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('edit-0'));
+      fireEvent.change(screen.getByTestId('input-pe-cam'), {
+        target: { value: 'cam' },
+      });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+    });
+
+    it('should not collapse an edited PE question whose selection reveals sub-questions', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-rash',
+        text: 'Is there any rash?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+        item: [
+          {
+            linkId: 'pe-rash-describe',
+            text: 'Describe the rash',
+            type: 'string',
+            enableWhen: [
+              {
+                question: 'pe-rash',
+                operator: '=',
+                answerCoding: { code: 'yes' },
+              },
+            ],
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-rash': 'no' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'pe-rash': 'no' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('edit-0'));
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+
+      /* Picking "yes" reveals the nested Describe input, so the card must stay open. */
+      fireEvent.change(screen.getByTestId('input-pe-rash'), {
+        target: { value: 'yes' },
+      });
+
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+        'data-is-answered',
+        'false'
+      );
+    });
+
+    it('should STILL show Submit in review mode for a PE question with a camera option', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-jaundice',
+        text: 'Is there jaundice?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          {
+            valueCoding: { code: 'cam', display: 'Take a picture' },
+            extension: [
+              {
+                url: 'urn:intelehealth:physical-exam/option-kind',
+                valueString: 'camera',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-jaundice': 'yes' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should NOT show Submit while editing a plain single-choice PE question', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-pinch-skin',
+        text: 'Pinch skin',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'normal', display: 'Normal' } },
+          { valueCoding: { code: 'slow', display: 'Slow' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-pinch-skin': 'normal' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      const edit = screen.queryByTestId('edit-0');
+      if (edit) fireEvent.click(edit);
+
+      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
+    });
+
+    it('should NOT show Submit in review mode for a plain single-choice PE question', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-pinch-skin',
+        text: 'Pinch skin',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'normal', display: 'Normal' } },
+          { valueCoding: { code: 'slow', display: 'Slow' } },
+        ],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-pinch-skin': 'normal' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.queryByTestId('button-submit')).not.toBeInTheDocument();
+    });
+
+    it('should still show Submit in review mode for a PE question with nested inputs', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-bp',
+        text: 'Blood pressure',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'General Exams',
+          },
+        ],
+        answerOption: [{ valueCoding: { code: 'done', display: 'Done' } }],
+        item: [{ linkId: 'pe-bp-sys', text: 'Systolic', type: 'quantity' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { 'pe-bp': 'done' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
     it('should NOT show Submit button in review mode for single-choice question with no answer', () => {
       /*
        * Option C guard: the showAll early-return only fires when
@@ -3855,6 +4469,170 @@ describe('AyuStepperContainer', () => {
       );
 
       ref.current!.confirm();
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'hello' });
+    });
+
+    it('should block confirm and warn while a question is still being edited', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      fireEvent.click(screen.getByTestId('edit-0'));
+
+      mockOnComplete.mockClear();
+      ref.current!.confirm();
+
+      expect(mockOnComplete).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please submit your changes before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should block showSummary while a question is still being edited', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      fireEvent.click(screen.getByTestId('edit-0'));
+
+      mockGoNext.mockClear();
+      ref.current!.showSummary();
+
+      expect(mockGoNext).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please submit your changes before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should allow showSummary once the edited question is submitted again', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      fireEvent.click(screen.getByTestId('edit-0'));
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      mockGoNext.mockClear();
+      ref.current!.showSummary();
+
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should allow confirm once the edited question is submitted again', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      fireEvent.click(screen.getByTestId('edit-0'));
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      mockOnComplete.mockClear();
+      ref.current!.confirm();
+
       expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'hello' });
     });
 
@@ -7471,7 +8249,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
@@ -7510,7 +8287,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire(lastQuestionFixQuestions);
@@ -7535,7 +8311,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: lastQuestionFixQuestions,
         isLast: true,
         showAll: true,
-        isCameraNotUploaded: () => false,
       });
 
       rerender(
@@ -7571,7 +8346,6 @@ describe('AyuStepperContainer', () => {
         topLevelItems: [question],
         isLast: true,
         showAll: false,
-        isCameraNotUploaded: () => false,
       });
 
       const questionnaire = createMockQuestionnaire([question]);

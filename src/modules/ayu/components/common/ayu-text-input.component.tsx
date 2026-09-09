@@ -5,6 +5,8 @@ import { getBPRangeFromText } from '../../../ayu-library/utils/constants';
 import { resolveLabel } from '../../../ayu-library/utils/fhir-to-ayu.util';
 import {
   ADDITIONAL_INFORMATION_LABEL,
+  QUESTION_LABEL_CLASS_NESTED,
+  QUESTION_LABEL_CLASS_TOP,
   TEXT_INPUT_DEFAULT_KEYWORDS,
   TEXT_INPUT_DEFAULT_PLACEHOLDER,
   TEXT_INPUT_ENTER_PREFIX,
@@ -75,8 +77,8 @@ export function AyuTextInput({
           htmlFor={inputId}
           className={
             label.includes(ADDITIONAL_INFORMATION_LABEL)
-              ? 'text-md font-medium text-black-500'
-              : 'block text-base text-(--color-muted)'
+              ? QUESTION_LABEL_CLASS_TOP
+              : QUESTION_LABEL_CLASS_NESTED
           }
         >
           {label}

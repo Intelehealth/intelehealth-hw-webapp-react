@@ -42,11 +42,13 @@ import {
   BUTTON_SKIP,
   BUTTON_SUBMIT,
   SUMMARY_ITEM_TYPE_LABEL_VALUE,
+  VALIDATION_SUBMIT_EDIT,
   validationMessageForReason,
 } from '../../../utils/ayu.constants';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
+import { usePhysicalExamCamera } from '../physical-examination/physical-exam-camera-context';
 import { AyuNestedRenderer } from './ayu-nested-renderer.component';
 import { AyuRenderer } from './ayu-renderer.component';
 
@@ -118,6 +120,72 @@ const hasNestedBPInputs = (question: AyuQuestion): boolean => {
       getBPRangeFromText(child.text) !== undefined
   );
 };
+
+const checkNestedDeep = (
+  items: AyuQuestion[] | undefined,
+  answers: Record<string, AyuAnswerValue>
+): { hasDuration: boolean; hasRepeats: boolean; hasInput: boolean } => {
+  if (!items) return { hasDuration: false, hasRepeats: false, hasInput: false };
+  for (const child of items) {
+    if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
+    const childAnswer = answers[child.linkId];
+    if (
+      childAnswer &&
+      typeof childAnswer === 'object' &&
+      'dropdownValues' in childAnswer
+    ) {
+      return { hasDuration: true, hasRepeats: false, hasInput: false };
+    }
+    if (child.repeats) {
+      return { hasDuration: false, hasRepeats: true, hasInput: false };
+    }
+    if (
+      child.type === FHIR_TYPE_STRING ||
+      child.type === FHIR_TYPE_INTEGER ||
+      child.type === FHIR_TYPE_DATE ||
+      child.type === FHIR_TYPE_QUANTITY
+    ) {
+      return { hasDuration: false, hasRepeats: false, hasInput: true };
+    }
+    if (child.answerOption?.length && child.item?.length) {
+      const hasDirectInput = child.item.some(
+        sub =>
+          sub.type === FHIR_TYPE_STRING ||
+          sub.type === FHIR_TYPE_INTEGER ||
+          sub.type === FHIR_TYPE_DATE ||
+          sub.type === FHIR_TYPE_QUANTITY
+      );
+      if (hasDirectInput)
+        return { hasDuration: false, hasRepeats: false, hasInput: true };
+    }
+    const deep = checkNestedDeep(child.item, answers);
+    if (deep.hasDuration || deep.hasRepeats || deep.hasInput) return deep;
+  }
+  return { hasDuration: false, hasRepeats: false, hasInput: false };
+};
+
+const isPlainSingleChoicePE = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  if (resolveAyuComponent(question) !== PHYSICAL_EXAM_OPTIONS_COMPONENT)
+    return false;
+  if (question.type !== FHIR_TYPE_CHOICE || question.repeats) return false;
+  const answer = answers[question.linkId];
+  if (answer && typeof answer === 'object' && 'dropdownValues' in answer)
+    return false;
+  const nested = checkNestedDeep(question.item, answers);
+  return !nested.hasDuration && !nested.hasRepeats && !nested.hasInput;
+};
+
+const hasCameraOption = (question: AyuQuestion): boolean =>
+  (question.answerOption ?? []).some(o =>
+    o.extension?.some(
+      ext =>
+        ext.url === EXT_URL_PE_OPTION_KIND &&
+        ext.valueString === PE_OPTION_KIND_CAMERA
+    )
+  );
 
 /** True when a PE question has only one non-camera regular option (auto-selected). */
 const isSingleOptionPE = (question: AyuQuestion): boolean => {
@@ -570,6 +638,8 @@ export const AyuStepperContainer = forwardRef<
 
     const resetAnswersRef = useRef<() => void>(() => {});
 
+    const peCamera = usePhysicalExamCamera();
+
     const {
       currentQuestion,
       currentIndex,
@@ -583,7 +653,7 @@ export const AyuStepperContainer = forwardRef<
       showAll,
       validateAllQuestions,
       isCameraAnswerMissingImages,
-      isCameraNotUploaded,
+      cameraUploadIssue,
     } = useFHIRStepper({
       questionnaire,
       summaryTitle,
@@ -596,19 +666,40 @@ export const AyuStepperContainer = forwardRef<
       onResetAnswers: () => resetAnswersRef.current(),
     });
 
+    const warnOnOpenEdit = useCallback((): boolean => {
+      const pendingIndex = topLevelItems.findIndex(q =>
+        editingQuestionsRef.current.has(q.linkId)
+      );
+      if (pendingIndex === -1) return false;
+      showToast(
+        `Question ${pendingIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
+        undefined,
+        'warning'
+      );
+      return true;
+    }, [topLevelItems, questionIndexOffset]);
+
     useImperativeHandle(
       ref,
       () => ({
         confirm: () => {
+          if (warnOnOpenEdit()) return;
           if (!validateAllQuestions()) return;
           handleStepperComplete(answers);
         },
         showSummary: () => {
+          if (warnOnOpenEdit()) return;
           goNext();
         },
         getAnswers: () => answers,
       }),
-      [answers, handleStepperComplete, goNext, validateAllQuestions]
+      [
+        answers,
+        handleStepperComplete,
+        goNext,
+        validateAllQuestions,
+        warnOnOpenEdit,
+      ]
     );
 
     const totalSteps = topLevelItems.length;
@@ -642,6 +733,8 @@ export const AyuStepperContainer = forwardRef<
     const [editingQuestions, setEditingQuestions] = useState<Set<string>>(
       () => new Set()
     );
+    const editingQuestionsRef = useRef(editingQuestions);
+    editingQuestionsRef.current = editingQuestions;
 
     resetAnswersRef.current = () => {
       setSubmittedQuestions(new Set());
@@ -772,12 +865,33 @@ export const AyuStepperContainer = forwardRef<
             /* Wrapper that clears submitted/skipped icons when the user changes an answer */
             const handleSetAnswer = (q: AyuQuestion, val: AyuAnswerValue) => {
               setAnswer(q, val);
+
+              /*
+               * Evaluate against the post-selection answers: a branching PE
+               * question reveals its sub-questions via enableWhen on the option
+               * just picked, and against the stale map those children still
+               * look hidden.
+               */
+              const nextAnswers = { ...answers, [q.linkId]: val };
+              const collapseOnSelect =
+                editingQuestions.has(question.linkId) &&
+                isPlainSingleChoicePE(question, nextAnswers) &&
+                !hasCameraOption(question);
+
               setSubmittedQuestions(prev => {
+                if (collapseOnSelect) return new Set(prev).add(question.linkId);
                 if (!prev.has(question.linkId)) return prev;
                 const next = new Set(prev);
                 next.delete(question.linkId);
                 return next;
               });
+              if (collapseOnSelect) {
+                setEditingQuestions(prev => {
+                  const next = new Set(prev);
+                  next.delete(question.linkId);
+                  return next;
+                });
+              }
               setSkippedQuestions(prev => {
                 if (!prev.has(question.linkId)) return prev;
                 const next = new Set(prev);
@@ -852,14 +966,20 @@ export const AyuStepperContainer = forwardRef<
                         <div className="mt-3 flex gap-3 md:justify-end">
                           {/* SUBMIT for required string and quantity types */}
                           {(() => {
-                            /*
-                             * Always show Submit while a question is being edited so the
-                             * user has an explicit way to confirm and return to the white card.
-                             */
-                            if (editingQuestions.has(question.linkId))
-                              return true;
-
                             const answer = answers[question.linkId];
+                            const isEditing = editingQuestions.has(
+                              question.linkId
+                            );
+
+                            if (
+                              (showAll || isEditing) &&
+                              isPlainSingleChoicePE(question, answers) &&
+                              !hasCameraOption(question)
+                            ) {
+                              return false;
+                            }
+
+                            if (isEditing) return true;
 
                             /* Check if top-level has dropdownValues */
                             const isDurationChoice =
@@ -868,98 +988,9 @@ export const AyuStepperContainer = forwardRef<
                               typeof answer === 'object' &&
                               'dropdownValues' in answer;
 
-                            /* Recursive check for nested duration, repeats, and input fields */
-                            const checkNestedDeep = (
-                              items: AyuQuestion[] | undefined
-                            ): {
-                              hasDuration: boolean;
-                              hasRepeats: boolean;
-                              hasInput: boolean;
-                            } => {
-                              if (!items)
-                                return {
-                                  hasDuration: false,
-                                  hasRepeats: false,
-                                  hasInput: false,
-                                };
-                              for (const child of items) {
-                                if (
-                                  !evaluateEnableWhen(child.enableWhen, answers)
-                                )
-                                  continue;
-                                const childAnswer = answers[child.linkId];
-                                if (
-                                  childAnswer &&
-                                  typeof childAnswer === 'object' &&
-                                  'dropdownValues' in childAnswer
-                                ) {
-                                  return {
-                                    hasDuration: true,
-                                    hasRepeats: false,
-                                    hasInput: false,
-                                  };
-                                }
-                                if (child.repeats) {
-                                  return {
-                                    hasDuration: false,
-                                    hasRepeats: true,
-                                    hasInput: false,
-                                  };
-                                }
-                                if (
-                                  child.type === FHIR_TYPE_STRING ||
-                                  child.type === FHIR_TYPE_INTEGER ||
-                                  child.type === FHIR_TYPE_DATE ||
-                                  child.type === FHIR_TYPE_QUANTITY
-                                ) {
-                                  return {
-                                    hasDuration: false,
-                                    hasRepeats: false,
-                                    hasInput: true,
-                                  };
-                                }
-                                /*
-                                 * Intermediate choice (answerOption + item[]): in non-PE
-                                 * mode the sub-items are rendered directly as labeled
-                                 * inputs, bypassing pill selection. Check them without
-                                 * option-gating so the Submit button appears correctly.
-                                 */
-                                if (
-                                  child.answerOption?.length &&
-                                  child.item?.length
-                                ) {
-                                  const hasDirectInput = child.item.some(
-                                    sub =>
-                                      sub.type === FHIR_TYPE_STRING ||
-                                      sub.type === FHIR_TYPE_INTEGER ||
-                                      sub.type === FHIR_TYPE_DATE ||
-                                      sub.type === FHIR_TYPE_QUANTITY
-                                  );
-                                  if (hasDirectInput)
-                                    return {
-                                      hasDuration: false,
-                                      hasRepeats: false,
-                                      hasInput: true,
-                                    };
-                                }
-                                const deep = checkNestedDeep(child.item);
-                                if (
-                                  deep.hasDuration ||
-                                  deep.hasRepeats ||
-                                  deep.hasInput
-                                )
-                                  return deep;
-                              }
-                              return {
-                                hasDuration: false,
-                                hasRepeats: false,
-                                hasInput: false,
-                              };
-                            };
-
                             const nestedFlags =
                               question.type === FHIR_TYPE_CHOICE
-                                ? checkNestedDeep(question.item)
+                                ? checkNestedDeep(question.item, answers)
                                 : {
                                     hasDuration: false,
                                     hasRepeats: false,
@@ -991,7 +1022,9 @@ export const AyuStepperContainer = forwardRef<
                               isDurationChoice ||
                               hasNestedDuration ||
                               hasNestedRepeats ||
-                              hasVisibleNestedInput
+                              hasVisibleNestedInput ||
+                              (peCamera?.cameraImagesFor(question.linkId)
+                                .length ?? 0) > 0
                             );
                           })() && (
                             <AyuButton
@@ -1009,7 +1042,7 @@ export const AyuStepperContainer = forwardRef<
                                   question,
                                   answers,
                                   isCameraAnswerMissingImages,
-                                  isCameraNotUploaded
+                                  cameraUploadIssue
                                 );
                                 if (!result.valid) {
                                   showToast(
