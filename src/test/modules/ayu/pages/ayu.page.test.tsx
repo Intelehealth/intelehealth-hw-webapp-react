@@ -355,7 +355,7 @@ describe('AyuPage', () => {
 
   describe('Patient gender resolution', () => {
     it('should read gender from storage with PATIENT_GENDER_KEY and pass as initialGender', () => {
-      mockStorageGet.mockImplementation((key: string) =>
+      mockStorageGet.mockImplementation((key?: string) =>
         key === 'patientGender' ? 'Female' : null
       );
 
@@ -382,7 +382,7 @@ describe('AyuPage', () => {
     });
 
     it('should pass Male gender correctly when stored', () => {
-      mockStorageGet.mockImplementation((key: string) =>
+      mockStorageGet.mockImplementation((key?: string) =>
         key === 'patientGender' ? 'Male' : null
       );
 
