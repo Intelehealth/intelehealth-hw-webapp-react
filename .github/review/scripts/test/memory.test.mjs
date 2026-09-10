@@ -72,20 +72,18 @@ test('the identity survives lines being inserted above the finding', () => {
     finding({ line: lineOf(shifted, "console.log('boom'") }),
     shifted
   );
-  assert.equal(before.bucket, after.bucket, 'a line shift must not re-mint the id');
+  assert.equal(
+    before.bucket,
+    after.bucket,
+    'a line shift must not re-mint the id'
+  );
 });
 
 test('two rules on the same line stay distinct findings', () => {
   const line =
     HOOK.split('\n').findIndex(l => l.includes("console.log('boom'")) + 1;
-  const a = identify(
-    { ruleId: 'STD-008', file: 'x.ts', line },
-    HOOK
-  );
-  const b = identify(
-    { ruleId: 'ASYNC-002', file: 'x.ts', line },
-    HOOK
-  );
+  const a = identify({ ruleId: 'STD-008', file: 'x.ts', line }, HOOK);
+  const b = identify({ ruleId: 'ASYNC-002', file: 'x.ts', line }, HOOK);
   assert.notEqual(a.bucket, b.bucket);
 });
 
@@ -102,7 +100,8 @@ test('the anchor window covers the line above, so an off-by-one report still anc
   // Observed live: the model flagged the `return` line below the actual
   // `message!` offender. The window must include the line above the reported
   // one so the fix is still detected as touching the region.
-  const src = 'const a = 1;\nconst preview = message!.slice(0, 40);\nreturn `x ${preview}`;\n';
+  const src =
+    'const a = 1;\nconst preview = message!.slice(0, 40);\nreturn `x ${preview}`;\n';
   const { anchors } = identify(
     { ruleId: 'TS-002', file: 'x.ts', line: 3 },
     src
@@ -123,8 +122,7 @@ test('normalizeLine treats reformatting as the same line', () => {
 
 test('changedLines reports only the lines a commit touched, whitespace ignored', () => {
   const dir = mkdtempSync(join(tmpdir(), 'memory-git-'));
-  const git = args =>
-    execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+  const git = args => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
   try {
     git(['init', '-q']);
     git(['config', 'user.email', 't@t']);

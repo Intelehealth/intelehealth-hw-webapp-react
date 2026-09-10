@@ -4,6 +4,7 @@ import type {
   DurationAnswer,
 } from '../types/ayu.types';
 import {
+  EXT_URL_EXCLUSIVE_COMPATIBLE,
   EXT_URL_MUTUALLY_EXCLUSIVE,
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_DATE,
@@ -56,6 +57,21 @@ export const isMutuallyExclusiveOption = (
   );
 };
 
+export const isExclusiveCompatibleOption = (
+  question: AyuQuestion,
+  optionCode: string
+): boolean => {
+  const option = question.answerOption?.find(
+    opt => opt.valueCoding?.code === optionCode
+  );
+
+  return (
+    option?.extension
+      ?.find(ext => ext.url === EXT_URL_EXCLUSIVE_COMPATIBLE)
+      ?.valueString?.toLowerCase() === 'true'
+  );
+};
+
 /**
  * Compute the new multi-select array after toggling an option,
  * respecting mutually exclusive rules.
@@ -68,18 +84,22 @@ export const computeMultiSelectToggle = (
   const isExclusive = isMutuallyExclusiveOption(question, selectedValue);
 
   if (isExclusive) {
-    // If already selected → unselect
     if (currentArray.includes(selectedValue)) {
-      return [];
+      return currentArray.filter(v => v !== selectedValue);
     }
-    // Replace all with only this option
-    return [selectedValue];
+
+    return [
+      ...currentArray.filter(code =>
+        isExclusiveCompatibleOption(question, code)
+      ),
+      selectedValue,
+    ];
   }
 
-  // Normal option clicked — remove any mutually exclusive options
-  const filtered = currentArray.filter(
-    code => !isMutuallyExclusiveOption(question, code)
-  );
+  const filtered = isExclusiveCompatibleOption(question, selectedValue)
+    ? currentArray
+    : // Normal option clicked — remove any mutually exclusive options
+      currentArray.filter(code => !isMutuallyExclusiveOption(question, code));
 
   if (filtered.includes(selectedValue)) {
     return filtered.filter(v => v !== selectedValue);

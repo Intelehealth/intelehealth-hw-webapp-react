@@ -8,6 +8,9 @@ export const EXT_URL_ORIGINAL_QUESTION_TEXT =
 export const EXT_URL_MUTUALLY_EXCLUSIVE =
   'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice';
 
+export const EXT_URL_EXCLUSIVE_COMPATIBLE =
+  'https://intelehealth.org/fhir/StructureDefinition/enable-exclusive-option';
+
 export const EXT_URL_DISPLAY_TEXT =
   'https://intelehealth.org/fhir/StructureDefinition/display';
 

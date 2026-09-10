@@ -295,6 +295,23 @@ const collectAnsweredRows = (
     const childQualifier =
       branchQualifier ?? getBranchQualifier(child, parent, answers);
 
+    const childBypassedContainers: ReadonlySet<string> =
+      child.type === FHIR_TYPE_CHOICE &&
+      !!child.answerOption?.length &&
+      !!child.item?.length &&
+      answers[child.linkId] === undefined
+        ? new Set([...bypassedContainers, child.linkId])
+        : bypassedContainers;
+
+    const nestedRows = collectAnsweredRows(
+      child.item,
+      answers,
+      child,
+      nextBranchDisplay,
+      childBypassedContainers,
+      childQualifier
+    );
+
     const value = formatAnswerValue(child, answers[child.linkId]);
     if (value && !isPlaceholderText(value)) {
       const label = getRowLabel(child);
@@ -391,12 +408,7 @@ const collectAnsweredRows = (
         }
       }
 
-      /*
-       * Suppress the row when it is a branching container (has nested items).
-       * For leaf containers with a composite prefix, the prefix is already
-       * stripped from effectiveLabel above so the row renders as "When: …".
-       */
-      const isRedundantContainer = hasOptionPrefix && !!child.item?.length;
+      const isRedundantContainer = hasOptionPrefix && nestedRows.length > 0;
 
       const qualifiedLabel =
         childQualifier &&
@@ -413,23 +425,7 @@ const collectAnsweredRows = (
         }
       }
     }
-    const childBypassedContainers: ReadonlySet<string> =
-      child.type === FHIR_TYPE_CHOICE &&
-      !!child.answerOption?.length &&
-      !!child.item?.length &&
-      answers[child.linkId] === undefined
-        ? new Set([...bypassedContainers, child.linkId])
-        : bypassedContainers;
-    rows.push(
-      ...collectAnsweredRows(
-        child.item,
-        answers,
-        child,
-        nextBranchDisplay,
-        childBypassedContainers,
-        childQualifier
-      )
-    );
+    rows.push(...nestedRows);
   }
   return rows;
 };

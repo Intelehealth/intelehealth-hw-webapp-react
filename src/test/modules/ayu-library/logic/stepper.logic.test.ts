@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
-import { EXT_URL_PE_SECTION_KEY } from '../../../../modules/ayu-library/utils/constants';
 import {
+  computeMultiSelectToggle,
   isDurationAnswer,
   isMutuallyExclusiveOption,
-  computeMultiSelectToggle,
   isTopLevelComplete,
 } from '../../../../modules/ayu-library/logic/stepper.logic';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
+import { EXT_URL_PE_SECTION_KEY } from '../../../../modules/ayu-library/utils/constants';
 
 describe('isDurationAnswer', () => {
   it('should return true for objects with dropdownValues', () => {
@@ -194,6 +194,82 @@ describe('computeMultiSelectToggle', () => {
 
   it('should remove exclusive options when normal option is selected', () => {
     expect(computeMultiSelectToggle(question, ['none'], 'a')).toEqual(['a']);
+  });
+});
+
+describe('computeMultiSelectToggle with exclusive-compatible options', () => {
+  
+  const question: AyuQuestion = {
+    linkId: 'site',
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      {
+        valueCoding: { code: 'both', display: 'Both sides of the body' },
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+            valueString: 'true',
+          },
+        ],
+      },
+      { valueCoding: { code: 'limb', display: 'One limb' } },
+      { valueCoding: { code: 'side', display: 'One side of the body' } },
+      {
+        valueCoding: { code: 'face', display: 'One side of the face' },
+        extension: [
+          {
+            url: 'https://intelehealth.org/fhir/StructureDefinition/enable-exclusive-option',
+            valueString: 'true',
+          },
+        ],
+      },
+    ],
+  };
+
+  it('keeps a compatible option when the exclusive option is selected', () => {
+    expect(computeMultiSelectToggle(question, ['face'], 'both')).toEqual([
+      'face',
+      'both',
+    ]);
+  });
+
+  it('drops non-compatible options when the exclusive option is selected', () => {
+    expect(
+      computeMultiSelectToggle(question, ['limb', 'side', 'face'], 'both')
+    ).toEqual(['face', 'both']);
+  });
+
+  it('keeps the exclusive option when a compatible option is selected', () => {
+    expect(computeMultiSelectToggle(question, ['both'], 'face')).toEqual([
+      'both',
+      'face',
+    ]);
+  });
+
+  it('clears the exclusive option when a non-compatible option is selected', () => {
+    expect(computeMultiSelectToggle(question, ['both', 'face'], 'limb')).toEqual(
+      ['face', 'limb']
+    );
+  });
+
+  it('deselecting the exclusive option leaves compatible companions intact', () => {
+    expect(computeMultiSelectToggle(question, ['both', 'face'], 'both')).toEqual(
+      ['face']
+    );
+  });
+
+  it('deselects a compatible option without touching the exclusive option', () => {
+    expect(computeMultiSelectToggle(question, ['both', 'face'], 'face')).toEqual(
+      ['both']
+    );
+  });
+
+  it('allows the non-exclusive options to be combined freely', () => {
+    expect(computeMultiSelectToggle(question, ['limb'], 'side')).toEqual([
+      'limb',
+      'side',
+    ]);
   });
 });
 

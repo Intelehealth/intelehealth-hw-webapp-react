@@ -18,24 +18,24 @@ vi.mock(
   })
 );
 
+import { hasExclusiveSelected } from '../../../../modules/ayu-library/logic/associated-symptoms.logic';
 import {
-  isEmpty,
-  hasVisibleRequiredNestedString,
-  hasUnansweredRequiredNestedChild,
-  isNestedInputValueMissing,
-  hasMissingNestedBPInput,
-  isNumericOutOfRange,
-  hasNestedOutOfRangeValue,
+  isPhysicalExamOptionsQuestion,
+  isStrictAssociatedSymptoms,
+  resolveAyuComponent,
+} from '../../../../modules/ayu-library/logic/decision-matrix';
+import {
   findOutOfRangeQuestionText,
+  hasMissingNestedBPInput,
+  hasNestedOutOfRangeValue,
+  hasUnansweredRequiredNestedChild,
+  hasVisibleRequiredNestedString,
+  isEmpty,
+  isNestedInputValueMissing,
+  isNumericOutOfRange,
   isQuantityInvalid,
   validateQuestion,
 } from '../../../../modules/ayu-library/logic/validation.logic';
-import {
-  resolveAyuComponent,
-  isStrictAssociatedSymptoms,
-  isPhysicalExamOptionsQuestion,
-} from '../../../../modules/ayu-library/logic/decision-matrix';
-import { hasExclusiveSelected } from '../../../../modules/ayu-library/logic/associated-symptoms.logic';
 
 describe('isEmpty', () => {
   it('should return true for undefined', () => {
@@ -187,6 +187,71 @@ describe('hasUnansweredRequiredNestedChild', () => {
       hasUnansweredRequiredNestedChild(q, {
         assoc: ['COUGH'],
         productive: 'COLOR',
+      })
+    ).toBe(false);
+  });
+
+  it('should demand every leaf input gated on the same option (medication entry)', () => {
+ 
+    const S = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
+    const ew = (question: string, code: string) => [
+      { question, operator: '=', answerCoding: { system: S, code } },
+    ];
+    const q: AyuQuestion = {
+      linkId: 'ID-1637984611',
+      type: 'choice',
+      required: true,
+      repeats: true,
+      answerOption: [
+        {
+          valueCoding: {
+            code: 'ID_691177808',
+            display: 'Medication name 1',
+          },
+        },
+      ],
+      item: [
+        {
+          linkId: 'ID-405728773',
+          text: 'Medication Name',
+          type: 'string',
+          enableWhen: ew('ID-1637984611', 'ID_691177808'),
+        },
+        {
+          linkId: 'ID-1832294442',
+          text: 'From',
+          type: 'date',
+          enableWhen: ew('ID-1637984611', 'ID_691177808'),
+        },
+        {
+          linkId: 'ID-956950570',
+          text: 'To',
+          type: 'date',
+          enableWhen: ew('ID-1637984611', 'ID_691177808'),
+        },
+      ],
+    };
+
+    const ticked = { 'ID-1637984611': ['ID_691177808'] };
+
+   
+    expect(hasUnansweredRequiredNestedChild(q, ticked)).toBe(true);
+
+  
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        ...ticked,
+        'ID-405728773': 'Paracetamol',
+      })
+    ).toBe(true);
+
+    /* Every field filled */
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        ...ticked,
+        'ID-405728773': 'Paracetamol',
+        'ID-1832294442': '2024-01-01',
+        'ID-956950570': '2024-02-01',
       })
     ).toBe(false);
   });
