@@ -41,6 +41,100 @@ describe('AyuNestedRenderer', () => {
     vi.clearAllMocks();
   });
 
+  describe('Duplicate branch labels', () => {
+ 
+    const S = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
+    const dietParent: AyuQuestion = {
+      linkId: 'ID-1576958311',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'ID_781505304', display: 'High fat' } },
+        { valueCoding: { code: 'ID_127981405', display: 'High salt' } },
+      ],
+    };
+    const branch = (
+      linkId: string,
+      text: string,
+      code: string,
+      extension?: AyuQuestion['extension']
+    ): AyuQuestion => ({
+      linkId,
+      text,
+      type: 'choice',
+      extension: extension ?? [
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/language',
+          valueString: '%',
+        },
+      ],
+      enableWhen: [
+        {
+          question: 'ID-1576958311',
+          operator: '=',
+          answerCoding: { system: S, code },
+        },
+      ],
+      answerOption: [
+        { valueCoding: { code: `${code}_no`, display: 'No' } },
+        { valueCoding: { code: `${code}_yes`, display: 'Yes' } },
+      ],
+    });
+
+    /* Two branches selected → the renderer switches to accordion mode and
+     * draws a header per branch, which is when the duplication showed. */
+    const bothSelected = { 'ID-1576958311': ['ID_781505304', 'ID_127981405'] };
+
+    it('renders the branch label once when the child repeats the group header', () => {
+      render(
+        <AyuNestedRenderer
+          items={[
+            branch('ID-781505304', 'High fat', 'ID_781505304'),
+            branch('ID-127981405', 'High salt', 'ID_127981405'),
+          ]}
+          parentQuestion={dietParent}
+          answers={bothSelected}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+        />
+      );
+
+      expect(screen.getAllByText('High fat')).toHaveLength(1);
+    });
+
+    it('keeps the child label when it differs from the group header', () => {
+      render(
+        <AyuNestedRenderer
+          items={[
+            branch('ID-781505304', 'Do you eat high fat food?', 'ID_781505304'),
+            branch('ID-127981405', 'High salt', 'ID_127981405'),
+          ]}
+          parentQuestion={dietParent}
+          answers={bothSelected}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+        />
+      );
+
+      expect(screen.getByText('High fat')).toBeTruthy();
+      expect(screen.getByText('Do you eat high fat food?')).toBeTruthy();
+    });
+
+    it('keeps the label for a lone branch, which renders no header', () => {
+      render(
+        <AyuNestedRenderer
+          items={[branch('ID-781505304', 'High fat', 'ID_781505304')]}
+          parentQuestion={dietParent}
+          answers={{ 'ID-1576958311': ['ID_781505304'] }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+        />
+      );
+
+      expect(screen.getAllByText('High fat')).toHaveLength(1);
+    });
+  });
+
   describe('Basic Rendering', () => {
     it('should return null when items is undefined', () => {
       const { container } = render(

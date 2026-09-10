@@ -55,6 +55,7 @@ export type { AyuComponentType } from './logic/decision-matrix';
 export { evaluateEnableWhen } from './logic/enable-when.logic';
 export {
   computeMultiSelectToggle,
+  isExclusiveCompatibleOption,
   isDurationAnswer,
   isMutuallyExclusiveOption,
   isTopLevelComplete,

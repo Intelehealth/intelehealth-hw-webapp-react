@@ -423,3 +423,60 @@ describe('isFieldLabelContainer', () => {
     expect(isFieldLabelContainer(fromTo)).toBe(true);
   });
 });
+
+describe('isFieldLabelContainer — multi-select questions', () => {
+  it('should NOT treat a repeats (check-box) question as a container', () => {
+   
+    const hospitalization: AyuQuestion = {
+      linkId: 'ID-1217722719',
+      text: 'Hospitalization',
+      type: 'choice',
+      repeats: true,
+      answerOption: [
+        { valueCoding: { code: 'ID_601054142', display: 'Occured on' } },
+        { valueCoding: { code: 'ID_1902903650', display: 'Reason' } },
+        { valueCoding: { code: 'ID_1440129311', display: 'Duration' } },
+      ],
+      item: [
+        {
+          linkId: 'ID-601054142',
+          text: 'Occured on - Date of hospitalization',
+          type: 'date',
+          enableWhen: [
+            {
+              question: 'ID-1217722719',
+              operator: '=',
+              answerCoding: { code: 'ID_601054142' },
+            },
+          ],
+        },
+        {
+          linkId: 'ID-1902903650',
+          text: 'Reason - Describe',
+          type: 'string',
+          enableWhen: [
+            {
+              question: 'ID-1217722719',
+              operator: '=',
+              answerCoding: { code: 'ID_1902903650' },
+            },
+          ],
+        },
+        {
+          linkId: 'ID-1440129311',
+          text: 'Duration',
+          type: 'quantity',
+          enableWhen: [
+            {
+              question: 'ID-1217722719',
+              operator: '=',
+              answerCoding: { code: 'ID_1440129311' },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(isFieldLabelContainer(hospitalization)).toBe(false);
+  });
+});

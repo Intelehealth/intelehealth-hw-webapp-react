@@ -6159,6 +6159,94 @@ describe('AyuStepperContainer', () => {
       expect(labelTexts[0]).toBe('When');
     });
 
+    it('should keep the container row when the selected option hides every nested item (Fever & Rash "No")', () => {
+    
+      const label = 'Did you recently measure fever using thermometer?*';
+
+      const thermometer: AyuQuestion = {
+        linkId: 'ID-739994206',
+        text: label,
+        type: 'choice',
+        required: true,
+        enableWhen: [
+          {
+            question: 'ID-1234321810',
+            operator: '=',
+            answerCoding: { code: 'ID_739994206' },
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'ID_961113183', display: 'Yes' } },
+          { valueCoding: { code: 'ID_617241106', display: 'No' } },
+        ],
+        item: [
+          {
+            linkId: 'ID_1919807442',
+            text: 'When',
+            type: 'date',
+            enableWhen: [
+              {
+                question: 'ID-739994206',
+                operator: '=',
+                answerCoding: { code: 'ID_961113183' },
+              },
+            ],
+          },
+          {
+            linkId: 'ID_751092164',
+            text: 'Body Temperature',
+            type: 'integer',
+            enableWhen: [
+              {
+                question: 'ID-739994206',
+                operator: '=',
+                answerCoding: { code: 'ID_961113183' },
+              },
+            ],
+          },
+        ],
+      };
+
+      const question: AyuQuestion = {
+        linkId: 'ID-1234321810',
+        text: 'Associated symptoms',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'ID_739994206', display: label } }],
+        item: [thermometer],
+      };
+
+      const answers = {
+        'ID-1234321810': 'ID_739994206',
+        'ID-739994206': 'ID_617241106',
+      };
+
+      const q2: AyuQuestion = { linkId: 'q2', text: 'Next', type: 'string', required: true };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: q2,
+        currentIndex: 1,
+        total: 2,
+        answers,
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, q2],
+        isLast: false,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question, q2])}
+          initialAnswers={answers}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      /* The selected "No" must be visible in the summary */
+      expect(screen.getByText('No')).toBeInTheDocument();
+    });
+
     it('should not skip a child row when the child has no nested items (leaf choice)', () => {
       /*
        * A leaf choice question whose label matches a parent option display

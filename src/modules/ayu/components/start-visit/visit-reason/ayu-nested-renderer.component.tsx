@@ -13,6 +13,7 @@ import {
 import {
   collectDescendantLinkIds,
   findMatchingOptionCode,
+  getRowLabel,
   isFieldLabelContainer,
 } from '../../../../ayu-library/utils/question.utils';
 import { AyuSelectableOption } from '../../common/ayu-selectable-option.component';
@@ -218,6 +219,16 @@ export const AyuNestedRenderer = ({
     }
     return text;
   };
+
+  const labelRepeatsGroup = (
+    child: AyuQuestion,
+    groupLabel: string | null
+  ): boolean =>
+    !!groupLabel &&
+    getRowLabel({
+      ...child,
+      text: stripGroupPrefix(child.text, groupLabel),
+    }) === groupLabel;
 
   const getParentAnswerLabel = (item: AyuQuestion): string | null => {
     if (!item.enableWhen?.length || !parentQuestion) return null;
@@ -468,7 +479,11 @@ export const AyuNestedRenderer = ({
                         <AyuRenderer
                           question={{
                             ...child,
-                            text: stripGroupPrefix(child.text, label),
+
+                            text:
+                              collapsible && labelRepeatsGroup(child, label)
+                                ? undefined
+                                : stripGroupPrefix(child.text, label),
                           }}
                           parent={parentQuestion}
                           previousSibling={prevSibling}

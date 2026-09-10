@@ -41,6 +41,12 @@ const hasAnyAnswer = (
   !isEmpty(answers[question.linkId]) ||
   (question.item ?? []).some(child => hasAnyAnswer(child, answers));
 
+const isLeafInput = (q: AyuQuestion): boolean =>
+  q.type === FHIR_TYPE_STRING ||
+  q.type === FHIR_TYPE_INTEGER ||
+  q.type === FHIR_TYPE_DATE ||
+  q.type === FHIR_TYPE_QUANTITY;
+
 const isSiblingBranchAnswered = (
   child: AyuQuestion,
   siblings: AyuQuestion[],
@@ -53,6 +59,7 @@ const isSiblingBranchAnswered = (
   return siblings.some(
     sibling =>
       sibling.linkId !== child.linkId &&
+      !isLeafInput(sibling) &&
       findMatchingOptionCode(sibling, parent) === matchedCode &&
       hasAnyAnswer(sibling, answers)
   );
