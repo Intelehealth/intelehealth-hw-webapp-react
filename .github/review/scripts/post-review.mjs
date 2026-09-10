@@ -201,9 +201,7 @@ function summaryBody({
       ''
     );
     for (const f of deferred) {
-      lines.push(
-        `- \`${f.ruleId}\` ${f.file}:${f.line} — ${f.title}`
-      );
+      lines.push(`- \`${f.ruleId}\` ${f.file}:${f.line} — ${f.title}`);
     }
     lines.push('', '</details>');
   }
@@ -374,9 +372,9 @@ async function main() {
   try {
     for (const review of await getReviews(REPO, PR_NUMBER)) {
       if (!isBot(review.user)) continue;
-      const m = new RegExp(`<!-- ${MARKER} summary sha=([0-9a-f]{7,40}) -->`).exec(
-        review.body || ''
-      );
+      const m = new RegExp(
+        `<!-- ${MARKER} summary sha=([0-9a-f]{7,40}) -->`
+      ).exec(review.body || '');
       if (m) {
         lastSha = m[1];
         rounds++;
@@ -401,8 +399,7 @@ async function main() {
   // reviewing everything — never to dropping anything.
   const priorBids = new Set(priors.map(p => p.bid).filter(Boolean));
   const priorRuleFile = new Set(priors.map(p => `${p.rule}|${p.file}`));
-  const ranges =
-    lastSha && HEAD_SHA ? changedLines(lastSha, HEAD_SHA) : null;
+  const ranges = lastSha && HEAD_SHA ? changedLines(lastSha, HEAD_SHA) : null;
   if (lastSha) {
     console.log(
       `Last reviewed commit: ${lastSha.slice(0, 7)}. ` +
@@ -611,7 +608,13 @@ async function main() {
   // was nothing to repost.
   if (inline.length === 0 && outOfDiff.length === 0 && priors.length > 0) {
     console.log('No new findings since the last run. Not posting.');
-    writeResolvePlan({ incomplete, standing, fresh, openThreads, superseded: [] });
+    writeResolvePlan({
+      incomplete,
+      standing,
+      fresh,
+      openThreads,
+      superseded: [],
+    });
     applyMergeGate(blocking, incomplete);
     return;
   }
@@ -689,7 +692,13 @@ async function main() {
  * Anything ambiguous stays open. An open thread on fixed code is one click of
  * noise; a resolved thread on an unfixed defect is a buried bug.
  */
-function writeResolvePlan({ incomplete, standing, fresh, openThreads, superseded }) {
+function writeResolvePlan({
+  incomplete,
+  standing,
+  fresh,
+  openThreads,
+  superseded,
+}) {
   const plan = [];
   if (!incomplete) {
     const live = [...standing, ...fresh];
@@ -724,10 +733,15 @@ function writeResolvePlan({ incomplete, standing, fresh, openThreads, superseded
     }
     plan.push(...superseded);
   }
-  writeFileSync('.claude-review/resolve-plan.json', JSON.stringify(plan, null, 2));
+  writeFileSync(
+    '.claude-review/resolve-plan.json',
+    JSON.stringify(plan, null, 2)
+  );
   console.log(
     `${plan.length} thread(s) queued for resolution` +
-      (superseded.length ? ` (${superseded.length} superseded by a re-anchor)` : '') +
+      (superseded.length
+        ? ` (${superseded.length} superseded by a re-anchor)`
+        : '') +
       '.'
   );
 }

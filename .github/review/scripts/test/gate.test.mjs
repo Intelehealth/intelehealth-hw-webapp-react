@@ -7,7 +7,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { gateFindings, findingId, MIN_CONFIDENCE } from '../lib/gate.mjs';
+import {
+  gateFindings,
+  findingId,
+  hash32,
+  MIN_CONFIDENCE,
+} from '../lib/gate.mjs';
 
 const f = (over = {}) => ({
   ruleId: 'SEC-001',
@@ -18,6 +23,18 @@ const f = (over = {}) => ({
   title: 't',
   body: 'b',
   ...over,
+});
+
+test('hash32 is a stable base-36 string that distinguishes different inputs', () => {
+  const h = hash32('hello');
+  assert.equal(typeof h, 'string');
+  assert.equal(hash32('hello'), h, 'same input must give same output');
+  assert.notEqual(
+    hash32('hello'),
+    hash32('world'),
+    'different inputs must differ'
+  );
+  assert.notEqual(hash32(''), hash32(' '), 'empty vs space must differ');
 });
 
 test('a confident finding is kept', () => {
