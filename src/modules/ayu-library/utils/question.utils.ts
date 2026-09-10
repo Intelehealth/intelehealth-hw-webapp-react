@@ -48,6 +48,8 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
     return false;
   }
 
+  if (q.repeats) return false;
+
   const gatedCodes = new Set<string>();
   for (const child of q.item) {
     if (child.answerOption?.length) return false;
