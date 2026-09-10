@@ -7,6 +7,8 @@ import type {
 import {
   FHIR_TYPE_CHOICE,
   FHIR_TYPE_STRING,
+  SELECT_ANY_ONE,
+  SELECT_ONE_OR_MORE,
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
@@ -343,7 +345,12 @@ export const AyuNestedRenderer = ({
               {selectable && displayChildren.length > 1 ? (
                 <>
                   {/* Multiple children: render as selectable option pills */}
-                  <div className="option-group mt-4 mb-3">
+                  <p className="text-xs text-gray-500 mt-4 mb-1">
+                    {parentQuestion?.repeats
+                      ? SELECT_ONE_OR_MORE
+                      : SELECT_ANY_ONE}
+                  </p>
+                  <div className="option-group mb-3">
                     {displayChildren.map(
                       item =>
                         !!item?.text && (

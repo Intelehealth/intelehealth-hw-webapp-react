@@ -64,7 +64,18 @@ async function startStub({
           : send(200, { id: 1 });
       }
       if (req.url.startsWith('/graphql'))
-        return send(200, { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: threads } } } } });
+        return send(200, {
+          data: {
+            repository: {
+              pullRequest: {
+                reviewThreads: {
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                  nodes: threads,
+                },
+              },
+            },
+          },
+        });
       if (req.url.startsWith('/repos/acme/app/issues/7/comments'))
         return send(201, { id: 2 });
       send(404, { message: 'not found' });
@@ -222,8 +233,7 @@ test('a marker pasted by a human must not suppress a finding', async () => {
       id: 101,
       user: { login: 'some-developer', type: 'User' },
       path: 'src/a.ts',
-      body:
-        'quoting the bot:\n<!-- ih-tek-review rule=SEC-001 fid=abc123 bid=zzz -->',
+      body: 'quoting the bot:\n<!-- ih-tek-review rule=SEC-001 fid=abc123 bid=zzz -->',
     },
   ];
   const stub = await startStub({ existingComments: existing });
@@ -304,7 +314,10 @@ test('a live finding on a stale thread is re-anchored: reposted and the old thre
   try {
     const { stdout } = await runPostReview(findingsPayload([base]), stub);
     assert.match(stdout, /1 re-anchored/);
-    assert.match(stdout, /queued for resolution \(1 superseded by a re-anchor\)/);
+    assert.match(
+      stdout,
+      /queued for resolution \(1 superseded by a re-anchor\)/
+    );
     const review = stub.requests.find(
       r => r.method === 'POST' && r.url.includes('/reviews')
     );
@@ -667,6 +680,45 @@ test('a clean PR still gets a short summary', async () => {
     assert.match(
       review.body.body,
       /No findings above the confidence threshold/
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('DIFF_TRUNCATED adds a truncation notice to the summary body', async () => {
+  const stub = await startStub();
+  try {
+    await runPostReview(findingsPayload([]), stub, { DIFF_TRUNCATED: 'true' });
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
+    assert.ok(review, 'a review must still be posted');
+    assert.match(
+      review.body.body,
+      /diff was truncated/i,
+      'truncation notice must appear in the summary'
+    );
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a summary containing "nothing was reviewed" suppresses the clean-PR notice', async () => {
+  const stub = await startStub();
+  try {
+    await runPostReview(
+      { summary: 'Nothing was reviewed — no diff was provided.', findings: [] },
+      stub
+    );
+    const review = stub.requests.find(
+      r => r.method === 'POST' && r.url.includes('/reviews')
+    );
+    assert.ok(review, 'a review must still be posted');
+    assert.match(review.body.body, /Nothing was reviewed/);
+    assert.ok(
+      !review.body.body.includes('No findings above the confidence threshold'),
+      'the clean-PR notice must be suppressed when summary says nothing was reviewed'
     );
   } finally {
     stub.server.close();

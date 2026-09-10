@@ -10,10 +10,25 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { parseRules, buildDigest, SEVERITY_ORDER } from '../lib/rules.mjs';
+import {
+  parseRules,
+  buildDigest,
+  SEVERITY_ORDER,
+  SEVERITIES,
+} from '../lib/rules.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RULEBOOK = join(HERE, '..', '..', 'review-rules.md');
+
+test('SEVERITIES lists all four levels in severity order', () => {
+  assert.deepEqual(SEVERITIES, ['blocker', 'major', 'minor', 'nit']);
+  for (const s of SEVERITIES)
+    assert.ok(s in SEVERITY_ORDER, `${s} must be in SEVERITY_ORDER`);
+});
+
+test('buildDigest returns an empty string for an empty rule list', () => {
+  assert.equal(buildDigest([]), '');
+});
 
 test('parses id, severity and title out of a rule line', () => {
   const rules = parseRules(
