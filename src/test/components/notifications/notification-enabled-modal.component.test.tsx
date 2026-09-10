@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import NotificationEnabledModal from '../../../components/notifications/notification-enabled-modal.component';
 
@@ -118,42 +117,24 @@ describe('NotificationEnabledModal', () => {
   });
 
   describe('User Interactions', () => {
-    it('should call onClose when Got it button is clicked', async () => {
-      // Use real timers for userEvent interactions
-      vi.useRealTimers();
-      const user = userEvent.setup();
+    it('should call onClose when Got it button is clicked', () => {
       render(<NotificationEnabledModal isOpen={true} onClose={mockOnClose} />);
 
       const gotItButton = screen.getByText('Got it');
-      await user.click(gotItButton);
+      fireEvent.click(gotItButton);
 
       expect(mockOnClose).toHaveBeenCalledTimes(1);
-      
-      // Restore fake timers
-      vi.useFakeTimers();
     });
 
-    it('should not call onClose multiple times if button is clicked multiple times', async () => {
-      // Use real timers for userEvent interactions
-      vi.useRealTimers();
-      const user = userEvent.setup();
+    it('should not call onClose multiple times if button is clicked multiple times', () => {
       render(<NotificationEnabledModal isOpen={true} onClose={mockOnClose} />);
 
       const gotItButton = screen.getByText('Got it');
-      await user.click(gotItButton);
-      
-      // Try clicking again (modal might be closed, so this might not work)
-      try {
-        await user.click(gotItButton);
-      } catch {
-        // Button might not be available if modal closed
-      }
+      fireEvent.click(gotItButton);
+      fireEvent.click(gotItButton);
 
       // Should be called at least once
       expect(mockOnClose).toHaveBeenCalled();
-      
-      // Restore fake timers
-      vi.useFakeTimers();
     });
   });
 

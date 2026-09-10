@@ -470,15 +470,18 @@ export const AyuNestedRenderer = ({
                           answers={answers}
                           setAnswer={setAnswer}
                         />
-                        {child.item && (
-                          <AyuNestedRenderer
-                            items={child.item}
-                            parentQuestion={child}
-                            answers={answers}
-                            setAnswer={setAnswer}
-                            clearAnswers={clearAnswers}
-                          />
-                        )}
+                        {child.item &&
+                          (hasAnswerOptionItemMapping(child) ? (
+                            renderInlineNestedItems(child)
+                          ) : (
+                            <AyuNestedRenderer
+                              items={child.item}
+                              parentQuestion={child}
+                              answers={answers}
+                              setAnswer={setAnswer}
+                              clearAnswers={clearAnswers}
+                            />
+                          ))}
                       </div>
                     </div>
                   );
