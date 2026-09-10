@@ -997,6 +997,171 @@ describe('AyuNestedRenderer', () => {
          so the child keeps its (filtered) enableWhen and renders as a pill. */
       expect(screen.getByTestId('selectable-partial-gated')).toBeInTheDocument();
     });
+
+    it('should show "Select any one" when selectable mode has multiple children and parentQuestion has no repeats', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        repeats: false,
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child One', type: 'choice' },
+        { linkId: 'child-2', text: 'Child Two', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.getByText('Select any one')).toBeInTheDocument();
+      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
+    });
+
+    it('should show "Select any one" when selectable mode has multiple children and parentQuestion has undefined repeats', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child One', type: 'choice' },
+        { linkId: 'child-2', text: 'Child Two', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.getByText('Select any one')).toBeInTheDocument();
+      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
+    });
+
+    it('should show "Select any one" when selectable mode has multiple children and no parentQuestion', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child One', type: 'choice' },
+        { linkId: 'child-2', text: 'Child Two', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.getByText('Select any one')).toBeInTheDocument();
+      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
+    });
+
+    it('should show "Select one or more" when selectable mode has multiple children and parentQuestion has repeats: true', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          { valueCoding: { code: 'opt-b', display: 'Option B' } },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child One', type: 'choice' },
+        { linkId: 'child-2', text: 'Child Two', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.getByText('Select one or more')).toBeInTheDocument();
+      expect(screen.queryByText('Select any one')).not.toBeInTheDocument();
+    });
+
+    it('should not show instruction when selectable mode has only one child', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'only-child', text: 'Only Child', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(screen.queryByText('Select any one')).not.toBeInTheDocument();
+      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
+    });
+
+    it('should not show instruction in non-selectable mode even with multiple children', () => {
+      const parentQuestion: AyuQuestion = {
+        linkId: 'parent-q',
+        type: 'choice',
+        text: 'Parent',
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+      };
+
+      const items: AyuQuestion[] = [
+        { linkId: 'child-1', text: 'Child One', type: 'choice' },
+        { linkId: 'child-2', text: 'Child Two', type: 'choice' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          parentQuestion={parentQuestion}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByText('Select any one')).not.toBeInTheDocument();
+      expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
+    });
   });
 
   describe('Grouping by Parent Answer Label', () => {
