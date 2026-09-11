@@ -2470,6 +2470,60 @@ describe('AyuNestedRenderer', () => {
       // The child should not be rendered since enableWhen doesn't match
       expect(screen.queryByTestId('selectable-child-yes')).not.toBeInTheDocument();
     });
+
+    it('should restore selected pill from saved answers without user interaction (edit mode)', () => {
+      const items: AyuQuestion[] = [
+        { linkId: 'child-a', text: 'Child A', type: 'choice' },
+        { linkId: 'child-b', text: 'Child B', type: 'integer' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'child-a': 'saved-value' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+  
+      expect(screen.getByTestId('selectable-child-a')).toHaveClass('selected');
+     
+      expect(screen.getByTestId('selectable-child-b')).not.toHaveClass('selected');
+
+      expect(screen.getByTestId('renderer-child-a')).toBeInTheDocument();
+
+      expect(screen.queryByTestId('renderer-child-b')).not.toBeInTheDocument();
+    });
+
+    it('should allow switching selected pill in edit mode after restoring from answers', async () => {
+      const user = userEvent.setup();
+      const items: AyuQuestion[] = [
+        { linkId: 'child-a', text: 'Child A', type: 'choice' },
+        { linkId: 'child-b', text: 'Child B', type: 'integer' },
+      ];
+
+      render(
+        <AyuNestedRenderer
+          items={items}
+          answers={{ 'child-a': 'saved-value' }}
+          setAnswer={mockSetAnswer}
+          clearAnswers={mockClearAnswers}
+          selectable
+        />
+      );
+
+      expect(screen.getByTestId('selectable-child-a')).toHaveClass('selected');
+
+    
+      await user.click(screen.getByTestId('selectable-child-b'));
+
+      expect(screen.getByTestId('selectable-child-b')).toHaveClass('selected');
+      expect(screen.getByTestId('selectable-child-a')).not.toHaveClass('selected');
+      expect(screen.getByTestId('renderer-child-b')).toBeInTheDocument();
+      expect(screen.queryByTestId('renderer-child-a')).not.toBeInTheDocument();
+    });
   });
 
   describe('previousSibling prop in renderInlineNestedItems', () => {
