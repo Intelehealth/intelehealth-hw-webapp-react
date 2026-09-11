@@ -34,6 +34,14 @@ interface NestedProps {
 const FOLLOW_NEWEST = { kind: 'followNewest' } as const;
 const ALL_COLLAPSED = { kind: 'allCollapsed' } as const;
 
+/**
+ * Sentinel used in `userChosenOption` to represent an explicit deselection by
+ * the user.  A Symbol is unique and can never collide with a real linkId string,
+ * so there is no ambiguity between "deselected" and a linkId that happens to
+ * carry the same characters as a string constant would.
+ */
+const DESELECTED = Symbol('deselected');
+
 type OpenBranch =
   | typeof FOLLOW_NEWEST
   | typeof ALL_COLLAPSED
@@ -59,7 +67,9 @@ export const AyuNestedRenderer = ({
   selectable = false,
   showAllTriangles = false,
 }: NestedProps) => {
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [userChosenOption, setUserChosenOption] = useState<
+    string | null | typeof DESELECTED
+  >(null);
 
   const [openBranch, setOpenBranch] = useState<OpenBranch>(FOLLOW_NEWEST);
 
@@ -68,7 +78,7 @@ export const AyuNestedRenderer = ({
     ? answers[parentQuestion.linkId]
     : undefined;
   useEffect(() => {
-    setSelectedOption(null);
+    setUserChosenOption(null);
     setOpenBranch(FOLLOW_NEWEST);
   }, [parentAnswer]);
 
@@ -323,6 +333,15 @@ export const AyuNestedRenderer = ({
               });
             });
 
+        const selectedOption: string | null =
+          userChosenOption === DESELECTED
+            ? null
+            : userChosenOption !== null
+              ? userChosenOption
+              : (displayChildren.find(
+                  child => answers[child.linkId] !== undefined
+                )?.linkId ?? null);
+
         return (
           <div key={label || 'default'}>
             {collapsible && (
@@ -371,7 +390,7 @@ export const AyuNestedRenderer = ({
                             value={item.linkId}
                             selected={selectedOption === item.linkId}
                             onClick={() => {
-                              if (selectedOption === item.linkId) {
+                              if (userChosenOption === item.linkId) {
                                 /*
                                  * Deselecting current option — only clear for choice types
                                  * (input-type items like integer/string keep their entered value)
@@ -379,12 +398,15 @@ export const AyuNestedRenderer = ({
                                 if (item.type === FHIR_TYPE_CHOICE) {
                                   clearNestedAnswers(item);
                                 }
-                                setSelectedOption(null);
+                                setUserChosenOption(DESELECTED);
                               } else {
                                 /* Switching to a new option — only clear previous for choice types */
-                                if (selectedOption) {
+                                if (
+                                  userChosenOption &&
+                                  userChosenOption !== DESELECTED
+                                ) {
                                   const prevItem = displayChildren.find(
-                                    c => c.linkId === selectedOption
+                                    c => c.linkId === userChosenOption
                                   );
                                   if (
                                     prevItem &&
@@ -393,7 +415,7 @@ export const AyuNestedRenderer = ({
                                     clearNestedAnswers(prevItem);
                                   }
                                 }
-                                setSelectedOption(item.linkId);
+                                setUserChosenOption(item.linkId);
                               }
                             }}
                           />
