@@ -34,6 +34,14 @@ interface NestedProps {
 const FOLLOW_NEWEST = { kind: 'followNewest' } as const;
 const ALL_COLLAPSED = { kind: 'allCollapsed' } as const;
 
+/**
+ * Sentinel used in `userChosenOption` to represent an explicit deselection by
+ * the user.  A Symbol is unique and can never collide with a real linkId string,
+ * so there is no ambiguity between "deselected" and a linkId that happens to
+ * carry the same characters as a string constant would.
+ */
+const DESELECTED = Symbol('deselected');
+
 type OpenBranch =
   | typeof FOLLOW_NEWEST
   | typeof ALL_COLLAPSED
@@ -60,7 +68,7 @@ export const AyuNestedRenderer = ({
   showAllTriangles = false,
 }: NestedProps) => {
   const [userChosenOption, setUserChosenOption] = useState<
-    string | null | 'NONE'
+    string | null | typeof DESELECTED
   >(null);
 
   const [openBranch, setOpenBranch] = useState<OpenBranch>(FOLLOW_NEWEST);
@@ -326,7 +334,7 @@ export const AyuNestedRenderer = ({
             });
 
         const selectedOption: string | null =
-          userChosenOption === 'NONE'
+          userChosenOption === DESELECTED
             ? null
             : userChosenOption !== null
               ? userChosenOption
@@ -390,12 +398,12 @@ export const AyuNestedRenderer = ({
                                 if (item.type === FHIR_TYPE_CHOICE) {
                                   clearNestedAnswers(item);
                                 }
-                                setUserChosenOption('NONE');
+                                setUserChosenOption(DESELECTED);
                               } else {
                                 /* Switching to a new option — only clear previous for choice types */
                                 if (
                                   userChosenOption &&
-                                  userChosenOption !== 'NONE'
+                                  userChosenOption !== DESELECTED
                                 ) {
                                   const prevItem = displayChildren.find(
                                     c => c.linkId === userChosenOption
