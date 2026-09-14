@@ -37,6 +37,7 @@ export function AyuDateInput({
         dateFormat="dd MMM,yyyy"
         maxDate={new Date()}
         minDate={minDate}
+        boldLabel
       />
     </div>
   );

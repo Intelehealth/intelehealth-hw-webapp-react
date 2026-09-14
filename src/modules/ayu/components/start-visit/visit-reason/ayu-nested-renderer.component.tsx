@@ -12,7 +12,6 @@ import {
 } from '../../../../ayu-library/utils/constants';
 import {
   collectDescendantLinkIds,
-  findMatchingOptionCode,
   getRowLabel,
   isFieldLabelContainer,
 } from '../../../../ayu-library/utils/question.utils';
@@ -97,43 +96,6 @@ export const AyuNestedRenderer = ({
   /* Check if a choice question has answerOption → item mapping */
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
     q.type === FHIR_TYPE_CHOICE && !!q.answerOption?.length && !!q.item?.length;
-
-  /* Render deeply nested items inline when their corresponding option is selected */
-  const renderInlineNestedItems = (parentChild: AyuQuestion) => {
-    const parentAnswer = answers[parentChild.linkId];
-    const selectedCodes: string[] = Array.isArray(parentAnswer)
-      ? parentAnswer
-      : typeof parentAnswer === 'string'
-        ? [parentAnswer]
-        : [];
-
-    return parentChild
-      .item!.filter(nestedItem => {
-        const matchedCode = findMatchingOptionCode(nestedItem, parentChild);
-        return matchedCode && selectedCodes.includes(matchedCode);
-      })
-      .map((nestedItem, idx, filtered) => (
-        <div key={nestedItem.linkId} className="mt-2 ml-3">
-          <AyuRenderer
-            question={nestedItem}
-            previousSibling={idx > 0 ? filtered[idx - 1] : undefined}
-            value={answers[nestedItem.linkId]}
-            onChange={val => setAnswer(nestedItem, val)}
-            answers={answers}
-            setAnswer={setAnswer}
-          />
-          {nestedItem.item && (
-            <AyuNestedRenderer
-              items={nestedItem.item}
-              answers={answers}
-              setAnswer={setAnswer}
-              clearAnswers={clearAnswers}
-              selectable={true}
-            />
-          )}
-        </div>
-      ));
-  };
 
   /*
    * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
@@ -283,7 +245,6 @@ export const AyuNestedRenderer = ({
          * directly as pills instead of requiring an extra click on the container.
          * e.g. "Take the patient's BP lying down" → [Systolic, Diastolic]
          * Keep branching choice items intact (type=choice + answerOption + item)
-         * because they need option-based reveal via renderInlineNestedItems.
          */
         const displayChildren = selectable
           ? children.flatMap(child => {
@@ -426,13 +387,18 @@ export const AyuNestedRenderer = ({
                             question={{ ...child, text: undefined }}
                             value={answers[child.linkId]}
                             onChange={val => setAnswer(child, val)}
+                            answers={answers}
+                            setAnswer={setAnswer}
                           />
-                          {/* After flattening (lines 144-161), only
-                            hasAnswerOptionItemMapping children retain
-                            child.item — all others were replaced by their
-                            grandchildren. So we only need the inline path. */}
-                          {hasAnswerOptionItemMapping(child) &&
-                            renderInlineNestedItems(child)}
+                          {child.item && (
+                            <AyuNestedRenderer
+                              items={child.item}
+                              parentQuestion={child}
+                              answers={answers}
+                              setAnswer={setAnswer}
+                              clearAnswers={clearAnswers}
+                            />
+                          )}
                         </div>
                       </div>
                     ))}
@@ -492,18 +458,15 @@ export const AyuNestedRenderer = ({
                           answers={answers}
                           setAnswer={setAnswer}
                         />
-                        {child.item &&
-                          (hasAnswerOptionItemMapping(child) ? (
-                            renderInlineNestedItems(child)
-                          ) : (
-                            <AyuNestedRenderer
-                              items={child.item}
-                              parentQuestion={child}
-                              answers={answers}
-                              setAnswer={setAnswer}
-                              clearAnswers={clearAnswers}
-                            />
-                          ))}
+                        {child.item && (
+                          <AyuNestedRenderer
+                            items={child.item}
+                            parentQuestion={child}
+                            answers={answers}
+                            setAnswer={setAnswer}
+                            clearAnswers={clearAnswers}
+                          />
+                        )}
                       </div>
                     </div>
                   );

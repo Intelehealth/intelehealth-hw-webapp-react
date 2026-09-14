@@ -121,7 +121,7 @@ export const AyuPhysicalExamOptions = ({
 
   const handleImageAdded = (file: File) => {
     void camera?.addCameraImage(question.linkId, file);
-    if (cameraCode && !cameraCommitted) {
+    if (cameraCode) {
       setAnswer?.(question, [...regularSelected, cameraCode]);
     }
     camera?.commitQuestionImages(question.linkId);

@@ -20,6 +20,7 @@ export interface CalendarProps {
   minDate?: Date;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'default' | 'wide';
+  boldLabel?: boolean;
 }
 
 const Calendar: React.FC<CalendarProps> = ({
@@ -35,6 +36,7 @@ const Calendar: React.FC<CalendarProps> = ({
   minDate,
   disabled = false,
   size = 'default',
+  boldLabel = false,
 }) => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(
     value ? new Date(value) : null
@@ -91,7 +93,9 @@ const Calendar: React.FC<CalendarProps> = ({
       {label && (
         <label
           className={cn(
-            'block text-base text-(--color-muted) mb-2',
+            boldLabel
+              ? 'block text-large-label text-(--color-dark) mb-2'
+              : 'block text-base text-(--color-muted) mb-2',
             error && 'text-error-700',
             disabled && 'text-gray-400'
           )}

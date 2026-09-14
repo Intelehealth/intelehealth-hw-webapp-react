@@ -4556,6 +4556,111 @@ describe('useFHIRStepper', () => {
       );
       expect(result.current.validateAllQuestions()).toBe(true);
     });
+
+    it('blocks autoNext when camera code is present as an array answer (race-condition guard)', () => {
+      cameraHolder.current = makeCamera([]);
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any, autoNext: true })
+      );
+
+      act(() => {
+        result.current.setAnswer(
+          peCameraQuestionnaire.item[0] as any,
+          ['jaundice_cam'] // array containing the camera code
+        );
+      });
+
+     
+      expect(result.current.currentIndex).toBe(0);
+      expect(result.current.answers['jaundice']).toEqual(['jaundice_cam']);
+    });
+
+    it('blocks autoNext when camera code is present as a string answer (race-condition guard)', () => {
+      cameraHolder.current = makeCamera([]);
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any, autoNext: true })
+      );
+
+      act(() => {
+        result.current.setAnswer(
+          peCameraQuestionnaire.item[0] as any,
+          'jaundice_cam' // string equal to the camera code
+        );
+      });
+
+      expect(result.current.currentIndex).toBe(0);
+      expect(result.current.answers['jaundice']).toBe('jaundice_cam');
+    });
+
+    it('does not block autoNext via camera guard when the answer does not include the camera code', () => {
+      cameraHolder.current = makeCamera([]);
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any, autoNext: true })
+      );
+
+      act(() => {
+        result.current.setAnswer(
+          peCameraQuestionnaire.item[0] as any,
+          'yes'
+        );
+      });
+
+      expect(result.current.answers['jaundice']).toBe('yes');
+    });
+
+    it('does not block autoNext when camera answer is a non-string non-array value (else [] branch)', () => {
+      cameraHolder.current = makeCamera([]);
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: peCameraQuestionnaire as any, autoNext: true })
+      );
+
+      act(() => {
+        result.current.setAnswer(peCameraQuestionnaire.item[0] as any, 42 as any);
+      });
+
+      expect(result.current.answers['jaundice']).toBe(42);
+    });
+
+    it('skips camera guard when question has no camera-option extension (camCode is undefined)', () => {
+      cameraHolder.current = makeCamera([]);
+      const plainQuestionnaire = {
+        item: [
+          {
+            linkId: 'plain',
+            text: 'Plain choice',
+            type: 'choice',
+            required: false,
+            answerOption: [
+              { valueCoding: { code: 'a', display: 'A' } },
+              { valueCoding: { code: 'b', display: 'B' } },
+            ],
+          },
+          {
+            linkId: 'next-q',
+            text: 'Next Question',
+            type: 'choice',
+            required: false,
+            answerOption: [{ valueCoding: { code: 'x', display: 'X' } }],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: plainQuestionnaire as any, autoNext: true })
+      );
+
+      act(() => {
+        result.current.setAnswer(plainQuestionnaire.item[0] as any, 'a');
+      });
+
+      // Advance past the 250 ms autoNext timer
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // camera guard was skipped (camCode=undefined); normal autoNext advanced the index
+      expect(result.current.currentIndex).toBe(1);
+    });
   });
 
   describe('Sibling top-level enableWhen clearing (gender/pregnancy scenario)', () => {
