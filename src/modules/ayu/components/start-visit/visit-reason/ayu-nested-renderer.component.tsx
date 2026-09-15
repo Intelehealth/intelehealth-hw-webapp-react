@@ -300,7 +300,11 @@ export const AyuNestedRenderer = ({
             : userChosenOption !== null
               ? userChosenOption
               : (displayChildren.find(
-                  child => answers[child.linkId] !== undefined
+                  child =>
+                    answers[child.linkId] !== undefined ||
+                    collectDescendantLinkIds(child).some(
+                      id => answers[id] !== undefined
+                    )
                 )?.linkId ?? null);
 
         return (
@@ -361,17 +365,26 @@ export const AyuNestedRenderer = ({
                                 }
                                 setUserChosenOption(DESELECTED);
                               } else {
-                                /* Switching to a new option — only clear previous for choice types */
-                                if (
+                                /*
+                                 * Switching to a new option — clear the previously
+                                 * selected option's answers. Fall back to selectedOption
+                                 * when userChosenOption hasn't been set yet (e.g. entering
+                                 * edit mode where the previous selection comes from
+                                 * existing answers, including those stored on descendants).
+                                 */
+                                const prevLinkId =
                                   userChosenOption &&
                                   userChosenOption !== DESELECTED
-                                ) {
+                                    ? userChosenOption
+                                    : selectedOption;
+                                if (prevLinkId && prevLinkId !== item.linkId) {
                                   const prevItem = displayChildren.find(
-                                    c => c.linkId === userChosenOption
+                                    c => c.linkId === prevLinkId
                                   );
                                   if (
                                     prevItem &&
-                                    prevItem.type === FHIR_TYPE_CHOICE
+                                    (prevItem.type === FHIR_TYPE_CHOICE ||
+                                      (prevItem.item?.length ?? 0) > 0)
                                   ) {
                                     clearNestedAnswers(prevItem);
                                   }
