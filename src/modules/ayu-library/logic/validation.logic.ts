@@ -153,6 +153,15 @@ export const hasUnansweredRequiredNestedChild = (
         !siblingBranchAnswered
       )
         return true;
+      if (
+        child.type === FHIR_TYPE_CHOICE &&
+        !child.repeats &&
+        isEmpty(answers[child.linkId]) &&
+        !isIntermediateChoice &&
+        !siblingBranchAnswered &&
+        !!matchedCode
+      )
+        return true;
       /* Recurse into deeper levels */
       return check(child.item, child);
     });

@@ -357,6 +357,25 @@ export const useFHIRStepper = (
 
       if (cameraUploadIssue(currentQuestion)) return updated;
 
+      if (peCamera) {
+        const camCode = currentQuestion.answerOption?.find(o =>
+          o.extension?.some(
+            e =>
+              e.url === EXT_URL_PE_OPTION_KIND &&
+              e.valueString === PE_OPTION_KIND_CAMERA
+          )
+        )?.valueCoding?.code;
+        if (camCode) {
+          const ans = updated[currentQuestion.linkId];
+          const ansArr: string[] = Array.isArray(ans)
+            ? (ans as string[])
+            : typeof ans === 'string'
+              ? [ans]
+              : [];
+          if (ansArr.includes(camCode)) return updated;
+        }
+      }
+
       // Disable autoNext for input-based questions — user must explicitly submit
       if (
         currentQuestion.type === FHIR_TYPE_STRING ||

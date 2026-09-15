@@ -1838,6 +1838,7 @@ describe('AyuNestedRenderer', () => {
               linkId: 'opt-a-nested',
               text: 'Nested under A',
               type: 'string',
+              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-a' } }],
             },
           ],
         },
@@ -1943,6 +1944,8 @@ describe('AyuNestedRenderer', () => {
               linkId: 'opt-a-child',
               text: 'Child A',
               type: 'string',
+              // Gated on string 
+              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-a' } }],
             },
           ],
         },
@@ -1952,7 +1955,7 @@ describe('AyuNestedRenderer', () => {
       render(
         <AyuNestedRenderer
           items={items}
-          answers={{ 'choice-parent': 42 }} // number answer
+          answers={{ 'choice-parent': 42 }} // number answer — never === 'opt-a'
           setAnswer={mockSetAnswer}
           selectable
         />
@@ -1961,7 +1964,6 @@ describe('AyuNestedRenderer', () => {
       const pill = screen.getByTestId('selectable-choice-parent');
       await user.click(pill);
 
-      // No matching codes since answer is a number
       expect(screen.queryByTestId('renderer-opt-a-child')).not.toBeInTheDocument();
     });
 
@@ -2473,7 +2475,7 @@ describe('AyuNestedRenderer', () => {
   });
 
   describe('previousSibling prop in renderInlineNestedItems', () => {
-    it('should pass previousSibling to second inline nested item (line 77)', async () => {
+    it('should pass previousSibling to second inline nested item', async () => {
       const user = userEvent.setup();
       const items: AyuQuestion[] = [
         {
@@ -2489,13 +2491,12 @@ describe('AyuNestedRenderer', () => {
               linkId: 'opt-a-child',
               text: 'Child A',
               type: 'string',
-              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-a' } }],
+              // No enableWhen — always visible; same null group as opt-b-child
             },
             {
               linkId: 'opt-b-child',
               text: 'Child B',
               type: 'string',
-              enableWhen: [{ question: 'choice-parent', operator: '=', answerCoding: { code: 'opt-b' } }],
             },
           ],
         },
@@ -2514,10 +2515,9 @@ describe('AyuNestedRenderer', () => {
       const pill = screen.getByTestId('selectable-choice-parent');
       await user.click(pill);
 
-      // Both items should render inline
+      // Both items render inside the inner non-selectable AyuNestedRenderer
       expect(screen.getByTestId('renderer-opt-a-child')).toBeInTheDocument();
       expect(screen.getByTestId('renderer-opt-b-child')).toBeInTheDocument();
-      // The second item gets previousSibling = first item
       expect(screen.getByTestId('prev-sibling-opt-b-child')).toHaveTextContent('opt-a-child');
     });
   });
