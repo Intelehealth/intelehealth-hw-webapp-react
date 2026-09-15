@@ -159,7 +159,7 @@ export const hasUnansweredRequiredNestedChild = (
         isEmpty(answers[child.linkId]) &&
         !isIntermediateChoice &&
         !siblingBranchAnswered &&
-        matchedCode !== undefined
+        !!matchedCode
       )
         return true;
       /* Recurse into deeper levels */

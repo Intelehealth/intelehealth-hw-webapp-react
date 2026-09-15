@@ -566,6 +566,119 @@ describe('hasUnansweredRequiredNestedChild', () => {
     // q1.1 has no answerOption → matchedCode for q1.1.1 is undefined → not enforced
     expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
   });
+
+  describe('!!matchedCode guard — single-select option-gated choice child', () => {
+    it('returns true when an unanswered choice child maps to a selected parent option (!!matchedCode is truthy)', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'fever', display: 'Fever' } }],
+        item: [
+          {
+            linkId: 'fever_duration',
+            type: 'choice',
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'fever' } },
+            ],
+          },
+        ],
+      };
+      // matchedCode = 'fever', !!matchedCode = true, child unanswered → branch fires
+      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(true);
+    });
+
+    it('returns false when matchedCode is undefined — no parent-option mapping (!!matchedCode is false)', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        // No answerOption on parent → findMatchingOptionCode returns undefined
+        item: [{ linkId: 'free_choice', type: 'choice' }],
+      };
+      // matchedCode = undefined, !!matchedCode = false → branch skipped, recursion returns false
+      expect(hasUnansweredRequiredNestedChild(q, { q: 'yes' })).toBe(false);
+    });
+
+    it('does not use the !!matchedCode branch when child.repeats is true — repeats branch fires first', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'fever', display: 'Fever' } }],
+        item: [
+          {
+            linkId: 'fever_tags',
+            type: 'choice',
+            repeats: true,
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'fever' } },
+            ],
+          },
+        ],
+      };
+      // !child.repeats = false → !!matchedCode branch unreachable; repeats branch fires instead
+      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(true);
+    });
+
+    it('skips the !!matchedCode branch when child is an intermediate-choice container (isFieldLabelContainer = true)', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'fever', display: 'Fever' } }],
+        item: [
+          {
+            // isFieldLabelContainer: choice + answerOption + item, items.length >= answerOption.length
+            linkId: 'fever_container',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+            item: [
+              {
+                linkId: 'fever_yes_detail',
+                type: 'string',
+                enableWhen: [
+                  { question: 'fever_container', operator: '=', answerCoding: { code: 'yes' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'fever' } },
+            ],
+          },
+        ],
+      };
+      // fever_container: isIntermediateChoice = true → !isIntermediateChoice = false → branch skipped
+      // fever_yes_detail: hidden (fever_container unanswered) → recursion returns false
+      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(false);
+    });
+
+    it('skips the !!matchedCode branch when siblingBranchAnswered is true', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'fever', display: 'Fever' } }],
+        item: [
+          {
+            linkId: 'fever_duration',
+            type: 'choice',
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'fever' } },
+            ],
+          },
+          {
+            // non-leaf sibling with same matchedCode 'fever' that has an answer
+            linkId: 'fever_sibling',
+            type: 'choice',
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'fever' } },
+            ],
+          },
+        ],
+      };
+      // fever_sibling answered → isSiblingBranchAnswered(fever_duration) = true
+      // !siblingBranchAnswered = false → !!matchedCode branch skipped for fever_duration
+      expect(
+        hasUnansweredRequiredNestedChild(q, { q: ['fever'], fever_sibling: '1-3 days' })
+      ).toBe(false);
+    });
+  });
 });
 
 describe('isNestedInputValueMissing', () => {
