@@ -481,6 +481,91 @@ describe('hasUnansweredRequiredNestedChild', () => {
     };
     expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
   });
+
+  it('should return true when a single-select choice child mapped to a parent option is unanswered (e.g. Cold Sneezing duration)', () => {
+    const q: AyuQuestion = {
+      linkId: 'assoc',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'cold_sneezing', display: 'Cold Sneezing' } }],
+      item: [
+        {
+          linkId: 'cold_sneezing_duration',
+          type: 'choice',
+          text: 'Duration?',
+          enableWhen: [
+            { question: 'assoc', operator: '=', answerCoding: { code: 'cold_sneezing' } },
+          ],
+        },
+      ],
+    };
+    // cold_sneezing selected Yes but duration child not answered → invalid
+    expect(hasUnansweredRequiredNestedChild(q, { assoc: ['cold_sneezing'] })).toBe(true);
+  });
+
+  it('should return false when a single-select choice child mapped to a parent option is answered', () => {
+    const q: AyuQuestion = {
+      linkId: 'assoc',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'cold_sneezing', display: 'Cold Sneezing' } }],
+      item: [
+        {
+          linkId: 'cold_sneezing_duration',
+          type: 'choice',
+          text: 'Duration?',
+          enableWhen: [
+            { question: 'assoc', operator: '=', answerCoding: { code: 'cold_sneezing' } },
+          ],
+        },
+      ],
+    };
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        assoc: ['cold_sneezing'],
+        cold_sneezing_duration: '1-3 days',
+      })
+    ).toBe(false);
+  });
+
+  it('should not validate choice child mapped to a parent option when that option is not selected', () => {
+    const q: AyuQuestion = {
+      linkId: 'assoc',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'cold_sneezing', display: 'Cold Sneezing' } },
+        { valueCoding: { code: 'ear_pain', display: 'Ear Pain' } },
+      ],
+      item: [
+        {
+          linkId: 'cold_sneezing_duration',
+          type: 'choice',
+          text: 'Duration?',
+          enableWhen: [
+            { question: 'assoc', operator: '=', answerCoding: { code: 'cold_sneezing' } },
+          ],
+        },
+      ],
+    };
+    // ear_pain selected but not cold_sneezing → duration child hidden → skip validation
+    expect(
+      hasUnansweredRequiredNestedChild(q, { assoc: ['NO_cold_sneezing', 'ear_pain'] })
+    ).toBe(false);
+  });
+
+  it('should not validate a free-floating choice grandchild without a parent-option mapping', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'q1.1',
+          type: 'choice',
+          item: [{ linkId: 'q1.1.1', type: 'choice' }],
+        },
+      ],
+    };
+    // q1.1 has no answerOption → matchedCode for q1.1.1 is undefined → not enforced
+    expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
+  });
 });
 
 describe('isNestedInputValueMissing', () => {
