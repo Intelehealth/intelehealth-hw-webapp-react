@@ -1533,6 +1533,52 @@ describe('AyuNestedRenderer', () => {
         expect(mockClearAnswers).not.toHaveBeenCalled();
       });
 
+      it('clears a non-CHOICE displayChild that has sub-items when switching (covers prevItem.item?.length branch)', async () => {
+       
+        const user = userEvent.setup();
+
+        const items: AyuQuestion[] = [
+          {
+
+            linkId: 'container',
+            text: 'Container',
+            type: 'choice',
+            item: [
+              {
+                // GROUP type with its own sub-item — survives as a pill after
+                // the one-level flatten. Not FHIR_TYPE_CHOICE, but has item[].
+                linkId: 'sub-a',
+                text: 'Sub A',
+                type: 'group',
+                item: [{ linkId: 'sub-a-child', text: 'Sub A input', type: 'string' }],
+              },
+              {
+                linkId: 'sub-b',
+                text: 'Sub B',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'b-val', display: 'B' } }],
+              },
+            ],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'sub-a-child': 'entered-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        await user.click(screen.getByTestId('selectable-sub-b'));
+
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['sub-a-child'])
+        );
+      });
+
       it('clears previous option on second switch via userChosenOption path (not selectedOption fallback)', async () => {
         // After the first switch, userChosenOption is set to opt-b.
         // A second switch to opt-c should clear opt-b via the userChosenOption
