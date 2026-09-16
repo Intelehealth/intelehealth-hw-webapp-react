@@ -1256,6 +1256,377 @@ describe('AyuNestedRenderer', () => {
       expect(screen.queryByText('Select any one')).not.toBeInTheDocument();
       expect(screen.queryByText('Select one or more')).not.toBeInTheDocument();
     });
+
+    describe('Edit mode — switching option with pre-existing answers', () => {
+      // -----------------------------------------------------------------------
+      // selectedOption derived from DESCENDANT answers
+      // (covers the new `collectDescendantLinkIds` branch in selectedOption)
+      //
+      // NOTE: In selectable mode only items that are either leaf nodes (no
+      // children) or CHOICE+answerOption+item survive as pills. GROUP+item
+      // containers get flattened into their children. So the descendant-answer
+      // path only fires when a CHOICE+answerOption+item option has sub-items
+      // with answers but the option's own linkId is not yet answered.
+      // -----------------------------------------------------------------------
+
+      it('identifies the previously-selected option via descendant answers when the option itself has no direct answer', () => {
+        // opt-a is CHOICE+answerOption+item → survives as a pill (not flattened).
+        // Its sub-item "child-a" carries an answer while opt-a itself does not.
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A value' } }],
+            item: [{ linkId: 'child-a', text: 'Sub-input A', type: 'string' }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B value' } }],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'child-a': 'some-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // opt-a should be shown as the currently-selected pill because its
+        // descendant "child-a" carries an answer
+        expect(screen.getByTestId('selectable-opt-a')).toHaveClass('selected');
+        expect(screen.getByTestId('selectable-opt-b')).not.toHaveClass('selected');
+      });
+
+      it('does NOT mark an option as selected when neither it nor its descendants have answers', () => {
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A value' } }],
+            item: [{ linkId: 'child-a', text: 'Sub-input A', type: 'string' }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B value' } }],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{}}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        expect(screen.getByTestId('selectable-opt-a')).not.toHaveClass('selected');
+        expect(screen.getByTestId('selectable-opt-b')).not.toHaveClass('selected');
+      });
+
+      // -----------------------------------------------------------------------
+      // Clearing via selectedOption fallback (userChosenOption === null)
+      // -----------------------------------------------------------------------
+
+      it('clears previous CHOICE-type option answers when switching in edit mode (userChosenOption is null)', async () => {
+        // Covers the core bug: userChosenOption starts as null (edit mode entry)
+        // and the user immediately clicks a different option.
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A value' } }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B value' } }],
+          },
+        ];
+
+        // opt-a has a direct answer — simulates re-entering edit mode.
+        // userChosenOption will be null on initial render.
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'opt-a': 'a-val' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // Clicking opt-b should clear opt-a via the selectedOption fallback
+        await user.click(screen.getByTestId('selectable-opt-b'));
+
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['opt-a'])
+        );
+      });
+
+      it('clears previous CHOICE+item option via descendant-answer selectedOption fallback (edit mode)', async () => {
+        // Covers the descendant-answer path: opt-a has no direct answer but its
+        // child-a does. selectedOption identifies opt-a via collectDescendantLinkIds.
+        // Switching to opt-b should clear child-a (the descendant answer).
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A value' } }],
+            item: [{ linkId: 'child-a', text: 'Sub-input', type: 'string' }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B value' } }],
+          },
+        ];
+
+        // Only the descendant has an answer — opt-a's own linkId is unanswered
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'child-a': 'some-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        await user.click(screen.getByTestId('selectable-opt-b'));
+
+        // opt-a is identified via descendant answers; its child must be cleared
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['child-a'])
+        );
+        // opt-b's sub-answers must NOT be cleared
+        expect(mockClearAnswers).not.toHaveBeenCalledWith(
+          expect.arrayContaining(['opt-b'])
+        );
+      });
+
+      it('clears CHOICE+item option sub-answers when switching (userChosenOption set, not null)', async () => {
+        // Covers the `prevItem.item?.length > 0` branch: when the option has
+        // sub-items (beyond its own answerOption answer), they should be cleared.
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A' } }],
+            item: [{ linkId: 'child-a', text: 'Sub-input', type: 'string' }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B' } }],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{}}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // Select opt-a first (sets userChosenOption)
+        await user.click(screen.getByTestId('selectable-opt-a'));
+        mockClearAnswers.mockClear();
+
+        // Switch to opt-b — even though userChosenOption = 'opt-a' and
+        // opt-a has type=choice + item, it matches both clearing conditions
+        await user.click(screen.getByTestId('selectable-opt-b'));
+
+        // No answers in state so clearAnswers not called (nothing to clear)
+        expect(mockClearAnswers).not.toHaveBeenCalled();
+      });
+
+      it('does NOT clear the currently-derived option when clicking it (prevLinkId === item.linkId guard)', async () => {
+        // When userChosenOption is null and selectedOption = 'opt-a', clicking
+        // opt-a goes through the switch branch but prevLinkId === item.linkId
+        // so no clearing happens. It only sets userChosenOption = 'opt-a'.
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a-val', display: 'A' } }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b-val', display: 'B' } }],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'opt-a': 'a-val' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // First click: userChosenOption is null, selectedOption = opt-a.
+        // prevLinkId = 'opt-a' = item.linkId → clearing skipped; just sets
+        // userChosenOption to 'opt-a'.
+        await user.click(screen.getByTestId('selectable-opt-a'));
+        expect(mockClearAnswers).not.toHaveBeenCalled();
+
+        // Second click: now userChosenOption = 'opt-a' so it goes to the
+        // DESELECT branch (type=choice → clearNestedAnswers is called).
+        await user.click(screen.getByTestId('selectable-opt-a'));
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['opt-a'])
+        );
+      });
+
+      it('does NOT clear leaf input items (integer/string) when switching between them', async () => {
+        // Individual leaf inputs (no sub-items, not FHIR_TYPE_CHOICE) preserve
+        // their values when the user switches focus — only containers are cleared.
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          { linkId: 'systolic', text: 'Systolic', type: 'integer' },
+          { linkId: 'diastolic', text: 'Diastolic', type: 'integer' },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ systolic: 120 }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // Switch to diastolic — systolic value must NOT be cleared because
+        // integer items fail both `type === FHIR_TYPE_CHOICE` and `item?.length`
+        await user.click(screen.getByTestId('selectable-diastolic'));
+        expect(mockClearAnswers).not.toHaveBeenCalled();
+      });
+
+      it('clears a non-CHOICE displayChild that has sub-items when switching (covers prevItem.item?.length branch)', async () => {
+       
+        const user = userEvent.setup();
+
+        const items: AyuQuestion[] = [
+          {
+
+            linkId: 'container',
+            text: 'Container',
+            type: 'choice',
+            item: [
+              {
+                // GROUP type with its own sub-item — survives as a pill after
+                // the one-level flatten. Not FHIR_TYPE_CHOICE, but has item[].
+                linkId: 'sub-a',
+                text: 'Sub A',
+                type: 'group',
+                item: [{ linkId: 'sub-a-child', text: 'Sub A input', type: 'string' }],
+              },
+              {
+                linkId: 'sub-b',
+                text: 'Sub B',
+                type: 'choice',
+                answerOption: [{ valueCoding: { code: 'b-val', display: 'B' } }],
+              },
+            ],
+          },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'sub-a-child': 'entered-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        await user.click(screen.getByTestId('selectable-sub-b'));
+
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['sub-a-child'])
+        );
+      });
+
+      it('clears previous option on second switch via userChosenOption path (not selectedOption fallback)', async () => {
+        // After the first switch, userChosenOption is set to opt-b.
+        // A second switch to opt-c should clear opt-b via the userChosenOption
+        // path (not the selectedOption fallback).
+        const user = userEvent.setup();
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'opt-a',
+            text: 'Option A',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+          },
+          {
+            linkId: 'opt-b',
+            text: 'Option B',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'b', display: 'B' } }],
+          },
+          {
+            linkId: 'opt-c',
+            text: 'Option C',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'c', display: 'C' } }],
+          },
+        ];
+
+        // Both opt-a and opt-b have answers so clearAnswers is called with them
+        render(
+          <AyuNestedRenderer
+            items={items}
+            answers={{ 'opt-a': 'a', 'opt-b': 'b' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // First switch: null → opt-b (via selectedOption = 'opt-a', clears opt-a)
+        await user.click(screen.getByTestId('selectable-opt-b'));
+        expect(mockClearAnswers).toHaveBeenCalledWith(expect.arrayContaining(['opt-a']));
+
+        mockClearAnswers.mockClear();
+
+        // Second switch: opt-b → opt-c (via userChosenOption = 'opt-b', clears opt-b)
+        await user.click(screen.getByTestId('selectable-opt-c'));
+        expect(mockClearAnswers).toHaveBeenCalledWith(expect.arrayContaining(['opt-b']));
+      });
+    });
   });
 
   describe('Grouping by Parent Answer Label', () => {
