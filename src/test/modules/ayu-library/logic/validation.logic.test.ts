@@ -789,6 +789,64 @@ describe('hasUnansweredRequiredNestedChild', () => {
       ).toBe(false);
     });
   });
+
+  it('enriches container codes via opt.valueString when no valueCoding.code present', () => {
+    const outer: AyuQuestion = {
+      linkId: 'outer',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'container',
+          type: 'choice',
+          answerOption: [{ valueString: 'opt-a' }],
+          item: [{ linkId: 'container-child', type: 'string', required: true }],
+        },
+      ],
+    };
+    // container is a field-label container → enrichWithContainerCodes uses opt.valueString
+    // 'opt-a' is injected as the synthetic code → container-child is unanswered → true
+    expect(hasUnansweredRequiredNestedChild(outer, {})).toBe(true);
+  });
+
+  it('skips enrichment when all options have no code or valueString (empty codes early return)', () => {
+    const outer: AyuQuestion = {
+      linkId: 'outer',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'container',
+          type: 'choice',
+          answerOption: [{}],
+          item: [{ linkId: 'container-child', type: 'string', required: true }],
+        },
+      ],
+    };
+    // enrichWithContainerCodes produces empty codes → returns early (no enrichment)
+    // container-child is still required and unanswered → true
+    expect(hasUnansweredRequiredNestedChild(outer, {})).toBe(true);
+  });
+
+  it('returns false when parentAnswer is undefined and child linkId prefix matches option code', () => {
+    const outer: AyuQuestion = {
+      linkId: 'outer',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt1' } },
+            { valueCoding: { code: 'opt2' } },
+          ],
+          item: [{ linkId: 'opt1-child', type: 'string', required: true }],
+        },
+      ],
+    };
+    // parent has 2 options but 1 child → NOT a field-label container → no enrichment
+    // opt1-child prefix-matches 'opt1' but parent has no answer → selectedCodes = []
+    // selectedCodes.includes('opt1') = false → child skipped → returns false
+    expect(hasUnansweredRequiredNestedChild(outer, {})).toBe(false);
+  });
 });
 
 describe('isNestedInputValueMissing', () => {
@@ -995,6 +1053,28 @@ describe('isNestedInputValueMissing', () => {
       ],
     };
     expect(isNestedInputValueMissing(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
+  });
+
+  it('returns false when parentAnswer is undefined and child linkId prefix matches option code', () => {
+    const outer: AyuQuestion = {
+      linkId: 'outer',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt1' } },
+            { valueCoding: { code: 'opt2' } },
+          ],
+          item: [{ linkId: 'opt1-child', type: 'string' }],
+        },
+      ],
+    };
+    // parent has 2 options but 1 child → NOT a field-label container → no enrichment
+    // opt1-child prefix-matches 'opt1' but parent has no answer → selectedCodes = []
+    // selectedCodes.includes('opt1') = false → child skipped → returns false
+    expect(isNestedInputValueMissing(outer, {})).toBe(false);
   });
 });
 

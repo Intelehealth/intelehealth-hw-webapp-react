@@ -86,6 +86,7 @@ export const AyuNestedRenderer = ({
     for (const item of items) {
       if (!evaluateEnableWhen(item.enableWhen, answers)) continue;
       if (!isFieldLabelContainer(item)) continue;
+      /* v8 ignore next — answerOption is always defined when isFieldLabelContainer is true */
       const allCodes = (item.answerOption ?? [])
         .map(opt => opt.valueCoding?.code || opt.valueString)
         .filter((c): c is string => !!c);

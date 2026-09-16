@@ -174,6 +174,7 @@ function buildSummaryForItems(
           return null;
         }
         if (typeof answer === 'number')
+          /* v8 ignore next -- isAnswerEmpty() always filters NaN before this point; null arm is defensive */
           return isNaN(answer) ? null : String(answer);
         return typeof answer === 'string' ? String(answer) : null;
 

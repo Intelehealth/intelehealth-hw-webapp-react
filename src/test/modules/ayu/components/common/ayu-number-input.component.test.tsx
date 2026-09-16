@@ -680,6 +680,44 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton') as HTMLInputElement;
       expect(input.value).toBe('0');
     });
+
+    it('should show "Please enter a valid number" when non-numeric text is set', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      // Temporarily change type to 'text' so jsdom does not sanitize non-numeric input
+      input.setAttribute('type', 'text');
+      fireEvent.change(input, { target: { value: 'abc' } });
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
+      expect(screen.getByText('Please enter a valid number')).toBeInTheDocument();
+    });
+
+    it('should show required error when required field is cleared after being touched', () => {
+      const requiredQ: AyuQuestion = { ...mockQuestion, required: true };
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={requiredQ}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      // First type a valid value — sets touched=true
+      fireEvent.change(input, { target: { value: '42' } });
+      // Then clear the field — touched=true and required=true → REQUIRED_ERROR
+      fireEvent.change(input, { target: { value: '' } });
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      expect(mockOnChange).toHaveBeenLastCalledWith(NaN);
+    });
   });
 
   describe('Range validation error messages', () => {
@@ -1036,6 +1074,44 @@ describe('AyuNumberInput', () => {
         vi.advanceTimersByTime(6000);
       });
       expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('should show required error after 6000ms when value prop is empty string', () => {
+      vi.useFakeTimers();
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value=""
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('should show required error after 6000ms when value prop is whitespace-only string', () => {
+      vi.useFakeTimers();
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value="   "
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
       vi.useRealTimers();
     });
   });

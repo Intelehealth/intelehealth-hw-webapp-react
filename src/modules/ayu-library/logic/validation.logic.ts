@@ -71,6 +71,7 @@ const enrichWithContainerCodes = (
   localAnswers: Record<string, AyuAnswerValue>
 ): Record<string, AyuAnswerValue> => {
   if (!isEmpty(localAnswers[container.linkId])) return localAnswers;
+  /* v8 ignore next — answerOption is always defined when isFieldLabelContainer is true */
   const codes = (container.answerOption ?? [])
     .map(opt => opt.valueCoding?.code || opt.valueString)
     .filter((c): c is string => !!c);

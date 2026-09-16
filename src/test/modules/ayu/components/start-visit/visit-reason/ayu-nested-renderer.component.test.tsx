@@ -3172,6 +3172,49 @@ describe('AyuNestedRenderer', () => {
 
       expect(mockSetAnswer).not.toHaveBeenCalled();
     });
+
+    it('calls setAnswer using opt.valueString when option has no valueCoding.code', () => {
+      const valueStringContainer: AyuQuestion = {
+        linkId: 'vs-container',
+        type: 'choice',
+        answerOption: [{ valueString: 'opt-a' }],
+        item: [{ linkId: 'vs-child', type: 'string' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[valueStringContainer]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // opt.valueCoding?.code is undefined → falls through to opt.valueString = 'opt-a'
+      expect(mockSetAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'vs-container' }),
+        ['opt-a']
+      );
+    });
+
+    it('does NOT call setAnswer when all options have no code or valueString (empty codes)', () => {
+      const emptyCodesContainer: AyuQuestion = {
+        linkId: 'empty-container',
+        type: 'choice',
+        answerOption: [{}],
+        item: [{ linkId: 'empty-child', type: 'string' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[emptyCodesContainer]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // allCodes filters to [] → early continue → setAnswer never reached
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
   });
 
   describe('sibling exception in non-selectable field-label bypass', () => {

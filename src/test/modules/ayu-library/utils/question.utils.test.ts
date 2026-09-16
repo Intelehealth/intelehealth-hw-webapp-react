@@ -454,6 +454,23 @@ describe('isFieldLabelContainer', () => {
 
     expect(isFieldLabelContainer(yesNoWithSubItems)).toBe(false);
   });
+
+  it('should NOT treat question as container when child has item but no answerOption', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'yes' } }],
+      item: [
+        {
+          linkId: 'yes-branch',
+          type: 'string',
+          // No answerOption — line 55 does not trigger
+          item: [{ linkId: 'yes-detail', type: 'string' }], // Has item → line 56 triggers
+        },
+      ],
+    };
+    expect(isFieldLabelContainer(q)).toBe(false);
+  });
 });
 
 describe('isFieldLabelContainer — multi-select questions', () => {
