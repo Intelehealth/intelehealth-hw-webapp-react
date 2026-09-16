@@ -53,6 +53,7 @@ export const isFieldLabelContainer = (q: AyuQuestion): boolean => {
   const gatedCodes = new Set<string>();
   for (const child of q.item) {
     if (child.answerOption?.length) return false;
+    if (child.item?.length) return false; // branch group with sub-items → not a field-label
     const code = findMatchingOptionCode(child, q);
     if (!code) continue;
     if (gatedCodes.has(code)) return false;

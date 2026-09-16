@@ -32,7 +32,8 @@ export const isEmpty = (val: unknown): boolean =>
   val === undefined ||
   val === null ||
   (typeof val === 'string' && val.trim() === '') ||
-  (Array.isArray(val) && val.length === 0);
+  (Array.isArray(val) && val.length === 0) ||
+  (typeof val === 'number' && isNaN(val));
 
 const hasAnyAnswer = (
   question: AyuQuestion,
@@ -65,6 +66,18 @@ const isSiblingBranchAnswered = (
   );
 };
 
+const enrichWithContainerCodes = (
+  container: AyuQuestion,
+  localAnswers: Record<string, AyuAnswerValue>
+): Record<string, AyuAnswerValue> => {
+  if (!isEmpty(localAnswers[container.linkId])) return localAnswers;
+  const codes = (container.answerOption ?? [])
+    .map(opt => opt.valueCoding?.code || opt.valueString)
+    .filter((c): c is string => !!c);
+  if (!codes.length) return localAnswers;
+  return { ...localAnswers, [container.linkId]: codes };
+};
+
 /**
  * Check if a question has a visible required nested string child that is still unanswered.
  * Recurses into all nesting depths.
@@ -75,21 +88,25 @@ export const hasVisibleRequiredNestedString = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    localAnswers: Record<string, AyuAnswerValue>
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      if (!evaluateEnableWhen(child.enableWhen, localAnswers)) return false;
       if (
         child.type === FHIR_TYPE_STRING &&
-        isEmpty(answers[child.linkId]) &&
-        !isSiblingBranchAnswered(child, items, parent, answers)
+        isEmpty(localAnswers[child.linkId]) &&
+        !isSiblingBranchAnswered(child, items, parent, localAnswers)
       )
         return true;
-      return check(child.item, child);
+      const nextAnswers = isFieldLabelContainer(child)
+        ? enrichWithContainerCodes(child, localAnswers)
+        : localAnswers;
+      return check(child.item, child, nextAnswers);
     });
   };
-  return check(question.item, question);
+  return check(question.item, question, answers);
 };
 
 /**
@@ -104,16 +121,17 @@ export const hasUnansweredRequiredNestedChild = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    localAnswers: Record<string, AyuAnswerValue>
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      if (!evaluateEnableWhen(child.enableWhen, localAnswers)) return false;
 
       /* If child maps to a parent answerOption, only validate if that option is selected */
       const matchedCode = findMatchingOptionCode(child, parent);
       if (matchedCode) {
-        const parentAnswer = answers[parent.linkId];
+        const parentAnswer = localAnswers[parent.linkId];
         const selectedCodes: string[] = Array.isArray(parentAnswer)
           ? (parentAnswer as string[])
           : typeof parentAnswer === 'string'
@@ -127,19 +145,19 @@ export const hasUnansweredRequiredNestedChild = (
         child,
         items,
         parent,
-        answers
+        localAnswers
       );
       /* Required children must have an answer */
       if (
         child.required &&
-        isEmpty(answers[child.linkId]) &&
+        isEmpty(localAnswers[child.linkId]) &&
         !isIntermediateChoice
       )
         return true;
       /* Visible repeats (multiselect) children must have at least one selection */
       if (
         child.repeats &&
-        isEmpty(answers[child.linkId]) &&
+        isEmpty(localAnswers[child.linkId]) &&
         !isIntermediateChoice
       )
         return true;
@@ -149,24 +167,30 @@ export const hasUnansweredRequiredNestedChild = (
           child.type === FHIR_TYPE_INTEGER ||
           child.type === FHIR_TYPE_DATE ||
           child.type === FHIR_TYPE_QUANTITY) &&
-        isEmpty(answers[child.linkId]) &&
+        isEmpty(localAnswers[child.linkId]) &&
         !siblingBranchAnswered
       )
         return true;
       if (
         child.type === FHIR_TYPE_CHOICE &&
         !child.repeats &&
-        isEmpty(answers[child.linkId]) &&
+        isEmpty(localAnswers[child.linkId]) &&
         !isIntermediateChoice &&
         !siblingBranchAnswered &&
         !!matchedCode
       )
         return true;
-      /* Recurse into deeper levels */
-      return check(child.item, child);
+      /* Recurse into deeper levels.
+       * For field-label containers: inject synthetic codes so that their
+       * children's enableWhen conditions evaluate correctly even when no
+       * explicit answer is stored for the container yet. */
+      const nextAnswers = isIntermediateChoice
+        ? enrichWithContainerCodes(child, localAnswers)
+        : localAnswers;
+      return check(child.item, child, nextAnswers);
     });
   };
-  return check(question.item, question);
+  return check(question.item, question, answers);
 };
 
 /**
@@ -180,16 +204,17 @@ export const isNestedInputValueMissing = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    localAnswers: Record<string, AyuAnswerValue>
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      if (!evaluateEnableWhen(child.enableWhen, localAnswers)) return false;
 
       /* If child maps to a parent answerOption, only validate if that option is selected */
       const matchedCode = findMatchingOptionCode(child, parent);
       if (matchedCode) {
-        const parentAnswer = answers[parent.linkId];
+        const parentAnswer = localAnswers[parent.linkId];
         const selectedCodes: string[] = Array.isArray(parentAnswer)
           ? (parentAnswer as string[])
           : typeof parentAnswer === 'string'
@@ -203,14 +228,17 @@ export const isNestedInputValueMissing = (
           child.type === FHIR_TYPE_INTEGER ||
           child.type === FHIR_TYPE_DATE ||
           child.type === FHIR_TYPE_QUANTITY) &&
-        isEmpty(answers[child.linkId])
+        isEmpty(localAnswers[child.linkId])
       )
         return true;
-      /* Recurse into deeper levels */
-      return check(child.item, child);
+      /* Recurse into deeper levels — enrich answers for field-label containers */
+      const nextAnswers = isFieldLabelContainer(child)
+        ? enrichWithContainerCodes(child, localAnswers)
+        : localAnswers;
+      return check(child.item, child, nextAnswers);
     });
   };
-  return check(question.item, question);
+  return check(question.item, question, answers);
 };
 
 export const hasMissingNestedBPInput = (
@@ -457,6 +485,9 @@ export const validateQuestion = (
     (isPE && hasMissingNestedBPInput(question, answers)) ||
     isQuantityInvalid(question, answers) ||
     numericOutOfRange ||
+    (question.type === FHIR_TYPE_INTEGER &&
+      ((question.required && isEmpty(rawAnswer)) ||
+        (typeof rawAnswer === 'number' && isNaN(rawAnswer)))) ||
     (question.type === FHIR_TYPE_CHOICE &&
       !!question.repeats &&
       !isAssociated &&
@@ -477,7 +508,10 @@ export const validateQuestion = (
           : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
               (!isPE && isNestedInputValueMissing(question, answers)) ||
               (isPE && hasMissingNestedBPInput(question, answers)) ||
-              isQuantityInvalid(question, answers)
+              isQuantityInvalid(question, answers) ||
+              (question.type === FHIR_TYPE_INTEGER &&
+                ((question.required && isEmpty(rawAnswer)) ||
+                  (typeof rawAnswer === 'number' && isNaN(rawAnswer))))
             ? 'enterValue'
             : 'selectOption';
 

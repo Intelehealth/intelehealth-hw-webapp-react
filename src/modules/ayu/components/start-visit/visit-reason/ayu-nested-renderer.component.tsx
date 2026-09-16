@@ -81,6 +81,26 @@ export const AyuNestedRenderer = ({
     setOpenBranch(FOLLOW_NEWEST);
   }, [parentAnswer]);
 
+  useEffect(() => {
+    if (selectable || !items?.length) return;
+    for (const item of items) {
+      if (!evaluateEnableWhen(item.enableWhen, answers)) continue;
+      if (!isFieldLabelContainer(item)) continue;
+      const allCodes = (item.answerOption ?? [])
+        .map(opt => opt.valueCoding?.code || opt.valueString)
+        .filter((c): c is string => !!c);
+      if (!allCodes.length) continue;
+      const current = answers[item.linkId];
+      const alreadyStored =
+        Array.isArray(current) &&
+        current.length === allCodes.length &&
+        allCodes.every(c => (current as string[]).includes(c));
+      if (!alreadyStored) {
+        setAnswer(item, allCodes);
+      }
+    }
+  }, [items, answers, selectable, setAnswer]);
+
   let selectedCodes: string[] = [];
   if (Array.isArray(parentAnswer)) {
     selectedCodes = parentAnswer;
@@ -283,6 +303,23 @@ export const AyuNestedRenderer = ({
                * the enableWhen condition that references the removed container.
                */
               if (!isFieldLabelContainer(child)) return [child];
+
+              if (child.enableWhen?.length) {
+                const ew = child.enableWhen[0];
+                const code = ew.answerCoding?.code;
+                const qId = ew.question;
+                if (
+                  code &&
+                  children.some(
+                    sib =>
+                      sib !== child &&
+                      sib.enableWhen?.[0]?.answerCoding?.code === code &&
+                      sib.enableWhen?.[0]?.question === qId
+                  )
+                ) {
+                  return [child];
+                }
+              }
               return child.item!.map(sub => {
                 const kept =
                   sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??

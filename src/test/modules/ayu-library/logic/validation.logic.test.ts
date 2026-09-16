@@ -79,6 +79,10 @@ describe('isEmpty', () => {
   it('should return false for objects', () => {
     expect(isEmpty({})).toBe(false);
   });
+
+  it('should return true for NaN', () => {
+    expect(isEmpty(NaN)).toBe(true);
+  });
 });
 
 describe('hasVisibleRequiredNestedString', () => {
@@ -142,6 +146,55 @@ describe('hasVisibleRequiredNestedString', () => {
           type: 'string',
           enableWhen: [
             { question: 'q1', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+        },
+      ],
+    };
+    expect(hasVisibleRequiredNestedString(q, { q1: 'yes' })).toBe(true);
+  });
+
+  it('should return false when the sibling choice branch for the same option is already answered', () => {
+    // Both q1.str and q1.choice are gated on parent option 'yes'.
+    // q1.str has no answer, but q1.choice (a non-leaf sibling) is answered →
+    // isSiblingBranchAnswered returns true → the string child is exempt → result false.
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'yes' } }],
+      item: [
+        {
+          linkId: 'q1.str',
+          type: 'string',
+          enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'yes' } }],
+        },
+        {
+          linkId: 'q1.choice',
+          type: 'choice',
+          enableWhen: [{ question: 'q1', operator: '=', answerCoding: { code: 'yes' } }],
+        },
+      ],
+    };
+    expect(hasVisibleRequiredNestedString(q, { q1: 'yes', 'q1.choice': 'someValue' })).toBe(false);
+  });
+
+  it('should return true for an unanswered string child inside a field-label container', () => {
+    // fl is a field-label container (choice with 1 option, 1 child gated on that option).
+    // fl has no stored answer, so enrichWithContainerCodes injects ['x'] → enables fl.str.
+    // fl.str is empty → returns true.
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [
+        {
+          linkId: 'fl',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'x' } }],
+          item: [
+            {
+              linkId: 'fl.str',
+              type: 'string',
+              enableWhen: [{ question: 'fl', operator: '=', answerCoding: { code: 'x' } }],
+            },
           ],
         },
       ],
@@ -418,8 +471,9 @@ describe('hasUnansweredRequiredNestedChild', () => {
         },
       ],
     };
-    // No answer for q1.1 — selectedCodes is [], grandchild's matching option not selected, so skipped
-    expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes' })).toBe(false);
+    // q1.1 is a field-label container (1 answerOption : 1 item) — enrichWithContainerCodes
+    // injects ['opt1'] so opt1-detail is visible and its missing value triggers true.
+    expect(hasUnansweredRequiredNestedChild(q, { q1: 'yes' })).toBe(true);
   });
 
   it('should validate grandchild with no matching answerOption', () => {
@@ -644,9 +698,9 @@ describe('hasUnansweredRequiredNestedChild', () => {
           },
         ],
       };
-      // fever_container: isIntermediateChoice = true → !isIntermediateChoice = false → branch skipped
-      // fever_yes_detail: hidden (fever_container unanswered) → recursion returns false
-      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(false);
+      // fever_container is a field-label container → enrichWithContainerCodes injects ['yes']
+      // fever_yes_detail becomes visible (enableWhen satisfied) and is unanswered → returns true
+      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(true);
     });
 
     it('skips the !!matchedCode branch when siblingBranchAnswered is true', () => {
@@ -676,6 +730,62 @@ describe('hasUnansweredRequiredNestedChild', () => {
       // !siblingBranchAnswered = false → !!matchedCode branch skipped for fever_duration
       expect(
         hasUnansweredRequiredNestedChild(q, { q: ['fever'], fever_sibling: '1-3 days' })
+      ).toBe(false);
+    });
+  });
+
+  describe('weight-gain / field-label container with required integer child', () => {
+    // Mirrors the real "Amount of weight gained in kgs*" questionnaire structure:
+    //   weightChange (choice) → wg (field-label container, choice, 1 option 'amount')
+    //     → wg_amount (integer, required, enableWhen: wg = 'amount')
+    const weightChangeQ: AyuQuestion = {
+      linkId: 'weightChange',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+      item: [
+        {
+          linkId: 'wg',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'amount', display: 'Amount' } }],
+          enableWhen: [
+            { question: 'weightChange', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+          item: [
+            {
+              linkId: 'wg_amount',
+              type: 'integer',
+              required: true,
+              enableWhen: [
+                { question: 'wg', operator: '=', answerCoding: { code: 'amount' } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('blocks submission when wg_amount is empty (no stored answer for wg)', () => {
+      // User selected 'yes' for weightChange but has not entered a kg value.
+      // wg has no stored answer yet — enrichWithContainerCodes must inject ['amount']
+      // so wg_amount's enableWhen resolves to true and the empty integer is caught.
+      expect(
+        hasUnansweredRequiredNestedChild(weightChangeQ, { weightChange: ['yes'] })
+      ).toBe(true);
+    });
+
+    it('passes validation when wg_amount is filled', () => {
+      expect(
+        hasUnansweredRequiredNestedChild(weightChangeQ, {
+          weightChange: ['yes'],
+          wg_amount: 5,
+        })
+      ).toBe(false);
+    });
+
+    it('passes validation when weightChange is not selected', () => {
+      // wg is hidden (enableWhen not satisfied) → nothing to validate
+      expect(
+        hasUnansweredRequiredNestedChild(weightChangeQ, {})
       ).toBe(false);
     });
   });
@@ -809,8 +919,9 @@ describe('isNestedInputValueMissing', () => {
         },
       ],
     };
-    // No answer for q1.1 — selectedCodes is [], grandchild's matching option not selected, so skipped
-    expect(isNestedInputValueMissing(q, { q1: 'yes' })).toBe(false);
+    // q1.1 is a field-label container — enrichWithContainerCodes injects ['opt1'],
+    // making opt1-detail visible and unanswered → returns true
+    expect(isNestedInputValueMissing(q, { q1: 'yes' })).toBe(true);
   });
 
   it('should validate grandchild with no matching answerOption', () => {
@@ -1994,6 +2105,50 @@ describe('validateQuestion', () => {
       };
       // sys has out-of-range value 300, but enableWhen hides it
       expect(findOutOfRangeQuestionText(q, { bp1: 'yes', sys: '300' })).toBeUndefined();
+    });
+  });
+
+  describe('integer type validation', () => {
+    it('should return enterValue for a required integer with no answer', () => {
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer', required: true };
+      expect(validateQuestion(q, {})).toEqual({ valid: false, reason: 'enterValue' });
+    });
+
+    it('should return enterValue for a required integer with NaN answer', () => {
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer', required: true };
+      expect(validateQuestion(q, { q1: NaN })).toEqual({ valid: false, reason: 'enterValue' });
+    });
+
+    it('should return enterValue for an optional integer with NaN answer', () => {
+      // NaN is always invalid regardless of required flag — the user typed something that
+      // could not be parsed as a number.
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
+      expect(validateQuestion(q, { q1: NaN })).toEqual({ valid: false, reason: 'enterValue' });
+    });
+
+    it('should return valid for an optional integer with no answer', () => {
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
+      expect(validateQuestion(q, {})).toEqual({ valid: true });
+    });
+
+    it('should return valid for an optional integer with a valid numeric answer', () => {
+      const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
+      expect(validateQuestion(q, { q1: 42 })).toEqual({ valid: true });
+    });
+  });
+
+  it('should return selectOption when a required nested choice child is unanswered', () => {
+    // hasUnansweredRequiredNestedChild → true (required choice child, no answer)
+    // isNestedInputValueMissing → false (child is 'choice', not string/integer/date/quantity)
+    // reason resolves to 'selectOption'
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      item: [{ linkId: 'detail', type: 'choice', required: true }],
+    };
+    expect(validateQuestion(q, { q1: 'yes' })).toEqual({
+      valid: false,
+      reason: 'selectOption',
     });
   });
 });

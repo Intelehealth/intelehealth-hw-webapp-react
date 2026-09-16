@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import { AyuNumberInput } from '../../../../../modules/ayu/components/common/ayu-number-input.component';
@@ -384,7 +384,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(3.14);
     });
 
-    it('should pass raw negative value to onChange and show error', () => {
+    it('should reset onChange to empty and show error for out-of-range negative value', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -398,7 +398,7 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-15' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(-15);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
       expect(screen.getByText('Value must be at least 0')).toBeInTheDocument();
     });
 
@@ -513,7 +513,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenNthCalledWith(3, 123);
     });
 
-    it('should pass raw negative decimal to onChange and show error', () => {
+    it('should reset onChange to empty and show error for out-of-range negative decimal', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -527,7 +527,7 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-2.5' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(-2.5);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
       expect(screen.getByText('Value must be at least 0')).toBeInTheDocument();
     });
 
@@ -590,7 +590,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(1000);
     });
 
-    it('should pass raw value exceeding max to onChange and show error when FHIR maxValue is set', () => {
+    it('should reset onChange to empty and show error when value exceeds FHIR maxValue', () => {
       const mockOnChange = vi.fn();
       const questionWithMax: AyuQuestion = {
         ...mockQuestion,
@@ -617,7 +617,7 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '75' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(75);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
       expect(screen.getByText('Value must be at most 50')).toBeInTheDocument();
     });
 
@@ -711,7 +711,7 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '50' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(50);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
       expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
     });
 
@@ -729,7 +729,7 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '300' } });
 
-      expect(mockOnChange).toHaveBeenCalledWith(300);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
       expect(screen.getByText('Value must be at most 260')).toBeInTheDocument();
     });
 
@@ -877,7 +877,7 @@ describe('AyuNumberInput', () => {
       );
       fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '50' } });
       expect(screen.getByText('Value must be at least 60')).toBeInTheDocument();
-      expect(mockOnChange).toHaveBeenCalledWith(50);
+      expect(mockOnChange).toHaveBeenCalledWith(NaN);
     });
 
     it('should show error for systolic value above 260', () => {
@@ -966,6 +966,77 @@ describe('AyuNumberInput', () => {
       // Value 50 is valid for extension range (10-100), even though it's below BP systolic min (60)
       fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '50' } });
       expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('handleBlur (6-second delay)', () => {
+    const requiredQuestion: AyuQuestion = {
+      linkId: 'blur-test',
+      text: 'Required field',
+      type: 'integer',
+      required: true,
+      readOnly: false,
+    };
+
+    it('should NOT show required error immediately on blur (before 6 seconds)', () => {
+      vi.useFakeTimers();
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      // Before the 6-second delay fires, no error should appear
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('should show required error after 6000ms when required field is blurred empty', () => {
+      vi.useFakeTimers();
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      // Still no error before timer fires
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+      // Advance 6 seconds and flush React state updates
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('should NOT show required error after 6000ms when field is optional', () => {
+      vi.useFakeTimers();
+      const optionalQuestion: AyuQuestion = {
+        ...requiredQuestion,
+        required: false,
+      };
+      render(
+        <AyuNumberInput
+          question={optionalQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+      vi.useRealTimers();
     });
   });
 });

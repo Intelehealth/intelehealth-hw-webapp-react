@@ -422,6 +422,38 @@ describe('isFieldLabelContainer', () => {
 
     expect(isFieldLabelContainer(fromTo)).toBe(true);
   });
+
+  it('should NOT treat a question as container when a child has its own nested sub-items', () => {
+   
+    const yesNoWithSubItems: AyuQuestion = {
+      linkId: 'thermometer',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'yes', display: 'Yes' } },
+        { valueCoding: { code: 'no', display: 'No' } },
+      ],
+      item: [
+        {
+          linkId: 'yes-branch',
+          text: 'Yes',
+          type: 'choice',
+          enableWhen: [
+            { question: 'thermometer', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'when', display: 'When' } },
+            { valueCoding: { code: 'temp', display: 'Temperature' } },
+          ],
+          item: [
+            { linkId: 'when-date', type: 'date' },
+            { linkId: 'temp-val', type: 'integer' },
+          ],
+        },
+      ],
+    };
+
+    expect(isFieldLabelContainer(yesNoWithSubItems)).toBe(false);
+  });
 });
 
 describe('isFieldLabelContainer — multi-select questions', () => {

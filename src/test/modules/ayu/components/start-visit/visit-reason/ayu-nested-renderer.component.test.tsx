@@ -3072,6 +3072,191 @@ describe('AyuNestedRenderer', () => {
       });
     });
   });
+
+  describe('useEffect — field-label container allCodes storage', () => {
+
+    const fromToContainer: AyuQuestion = {
+      linkId: 'from-to',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'From', display: 'From' } },
+        { valueCoding: { code: 'To', display: 'To' } },
+      ],
+      item: [
+        { linkId: 'from-date', type: 'date', text: 'From Date' },
+        { linkId: 'to-date', type: 'date', text: 'To Date' },
+      ],
+    };
+
+    it('calls setAnswer with all option codes for an enabled field-label container', () => {
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(mockSetAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'from-to' }),
+        ['From', 'To']
+      );
+    });
+
+    it('does NOT call setAnswer when allCodes are already correctly stored', () => {
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer]}
+          answers={{ 'from-to': ['From', 'To'] }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // alreadyStored = true → no setAnswer call
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call setAnswer for a field-label container in selectable mode', () => {
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      // selectable=true → effect bails out at the guard check
+      expect(mockSetAnswer).not.toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'from-to' }),
+        expect.any(Array)
+      );
+    });
+
+    it('does NOT call setAnswer when the field-label container enableWhen is not satisfied', () => {
+      const gatedContainer: AyuQuestion = {
+        ...fromToContainer,
+        enableWhen: [{ question: 'gate', operator: '=', answerString: 'yes' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[gatedContainer]}
+          answers={{ gate: 'no' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // enableWhen not met → evaluateEnableWhen returns false → skip
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call setAnswer for a non-field-label-container item', () => {
+      /* A real choice question (no item[]) — isFieldLabelContainer returns false. */
+      const realChoice: AyuQuestion = {
+        linkId: 'severity',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'mild', display: 'Mild' } },
+          { valueCoding: { code: 'severe', display: 'Severe' } },
+        ],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[realChoice]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sibling exception in non-selectable field-label bypass', () => {
+    /*
+     * Two field-label containers both enabled by the same parent option code.
+     * The sibling exception prevents flattening either — they render as-is so
+     * their structural boundary is preserved.
+     */
+    const containerA: AyuQuestion = {
+      linkId: 'container-a',
+      text: 'Container A',
+      type: 'choice',
+      enableWhen: [{ question: 'parent', operator: '=', answerCoding: { code: 'yes' } }],
+      answerOption: [
+        { valueCoding: { code: 'From', display: 'From' } },
+        { valueCoding: { code: 'To', display: 'To' } },
+      ],
+      item: [
+        { linkId: 'from-date', type: 'date', text: 'From Date' },
+        { linkId: 'to-date', type: 'date', text: 'To Date' },
+      ],
+    };
+
+    const containerB: AyuQuestion = {
+      linkId: 'container-b',
+      text: 'Container B',
+      type: 'choice',
+      enableWhen: [{ question: 'parent', operator: '=', answerCoding: { code: 'yes' } }],
+      answerOption: [
+        { valueCoding: { code: 'Event', display: 'Event' } },
+      ],
+      item: [
+        { linkId: 'event-date', type: 'date', text: 'Event Date' },
+      ],
+    };
+
+    it('does NOT bypass a field-label container when a sibling shares the same enableWhen option code', () => {
+      render(
+        <AyuNestedRenderer
+          items={[containerA, containerB]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Sibling exception fires: both containers rendered intact (not flattened)
+      expect(screen.getByTestId('renderer-container-a')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-container-b')).toBeInTheDocument();
+    });
+
+    it('DOES bypass a field-label container when it has no sibling sharing the same option code', () => {
+      // Only containerA — no sibling with same code → normal bypass
+      render(
+        <AyuNestedRenderer
+          items={[containerA]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByTestId('renderer-container-a')).not.toBeInTheDocument();
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+    });
+
+    it('DOES bypass a field-label container when its enableWhen has no answerCoding code (code is falsy)', () => {
+      // enableWhen with answerString (no answerCoding.code) → code = undefined → skip sibling check
+      const containerWithStringGate: AyuQuestion = {
+        ...containerA,
+        linkId: 'from-to-string',
+        enableWhen: [{ question: 'parent', operator: '=', answerString: 'yes' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[containerWithStringGate]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByTestId('renderer-from-to-string')).not.toBeInTheDocument();
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('AyuNestedRenderer - branch accordion', () => {
