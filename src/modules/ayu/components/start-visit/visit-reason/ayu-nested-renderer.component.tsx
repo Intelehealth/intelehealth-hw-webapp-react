@@ -384,7 +384,9 @@ export const AyuNestedRenderer = ({
                                   if (
                                     prevItem &&
                                     (prevItem.type === FHIR_TYPE_CHOICE ||
-                                      (prevItem.item?.length ?? 0) > 0)
+                                      (prevItem.item?.length ?? 0) > 0 ||
+                                      (!parentQuestion?.repeats &&
+                                        answers[prevItem.linkId] !== undefined))
                                   ) {
                                     clearNestedAnswers(prevItem);
                                   }
