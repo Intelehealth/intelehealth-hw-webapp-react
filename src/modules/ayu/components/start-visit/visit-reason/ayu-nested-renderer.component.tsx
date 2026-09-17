@@ -49,10 +49,14 @@ type OpenBranch =
 /**
  * A pill in `displayChildren` that was produced by flattening a field-label
  * container (see the `selectable` branch below) carries the container's own
- * linkId here. Two pills sharing the same `_fromContainerId` are independent
- * fields of one group (e.g. Systolic/Diastolic under "Take BP lying down"),
- * not mutually-exclusive alternatives — switching between them must never
- * clear either one's value, regardless of the parent question's `repeats`.
+ * linkId here. A pill carrying `_fromContainerId` — from *any* container, not
+ * just the same one — is a field of a structured measurement group (e.g.
+ * Systolic/Diastolic under "Take BP lying down", or the lying/standing groups
+ * themselves), never a mutually-exclusive alternative. The single-choice
+ * clear-on-switch rule below only applies between pills that carry no
+ * `_fromContainerId` at all (e.g. Distention vs. Diarrhea) — switching
+ * between or within container-flattened groups must never clear a value,
+ * regardless of the parent question's `repeats`.
  */
 type FlattenedItem = AyuQuestion & { _fromContainerId?: string };
 
@@ -128,11 +132,12 @@ export const AyuNestedRenderer = ({
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
     q.type === FHIR_TYPE_CHOICE && !!q.answerOption?.length && !!q.item?.length;
 
-  /* Two pills flattened from the same field-label container (e.g. Systolic/
-   * Diastolic under "Take BP lying down") are independent fields, not
-   * alternatives — see the `FlattenedItem` comment above. */
-  const sameContainer = (a: FlattenedItem, b: FlattenedItem): boolean =>
-    !!a._fromContainerId && a._fromContainerId === b._fromContainerId;
+  /* A pill flattened from any field-label container (e.g. Systolic/Diastolic
+   * under "Take BP lying down", or the lying/standing groups themselves) is
+   * a field of a structured group, never a switch-clears alternative — see
+   * the `FlattenedItem` comment above. Only container-less pills qualify. */
+  const isContainerless = (item: FlattenedItem): boolean =>
+    !item._fromContainerId;
 
   /*
    * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
@@ -428,7 +433,8 @@ export const AyuNestedRenderer = ({
                                       (prevItem.item?.length ?? 0) > 0 ||
                                       (!!parentQuestion &&
                                         !parentQuestion.repeats &&
-                                        !sameContainer(prevItem, item) &&
+                                        isContainerless(prevItem) &&
+                                        isContainerless(item) &&
                                         answers[prevItem.linkId] !== undefined))
                                   ) {
                                     clearNestedAnswers(prevItem);

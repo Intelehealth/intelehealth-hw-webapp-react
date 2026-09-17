@@ -1651,10 +1651,19 @@ describe('AyuNestedRenderer', () => {
         // Real BP questions are single-option concept-tag wrappers, not
         // repeats:true (only checkbox PE items are — fhir-to-ayu.util.ts).
         // Systolic/Diastolic only exist as pills because they were flattened
-        // out of the "Take BP lying down" container, so they must share
-        // _fromContainerId and never clear against each other, regardless of
-        // parentQuestion.repeats being falsy.
+        // out of the "Take BP lying down" container, so they carry
+        // _fromContainerId and isContainerless() is false for both — the
+        // clearing rule never applies to them regardless of parentQuestion.
+        // A real non-repeats parentQuestion is given deliberately so this
+        // exercises isContainerless rather than passing vacuously through
+        // the !!parentQuestion short-circuit.
         const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'bp-parent',
+          type: 'choice',
+          text: 'BP measurements',
+          repeats: false,
+        };
         const items: AyuQuestion[] = [
           {
             linkId: 'take-bp',
@@ -1667,7 +1676,7 @@ describe('AyuNestedRenderer', () => {
           },
         ];
 
-        render(<StatefulHarness items={items} />);
+        render(<StatefulHarness items={items} parentQuestion={parentQuestion} />);
 
         await user.click(screen.getByTestId('selectable-systolic'));
         fireEvent.change(screen.getByTestId('input-systolic'), {
@@ -1682,11 +1691,13 @@ describe('AyuNestedRenderer', () => {
         expect(screen.getByTestId('input-systolic')).toHaveValue('120');
       });
 
-      it('clears across two different flattened containers (sameContainer false-by-mismatch branch)', async () => {
-        // Two distinct containers flattened into the same pill group: pills
-        // share no _fromContainerId, so sameContainer must return false via
-        // the "truthy but different" path (not just "both undefined") —
-        // switching between them clears, same as any other real alternative.
+      it('preserves values across two different flattened containers (lying vs. sitting posture)', async () => {
+        // Two distinct containers flattened into the same pill group (e.g.
+        // lying/standing BP postures revealed under one option): both pills
+        // carry a _fromContainerId (different values), so isContainerless()
+        // is false for both and the clearing rule doesn't apply — they're
+        // independent measurement groups, not alternatives. Only pills with
+        // NO container at all (e.g. Distention vs. Diarrhea) are alternatives.
         const user = userEvent.setup();
         const parentQuestion: AyuQuestion = {
           linkId: 'posture-parent',
@@ -1720,7 +1731,7 @@ describe('AyuNestedRenderer', () => {
 
         await user.click(screen.getByTestId('selectable-systolic-2'));
         await user.click(screen.getByTestId('selectable-systolic'));
-        expect(screen.getByTestId('input-systolic')).toHaveValue('');
+        expect(screen.getByTestId('input-systolic')).toHaveValue('120');
       });
 
       it('clears a deselected leaf value once the user picks a genuine alternative afterwards', async () => {
