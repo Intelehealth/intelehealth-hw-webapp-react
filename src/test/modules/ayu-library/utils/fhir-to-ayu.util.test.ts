@@ -3791,3 +3791,208 @@ describe('isMutuallyExclusiveOption - case insensitivity', () => {
     expect(isMutuallyExclusiveOption(makeQuestion('false'), 'none')).toBe(false);
   });
 });
+
+describe('patchYesNoDisplayPattern – transformFhirToAyu', () => {
+  /**
+   * Mirrors the "Did you recently measure fever using thermometer?" structure
+   * that existed in the Fever & Rash FHIR JSON (the old shape).
+   *
+   * OLD shape (inside a parent 'choice' question):
+   *   ID-961113183  type='choice'  text='Yes'
+   *                 answerOption: [When, Body Temperature]
+   *                 item: [When-date (gated by When), BodyTemp-int (gated by BodyTemp)]
+   *                 enableWhen: [{ID-1234321810 = ID_739994206}]
+   *   ID-617241106  type='display' text='No'
+   *                 enableWhen: [{ID-1234321810 = ID_739994206}]
+   */
+  const makeThermometerQuestionnaire = () => ({
+    resourceType: 'Questionnaire' as const,
+    item: [
+      {
+        linkId: 'ID-1234321810',
+        text: 'Severity of Fever*',
+        type: 'choice',
+        answerOption: [
+          {
+            valueCoding: {
+              code: 'ID_739994206',
+              display: 'Did you recently measure fever using thermometer?*',
+            },
+          },
+        ],
+        item: [
+          {
+            linkId: 'ID-961113183',
+            text: 'Yes',
+            type: 'choice',
+            enableWhen: [
+              {
+                question: 'ID-1234321810',
+                operator: '=',
+                answerCoding: { code: 'ID_739994206' },
+              },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'ID_1919807442', display: 'When' } },
+              {
+                valueCoding: {
+                  code: 'ID_751092164',
+                  display: 'Body Temperature',
+                },
+              },
+            ],
+            item: [
+              {
+                linkId: 'ID-961113183_ID_1919807442',
+                text: 'When',
+                type: 'date',
+                enableWhen: [
+                  {
+                    question: 'ID-961113183',
+                    operator: '=',
+                    answerCoding: { code: 'ID_1919807442' },
+                  },
+                ],
+              },
+              {
+                linkId: 'ID-961113183_ID_751092164',
+                text: 'Body Temperature',
+                type: 'integer',
+                enableWhen: [
+                  {
+                    question: 'ID-961113183',
+                    operator: '=',
+                    answerCoding: { code: 'ID_751092164' },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            linkId: 'ID-617241106',
+            text: 'No',
+            type: 'display',
+            enableWhen: [
+              {
+                question: 'ID-1234321810',
+                operator: '=',
+                answerCoding: { code: 'ID_739994206' },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  it('patches Yes-choice/No-display siblings into a proper Yes/No choice question', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+
+    const severityQ = result?.item?.[0];
+    expect(severityQ?.linkId).toBe('ID-1234321810');
+
+    // The two siblings (Yes-choice, No-display) are replaced by one question
+    expect(severityQ?.item).toHaveLength(1);
+
+    const thermometerQ = severityQ?.item?.[0];
+    expect(thermometerQ?.linkId).toBe('ID_739994206');
+    expect(thermometerQ?.type).toBe('choice');
+    expect(thermometerQ?.text).toBe(
+      'Did you recently measure fever using thermometer?*'
+    );
+
+    // Answer options: Yes (code = yesItem.linkId) and No (code = noItem.linkId)
+    expect(thermometerQ?.answerOption).toHaveLength(2);
+    expect(thermometerQ?.answerOption?.[0].valueCoding?.code).toBe('ID-961113183');
+    expect(thermometerQ?.answerOption?.[0].valueCoding?.display).toBe('Yes');
+    expect(thermometerQ?.answerOption?.[1].valueCoding?.code).toBe('ID-617241106');
+    expect(thermometerQ?.answerOption?.[1].valueCoding?.display).toBe('No');
+
+    // Sub-items are preserved with linkIds intact
+    expect(thermometerQ?.item).toHaveLength(2);
+    expect(thermometerQ?.item?.[0].linkId).toBe('ID-961113183_ID_1919807442');
+    expect(thermometerQ?.item?.[1].linkId).toBe('ID-961113183_ID_751092164');
+  });
+
+  it('rewrites sub-item enableWhen to reference the new question with the Yes code', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+    const thermometerQ = result?.item?.[0]?.item?.[0];
+
+    // Both When and Body Temperature gate on the same Yes code so
+    // isFieldLabelContainer() returns false and they remain hidden until Yes is picked.
+    const whenSub = thermometerQ?.item?.[0];
+    expect(whenSub?.enableWhen?.[0].question).toBe('ID_739994206');
+    expect(whenSub?.enableWhen?.[0].answerCoding?.code).toBe('ID-961113183');
+
+    const tempSub = thermometerQ?.item?.[1];
+    expect(tempSub?.enableWhen?.[0].question).toBe('ID_739994206');
+    expect(tempSub?.enableWhen?.[0].answerCoding?.code).toBe('ID-961113183');
+  });
+
+  it('keeps the new question gated by the parent answer-option code', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+    const thermometerQ = result?.item?.[0]?.item?.[0];
+
+    expect(thermometerQ?.enableWhen).toHaveLength(1);
+    expect(thermometerQ?.enableWhen?.[0].question).toBe('ID-1234321810');
+    expect(thermometerQ?.enableWhen?.[0].answerCoding?.code).toBe('ID_739994206');
+  });
+
+  it('does NOT patch when there is no matching No-display sibling', () => {
+    const questionnaire = {
+      resourceType: 'Questionnaire' as const,
+      item: [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'yes-item',
+              text: 'Yes',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'parent',
+                  operator: '=',
+                  answerCoding: { code: 'opt-a' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'sub-1', display: 'Sub 1' } },
+              ],
+              item: [
+                {
+                  linkId: 'sub-1-item',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'yes-item',
+                      operator: '=',
+                      answerCoding: { code: 'sub-1' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = transformFhirToAyu(
+      questionnaire as unknown as FhirQuestionnaire
+    );
+    // No 'No' display sibling → no patch → yes-item preserved as-is
+    expect(result?.item?.[0]?.item?.[0]?.linkId).toBe('yes-item');
+    expect(result?.item?.[0]?.item?.[0]?.type).toBe('choice');
+  });
+});

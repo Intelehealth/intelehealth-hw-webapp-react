@@ -157,6 +157,124 @@ export function matchesDemographics(
   return true;
 }
 
+/**
+ * Detect and restructure the "Yes-choice / No-display" sibling pattern into a
+ * proper Yes/No choice question so the UI renders it as selectable buttons with
+ * conditional sub-fields.
+ *
+ * Pattern detected (in a parent choice question's item array):
+ *   yesItem  – type='choice', text=/^yes\*?$/i, has answerOption + item[]
+ *              enableWhen references parent with some answer-option code C
+ *   noItem   – type='display', text=/^no\*?$/i
+ *              enableWhen references parent with the same code C
+ *
+ * The pair is replaced by a single new 'choice' question:
+ *   linkId      = C  (the answer-option code that gates both siblings)
+ *   text        = parent.answerOption[C].display
+ *   answerOption = [Yes (code=yesItem.linkId), No (code=noItem.linkId)]
+ *   item[]      = yesItem.item[], but every enableWhen that referenced
+ *                 yesItem is rewritten to reference the new question with
+ *                 the Yes code, so both sub-items gate on the same value
+ *                 and isFieldLabelContainer() returns false for the new Q.
+ */
+function patchYesNoDisplayPattern(
+  parent: AyuQuestion,
+  children: AyuQuestion[]
+): AyuQuestion[] {
+  if (!parent.answerOption?.length) return children;
+
+  let result = children;
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    for (let i = 0; i < result.length; i++) {
+      const yesItem = result[i];
+
+      if (yesItem.type !== FHIR_TYPE_CHOICE) continue;
+      if (!/^yes\*?$/i.test(yesItem.text?.trim() ?? '')) continue;
+      if (!yesItem.answerOption?.length || !yesItem.item?.length) continue;
+      if (!yesItem.enableWhen?.length) continue;
+
+      const gatewayRule = yesItem.enableWhen.find(
+        r => r.question === parent.linkId && r.answerCoding?.code
+      );
+      if (!gatewayRule?.answerCoding?.code) continue;
+
+      const gatewayCode = gatewayRule.answerCoding.code;
+
+      const noIdx = result.findIndex(
+        (s, j) =>
+          j !== i &&
+          s.type === FHIR_TYPE_DISPLAY &&
+          /^no\*?$/i.test(s.text?.trim() ?? '') &&
+          s.enableWhen?.some(
+            r =>
+              r.question === parent.linkId &&
+              r.answerCoding?.code === gatewayCode
+          )
+      );
+      if (noIdx === -1) continue;
+
+      const noItem = result[noIdx];
+
+      const parentOpt = parent.answerOption.find(
+        opt => opt.valueCoding?.code === gatewayCode
+      );
+
+      const newLinkId = gatewayCode;
+
+      const newQuestion: AyuQuestion = {
+        linkId: newLinkId,
+        text: parentOpt?.valueCoding?.display ?? yesItem.text,
+        _text: parentOpt?.valueCoding?._display,
+        type: FHIR_TYPE_CHOICE,
+        enableWhen: [gatewayRule],
+        answerOption: [
+          {
+            valueCoding: {
+              code: yesItem.linkId,
+              display: yesItem.text,
+              _display: yesItem._text,
+            },
+          },
+          {
+            valueCoding: {
+              code: noItem.linkId,
+              display: noItem.text,
+              _display: noItem._text,
+            },
+          },
+        ],
+        item: yesItem.item.map(sub => ({
+          ...sub,
+          enableWhen: sub.enableWhen?.map(r =>
+            r.question === yesItem.linkId
+              ? {
+                  ...r,
+                  question: newLinkId,
+                  answerCoding: r.answerCoding
+                    ? { ...r.answerCoding, code: yesItem.linkId }
+                    : { code: yesItem.linkId },
+                }
+              : r
+          ),
+        })),
+      };
+
+      const insertAt = Math.min(i, noIdx);
+      const patched = result.filter((_, j) => j !== i && j !== noIdx);
+      patched.splice(insertAt, 0, newQuestion);
+      result = patched;
+      changed = true;
+      break;
+    }
+  }
+
+  return result;
+}
+
 function transformItem(
   item: AyuQuestion,
   demographics?: PatientDemographics
@@ -168,6 +286,9 @@ function transformItem(
 
     .filter(child => child.type !== FHIR_TYPE_ATTACHMENT)
     .map(child => transformItem(child, demographics));
+
+  // Restructure any Yes-choice / No-display sibling pairs into proper Yes/No questions
+  const patchedChildren = patchYesNoDisplayPattern(item, children);
 
   const isOptionOrphanedByDemographics = (optCode: string): boolean => {
     const enabledChildren = originalChildren.filter(child =>
@@ -200,7 +321,7 @@ function transformItem(
     answerOption,
     enableWhen: normalizeEnableWhen(item.enableWhen),
     extension: item.extension,
-    item: children,
+    item: patchedChildren,
   };
 }
 
