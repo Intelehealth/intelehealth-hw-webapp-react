@@ -13,6 +13,11 @@ import {
   QUESTION_LABEL_CLASS_TOP,
 } from '../../utils/ayu.constants';
 
+const REQUIRED_ERROR = 'This field is required';
+
+const toDisplay = (value: AyuRendererBaseProps['value']): string =>
+  typeof value === 'number' && !Number.isNaN(value) ? String(value) : '';
+
 export function AyuNumberInput({
   question,
   parent,
@@ -22,21 +27,22 @@ export function AyuNumberInput({
   const inputId = `ayu-number-${question?.linkId}`;
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [focused, setFocused] = useState(false);
 
-  const [displayValue, setDisplayValue] = useState(
-    value !== null && value !== undefined && !Number.isNaN(value)
-      ? String(value)
-      : ''
-  );
+  const [displayValue, setDisplayValue] = useState(toDisplay(value));
 
+  /*
+   * Resync the displayed text from the external `value` only while the field
+   * is NOT focused. `onChange` round-trips through the parent's answers
+   * state on every keystroke, so syncing unconditionally wiped whatever the
+   * user was mid-typing whenever the round-tripped value didn't stringify
+   * back to the same text (most sharply when out-of-range input used to be
+   * reported as NaN, which collapses to '').
+   */
   useEffect(() => {
-    const external =
-      value !== null && value !== undefined && !Number.isNaN(value)
-        ? String(value)
-        : '';
-    setDisplayValue(external);
-    if (!external) setError(null);
-  }, [value]);
+    if (focused) return;
+    setDisplayValue(toDisplay(value));
+  }, [value, focused]);
 
   const bpRange = getBPRangeFromText(question?.text);
   const extMin = question?.extension?.find(
@@ -48,15 +54,13 @@ export function AyuNumberInput({
   const min = extMin ?? bpRange?.min ?? NUMBER_INPUT_DEFAULT_MIN;
   const max = extMax ?? bpRange?.max;
 
-  const REQUIRED_ERROR = 'This field is required';
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setDisplayValue(raw);
 
     if (!raw) {
       setError(touched && question?.required ? REQUIRED_ERROR : null);
-      onChange?.(NaN);
+      onChange?.(undefined);
       return;
     }
     setTouched(true);
@@ -66,15 +70,22 @@ export function AyuNumberInput({
       const msg = 'Please enter a valid number';
       setError(msg);
       showToast('Invalid input', msg, 'error', { toastId: `${inputId}-nan` });
-      onChange?.(NaN);
+      onChange?.(undefined);
       return;
     }
 
+    /*
+     * Out-of-range: report the real parsed number, not a sentinel. Storing
+     * the actual value lets validateQuestion's existing numericOutOfRange
+     * check reject it with the specific range message at Submit — reporting
+     * NaN instead both broke that message (NaN can't be out of range) and
+     * made "cleared" and "out of range" indistinguishable downstream.
+     */
     if (parsed < min) {
       const msg = `Value must be at least ${min}`;
       setError(msg);
       showToast('Invalid input', msg, 'warning', { toastId: `${inputId}-min` });
-      onChange?.(NaN);
+      onChange?.(parsed);
       return;
     }
 
@@ -82,7 +93,7 @@ export function AyuNumberInput({
       const msg = `Value must be at most ${max}`;
       setError(msg);
       showToast('Invalid input', msg, 'warning', { toastId: `${inputId}-max` });
-      onChange?.(NaN);
+      onChange?.(parsed);
       return;
     }
 
@@ -90,18 +101,19 @@ export function AyuNumberInput({
     onChange?.(parsed);
   };
 
+  const handleFocus = () => setFocused(true);
+
   const handleBlur = () => {
-    setTimeout(() => {
-      setTouched(true);
-      const isEmpty =
-        value === null ||
-        value === undefined ||
-        value === '' ||
-        (typeof value === 'string' && !value.trim());
-      if (question?.required && isEmpty) {
-        setError(REQUIRED_ERROR);
-      }
-    }, 6000);
+    setFocused(false);
+    setTouched(true);
+    /*
+     * Read displayValue (local, always current), not the value prop — the
+     * prop only updates after the parent processes this render's onChange,
+     * so checking it here read a stale value from before this keystroke.
+     */
+    if (question?.required && !displayValue.trim()) {
+      setError(REQUIRED_ERROR);
+    }
   };
 
   const label = question
@@ -126,6 +138,7 @@ export function AyuNumberInput({
         {...(max !== undefined && { max })}
         value={displayValue}
         onChange={handleChange}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         onWheel={e => (e.target as HTMLInputElement).blur()}
         disabled={question?.readOnly}

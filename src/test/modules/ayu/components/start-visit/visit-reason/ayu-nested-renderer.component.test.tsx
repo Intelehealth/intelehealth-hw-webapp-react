@@ -3073,8 +3073,18 @@ describe('AyuNestedRenderer', () => {
     });
   });
 
-  describe('useEffect — field-label container allCodes storage', () => {
-
+  describe('enrichedAnswers — field-label container codes (local, not persisted)', () => {
+    /*
+     * A sibling gated on one specific code of a field-label container's
+     * answerOption (e.g. "confirm" only once "To" is meaningful) must become
+     * visible without the user — or the component — ever storing a real
+     * answer on the container itself. This used to be done by calling
+     * setAnswer(container, allCodes) from an effect, which persisted the
+     * codes into shared `answers` and broke the "field-label container has
+     * no stored answer" convention the visit summary relies on (see #335
+     * review). It's now computed locally inside enrichedAnswers instead,
+     * the same way validation.logic.ts's enrichWithContainerCodes does.
+     */
     const fromToContainer: AyuQuestion = {
       linkId: 'from-to',
       type: 'choice',
@@ -3087,53 +3097,30 @@ describe('AyuNestedRenderer', () => {
         { linkId: 'to-date', type: 'date', text: 'To Date' },
       ],
     };
+    const confirmSibling: AyuQuestion = {
+      linkId: 'confirm',
+      text: 'Confirm',
+      type: 'string',
+      enableWhen: [
+        { question: 'from-to', operator: '=', answerCoding: { code: 'To' } },
+      ],
+    };
 
-    it('calls setAnswer with all option codes for an enabled field-label container', () => {
+    it('makes a sibling gated on the container code visible without persisting an answer for the container', () => {
       render(
         <AyuNestedRenderer
-          items={[fromToContainer]}
+          items={[fromToContainer, confirmSibling]}
           answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
-      expect(mockSetAnswer).toHaveBeenCalledWith(
-        expect.objectContaining({ linkId: 'from-to' }),
-        ['From', 'To']
-      );
-    });
-
-    it('does NOT call setAnswer when allCodes are already correctly stored', () => {
-      render(
-        <AyuNestedRenderer
-          items={[fromToContainer]}
-          answers={{ 'from-to': ['From', 'To'] }}
-          setAnswer={mockSetAnswer}
-        />
-      );
-
-      // alreadyStored = true → no setAnswer call
+      expect(screen.getByTestId('renderer-confirm')).toBeInTheDocument();
+      // No effect ever ran setAnswer for the container — visibility is purely local.
       expect(mockSetAnswer).not.toHaveBeenCalled();
     });
 
-    it('does NOT call setAnswer for a field-label container in selectable mode', () => {
-      render(
-        <AyuNestedRenderer
-          items={[fromToContainer]}
-          answers={{}}
-          setAnswer={mockSetAnswer}
-          selectable
-        />
-      );
-
-      // selectable=true → effect bails out at the guard check
-      expect(mockSetAnswer).not.toHaveBeenCalledWith(
-        expect.objectContaining({ linkId: 'from-to' }),
-        expect.any(Array)
-      );
-    });
-
-    it('does NOT call setAnswer when the field-label container enableWhen is not satisfied', () => {
+    it('keeps the sibling hidden when the field-label container enableWhen is not satisfied', () => {
       const gatedContainer: AyuQuestion = {
         ...fromToContainer,
         enableWhen: [{ question: 'gate', operator: '=', answerString: 'yes' }],
@@ -3141,79 +3128,111 @@ describe('AyuNestedRenderer', () => {
 
       render(
         <AyuNestedRenderer
-          items={[gatedContainer]}
+          items={[gatedContainer, confirmSibling]}
           answers={{ gate: 'no' }}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // enableWhen not met → evaluateEnableWhen returns false → skip
+      expect(screen.queryByTestId('renderer-confirm')).not.toBeInTheDocument();
       expect(mockSetAnswer).not.toHaveBeenCalled();
     });
 
-    it('does NOT call setAnswer for a non-field-label-container item', () => {
+    it('does not affect a non-field-label-container item (real choice, no item[])', () => {
       /* A real choice question (no item[]) — isFieldLabelContainer returns false. */
       const realChoice: AyuQuestion = {
         linkId: 'severity',
+        text: 'Severity',
         type: 'choice',
         answerOption: [
           { valueCoding: { code: 'mild', display: 'Mild' } },
           { valueCoding: { code: 'severe', display: 'Severe' } },
         ],
       };
+      const gatedOnSeverity: AyuQuestion = {
+        linkId: 'follow-up',
+        text: 'Follow up',
+        type: 'string',
+        enableWhen: [
+          { question: 'severity', operator: '=', answerCoding: { code: 'mild' } },
+        ],
+      };
 
       render(
         <AyuNestedRenderer
-          items={[realChoice]}
+          items={[realChoice, gatedOnSeverity]}
           answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
-      expect(mockSetAnswer).not.toHaveBeenCalled();
+      // realChoice was never answered, so the sibling stays hidden — confirms
+      // the field-label-container branch didn't fire for a plain choice question.
+      expect(screen.queryByTestId('renderer-follow-up')).not.toBeInTheDocument();
     });
 
-    it('calls setAnswer using opt.valueString when option has no valueCoding.code', () => {
+    it('resolves via opt.valueString when an option has no valueCoding.code', () => {
       const valueStringContainer: AyuQuestion = {
         linkId: 'vs-container',
         type: 'choice',
         answerOption: [{ valueString: 'opt-a' }],
         item: [{ linkId: 'vs-child', type: 'string' }],
       };
+      const gatedOnOptA: AyuQuestion = {
+        linkId: 'gated-on-opt-a',
+        text: 'Gated on opt-a',
+        type: 'string',
+        enableWhen: [
+          {
+            question: 'vs-container',
+            operator: '=',
+            answerCoding: { code: 'opt-a' },
+          },
+        ],
+      };
 
       render(
         <AyuNestedRenderer
-          items={[valueStringContainer]}
+          items={[valueStringContainer, gatedOnOptA]}
           answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
       // opt.valueCoding?.code is undefined → falls through to opt.valueString = 'opt-a'
-      expect(mockSetAnswer).toHaveBeenCalledWith(
-        expect.objectContaining({ linkId: 'vs-container' }),
-        ['opt-a']
-      );
+      expect(screen.getByTestId('renderer-gated-on-opt-a')).toBeInTheDocument();
     });
 
-    it('does NOT call setAnswer when all options have no code or valueString (empty codes)', () => {
+    it('leaves the sibling hidden when all options have no code or valueString (empty codes)', () => {
       const emptyCodesContainer: AyuQuestion = {
         linkId: 'empty-container',
         type: 'choice',
         answerOption: [{}],
         item: [{ linkId: 'empty-child', type: 'string' }],
       };
+      const gatedOnEmpty: AyuQuestion = {
+        linkId: 'gated-on-empty',
+        text: 'Gated on empty',
+        type: 'string',
+        enableWhen: [
+          {
+            question: 'empty-container',
+            operator: '=',
+            answerCoding: { code: 'anything' },
+          },
+        ],
+      };
 
       render(
         <AyuNestedRenderer
-          items={[emptyCodesContainer]}
+          items={[emptyCodesContainer, gatedOnEmpty]}
           answers={{}}
           setAnswer={mockSetAnswer}
         />
       );
 
-      // allCodes filters to [] → early continue → setAnswer never reached
-      expect(mockSetAnswer).not.toHaveBeenCalled();
+      // allCodes filters to [] → the container's linkId is never set → sibling stays hidden
+      expect(screen.queryByTestId('renderer-gated-on-empty')).not.toBeInTheDocument();
     });
   });
 

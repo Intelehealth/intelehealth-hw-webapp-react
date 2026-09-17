@@ -2199,11 +2199,12 @@ describe('validateQuestion', () => {
       expect(validateQuestion(q, { q1: NaN })).toEqual({ valid: false, reason: 'enterValue' });
     });
 
-    it('should return enterValue for an optional integer with NaN answer', () => {
-      // NaN is always invalid regardless of required flag — the user typed something that
-      // could not be parsed as a number.
+    it('should return valid for an optional integer with NaN answer', () => {
+      // NaN is treated as empty (isEmpty), and an optional field is allowed
+      // to be empty — this is what makes clearing an optional integer field
+      // submittable instead of getting stuck rejecting NaN unconditionally.
       const q: AyuQuestion = { linkId: 'q1', type: 'integer' };
-      expect(validateQuestion(q, { q1: NaN })).toEqual({ valid: false, reason: 'enterValue' });
+      expect(validateQuestion(q, { q1: NaN })).toEqual({ valid: true });
     });
 
     it('should return valid for an optional integer with no answer', () => {

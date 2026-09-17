@@ -437,7 +437,7 @@ export const useFHIRStepper = (
         setTimeout(() => {
           goNext();
           isAdvancingRef.current = false;
-        }, 2000);
+        }, 250);
       }
 
       return updated;

@@ -180,10 +180,11 @@ const checkNestedDeep = (
     if (child.answerOption?.length && child.item?.length) {
       const inputSubs = child.item.filter(
         sub =>
-          sub.type === FHIR_TYPE_STRING ||
-          sub.type === FHIR_TYPE_INTEGER ||
-          sub.type === FHIR_TYPE_DATE ||
-          sub.type === FHIR_TYPE_QUANTITY
+          evaluateEnableWhen(sub.enableWhen, answers) &&
+          (sub.type === FHIR_TYPE_STRING ||
+            sub.type === FHIR_TYPE_INTEGER ||
+            sub.type === FHIR_TYPE_DATE ||
+            sub.type === FHIR_TYPE_QUANTITY)
       );
       if (inputSubs.length) {
         const answered = inputSubs.every(sub => {
@@ -1093,7 +1094,20 @@ export const AyuStepperContainer = forwardRef<
                                 ) : undefined
                               }
                               onClick={() => {
-                                if (question.type === FHIR_TYPE_CHOICE) {
+                                /*
+                                 * PE questions are excluded: their sub-questions
+                                 * are optional selectable concept-tags once Yes/No
+                                 * is answered (see validateQuestion's isPE checks,
+                                 * which use hasMissingNestedBPInput instead) — this
+                                 * generic pre-check doesn't know that and would
+                                 * block Submit on an answer validateQuestion (called
+                                 * right below regardless) already treats as valid.
+                                 */
+                                if (
+                                  question.type === FHIR_TYPE_CHOICE &&
+                                  resolveAyuComponent(question) !==
+                                    PHYSICAL_EXAM_OPTIONS_COMPONENT
+                                ) {
                                   const flags = checkNestedDeep(
                                     question.item,
                                     answers

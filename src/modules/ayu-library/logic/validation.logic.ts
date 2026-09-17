@@ -487,8 +487,8 @@ export const validateQuestion = (
     isQuantityInvalid(question, answers) ||
     numericOutOfRange ||
     (question.type === FHIR_TYPE_INTEGER &&
-      ((question.required && isEmpty(rawAnswer)) ||
-        (typeof rawAnswer === 'number' && isNaN(rawAnswer)))) ||
+      question.required &&
+      isEmpty(rawAnswer)) ||
     (question.type === FHIR_TYPE_CHOICE &&
       !!question.repeats &&
       !isAssociated &&
@@ -511,8 +511,8 @@ export const validateQuestion = (
               (isPE && hasMissingNestedBPInput(question, answers)) ||
               isQuantityInvalid(question, answers) ||
               (question.type === FHIR_TYPE_INTEGER &&
-                ((question.required && isEmpty(rawAnswer)) ||
-                  (typeof rawAnswer === 'number' && isNaN(rawAnswer))))
+                question.required &&
+                isEmpty(rawAnswer))
             ? 'enterValue'
             : 'selectOption';
 

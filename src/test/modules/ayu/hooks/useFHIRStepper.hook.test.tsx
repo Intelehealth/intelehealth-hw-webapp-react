@@ -500,7 +500,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(0); // Should NOT advance
     });
 
-    it('should auto-advance for choice without duration after 2000ms', () => {
+    it('should auto-advance for choice without duration after 250ms', () => {
       const { result } = renderHook(() =>
         useFHIRStepper({ questionnaire: mockQuestionnaire })
       );
@@ -519,7 +519,7 @@ describe('useFHIRStepper', () => {
       expect(result.current.currentIndex).toBe(1);
 
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(250);
       });
 
       expect(result.current.currentIndex).toBe(2); // Should advance
@@ -594,7 +594,7 @@ describe('useFHIRStepper', () => {
       });
 
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(250);
       });
 
       // Auto-advance fires goNext → handleComplete → shows summary modal
@@ -646,7 +646,7 @@ describe('useFHIRStepper', () => {
       });
 
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(250);
       });
 
       // skipSummary → onComplete called directly, no modal
@@ -1575,7 +1575,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(2000);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance normally for non-duration choice
@@ -1614,7 +1614,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(2000);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because no nested items to check
@@ -1649,7 +1649,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(2000);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because item array is empty
@@ -2064,7 +2064,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(2000);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because both enableWhen rules match
@@ -2475,7 +2475,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(2000);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because invisible child is skipped
@@ -3994,7 +3994,7 @@ describe('useFHIRStepper', () => {
       act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'answer1'); });
       act(() => { result.current.goNext(); });
       act(() => { result.current.setAnswer(result.current.topLevelItems[1], 'yes'); });
-      act(() => { vi.advanceTimersByTime(2000); });
+      act(() => { vi.advanceTimersByTime(250); });
       act(() => { result.current.setAnswer(result.current.topLevelItems[2], 42); });
       act(() => { result.current.goNext(); });
 
@@ -4655,7 +4655,7 @@ describe('useFHIRStepper', () => {
 
       // Advance past the 2000 ms autoNext timer
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(250);
       });
 
       // camera guard was skipped (camCode=undefined); normal autoNext advanced the index
