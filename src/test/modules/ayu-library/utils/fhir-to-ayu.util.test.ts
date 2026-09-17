@@ -3791,3 +3791,506 @@ describe('isMutuallyExclusiveOption - case insensitivity', () => {
     expect(isMutuallyExclusiveOption(makeQuestion('false'), 'none')).toBe(false);
   });
 });
+
+describe('patchYesNoDisplayPattern – transformFhirToAyu', () => {
+  /**
+   * Mirrors the "Did you recently measure fever using thermometer?" structure
+   * that existed in the Fever & Rash FHIR JSON (the old shape).
+   *
+   * OLD shape (inside a parent 'choice' question):
+   *   ID-961113183  type='choice'  text='Yes'
+   *                 answerOption: [When, Body Temperature]
+   *                 item: [When-date (gated by When), BodyTemp-int (gated by BodyTemp)]
+   *                 enableWhen: [{ID-1234321810 = ID_739994206}]
+   *   ID-617241106  type='display' text='No'
+   *                 enableWhen: [{ID-1234321810 = ID_739994206}]
+   */
+  const makeThermometerQuestionnaire = () => ({
+    resourceType: 'Questionnaire' as const,
+    item: [
+      {
+        linkId: 'ID-1234321810',
+        text: 'Severity of Fever*',
+        type: 'choice',
+        answerOption: [
+          {
+            valueCoding: {
+              code: 'ID_739994206',
+              display: 'Did you recently measure fever using thermometer?*',
+            },
+          },
+        ],
+        item: [
+          {
+            linkId: 'ID-961113183',
+            text: 'Yes',
+            type: 'choice',
+            enableWhen: [
+              {
+                question: 'ID-1234321810',
+                operator: '=',
+                answerCoding: { code: 'ID_739994206' },
+              },
+            ],
+            answerOption: [
+              { valueCoding: { code: 'ID_1919807442', display: 'When' } },
+              {
+                valueCoding: {
+                  code: 'ID_751092164',
+                  display: 'Body Temperature',
+                },
+              },
+            ],
+            item: [
+              {
+                linkId: 'ID-961113183_ID_1919807442',
+                text: 'When',
+                type: 'date',
+                enableWhen: [
+                  {
+                    question: 'ID-961113183',
+                    operator: '=',
+                    answerCoding: { code: 'ID_1919807442' },
+                  },
+                ],
+              },
+              {
+                linkId: 'ID-961113183_ID_751092164',
+                text: 'Body Temperature',
+                type: 'integer',
+                enableWhen: [
+                  {
+                    question: 'ID-961113183',
+                    operator: '=',
+                    answerCoding: { code: 'ID_751092164' },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            linkId: 'ID-617241106',
+            text: 'No',
+            type: 'display',
+            enableWhen: [
+              {
+                question: 'ID-1234321810',
+                operator: '=',
+                answerCoding: { code: 'ID_739994206' },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  it('patches Yes-choice/No-display siblings into a proper Yes/No choice question', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+
+    const severityQ = result?.item?.[0];
+    expect(severityQ?.linkId).toBe('ID-1234321810');
+
+    // The two siblings (Yes-choice, No-display) are replaced by one question
+    expect(severityQ?.item).toHaveLength(1);
+
+    const thermometerQ = severityQ?.item?.[0];
+    expect(thermometerQ?.linkId).toBe('ID_739994206');
+    expect(thermometerQ?.type).toBe('choice');
+    expect(thermometerQ?.text).toBe(
+      'Did you recently measure fever using thermometer?*'
+    );
+
+    // Answer options: Yes (code = yesItem.linkId) and No (code = noItem.linkId)
+    expect(thermometerQ?.answerOption).toHaveLength(2);
+    expect(thermometerQ?.answerOption?.[0].valueCoding?.code).toBe('ID-961113183');
+    expect(thermometerQ?.answerOption?.[0].valueCoding?.display).toBe('Yes');
+    expect(thermometerQ?.answerOption?.[1].valueCoding?.code).toBe('ID-617241106');
+    expect(thermometerQ?.answerOption?.[1].valueCoding?.display).toBe('No');
+
+    // Sub-items are preserved with linkIds intact
+    expect(thermometerQ?.item).toHaveLength(2);
+    expect(thermometerQ?.item?.[0].linkId).toBe('ID-961113183_ID_1919807442');
+    expect(thermometerQ?.item?.[1].linkId).toBe('ID-961113183_ID_751092164');
+  });
+
+  it('rewrites sub-item enableWhen to reference the new question with the Yes code', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+    const thermometerQ = result?.item?.[0]?.item?.[0];
+
+    // Both When and Body Temperature gate on the same Yes code so
+    // isFieldLabelContainer() returns false and they remain hidden until Yes is picked.
+    const whenSub = thermometerQ?.item?.[0];
+    expect(whenSub?.enableWhen?.[0].question).toBe('ID_739994206');
+    expect(whenSub?.enableWhen?.[0].answerCoding?.code).toBe('ID-961113183');
+
+    const tempSub = thermometerQ?.item?.[1];
+    expect(tempSub?.enableWhen?.[0].question).toBe('ID_739994206');
+    expect(tempSub?.enableWhen?.[0].answerCoding?.code).toBe('ID-961113183');
+  });
+
+  it('keeps the new question gated by the parent answer-option code', () => {
+    const result = transformFhirToAyu(
+      makeThermometerQuestionnaire() as unknown as FhirQuestionnaire
+    );
+    const thermometerQ = result?.item?.[0]?.item?.[0];
+
+    expect(thermometerQ?.enableWhen).toHaveLength(1);
+    expect(thermometerQ?.enableWhen?.[0].question).toBe('ID-1234321810');
+    expect(thermometerQ?.enableWhen?.[0].answerCoding?.code).toBe('ID_739994206');
+  });
+
+  it('does NOT patch when there is no matching No-display sibling', () => {
+    const questionnaire = {
+      resourceType: 'Questionnaire' as const,
+      item: [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'opt-a', display: 'Option A' } },
+          ],
+          item: [
+            {
+              linkId: 'yes-item',
+              text: 'Yes',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'parent',
+                  operator: '=',
+                  answerCoding: { code: 'opt-a' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'sub-1', display: 'Sub 1' } },
+              ],
+              item: [
+                {
+                  linkId: 'sub-1-item',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'yes-item',
+                      operator: '=',
+                      answerCoding: { code: 'sub-1' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = transformFhirToAyu(
+      questionnaire as unknown as FhirQuestionnaire
+    );
+    // No 'No' display sibling → no patch → yes-item preserved as-is
+    expect(result?.item?.[0]?.item?.[0]?.linkId).toBe('yes-item');
+    expect(result?.item?.[0]?.item?.[0]?.type).toBe('choice');
+  });
+
+  /**
+   * Branch coverage for individual guard conditions inside patchYesNoDisplayPattern.
+   *
+   * The for-loop processes each child sequentially; every item below exercises a
+   * different guard path without patching (the function returns children unchanged).
+   *
+   * c1 – text is undefined  → line 196: `yesItem.text?.trim() ?? ''` uses '' fallback
+   * c2 – answerOption is [] → line 197: left side of || is truthy → short-circuits
+   * c3 – item array absent  → line 197: right side of || is truthy (item has no entries)
+   * c4 – enableWhen absent  → line 198: `!yesItem.enableWhen?.length` is true
+   * c5 – enableWhen present but references a different question, never parent linkId
+   *                         → line 203: gatewayRule is undefined → guard fires
+   */
+  it('does not patch when individual yes-item guard conditions are not met', () => {
+    const questionnaire = {
+      resourceType: 'Questionnaire' as const,
+      item: [
+        {
+          linkId: 'parent',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'gate', display: 'Question' } },
+          ],
+          item: [
+            // c1: type=choice but text is undefined → line 196 ?? '' branch
+            {
+              linkId: 'c1',
+              type: 'choice',
+              answerOption: [{ valueCoding: { code: 'x' } }],
+              item: [{ linkId: 's1', type: 'string' }],
+              enableWhen: [
+                {
+                  question: 'parent',
+                  operator: '=',
+                  answerCoding: { code: 'gate' },
+                },
+              ],
+            },
+            // c2: text='Yes' but answerOption is empty → line 197 left-side short-circuit
+            {
+              linkId: 'c2',
+              type: 'choice',
+              text: 'Yes',
+              answerOption: [],
+              item: [{ linkId: 's2', type: 'string' }],
+              enableWhen: [
+                {
+                  question: 'parent',
+                  operator: '=',
+                  answerCoding: { code: 'gate' },
+                },
+              ],
+            },
+            // c3: text='Yes', answerOption present, but no item → line 197 right-side true
+            {
+              linkId: 'c3',
+              type: 'choice',
+              text: 'Yes',
+              answerOption: [{ valueCoding: { code: 'x' } }],
+              enableWhen: [
+                {
+                  question: 'parent',
+                  operator: '=',
+                  answerCoding: { code: 'gate' },
+                },
+              ],
+            },
+            // c4: text='Yes', answerOption + item present, but no enableWhen → line 198
+            {
+              linkId: 'c4',
+              type: 'choice',
+              text: 'Yes',
+              answerOption: [{ valueCoding: { code: 'x' } }],
+              item: [{ linkId: 's4', type: 'string' }],
+            },
+            // c5: text='Yes', all present, but enableWhen references a different question
+            //     → line 203: find() returns undefined → guard fires
+            {
+              linkId: 'c5',
+              type: 'choice',
+              text: 'Yes',
+              answerOption: [{ valueCoding: { code: 'x' } }],
+              item: [{ linkId: 's5', type: 'string' }],
+              enableWhen: [
+                {
+                  question: 'other-q',
+                  operator: '=',
+                  answerCoding: { code: 'other-code' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = transformFhirToAyu(
+      questionnaire as unknown as FhirQuestionnaire
+    );
+    const parentQ = result?.item?.[0];
+
+    // None of the items matched the full pattern → no patch → 5 children preserved
+    expect(parentQ?.item).toHaveLength(5);
+    // No synthetic 'gate' question was created
+    expect(parentQ?.item?.find(q => q.linkId === 'gate')).toBeUndefined();
+  });
+
+  /**
+   * Two additional branch paths covered in a single patch scenario:
+   *
+   * Line 211: The findIndex predicate encounters a display sibling whose text is
+   *           undefined. `s.text?.trim() ?? ''` returns '', which fails the /no/
+   *           regex, so that sibling is skipped and the next one becomes the match.
+   *
+   * Line 230: The parent answer-option for the gateway code has no `display` field,
+   *           so `parentOpt?.valueCoding?.display ?? yesItem.text` falls back to
+   *           `yesItem.text` ('Yes') as the new question's text.
+   */
+  it('falls back to yesItem.text when parent option has no display; skips display siblings with no text', () => {
+    const questionnaire = {
+      resourceType: 'Questionnaire' as const,
+      item: [
+        {
+          linkId: 'par',
+          type: 'choice',
+          // Intentionally no `display` on the answer option → line 230 ?? branch
+          answerOption: [{ valueCoding: { code: 'g-code' } }],
+          item: [
+            {
+              linkId: 'yes-lk',
+              text: 'Yes',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'par',
+                  operator: '=',
+                  answerCoding: { code: 'g-code' },
+                },
+              ],
+              answerOption: [{ valueCoding: { code: 'sub', display: 'Sub' } }],
+              item: [
+                {
+                  linkId: 'sub-child',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'yes-lk',
+                      operator: '=',
+                      answerCoding: { code: 'sub' },
+                    },
+                  ],
+                },
+              ],
+            },
+            // display sibling with NO text → line 211: s.text?.trim() ?? '' = ''
+            // The regex fails for '' so this sibling is not treated as the 'No' match
+            {
+              linkId: 'disp-no-text',
+              type: 'display',
+              enableWhen: [
+                {
+                  question: 'par',
+                  operator: '=',
+                  answerCoding: { code: 'g-code' },
+                },
+              ],
+            },
+            // The actual 'No' match that follows the empty-text display sibling
+            {
+              linkId: 'actual-no',
+              text: 'No',
+              type: 'display',
+              enableWhen: [
+                {
+                  question: 'par',
+                  operator: '=',
+                  answerCoding: { code: 'g-code' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = transformFhirToAyu(
+      questionnaire as unknown as FhirQuestionnaire
+    );
+    const parentQ = result?.item?.[0];
+
+    // The yes-lk + actual-no pair is patched into one new question.
+    // disp-no-text is NOT part of the Yes/No pair (its text is undefined, so the
+    // /no/ regex fails and it is skipped by the findIndex predicate at line 211).
+    // It remains as a separate sibling, giving 2 children total.
+    expect(parentQ?.item).toHaveLength(2);
+
+    const newQ = parentQ?.item?.[0];
+    expect(newQ?.linkId).toBe('g-code');
+    // text falls back to yesItem.text ('Yes') because parent option has no display (line 230)
+    expect(newQ?.text).toBe('Yes');
+    // Answer options: Yes (yes-lk) and No (actual-no); the no-text display is excluded
+    expect(newQ?.answerOption?.[0].valueCoding?.code).toBe('yes-lk');
+    expect(newQ?.answerOption?.[1].valueCoding?.code).toBe('actual-no');
+    // The no-text display sibling was not matched as the 'No' option and remains
+    expect(parentQ?.item?.[1]?.linkId).toBe('disp-no-text');
+  });
+
+  /**
+   * Two additional sub-item enableWhen branch paths covered together:
+   *
+   * Line 259 (false branch of `r.answerCoding ? … : …`):
+   *   The first enableWhen rule references the yes-item linkId but carries no
+   *   answerCoding.  The rewrite therefore produces `{ code: yesItem.linkId }`
+   *   from scratch rather than spreading an existing answerCoding object.
+   *
+   * Line 261 (false branch of `r.question === yesItem.linkId ? … : r`):
+   *   The second enableWhen rule references a different question entirely, so
+   *   `r.question !== yesItem.linkId` and the rule is kept as-is.
+   */
+  it('handles sub-item enableWhen with no answerCoding and with rules referencing other questions', () => {
+    const questionnaire = {
+      resourceType: 'Questionnaire' as const,
+      item: [
+        {
+          linkId: 'par2',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'gc', display: 'Question?' } }],
+          item: [
+            {
+              linkId: 'yes-lnk',
+              text: 'Yes',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'par2',
+                  operator: '=',
+                  answerCoding: { code: 'gc' },
+                },
+              ],
+              answerOption: [{ valueCoding: { code: 'opt', display: 'Opt' } }],
+              item: [
+                {
+                  linkId: 'sub-multi',
+                  type: 'string',
+                  enableWhen: [
+                    // Rule 1: references yes-item but has NO answerCoding
+                    //         → line 259: { code: yesItem.linkId } path
+                    {
+                      question: 'yes-lnk',
+                      operator: 'exists',
+                      answerBoolean: true,
+                    },
+                    // Rule 2: references a completely different question
+                    //         → line 261: the rule is returned unchanged
+                    {
+                      question: 'other-question',
+                      operator: '=',
+                      answerCoding: { code: 'other-c' },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              linkId: 'no-lnk',
+              text: 'No',
+              type: 'display',
+              enableWhen: [
+                {
+                  question: 'par2',
+                  operator: '=',
+                  answerCoding: { code: 'gc' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = transformFhirToAyu(
+      questionnaire as unknown as FhirQuestionnaire
+    );
+    const newQ = result?.item?.[0]?.item?.[0];
+    expect(newQ?.linkId).toBe('gc');
+
+    const subItem = newQ?.item?.[0];
+    expect(subItem?.enableWhen).toHaveLength(2);
+
+    // Rule 1 was rewritten: no answerCoding existed, so it was built as { code: 'yes-lnk' }
+    expect(subItem?.enableWhen?.[0].question).toBe('gc');
+    expect(subItem?.enableWhen?.[0].answerCoding?.code).toBe('yes-lnk');
+
+    // Rule 2 was kept unchanged (references a different question)
+    expect(subItem?.enableWhen?.[1].question).toBe('other-question');
+    expect(subItem?.enableWhen?.[1].answerCoding?.code).toBe('other-c');
+  });
+});
