@@ -46,6 +46,16 @@ type OpenBranch =
   | typeof ALL_COLLAPSED
   | { kind: 'branch'; label: string };
 
+/**
+ * A pill in `displayChildren` that was produced by flattening a field-label
+ * container (see the `selectable` branch below) carries the container's own
+ * linkId here. Two pills sharing the same `_fromContainerId` are independent
+ * fields of one group (e.g. Systolic/Diastolic under "Take BP lying down"),
+ * not mutually-exclusive alternatives — switching between them must never
+ * clear either one's value, regardless of the parent question's `repeats`.
+ */
+type FlattenedItem = AyuQuestion & { _fromContainerId?: string };
+
 const getOptionDisplay = (
   question: AyuQuestion | undefined,
   code: string | undefined
@@ -70,6 +80,16 @@ export const AyuNestedRenderer = ({
     string | null | typeof DESELECTED
   >(null);
 
+  /*
+   * Remembers the linkId of the last pill that was actively selected, even
+   * after the user deselects it. Deselecting intentionally keeps a leaf
+   * item's typed value (see the click handler below), but without this the
+   * *next* switch to a different pill has no way to find that leaf and
+   * clear it if the new selection is a genuine alternative: once deselected,
+   * `userChosenOption` becomes the DESELECTED sentinel and loses the linkId.
+   */
+  const [lastActiveLinkId, setLastActiveLinkId] = useState<string | null>(null);
+
   const [openBranch, setOpenBranch] = useState<OpenBranch>(FOLLOW_NEWEST);
 
   /* Reset selected option when the parent answer changes (different children become visible) */
@@ -78,6 +98,7 @@ export const AyuNestedRenderer = ({
     : undefined;
   useEffect(() => {
     setUserChosenOption(null);
+    setLastActiveLinkId(null);
     setOpenBranch(FOLLOW_NEWEST);
   }, [parentAnswer]);
 
@@ -106,6 +127,12 @@ export const AyuNestedRenderer = ({
   /* Check if a choice question has answerOption → item mapping */
   const hasAnswerOptionItemMapping = (q: AyuQuestion) =>
     q.type === FHIR_TYPE_CHOICE && !!q.answerOption?.length && !!q.item?.length;
+
+  /* Two pills flattened from the same field-label container (e.g. Systolic/
+   * Diastolic under "Take BP lying down") are independent fields, not
+   * alternatives — see the `FlattenedItem` comment above. */
+  const sameContainer = (a: FlattenedItem, b: FlattenedItem): boolean =>
+    !!a._fromContainerId && a._fromContainerId === b._fromContainerId;
 
   /*
    * Build enriched answers so that sibling-gated items (enableWhen: operator "exists"
@@ -256,23 +283,33 @@ export const AyuNestedRenderer = ({
          * e.g. "Take the patient's BP lying down" → [Systolic, Diastolic]
          * Keep branching choice items intact (type=choice + answerOption + item)
          */
-        const displayChildren = selectable
-          ? children.flatMap(child => {
+        const displayChildren: FlattenedItem[] = selectable
+          ? children.flatMap((child): FlattenedItem[] => {
               if (!child.item?.length) return [child];
               if (hasAnswerOptionItemMapping(child)) return [child];
               /*
                * Replace the container with its children. Strip any enableWhen
                * that references the removed container so the children remain
                * visible (they are already gated by the container's own
-               * enableWhen on the parent question).
+               * enableWhen on the parent question). Tag each with the
+               * container's linkId so the switch/deselect handlers below know
+               * these pills are independent fields of one group, never
+               * mutually-exclusive alternatives.
                */
               return child.item.map(sub => {
+                const tagged: FlattenedItem = {
+                  ...sub,
+                  _fromContainerId: child.linkId,
+                };
                 if (!sub.enableWhen?.some(ew => ew.question === child.linkId))
-                  return sub;
+                  return tagged;
                 const kept = sub.enableWhen!.filter(
                   ew => ew.question !== child.linkId
                 );
-                return { ...sub, enableWhen: kept.length ? kept : undefined };
+                return {
+                  ...tagged,
+                  enableWhen: kept.length ? kept : undefined,
+                };
               });
             })
           : children.flatMap(child => {
@@ -370,13 +407,17 @@ export const AyuNestedRenderer = ({
                                  * selected option's answers. Fall back to selectedOption
                                  * when userChosenOption hasn't been set yet (e.g. entering
                                  * edit mode where the previous selection comes from
-                                 * existing answers, including those stored on descendants).
+                                 * existing answers, including those stored on descendants),
+                                 * or to lastActiveLinkId when the previous pill was
+                                 * deselected (its own value is deliberately kept on
+                                 * deselect, but it must still be found here if the user
+                                 * then picks a genuine alternative).
                                  */
                                 const prevLinkId =
                                   userChosenOption &&
                                   userChosenOption !== DESELECTED
                                     ? userChosenOption
-                                    : selectedOption;
+                                    : (lastActiveLinkId ?? selectedOption);
                                 if (prevLinkId && prevLinkId !== item.linkId) {
                                   const prevItem = displayChildren.find(
                                     c => c.linkId === prevLinkId
@@ -385,13 +426,16 @@ export const AyuNestedRenderer = ({
                                     prevItem &&
                                     (prevItem.type === FHIR_TYPE_CHOICE ||
                                       (prevItem.item?.length ?? 0) > 0 ||
-                                      (!parentQuestion?.repeats &&
+                                      (!!parentQuestion &&
+                                        !parentQuestion.repeats &&
+                                        !sameContainer(prevItem, item) &&
                                         answers[prevItem.linkId] !== undefined))
                                   ) {
                                     clearNestedAnswers(prevItem);
                                   }
                                 }
                                 setUserChosenOption(item.linkId);
+                                setLastActiveLinkId(item.linkId);
                               }
                             }}
                           />
