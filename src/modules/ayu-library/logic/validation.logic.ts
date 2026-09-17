@@ -66,7 +66,7 @@ const isSiblingBranchAnswered = (
   );
 };
 
-const enrichWithContainerCodes = (
+export const enrichWithContainerCodes = (
   container: AyuQuestion,
   localAnswers: Record<string, AyuAnswerValue>
 ): Record<string, AyuAnswerValue> => {

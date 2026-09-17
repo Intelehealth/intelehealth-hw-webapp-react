@@ -744,6 +744,36 @@ describe('AyuNumberInput', () => {
       expect(input.value).toBe('0');
     });
 
+    it('should display a numeric value that arrives as a string (restored/prefilled answer)', () => {
+      // Regression: toDisplay previously only handled `typeof value === 'number'`,
+      // so a numeric string value (e.g. from a restored answer set) rendered blank.
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={'120' as unknown as number}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('120');
+    });
+
+    it('should display empty string when value prop is NaN', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={NaN}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+
     it('should show "Please enter a valid number" when non-numeric text is set', () => {
       const mockOnChange = vi.fn();
       render(

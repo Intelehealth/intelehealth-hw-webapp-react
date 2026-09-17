@@ -3120,6 +3120,26 @@ describe('AyuNestedRenderer', () => {
       expect(mockSetAnswer).not.toHaveBeenCalled();
     });
 
+    it('does not overwrite a real container answer, so a sibling gated on an unchosen code stays hidden', () => {
+      // Regression: the container-code upgrade used to fire whenever the
+      // stored value wasn't already the full codes array, which included a
+      // REAL user answer like 'From' — overwriting it with ['From', 'To']
+      // and incorrectly revealing the 'To'-gated sibling. It must only
+      // upgrade the synthetic `true` marker, never a real answer.
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer, confirmSibling]}
+          answers={{ 'from-to': 'From' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(
+        screen.queryByTestId('renderer-confirm')
+      ).not.toBeInTheDocument();
+    });
+
     it('keeps the sibling hidden when the field-label container enableWhen is not satisfied', () => {
       const gatedContainer: AyuQuestion = {
         ...fromToContainer,

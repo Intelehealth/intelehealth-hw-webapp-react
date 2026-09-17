@@ -15,8 +15,17 @@ import {
 
 const REQUIRED_ERROR = 'This field is required';
 
-const toDisplay = (value: AyuRendererBaseProps['value']): string =>
-  typeof value === 'number' && !Number.isNaN(value) ? String(value) : '';
+/*
+ * Handles both number (the normal case for this component) and string (a
+ * numeric value can still arrive as a string from a restored/prefilled
+ * answer set) — only null/undefined/NaN/other types collapse to empty.
+ */
+const toDisplay = (value: AyuRendererBaseProps['value']): string => {
+  if (typeof value === 'number')
+    return Number.isNaN(value) ? '' : String(value);
+  if (typeof value === 'string') return value;
+  return '';
+};
 
 export function AyuNumberInput({
   question,

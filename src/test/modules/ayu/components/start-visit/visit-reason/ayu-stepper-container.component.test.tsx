@@ -8919,6 +8919,73 @@ describe('AyuStepperContainer', () => {
       expect(mockGoNext).not.toHaveBeenCalled();
     });
 
+    it('should show Submit and allow it through for a required input gated on its field-label container\'s own code (weight-gain shape)', () => {
+      // Regression (#335 re-review): checkNestedDeep filtered sub-items by
+      // evaluateEnableWhen against raw answers, but a field-label
+      // container's own linkId is never stored in answers — so wg_amount
+      // (gated on wg = 'amount') was always invisible, hasInput came back
+      // false, and the Submit button disappeared entirely even with the
+      // amount filled. Fixed by enriching answers via
+      // enrichWithContainerCodes before the visibility filter, the same way
+      // validateQuestion already does for its own nested checks.
+      const container: AyuQuestion = {
+        linkId: 'wg',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'amount', display: 'Amount' } }],
+        item: [
+          {
+            linkId: 'wg_amount',
+            type: 'integer',
+            required: true,
+            enableWhen: [
+              { question: 'wg', operator: '=', answerCoding: { code: 'amount' } },
+            ],
+          },
+        ],
+      };
+      const question: AyuQuestion = {
+        linkId: 'weight-gain',
+        text: 'Weight gain?',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [container],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        // 'wg' (the field-label container) is intentionally never stored —
+        // that's the convention the visit summary relies on.
+        answers: { 'weight-gain': 'yes', wg_amount: 5 },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // The amount is filled, so neither the pre-check nor validateQuestion
+      // should block Submit.
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
     it('should NOT show enterValue toast when CHOICE nested required string child is answered', () => {
       // Covers branches 78, 79, 80 at line 172:
       // child.required=true → !required=false → right side evaluated: val !== undefined/null/'' all true

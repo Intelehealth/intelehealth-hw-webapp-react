@@ -186,17 +186,19 @@ export const AyuNestedRenderer = ({
          * their own sub-items still need the generic sub-marking to become
          * visible via "exists" chains (see the SD-001..003 tests).
          */
-        if (isFieldLabelContainer(item)) {
+        /*
+         * Only upgrade the generic `true` marker just set above — never a
+         * real stored answer. A field-label container is itself something
+         * the user can answer in selectable mode (e.g. picking 'From'), and
+         * overwriting that with the full code list would make an unchosen
+         * sibling (e.g. gated on 'To') incorrectly appear.
+         */
+        if (isFieldLabelContainer(item) && result[item.linkId] === true) {
           /* v8 ignore next — answerOption is always defined when isFieldLabelContainer is true */
           const allCodes = (item.answerOption ?? [])
             .map(opt => opt.valueCoding?.code || opt.valueString)
             .filter((c): c is string => !!c);
-          const current = result[item.linkId];
-          const alreadyStored =
-            Array.isArray(current) &&
-            current.length === allCodes.length &&
-            allCodes.every(c => (current as string[]).includes(c));
-          if (allCodes.length && !alreadyStored) {
+          if (allCodes.length) {
             result[item.linkId] = allCodes;
             changed = true;
           }

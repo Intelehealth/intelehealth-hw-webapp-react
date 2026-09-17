@@ -10,7 +10,10 @@ import {
 } from 'react';
 import { showToast } from '../../../../../services/toast';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
-import { validateQuestion } from '../../../../ayu-library/logic/validation.logic';
+import {
+  enrichWithContainerCodes,
+  validateQuestion,
+} from '../../../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
@@ -30,6 +33,7 @@ import {
 import {
   collectDescendantLinkIds,
   getRowLabel,
+  isFieldLabelContainer,
 } from '../../../../ayu-library/utils/question.utils';
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
@@ -178,9 +182,20 @@ const checkNestedDeep = (
       };
     }
     if (child.answerOption?.length && child.item?.length) {
+      /*
+       * A field-label container's own linkId is never stored in `answers`
+       * (that's the convention the visit summary relies on), so a sub-item
+       * gated on the container's own code (e.g. wg_amount gated on
+       * wg = 'amount') would always evaluate as invisible against raw
+       * answers. Enrich the same way validateQuestion does before checking
+       * visibility, so real fillable inputs aren't treated as absent.
+       */
+      const visibilityAnswers = isFieldLabelContainer(child)
+        ? enrichWithContainerCodes(child, answers)
+        : answers;
       const inputSubs = child.item.filter(
         sub =>
-          evaluateEnableWhen(sub.enableWhen, answers) &&
+          evaluateEnableWhen(sub.enableWhen, visibilityAnswers) &&
           (sub.type === FHIR_TYPE_STRING ||
             sub.type === FHIR_TYPE_INTEGER ||
             sub.type === FHIR_TYPE_DATE ||
