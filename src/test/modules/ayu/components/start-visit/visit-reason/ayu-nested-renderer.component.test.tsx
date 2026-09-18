@@ -1,7 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
+import type {
+  AyuAnswerValue,
+  AyuQuestion,
+} from '../../../../../../modules/ayu-library/types/ayu.types';
 import { AyuNestedRenderer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-nested-renderer.component';
 
 // Mock AyuRenderer component
@@ -1511,6 +1515,9 @@ describe('AyuNestedRenderer', () => {
       it('does NOT clear leaf input items (integer/string) when switching between them', async () => {
         // Individual leaf inputs (no sub-items, not FHIR_TYPE_CHOICE) preserve
         // their values when the user switches focus — only containers are cleared.
+        // No parentQuestion at all: the single-choice clearing rule requires a
+        // parent to positively signal single-choice semantics, so it never
+        // applies here regardless of `repeats` or container membership.
         const user = userEvent.setup();
         const items: AyuQuestion[] = [
           { linkId: 'systolic', text: 'Systolic', type: 'integer' },
@@ -1528,9 +1535,242 @@ describe('AyuNestedRenderer', () => {
         );
 
         // Switch to diastolic — systolic value must NOT be cleared because
-        // integer items fail both `type === FHIR_TYPE_CHOICE` and `item?.length`
+        // integer items fail both `type === FHIR_TYPE_CHOICE` and `item?.length`,
+        // and there is no parentQuestion to establish single-choice semantics.
         await user.click(screen.getByTestId('selectable-diastolic'));
         expect(mockClearAnswers).not.toHaveBeenCalled();
+      });
+
+      it('clears a non-CHOICE leaf item with a direct answer when switching in single-choice mode', async () => {
+        // Covers the new `!parentQuestion?.repeats && answers[prevItem.linkId] !== undefined`
+        // branch. When the parent does NOT have repeats (single-choice semantics,
+        // e.g. "Abdominal Distention & Diarrhea"), switching from one pill to
+        // another must clear the previous pill's direct answer even if the item
+        // is not FHIR_TYPE_CHOICE and has no sub-items.
+        const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'abd-parent',
+          type: 'choice',
+          text: 'Abdominal Distention & Diarrhea',
+          repeats: false,
+        };
+        const items: AyuQuestion[] = [
+          { linkId: 'distention', text: 'Distention', type: 'string' },
+          { linkId: 'diarrhea', text: 'Diarrhea', type: 'string' },
+        ];
+
+        // 'distention' already has an answer — simulates re-entering edit mode.
+        render(
+          <AyuNestedRenderer
+            items={items}
+            parentQuestion={parentQuestion}
+            answers={{ distention: 'some-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        // Switching to 'diarrhea' must clear the previous 'distention' answer.
+        await user.click(screen.getByTestId('selectable-diarrhea'));
+
+        expect(mockClearAnswers).toHaveBeenCalledWith(
+          expect.arrayContaining(['distention'])
+        );
+      });
+
+      it('does NOT clear a non-CHOICE leaf item with a direct answer when parent has repeats:true', async () => {
+        // Inverse of the single-choice test above. When parentQuestion.repeats=true
+        // the pills are independent inputs (multi-answer mode) and switching must
+        // NOT clear a previously-answered non-CHOICE leaf item.
+        const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'multi-parent',
+          type: 'choice',
+          text: 'Multi-select parent',
+          repeats: true,
+        };
+        const items: AyuQuestion[] = [
+          { linkId: 'opt-x', text: 'Option X', type: 'string' },
+          { linkId: 'opt-y', text: 'Option Y', type: 'string' },
+        ];
+
+        render(
+          <AyuNestedRenderer
+            items={items}
+            parentQuestion={parentQuestion}
+            answers={{ 'opt-x': 'entered-value' }}
+            setAnswer={mockSetAnswer}
+            clearAnswers={mockClearAnswers}
+            selectable
+          />
+        );
+
+        await user.click(screen.getByTestId('selectable-opt-y'));
+        expect(mockClearAnswers).not.toHaveBeenCalled();
+      });
+
+      /*
+       * Stateful harness: wires setAnswer/clearAnswers to real React state the
+       * way AyuStepperContainer does, so `answers` actually reflects what was
+       * typed/cleared between clicks — a static `answers` prop can't exercise
+       * these two container/deselect regressions (see reviewer notes on #336).
+       */
+      const StatefulHarness = ({
+        items,
+        parentQuestion,
+        initialAnswers = {},
+      }: {
+        items: AyuQuestion[];
+        parentQuestion?: AyuQuestion;
+        initialAnswers?: Record<string, AyuAnswerValue>;
+      }) => {
+        const [answers, setAnswers] =
+          useState<Record<string, AyuAnswerValue>>(initialAnswers);
+        const setAnswer = (question: AyuQuestion, value: AyuAnswerValue) =>
+          setAnswers(prev => ({ ...prev, [question.linkId]: value }));
+        const clearAnswers = (linkIds: string[]) =>
+          setAnswers(prev => {
+            const next = { ...prev };
+            linkIds.forEach(id => delete next[id]);
+            return next;
+          });
+        return (
+          <AyuNestedRenderer
+            items={items}
+            parentQuestion={parentQuestion}
+            answers={answers}
+            setAnswer={setAnswer}
+            clearAnswers={clearAnswers}
+            selectable
+          />
+        );
+      };
+
+      it('preserves Systolic when switching to Diastolic for a real (non-repeats) BP container', async () => {
+        // Real BP questions are single-option concept-tag wrappers, not
+        // repeats:true (only checkbox PE items are — fhir-to-ayu.util.ts).
+        // Systolic/Diastolic only exist as pills because they were flattened
+        // out of the "Take BP lying down" container, so they carry
+        // _fromContainerId and isContainerless() is false for both — the
+        // clearing rule never applies to them regardless of parentQuestion.
+        // A real non-repeats parentQuestion is given deliberately so this
+        // exercises isContainerless rather than passing vacuously through
+        // the !!parentQuestion short-circuit.
+        const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'bp-parent',
+          type: 'choice',
+          text: 'BP measurements',
+          repeats: false,
+        };
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'take-bp',
+            text: "Take the patient's BP lying down",
+            type: 'string',
+            item: [
+              { linkId: 'systolic', text: 'Systolic', type: 'integer' },
+              { linkId: 'diastolic', text: 'Diastolic', type: 'integer' },
+            ],
+          },
+        ];
+
+        render(<StatefulHarness items={items} parentQuestion={parentQuestion} />);
+
+        await user.click(screen.getByTestId('selectable-systolic'));
+        fireEvent.change(screen.getByTestId('input-systolic'), {
+          target: { value: '120' },
+        });
+
+        await user.click(screen.getByTestId('selectable-diastolic'));
+        // Systolic's input is unmounted while Diastolic is selected (only the
+        // active pill's renderer is shown) — assert via the systolic pill's
+        // "answered" affordance instead: switch back and confirm it survived.
+        await user.click(screen.getByTestId('selectable-systolic'));
+        expect(screen.getByTestId('input-systolic')).toHaveValue('120');
+      });
+
+      it('preserves values across two different flattened containers (lying vs. sitting posture)', async () => {
+        // Two distinct containers flattened into the same pill group (e.g.
+        // lying/standing BP postures revealed under one option): both pills
+        // carry a _fromContainerId (different values), so isContainerless()
+        // is false for both and the clearing rule doesn't apply — they're
+        // independent measurement groups, not alternatives. Only pills with
+        // NO container at all (e.g. Distention vs. Diarrhea) are alternatives.
+        const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'posture-parent',
+          type: 'choice',
+          text: 'BP posture',
+          repeats: false,
+        };
+        const items: AyuQuestion[] = [
+          {
+            linkId: 'take-bp-lying',
+            text: "Take the patient's BP lying down",
+            type: 'string',
+            item: [{ linkId: 'systolic', text: 'Systolic', type: 'integer' }],
+          },
+          {
+            linkId: 'take-bp-sitting',
+            text: "Take the patient's BP sitting",
+            type: 'string',
+            item: [
+              { linkId: 'systolic-2', text: 'Systolic (sitting)', type: 'integer' },
+            ],
+          },
+        ];
+
+        render(<StatefulHarness items={items} parentQuestion={parentQuestion} />);
+
+        await user.click(screen.getByTestId('selectable-systolic'));
+        fireEvent.change(screen.getByTestId('input-systolic'), {
+          target: { value: '120' },
+        });
+
+        await user.click(screen.getByTestId('selectable-systolic-2'));
+        await user.click(screen.getByTestId('selectable-systolic'));
+        expect(screen.getByTestId('input-systolic')).toHaveValue('120');
+      });
+
+      it('clears a deselected leaf value once the user picks a genuine alternative afterwards', async () => {
+        // select Distention -> type -> deselect -> select Diarrhea -> type.
+        // Distention's stale value must be cleared on the Diarrhea switch,
+        // even though `userChosenOption` was DESELECTED in between and lost
+        // the linkId — lastActiveLinkId must pick up the slack.
+        const user = userEvent.setup();
+        const parentQuestion: AyuQuestion = {
+          linkId: 'abd-parent',
+          type: 'choice',
+          text: 'Abdominal Distention & Diarrhea',
+          repeats: false,
+        };
+        const items: AyuQuestion[] = [
+          { linkId: 'distention', text: 'Distention', type: 'string' },
+          { linkId: 'diarrhea', text: 'Diarrhea', type: 'string' },
+        ];
+
+        render(<StatefulHarness items={items} parentQuestion={parentQuestion} />);
+
+        await user.click(screen.getByTestId('selectable-distention'));
+        fireEvent.change(screen.getByTestId('input-distention'), {
+          target: { value: 'some detail' },
+        });
+
+        // Deselect — value intentionally kept.
+        await user.click(screen.getByTestId('selectable-distention'));
+
+        // Switch to the genuine alternative.
+        await user.click(screen.getByTestId('selectable-diarrhea'));
+        fireEvent.change(screen.getByTestId('input-diarrhea'), {
+          target: { value: 'other detail' },
+        });
+
+        // Switching back to distention must show an empty field, not the
+        // stale "some detail" that should have been cleared on the switch.
+        await user.click(screen.getByTestId('selectable-distention'));
+        expect(screen.getByTestId('input-distention')).toHaveValue('');
       });
 
       it('clears a non-CHOICE displayChild that has sub-items when switching (covers prevItem.item?.length branch)', async () => {
