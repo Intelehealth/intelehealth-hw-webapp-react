@@ -10,7 +10,10 @@ import {
 } from 'react';
 import { showToast } from '../../../../../services/toast';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
-import { validateQuestion } from '../../../../ayu-library/logic/validation.logic';
+import {
+  enrichWithContainerCodes,
+  validateQuestion,
+} from '../../../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,
@@ -30,6 +33,7 @@ import {
 import {
   collectDescendantLinkIds,
   getRowLabel,
+  isFieldLabelContainer,
 } from '../../../../ayu-library/utils/question.utils';
 import iconYes from '../../../assets/yes.svg';
 import { useFHIRStepper } from '../../../hooks/useFHIRStepper.hook';
@@ -104,7 +108,7 @@ const formatAnswerValue = (
     return answer;
   }
 
-  if (typeof answer === 'number') return String(answer);
+  if (typeof answer === 'number') return isNaN(answer) ? null : String(answer);
 
   return null;
 };
@@ -124,8 +128,19 @@ const hasNestedBPInputs = (question: AyuQuestion): boolean => {
 const checkNestedDeep = (
   items: AyuQuestion[] | undefined,
   answers: Record<string, AyuAnswerValue>
-): { hasDuration: boolean; hasRepeats: boolean; hasInput: boolean } => {
-  if (!items) return { hasDuration: false, hasRepeats: false, hasInput: false };
+): {
+  hasDuration: boolean;
+  hasRepeats: boolean;
+  hasInput: boolean;
+  hasInputAnswered: boolean;
+} => {
+  if (!items?.length)
+    return {
+      hasDuration: false,
+      hasRepeats: false,
+      hasInput: false,
+      hasInputAnswered: false,
+    };
   for (const child of items) {
     if (!evaluateEnableWhen(child.enableWhen, answers)) continue;
     const childAnswer = answers[child.linkId];
@@ -134,10 +149,20 @@ const checkNestedDeep = (
       typeof childAnswer === 'object' &&
       'dropdownValues' in childAnswer
     ) {
-      return { hasDuration: true, hasRepeats: false, hasInput: false };
+      return {
+        hasDuration: true,
+        hasRepeats: false,
+        hasInput: false,
+        hasInputAnswered: false,
+      };
     }
     if (child.repeats) {
-      return { hasDuration: false, hasRepeats: true, hasInput: false };
+      return {
+        hasDuration: false,
+        hasRepeats: true,
+        hasInput: false,
+        hasInputAnswered: false,
+      };
     }
     if (
       child.type === FHIR_TYPE_STRING ||
@@ -145,23 +170,65 @@ const checkNestedDeep = (
       child.type === FHIR_TYPE_DATE ||
       child.type === FHIR_TYPE_QUANTITY
     ) {
-      return { hasDuration: false, hasRepeats: false, hasInput: true };
+      const val = answers[child.linkId];
+      const answered =
+        !child.required ||
+        (val !== undefined && val !== null && val !== '' && !Number.isNaN(val));
+      return {
+        hasDuration: false,
+        hasRepeats: false,
+        hasInput: true,
+        hasInputAnswered: answered,
+      };
     }
     if (child.answerOption?.length && child.item?.length) {
-      const hasDirectInput = child.item.some(
+      /*
+       * A field-label container's own linkId is never stored in `answers`
+       * (that's the convention the visit summary relies on), so a sub-item
+       * gated on the container's own code (e.g. wg_amount gated on
+       * wg = 'amount') would always evaluate as invisible against raw
+       * answers. Enrich the same way validateQuestion does before checking
+       * visibility, so real fillable inputs aren't treated as absent.
+       */
+      const visibilityAnswers = isFieldLabelContainer(child)
+        ? enrichWithContainerCodes(child, answers)
+        : answers;
+      const inputSubs = child.item.filter(
         sub =>
-          sub.type === FHIR_TYPE_STRING ||
-          sub.type === FHIR_TYPE_INTEGER ||
-          sub.type === FHIR_TYPE_DATE ||
-          sub.type === FHIR_TYPE_QUANTITY
+          evaluateEnableWhen(sub.enableWhen, visibilityAnswers) &&
+          (sub.type === FHIR_TYPE_STRING ||
+            sub.type === FHIR_TYPE_INTEGER ||
+            sub.type === FHIR_TYPE_DATE ||
+            sub.type === FHIR_TYPE_QUANTITY)
       );
-      if (hasDirectInput)
-        return { hasDuration: false, hasRepeats: false, hasInput: true };
+      if (inputSubs.length) {
+        const answered = inputSubs.every(sub => {
+          const val = answers[sub.linkId];
+          return (
+            !sub.required ||
+            (val !== undefined &&
+              val !== null &&
+              val !== '' &&
+              !Number.isNaN(val))
+          );
+        });
+        return {
+          hasDuration: false,
+          hasRepeats: false,
+          hasInput: true,
+          hasInputAnswered: answered,
+        };
+      }
     }
     const deep = checkNestedDeep(child.item, answers);
     if (deep.hasDuration || deep.hasRepeats || deep.hasInput) return deep;
   }
-  return { hasDuration: false, hasRepeats: false, hasInput: false };
+  return {
+    hasDuration: false,
+    hasRepeats: false,
+    hasInput: false,
+    hasInputAnswered: false,
+  };
 };
 
 const isPlainSingleChoicePE = (
@@ -991,6 +1058,7 @@ export const AyuStepperContainer = forwardRef<
                                     hasDuration: false,
                                     hasRepeats: false,
                                     hasInput: false,
+                                    hasInputAnswered: false,
                                   };
                             const hasNestedDuration = nestedFlags.hasDuration;
                             const hasNestedRepeats = nestedFlags.hasRepeats;
@@ -1010,7 +1078,14 @@ export const AyuStepperContainer = forwardRef<
                               (question.type === FHIR_TYPE_QUANTITY &&
                                 answers[question.linkId] !== undefined) ||
                               question.type === FHIR_TYPE_DATE ||
-                              question.type === FHIR_TYPE_INTEGER ||
+                              (question.type === FHIR_TYPE_INTEGER &&
+                                (!question.required ||
+                                  (answers[question.linkId] !== undefined &&
+                                    answers[question.linkId] !== null &&
+                                    answers[question.linkId] !== '' &&
+                                    !Number.isNaN(
+                                      answers[question.linkId]
+                                    )))) ||
                               (question.type === FHIR_TYPE_CHOICE &&
                                 question.repeats) ||
                               resolveAyuComponent(question) ===
@@ -1034,6 +1109,36 @@ export const AyuStepperContainer = forwardRef<
                                 ) : undefined
                               }
                               onClick={() => {
+                                /*
+                                 * PE questions are excluded: their sub-questions
+                                 * are optional selectable concept-tags once Yes/No
+                                 * is answered (see validateQuestion's isPE checks,
+                                 * which use hasMissingNestedBPInput instead) — this
+                                 * generic pre-check doesn't know that and would
+                                 * block Submit on an answer validateQuestion (called
+                                 * right below regardless) already treats as valid.
+                                 */
+                                if (
+                                  question.type === FHIR_TYPE_CHOICE &&
+                                  resolveAyuComponent(question) !==
+                                    PHYSICAL_EXAM_OPTIONS_COMPONENT
+                                ) {
+                                  const flags = checkNestedDeep(
+                                    question.item,
+                                    answers
+                                  );
+                                  if (
+                                    flags.hasInput &&
+                                    !flags.hasInputAnswered
+                                  ) {
+                                    showToast(
+                                      validationMessageForReason('enterValue'),
+                                      undefined,
+                                      'warning'
+                                    );
+                                    return;
+                                  }
+                                }
                                 const result = validateQuestion(
                                   question,
                                   answers,

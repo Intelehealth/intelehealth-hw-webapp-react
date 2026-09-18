@@ -161,6 +161,13 @@ describe('buildVisitSummary', () => {
       expect(result).toEqual([]);
     });
 
+    it('should skip integer answer when value is NaN', () => {
+      const questions = [makeQuestion({ type: 'integer' })];
+      const answers = new Map<string, AyuAnswerValue>([['q1', NaN]]);
+      const result = buildVisitSummary(questions, answers, 'Visit');
+      expect(result).toEqual([]);
+    });
+
     it('should skip when string answer equals label (display-only)', () => {
       const questions = [makeQuestion({ type: 'string', text: 'Question 1' })];
       const answers = new Map<string, AyuAnswerValue>([

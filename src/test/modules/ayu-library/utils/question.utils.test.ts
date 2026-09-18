@@ -422,6 +422,55 @@ describe('isFieldLabelContainer', () => {
 
     expect(isFieldLabelContainer(fromTo)).toBe(true);
   });
+
+  it('should NOT treat a question as container when a child has its own nested sub-items', () => {
+   
+    const yesNoWithSubItems: AyuQuestion = {
+      linkId: 'thermometer',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'yes', display: 'Yes' } },
+        { valueCoding: { code: 'no', display: 'No' } },
+      ],
+      item: [
+        {
+          linkId: 'yes-branch',
+          text: 'Yes',
+          type: 'choice',
+          enableWhen: [
+            { question: 'thermometer', operator: '=', answerCoding: { code: 'yes' } },
+          ],
+          answerOption: [
+            { valueCoding: { code: 'when', display: 'When' } },
+            { valueCoding: { code: 'temp', display: 'Temperature' } },
+          ],
+          item: [
+            { linkId: 'when-date', type: 'date' },
+            { linkId: 'temp-val', type: 'integer' },
+          ],
+        },
+      ],
+    };
+
+    expect(isFieldLabelContainer(yesNoWithSubItems)).toBe(false);
+  });
+
+  it('should NOT treat question as container when child has item but no answerOption', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'yes' } }],
+      item: [
+        {
+          linkId: 'yes-branch',
+          type: 'string',
+          // No answerOption — line 55 does not trigger
+          item: [{ linkId: 'yes-detail', type: 'string' }], // Has item → line 56 triggers
+        },
+      ],
+    };
+    expect(isFieldLabelContainer(q)).toBe(false);
+  });
 });
 
 describe('isFieldLabelContainer — multi-select questions', () => {

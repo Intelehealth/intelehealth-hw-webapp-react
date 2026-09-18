@@ -5955,6 +5955,19 @@ describe('AyuStepperContainer', () => {
       });
       expect(container.querySelectorAll('p.text-sm.font-semibold')).toHaveLength(0);
     });
+
+    it('should return null primary value when number answer is NaN', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Age',
+        type: 'integer',
+      };
+      const { container } = renderAnswered(question, {
+        q1: NaN as unknown as AyuAnswerValue,
+      });
+      // isNaN(NaN) → null → no answer display element
+      expect(container.querySelectorAll('p.text-sm.font-semibold')).toHaveLength(0);
+    });
   });
 
   describe('collectAnsweredRows nested row without label', () => {
@@ -8735,6 +8748,363 @@ describe('AyuStepperContainer', () => {
       );
 
       expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+  });
+
+  describe('checkNestedDeep and Submit button coverage', () => {
+    it('should show Submit for integer question with required=false even without an answer', () => {
+      // Covers the !question.required short-circuit in the isAnswered IIFE for FHIR_TYPE_INTEGER
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Age',
+        type: 'integer',
+        required: false,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: {},
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+    });
+
+    it('should NOT show enterValue toast when CHOICE nested child is non-required and answered', () => {
+      // Covers !child.required short-circuit in checkNestedDeep → answered=true via short-circuit
+      // (providing an answer also makes validateQuestion pass so no secondary toast is shown)
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Fever?',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'q1-detail',
+            type: 'string',
+            // required not set → !required = true → answered short-circuits to true
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes', 'q1-detail': 'some text' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // !child.required short-circuits hasInputAnswered=true → no enterValue toast from checkNestedDeep
+      // validateQuestion also passes (child has answer) → goNext is called
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should NOT show enterValue toast when nested choice sub-item is non-required and answered', () => {
+      // Covers !sub.required short-circuit in inputSubs.every inside checkNestedDeep
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Exam',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'q1-sub',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+            item: [
+              {
+                linkId: 'q1-sub-detail',
+                type: 'string',
+                // required not set → !sub.required = true → every() returns true
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes', 'q1-sub-detail': 'some text' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // !sub.required short-circuits hasInputAnswered=true → no enterValue toast from checkNestedDeep
+      // validateQuestion also passes (child has answer) → goNext is called
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should show enterValue toast when CHOICE has a required unanswered nested string child', () => {
+      // Covers flags.hasInput && !flags.hasInputAnswered → showToast block in onClick
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Fever?',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'q1-detail',
+            type: 'string',
+            required: true,
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes' }, // parent answered but child unanswered
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(mockShowToast).toHaveBeenCalledWith('Please enter a value', undefined, 'warning');
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('should show Submit and allow it through for a required input gated on its field-label container\'s own code (weight-gain shape)', () => {
+      // Regression (#335 re-review): checkNestedDeep filtered sub-items by
+      // evaluateEnableWhen against raw answers, but a field-label
+      // container's own linkId is never stored in answers — so wg_amount
+      // (gated on wg = 'amount') was always invisible, hasInput came back
+      // false, and the Submit button disappeared entirely even with the
+      // amount filled. Fixed by enriching answers via
+      // enrichWithContainerCodes before the visibility filter, the same way
+      // validateQuestion already does for its own nested checks.
+      const container: AyuQuestion = {
+        linkId: 'wg',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'amount', display: 'Amount' } }],
+        item: [
+          {
+            linkId: 'wg_amount',
+            type: 'integer',
+            required: true,
+            enableWhen: [
+              { question: 'wg', operator: '=', answerCoding: { code: 'amount' } },
+            ],
+          },
+        ],
+      };
+      const question: AyuQuestion = {
+        linkId: 'weight-gain',
+        text: 'Weight gain?',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [container],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        // 'wg' (the field-label container) is intentionally never stored —
+        // that's the convention the visit summary relies on.
+        answers: { 'weight-gain': 'yes', wg_amount: 5 },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // The amount is filled, so neither the pre-check nor validateQuestion
+      // should block Submit.
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should NOT show enterValue toast when CHOICE nested required string child is answered', () => {
+      // Covers branches 78, 79, 80 at line 172:
+      // child.required=true → !required=false → right side evaluated: val !== undefined/null/'' all true
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Symptom?',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [{ linkId: 'q1-detail', type: 'string', required: true }],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes', 'q1-detail': 'some detail' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // required=true + val='some detail' → answered=true → no enterValue toast
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should NOT show enterValue toast when nested choice has required answered string sub-item', () => {
+      // Covers branch 95 (line 192) + statements 193-196:
+      // sub.required=true → !sub.required=false → right side of || evaluated → all conditions true → answered=true
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Exam',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [
+          {
+            linkId: 'q1-sub',
+            type: 'choice',
+            answerOption: [{ valueCoding: { code: 'a', display: 'A' } }],
+            item: [
+              {
+                linkId: 'q1-sub-detail',
+                type: 'string',
+                required: true, // required=true so !sub.required=false → right side evaluated
+              },
+            ],
+          },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes', 'q1-sub-detail': 'some detail' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      // sub.required=true + val='some detail' → statements 193-196 evaluated as true → no toast
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
+
+    it('should show Submit button for required integer with valid answer (covers lines 1067-1072)', () => {
+      // Covers branch 407 (line 1066) + statements 1067-1072:
+      // required=true → !required=false → right side of || evaluated: val=42 → all conditions true → Submit shown
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Age',
+        type: 'integer',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 42 },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // IIFE: FHIR_TYPE_INTEGER && (!required=false || (val!==undefined && val!==null && val!=='' && !isNaN(42))) → true
+      expect(screen.getByTestId('button-submit')).toBeInTheDocument();
     });
   });
 });

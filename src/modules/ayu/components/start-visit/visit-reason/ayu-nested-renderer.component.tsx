@@ -156,6 +156,14 @@ export const AyuNestedRenderer = ({
    * and rarely changes. This avoids re-running the loop when only local state
    * (e.g. selectedOption) changes — such as when the user clicks a pill button.
    *
+   * Field-label containers (see isFieldLabelContainer) get their linkId set to
+   * the full array of their answerOption codes rather than `true`, mirroring
+   * enrichWithContainerCodes in validation.logic.ts — computed locally here
+   * instead of persisted to shared answers, so a sibling gated on one
+   * specific code (enableWhen answerCoding.code) can be satisfied without the
+   * container ever being answered directly, without flipping the "field-label
+   * container has no stored answer" convention the visit summary relies on.
+   *
    * CYCLE GUARD: in a valid acyclic graph of n items at most n state changes can
    * occur, so convergence is guaranteed within n+1 passes. The cap at items.length+2
    * ensures the loop always terminates — contradictory or self-referential enableWhen
@@ -173,18 +181,22 @@ export const AyuNestedRenderer = ({
       passes++;
       for (const item of items) {
         const enabled = evaluateEnableWhen(item.enableWhen, result);
-        if (!enabled && result[item.linkId] !== undefined) {
-          delete result[item.linkId];
-          changed = true;
-          if (hasAnswerOptionItemMapping(item)) {
-            for (const sub of item.item!) {
-              if (result[sub.linkId] === true) {
-                delete result[sub.linkId];
-                changed = true;
+        if (!enabled) {
+          if (result[item.linkId] !== undefined) {
+            delete result[item.linkId];
+            changed = true;
+            if (hasAnswerOptionItemMapping(item)) {
+              for (const sub of item.item!) {
+                if (result[sub.linkId] === true) {
+                  delete result[sub.linkId];
+                  changed = true;
+                }
               }
             }
           }
-        } else if (enabled && result[item.linkId] === undefined) {
+          continue;
+        }
+        if (result[item.linkId] === undefined) {
           result[item.linkId] = true;
           changed = true;
           if (hasAnswerOptionItemMapping(item)) {
@@ -194,6 +206,33 @@ export const AyuNestedRenderer = ({
                 changed = true;
               }
             }
+          }
+        }
+        /*
+         * Additionally upgrade a field-label container's own linkId from the
+         * generic `true` marker above to the full array of its answerOption
+         * codes, so a sibling gated on one *specific* code (enableWhen
+         * answerCoding.code, not just "exists") is satisfied too. This runs
+         * as a second step, not instead of the marking above — field-label
+         * containers are a strict subset of hasAnswerOptionItemMapping, so
+         * their own sub-items still need the generic sub-marking to become
+         * visible via "exists" chains (see the SD-001..003 tests).
+         */
+        /*
+         * Only upgrade the generic `true` marker just set above — never a
+         * real stored answer. A field-label container is itself something
+         * the user can answer in selectable mode (e.g. picking 'From'), and
+         * overwriting that with the full code list would make an unchosen
+         * sibling (e.g. gated on 'To') incorrectly appear.
+         */
+        if (isFieldLabelContainer(item) && result[item.linkId] === true) {
+          /* v8 ignore next — answerOption is always defined when isFieldLabelContainer is true */
+          const allCodes = (item.answerOption ?? [])
+            .map(opt => opt.valueCoding?.code || opt.valueString)
+            .filter((c): c is string => !!c);
+          if (allCodes.length) {
+            result[item.linkId] = allCodes;
+            changed = true;
           }
         }
       }
@@ -325,6 +364,23 @@ export const AyuNestedRenderer = ({
                * the enableWhen condition that references the removed container.
                */
               if (!isFieldLabelContainer(child)) return [child];
+
+              if (child.enableWhen?.length) {
+                const ew = child.enableWhen[0];
+                const code = ew.answerCoding?.code;
+                const qId = ew.question;
+                if (
+                  code &&
+                  children.some(
+                    sib =>
+                      sib !== child &&
+                      sib.enableWhen?.[0]?.answerCoding?.code === code &&
+                      sib.enableWhen?.[0]?.question === qId
+                  )
+                ) {
+                  return [child];
+                }
+              }
               return child.item!.map(sub => {
                 const kept =
                   sub.enableWhen?.filter(ew => ew.question !== child.linkId) ??

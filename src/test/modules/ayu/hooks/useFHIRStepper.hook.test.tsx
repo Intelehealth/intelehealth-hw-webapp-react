@@ -1575,7 +1575,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(300);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance normally for non-duration choice
@@ -1614,7 +1614,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(300);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because no nested items to check
@@ -1649,7 +1649,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(300);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because item array is empty
@@ -2064,7 +2064,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(300);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because both enableWhen rules match
@@ -2475,7 +2475,7 @@ describe('useFHIRStepper', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(300);
+          vi.advanceTimersByTime(250);
         });
 
         // Should advance because invisible child is skipped
@@ -3994,7 +3994,7 @@ describe('useFHIRStepper', () => {
       act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'answer1'); });
       act(() => { result.current.goNext(); });
       act(() => { result.current.setAnswer(result.current.topLevelItems[1], 'yes'); });
-      act(() => { vi.advanceTimersByTime(300); });
+      act(() => { vi.advanceTimersByTime(250); });
       act(() => { result.current.setAnswer(result.current.topLevelItems[2], 42); });
       act(() => { result.current.goNext(); });
 
@@ -4653,9 +4653,9 @@ describe('useFHIRStepper', () => {
         result.current.setAnswer(plainQuestionnaire.item[0] as any, 'a');
       });
 
-      // Advance past the 250 ms autoNext timer
+      // Advance past the 2000 ms autoNext timer
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(250);
       });
 
       // camera guard was skipped (camCode=undefined); normal autoNext advanced the index

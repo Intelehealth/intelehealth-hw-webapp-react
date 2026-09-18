@@ -14,6 +14,7 @@ import {
 } from './decision-matrix';
 import { evaluateEnableWhen } from './enable-when.logic';
 import { isMutuallyExclusiveOption } from './stepper.logic';
+import { isEmpty } from './validation.logic';
 
 const LABEL_PLACEHOLDER_RE = /\[[^\]]*\]/;
 
@@ -163,9 +164,10 @@ function buildSummaryForItems(
           if (high != null) return String(high);
           return null;
         }
-        return typeof answer === 'number' || typeof answer === 'string'
-          ? String(answer)
-          : null;
+        if (typeof answer === 'number')
+          /* v8 ignore next -- isEmpty() always filters NaN before this point; null arm is defensive */
+          return isNaN(answer) ? null : String(answer);
+        return typeof answer === 'string' ? String(answer) : null;
 
       case 'string':
         return typeof answer === 'string' ? answer : null;
@@ -215,7 +217,7 @@ function buildSummaryForItems(
 
   function collectNestedOwnValues(nestedItem: AyuQuestion): string[] {
     const answer = getAnswerValue(nestedItem);
-    if (!answer) return [];
+    if (isEmpty(answer)) return [];
 
     const itemLabel = getExtensionLabel(nestedItem);
     if (typeof answer === 'string' && answer === itemLabel) return [];
@@ -267,7 +269,7 @@ function buildSummaryForItems(
   ) {
     const answer = getAnswerValue(item);
 
-    if (answer) {
+    if (!isEmpty(answer)) {
       const itemLabel = item.text || '';
 
       if (
@@ -878,7 +880,7 @@ function buildSummaryForItems(
         }
 
         processed.add(item.linkId);
-      } else if (answerValue) {
+      } else if (!isEmpty(answerValue)) {
         if (typeof answerValue === 'string' && answerValue === label) {
           processed.add(item.linkId);
         } else {

@@ -3683,6 +3683,273 @@ describe('AyuNestedRenderer', () => {
       });
     });
   });
+
+  describe('enrichedAnswers — field-label container codes (local, not persisted)', () => {
+    /*
+     * A sibling gated on one specific code of a field-label container's
+     * answerOption (e.g. "confirm" only once "To" is meaningful) must become
+     * visible without the user — or the component — ever storing a real
+     * answer on the container itself. This used to be done by calling
+     * setAnswer(container, allCodes) from an effect, which persisted the
+     * codes into shared `answers` and broke the "field-label container has
+     * no stored answer" convention the visit summary relies on (see #335
+     * review). It's now computed locally inside enrichedAnswers instead,
+     * the same way validation.logic.ts's enrichWithContainerCodes does.
+     */
+    const fromToContainer: AyuQuestion = {
+      linkId: 'from-to',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'From', display: 'From' } },
+        { valueCoding: { code: 'To', display: 'To' } },
+      ],
+      item: [
+        { linkId: 'from-date', type: 'date', text: 'From Date' },
+        { linkId: 'to-date', type: 'date', text: 'To Date' },
+      ],
+    };
+    const confirmSibling: AyuQuestion = {
+      linkId: 'confirm',
+      text: 'Confirm',
+      type: 'string',
+      enableWhen: [
+        { question: 'from-to', operator: '=', answerCoding: { code: 'To' } },
+      ],
+    };
+
+    it('makes a sibling gated on the container code visible without persisting an answer for the container', () => {
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer, confirmSibling]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.getByTestId('renderer-confirm')).toBeInTheDocument();
+      // No effect ever ran setAnswer for the container — visibility is purely local.
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
+
+    it('does not overwrite a real container answer, so a sibling gated on an unchosen code stays hidden', () => {
+      // Regression: the container-code upgrade used to fire whenever the
+      // stored value wasn't already the full codes array, which included a
+      // REAL user answer like 'From' — overwriting it with ['From', 'To']
+      // and incorrectly revealing the 'To'-gated sibling. It must only
+      // upgrade the synthetic `true` marker, never a real answer.
+      render(
+        <AyuNestedRenderer
+          items={[fromToContainer, confirmSibling]}
+          answers={{ 'from-to': 'From' }}
+          setAnswer={mockSetAnswer}
+          selectable
+        />
+      );
+
+      expect(
+        screen.queryByTestId('renderer-confirm')
+      ).not.toBeInTheDocument();
+    });
+
+    it('keeps the sibling hidden when the field-label container enableWhen is not satisfied', () => {
+      const gatedContainer: AyuQuestion = {
+        ...fromToContainer,
+        enableWhen: [{ question: 'gate', operator: '=', answerString: 'yes' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[gatedContainer, confirmSibling]}
+          answers={{ gate: 'no' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByTestId('renderer-confirm')).not.toBeInTheDocument();
+      expect(mockSetAnswer).not.toHaveBeenCalled();
+    });
+
+    it('does not affect a non-field-label-container item (real choice, no item[])', () => {
+      /* A real choice question (no item[]) — isFieldLabelContainer returns false. */
+      const realChoice: AyuQuestion = {
+        linkId: 'severity',
+        text: 'Severity',
+        type: 'choice',
+        answerOption: [
+          { valueCoding: { code: 'mild', display: 'Mild' } },
+          { valueCoding: { code: 'severe', display: 'Severe' } },
+        ],
+      };
+      const gatedOnSeverity: AyuQuestion = {
+        linkId: 'follow-up',
+        text: 'Follow up',
+        type: 'string',
+        enableWhen: [
+          { question: 'severity', operator: '=', answerCoding: { code: 'mild' } },
+        ],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[realChoice, gatedOnSeverity]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // realChoice was never answered, so the sibling stays hidden — confirms
+      // the field-label-container branch didn't fire for a plain choice question.
+      expect(screen.queryByTestId('renderer-follow-up')).not.toBeInTheDocument();
+    });
+
+    it('resolves via opt.valueString when an option has no valueCoding.code', () => {
+      const valueStringContainer: AyuQuestion = {
+        linkId: 'vs-container',
+        type: 'choice',
+        answerOption: [{ valueString: 'opt-a' }],
+        item: [{ linkId: 'vs-child', type: 'string' }],
+      };
+      const gatedOnOptA: AyuQuestion = {
+        linkId: 'gated-on-opt-a',
+        text: 'Gated on opt-a',
+        type: 'string',
+        enableWhen: [
+          {
+            question: 'vs-container',
+            operator: '=',
+            answerCoding: { code: 'opt-a' },
+          },
+        ],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[valueStringContainer, gatedOnOptA]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // opt.valueCoding?.code is undefined → falls through to opt.valueString = 'opt-a'
+      expect(screen.getByTestId('renderer-gated-on-opt-a')).toBeInTheDocument();
+    });
+
+    it('leaves the sibling hidden when all options have no code or valueString (empty codes)', () => {
+      const emptyCodesContainer: AyuQuestion = {
+        linkId: 'empty-container',
+        type: 'choice',
+        answerOption: [{}],
+        item: [{ linkId: 'empty-child', type: 'string' }],
+      };
+      const gatedOnEmpty: AyuQuestion = {
+        linkId: 'gated-on-empty',
+        text: 'Gated on empty',
+        type: 'string',
+        enableWhen: [
+          {
+            question: 'empty-container',
+            operator: '=',
+            answerCoding: { code: 'anything' },
+          },
+        ],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[emptyCodesContainer, gatedOnEmpty]}
+          answers={{}}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // allCodes filters to [] → the container's linkId is never set → sibling stays hidden
+      expect(screen.queryByTestId('renderer-gated-on-empty')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('sibling exception in non-selectable field-label bypass', () => {
+    /*
+     * Two field-label containers both enabled by the same parent option code.
+     * The sibling exception prevents flattening either — they render as-is so
+     * their structural boundary is preserved.
+     */
+    const containerA: AyuQuestion = {
+      linkId: 'container-a',
+      text: 'Container A',
+      type: 'choice',
+      enableWhen: [{ question: 'parent', operator: '=', answerCoding: { code: 'yes' } }],
+      answerOption: [
+        { valueCoding: { code: 'From', display: 'From' } },
+        { valueCoding: { code: 'To', display: 'To' } },
+      ],
+      item: [
+        { linkId: 'from-date', type: 'date', text: 'From Date' },
+        { linkId: 'to-date', type: 'date', text: 'To Date' },
+      ],
+    };
+
+    const containerB: AyuQuestion = {
+      linkId: 'container-b',
+      text: 'Container B',
+      type: 'choice',
+      enableWhen: [{ question: 'parent', operator: '=', answerCoding: { code: 'yes' } }],
+      answerOption: [
+        { valueCoding: { code: 'Event', display: 'Event' } },
+      ],
+      item: [
+        { linkId: 'event-date', type: 'date', text: 'Event Date' },
+      ],
+    };
+
+    it('does NOT bypass a field-label container when a sibling shares the same enableWhen option code', () => {
+      render(
+        <AyuNestedRenderer
+          items={[containerA, containerB]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      // Sibling exception fires: both containers rendered intact (not flattened)
+      expect(screen.getByTestId('renderer-container-a')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-container-b')).toBeInTheDocument();
+    });
+
+    it('DOES bypass a field-label container when it has no sibling sharing the same option code', () => {
+      // Only containerA — no sibling with same code → normal bypass
+      render(
+        <AyuNestedRenderer
+          items={[containerA]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByTestId('renderer-container-a')).not.toBeInTheDocument();
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+      expect(screen.getByTestId('renderer-to-date')).toBeInTheDocument();
+    });
+
+    it('DOES bypass a field-label container when its enableWhen has no answerCoding code (code is falsy)', () => {
+      // enableWhen with answerString (no answerCoding.code) → code = undefined → skip sibling check
+      const containerWithStringGate: AyuQuestion = {
+        ...containerA,
+        linkId: 'from-to-string',
+        enableWhen: [{ question: 'parent', operator: '=', answerString: 'yes' }],
+      };
+
+      render(
+        <AyuNestedRenderer
+          items={[containerWithStringGate]}
+          answers={{ parent: 'yes' }}
+          setAnswer={mockSetAnswer}
+        />
+      );
+
+      expect(screen.queryByTestId('renderer-from-to-string')).not.toBeInTheDocument();
+      expect(screen.getByTestId('renderer-from-date')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('AyuNestedRenderer - branch accordion', () => {

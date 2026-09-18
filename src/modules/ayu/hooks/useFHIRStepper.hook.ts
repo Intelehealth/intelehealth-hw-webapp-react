@@ -7,12 +7,12 @@ import {
   computeMultiSelectToggle,
   isTopLevelComplete,
 } from '../../ayu-library/logic/stepper.logic';
+import type { CameraUploadIssue } from '../../ayu-library/logic/validation.logic';
 import {
   isEmpty,
   UPLOAD_ISSUE_REASON,
   validateQuestion,
 } from '../../ayu-library/logic/validation.logic';
-import type { CameraUploadIssue } from '../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
   AyuQuestion,

@@ -349,6 +349,66 @@ describe('AyuNumberInput', () => {
     });
   });
 
+  describe('Focus-gated external value resync', () => {
+    it('does NOT overwrite the typed text with the external value while focused', () => {
+      // The regression this guards: an unconditional resync effect wiped
+      // whatever the user was typing whenever a round-tripped `value` prop
+      // didn't stringify back to the same text. Gating the resync on focus
+      // means an external value change while the field is focused is
+      // ignored until blur.
+      const { rerender } = render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={5}
+        />
+      );
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: '12' } });
+      expect(input.value).toBe('12');
+
+      // Parent re-renders with a stale/out-of-sync external value while the
+      // field is still focused — must not clobber what the user typed.
+      rerender(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={5}
+        />
+      );
+      expect(input.value).toBe('12');
+    });
+
+    it('resyncs the displayed text from the external value once the field is blurred', () => {
+      const { rerender } = render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={5}
+        />
+      );
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: '12' } });
+      fireEvent.blur(input);
+
+      // After blur, the effect resumes syncing from the external value.
+      rerender(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={7}
+        />
+      );
+      expect(input.value).toBe('7');
+    });
+  });
+
   describe('handleChange Function Coverage', () => {
     it('should call onChange with parsed integer value', () => {
       const mockOnChange = vi.fn();
@@ -384,7 +444,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(3.14);
     });
 
-    it('should pass raw negative value to onChange and show error', () => {
+    it('should report the real parsed value and show error for out-of-range negative value', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -398,6 +458,9 @@ describe('AyuNumberInput', () => {
       const input = screen.getByRole('spinbutton');
       fireEvent.change(input, { target: { value: '-15' } });
 
+      // Out-of-range reports the real parsed number (not NaN) so
+      // validateQuestion's numericOutOfRange check can still catch it with
+      // the specific range message at Submit.
       expect(mockOnChange).toHaveBeenCalledWith(-15);
       expect(screen.getByText('Value must be at least 0')).toBeInTheDocument();
     });
@@ -513,7 +576,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenNthCalledWith(3, 123);
     });
 
-    it('should pass raw negative decimal to onChange and show error', () => {
+    it('should report the real parsed value and show error for out-of-range negative decimal', () => {
       const mockOnChange = vi.fn();
       render(
         <AyuNumberInput
@@ -590,7 +653,7 @@ describe('AyuNumberInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith(1000);
     });
 
-    it('should pass raw value exceeding max to onChange and show error when FHIR maxValue is set', () => {
+    it('should report the real parsed value and show error when value exceeds FHIR maxValue', () => {
       const mockOnChange = vi.fn();
       const questionWithMax: AyuQuestion = {
         ...mockQuestion,
@@ -679,6 +742,76 @@ describe('AyuNumberInput', () => {
 
       const input = screen.getByRole('spinbutton') as HTMLInputElement;
       expect(input.value).toBe('0');
+    });
+
+    it('should display a numeric value that arrives as a string (restored/prefilled answer)', () => {
+      // Regression: toDisplay previously only handled `typeof value === 'number'`,
+      // so a numeric string value (e.g. from a restored answer set) rendered blank.
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={'120' as unknown as number}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('120');
+    });
+
+    it('should display empty string when value prop is NaN', () => {
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={NaN}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+
+    it('should show "Please enter a valid number" when non-numeric text is set', () => {
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={mockQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      // Temporarily change type to 'text' so jsdom does not sanitize non-numeric input
+      input.setAttribute('type', 'text');
+      fireEvent.change(input, { target: { value: 'abc' } });
+      // Unparseable input reports undefined (same as "cleared"), not NaN —
+      // the local error message alone carries the "invalid" distinction.
+      expect(mockOnChange).toHaveBeenCalledWith(undefined);
+      expect(screen.getByText('Please enter a valid number')).toBeInTheDocument();
+    });
+
+    it('should show required error when required field is cleared after being touched', () => {
+      const requiredQ: AyuQuestion = { ...mockQuestion, required: true };
+      const mockOnChange = vi.fn();
+      render(
+        <AyuNumberInput
+          question={requiredQ}
+          parent={undefined}
+          previousSibling={undefined}
+          onChange={mockOnChange}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      // First type a valid value — sets touched=true
+      fireEvent.change(input, { target: { value: '42' } });
+      // Then clear the field — touched=true and required=true → REQUIRED_ERROR
+      fireEvent.change(input, { target: { value: '' } });
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      expect(mockOnChange).toHaveBeenLastCalledWith(undefined);
     });
   });
 
@@ -966,6 +1099,98 @@ describe('AyuNumberInput', () => {
       // Value 50 is valid for extension range (10-100), even though it's below BP systolic min (60)
       fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '50' } });
       expect(screen.queryByText(/Value must be/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('handleBlur (synchronous required check)', () => {
+    const requiredQuestion: AyuQuestion = {
+      linkId: 'blur-test',
+      text: 'Required field',
+      type: 'integer',
+      required: true,
+      readOnly: false,
+    };
+
+    it('should show required error synchronously on blur when required field is empty', () => {
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      // No timer to advance — the check runs immediately on blur.
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+    });
+
+    it('should NOT show required error on blur when field is optional and empty', () => {
+      const optionalQuestion: AyuQuestion = {
+        ...requiredQuestion,
+        required: false,
+      };
+      render(
+        <AyuNumberInput
+          question={optionalQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+    });
+
+    it('should show required error on blur when value prop is empty string', () => {
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value=""
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+    });
+
+    it('should NOT show a stale required error when the field was filled just before blur (ASYNC-004 regression)', () => {
+      // Regression for the stale-closure bug: handleBlur used to read the
+      // `value` prop, which hasn't been updated yet by the parent when blur
+      // fires in the same tick as the last keystroke. Checking displayValue
+      // (local, always current) instead means a filled field never shows a
+      // spurious required error on blur, with no need for a delay/timer.
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={undefined}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.change(input, { target: { value: '42' } });
+      // Parent hasn't re-rendered with a new `value` prop yet — still undefined.
+      fireEvent.blur(input);
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+    });
+
+    it('should NOT show required error on blur when field has a value', () => {
+      render(
+        <AyuNumberInput
+          question={requiredQuestion}
+          parent={undefined}
+          previousSibling={undefined}
+          value={42}
+        />
+      );
+      const input = screen.getByRole('spinbutton');
+      fireEvent.blur(input);
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
     });
   });
 });
