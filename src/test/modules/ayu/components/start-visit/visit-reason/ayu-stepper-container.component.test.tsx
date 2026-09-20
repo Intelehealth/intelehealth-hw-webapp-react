@@ -1878,6 +1878,112 @@ describe('AyuStepperContainer', () => {
       expect(mockShowToast).not.toHaveBeenCalled();
       expect(mockGoNext).toHaveBeenCalled();
     });
+
+    it('should block Submit and show "Please enter a value" when required string question has empty string (Back/Edit scenario)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Amount of weight gained in kgs',
+        type: 'string',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        // answer is empty string — user cleared the field after Back/Edit
+        answers: { q1: '' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      expect(mockShowToast).toHaveBeenCalledWith('Please enter a value', undefined, 'warning');
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('should block Submit and show "Please enter a value" when required integer question has empty-string answer', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Amount in kgs',
+        type: 'integer',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: '' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      expect(mockShowToast).toHaveBeenCalledWith('Please enter a value', undefined, 'warning');
+      expect(mockGoNext).not.toHaveBeenCalled();
+    });
+
+    it('should NOT block Submit when required integer question has answer 0 (valid falsy value)', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Count',
+        type: 'integer',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 0 },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockGoNext).toHaveBeenCalled();
+    });
   });
 
   describe('Question number in validation toast', () => {
@@ -4463,6 +4569,7 @@ describe('AyuStepperContainer', () => {
         <AyuStepperContainer
           ref={ref}
           questionnaire={questionnaire}
+          initialAnswers={{ q1: 'hello' }}
           onComplete={mockOnComplete}
           onProgressUpdate={mockOnProgressUpdate}
         />
@@ -4636,6 +4743,144 @@ describe('AyuStepperContainer', () => {
       expect(mockOnComplete).toHaveBeenCalledWith({ q1: 'hello' });
     });
 
+    it('should block confirm when question has an answer but Submit was never clicked (bypasses editingQuestions path)', () => {
+      // Regression: "Save and Next bypasses required submission validation"
+      // A question is answered in state but never submitted via the Submit button,
+      // and was not previously in initialAnswers (so not in submittedQuestions).
+      // warnOnOpenEdit must detect this and block navigation.
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt1', display: 'Option 1' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['opt1'] }, // answer present in state
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+          // No initialAnswers → submittedQuestions is empty; Submit never clicked
+        />
+      );
+
+      ref.current!.confirm();
+
+      expect(mockOnComplete).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please submit your changes before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should block showSummary when question has an answer but Submit was never clicked', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt1', display: 'Option 1' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['opt1'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      ref.current!.showSummary();
+
+      expect(mockGoNext).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please submit your changes before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should allow confirm after Submit is clicked for a previously-unsubmitted answer', () => {
+      // Once Submit is clicked, the question enters submittedQuestions and
+      // Save & Next should proceed.
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'opt1', display: 'Option 1' } },
+        ],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: ['opt1'] },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Click Submit to mark the question as submitted
+      fireEvent.click(screen.getByTestId('button-submit'));
+
+      mockOnComplete.mockClear();
+      ref.current!.confirm();
+
+      expect(mockOnComplete).toHaveBeenCalledWith({ q1: ['opt1'] });
+    });
+
     it('should not throw when onComplete is undefined and confirm is called', () => {
       const question: AyuQuestion = {
         linkId: 'q1',
@@ -4711,6 +4956,222 @@ describe('AyuStepperContainer', () => {
 
       expect(mockShowToast).toHaveBeenCalled();
       expect(mockGoNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleSetAnswer nested-child guard', () => {
+    it('a nested answer change does NOT re-unsubmit the card (submitted state preserved through Edit+NestedChange+Submit cycle)', () => {
+      /*
+       * Regression guard: previously, handleSetAnswer removed the top-level
+       * question from submittedQuestions when ANY answer changed — including
+       * nested children. While the card is in editingQuestions (user clicked
+       * Edit), the observable data-is-answered state is governed by
+       * editingQuestions, so the difference only becomes observable after the
+       * user clicks Submit to leave edit mode. This test verifies that the card
+       * correctly returns to data-is-answered=true after Submit even when a
+       * nested answer was modified during the edit session.
+       */
+      const parent: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Parent Question',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+        item: [{ linkId: 'q1.child', text: 'Child', type: 'string' }],
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: parent,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'yes', 'q1.child': 'old value' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [parent],
+        isLast: true,
+        showAll: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([parent])}
+          initialAnswers={{ q1: 'yes', 'q1.child': 'old value' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Card starts in submitted state (from initialAnswers)
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+
+      // Edit the card → card enters editing mode (not answered)
+      fireEvent.click(screen.getByTestId('edit-0'));
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'false');
+
+      // Change a NESTED child answer (child linkId ≠ parent linkId)
+      fireEvent.change(screen.getByTestId('nested-input-q1.child'), { target: { value: 'new value' } });
+
+      // Submit the card → should return to answered state
+      // With Fix 1: submittedQuestions still had q1 (nested change didn't remove it),
+      // Submit merely clears editingQuestions → showAsAnswered = true ✓
+      fireEvent.click(screen.getByTestId('button-submit'));
+      expect(screen.getByTestId('question-loader-0')).toHaveAttribute('data-is-answered', 'true');
+    });
+  });
+
+  describe('validation-first ordering (confirm/showSummary)', () => {
+    it('confirm: blocks via validateAllQuestions (not warnOnOpenEdit) when validation fails', () => {
+      /*
+       * When validation fails, navigation is blocked by validateAllQuestions
+       * (which also shows the field-level toast via its internal logic).
+       * This requires validateAllQuestions to run BEFORE warnOnOpenEdit so
+       * the correct toast appears instead of "Please submit your changes".
+       */
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      // Make validation FAIL
+      mockValidateAllQuestions.mockReturnValue(false);
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ q1: 'hello' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Put question in edit mode (click Edit on the answered card)
+      fireEvent.click(screen.getByTestId('edit-0'));
+
+      ref.current!.confirm();
+
+      // validateAllQuestions was called and returned false → onComplete not called
+      expect(mockValidateAllQuestions).toHaveBeenCalled();
+      expect(mockOnComplete).not.toHaveBeenCalled();
+      // The "submit changes" toast must NOT have been shown (validation blocked first)
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        expect.stringContaining('Please submit your changes'),
+        undefined,
+        'warning'
+      );
+    });
+
+    it('showSummary: blocks via validateAllQuestions (not warnOnOpenEdit) when validation fails', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+        required: true,
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+        showAll: true,
+      });
+
+      mockValidateAllQuestions.mockReturnValue(false);
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ q1: 'hello' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      // Put question in edit mode
+      fireEvent.click(screen.getByTestId('edit-0'));
+
+      mockGoNext.mockClear();
+      ref.current!.showSummary();
+
+      // validateAllQuestions returned false → goNext not called
+      expect(mockValidateAllQuestions).toHaveBeenCalled();
+      expect(mockGoNext).not.toHaveBeenCalled();
+      // The "submit changes" toast must NOT have been shown
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        expect.stringContaining('Please submit your changes'),
+        undefined,
+        'warning'
+      );
+    });
+
+    it('confirm: when validation passes AND question is in edit mode, still warns "submit changes"', () => {
+      const question: AyuQuestion = {
+        linkId: 'q1',
+        text: 'Question 1',
+        type: 'string',
+      };
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: question,
+        currentIndex: 0,
+        total: 1,
+        answers: { q1: 'hello' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question],
+        isLast: true,
+      });
+
+      // Validation passes
+      mockValidateAllQuestions.mockReturnValue(true);
+
+      const ref = createRef<AyuStepperContainerHandle>();
+      render(
+        <AyuStepperContainer
+          ref={ref}
+          questionnaire={createMockQuestionnaire([question])}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('button-submit'));
+      fireEvent.click(screen.getByTestId('edit-0'));
+
+      ref.current!.confirm();
+
+      // Validation passed, but editingQuestions has q1 → warnOnOpenEdit blocks
+      expect(mockOnComplete).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Question 1: Please submit your changes before proceeding',
+        undefined,
+        'warning'
+      );
     });
   });
 
@@ -4820,6 +5281,7 @@ describe('AyuStepperContainer', () => {
         <AyuStepperContainer
           ref={ref}
           questionnaire={questionnaire}
+          initialAnswers={{ q1: 'hello' }}
           onComplete={mockOnComplete}
           onProgressUpdate={mockOnProgressUpdate}
         />
@@ -4856,6 +5318,7 @@ describe('AyuStepperContainer', () => {
         <AyuStepperContainer
           ref={ref}
           questionnaire={questionnaire}
+          initialAnswers={{ q1: 'hello' }}
           onProgressUpdate={mockOnProgressUpdate}
         />
       );
@@ -5485,6 +5948,7 @@ describe('AyuStepperContainer', () => {
         <AyuStepperContainer
           ref={ref}
           questionnaire={questionnaire}
+          initialAnswers={{ q1: 'hello' }}
           onComplete={mockOnComplete}
           onProgressUpdate={mockOnProgressUpdate}
         />

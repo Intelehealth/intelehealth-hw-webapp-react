@@ -663,27 +663,55 @@ export const AyuStepperContainer = forwardRef<
     });
 
     const warnOnOpenEdit = useCallback((): boolean => {
-      const pendingIndex = topLevelItems.findIndex(q =>
+      // Case 1: a question is in edit mode (Edit clicked, Submit not yet clicked)
+      const pendingEditIndex = topLevelItems.findIndex(q =>
         editingQuestionsRef.current.has(q.linkId)
       );
-      if (pendingIndex === -1) return false;
-      showToast(
-        `Question ${pendingIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
-        undefined,
-        'warning'
+      if (pendingEditIndex !== -1) {
+        showToast(
+          `Question ${pendingEditIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
+          undefined,
+          'warning'
+        );
+        return true;
+      }
+
+      // Case 2: a question has an answer but was never submitted (options selected
+      // without clicking Submit, bypassing the editingQuestions flow)
+      const latestAnswers = latestAnswersRef.current;
+      const pendingSubmitIndex = topLevelItems.findIndex(
+        q =>
+          latestAnswers[q.linkId] !== undefined &&
+          !submittedQuestionsRef.current.has(q.linkId) &&
+          !skippedQuestionsRef.current.has(q.linkId)
       );
-      return true;
+      if (pendingSubmitIndex !== -1) {
+        showToast(
+          `Question ${pendingSubmitIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
+          undefined,
+          'warning'
+        );
+        return true;
+      }
+
+      return false;
     }, [topLevelItems, questionIndexOffset]);
 
     useImperativeHandle(
       ref,
       () => ({
         confirm: () => {
-          if (warnOnOpenEdit()) return;
+          // Validate first so the correct field-level toast (e.g. "Please enter a
+          // value") is shown when there are validation errors, instead of being
+          // shadowed by "Please submit your changes before proceeding".
           if (!validateAllQuestions()) return;
+          if (warnOnOpenEdit()) return;
           handleStepperComplete(answers);
         },
         showSummary: () => {
+          // Same order: validation before unsubmitted-edit guard so field-level
+          // errors surface with the right toast when Save & Next is clicked.
+          if (!validateAllQuestions()) return;
           if (warnOnOpenEdit()) return;
           goNext();
         },
@@ -731,6 +759,10 @@ export const AyuStepperContainer = forwardRef<
     );
     const editingQuestionsRef = useRef(editingQuestions);
     editingQuestionsRef.current = editingQuestions;
+    const submittedQuestionsRef = useRef(submittedQuestions);
+    submittedQuestionsRef.current = submittedQuestions;
+    const skippedQuestionsRef = useRef(skippedQuestions);
+    skippedQuestionsRef.current = skippedQuestions;
 
     resetAnswersRef.current = () => {
       setSubmittedQuestions(new Set());
@@ -877,6 +909,11 @@ export const AyuStepperContainer = forwardRef<
               setSubmittedQuestions(prev => {
                 if (collapseOnSelect) return new Set(prev).add(question.linkId);
                 if (!prev.has(question.linkId)) return prev;
+                // Only unsubmit the card when the TOP-LEVEL question's own answer
+                // changes. Nested child changes (e.g. clearing Amount under Weight
+                // Gain) must not unsubmit the card — validateAllQuestions handles
+                // the empty-field check and shows the correct validation toast.
+                if (q.linkId !== question.linkId) return prev;
                 const next = new Set(prev);
                 next.delete(question.linkId);
                 return next;

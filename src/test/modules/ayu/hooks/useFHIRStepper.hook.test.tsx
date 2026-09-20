@@ -4078,7 +4078,8 @@ describe('useFHIRStepper', () => {
       expect(mockShowToast).not.toHaveBeenCalled();
     });
 
-    it('should return false and show toast when required question is unanswered', () => {
+    it('should return false and show toast when required string question is unanswered', () => {
+      // mockQuestionnaire q1 is type='string', required=true
       const { result } = renderHook(() =>
         useFHIRStepper({ questionnaire: mockQuestionnaire })
       );
@@ -4089,8 +4090,226 @@ describe('useFHIRStepper', () => {
       });
 
       expect(isValid).toBe(false);
+      // String input type → "Please enter a value", not "Please select any one option"
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Please select any one option',
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should treat empty string ("") as invalid for a required string question — toast shown (Back/Edit clear scenario)', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      // Simulate Back/Edit: user clears a required string field, leaving empty string
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], '');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should still block when required string question answer is undefined', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      // Q1 never answered (undefined) — must still show required toast
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should return false when required FieldLabelContainer nested child is unanswered (recursive required validation)', () => {
+      const containerQuestionnaire = {
+        item: [
+          {
+            linkId: 'parent',
+            text: 'Weight change',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+              { valueCoding: { code: 'weight_loss', display: 'Weight loss' } },
+            ],
+            item: [
+              {
+                // isFieldLabelContainer: choice + answerOptions + items, each item maps to unique code
+                linkId: 'weight_gain_container',
+                type: 'choice',
+                required: true,
+                answerOption: [
+                  { valueCoding: { code: 'gradual', display: 'Gradual' } },
+                  { valueCoding: { code: 'rapid', display: 'Rapid' } },
+                ],
+                item: [
+                  {
+                    linkId: 'gradual_amount',
+                    type: 'integer',
+                    enableWhen: [
+                      { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'gradual' } },
+                    ],
+                  },
+                  {
+                    linkId: 'rapid_amount',
+                    type: 'integer',
+                    enableWhen: [
+                      { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'rapid' } },
+                    ],
+                  },
+                ],
+                enableWhen: [
+                  { question: 'parent', operator: '=', answerCoding: { code: 'weight_gain' } },
+                ],
+              },
+              {
+                linkId: 'weight_loss_container',
+                type: 'choice',
+                required: true,
+                answerOption: [
+                  { valueCoding: { code: 'gradual', display: 'Gradual' } },
+                  { valueCoding: { code: 'rapid', display: 'Rapid' } },
+                ],
+                item: [
+                  {
+                    linkId: 'loss_gradual_amount',
+                    type: 'integer',
+                    enableWhen: [
+                      { question: 'weight_loss_container', operator: '=', answerCoding: { code: 'gradual' } },
+                    ],
+                  },
+                  {
+                    linkId: 'loss_rapid_amount',
+                    type: 'integer',
+                    enableWhen: [
+                      { question: 'weight_loss_container', operator: '=', answerCoding: { code: 'rapid' } },
+                    ],
+                  },
+                ],
+                enableWhen: [
+                  { question: 'parent', operator: '=', answerCoding: { code: 'weight_loss' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: containerQuestionnaire })
+      );
+
+      // Select "weight_gain" on parent, but leave weight_gain_container's grandchildren unanswered
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'weight_gain');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      // weight_gain_container is a FieldLabelContainer → bypassed by AyuNestedRenderer.
+      // Its integer grandchildren (gradual_amount, rapid_amount) are always visible and empty.
+      // isNestedInputValueMissing correctly finds empty integer inputs → toast is 'enterValue'.
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should treat whitespace-only string as invalid for a required string question', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: mockQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], '   ');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      // String input type → "Please enter a value"
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should block when required nested integer child is cleared to empty string (Back/Edit scenario)', () => {
+      const nestedIntegerQuestionnaire = {
+        item: [
+          {
+            linkId: 'weight_gain',
+            text: 'Weight Gain',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'yes', display: 'Yes' } },
+            ],
+            item: [
+              {
+                linkId: 'weight_kg',
+                text: 'Amount of weight gained in kgs*',
+                type: 'integer',
+                required: true,
+                enableWhen: [
+                  { question: 'weight_gain', operator: '=', answerCoding: { code: 'yes' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: nestedIntegerQuestionnaire })
+      );
+
+      // Simulate: user answered parent, then Back/Edit cleared nested integer to ''
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'yes');
+      });
+      const nestedQ = result.current.topLevelItems[0].item![0] as any;
+      act(() => {
+        result.current.setAnswer(nestedQ, '');
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please enter a value',
         undefined,
         'warning'
       );
@@ -4293,6 +4512,242 @@ describe('useFHIRStepper', () => {
         undefined,
         'warning'
       );
+    });
+
+    // ── Conditional child validation (enableWhen gating) ────────────────────────
+    it('should NOT block when parent option has no applicable children (no_change selected)', () => {
+      /*
+       * symptom_type has two options: 'weight_gain' and 'no_change'.
+       * weight_amount is a required integer child only visible when 'weight_gain' is selected.
+       * Selecting 'no_change' must not trigger validation of weight_amount.
+       */
+      const conditionalQ = {
+        item: [
+          {
+            linkId: 'symptom_type',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+              { valueCoding: { code: 'no_change', display: 'No change' } },
+            ],
+            item: [
+              {
+                linkId: 'weight_amount',
+                type: 'integer',
+                required: true,
+                enableWhen: [
+                  { question: 'symptom_type', operator: '=', answerCoding: { code: 'weight_gain' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: conditionalQ })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'no_change');
+      });
+
+      let isValid = false;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(true);
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it('should block when parent selects weight_gain but its required integer child is empty', () => {
+      const conditionalQ = {
+        item: [
+          {
+            linkId: 'symptom_type',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+              { valueCoding: { code: 'no_change', display: 'No change' } },
+            ],
+            item: [
+              {
+                linkId: 'weight_amount',
+                type: 'integer',
+                required: true,
+                enableWhen: [
+                  { question: 'symptom_type', operator: '=', answerCoding: { code: 'weight_gain' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: conditionalQ })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'weight_gain');
+        // weight_amount left unanswered
+      });
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith('Please enter a value', undefined, 'warning');
+    });
+
+    it('Back/Edit: after parent changes from weight_gain to no_change, old empty child is no longer validated', () => {
+      /*
+       * User selected weight_gain, left weight_amount empty (or cleared it via Back/Edit),
+       * then changed parent answer to no_change.
+       * weight_amount is now hidden by enableWhen → must NOT block validation.
+       */
+      const conditionalQ = {
+        item: [
+          {
+            linkId: 'symptom_type',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+              { valueCoding: { code: 'no_change', display: 'No change' } },
+            ],
+            item: [
+              {
+                linkId: 'weight_amount',
+                type: 'integer',
+                required: true,
+                enableWhen: [
+                  { question: 'symptom_type', operator: '=', answerCoding: { code: 'weight_gain' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: conditionalQ })
+      );
+
+      // Simulate Back/Edit: answered weight_gain, integer child left empty, then Back and changed to no_change
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'weight_gain');
+      });
+      const intQ = result.current.topLevelItems[0].item![0] as any;
+      act(() => {
+        result.current.setAnswer(intQ, ''); // cleared via Back/Edit
+      });
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'no_change'); // parent changed
+      });
+
+      let isValid = false;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      // weight_amount hidden by enableWhen (parent is no_change) → not validated → passes
+      expect(isValid).toBe(true);
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it('Back/Edit: after parent reverts to weight_gain, the cleared integer child blocks again', () => {
+      const conditionalQ = {
+        item: [
+          {
+            linkId: 'symptom_type',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+              { valueCoding: { code: 'no_change', display: 'No change' } },
+            ],
+            item: [
+              {
+                linkId: 'weight_amount',
+                type: 'integer',
+                required: true,
+                enableWhen: [
+                  { question: 'symptom_type', operator: '=', answerCoding: { code: 'weight_gain' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: conditionalQ })
+      );
+
+      const intQ = result.current.topLevelItems[0].item![0] as any;
+
+      // Cycle: weight_gain (with answer) → no_change → weight_gain (child cleared by clearHiddenDescendantAnswers)
+      act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'weight_gain'); });
+      act(() => { result.current.setAnswer(intQ, 5); });
+      act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'no_change'); }); // clears weight_amount
+      act(() => { result.current.setAnswer(result.current.topLevelItems[0], 'weight_gain'); }); // back to weight_gain
+
+      let isValid = true;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      // weight_amount was cleared when parent was no_change, now visible again but empty → must block
+      expect(isValid).toBe(false);
+      expect(mockShowToast).toHaveBeenCalledWith('Please enter a value', undefined, 'warning');
+    });
+
+    it('should NOT block when string child has no enableWhen but matchedCode option is not selected', () => {
+      /*
+       * fever_desc linkId starts with 'fever' (a parent option code) — Strategy 1 matchedCode.
+       * No enableWhen on fever_desc.
+       * Parent answer is 'cold' → fever_desc must be skipped by matchedCode guard.
+       */
+      const prefixQ = {
+        item: [
+          {
+            linkId: 'symptom',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'fever', display: 'Fever' } },
+              { valueCoding: { code: 'cold', display: 'Cold' } },
+            ],
+            item: [
+              // linkId starts with 'fever' → matches option 'fever' via Strategy 1
+              { linkId: 'fever_desc', type: 'string' /* no enableWhen */ },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: prefixQ })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'cold');
+      });
+
+      let isValid = false;
+      act(() => {
+        isValid = result.current.validateAllQuestions();
+      });
+
+      // fever_desc applies only to 'fever'; parent is 'cold' → not applicable → passes
+      expect(isValid).toBe(true);
+      expect(mockShowToast).not.toHaveBeenCalled();
     });
   });
 

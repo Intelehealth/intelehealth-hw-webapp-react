@@ -75,18 +75,49 @@ export const hasVisibleRequiredNestedString = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    bypassedIds: ReadonlySet<string> = new Set()
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      /* Strip enableWhen rules that reference bypassed FieldLabelContainers so
+       * grandchildren are treated as always-visible when their container is bypassed. */
+      const effectiveEW =
+        bypassedIds.size && child.enableWhen?.length
+          ? child.enableWhen.filter(ew => !bypassedIds.has(ew.question))
+          : child.enableWhen;
+      if (!evaluateEnableWhen(effectiveEW, answers)) return false;
+
+      /* If child maps to a parent answerOption, only validate if that option is selected.
+       * Skip this guard when the parent is a bypassed container (never answered). */
+      const matchedCode = findMatchingOptionCode(child, parent);
+      if (matchedCode && !bypassedIds.has(parent.linkId)) {
+        const parentAnswer = answers[parent.linkId];
+        const selectedCodes: string[] = Array.isArray(parentAnswer)
+          ? (parentAnswer as string[])
+          : typeof parentAnswer === 'string'
+            ? [parentAnswer as string]
+            : [];
+        if (!selectedCodes.includes(matchedCode)) return false;
+      }
+
+      /* FieldLabelContainers are never answered by the user — bypass self-checks
+       * and recurse with the container's linkId added to the bypassed set. */
+      if (isFieldLabelContainer(child)) {
+        return check(
+          child.item,
+          child,
+          new Set([...bypassedIds, child.linkId])
+        );
+      }
+
       if (
         child.type === FHIR_TYPE_STRING &&
         isEmpty(answers[child.linkId]) &&
         !isSiblingBranchAnswered(child, items, parent, answers)
       )
         return true;
-      return check(child.item, child);
+      return check(child.item, child, bypassedIds);
     });
   };
   return check(question.item, question);
@@ -104,15 +135,23 @@ export const hasUnansweredRequiredNestedChild = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    bypassedIds: ReadonlySet<string> = new Set()
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      /* Strip enableWhen rules that reference bypassed FieldLabelContainers so
+       * grandchildren are treated as always-visible when their container is bypassed. */
+      const effectiveEW =
+        bypassedIds.size && child.enableWhen?.length
+          ? child.enableWhen.filter(ew => !bypassedIds.has(ew.question))
+          : child.enableWhen;
+      if (!evaluateEnableWhen(effectiveEW, answers)) return false;
 
-      /* If child maps to a parent answerOption, only validate if that option is selected */
+      /* If child maps to a parent answerOption, only validate if that option is selected.
+       * Skip this guard when the parent is a bypassed container (never answered). */
       const matchedCode = findMatchingOptionCode(child, parent);
-      if (matchedCode) {
+      if (matchedCode && !bypassedIds.has(parent.linkId)) {
         const parentAnswer = answers[parent.linkId];
         const selectedCodes: string[] = Array.isArray(parentAnswer)
           ? (parentAnswer as string[])
@@ -122,48 +161,65 @@ export const hasUnansweredRequiredNestedChild = (
         if (!selectedCodes.includes(matchedCode)) return false;
       }
 
-      const isIntermediateChoice = isFieldLabelContainer(child);
+      /* FieldLabelContainers are never answered by the user — AyuNestedRenderer
+       * renders their children directly without requiring an option selection.
+       * Bypass all own-answer checks and recurse with the container's linkId
+       * added to the bypassed set so grandchildren's enableWhen rules that
+       * reference this container are also stripped. */
+      if (isFieldLabelContainer(child)) {
+        return check(
+          child.item,
+          child,
+          new Set([...bypassedIds, child.linkId])
+        );
+      }
+
       const siblingBranchAnswered = isSiblingBranchAnswered(
         child,
         items,
         parent,
         answers
       );
-      /* Required children must have an answer */
-      if (
-        child.required &&
-        isEmpty(answers[child.linkId]) &&
-        !isIntermediateChoice
-      )
-        return true;
+      /* Required children must have an answer. */
+      if (child.required && isEmpty(answers[child.linkId])) return true;
       /* Visible repeats (multiselect) children must have at least one selection */
+      if (child.repeats && isEmpty(answers[child.linkId])) return true;
+      /* String fields: bypass when a sibling non-leaf choice covers the same
+       * option branch (e.g. "productive cough" choice answered ⇒ "dry cough"
+       * description string is optional). */
       if (
-        child.repeats &&
-        isEmpty(answers[child.linkId]) &&
-        !isIntermediateChoice
-      )
-        return true;
-      /* Visible input-type children must have a value entered */
-      if (
-        (child.type === FHIR_TYPE_STRING ||
-          child.type === FHIR_TYPE_INTEGER ||
-          child.type === FHIR_TYPE_DATE ||
-          child.type === FHIR_TYPE_QUANTITY) &&
+        child.type === FHIR_TYPE_STRING &&
         isEmpty(answers[child.linkId]) &&
         !siblingBranchAnswered
+      )
+        return true;
+      /* Integer / date fields: always validate when visible and empty —
+       * the sibling bypass does NOT apply (e.g. Amount and Duration under
+       * Weight Gain must both be filled). */
+      if (
+        (child.type === FHIR_TYPE_INTEGER || child.type === FHIR_TYPE_DATE) &&
+        isEmpty(answers[child.linkId])
+      )
+        return true;
+      /* Quantity fields (AyuDuration) store a structured object
+       * { dropdownValues: { number, days } } which isEmpty() treats as
+       * non-empty even when the dropdowns are blank. Use isQuantityInvalid
+       * which handles both the absent-value and partial-fill cases. */
+      if (
+        child.type === FHIR_TYPE_QUANTITY &&
+        isQuantityInvalid(child, answers)
       )
         return true;
       if (
         child.type === FHIR_TYPE_CHOICE &&
         !child.repeats &&
         isEmpty(answers[child.linkId]) &&
-        !isIntermediateChoice &&
         !siblingBranchAnswered &&
         !!matchedCode
       )
         return true;
       /* Recurse into deeper levels */
-      return check(child.item, child);
+      return check(child.item, child, bypassedIds);
     });
   };
   return check(question.item, question);
@@ -180,15 +236,23 @@ export const isNestedInputValueMissing = (
 ): boolean => {
   const check = (
     items: AyuQuestion[] | undefined,
-    parent: AyuQuestion
+    parent: AyuQuestion,
+    bypassedIds: ReadonlySet<string> = new Set()
   ): boolean => {
     if (!items) return false;
     return items.some((child: AyuQuestion) => {
-      if (!evaluateEnableWhen(child.enableWhen, answers)) return false;
+      /* Strip enableWhen rules that reference bypassed FieldLabelContainers so
+       * grandchildren are treated as always-visible when their container is bypassed. */
+      const effectiveEW =
+        bypassedIds.size && child.enableWhen?.length
+          ? child.enableWhen.filter(ew => !bypassedIds.has(ew.question))
+          : child.enableWhen;
+      if (!evaluateEnableWhen(effectiveEW, answers)) return false;
 
-      /* If child maps to a parent answerOption, only validate if that option is selected */
+      /* If child maps to a parent answerOption, only validate if that option is selected.
+       * Skip this guard when the parent is a bypassed container (never answered). */
       const matchedCode = findMatchingOptionCode(child, parent);
-      if (matchedCode) {
+      if (matchedCode && !bypassedIds.has(parent.linkId)) {
         const parentAnswer = answers[parent.linkId];
         const selectedCodes: string[] = Array.isArray(parentAnswer)
           ? (parentAnswer as string[])
@@ -198,16 +262,30 @@ export const isNestedInputValueMissing = (
         if (!selectedCodes.includes(matchedCode)) return false;
       }
 
+      /* FieldLabelContainers: bypass self-checks, recurse with container in bypassedIds. */
+      if (isFieldLabelContainer(child)) {
+        return check(
+          child.item,
+          child,
+          new Set([...bypassedIds, child.linkId])
+        );
+      }
+
       if (
         (child.type === FHIR_TYPE_STRING ||
           child.type === FHIR_TYPE_INTEGER ||
-          child.type === FHIR_TYPE_DATE ||
-          child.type === FHIR_TYPE_QUANTITY) &&
+          child.type === FHIR_TYPE_DATE) &&
         isEmpty(answers[child.linkId])
       )
         return true;
+      /* Quantity fields store a structured object that isEmpty() won't catch */
+      if (
+        child.type === FHIR_TYPE_QUANTITY &&
+        isQuantityInvalid(child, answers)
+      )
+        return true;
       /* Recurse into deeper levels */
-      return check(child.item, child);
+      return check(child.item, child, bypassedIds);
     });
   };
   return check(question.item, question);
@@ -449,7 +527,23 @@ export const validateQuestion = (
     isNumericOutOfRange(question, answers) ||
     hasNestedOutOfRangeValue(question, answers);
 
+  /**
+   * Required question whose own answer is missing (undefined, null, "", whitespace,
+   * or empty array).  Checked separately from nested-child validation so that the
+   * Submit button also catches this case (it calls validateQuestion directly).
+   * Note: valid falsy values such as 0 and false are NOT considered empty by isEmpty().
+   */
+  const isOwnValueRequiredEmpty =
+    question.required === true && isEmpty(rawAnswer);
+  /** True for question types where the user must type/enter a value (not select an option). */
+  const isInputType =
+    question.type === FHIR_TYPE_STRING ||
+    question.type === FHIR_TYPE_INTEGER ||
+    question.type === FHIR_TYPE_DATE ||
+    question.type === FHIR_TYPE_QUANTITY;
+
   const isInvalid =
+    isOwnValueRequiredEmpty ||
     cameraMissingImages ||
     uploadIssue !== null ||
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
@@ -474,7 +568,8 @@ export const validateQuestion = (
         ? 'allCompulsory'
         : numericOutOfRange
           ? 'outOfRange'
-          : (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
+          : (isOwnValueRequiredEmpty && isInputType) ||
+              (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
               (!isPE && isNestedInputValueMissing(question, answers)) ||
               (isPE && hasMissingNestedBPInput(question, answers)) ||
               isQuantityInvalid(question, answers)
