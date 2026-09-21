@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { storage } from '../../../utils/storage';
 import {
   addPendingImage,
+  getPendingImages,
   removePendingImagesByQuestionId,
 } from '../services/obs.service';
 import {
@@ -282,13 +283,27 @@ export const usePhysicalExamCameraImages = ({
 
   const commitQuestionImages = (questionId: string) => {
     const entries = capturedFileStore.get(questionId) ?? [];
-    removePendingImagesByQuestionId(questionId);
+    if (entries.length === 0) return;
+
+    // Build a set of File references already queued for this question so that
+    // images committed in earlier back-navigation cycles are not lost.
+    // The old pattern (removePendingImagesByQuestionId + re-add all) wiped
+    // every prior batch because capturedFileStore only contains files added in
+    // the current mount — restored images from temp storage have file:null and
+    // are never placed back into capturedFileStore.
+    const alreadyQueued = new Set(
+      getPendingImages()
+        .filter(img => img.questionId === questionId)
+        .map(img => img.file)
+    );
+
     for (const entry of entries) {
-      addPendingImage(entry.file, entry.comment, questionId);
+      if (!alreadyQueued.has(entry.file)) {
+        addPendingImage(entry.file, entry.comment, questionId);
+      }
     }
-    if (entries.length > 0) {
-      markQuestionCommitted(questionId);
-    }
+
+    markQuestionCommitted(questionId);
   };
 
   return {

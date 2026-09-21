@@ -5,6 +5,7 @@ import { usePhysicalExamCameraImages } from '../../../../modules/ayu/hooks/usePh
 
 const addPendingImage = vi.fn();
 const removePendingImagesByQuestionId = vi.fn();
+const getPendingImages = vi.fn().mockReturnValue([]);
 const getChildResources = vi.fn();
 const upsertAssetResource = vi.fn();
 const deleteAssetResource = vi.fn().mockResolvedValue(undefined);
@@ -17,6 +18,7 @@ vi.mock('../../../../modules/ayu/services/obs.service', () => ({
   addPendingImage: (...args: unknown[]) => addPendingImage(...args),
   removePendingImagesByQuestionId: (...args: unknown[]) =>
     removePendingImagesByQuestionId(...args),
+  getPendingImages: (...args: unknown[]) => getPendingImages(...args),
 }));
 
 vi.mock('../../../../modules/ayu/services/temp-storage.service', () => ({
@@ -41,6 +43,7 @@ let blobCounter = 0;
 beforeEach(() => {
   addPendingImage.mockReset();
   removePendingImagesByQuestionId.mockReset();
+  getPendingImages.mockReset().mockReturnValue([]);
   getChildResources.mockReset();
   upsertAssetResource.mockReset();
   deleteAssetResource.mockReset().mockResolvedValue(undefined);
@@ -430,8 +433,8 @@ describe('usePhysicalExamCameraImages', () => {
 
       act(() => result.current.commitQuestionImages('q1'));
 
-      // Clears any previously committed entries for the question
-      expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('q1');
+      // Does NOT clear the pending queue — uses dedup instead
+      expect(removePendingImagesByQuestionId).not.toHaveBeenCalled();
       // Adds the file to the pending queue
       expect(addPendingImage).toHaveBeenCalledWith(
         file,
@@ -441,24 +444,31 @@ describe('usePhysicalExamCameraImages', () => {
       expect(markQuestionCommitted).toHaveBeenCalledWith('q1');
     });
 
-    it('re-commits when called multiple times (handles re-upload)', async () => {
+    it('does not re-add a file that is already present in the pending queue', async () => {
       getChildResources.mockResolvedValue({ data: [] });
       getUser.mockReturnValue(null);
       upsertAssetResource.mockResolvedValue({ data: { id: 1 } });
 
+      const file = new File(['a'], 'a.png');
       const { result } = renderHook(() =>
         usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
       );
       await act(async () => {
-        await result.current.addCameraImage('q1', new File(['a'], 'a.png'));
+        await result.current.addCameraImage('q1', file);
       });
 
+      // First commit — queue is empty so the file is added once
       act(() => result.current.commitQuestionImages('q1'));
-      act(() => result.current.commitQuestionImages('q1'));
+      expect(addPendingImage).toHaveBeenCalledTimes(1);
 
-      // removePendingImagesByQuestionId called twice (once per commit)
-      expect(removePendingImagesByQuestionId).toHaveBeenCalledTimes(2);
-      expect(addPendingImage).toHaveBeenCalledTimes(2);
+      // Simulate the queue now containing that file (as it would in production)
+      getPendingImages.mockReturnValue([
+        { file, comment: 'Section for q1', questionId: 'q1' },
+      ]);
+
+      // Second commit — file is already queued, must not be added again
+      act(() => result.current.commitQuestionImages('q1'));
+      expect(addPendingImage).toHaveBeenCalledTimes(1); // unchanged
     });
 
     it('does nothing when no files are captured for the question', () => {
@@ -469,9 +479,76 @@ describe('usePhysicalExamCameraImages', () => {
 
       act(() => result.current.commitQuestionImages('q1'));
 
-      expect(removePendingImagesByQuestionId).toHaveBeenCalledWith('q1');
+      // Early return — no side-effects at all
+      expect(removePendingImagesByQuestionId).not.toHaveBeenCalled();
       expect(addPendingImage).not.toHaveBeenCalled();
       expect(markQuestionCommitted).not.toHaveBeenCalled();
+    });
+
+    it('preserves images from earlier upload cycles when the user navigates back and uploads again', async () => {
+      getChildResources.mockResolvedValue({ data: [] });
+      getUser.mockReturnValue(null);
+      upsertAssetResource.mockResolvedValue({ data: { id: 1 } });
+
+      const file1 = new File(['a'], 'a.png');
+      const file2 = new File(['b'], 'b.png');
+      const file3 = new File(['c'], 'c.png');
+      const file4 = new File(['d'], 'd.png');
+      const file5 = new File(['e'], 'e.png');
+
+      // ── First Physical Exam visit ──────────────────────────────────────────
+      const { result: r1, unmount } = renderHook(() =>
+        usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
+      );
+
+      await act(async () => {
+        await r1.current.addCameraImage('q1', file1);
+        await r1.current.addCameraImage('q1', file2);
+        await r1.current.addCameraImage('q1', file3);
+      });
+
+      act(() => r1.current.commitQuestionImages('q1'));
+      expect(addPendingImage).toHaveBeenCalledTimes(3);
+
+      // After first confirm the module-level queue holds file1–3.
+      // Simulate that state so the dedup check sees them on the next commit.
+      getPendingImages.mockReturnValue([
+        { file: file1, comment: 'Section for q1', questionId: 'q1' },
+        { file: file2, comment: 'Section for q1', questionId: 'q1' },
+        { file: file3, comment: 'Section for q1', questionId: 'q1' },
+      ]);
+
+      // ── Back navigation: component unmounts, capturedFileStore is cleared ──
+      unmount();
+
+      // ── Second Physical Exam visit ─────────────────────────────────────────
+      const { result: r2 } = renderHook(() =>
+        usePhysicalExamCameraImages({ visitId: 'visit-1', sectionCommentFor })
+      );
+
+      await act(async () => {
+        await r2.current.addCameraImage('q1', file4);
+        await r2.current.addCameraImage('q1', file5);
+      });
+
+      addPendingImage.mockClear();
+      act(() => r2.current.commitQuestionImages('q1'));
+
+      // Only the NEW files should be enqueued; file1–3 are already in the queue.
+      // Use reference identity (mock.calls[n][0] === fileX) rather than deep
+      // equality because Vitest cannot distinguish between two File instances
+      // when comparing them structurally.
+      expect(addPendingImage).toHaveBeenCalledTimes(2);
+      const enqueuedFiles = addPendingImage.mock.calls.map(
+        (call: unknown[]) => call[0]
+      );
+      expect(enqueuedFiles.includes(file4)).toBe(true);
+      expect(enqueuedFiles.includes(file5)).toBe(true);
+      expect(enqueuedFiles.includes(file1)).toBe(false);
+      expect(enqueuedFiles.includes(file2)).toBe(false);
+      expect(enqueuedFiles.includes(file3)).toBe(false);
+      // Previously committed question remains marked
+      expect(markQuestionCommitted).toHaveBeenCalledWith('q1');
     });
   });
 
