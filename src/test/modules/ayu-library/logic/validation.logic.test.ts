@@ -215,6 +215,21 @@ describe('hasVisibleRequiredNestedString', () => {
     expect(hasVisibleRequiredNestedString(q, { q1: ['fever', 'cold'] })).toBe(true);
   });
 
+  it('should return false when parent answer is a non-string non-array value (e.g. null)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' },
+      ],
+    };
+    // parent answer is null (neither string nor array) → selectedCodes = [] → child not applicable
+    expect(hasVisibleRequiredNestedString(q, { q1: null })).toBe(false);
+  });
+
   it('FieldLabelContainer bypass — string grandchild with no answer fails validation', () => {
     /*
      * Regression: When a FieldLabelContainer is bypassed by AyuNestedRenderer,
