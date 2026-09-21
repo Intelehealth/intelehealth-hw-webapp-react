@@ -192,15 +192,6 @@ export const useFHIRStepper = (
         return false;
       }
 
-      if (question.required && isEmpty(answer)) {
-        showToast(
-          validationMessageForReason('selectOption', questionNumber),
-          undefined,
-          'warning'
-        );
-        return false;
-      }
-
       if (!isEmpty(answer) || question.required) {
         const result = validateQuestion(
           question,

@@ -148,6 +148,124 @@ describe('hasVisibleRequiredNestedString', () => {
     };
     expect(hasVisibleRequiredNestedString(q, { q1: 'yes' })).toBe(true);
   });
+
+  // ── matchedCode guard (option-gated children without enableWhen) ──────────────
+  it('should NOT validate a string child whose matched option code is not selected (no enableWhen)', () => {
+    /* fever_detail linkId starts with 'fever' which is a parent option code → Strategy 1 match */
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+        { valueCoding: { code: 'cold', display: 'Cold' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' /* no enableWhen */ },
+      ],
+    };
+    // parent answer is 'cold', not 'fever' → fever_detail must be skipped
+    expect(hasVisibleRequiredNestedString(q, { q1: 'cold' })).toBe(false);
+  });
+
+  it('should validate a string child whose matched option code IS selected (no enableWhen)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+        { valueCoding: { code: 'cold', display: 'Cold' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' /* no enableWhen */ },
+      ],
+    };
+    // parent answer is 'fever' → fever_detail is applicable and unanswered → must return true
+    expect(hasVisibleRequiredNestedString(q, { q1: 'fever' })).toBe(true);
+  });
+
+  it('should skip string child when matchedCode option is not in array selection', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+        { valueCoding: { code: 'cold', display: 'Cold' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' },
+      ],
+    };
+    // Array answer excludes 'fever' → fever_detail not applicable
+    expect(hasVisibleRequiredNestedString(q, { q1: ['cold'] })).toBe(false);
+  });
+
+  it('should validate string child when matchedCode option is in array selection', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+        { valueCoding: { code: 'cold', display: 'Cold' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' },
+      ],
+    };
+    // Array answer includes 'fever' → fever_detail is applicable and unanswered
+    expect(hasVisibleRequiredNestedString(q, { q1: ['fever', 'cold'] })).toBe(true);
+  });
+
+  it('should return false when parent answer is a non-string non-array value (e.g. null)', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      answerOption: [
+        { valueCoding: { code: 'fever', display: 'Fever' } },
+      ],
+      item: [
+        { linkId: 'fever_detail', type: 'string' },
+      ],
+    };
+    // parent answer is null (neither string nor array) → selectedCodes = [] → child not applicable
+    expect(hasVisibleRequiredNestedString(q, { q1: null })).toBe(false);
+  });
+
+  it('FieldLabelContainer bypass — string grandchild with no answer fails validation', () => {
+    /*
+     * Regression: When a FieldLabelContainer is bypassed by AyuNestedRenderer,
+     * its grandchildren's enableWhen rules that reference the container must be
+     * stripped so the grandchildren are treated as always-visible.
+     */
+    const q: AyuQuestion = {
+      linkId: 'symptom',
+      type: 'choice',
+      answerOption: [{ valueCoding: { code: 'cough', display: 'Cough' } }],
+      item: [
+        {
+          linkId: 'cough_container',
+          type: 'choice',
+          answerOption: [{ valueCoding: { code: 'wet', display: 'Wet' } }],
+          item: [
+            {
+              linkId: 'cough_description',
+              type: 'string',
+              enableWhen: [
+                { question: 'cough_container', operator: '=', answerCoding: { code: 'wet' } },
+              ],
+            },
+          ],
+          enableWhen: [
+            { question: 'symptom', operator: '=', answerCoding: { code: 'cough' } },
+          ],
+        },
+      ],
+    };
+    // cough_container is a FieldLabelContainer → bypassed
+    // cough_description's enableWhen (referencing cough_container) is stripped → visible → empty → true
+    expect(hasVisibleRequiredNestedString(q, { symptom: 'cough' })).toBe(true);
+    // When filled → false
+    expect(hasVisibleRequiredNestedString(q, { symptom: 'cough', cough_description: 'productive' })).toBe(false);
+  });
 });
 
 describe('hasUnansweredRequiredNestedChild', () => {
@@ -191,8 +309,67 @@ describe('hasUnansweredRequiredNestedChild', () => {
     ).toBe(false);
   });
 
+  it('should demand an integer child even when a non-leaf sibling choice is answered (no sibling bypass for integer)', () => {
+    /*
+     * Regression: isSiblingBranchAnswered was previously applied to integer
+     * children, allowing a filled Duration (choice, non-leaf) to bypass the
+     * validation of an empty Amount (integer) under the same parent option.
+     * The fix limits the sibling bypass to STRING type only.
+     */
+    const q: AyuQuestion = {
+      linkId: 'weight_change',
+      type: 'choice',
+      required: true,
+      answerOption: [
+        { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+        { valueCoding: { code: 'no_change', display: 'No change' } },
+      ],
+      item: [
+        {
+          // Integer child under 'weight_gain' — Amount
+          linkId: 'weight_gain_amount',
+          type: 'integer',
+          enableWhen: [
+            { question: 'weight_change', operator: '=', answerCoding: { code: 'weight_gain' } },
+          ],
+        },
+        {
+          // Non-leaf choice sibling under 'weight_gain' — Duration
+          linkId: 'weight_gain_duration',
+          type: 'choice',
+          enableWhen: [
+            { question: 'weight_change', operator: '=', answerCoding: { code: 'weight_gain' } },
+          ],
+        },
+      ],
+    };
+
+    // Both empty → should fail
+    expect(hasUnansweredRequiredNestedChild(q, { weight_change: 'weight_gain' })).toBe(true);
+
+    // Duration answered, Amount still empty → should STILL fail (no sibling bypass for integer)
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        weight_change: 'weight_gain',
+        weight_gain_duration: 'rapid',
+      })
+    ).toBe(true);
+
+    // Both answered → should pass
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        weight_change: 'weight_gain',
+        weight_gain_amount: 5,
+        weight_gain_duration: 'rapid',
+      })
+    ).toBe(false);
+
+    // Parent is 'no_change' → neither child applies → should pass
+    expect(hasUnansweredRequiredNestedChild(q, { weight_change: 'no_change' })).toBe(false);
+  });
+
   it('should demand every leaf input gated on the same option (medication entry)', () => {
- 
+
     const S = 'https://intelehealth.org/fhir/CodeSystem/questionnaire-options';
     const ew = (question: string, code: string) => [
       { question, operator: '=', answerCoding: { system: S, code } },
@@ -411,6 +588,8 @@ describe('hasUnansweredRequiredNestedChild', () => {
           type: 'choice',
           answerOption: [
             { valueCoding: { code: 'opt1', display: 'Option 1' } },
+            // Second option ensures item.length < answerOption.length → NOT a FieldLabelContainer
+            { valueCoding: { code: 'opt2', display: 'Option 2' } },
           ],
           item: [
             { linkId: 'opt1-detail', type: 'string' },
@@ -618,7 +797,7 @@ describe('hasUnansweredRequiredNestedChild', () => {
       expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(true);
     });
 
-    it('skips the !!matchedCode branch when child is an intermediate-choice container (isFieldLabelContainer = true)', () => {
+    it('FieldLabelContainer is bypassed — grandchild string with no answer fails validation', () => {
       const q: AyuQuestion = {
         linkId: 'q',
         type: 'choice',
@@ -644,9 +823,135 @@ describe('hasUnansweredRequiredNestedChild', () => {
           },
         ],
       };
-      // fever_container: isIntermediateChoice = true → !isIntermediateChoice = false → branch skipped
-      // fever_yes_detail: hidden (fever_container unanswered) → recursion returns false
-      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(false);
+      // fever_container is a FieldLabelContainer → bypassed by AyuNestedRenderer
+      // fever_yes_detail's enableWhen referencing fever_container is stripped → always visible
+      // empty string → validation fails → true
+      expect(hasUnansweredRequiredNestedChild(q, { q: ['fever'] })).toBe(true);
+    });
+
+    it('should return true when FieldLabelContainer child is required and unanswered (regression: required check must not be skipped for containers)', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'weight_gain', display: 'Weight gain' } }],
+        item: [
+          {
+            // isFieldLabelContainer: choice + answerOption + item, items.length >= answerOption.length
+            linkId: 'weight_gain_container',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'gradual', display: 'Gradual' } },
+              { valueCoding: { code: 'rapid', display: 'Rapid' } },
+            ],
+            item: [
+              {
+                linkId: 'gradual_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'gradual' } },
+                ],
+              },
+              {
+                linkId: 'rapid_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'rapid' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'weight_gain' } },
+            ],
+          },
+        ],
+      };
+      // weight_gain_container is required and unanswered → must return true
+      expect(hasUnansweredRequiredNestedChild(q, { q: 'weight_gain' })).toBe(true);
+    });
+
+    it('non-required FieldLabelContainer is bypassed — integer grandchildren are visible and must be filled', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'weight_gain', display: 'Weight gain' } }],
+        item: [
+          {
+            linkId: 'weight_gain_container',
+            type: 'choice',
+            // required intentionally omitted — bypass still applies
+            answerOption: [
+              { valueCoding: { code: 'gradual', display: 'Gradual' } },
+              { valueCoding: { code: 'rapid', display: 'Rapid' } },
+            ],
+            item: [
+              {
+                linkId: 'gradual_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'gradual' } },
+                ],
+              },
+              {
+                linkId: 'rapid_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'rapid' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'weight_gain' } },
+            ],
+          },
+        ],
+      };
+      // weight_gain_container is a FieldLabelContainer → bypassed regardless of required flag
+      // gradual_amount and rapid_amount have enableWhen stripped → both visible → both empty integers → true
+      expect(hasUnansweredRequiredNestedChild(q, { q: 'weight_gain' })).toBe(true);
+    });
+
+    it('should return true for grandchild of required FieldLabelContainer when container is answered but grandchild is unanswered', () => {
+      const q: AyuQuestion = {
+        linkId: 'q',
+        type: 'choice',
+        answerOption: [{ valueCoding: { code: 'weight_gain', display: 'Weight gain' } }],
+        item: [
+          {
+            linkId: 'weight_gain_container',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'gradual', display: 'Gradual' } },
+              { valueCoding: { code: 'rapid', display: 'Rapid' } },
+            ],
+            item: [
+              {
+                linkId: 'gradual_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'gradual' } },
+                ],
+              },
+              {
+                linkId: 'rapid_amount',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'rapid' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'q', operator: '=', answerCoding: { code: 'weight_gain' } },
+            ],
+          },
+        ],
+      };
+      // container answered with 'gradual' → gradual_amount is visible but unanswered → must return true
+      expect(hasUnansweredRequiredNestedChild(q, {
+        q: 'weight_gain',
+        weight_gain_container: 'gradual',
+      })).toBe(true);
     });
 
     it('skips the !!matchedCode branch when siblingBranchAnswered is true', () => {
@@ -677,6 +982,148 @@ describe('hasUnansweredRequiredNestedChild', () => {
       expect(
         hasUnansweredRequiredNestedChild(q, { q: ['fever'], fever_sibling: '1-3 days' })
       ).toBe(false);
+    });
+  });
+
+  it('should catch a nested quantity child whose dropdownValues object is empty/partial (isEmpty does not catch objects)', () => {
+    /*
+     * Regression: isEmpty() returns false for objects, so a nested quantity
+     * child with answer { dropdownValues: { number: '', days: '' } } was not
+     * caught by the previous isEmpty(answers[child.linkId]) check.
+     * The fix calls isQuantityInvalid(child, answers) for QUANTITY type children.
+     */
+    const q: AyuQuestion = {
+      linkId: 'weight_change',
+      type: 'choice',
+      required: true,
+      answerOption: [
+        { valueCoding: { code: 'WG', display: 'Weight gain' } },
+      ],
+      item: [
+        {
+          linkId: 'weight_gain_duration',
+          type: 'quantity',
+          enableWhen: [
+            { question: 'weight_change', operator: '=', answerCoding: { code: 'WG' } },
+          ],
+        },
+      ],
+    };
+
+    // No answer at all → invalid
+    expect(hasUnansweredRequiredNestedChild(q, { weight_change: 'WG' })).toBe(true);
+
+    // Object answer with both dropdowns blank → still invalid (isEmpty would miss this)
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        weight_change: 'WG',
+        weight_gain_duration: { dropdownValues: { number: '', days: '' } },
+      })
+    ).toBe(true);
+
+    // Only number filled, days blank → still invalid
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        weight_change: 'WG',
+        weight_gain_duration: { dropdownValues: { number: 5, days: '' } },
+      })
+    ).toBe(true);
+
+    // Both filled → valid
+    expect(
+      hasUnansweredRequiredNestedChild(q, {
+        weight_change: 'WG',
+        weight_gain_duration: { dropdownValues: { number: 5, days: 'weeks' } },
+      })
+    ).toBe(false);
+  });
+
+  describe('FieldLabelContainer bypass — exact 3-level Weight change structure', () => {
+    /*
+     * Mirrors the real questionnaire structure:
+     *   root (choice, required) → FieldLabelContainer (choice, required)
+     *     → [integer grandchild, quantity grandchild]
+     *
+     * The container has enableWhen gated on the root answer; grandchildren have
+     * enableWhen gated on the container. AyuNestedRenderer bypasses the container,
+     * renders grandchildren directly, and strips their container-referencing enableWhen.
+     * Validation must replicate this: add container to bypassedIds and strip
+     * the matching enableWhen rules on grandchildren.
+     */
+    function makeQ(): AyuQuestion {
+      return {
+        linkId: 'weight_change',
+        type: 'choice',
+        required: true,
+        answerOption: [
+          { valueCoding: { code: 'no_change', display: 'No change' } },
+          { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+        ],
+        item: [
+          {
+            linkId: 'weight_gain_container',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'amount_opt', display: 'Amount' } },
+              { valueCoding: { code: 'duration_opt', display: 'Duration' } },
+            ],
+            item: [
+              {
+                linkId: 'amount_integer',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'amount_opt' } },
+                ],
+              },
+              {
+                linkId: 'duration_quantity',
+                type: 'quantity',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'duration_opt' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'weight_change', operator: '=', answerCoding: { code: 'weight_gain' } },
+            ],
+          },
+        ],
+      };
+    }
+
+    it('passes when no_change is selected — container not in scope', () => {
+      expect(hasUnansweredRequiredNestedChild(makeQ(), { weight_change: 'no_change' })).toBe(false);
+    });
+
+    it('fails when weight_gain is selected but amount integer is empty', () => {
+      // Regression: old code blocked with "required container unanswered" even though bypass means
+      // the container is never answered; new code bypasses it and validates grandchildren directly.
+      expect(hasUnansweredRequiredNestedChild(makeQ(), { weight_change: 'weight_gain' })).toBe(true);
+    });
+
+    it('fails when weight_gain is selected, amount filled but duration quantity missing', () => {
+      expect(hasUnansweredRequiredNestedChild(makeQ(), {
+        weight_change: 'weight_gain',
+        amount_integer: 5,
+      })).toBe(true);
+    });
+
+    it('fails when duration quantity has only partial dropdownValues', () => {
+      expect(hasUnansweredRequiredNestedChild(makeQ(), {
+        weight_change: 'weight_gain',
+        amount_integer: 5,
+        duration_quantity: { dropdownValues: { number: 2, days: '' } },
+      })).toBe(true);
+    });
+
+    it('passes when weight_gain is selected and both amount and duration are fully filled', () => {
+      // Regression: old code always blocked because required container was never answered.
+      expect(hasUnansweredRequiredNestedChild(makeQ(), {
+        weight_change: 'weight_gain',
+        amount_integer: 5,
+        duration_quantity: { dropdownValues: { number: 2, days: 'days' } },
+      })).toBe(false);
     });
   });
 });
@@ -761,6 +1208,8 @@ describe('isNestedInputValueMissing', () => {
           type: 'choice',
           answerOption: [
             { valueCoding: { code: 'opt1', display: 'Option 1' } },
+            // Second option ensures item.length < answerOption.length → NOT a FieldLabelContainer
+            { valueCoding: { code: 'opt2', display: 'Option 2' } },
           ],
           item: [
             { linkId: 'opt1-detail', type: 'string' },
@@ -781,6 +1230,8 @@ describe('isNestedInputValueMissing', () => {
           type: 'choice',
           answerOption: [
             { valueCoding: { code: 'opt1', display: 'Option 1' } },
+            // Second option ensures item.length < answerOption.length → NOT a FieldLabelContainer
+            { valueCoding: { code: 'opt2', display: 'Option 2' } },
           ],
           item: [
             { linkId: 'opt1-detail', type: 'string' },
@@ -802,6 +1253,8 @@ describe('isNestedInputValueMissing', () => {
           type: 'choice',
           answerOption: [
             { valueCoding: { code: 'opt1', display: 'Option 1' } },
+            // Second option ensures item.length < answerOption.length → NOT a FieldLabelContainer
+            { valueCoding: { code: 'opt2', display: 'Option 2' } },
           ],
           item: [
             { linkId: 'opt1-detail', type: 'string' },
@@ -884,6 +1337,79 @@ describe('isNestedInputValueMissing', () => {
       ],
     };
     expect(isNestedInputValueMissing(q, { q1: 'yes', 'q1.1': 'val' })).toBe(false);
+  });
+
+  describe('FieldLabelContainer bypass — ensures enterValue toast for bypassed container grandchildren', () => {
+    /*
+     * Mirrors the exact Weight change structure. When validation fails via
+     * hasUnansweredRequiredNestedChild, isNestedInputValueMissing determines
+     * the toast message: 'enterValue' (fill in a value) vs 'selectOption' (make a choice).
+     * For integer/quantity grandchildren of a bypassed container it must return true.
+     */
+    function makeQ(): AyuQuestion {
+      return {
+        linkId: 'weight_change',
+        type: 'choice',
+        required: true,
+        answerOption: [
+          { valueCoding: { code: 'no_change', display: 'No change' } },
+          { valueCoding: { code: 'weight_gain', display: 'Weight gain' } },
+        ],
+        item: [
+          {
+            linkId: 'weight_gain_container',
+            type: 'choice',
+            required: true,
+            answerOption: [
+              { valueCoding: { code: 'amount_opt', display: 'Amount' } },
+              { valueCoding: { code: 'duration_opt', display: 'Duration' } },
+            ],
+            item: [
+              {
+                linkId: 'amount_integer',
+                type: 'integer',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'amount_opt' } },
+                ],
+              },
+              {
+                linkId: 'duration_quantity',
+                type: 'quantity',
+                enableWhen: [
+                  { question: 'weight_gain_container', operator: '=', answerCoding: { code: 'duration_opt' } },
+                ],
+              },
+            ],
+            enableWhen: [
+              { question: 'weight_change', operator: '=', answerCoding: { code: 'weight_gain' } },
+            ],
+          },
+        ],
+      };
+    }
+
+    it('returns true (enterValue) when amount integer is empty — so toast is enterValue not selectOption', () => {
+      expect(isNestedInputValueMissing(makeQ(), { weight_change: 'weight_gain' })).toBe(true);
+    });
+
+    it('returns true (enterValue) when amount filled but duration quantity is missing', () => {
+      expect(isNestedInputValueMissing(makeQ(), {
+        weight_change: 'weight_gain',
+        amount_integer: 5,
+      })).toBe(true);
+    });
+
+    it('returns false when both amount and duration are filled', () => {
+      expect(isNestedInputValueMissing(makeQ(), {
+        weight_change: 'weight_gain',
+        amount_integer: 5,
+        duration_quantity: { dropdownValues: { number: 2, days: 'days' } },
+      })).toBe(false);
+    });
+
+    it('returns false when no_change is selected — container not in scope', () => {
+      expect(isNestedInputValueMissing(makeQ(), { weight_change: 'no_change' })).toBe(false);
+    });
   });
 });
 
@@ -1437,6 +1963,62 @@ describe('validateQuestion', () => {
       valid: false,
       reason: 'selectOption',
     });
+  });
+
+  // ── Own-value required checks (Submit button scenario) ──────────────────────
+  it('should return enterValue when required string question has undefined answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', required: true };
+    expect(validateQuestion(q, {})).toEqual({ valid: false, reason: 'enterValue' });
+  });
+
+  it('should return enterValue when required string question has empty-string answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', required: true };
+    expect(validateQuestion(q, { q1: '' })).toEqual({ valid: false, reason: 'enterValue' });
+  });
+
+  it('should return enterValue when required string question has whitespace-only answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', required: true };
+    expect(validateQuestion(q, { q1: '   ' })).toEqual({ valid: false, reason: 'enterValue' });
+  });
+
+  it('should return enterValue when required integer question has undefined answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'integer', required: true };
+    expect(validateQuestion(q, {})).toEqual({ valid: false, reason: 'enterValue' });
+  });
+
+  it('should return enterValue when required date question has undefined answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'date', required: true };
+    expect(validateQuestion(q, {})).toEqual({ valid: false, reason: 'enterValue' });
+  });
+
+  it('should return selectOption when required choice question has undefined answer', () => {
+    const q: AyuQuestion = {
+      linkId: 'q1',
+      type: 'choice',
+      required: true,
+      answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+    };
+    expect(validateQuestion(q, {})).toEqual({ valid: false, reason: 'selectOption' });
+  });
+
+  it('should return valid when required string question has a non-empty answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', required: true };
+    expect(validateQuestion(q, { q1: 'hello' })).toEqual({ valid: true });
+  });
+
+  it('should not treat 0 as empty for required integer question', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'integer', required: true };
+    expect(validateQuestion(q, { q1: 0 })).toEqual({ valid: true });
+  });
+
+  it('should return valid when non-required string question has empty answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string', required: false };
+    expect(validateQuestion(q, { q1: '' })).toEqual({ valid: true });
+  });
+
+  it('should return valid when non-required string question has undefined answer', () => {
+    const q: AyuQuestion = { linkId: 'q1', type: 'string' };
+    expect(validateQuestion(q, {})).toEqual({ valid: true });
   });
 
   it('should return selectOption for unanswered non-strict associated', () => {
