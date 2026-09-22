@@ -1148,6 +1148,8 @@ The core navigation engine for FHIR-based question sections.
 - `goNext()` — Validates current question, advances or shows summary
 - Summary modal → "Change" returns to specific question for editing
 
+**The Submit button's check icon (`AyuStepperContainer`):** a question's collapsed/answered state and its Submit button's checkmark both come from one place — `submittedQuestions`, a `Set<linkId>` local to `AyuStepperContainer`. `handleSetAnswer` (its wrapper around `setAnswer`) drops a question's linkId out of that set on every call, so **any** UI that changes a question's answer must call the `setAnswer` prop it was given, even when the stored value ends up unchanged — a call with the same value still clears the checkmark, which is what a delete needs. A handler that mutates state through a side channel instead (e.g. talking to `usePhysicalExamCamera()` directly) leaves `submittedQuestions` stale and the checkmark wrongly stays after the edit. `AyuPhysicalExamOptions`'s `handleImageRemoved` does this for image deletion, mirroring `handleImageAdded`.
+
 ### `useVisitReasons()`
 
 **Returns:**

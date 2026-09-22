@@ -127,6 +127,22 @@ export const AyuPhysicalExamOptions = ({
     camera?.commitQuestionImages(question.linkId);
   };
 
+  /*
+   * Deleting one image out of several does not change which option codes are
+   * selected (the camera code stays committed), so it would otherwise never
+   * reach setAnswer — the only thing that tells the stepper the question
+   * changed and clears its "submitted" checkmark. Re-report the (unchanged)
+   * selection here, the same way handleImageAdded already does for captures,
+   * so removal is treated as a state change too and the user must Submit
+   * again before the check icon comes back.
+   */
+  const handleImageRemoved = (index: number) => {
+    void camera?.removeCameraImage(question.linkId, index);
+    if (cameraCode) {
+      setAnswer?.(question, [...regularSelected, cameraCode]);
+    }
+  };
+
   return (
     <div className="px-3 py-2">
       {(sectionLabel || categoryLabel) && (
@@ -220,7 +236,7 @@ export const AyuPhysicalExamOptions = ({
           <PhysicalExamImageCapture
             images={cameraImages}
             onAdd={handleImageAdded}
-            onRemove={i => void camera.removeCameraImage(question.linkId, i)}
+            onRemove={handleImageRemoved}
             onRetry={i => void camera.retryCameraImage(question.linkId, i)}
           />
           {cameraCommitted && cameraImages.length === 0 && (
