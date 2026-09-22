@@ -285,7 +285,10 @@ export const usePhysicalExamCameraImages = ({
         );
       }
     }
-    if (target.preview.startsWith(BLOB_URL_PREFIX)) {
+    /* target.preview is a required string (CapturedImage), so this can never
+       be nullish; kept as a defensive optional chain per PR review (TS-002). */
+    /* v8 ignore next */
+    if (target.preview?.startsWith(BLOB_URL_PREFIX)) {
       URL.revokeObjectURL(target.preview);
     }
     setCameraImages(prev => {
