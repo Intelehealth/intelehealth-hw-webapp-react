@@ -492,7 +492,7 @@ export const PhysicalExamination = (props: SectionProps) => {
             detailsSections,
             answers
           );
-          setPhysExamPendingImages(getPendingImages());
+          setPhysExamPendingImages([...getPendingImages()]);
           saveSectionToTemp({
             physicalExam: {
               answers: physExamAnswers,

@@ -11,11 +11,7 @@ import {
 import iconStartVisit from '../../../ayu/assets/icon-start-visit.svg';
 import { useStartVisitData } from '../../context/start-visit.context';
 import { useVisitReasons } from '../../hooks/useVisitReasons.hook';
-import { clearPendingImages } from '../../services/obs.service';
-import {
-  clearCommittedQuestionIds,
-  clearDeletedAssetIds,
-} from '../../services/temp-storage.service';
+import { clearPhysicalExamImages } from '../../services/physical-exam-images.service';
 import {
   BREADCRUMB_STATUS_PENDING,
   PATIENT_AGE_KEY,
@@ -81,6 +77,8 @@ export const StartVisit = () => {
     saveSectionToTemp,
     clearPhysicalExamData,
     clearMedicalHistoryData,
+    visitId,
+    setPhysExamPendingImages,
   } = useStartVisitData();
   const visitReasons = useVisitReasons();
   const { ayuConfigFiles } = visitReasons;
@@ -95,9 +93,11 @@ export const StartVisit = () => {
   const handleProtocolCleared = useCallback(() => {
     clearPhysicalExamData();
     clearMedicalHistoryData();
-    clearPendingImages();
-    clearDeletedAssetIds();
-    clearCommittedQuestionIds();
+    // The removed protocol's images go from every place they live: the upload
+    // queue, the Visit Summary snapshot and the images stored in temp storage.
+    // Physical Exam remounts below and waits for this before reading them back.
+    setPhysExamPendingImages([]);
+    void clearPhysicalExamImages(visitId);
     saveSectionToTemp({
       physicalExam: null,
       medicalHistory: null,
@@ -112,7 +112,13 @@ export const StartVisit = () => {
       )
     );
     setDownstreamResetKey(key => key + 1);
-  }, [clearPhysicalExamData, clearMedicalHistoryData, saveSectionToTemp]);
+  }, [
+    clearPhysicalExamData,
+    clearMedicalHistoryData,
+    setPhysExamPendingImages,
+    visitId,
+    saveSectionToTemp,
+  ]);
 
   const getSectionSubtitle = (sectionName: string): string => {
     switch (sectionName) {

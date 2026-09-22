@@ -3,8 +3,15 @@ import { storage } from '../../../utils/storage';
 import {
   addPendingImage,
   getPendingImages,
+  removePendingImageByAssetId,
+  removePendingImageByFile,
   removePendingImagesByQuestionId,
+  setPendingImageAssetId,
 } from '../services/obs.service';
+import {
+  getImageCleanupInProgress,
+  getPhysicalExamImageGeneration,
+} from '../services/physical-exam-images.service';
 import {
   deleteAssetResource,
   getChildResources,
@@ -62,6 +69,10 @@ export const usePhysicalExamCameraImages = ({
     if (visitId == null || visitId === '') return;
     hasRestoredRef.current = true;
     (async () => {
+      // A protocol change may still be deleting the previous protocol's
+      // images; read the visit's assets back only once that has finished.
+      const clearing = getImageCleanupInProgress();
+      if (clearing) await clearing;
       const res = await getChildResources<{
         questionId: string;
         comment?: string;
@@ -118,9 +129,12 @@ export const usePhysicalExamCameraImages = ({
     await Promise.allSettled(set);
   };
 
-  const assetIdOf = (img: CapturedImage | undefined): number | undefined =>
-    img?.assetRecordId ??
-    (img?.file ? assetIdByFileRef.current.get(img.file) : undefined);
+  const assetIdOf = (img: CapturedImage): number | undefined =>
+    img.assetRecordId ??
+    /* Restored images (file: null) always carry assetRecordId, so ?? never
+       falls through to the file lookup for them. */
+    /* v8 ignore next */
+    (img.file ? assetIdByFileRef.current.get(img.file) : undefined);
 
   const setImageStatus = (
     questionId: string,
@@ -143,11 +157,20 @@ export const usePhysicalExamCameraImages = ({
     }));
   };
 
+  const dropImage = (questionId: string, file: File) => {
+    setCameraImages(prev => ({
+      ...prev,
+      /* v8 ignore next */
+      [questionId]: (prev[questionId] ?? []).filter(img => img.file !== file),
+    }));
+  };
+
   const uploadImage = async (
     questionId: string,
     file: File,
     comment: string
   ) => {
+    const generation = getPhysicalExamImageGeneration();
     setImageStatus(questionId, file, 'uploading');
 
     const resourceId = `${visitId}_${questionId}_${Date.now()}`;
@@ -170,7 +193,15 @@ export const usePhysicalExamCameraImages = ({
         created_by: createdBy,
         data: { questionId, comment },
       });
+      if (generation !== getPhysicalExamImageGeneration()) {
+        // The protocol was removed while this image was uploading, so the
+        // asset that was just stored belongs to it and must not survive.
+        deleteAssetResource(res.data.id).catch(() => {});
+        dropImage(questionId, file);
+        return;
+      }
       assetIdByFileRef.current.set(file, res.data.id);
+      setPendingImageAssetId(file, res.data.id);
       setImageStatus(questionId, file, 'done', res.data.id);
     } catch (err) {
       console.error(
@@ -228,32 +259,39 @@ export const usePhysicalExamCameraImages = ({
 
   /**
    * Remove a single camera image by index.
-   * Clears pending images for the question and rebuilds the capturedFileStore
-   * from the remaining images so the pending queue stays in sync with UI state.
+   * Only that image leaves the pending queue, the staging store, temp storage
+   * and UI state, so every other image (of this or any other question) stays.
+   * The image is resolved before the first await and matched by its preview URL
+   * afterwards, so a re-render while waiting cannot shift the index onto a
+   * different image.
    */
   const removeCameraImage = async (questionId: string, index: number) => {
-    await settleInFlight(questionId);
     const target = cameraImagesRef.current[questionId]?.[index];
+    if (!target) return;
+    await settleInFlight(questionId);
     const targetAssetId = assetIdOf(target);
-    if (targetAssetId) {
+    if (targetAssetId != null) {
       deleteAssetResource(targetAssetId).catch(() => {});
+      removePendingImageByAssetId(targetAssetId);
     }
-    if (target?.file) assetIdByFileRef.current.delete(target.file);
-    if (target?.preview?.startsWith(BLOB_URL_PREFIX)) {
+    if (target.file) {
+      assetIdByFileRef.current.delete(target.file);
+      removePendingImageByFile(target.file);
+      const staged = capturedFileStore.get(questionId);
+      if (staged) {
+        capturedFileStore.set(
+          questionId,
+          staged.filter(entry => entry.file !== target.file)
+        );
+      }
+    }
+    if (target.preview.startsWith(BLOB_URL_PREFIX)) {
       URL.revokeObjectURL(target.preview);
     }
-    removePendingImagesByQuestionId(questionId);
     setCameraImages(prev => {
-      const updated = (prev[questionId] ?? []).filter((_, i) => i !== index);
-      // Rebuild capturedFileStore from remaining images to keep pending queue in sync
-      capturedFileStore.set(
-        questionId,
-        updated
-          .filter(img => img.file != null)
-          .map(img => ({
-            file: img.file!,
-            comment: sectionCommentFor(questionId),
-          }))
+      /* v8 ignore next */
+      const updated = (prev[questionId] ?? []).filter(
+        img => img.preview !== target.preview
       );
       if (updated.length === 0) {
         unmarkQuestionCommitted(questionId);
@@ -300,6 +338,8 @@ export const usePhysicalExamCameraImages = ({
     for (const entry of entries) {
       if (!alreadyQueued.has(entry.file)) {
         addPendingImage(entry.file, entry.comment, questionId);
+        const assetId = assetIdByFileRef.current.get(entry.file);
+        if (assetId != null) setPendingImageAssetId(entry.file, assetId);
       }
     }
 

@@ -14,6 +14,9 @@ const mockSetLastSectionIndex = vi.fn();
 const mockSaveSectionToTemp = vi.fn().mockResolvedValue(undefined);
 const mockClearPhysicalExamData = vi.fn();
 const mockClearMedicalHistoryData = vi.fn();
+const mockSetPhysExamPendingImages = vi.fn();
+const mockSetVitalsData = vi.fn();
+const mockSetVisitReasonData = vi.fn();
 const mockUseStartVisitData = vi.fn(
   () =>
     ({
@@ -32,8 +35,8 @@ const mockUseStartVisitData = vi.fn(
       lastSectionIndex: 0,
       setLastSectionIndex: mockSetLastSectionIndex,
       setPatientUuid: vi.fn(),
-      setVitalsData: vi.fn(),
-      setVisitReasonData: vi.fn(),
+      setVitalsData: mockSetVitalsData,
+      setVisitReasonData: mockSetVisitReasonData,
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
       setMedicalHistoryAnswers: vi.fn(),
@@ -41,12 +44,24 @@ const mockUseStartVisitData = vi.fn(
       clearMedicalHistoryData: mockClearMedicalHistoryData,
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: vi.fn(),
+      physExamPendingImages: [],
+      setPhysExamPendingImages: mockSetPhysExamPendingImages,
     })
 );
 
 vi.mock('../../../../../modules/ayu/context/start-visit.context', () => ({
   useStartVisitData: () => mockUseStartVisitData(),
 }));
+
+// Removing a protocol discards its Physical Exam images (temp storage + queue).
+const mockClearPhysicalExamImages = vi.fn();
+vi.mock(
+  '../../../../../modules/ayu/services/physical-exam-images.service',
+  () => ({
+    clearPhysicalExamImages: (...args: unknown[]) =>
+      mockClearPhysicalExamImages(...args),
+  })
+);
 
 // Mock storage for patient info (StartVisit reads patient display from localStorage)
 const mockStorageStore: Record<string, string | null> = {};
@@ -200,8 +215,8 @@ describe('StartVisit', () => {
       lastSectionIndex: 0,
       setLastSectionIndex: mockSetLastSectionIndex,
       setPatientUuid: vi.fn(),
-      setVitalsData: vi.fn(),
-      setVisitReasonData: vi.fn(),
+      setVitalsData: mockSetVitalsData,
+      setVisitReasonData: mockSetVisitReasonData,
       setPhysicalExamData: vi.fn(),
       setMedicalHistoryData: vi.fn(),
       setMedicalHistoryAnswers: vi.fn(),
@@ -209,7 +224,10 @@ describe('StartVisit', () => {
       clearMedicalHistoryData: mockClearMedicalHistoryData,
       saveSectionToTemp: mockSaveSectionToTemp,
       clearVisitId: vi.fn(),
+      physExamPendingImages: [],
+      setPhysExamPendingImages: mockSetPhysExamPendingImages,
     });
+    mockClearPhysicalExamImages.mockReset().mockResolvedValue(undefined);
     // Mock window.alert
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -907,6 +925,114 @@ describe('StartVisit', () => {
       });
     });
 
+    it('should discard the removed protocol\'s Physical Exam images for this visit', async () => {
+      const user = userEvent.setup();
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(
+        within(screen.getByTestId('visit-reason-component')).getByText(
+          'Clear Protocol'
+        )
+      );
+
+      // Temp-storage images + upload queue + committed markers, for this visit.
+      expect(mockClearPhysicalExamImages).toHaveBeenCalledTimes(1);
+      expect(mockClearPhysicalExamImages).toHaveBeenCalledWith('test-visit-id');
+      // The Visit Summary snapshot of the queued images is emptied too.
+      expect(mockSetPhysExamPendingImages).toHaveBeenCalledWith([]);
+    });
+
+    it('should not touch vitals or the rest of the visit when a protocol is removed', async () => {
+      const user = userEvent.setup();
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(
+        within(screen.getByTestId('visit-reason-component')).getByText(
+          'Clear Protocol'
+        )
+      );
+
+      // Only Physical Exam / Medical History are reset in the persisted visit,
+      // and nothing overwrites the vitals or visit-reason sections.
+      const saved = mockSaveSectionToTemp.mock.calls
+        .map(call => call[0])
+        .find(payload => 'physicalExam' in payload);
+      expect(Object.keys(saved).sort()).toEqual([
+        'medicalHistory',
+        'medicalHistoryAnswers',
+        'physicalExam',
+      ]);
+      expect(mockSetVitalsData).not.toHaveBeenCalled();
+      expect(mockSetVisitReasonData).not.toHaveBeenCalled();
+    });
+
+    it('should keep the deleted-asset markers, which hide images the backend could not delete', async () => {
+      const user = userEvent.setup();
+      sessionStorage.setItem('pe_deleted_asset_ids', JSON.stringify([7, 8]));
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(
+        within(screen.getByTestId('visit-reason-component')).getByText(
+          'Clear Protocol'
+        )
+      );
+
+      // Wiping them would let an image whose delete failed reappear.
+      expect(JSON.parse(sessionStorage.getItem('pe_deleted_asset_ids')!)).toEqual([
+        7, 8,
+      ]);
+      sessionStorage.removeItem('pe_deleted_asset_ids');
+    });
+
+    it('should not clear any images when no protocol is removed', async () => {
+      const user = userEvent.setup();
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+      await user.click(
+        within(screen.getByTestId('visit-reason-component')).getByText(
+          'Confirm Reasons'
+        )
+      );
+
+      expect(mockClearPhysicalExamImages).not.toHaveBeenCalled();
+      expect(mockSetPhysExamPendingImages).not.toHaveBeenCalled();
+    });
+
+    it('should start discarding the images before Physical Exam is remounted', async () => {
+      const user = userEvent.setup();
+      const order: string[] = [];
+      mockClearPhysicalExamImages.mockImplementation(() => {
+        order.push('discard-images');
+        return Promise.resolve();
+      });
+      vi.mocked(
+        await import('../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component')
+      ).PhysicalExamination.mockImplementation(() => {
+        React.useEffect(() => {
+          order.push('physical-exam-mounted');
+        }, []);
+        return <div data-testid="physical-exam-component">Physical Exam</div>;
+      });
+
+      renderWithRouter(<StartVisit />);
+      await user.click(screen.getByText('Next Vitals'));
+      order.length = 0; // ignore the initial mount
+
+      await user.click(
+        within(screen.getByTestId('visit-reason-component')).getByText(
+          'Clear Protocol'
+        )
+      );
+
+      // The fresh Physical Exam reads stored images on mount, so the discard
+      // has to be under way by then (it waits for it to finish).
+      expect(order).toEqual(['discard-images', 'physical-exam-mounted']);
+    });
+
     it('should remount Physical Exam / Medical History when a protocol is removed', async () => {
       const user = userEvent.setup();
       let mountCount = 0;
@@ -1159,6 +1285,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
 
       renderWithRouter(<StartVisit />);
@@ -1223,6 +1351,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
 
       renderWithRouter(<StartVisit />);
@@ -1269,6 +1399,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1322,6 +1454,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
 
       renderWithRouter(<StartVisit />);
@@ -1375,6 +1509,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1422,6 +1558,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1456,6 +1594,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1497,6 +1637,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1539,6 +1681,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
@@ -1572,6 +1716,8 @@ describe('StartVisit', () => {
         clearMedicalHistoryData: mockClearMedicalHistoryData,
         saveSectionToTemp: mockSaveSectionToTemp,
         clearVisitId: vi.fn(),
+        physExamPendingImages: [],
+        setPhysExamPendingImages: mockSetPhysExamPendingImages,
       });
       renderWithRouter(<StartVisit />);
 
