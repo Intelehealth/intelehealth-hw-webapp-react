@@ -1110,13 +1110,15 @@ For array answers (multi-select), checks if the expected value is **included** i
 
 **Answer type handling:**
 
-| Answer Type             | Display Format                                   |
-| ----------------------- | ------------------------------------------------ |
-| Associated Symptoms     | "Patient reports: X, Y" / "Patient denies: A, B" |
-| Patient/Family History  | "Medical history – Diabetes – 2020"              |
-| Multi-select            | Comma-separated values                           |
-| Single-select           | Display value                                    |
-| String/Integer/Quantity | Direct value                                     |
+| Answer Type                     | Display Format                                   |
+| ------------------------------- | ------------------------------------------------ |
+| Associated Symptoms             | "Patient reports: X, Y" / "Patient denies: A, B" |
+| Patient/Family History          | "Medical history – Diabetes – 2020"              |
+| Multi-select                    | Comma-separated values                           |
+| Single-select                   | Display value                                    |
+| String/Integer/Decimal/Quantity | Direct value (`0` is an answer, not "empty")     |
+
+> **A question that is missing from the summary is usually an answer-shape problem, not a state problem.** `formatAnswerByType` only formats the shapes it knows for each question `type` and returns `null` for the rest. The answer is still in the stepper state and the saved JSON, so the question looks answered in the stepper but silently drops out of the popup, the Visit Summary page and the uploaded observation. When you add or change a question type or answer shape, add its `case` there and a test that runs the real `useFHIRStepper` with the real `buildVisitSummary` (see `useFHIRStepper.summary-popup.test.tsx`).
 
 ### `decision-matrix.ts` — Type Resolution
 

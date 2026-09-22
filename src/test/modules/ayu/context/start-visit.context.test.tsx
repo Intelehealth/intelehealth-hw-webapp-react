@@ -765,6 +765,103 @@ describe('StartVisitProvider', () => {
     expect(screen.getByTestId('restoredSectionIndex')).toHaveTextContent('2');
   });
 
+  // ── Visit-reason rows survive a reload (first question of a protocol) ──────
+
+  const weightGainVisitReason = {
+    answers: { w1: 4.5, onset: 'GRAD' } as Record<string, AyuAnswerValue>,
+    reasonNames: ['Weight Gain'],
+    details: [
+      { label: 'Weight gained (kg)', value: '4.5' },
+      { label: 'Onset', value: 'Gradual' },
+    ],
+    detailsSections: [
+      {
+        title: '',
+        items: [
+          { type: 'labelValue' as const, label: 'Weight gained (kg)', value: '4.5' },
+          { type: 'labelValue' as const, label: 'Onset', value: 'Gradual' },
+        ],
+      },
+    ],
+  };
+
+  it('should restore the saved visit-reason rows, first question included, exactly as saved', async () => {
+    mockGetResource.mockResolvedValue({
+      data: {
+        id: 3,
+        data: {
+          vitals: null,
+          visitReason: weightGainVisitReason,
+          physicalExam: null,
+          medicalHistory: null,
+        },
+      },
+    });
+    const holder: { ctx?: ReturnType<typeof useStartVisitData> } = {};
+
+    render(
+      <StartVisitProvider>
+        <ContextConsumer onContext={ctx => (holder.ctx = ctx)} />
+      </StartVisitProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+    expect(holder.ctx?.data.visitReason).toEqual(weightGainVisitReason);
+  });
+
+  it('should keep the first question through a save and a reload (round trip)', async () => {
+    function VisitReasonSaver() {
+      const ctx = useStartVisitData();
+      return (
+        <button
+          data-testid="btn-saveVisitReason"
+          onClick={() =>
+            ctx.saveSectionToTemp({
+              visitReason: weightGainVisitReason,
+              confirmedReasons: ['Weight Gain'],
+            })
+          }
+        />
+      );
+    }
+    const first = render(
+      <StartVisitProvider>
+        <VisitReasonSaver />
+      </StartVisitProvider>
+    );
+    await act(async () => {
+      screen.getByTestId('btn-saveVisitReason').click();
+    });
+    const persisted = mockUpsertResource.mock.calls.at(-1)?.[0];
+    first.unmount();
+
+    // Reload: a new provider restores whatever was persisted.
+    mockGetResource.mockResolvedValue({ data: { id: 1, data: persisted.data } });
+    const holder: { ctx?: ReturnType<typeof useStartVisitData> } = {};
+    render(
+      <StartVisitProvider>
+        <ContextConsumer onContext={ctx => (holder.ctx = ctx)} />
+      </StartVisitProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('isRestoring')).toHaveTextContent('false');
+    });
+
+    const restored = holder.ctx?.data.visitReason;
+    expect(restored?.answers.w1).toBe(4.5);
+    expect(restored?.details[0]).toEqual({
+      label: 'Weight gained (kg)',
+      value: '4.5',
+    });
+    expect(restored?.detailsSections?.[0].items[0]).toEqual({
+      type: 'labelValue',
+      label: 'Weight gained (kg)',
+      value: '4.5',
+    });
+  });
+
   it('should not treat as gender change when savedGender is null', async () => {
     mockGetResource.mockResolvedValue({
       data: {
