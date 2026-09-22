@@ -14,7 +14,10 @@ import {
   getPendingImages,
   getObsByPatientAndConcept,
   removePendingImage,
+  removePendingImageByAssetId,
+  removePendingImageByFile,
   removePendingImagesByQuestionId,
+  setPendingImageAssetId,
   uploadAllPhysicalExamImages,
   addPendingDocument,
   clearPendingDocuments,
@@ -123,6 +126,75 @@ describe('obs.service', () => {
       expect(getPendingImages()).toHaveLength(0);
     });
 
+    it('removePendingImageByFile removes only that exact File, not look-alikes or other questions', () => {
+      const first = new File(['same'], 'photo.png', { type: 'image/png' });
+      // Same name and content as `first`, but a distinct upload.
+      const second = new File(['same'], 'photo.png', { type: 'image/png' });
+      const other = new File(['other'], 'other.png', { type: 'image/png' });
+
+      addPendingImage(first, 'General exams', 'q1');
+      addPendingImage(second, 'General exams', 'q1');
+      addPendingImage(other, 'Head', 'q2');
+
+      removePendingImageByFile(second);
+
+      expect(getPendingImages().map(img => img.file)).toEqual([first, other]);
+      expect(getPendingImages()[0].file).toBe(first);
+    });
+
+    it('removePendingImageByFile is a no-op for a file that is not queued', () => {
+      const queued = new File(['a'], 'a.png', { type: 'image/png' });
+      addPendingImage(queued, 'General exams', 'q1');
+
+      removePendingImageByFile(new File(['b'], 'b.png', { type: 'image/png' }));
+
+      expect(getPendingImages()).toHaveLength(1);
+    });
+
+    it('setPendingImageAssetId links the asset to the matching queued file only', () => {
+      const file1 = new File(['1'], '1.png', { type: 'image/png' });
+      const file2 = new File(['2'], '2.png', { type: 'image/png' });
+      addPendingImage(file1, 'General exams', 'q1');
+      addPendingImage(file2, 'General exams', 'q1');
+
+      setPendingImageAssetId(file2, 22);
+
+      expect(getPendingImages()[0].assetRecordId).toBeUndefined();
+      expect(getPendingImages()[1].assetRecordId).toBe(22);
+    });
+
+    it('setPendingImageAssetId ignores a file that is not queued', () => {
+      addPendingImage(new File(['1'], '1.png'), 'General exams', 'q1');
+
+      setPendingImageAssetId(new File(['x'], 'x.png'), 5);
+
+      expect(getPendingImages()[0].assetRecordId).toBeUndefined();
+    });
+
+    it('removePendingImageByAssetId removes only the linked image and keeps unlinked ones', () => {
+      const file1 = new File(['1'], '1.png', { type: 'image/png' });
+      const file2 = new File(['2'], '2.png', { type: 'image/png' });
+      const file3 = new File(['3'], '3.png', { type: 'image/png' });
+      addPendingImage(file1, 'General exams', 'q1');
+      addPendingImage(file2, 'General exams', 'q1');
+      addPendingImage(file3, 'General exams', 'q1');
+      setPendingImageAssetId(file1, 11);
+      setPendingImageAssetId(file2, 12);
+      // file3 has no asset yet (upload failed or still in flight)
+
+      removePendingImageByAssetId(12);
+
+      expect(getPendingImages().map(img => img.file)).toEqual([file1, file3]);
+    });
+
+    it('removePendingImageByAssetId is a no-op for an unknown asset id', () => {
+      addPendingImage(new File(['1'], '1.png'), 'General exams', 'q1');
+
+      removePendingImageByAssetId(999);
+
+      expect(getPendingImages()).toHaveLength(1);
+    });
+
     it('should clear all pending images', () => {
       const file = new File(['test'], 'photo.png', { type: 'image/png' });
       addPendingImage(file, 'General exams');
@@ -199,6 +271,25 @@ describe('obs.service', () => {
       await uploadAllPhysicalExamImages('enc-uuid', 'patient-uuid');
 
       expect(mockPost).toHaveBeenCalledTimes(2);
+    });
+
+    it('uploads only the images that are still queued after one was removed', async () => {
+      const keep1 = new File(['1'], 'keep1.png', { type: 'image/png' });
+      const drop = new File(['2'], 'drop.png', { type: 'image/png' });
+      const keep2 = new File(['3'], 'keep2.png', { type: 'image/png' });
+      addPendingImage(keep1, 'General exams', 'q1');
+      addPendingImage(drop, 'General exams', 'q1');
+      addPendingImage(keep2, 'Head', 'q2');
+      removePendingImageByFile(drop);
+
+      mockPost.mockResolvedValue({});
+
+      await uploadAllPhysicalExamImages('enc-uuid', 'patient-uuid');
+
+      const sent = mockPost.mock.calls.map(
+        call => (call[1] as FormData).get('file')
+      );
+      expect(sent).toEqual([keep1, keep2]);
     });
 
     it('should clear pending images after successful upload', async () => {

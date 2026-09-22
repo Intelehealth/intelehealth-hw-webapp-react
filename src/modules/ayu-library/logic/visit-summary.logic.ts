@@ -35,6 +35,13 @@ export interface BuildSummaryOptions {
   useLabeledFormat?: boolean;
 }
 
+/**
+ * A stored value counts as an answer when it is truthy or the number 0: number
+ * inputs accept 0, whereas "not answered" is undefined, null or ''.
+ */
+const isAnswered = (value: AyuAnswerValue | undefined): boolean =>
+  !!value || value === 0;
+
 export function buildVisitSummary(
   questionnaire: AyuQuestion[],
   answersMap: Map<string, AyuAnswerValue>,
@@ -167,6 +174,17 @@ function buildSummaryForItems(
           ? String(answer)
           : null;
 
+      /*
+       * The number input stores the parsed number for a decimal question too,
+       * so a decimal answer is a number (or a numeric string). Without this
+       * case it fell through to the text-only default and an answered decimal
+       * question silently dropped out of the summary.
+       */
+      case 'decimal':
+        return typeof answer === 'number' || typeof answer === 'string'
+          ? String(answer)
+          : null;
+
       case 'string':
         return typeof answer === 'string' ? answer : null;
 
@@ -215,7 +233,7 @@ function buildSummaryForItems(
 
   function collectNestedOwnValues(nestedItem: AyuQuestion): string[] {
     const answer = getAnswerValue(nestedItem);
-    if (!answer) return [];
+    if (!isAnswered(answer)) return [];
 
     const itemLabel = getExtensionLabel(nestedItem);
     if (typeof answer === 'string' && answer === itemLabel) return [];
@@ -267,7 +285,7 @@ function buildSummaryForItems(
   ) {
     const answer = getAnswerValue(item);
 
-    if (answer) {
+    if (isAnswered(answer)) {
       const itemLabel = item.text || '';
 
       if (
@@ -878,7 +896,7 @@ function buildSummaryForItems(
         }
 
         processed.add(item.linkId);
-      } else if (answerValue) {
+      } else if (isAnswered(answerValue)) {
         if (typeof answerValue === 'string' && answerValue === label) {
           processed.add(item.linkId);
         } else {

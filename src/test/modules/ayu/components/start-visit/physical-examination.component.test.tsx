@@ -722,6 +722,11 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
       modalConfig.onConfirm();
       expect(mockSetPhysExamPendingImages).toHaveBeenCalledWith(pendingImages);
+      // The Visit Summary gets a copy, so later adds/removes on the live queue
+      // (which mutate that array in place) cannot alter the snapshot it holds.
+      expect(mockSetPhysExamPendingImages.mock.calls[0][0]).not.toBe(
+        pendingImages
+      );
     });
 
     it('coerces a single-string AyuAnswerValue into [string] for the upload-shaped output', async () => {

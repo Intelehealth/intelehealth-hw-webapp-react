@@ -1110,13 +1110,15 @@ For array answers (multi-select), checks if the expected value is **included** i
 
 **Answer type handling:**
 
-| Answer Type             | Display Format                                   |
-| ----------------------- | ------------------------------------------------ |
-| Associated Symptoms     | "Patient reports: X, Y" / "Patient denies: A, B" |
-| Patient/Family History  | "Medical history – Diabetes – 2020"              |
-| Multi-select            | Comma-separated values                           |
-| Single-select           | Display value                                    |
-| String/Integer/Quantity | Direct value                                     |
+| Answer Type                     | Display Format                                   |
+| ------------------------------- | ------------------------------------------------ |
+| Associated Symptoms             | "Patient reports: X, Y" / "Patient denies: A, B" |
+| Patient/Family History          | "Medical history – Diabetes – 2020"              |
+| Multi-select                    | Comma-separated values                           |
+| Single-select                   | Display value                                    |
+| String/Integer/Decimal/Quantity | Direct value (`0` is an answer, not "empty")     |
+
+> **A question that is missing from the summary is usually an answer-shape problem, not a state problem.** `formatAnswerByType` only formats the shapes it knows for each question `type` and returns `null` for the rest. The answer is still in the stepper state and the saved JSON, so the question looks answered in the stepper but silently drops out of the popup, the Visit Summary page and the uploaded observation. When you add or change a question type or answer shape, add its `case` there and a test that runs the real `useFHIRStepper` with the real `buildVisitSummary` (see `useFHIRStepper.summary-popup.test.tsx`).
 
 ### `decision-matrix.ts` — Type Resolution
 
@@ -1145,6 +1147,8 @@ The core navigation engine for FHIR-based question sections.
 - Auto-advance triggers when: choice question selected AND no visible string/input children remain unanswered
 - `goNext()` — Validates current question, advances or shows summary
 - Summary modal → "Change" returns to specific question for editing
+
+**The Submit button's check icon (`AyuStepperContainer`):** a question's collapsed/answered state and its Submit button's checkmark both come from one place — `submittedQuestions`, a `Set<linkId>` local to `AyuStepperContainer`. `handleSetAnswer` (its wrapper around `setAnswer`) drops a question's linkId out of that set on every call, so **any** UI that changes a question's answer must call the `setAnswer` prop it was given, even when the stored value ends up unchanged — a call with the same value still clears the checkmark, which is what a delete needs. A handler that mutates state through a side channel instead (e.g. talking to `usePhysicalExamCamera()` directly) leaves `submittedQuestions` stale and the checkmark wrongly stays after the edit. `AyuPhysicalExamOptions`'s `handleImageRemoved` does this for image deletion, mirroring `handleImageAdded`.
 
 ### `useVisitReasons()`
 

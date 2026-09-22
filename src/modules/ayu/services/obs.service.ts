@@ -8,6 +8,11 @@ let pendingImages: Array<{
   file: File;
   comment: string;
   questionId?: string;
+  /**
+   * Temp-storage asset created for this file. Lets an image restored from
+   * temp storage (which has no File) find its queued twin when it is deleted.
+   */
+  assetRecordId?: number;
 }> = [];
 
 export const addPendingImage = (
@@ -24,6 +29,24 @@ export const removePendingImage = (index: number) => {
 
 export const removePendingImagesByQuestionId = (questionId: string) => {
   pendingImages = pendingImages.filter(img => img.questionId !== questionId);
+};
+
+/** Drops only the queued entry for this exact File, leaving every other image queued. */
+export const removePendingImageByFile = (file: File) => {
+  pendingImages = pendingImages.filter(img => img.file !== file);
+};
+
+/** Drops only the queued entry linked to this temp-storage asset. */
+export const removePendingImageByAssetId = (assetRecordId: number) => {
+  pendingImages = pendingImages.filter(
+    img => img.assetRecordId !== assetRecordId
+  );
+};
+
+/** Links a queued file to the temp-storage asset that was created for it. */
+export const setPendingImageAssetId = (file: File, assetRecordId: number) => {
+  const entry = pendingImages.find(img => img.file === file);
+  if (entry) entry.assetRecordId = assetRecordId;
 };
 
 export const clearPendingImages = () => {

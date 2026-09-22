@@ -1204,6 +1204,63 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('3 days')).toBeInTheDocument();
   });
 
+  /* ── First question of a protocol (Weight Gain) ─────────────────── */
+
+  const weightGainRows = [
+    { label: 'Weight gained (kg)', value: '4.5' },
+    { label: 'Onset', value: 'Gradual' },
+    { label: 'Since when?', value: '3 months' },
+  ];
+
+  /** Every label is on the page, in the given order, and its value beside it. */
+  const expectRowsInOrder = (rows: Array<{ label: string; value: string }>) => {
+    const labels = rows.map(row => screen.getByText(row.label));
+    labels.forEach((label, i) => {
+      expect(screen.getByText(rows[i].value)).toBeInTheDocument();
+      if (i > 0) {
+        expect(
+          labels[i - 1].compareDocumentPosition(label) &
+            Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+      }
+    });
+  };
+
+  it('should show the first question of the protocol first, with every later question, from detailsSections', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: { w1: 4.5 },
+        reasonNames: ['Weight Gain'],
+        details: weightGainRows,
+        detailsSections: [
+          {
+            title: '',
+            items: weightGainRows.map(row => ({
+              type: 'labelValue' as const,
+              ...row,
+            })),
+          },
+        ],
+      },
+    });
+
+    expectRowsInOrder(weightGainRows);
+  });
+
+  it('should still show the first question when only the flat details are available (reopened visit)', () => {
+    renderWithData({
+      ...fullData,
+      visitReason: {
+        answers: { w1: 4.5 },
+        reasonNames: ['Weight Gain'],
+        details: weightGainRows,
+      },
+    });
+
+    expectRowsInOrder(weightGainRows);
+  });
+
   /* ── Vitals with null values (note fallback path) ────────────────── */
 
   it('should show "No information" for vitals with null values via note fallback', () => {

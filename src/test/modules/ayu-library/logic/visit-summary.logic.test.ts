@@ -2197,6 +2197,266 @@ describe('buildVisitSummary', () => {
     });
   });
 
+  describe('numeric answers: decimal and zero', () => {
+    const summaryItems = (
+      question: AyuQuestion,
+      answers: Array<[string, AyuAnswerValue]>,
+      options?: Parameters<typeof buildVisitSummary>[3]
+    ) =>
+      buildVisitSummary([question], new Map(answers), 'Visit', options).flatMap(
+        section => section.items
+      );
+
+    const gate = (parent: string, code: string) => [
+      { question: parent, operator: '=' as const, answerCoding: { code } },
+    ];
+
+    describe('top-level question', () => {
+      it('should show a decimal answer stored as a number', () => {
+        const items = summaryItems(makeQuestion({ type: 'decimal' }), [
+          ['q1', 4.5],
+        ]);
+        expect(items).toEqual([
+          { type: 'labelValue', label: 'Question 1', value: '4.5' },
+        ]);
+      });
+
+      it('should show a decimal answer stored as a numeric string', () => {
+        const items = summaryItems(makeQuestion({ type: 'decimal' }), [
+          ['q1', '4.5'],
+        ]);
+        expect(items).toEqual([
+          { type: 'labelValue', label: 'Question 1', value: '4.5' },
+        ]);
+      });
+
+      it.each(['integer', 'decimal'] as const)(
+        'should show 0 as an answer for a %s question',
+        type => {
+          const items = summaryItems(makeQuestion({ type }), [['q1', 0]]);
+          expect(items).toEqual([
+            { type: 'labelValue', label: 'Question 1', value: '0' },
+          ]);
+        }
+      );
+
+      it.each([
+        ['undefined', undefined],
+        ['null', null],
+        ['an empty string', ''],
+        ['NaN (a half-typed number)', NaN],
+        ['a boolean', true],
+        ['an object', { low: undefined } as unknown as AyuAnswerValue],
+        ['an empty array', [] as string[]],
+      ] as Array<[string, AyuAnswerValue]>)(
+        'should not show a decimal question answered with %s',
+        (_name, answer) => {
+          expect(
+            summaryItems(makeQuestion({ type: 'decimal' }), [['q1', answer]])
+          ).toEqual([]);
+        }
+      );
+
+      it('should keep the rows around a decimal answer in question order', () => {
+        const questions = [
+          makeQuestion({ linkId: 'a', text: 'Before', type: 'string' }),
+          makeQuestion({ linkId: 'b', text: 'Weight (kg)', type: 'decimal' }),
+          makeQuestion({ linkId: 'c', text: 'After', type: 'integer' }),
+        ];
+        const answers = new Map<string, AyuAnswerValue>([
+          ['a', 'x'],
+          ['b', 7.25],
+          ['c', 0],
+        ]);
+        const items = buildVisitSummary(questions, answers, 'Visit').flatMap(
+          section => section.items
+        );
+        expect(items).toEqual([
+          { type: 'labelValue', label: 'Before', value: 'x' },
+          { type: 'labelValue', label: 'Weight (kg)', value: '7.25' },
+          { type: 'labelValue', label: 'After', value: '0' },
+        ]);
+      });
+    });
+
+    describe('inside a container question (own answer not stored)', () => {
+      const container = (childType: string): AyuQuestion =>
+        makeChoiceQuestion({
+          linkId: 'p1',
+          text: 'How much weight?',
+          answerOption: [
+            { valueCoding: { code: 'KG', display: 'Kilograms' } },
+            { valueCoding: { code: 'LB', display: 'Pounds' } },
+          ],
+          item: [
+            makeQuestion({
+              linkId: 'c1',
+              text: 'Weight (kg)',
+              type: childType,
+              enableWhen: gate('p1', 'KG'),
+            }),
+            makeQuestion({
+              linkId: 'c2',
+              text: 'Weight (lb)',
+              type: childType,
+              enableWhen: gate('p1', 'LB'),
+            }),
+          ],
+        });
+
+      it('should show the question when its only answer is a decimal', () => {
+        expect(summaryItems(container('decimal'), [['c1', 4.5]])).toEqual([
+          { type: 'labelValue', label: 'Weight (kg)', value: '4.5' },
+        ]);
+      });
+
+      it('should show the question when its only answer is 0', () => {
+        expect(summaryItems(container('integer'), [['c2', 0]])).toEqual([
+          { type: 'labelValue', label: 'Weight (lb)', value: '0' },
+        ]);
+      });
+    });
+
+    describe('as a detail of an answered choice', () => {
+      const yesNoWithDetail = (childType: string): AyuQuestion =>
+        makeChoiceQuestion({
+          linkId: 'p1',
+          text: 'Weight gain?',
+          answerOption: [
+            { valueCoding: { code: 'Y', display: 'Yes' } },
+            { valueCoding: { code: 'N', display: 'No' } },
+          ],
+          item: [
+            makeQuestion({
+              linkId: 'c1',
+              text: 'How many kg?',
+              type: childType,
+              enableWhen: gate('p1', 'Y'),
+            }),
+          ],
+        });
+
+      it.each([
+        ['decimal', 4.5, '4.5'],
+        ['integer', 0, '0'],
+        ['decimal', 0, '0'],
+      ] as const)(
+        'should add a %s detail of %s to the parent row',
+        (childType, answer, shown) => {
+          expect(
+            summaryItems(yesNoWithDetail(childType), [
+              ['p1', 'Y'],
+              ['c1', answer],
+            ])
+          ).toEqual([
+            {
+              type: 'labelValue',
+              label: 'Weight gain?',
+              value: `Yes - How many kg? – ${shown}`,
+            },
+          ]);
+        }
+      );
+
+      it('should keep the plain parent row when the detail is left empty', () => {
+        expect(
+          summaryItems(yesNoWithDetail('decimal'), [
+            ['p1', 'Y'],
+            ['c1', ''],
+          ])
+        ).toEqual([
+          { type: 'labelValue', label: 'Weight gain?', value: 'Yes' },
+        ]);
+      });
+
+      it('should add the detail in the labelled (medical history) format too', () => {
+        expect(
+          summaryItems(
+            yesNoWithDetail('decimal'),
+            [
+              ['p1', 'Y'],
+              ['c1', 4.5],
+            ],
+            { useLabeledFormat: true }
+          )
+        ).toEqual([
+          {
+            type: 'labelValue',
+            label: 'Weight gain?',
+            value: 'Yes - How many kg? – 4.5',
+          },
+        ]);
+      });
+    });
+
+    describe('nested under an associated symptom', () => {
+      const weightChange = (childType: string): AyuQuestion => ({
+        linkId: 'assoc',
+        text: 'Associated symptoms',
+        type: 'choice',
+        repeats: true,
+        answerOption: [
+          { valueCoding: { code: 'WC', display: 'Weight change' } },
+        ],
+        item: [
+          {
+            linkId: 'wc_kg',
+            text: 'Weight change (kg)',
+            type: childType,
+            enableWhen: gate('assoc', 'WC'),
+          },
+        ],
+      });
+
+      it.each([
+        ['decimal', 4.5, '4.5'],
+        ['integer', 0, '0'],
+      ] as const)(
+        'should include a %s value of %s next to its symptom',
+        (childType, answer, shown) => {
+          const items = summaryItems(weightChange(childType), [
+            ['assoc', ['WC']],
+            ['wc_kg', answer],
+          ]);
+          expect(items).toEqual([
+            {
+              type: 'subheading',
+              heading: 'Patient reports',
+              values: [`Weight change - Weight change (kg) - ${shown}.`],
+            },
+          ]);
+        }
+      );
+    });
+
+    it('should leave every previously handled answer shape exactly as it was', () => {
+      const cases: Array<[AyuQuestion, AyuAnswerValue, string]> = [
+        [makeQuestion({ type: 'integer' }), 5, '5'],
+        [makeQuestion({ type: 'integer' }), '5', '5'],
+        [makeQuestion({ type: 'integer' }), { low: 1, high: 3 }, '1 - 3'],
+        [makeQuestion({ type: 'string' }), 'text', 'text'],
+        [makeQuestion({ type: 'date' }), '2024-05-01', '2024-05-01'],
+        [
+          makeQuestion({ type: 'quantity' }),
+          { dropdownValues: { number: 3, days: 'days' } },
+          '3 days',
+        ],
+        [
+          makeQuestion({ type: 'quantity' }),
+          { value: 70, unit: 'kg' },
+          '70 kg',
+        ],
+        [makeChoiceQuestion(), 'CODE_A', 'Option A'],
+        [makeChoiceQuestion({ repeats: true }), ['CODE_A', 'CODE_B'], 'Option A, Option B'],
+      ];
+      for (const [question, answer, value] of cases) {
+        expect(summaryItems(question, [['q1', answer]])).toEqual([
+          { type: 'labelValue', label: question.text, value },
+        ]);
+      }
+    });
+  });
+
   describe('non-strict associated symptoms (labeled format without useLabeledFormat)', () => {
     it('should use labeled format for patient history question even without useLabeledFormat option', () => {
       const questions: AyuQuestion[] = [

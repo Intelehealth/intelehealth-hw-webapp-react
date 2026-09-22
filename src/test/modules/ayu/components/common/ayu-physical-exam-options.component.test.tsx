@@ -881,6 +881,139 @@ describe('AyuPhysicalExamOptions', () => {
     });
   });
 
+  describe('image removal re-reports the answer (Submit check-icon fix)', () => {
+    /*
+     * Deleting one image out of several does not change which option codes
+     * are selected, so it never used to reach setAnswer — the only thing
+     * that tells the stepper this question changed and clears its
+     * "submitted" checkmark. handleImageRemoved must call setAnswer with the
+     * unchanged selection, the same way handleImageAdded already does for a
+     * capture, purely to notify the stepper — the codes themselves must not
+     * change just because an image was removed.
+     */
+    it('calls setAnswer with the unchanged selection when an image is removed', async () => {
+      const setAnswer = vi.fn();
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      expect(cameraState.removeCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        0
+      );
+      expect(setAnswer).toHaveBeenCalledWith(makePeQuestion(), ['cam']);
+    });
+
+    it('keeps a committed Yes/No finding in the reported selection when an image is removed', async () => {
+      const setAnswer = vi.fn();
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['yes', 'cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      expect(setAnswer).toHaveBeenCalledWith(makePeQuestion(), [
+        'yes',
+        'cam',
+      ]);
+    });
+
+    it('reports the same unchanged selection for a multi-choice question', async () => {
+      const setAnswer = vi.fn();
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion({ repeats: true })}
+          value={['yes', 'cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      expect(setAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({ linkId: 'inner-jaundice' }),
+        ['yes', 'cam']
+      );
+    });
+
+    it('still removes the image via the camera context, unchanged, alongside the notification', async () => {
+      const setAnswer = vi.fn();
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2', 'img-3'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      // Deletion itself is untouched: still exactly one call, same index.
+      expect(cameraState.removeCameraImage).toHaveBeenCalledTimes(1);
+      expect(cameraState.removeCameraImage).toHaveBeenCalledWith(
+        'inner-jaundice',
+        0
+      );
+      expect(setAnswer).toHaveBeenCalledTimes(1);
+    });
+
+    it('notifies setAnswer on every removal, not only the first', async () => {
+      const setAnswer = vi.fn();
+      cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
+      render(
+        <AyuPhysicalExamOptions
+          question={makePeQuestion()}
+          value={['cam']}
+          setAnswer={setAnswer}
+        />
+      );
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      await userEvent.click(screen.getByTestId('image-capture-remove'));
+      expect(cameraState.removeCameraImage).toHaveBeenCalledTimes(2);
+      expect(setAnswer).toHaveBeenCalledTimes(2);
+      expect(setAnswer).toHaveBeenNthCalledWith(1, makePeQuestion(), ['cam']);
+      expect(setAnswer).toHaveBeenNthCalledWith(2, makePeQuestion(), ['cam']);
+    });
+
+    it('does not throw and forwards nothing to setAnswer when there is no camera option to identify a code', async () => {
+      /* Mirrors handleImageAdded's identical guard: unreachable in the real
+         UI (no camera tile/remove button exists without a camera option),
+         but the handler itself must stay defensive. */
+      const setAnswer = vi.fn();
+      const question = {
+        linkId: 'no-cam',
+        text: 'Q',
+        type: 'choice' as const,
+        extension: [
+          { url: EXT_URL_PE_SECTION_KEY, valueString: 'General Exams' },
+        ],
+        // Two regular options: keeps isSingleOption false so the unrelated
+        // auto-select effect does not itself call setAnswer on mount.
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No' } },
+          { valueCoding: { code: 'other', display: 'Other' } },
+        ],
+      };
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+      expect(
+        screen.queryByTestId('image-capture-remove')
+      ).not.toBeInTheDocument();
+      expect(setAnswer).not.toHaveBeenCalled();
+    });
+  });
+
   describe('camera capture commit behaviour', () => {
     it('never renders an inner Upload button, even with images captured', async () => {
       cameraState.imagesByQ['inner-jaundice'] = ['img-1', 'img-2'];
