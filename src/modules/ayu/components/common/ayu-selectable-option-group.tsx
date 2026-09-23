@@ -1,4 +1,10 @@
+import { showToast } from '../../../../services/toast';
 import { resolveAyuComponent } from '../../../ayu-library/logic/decision-matrix';
+import {
+  getOptionLocationIdentity,
+  getPainRadiatesConflictMessage,
+  isPainRadiatesOptionDisabled,
+} from '../../../ayu-library/logic/option-dependency.logic';
 import type { AyuRendererBaseProps } from '../../../ayu-library/types/ayu-renderer-props.types';
 import type { AyuAnswerOption } from '../../../ayu-library/types/ayu.types';
 import {
@@ -18,6 +24,7 @@ export function AyuSelectableOptionGroup({
   previousSibling,
   value,
   onChange,
+  disabledOptionCodes,
 }: AyuRendererBaseProps) {
   const label = question
     ? resolveLabel(question, parent, previousSibling)
@@ -57,17 +64,39 @@ export function AyuSelectableOptionGroup({
             ? Array.isArray(value) && value.includes(optionValue)
             : value === optionValue;
 
+          // A question's own current answer must stay deselectable even if
+          // it also happens to be a disabled-elsewhere option. Compared by
+          // display identity, not code: the same real-world location is
+          // independently coded per question in this app's FHIR content.
+          const isDisabled =
+            !isSelected &&
+            isPainRadiatesOptionDisabled(
+              getOptionLocationIdentity(opt),
+              disabledOptionCodes
+            );
+
           return (
             <AyuSelectableOption
               key={optionValue}
               label={opt?.valueString || opt?.valueCoding?.display}
               value={optionValue}
               selected={isSelected}
-              onClick={() =>
+              disabled={isDisabled}
+              onClick={() => {
+                // AyuSelectableOption's disabled state is visual-only by
+                // design (callers decide whether a click still applies) — a
+                // disabled Pain-radiates-to/Question 1 option must not be
+                // selectable, in either direction of this business rule.
+                if (isDisabled) {
+                  const message =
+                    question && getPainRadiatesConflictMessage(question);
+                  if (message) showToast(message, undefined, 'warning');
+                  return;
+                }
                 onChange?.(
                   isSelected && !question?.repeats ? null : optionValue
-                )
-              }
+                );
+              }}
             />
           );
         })}

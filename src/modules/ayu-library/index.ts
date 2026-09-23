@@ -54,6 +54,17 @@ export { resolveAyuComponent } from './logic/decision-matrix';
 export type { AyuComponentType } from './logic/decision-matrix';
 export { evaluateEnableWhen } from './logic/enable-when.logic';
 export {
+  ABDOMINAL_PAIN_LOCATION_TEXT,
+  getAbdominalPainLocationSelections,
+  getOptionLocationIdentity,
+  getPainRadiatesConflictMessage,
+  getPainRadiatesToSelections,
+  isAbdominalPainLocationQuestion,
+  isPainRadiatesOptionDisabled,
+  isPainRadiatesToQuestion,
+  PAIN_RADIATES_TO_TEXT,
+} from './logic/option-dependency.logic';
+export {
   computeMultiSelectToggle,
   isExclusiveCompatibleOption,
   isDurationAnswer,

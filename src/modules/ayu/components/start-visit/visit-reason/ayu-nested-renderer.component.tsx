@@ -28,6 +28,9 @@ interface NestedProps {
   selectable?: boolean;
   /** When true, shows the triangle indicator for all item types including string/text inputs. */
   showAllTriangles?: boolean;
+  /** Passed straight through to every rendered child (and threaded
+   *  unchanged through recursion) — see AyuRendererBaseProps. */
+  disabledOptionCodes?: Set<string>;
 }
 
 const FOLLOW_NEWEST = { kind: 'followNewest' } as const;
@@ -79,6 +82,7 @@ export const AyuNestedRenderer = ({
   clearAnswers,
   selectable = false,
   showAllTriangles = false,
+  disabledOptionCodes,
 }: NestedProps) => {
   const [userChosenOption, setUserChosenOption] = useState<
     string | null | typeof DESELECTED
@@ -476,6 +480,7 @@ export const AyuNestedRenderer = ({
                             onChange={val => setAnswer(child, val)}
                             answers={answers}
                             setAnswer={setAnswer}
+                            disabledOptionCodes={disabledOptionCodes}
                           />
                           {child.item && (
                             <AyuNestedRenderer
@@ -484,6 +489,7 @@ export const AyuNestedRenderer = ({
                               answers={answers}
                               setAnswer={setAnswer}
                               clearAnswers={clearAnswers}
+                              disabledOptionCodes={disabledOptionCodes}
                             />
                           )}
                         </div>
@@ -544,6 +550,7 @@ export const AyuNestedRenderer = ({
                           onChange={val => setAnswer(child, val)}
                           answers={answers}
                           setAnswer={setAnswer}
+                          disabledOptionCodes={disabledOptionCodes}
                         />
                         {child.item && (
                           <AyuNestedRenderer
@@ -552,6 +559,7 @@ export const AyuNestedRenderer = ({
                             answers={answers}
                             setAnswer={setAnswer}
                             clearAnswers={clearAnswers}
+                            disabledOptionCodes={disabledOptionCodes}
                           />
                         )}
                       </div>

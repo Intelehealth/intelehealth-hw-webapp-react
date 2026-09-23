@@ -1061,6 +1061,30 @@ AyuStepperContainer
 | `computeMultiSelectToggle(current, clicked, options)` | Handle mutual exclusivity in multi-select            |
 | `isTopLevelComplete(question, answers)`               | Recursively validate all nested children answered    |
 
+### `option-dependency.logic.ts` — Pain Radiates To: Cross-Question Option Disabling
+
+| Function                                                     | Purpose                                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `isAbdominalPainLocationQuestion(question)`                  | True for the "Which part of the abdomen..." question (Question 1)   |
+| `isPainRadiatesToQuestion(question)`                         | True for the "Pain radiates to" question (Question 2)               |
+| `getOptionLocationIdentity(option)`                          | An option's stable comparison key — its own normalized display text |
+| `getAbdominalPainLocationSelections(topLevelItems, answers)` | Question 1's currently selected locations, as identities            |
+| `getPainRadiatesToSelections(topLevelItems, answers)`        | Question 2's currently selected locations, as identities            |
+| `isPainRadiatesOptionDisabled(identity, selected)`           | Should this option be disabled? The one place this rule is decided  |
+| `getPainRadiatesConflictMessage(question)`                   | The toast to show when a blocked option on `question` is clicked    |
+
+A location already selected on one of these two questions must render disabled — and non-clickable — on the other, **in both directions**: a body region picked on "Which part of the abdomen do you feel pain?" (Question 1) disables under "Pain radiates to" (Question 2), and a location picked there equally disables back on Question 1. Confirmed present, worded identically, in more than one protocol (Abdominal Distention, Abdominal Pain) that otherwise structure these two questions differently — nothing here is hardcoded to one protocol.
+
+**Option identity is display text, not code.** Real protocol data shows the same real-world location gets an independently-authored `answerOption.code` on each question that offers it — e.g. Question 1's "Upper (R) - Right Hypochondrium" and Question 2's own option for the identical location carry two different codes. Their `valueCoding.display` (and every translation of it) is identical, and is the only identifier actually shared between the two representations, so `getOptionLocationIdentity` normalizes and compares on that, not `code`.
+
+**"All over"** (or any protocol's own equivalent "covers everything" option) is recognized generically via the existing `isMutuallyExclusiveOption` extension check (`stepper.logic.ts`) that already drives that option's single-selection behavior within its own question — no option label is hardcoded. When such an option is selected, the shared `getSelectedLocationIdentities` helper (used by both `getAbdominalPainLocationSelections` and `getPainRadiatesToSelections`) expands to every other (non-exclusive) option on that same question, so every matching location on the other side disables, not just a literal "All over" match.
+
+`AyuStepperContainer` computes both directions once per render — pure functions of the current `topLevelItems` + `answers`, so they are correct identically for a fresh selection, a loaded/edit-mode response, or a mid-edit change, with no separate `disabledOptions` state to keep in sync — unions them into one set, and passes it down uniformly as `disabledOptionCodes` through `AyuRendererBaseProps`, to every question: via `AyuRenderer` directly and via `AyuNestedRenderer` (threaded through unchanged, including its own recursion — this is how it reaches "Pain radiates to", nested as a nested child of "Does the pain move..." via FHIR `item` + `enableWhen`, not a top-level sibling).
+
+Passing the same unioned set unconditionally to every question is safe by construction, not just convention: `AyuSelectableOptionGroup` only ever disables an identity that is both (a) one of the _current_ question's own listed options and (b) currently selected on the _other_ side of this rule — so it can only affect Question 1 or Question 2 themselves, never a genuinely unrelated question. Each question's own rendering is unaffected by its own answer: an option disables only when it is _not_ the question's own current selection, so picking a location never disables that same button on itself, and an existing answer that now conflicts with a change on the other question stays selected (not force-cleared) until the user acts on it themselves.
+
+`AyuSelectableOptionGroup` is the single integration point: it calls `isPainRadiatesOptionDisabled` per option, passes the result as `AyuSelectableOption`'s `disabled` prop, and — since that prop is visual-only by design — separately guards its own `onClick` so a disabled option cannot be selected by click, keyboard, or any other path into `onChange`. On a blocked click it also calls `getPainRadiatesConflictMessage(question)` and shows the result as a warning toast, naming whichever question the conflicting selection actually lives on.
+
 ### `enable-when.logic.ts` — Conditional Visibility
 
 | Function                                  | Purpose                                          |
