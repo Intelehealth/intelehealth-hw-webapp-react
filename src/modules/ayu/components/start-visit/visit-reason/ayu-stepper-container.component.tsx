@@ -1003,7 +1003,7 @@ export const AyuStepperContainer = forwardRef<
                         onChange={val => handleSetAnswer(question, val)}
                         answers={answers}
                         setAnswer={handleSetAnswer}
-                        disabledOptionCodes={disabledLocationIdentities}
+                        disabledOptionIdentities={disabledLocationIdentities}
                       />
                       {question.item &&
                         resolveAyuComponent(question) !==
@@ -1015,7 +1015,9 @@ export const AyuStepperContainer = forwardRef<
                             setAnswer={handleSetAnswer}
                             clearAnswers={clearAnswers}
                             showAllTriangles
-                            disabledOptionCodes={disabledLocationIdentities}
+                            disabledOptionIdentities={
+                              disabledLocationIdentities
+                            }
                             selectable={
                               resolveAyuComponent(question) ===
                                 PHYSICAL_EXAM_OPTIONS_COMPONENT &&

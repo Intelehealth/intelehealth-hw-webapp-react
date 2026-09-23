@@ -192,10 +192,8 @@ export const isPainRadiatesOptionDisabled = (
   selectedLocations: ReadonlySet<string> | undefined
 ): boolean => !!locationOption && !!selectedLocations?.has(locationOption);
 
-const PAIN_RADIATES_TO_CONFLICT_MESSAGE =
-  'This option is already selected in Q2. Please select another option.';
-const ABDOMINAL_PAIN_LOCATION_CONFLICT_MESSAGE =
-  'This option is already selected in Q1. Please select another option.';
+const PAIN_RADIATES_TO_CONFLICT_MESSAGE = `This option is already selected in "${PAIN_RADIATES_TO_TEXT}". Please select another option.`;
+const ABDOMINAL_PAIN_LOCATION_CONFLICT_MESSAGE = `This option is already selected in "${ABDOMINAL_PAIN_LOCATION_TEXT}". Please select another option.`;
 
 /**
  * The toast message to show when the user attempts to select a `question`

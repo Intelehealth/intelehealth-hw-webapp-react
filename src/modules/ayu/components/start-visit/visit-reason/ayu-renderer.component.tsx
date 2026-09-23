@@ -9,7 +9,7 @@ export const AyuRenderer = ({
   onChange,
   answers,
   setAnswer,
-  disabledOptionCodes,
+  disabledOptionIdentities,
 }: AyuRendererBaseProps) => {
   if (!question) return null;
 
@@ -25,7 +25,7 @@ export const AyuRenderer = ({
       onChange={onChange}
       answers={answers || {}}
       setAnswer={(question, value) => setAnswer?.(question, value)}
-      disabledOptionCodes={disabledOptionCodes}
+      disabledOptionIdentities={disabledOptionIdentities}
     />
   );
 };

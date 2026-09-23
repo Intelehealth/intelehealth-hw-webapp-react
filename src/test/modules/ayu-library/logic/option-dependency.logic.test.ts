@@ -630,13 +630,13 @@ describe('getPainRadiatesConflictMessage', () => {
     // check in AyuSelectableOptionGroup) — so the message names Q2, the
     // question the user is NOT currently looking at.
     expect(getPainRadiatesConflictMessage(siteQuestion)).toBe(
-      'This option is already selected in Q2. Please select another option.'
+      'This option is already selected in "Pain radiates to". Please select another option.'
     );
   });
 
   it('should name Q1 as the conflict source for a blocked "Pain radiates to" option', () => {
     expect(getPainRadiatesConflictMessage(radiatesQuestion)).toBe(
-      'This option is already selected in Q1. Please select another option.'
+      'This option is already selected in "Which part of the abdomen do you feel pain?". Please select another option.'
     );
   });
 

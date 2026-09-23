@@ -12,5 +12,5 @@ export interface AyuRendererBaseProps {
    *  must render disabled on `question` — currently only the abdominal
    *  locations already selected on "Which part of the abdomen do you feel
    *  pain?", wherever that question occurs. */
-  disabledOptionCodes?: Set<string>;
+  disabledOptionIdentities?: Set<string>;
 }

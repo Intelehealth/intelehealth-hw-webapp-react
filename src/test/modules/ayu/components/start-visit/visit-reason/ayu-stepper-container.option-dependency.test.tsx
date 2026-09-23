@@ -546,7 +546,7 @@ describe('Abdominal Distention: Question 2 selection blocks the same location in
     ).toHaveClass('selected');
 
     expect(showToast).toHaveBeenCalledWith(
-      'This option is already selected in Q2. Please select another option.',
+      'This option is already selected in "Pain radiates to". Please select another option.',
       undefined,
       'warning'
     );
@@ -597,7 +597,7 @@ describe('Abdominal Distention: Question 2 selection blocks the same location in
 
     expect(conflictingOption).not.toHaveClass('selected');
     expect(showToast).toHaveBeenCalledWith(
-      'This option is already selected in Q2. Please select another option.',
+      'This option is already selected in "Pain radiates to". Please select another option.',
       undefined,
       'warning'
     );

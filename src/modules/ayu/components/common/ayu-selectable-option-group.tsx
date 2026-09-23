@@ -24,7 +24,7 @@ export function AyuSelectableOptionGroup({
   previousSibling,
   value,
   onChange,
-  disabledOptionCodes,
+  disabledOptionIdentities,
 }: AyuRendererBaseProps) {
   const label = question
     ? resolveLabel(question, parent, previousSibling)
@@ -72,7 +72,7 @@ export function AyuSelectableOptionGroup({
             !isSelected &&
             isPainRadiatesOptionDisabled(
               getOptionLocationIdentity(opt),
-              disabledOptionCodes
+              disabledOptionIdentities
             );
 
           return (

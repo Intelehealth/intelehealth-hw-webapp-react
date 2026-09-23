@@ -678,13 +678,13 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
     ],
   };
 
-  it('should apply the disabled class to an option present in disabledOptionCodes', () => {
+  it('should apply the disabled class to an option present in disabledOptionIdentities', () => {
     render(
       <AyuSelectableOptionGroup
         question={mockQuestion}
         value={undefined}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -693,13 +693,13 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
     );
   });
 
-  it('should not apply the disabled class to an option absent from disabledOptionCodes', () => {
+  it('should not apply the disabled class to an option absent from disabledOptionIdentities', () => {
     render(
       <AyuSelectableOptionGroup
         question={mockQuestion}
         value={undefined}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -708,7 +708,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
     );
   });
 
-  it('should not disable anything when disabledOptionCodes is undefined', () => {
+  it('should not disable anything when disabledOptionIdentities is undefined', () => {
     render(
       <AyuSelectableOptionGroup
         question={mockQuestion}
@@ -724,13 +724,13 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
     }
   });
 
-  it('should not disable anything when disabledOptionCodes is empty', () => {
+  it('should not disable anything when disabledOptionIdentities is empty', () => {
     render(
       <AyuSelectableOptionGroup
         question={mockQuestion}
         value={undefined}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set()}
+        disabledOptionIdentities={new Set()}
       />
     );
 
@@ -747,7 +747,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
         question={mockQuestion}
         value={undefined}
         onChange={onChange}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -764,7 +764,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
         question={mockQuestion}
         value={undefined}
         onChange={onChange}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -779,7 +779,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
         question={mockQuestion}
         value="opt-c"
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -796,7 +796,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
         question={mockQuestion}
         value="opt-c"
         onChange={onChange}
-        disabledOptionCodes={new Set(['option c'])}
+        disabledOptionIdentities={new Set(['option c'])}
       />
     );
 
@@ -812,7 +812,7 @@ describe('Disabled Option Codes (Pain radiates to)', () => {
         question={multiSelectQuestion}
         value={[]}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['option a', 'option c'])}
+        disabledOptionIdentities={new Set(['option a', 'option c'])}
       />
     );
 
@@ -867,7 +867,7 @@ describe('Disabled option click: conflict toast', () => {
         question={q1Question}
         value={[]}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['upper (r) - right hypochondrium'])}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
       />
     );
 
@@ -876,7 +876,7 @@ describe('Disabled option click: conflict toast', () => {
     );
 
     expect(showToast).toHaveBeenCalledWith(
-      'This option is already selected in Q2. Please select another option.',
+      'This option is already selected in "Pain radiates to". Please select another option.',
       undefined,
       'warning'
     );
@@ -889,7 +889,7 @@ describe('Disabled option click: conflict toast', () => {
         question={q2Question}
         value={[]}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['upper (r) - right hypochondrium'])}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
       />
     );
 
@@ -898,7 +898,7 @@ describe('Disabled option click: conflict toast', () => {
     );
 
     expect(showToast).toHaveBeenCalledWith(
-      'This option is already selected in Q1. Please select another option.',
+      'This option is already selected in "Which part of the abdomen do you feel pain?". Please select another option.',
       undefined,
       'warning'
     );
@@ -911,7 +911,7 @@ describe('Disabled option click: conflict toast', () => {
         question={q1Question}
         value={[]}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['upper (r) - right hypochondrium'])}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
       />
     );
 
@@ -930,7 +930,7 @@ describe('Disabled option click: conflict toast', () => {
         question={unrelatedQuestion}
         value={[]}
         onChange={vi.fn()}
-        disabledOptionCodes={new Set(['sudden'])}
+        disabledOptionIdentities={new Set(['sudden'])}
       />
     );
 
