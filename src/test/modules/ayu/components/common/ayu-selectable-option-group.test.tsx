@@ -1,11 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AyuSelectableOptionGroup } from '../../../../../modules/ayu/components/common/ayu-selectable-option-group';
+import {
+  ABDOMINAL_PAIN_LOCATION_TEXT,
+  PAIN_RADIATES_TO_TEXT,
+} from '../../../../../modules/ayu-library/logic/option-dependency.logic';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
+import { showToast } from '../../../../../services/toast';
 
 vi.mock('../../../../../ayu-library/utils/fhir-to-ayu.util', () => ({
   resolveLabel: vi.fn((question) => question.text),
+}));
+
+vi.mock('../../../../../services/toast', () => ({
+  showToast: vi.fn(),
 }));
 
 describe('AyuSelectableOptionGroup', () => {
@@ -654,5 +663,279 @@ describe('AyuSelectableOptionGroup', () => {
       const optionA = screen.getByRole('button', { name: 'Option A' });
       expect(optionA).not.toHaveClass('selected');
     });
+  });
+});
+
+describe('Disabled Option Codes (Pain radiates to)', () => {
+  const mockQuestion: AyuQuestion = {
+    linkId: 'select-group-1',
+    text: 'Select an option',
+    type: 'choice',
+    answerOption: [
+      { valueString: 'Option A' },
+      { valueString: 'Option B' },
+      { valueCoding: { display: 'Option C', code: 'opt-c' } },
+    ],
+  };
+
+  it('should apply the disabled class to an option present in disabledOptionIdentities', () => {
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Option C' })).toHaveClass(
+      'disabled'
+    );
+  });
+
+  it('should not apply the disabled class to an option absent from disabledOptionIdentities', () => {
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Option A' })).not.toHaveClass(
+      'disabled'
+    );
+  });
+
+  it('should not disable anything when disabledOptionIdentities is undefined', () => {
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={vi.fn()}
+      />
+    );
+
+    for (const name of ['Option A', 'Option B', 'Option C']) {
+      expect(screen.getByRole('button', { name })).not.toHaveClass(
+        'disabled'
+      );
+    }
+  });
+
+  it('should not disable anything when disabledOptionIdentities is empty', () => {
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Option A' })).not.toHaveClass(
+      'disabled'
+    );
+  });
+
+  it('should block onChange when a disabled option is clicked', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={onChange}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Option C' }));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('should still call onChange for a non-disabled option', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value={undefined}
+        onChange={onChange}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Option A' }));
+
+    expect(onChange).toHaveBeenCalledWith('Option A');
+  });
+
+  it('should exempt the question\'s own current selection from disabling (stays deselectable)', () => {
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value="opt-c"
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    const optionC = screen.getByRole('button', { name: 'Option C' });
+    expect(optionC).toHaveClass('selected');
+    expect(optionC).not.toHaveClass('disabled');
+  });
+
+  it('should still allow deselecting the question\'s own current selection by clicking it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <AyuSelectableOptionGroup
+        question={mockQuestion}
+        value="opt-c"
+        onChange={onChange}
+        disabledOptionIdentities={new Set(['option c'])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Option C' }));
+
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('should disable multiple matching options for a repeats (multi-select) question', () => {
+    const multiSelectQuestion: AyuQuestion = { ...mockQuestion, repeats: true };
+    render(
+      <AyuSelectableOptionGroup
+        question={multiSelectQuestion}
+        value={[]}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['option a', 'option c'])}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Option A' })).toHaveClass(
+      'disabled'
+    );
+    expect(screen.getByRole('button', { name: 'Option C' })).toHaveClass(
+      'disabled'
+    );
+    expect(screen.getByRole('button', { name: 'Option B' })).not.toHaveClass(
+      'disabled'
+    );
+  });
+});
+
+describe('Disabled option click: conflict toast', () => {
+  beforeEach(() => {
+    vi.mocked(showToast).mockClear();
+  });
+
+  const q1Question: AyuQuestion = {
+    linkId: 'abdominal-site',
+    text: ABDOMINAL_PAIN_LOCATION_TEXT,
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { code: 'RHC', display: 'Upper (R) - Right Hypochondrium' } },
+      { valueCoding: { code: 'EPI', display: 'Upper (C) - Epigastric' } },
+    ],
+  };
+  const q2Question: AyuQuestion = {
+    linkId: 'pain-radiates-to',
+    text: PAIN_RADIATES_TO_TEXT,
+    type: 'choice',
+    repeats: true,
+    answerOption: [
+      { valueCoding: { code: 'RHC2', display: 'Upper (R) - Right Hypochondrium' } },
+      { valueCoding: { code: 'CHEST', display: 'Chest' } },
+    ],
+  };
+  const unrelatedQuestion: AyuQuestion = {
+    linkId: 'onset',
+    text: 'Onset',
+    type: 'choice',
+    answerOption: [{ valueCoding: { code: 'SUD', display: 'Sudden' } }],
+  };
+
+  it('should show the Q2-conflict toast when a blocked Question 1 option is clicked', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuSelectableOptionGroup
+        question={q1Question}
+        value={[]}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Upper (R) - Right Hypochondrium' })
+    );
+
+    expect(showToast).toHaveBeenCalledWith(
+      'This option is already selected in "Pain radiates to". Please select another option.',
+      undefined,
+      'warning'
+    );
+  });
+
+  it('should show the Q1-conflict toast when a blocked "Pain radiates to" option is clicked', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuSelectableOptionGroup
+        question={q2Question}
+        value={[]}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Upper (R) - Right Hypochondrium' })
+    );
+
+    expect(showToast).toHaveBeenCalledWith(
+      'This option is already selected in "Which part of the abdomen do you feel pain?". Please select another option.',
+      undefined,
+      'warning'
+    );
+  });
+
+  it('should not show a toast when clicking a non-disabled option', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuSelectableOptionGroup
+        question={q1Question}
+        value={[]}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['upper (r) - right hypochondrium'])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Upper (C) - Epigastric' }));
+
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('should not show a toast for a disabled option on an unrelated question', async () => {
+    // Defensive: disabling is only ever driven by this business rule in
+    // practice, but the toast lookup must fail safe (no crash, no toast)
+    // for any question that isn't actually Question 1 or "Pain radiates to".
+    const user = userEvent.setup();
+    render(
+      <AyuSelectableOptionGroup
+        question={unrelatedQuestion}
+        value={[]}
+        onChange={vi.fn()}
+        disabledOptionIdentities={new Set(['sudden'])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Sudden' }));
+
+    expect(showToast).not.toHaveBeenCalled();
   });
 });

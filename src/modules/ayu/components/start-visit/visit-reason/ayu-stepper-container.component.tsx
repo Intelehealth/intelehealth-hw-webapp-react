@@ -10,6 +10,10 @@ import {
 } from 'react';
 import { showToast } from '../../../../../services/toast';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
+import {
+  getAbdominalPainLocationSelections,
+  getPainRadiatesToSelections,
+} from '../../../../ayu-library/logic/option-dependency.logic';
 import { validateQuestion } from '../../../../ayu-library/logic/validation.logic';
 import type {
   AyuAnswerValue,
@@ -662,6 +666,24 @@ export const AyuStepperContainer = forwardRef<
       onResetAnswers: () => resetAnswersRef.current(),
     });
 
+    /*
+     * A location selected on either side of this business rule must disable
+     * its match on the other — Question 1 → "Pain radiates to" and, equally,
+     * "Pain radiates to" → Question 1. Unioning both directions into one set
+     * and passing it uniformly to every question stays safe by construction:
+     * AyuSelectableOptionGroup only ever disables an identity that is both
+     * in this set AND one of the *current* question's own listed options, so
+     * it can only ever affect Question 1 or "Pain radiates to" themselves.
+     */
+    const disabledLocationIdentities = useMemo(() => {
+      const q1Selections = getAbdominalPainLocationSelections(
+        topLevelItems,
+        answers
+      );
+      const q2Selections = getPainRadiatesToSelections(topLevelItems, answers);
+      return new Set([...q1Selections, ...q2Selections]);
+    }, [topLevelItems, answers]);
+
     const warnOnOpenEdit = useCallback((): boolean => {
       // Case 1: a question is in edit mode (Edit clicked, Submit not yet clicked)
       const pendingEditIndex = topLevelItems.findIndex(q =>
@@ -981,6 +1003,7 @@ export const AyuStepperContainer = forwardRef<
                         onChange={val => handleSetAnswer(question, val)}
                         answers={answers}
                         setAnswer={handleSetAnswer}
+                        disabledOptionIdentities={disabledLocationIdentities}
                       />
                       {question.item &&
                         resolveAyuComponent(question) !==
@@ -992,6 +1015,9 @@ export const AyuStepperContainer = forwardRef<
                             setAnswer={handleSetAnswer}
                             clearAnswers={clearAnswers}
                             showAllTriangles
+                            disabledOptionIdentities={
+                              disabledLocationIdentities
+                            }
                             selectable={
                               resolveAyuComponent(question) ===
                                 PHYSICAL_EXAM_OPTIONS_COMPONENT &&
