@@ -30,6 +30,28 @@ function makeObs(concept: string, value: string): EncounterObs {
   return { comments: '', concept, value };
 }
 
+/**
+ * The "Temperature (F)" field is entered and displayed in Fahrenheit, but its
+ * OpenMRS concept (5088AAAA...) is the standard "Temperature (C)" reference
+ * concept — it expects Celsius. Sending a raw Fahrenheit value (e.g. 98.6)
+ * fails OpenMRS's absolute-range validation for that concept, which silently
+ * drops the entire Vitals encounter (not just this one obs).
+ */
+const TEMPERATURE_FAHRENHEIT_KEY = 'temprature_f';
+
+function toObsValue(field: VitalField, value: string | number): string {
+  if (field.key === TEMPERATURE_FAHRENHEIT_KEY) {
+    const fahrenheit = Number(value);
+    if (!isNaN(fahrenheit)) {
+      // Keep full precision here — rounding to 1 decimal before storing
+      // introduces up to 0.1°F of drift when converted back for display.
+      const celsius = ((fahrenheit - 32) * 5) / 9;
+      return String(celsius);
+    }
+  }
+  return String(value);
+}
+
 function buildVitalsObs(
   formValues: VitalsFormValues,
   vitalsConfig: VitalField[]
@@ -39,7 +61,7 @@ function buildVitalsObs(
   for (const field of vitalsConfig) {
     const value = formValues[field.key as keyof VitalsFormValues];
     if (value != null && value !== '') {
-      obs.push(makeObs(field.uuid, String(value)));
+      obs.push(makeObs(field.uuid, toObsValue(field, value)));
     }
   }
 
@@ -72,11 +94,16 @@ export function buildVisitReasonHtml(
 ): VisitReasonData {
   const sections = (detailsSections ?? []).filter(s => s.items.length > 0);
   if (sections.length > 1) {
+    const complaint = reasonNames.join(', ');
     let displayHtml = '';
     let rawHtml = '';
     for (const section of sections) {
-      displayHtml += `►<b>${section.title}</b>: <br/>`;
-      rawHtml += `►${section.title}::`;
+      // The main (non-"Associated symptoms") section is built with an empty
+      // title — fall back to the complaint name so the header isn't `<b></b>`,
+      // which the read-side regex (visit-summary.service.ts) can't match.
+      const title = section.title || complaint;
+      displayHtml += `►<b>${title}</b>: <br/>`;
+      rawHtml += `►${title}::`;
       for (const item of section.items) {
         const { label, value } = sectionItemToLabelValue(item);
         displayHtml += `• ${label} - ${value}.<br/>`;
@@ -291,7 +318,7 @@ export function buildVisitUploadPayload(
     encounterProviders,
     location: params.locationUuid,
     patient: params.patientUuid,
-    voided: 0,
+    voided: false,
   };
 
   const vitalsEncounter: EncounterPayload = {

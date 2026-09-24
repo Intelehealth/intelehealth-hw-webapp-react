@@ -465,7 +465,16 @@ export function transformVisitSummaryResponse(
   const systolic = getObsNumericValue(encounters, CONCEPT_UUIDS.BP_SYSTOLIC);
   const diastolic = getObsNumericValue(encounters, CONCEPT_UUIDS.BP_DIASTOLIC);
   const pulse = getObsNumericValue(encounters, CONCEPT_UUIDS.PULSE);
-  const temperature = getObsNumericValue(encounters, CONCEPT_UUIDS.TEMPERATURE);
+  // Stored in Celsius (OpenMRS's TEMPERATURE concept) even though the app's
+  // field and this summary display it as Fahrenheit — convert back for display.
+  const temperatureCelsius = getObsNumericValue(
+    encounters,
+    CONCEPT_UUIDS.TEMPERATURE
+  );
+  const temperature =
+    temperatureCelsius != null
+      ? Math.round(((temperatureCelsius * 9) / 5 + 32) * 10) / 10
+      : null;
   const spo2 = getObsNumericValue(encounters, CONCEPT_UUIDS.SPO2);
   const respiratoryRate = getObsNumericValue(
     encounters,
