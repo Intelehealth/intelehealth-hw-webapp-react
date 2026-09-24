@@ -16,7 +16,7 @@ export interface EncounterPayload {
   location: string;
   obs?: EncounterObs[];
   patient: string;
-  voided: number;
+  voided: boolean;
 }
 
 export interface VisitAttribute {

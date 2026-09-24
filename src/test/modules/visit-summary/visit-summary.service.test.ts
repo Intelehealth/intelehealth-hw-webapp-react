@@ -585,6 +585,46 @@ describe('visitSummaryService', () => {
       expect(result.vitals.bp.diastolic).toBe(0);
     });
 
+    describe('temperature Celsius -> Fahrenheit conversion', () => {
+      // The TEMPERATURE concept is stored in Celsius (see
+      // visit-upload.service.ts), but this summary displays it labeled
+      // "Temperature(F)" — so the stored value must be converted back to
+      // Fahrenheit here to match what the health worker originally entered.
+      it('should convert a stored Celsius value back to Fahrenheit', () => {
+        const response = makeResponse({
+          encounters: [makeEncounter([makeObs(CONCEPT_UUIDS.TEMPERATURE, '37')])],
+        });
+        const result = transformVisitSummaryResponse(response);
+        expect(result.vitals.temperature.value).toBe(98.6);
+      });
+
+      it('should round-trip fractional Celsius values without drift', () => {
+        // Same values buildVitalsObs would produce for common Fahrenheit inputs.
+        const cases: Array<[string, number]> = [
+          ['36.666666666666664', 98],
+          ['36.94444444444444', 98.5],
+          ['37.22222222222222', 99],
+          ['36.388888888888886', 97.5],
+          ['37.77777777777778', 100],
+        ];
+
+        for (const [storedCelsius, expectedFahrenheit] of cases) {
+          const response = makeResponse({
+            encounters: [
+              makeEncounter([makeObs(CONCEPT_UUIDS.TEMPERATURE, storedCelsius)]),
+            ],
+          });
+          const result = transformVisitSummaryResponse(response);
+          expect(result.vitals.temperature.value).toBe(expectedFahrenheit);
+        }
+      });
+
+      it('should return null when no temperature obs is present', () => {
+        const result = transformVisitSummaryResponse(makeResponse());
+        expect(result.vitals.temperature.value).toBeNull();
+      });
+    });
+
     it('should format birthdate', () => {
       const result = transformVisitSummaryResponse(makeResponse());
       expect(result.patient.dateOfBirth).toContain('1996');
