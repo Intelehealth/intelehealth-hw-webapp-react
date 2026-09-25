@@ -180,7 +180,7 @@ export const OpenVisitsComponent = ({
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
                   onClick={() => setActiveTab(OPEN_VISITS_TABS.OPEN)}
-                  className={`p-3 lg:px-4 lg:py-2 border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
+                  className={`p-3 lg:px-4 lg:py-2 cursor-pointer border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
                     activeTab === OPEN_VISITS_TABS.OPEN
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
@@ -192,7 +192,7 @@ export const OpenVisitsComponent = ({
 
                 <button
                   onClick={() => setActiveTab(OPEN_VISITS_TABS.PRIORITY)}
-                  className={`p-3 lg:px-4 lg:py-2 border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
+                  className={`p-3 lg:px-4 lg:py-2 cursor-pointer border-b-2 transition font-semibold flex gap-1 whitespace-nowrap ${
                     activeTab === OPEN_VISITS_TABS.PRIORITY
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'

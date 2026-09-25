@@ -24,7 +24,7 @@ export const VisitReasonFooter = ({
   const isFirst = questionIndex === 0;
 
   return (
-    <div className="border-t border-gray-200 pt-3 flex gap-3 md:justify-end">
+    <div className="border-b border-gray-200 pb-3 flex gap-3 justify-end">
       <AyuButton
         variant="primarylight"
         onClick={isFirst ? onPrevSection : onPrevQuestion}

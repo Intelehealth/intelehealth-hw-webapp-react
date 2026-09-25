@@ -283,7 +283,7 @@ describe('DashboardComponent', () => {
         </MemoryRouter>
       );
       expect(screen.getByText(/0 Patients/)).toBeInTheDocument();
-      expect(screen.getByText(/are waiting their Pending Prescriptions/)).toBeInTheDocument();
+      expect(screen.getByText(/are waiting their Prescriptions/)).toBeInTheDocument();
     });
 
     it('renders PrescriptionsReceived table', () => {

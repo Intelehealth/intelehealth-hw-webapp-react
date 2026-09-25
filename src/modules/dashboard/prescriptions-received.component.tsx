@@ -255,7 +255,7 @@ export const PrescriptionsReceived = ({
               <div className="inline-flex gap-[10px] text-sm font-medium border-b border-gray-200">
                 <button
                   onClick={() => setActiveTab(PRESCRIPTION_TABS.RECEIVED)}
-                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
+                  className={`p-3 lg:px-3 lg:py-2 cursor-pointer border-b-2 transition font-semibold flex gap-1 ${
                     activeTab === PRESCRIPTION_TABS.RECEIVED
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'
@@ -267,7 +267,7 @@ export const PrescriptionsReceived = ({
 
                 <button
                   onClick={() => setActiveTab(PRESCRIPTION_TABS.PENDING)}
-                  className={`p-3 lg:px-3 lg:py-2 border-b-2 transition font-semibold flex gap-1 ${
+                  className={`p-3 lg:px-3 lg:py-2 cursor-pointer border-b-2 transition font-semibold flex gap-1 ${
                     activeTab === PRESCRIPTION_TABS.PENDING
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-[#2E1E91] hover:text-indigo-600'

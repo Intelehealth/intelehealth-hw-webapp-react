@@ -252,7 +252,14 @@ export const useVitals = (onNextQuestion: () => void) => {
     const apiVitals = config?.patient_vitals || [];
     const sourceVitals =
       apiVitals.length > 0 ? apiVitals : FALLBACK_VITALS_CONFIG;
-    return sourceVitals.filter((field: VitalField) => field.is_enabled);
+    return sourceVitals
+      .filter((field: VitalField) => field.is_enabled)
+      .map((field: VitalField) =>
+        BODY_MEASUREMENT_KEYS.includes(field.key) ||
+        VITAL_KEYS.includes(field.key)
+          ? field
+          : { ...field, is_mandatory: false }
+      );
   }, [config?.patient_vitals]);
 
   // Organize fields into sections
