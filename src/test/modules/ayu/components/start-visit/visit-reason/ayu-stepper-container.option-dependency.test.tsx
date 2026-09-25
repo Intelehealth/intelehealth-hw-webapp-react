@@ -795,4 +795,55 @@ describe('Abdominal Distention: Submit check icon clears for a question changed 
     await user.click(editButtons()[1]);
     expect(hasCheckIcon(submitButtons()[0])).toBe(true);
   });
+
+  it('does not touch submittedQuestions when the side effect lands on a question that was never submitted', async () => {
+    // "Does the pain move..." is still the live, not-yet-submitted current
+    // question (confirmed never collapsed — only one "Edit answer" button
+    // exists throughout, Question 1's) when Question 1 is reopened and
+    // switched to "All over" — so the cross-question side effect on its
+    // nested "Pain radiates to" child has no currently-submitted top-level
+    // question to unsubmit. This exercises that no-op path without crashing
+    // or touching an unrelated question's state.
+    const exclusiveOption = (code: string, display: string) => ({
+      valueCoding: { code, display },
+      extension: [
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+          valueString: 'true',
+        },
+      ],
+    });
+    const questionnaire = {
+      item: [
+        {
+          ...abdominalSiteQuestion,
+          answerOption: [...abdominalRegionOptions, exclusiveOption('ALL', 'All over')],
+        },
+        painMovementQuestion,
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<AyuStepperContainer questionnaire={questionnaire} onComplete={vi.fn()} />);
+
+    await selectSiteAndAdvance(user, 'Upper (R) - Right Hypochondrium');
+    await clickOption(user, 'Pain radiates to');
+    // Epigastric isn't on Question 1 yet, so it's not disabled here.
+    await user.click(
+      screen.getByRole('button', { name: 'Upper (C) - Epigastric' })
+    );
+    await settle();
+
+    // Still only one collapsed/submitted card (Question 1) — "Does the pain
+    // move..." remains the live current question, never submitted.
+    expect(
+      screen.getAllByRole('button', { name: 'Edit answer' })
+    ).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Edit answer' }));
+    await user.click(screen.getByRole('button', { name: 'All over' }));
+    await settle();
+
+    expect(showToast).not.toHaveBeenCalled();
+  });
 });

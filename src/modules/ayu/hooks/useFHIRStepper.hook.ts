@@ -66,19 +66,28 @@ interface UseFHIRStepperReturn {
   total: number;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
-  /** linkId(s) whose answer was modified as a side effect of the most recent
-   *  setAnswer call (currently: clearInvalidPainLocationAnswers clearing a
-   *  now-invalid "Pain radiates to"/Question 1 answer) — not the linkId the
-   *  caller explicitly passed to setAnswer, which is already handled by the
-   *  caller itself. Deliberately narrow rather than a generic whole-answers
-   *  diff, which would also flag unrelated incidental value shifts (e.g.
+  /** linkId(s) whose answer was modified as a side effect of setAnswer
+   *  (currently: clearInvalidPainLocationAnswers clearing a now-invalid
+   *  "Pain radiates to"/Question 1 answer) — not the linkId the caller
+   *  explicitly passed to setAnswer, which is already handled by the caller
+   *  itself. Deliberately narrow rather than a generic whole-answers diff,
+   *  which would also flag unrelated incidental value shifts (e.g.
    *  positionally-indexed Physical Exam image references renumbering).
    *  Exposed as state (not a ref read synchronously after calling setAnswer)
    *  because setAnswers is a functional update: React is not guaranteed to
    *  invoke its updater before setAnswer returns, so a caller reading a ref
    *  written inside that updater immediately afterwards can observe a stale
-   *  value. Consumers should react to this via an effect. */
+   *  value. Accumulates across calls (rather than being overwritten by each
+   *  one) so that if two setAnswer calls land in the same batch, an earlier
+   *  call's side effect can't be shadowed by a later call's empty one — the
+   *  consumer must call clearLastChangedLinkIds() once it has reacted to a
+   *  non-empty value, in the same effect, or the same linkIds will still be
+   *  reported on the next unrelated change. */
   lastChangedLinkIds: string[];
+  /** Marks the current lastChangedLinkIds as consumed. Call this from the
+   *  same effect that reacts to a non-empty lastChangedLinkIds, after
+   *  handling it. */
+  clearLastChangedLinkIds: () => void;
   clearAnswers: (linkIds: string[]) => void;
   goNext: () => void;
   topLevelItems: AyuQuestion[];
@@ -121,12 +130,14 @@ export const useFHIRStepper = (
   const answersRef = useRef(answers);
   answersRef.current = answers;
   /**
-   * linkIds whose value actually changed on the most recent setAnswer call —
-   * including any changed by a side effect (clearHiddenDescendantAnswers,
-   * clearInvalidPainLocationAnswers), not just the one linkId the caller
-   * explicitly set. State, not a ref: consumers react to it via an effect,
-   * which is only guaranteed to see the value once the corresponding
-   * answers update has actually committed.
+   * linkIds whose value changed as a side effect of a setAnswer call
+   * (clearHiddenDescendantAnswers, clearInvalidPainLocationAnswers), not yet
+   * consumed by clearLastChangedLinkIds. State, not a ref: consumers react to
+   * it via an effect, which is only guaranteed to see the value once the
+   * corresponding answers update has actually committed. Accumulated rather
+   * than replaced on each call — see clearLastChangedLinkIds — so a side
+   * effect from one setAnswer call can't be shadowed by a later call's empty
+   * result landing in the same React batch.
    */
   const [lastChangedLinkIds, setLastChangedLinkIds] = useState<string[]>([]);
   const { showVitalConfirmationModal } = useGlobalModal();
@@ -386,15 +397,28 @@ export const useFHIRStepper = (
         topLevelItems,
         updated
       );
-      /* Functional form so an unaffected answer change (the common case)
-       * bails out to the same array reference instead of scheduling a
-       * state update — clearInvalidPainLocationAnswers always allocates a
-       * fresh (possibly empty) array. */
-      setLastChangedLinkIds(prevIds =>
-        sideEffectLinkIds.length === 0 && prevIds.length === 0
-          ? prevIds
-          : sideEffectLinkIds
-      );
+      /* Union into whatever is already pending, rather than replacing it, so
+       * this call can't shadow an earlier call's side effect that the
+       * consumer hasn't reacted to yet — e.g. if two setAnswer calls land in
+       * the same React batch, only the LAST functional update's return value
+       * is ever visible to the effect that reads this state; overwriting
+       * would silently drop an unconsumed non-empty result from the first
+       * call. Bails out to the same array reference when there is nothing
+       * new to add, so an unaffected answer change (the common case) doesn't
+       * schedule a state update. */
+      if (sideEffectLinkIds.length > 0) {
+        setLastChangedLinkIds(prevIds => {
+          const merged = new Set(prevIds);
+          let changed = false;
+          for (const id of sideEffectLinkIds) {
+            if (!merged.has(id)) {
+              merged.add(id);
+              changed = true;
+            }
+          }
+          return changed ? Array.from(merged) : prevIds;
+        });
+      }
 
       if (!autoNext || !currentQuestion) return updated;
 
@@ -497,6 +521,10 @@ export const useFHIRStepper = (
     return linkId;
   };
 
+  const clearLastChangedLinkIds = () => {
+    setLastChangedLinkIds(prev => (prev.length === 0 ? prev : []));
+  };
+
   return {
     currentQuestion,
     currentIndex,
@@ -504,6 +532,7 @@ export const useFHIRStepper = (
     answers,
     setAnswer,
     lastChangedLinkIds,
+    clearLastChangedLinkIds,
     clearAnswers,
     goNext,
     topLevelItems,

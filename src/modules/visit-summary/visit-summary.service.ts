@@ -300,7 +300,7 @@ export function extractPhysicalExamination(
         if (obs.value !== null && typeof obs.value === 'object') continue;
 
         const raw =
-          typeof obs.value === 'string' ? obs.value : String(obs.value);
+          typeof obs.value === 'string' ? obs.value : String(obs.value ?? '');
         try {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {

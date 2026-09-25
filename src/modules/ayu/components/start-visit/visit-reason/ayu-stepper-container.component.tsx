@@ -649,6 +649,7 @@ export const AyuStepperContainer = forwardRef<
       answers,
       setAnswer,
       lastChangedLinkIds,
+      clearLastChangedLinkIds,
       clearAnswers,
       goNext,
       topLevelItems,
@@ -883,7 +884,10 @@ export const AyuStepperContainer = forwardRef<
      * effect (not a synchronous read right after calling setAnswer, which
      * runs before React has actually processed the state update) is what
      * lets that signal reliably reach submittedQuestions once the answers
-     * update has committed.
+     * update has committed. lastChangedLinkIds accumulates across setAnswer
+     * calls rather than being overwritten by each one, so clearing it here
+     * once it's been acted on is required — otherwise the same linkIds would
+     * still be reported (and re-processed) on the next unrelated change.
      */
     useEffect(() => {
       if (!lastChangedLinkIds || lastChangedLinkIds.length === 0) return;
@@ -902,7 +906,8 @@ export const AyuStepperContainer = forwardRef<
         }
         return next ?? prev;
       });
-    }, [lastChangedLinkIds, topLevelItems]);
+      clearLastChangedLinkIds?.();
+    }, [lastChangedLinkIds, topLevelItems, clearLastChangedLinkIds]);
 
     useEffect(() => {
       lastQuestionRef.current?.scrollIntoView({

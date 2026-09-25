@@ -748,6 +748,36 @@ describe('visitSummaryService', () => {
       ]);
     });
 
+    it('should not surface a bogus "Exam: null" row for a null-valued obs', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(
+            CONCEPT_UUIDS.PHYSICAL_EXAMINATION,
+            null as unknown as string
+          ),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
+    it('should not surface a bogus "Exam: undefined" row for an undefined-valued obs', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(
+            CONCEPT_UUIDS.PHYSICAL_EXAMINATION,
+            undefined as unknown as string
+          ),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
     it('should keep the real exam summary text and skip sibling photo obs', () => {
       const encounters = [
         makeEncounter([

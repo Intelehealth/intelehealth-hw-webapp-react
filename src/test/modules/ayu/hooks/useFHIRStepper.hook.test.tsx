@@ -4911,7 +4911,11 @@ describe('useFHIRStepper', () => {
       expect(result.current.lastChangedLinkIds).toEqual([]);
     });
 
-    it('should go back to empty on the next unaffected change after a side effect fired', () => {
+    it('should keep reporting a side effect on a later unaffected change until explicitly cleared', () => {
+      // Accumulates rather than resets on the next call — so a consumer that
+      // hasn't reacted yet (e.g. because its effect and this setAnswer call
+      // landed in the same React batch) can't have the earlier side effect
+      // silently shadowed by a later, unrelated call's empty result.
       const { result } = renderHook(() =>
         useFHIRStepper({
           questionnaire: abdominalPainQuestionnaire,
@@ -4931,7 +4935,110 @@ describe('useFHIRStepper', () => {
       act(() => {
         result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
       });
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+    });
+
+    it('should reset to empty once clearLastChangedLinkIds is called, and report a fresh side effect afterwards', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: abdominalPainQuestionnaire,
+          initialAnswers: {
+            'abdominal-site': ['RHC'],
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'ALL');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+
+      act(() => {
+        result.current.clearLastChangedLinkIds();
+      });
       expect(result.current.lastChangedLinkIds).toEqual([]);
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it('should be a no-op to clear when nothing is pending', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: abdominalPainQuestionnaire })
+      );
+
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+      act(() => {
+        result.current.clearLastChangedLinkIds();
+      });
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it('should not add anything new when a later side effect repeats the exact same linkIds already pending', () => {
+      // Legacy data with the same location present on both sides at once
+      // (never reachable via a fresh click, which always disables the
+      // conflicting option first) makes clearInvalidPainLocationAnswers
+      // strip it from BOTH questions in one call: Question 1's own
+      // just-picked code is immediately un-picked because "Pain radiates to"
+      // already held it too. A second such pick reproduces the identical
+      // pair of linkIds — this is the merge's no-new-id bail-out path.
+      const richerQuestionnaire = {
+        item: [
+          abdominalPainQuestionnaire.item[0],
+          {
+            ...abdominalPainQuestionnaire.item[1],
+            item: [
+              {
+                ...abdominalPainQuestionnaire.item[1].item![0],
+                answerOption: [
+                  { valueCoding: { code: 'RHC', display: 'Right Hypochondrium' } },
+                  { valueCoding: { code: 'EPI', display: 'Epigastric' } },
+                  {
+                    valueCoding: { code: 'RSHOULDER', display: 'Right shoulder' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: richerQuestionnaire,
+          initialAnswers: {
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'EPI', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'RHC');
+      });
+      expect(result.current.lastChangedLinkIds.sort()).toEqual([
+        'abdominal-site',
+        'pain-radiates-to',
+      ]);
+      // Question 1's own pick was immediately un-picked back to empty.
+      expect(result.current.answers['abdominal-site']).toEqual([]);
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
+      });
+      // Same two linkIds again — nothing new for lastChangedLinkIds to add.
+      expect(result.current.lastChangedLinkIds.sort()).toEqual([
+        'abdominal-site',
+        'pain-radiates-to',
+      ]);
+      expect(result.current.answers['abdominal-site']).toEqual([]);
+      expect(result.current.answers['pain-radiates-to']).toEqual([
+        'RSHOULDER',
+      ]);
     });
   });
 
