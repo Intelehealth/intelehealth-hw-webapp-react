@@ -287,12 +287,20 @@ export function extractPhysicalExamination(
         obs.concept?.uuid &&
         physicalExamConcepts.includes(obs.concept.uuid)
       ) {
+        /*
+         * Each captured Physical Exam photo uploads as its own complex obs
+         * under this same concept (see uploadAllPhysicalExamImages) — value
+         * is an object whose display is OpenMRS's generic complex-obs
+         * placeholder (e.g. "raw file"), not exam text. The one obs that
+         * actually holds the exam summary is always a JSON string (see
+         * buildPhysicalExamData). Photos render separately via
+         * physicalExamImages, so skip them here rather than listing a
+         * meaningless "Exam: raw file" row per photo.
+         */
+        if (obs.value !== null && typeof obs.value === 'object') continue;
+
         const raw =
-          typeof obs.value === 'string'
-            ? obs.value
-            : typeof obs.value === 'number'
-              ? String(obs.value)
-              : (obs.value?.display ?? '');
+          typeof obs.value === 'string' ? obs.value : String(obs.value ?? '');
         try {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {

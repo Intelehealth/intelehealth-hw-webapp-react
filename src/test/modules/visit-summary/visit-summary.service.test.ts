@@ -722,18 +722,79 @@ describe('visitSummaryService', () => {
   });
 
   describe('extractPhysicalExamination edge cases', () => {
-    it('should handle object obs value for physical exam', () => {
+    /*
+     * Every captured Physical Exam photo uploads as its own complex obs
+     * under this same concept (uploadAllPhysicalExamImages in
+     * obs.service.ts) — same as getPhysicalExamImages' own object-value =
+     * file-obs convention just below. The exam summary text always uploads
+     * as a JSON string (buildPhysicalExamData), so an object-valued obs here
+     * is never real exam text — it must be skipped, not surfaced as a
+     * generic "Exam" row with OpenMRS's raw complex-obs placeholder display
+     * (e.g. "raw file"), which is what previously leaked into the visit
+     * summary once one or more photos were attached.
+     */
+    it('should skip an object-valued (photo) obs under the physical exam concept', () => {
       const encounters = [
         makeEncounter([
           makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, {
             uuid: 'val-uuid',
-            display: 'Normal findings',
+            display: 'raw file',
           }),
         ]),
       ];
       const result = extractPhysicalExamination(encounters);
       expect(result.generalExams).toEqual([
-        { label: 'concept-display', value: 'Normal findings' },
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
+    it('should not surface a bogus "Exam: null" row for a null-valued obs', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(
+            CONCEPT_UUIDS.PHYSICAL_EXAMINATION,
+            null as unknown as string
+          ),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
+    it('should not surface a bogus "Exam: undefined" row for an undefined-valued obs', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(
+            CONCEPT_UUIDS.PHYSICAL_EXAMINATION,
+            undefined as unknown as string
+          ),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'No information', value: 'No physical examination data' },
+      ]);
+    });
+
+    it('should keep the real exam summary text and skip sibling photo obs', () => {
+      const encounters = [
+        makeEncounter([
+          makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, 'General exam notes'),
+          makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, {
+            uuid: 'photo-1',
+            display: 'raw file',
+          }),
+          makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, {
+            uuid: 'photo-2',
+            display: 'raw file',
+          }),
+        ]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'concept-display', value: 'General exam notes' },
       ]);
     });
 

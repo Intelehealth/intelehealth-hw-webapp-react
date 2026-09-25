@@ -1,3 +1,4 @@
+import { getDisabledLocationIdentitiesFor } from '../../../../ayu-library/logic/option-dependency.logic';
 import { componentMap } from '../../../pages/component-map';
 import { resolveAyuComponent } from '../../../pages/decision-matrix';
 import type { AyuRendererBaseProps } from '../../../../ayu-library/types/ayu-renderer-props.types';
@@ -9,7 +10,8 @@ export const AyuRenderer = ({
   onChange,
   answers,
   setAnswer,
-  disabledOptionIdentities,
+  q1LocationSelections,
+  q2LocationSelections,
 }: AyuRendererBaseProps) => {
   if (!question) return null;
 
@@ -25,7 +27,11 @@ export const AyuRenderer = ({
       onChange={onChange}
       answers={answers || {}}
       setAnswer={(question, value) => setAnswer?.(question, value)}
-      disabledOptionIdentities={disabledOptionIdentities}
+      disabledOptionIdentities={getDisabledLocationIdentitiesFor(
+        question,
+        q1LocationSelections ?? new Set(),
+        q2LocationSelections ?? new Set()
+      )}
     />
   );
 };
