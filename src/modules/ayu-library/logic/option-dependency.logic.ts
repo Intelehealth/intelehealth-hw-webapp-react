@@ -217,3 +217,150 @@ export const getPainRadiatesConflictMessage = (
   }
   return undefined;
 };
+
+/**
+ * The identities that should render disabled on `question`, given the
+ * current selections on *both* sides of this business rule.
+ *
+ * Directional by design: Question 1 must only ever be disabled by "Pain
+ * radiates to"'s selections, and vice versa — never by a question's own
+ * selections. Without this, selecting "All over" on Question 1 (which
+ * legitimately expands to every other Question 1 location, so "Pain
+ * radiates to" disables all of them) would also disable those same
+ * identities back on Question 1 itself, since they belong to the same
+ * identity space. That self-application blocked the user from ever
+ * clicking a specific location to switch off of "All over" — the click
+ * never reached the mutual-exclusion toggle (computeMultiSelectToggle)
+ * because AyuSelectableOptionGroup treats a disabled option as
+ * unclickable.
+ */
+export const getDisabledLocationIdentitiesFor = (
+  question: AyuQuestion | undefined,
+  q1Selections: ReadonlySet<string>,
+  q2Selections: ReadonlySet<string>
+): Set<string> | undefined => {
+  if (!question) return undefined;
+  if (isAbdominalPainLocationQuestion(question)) return new Set(q2Selections);
+  if (isPainRadiatesToQuestion(question)) return new Set(q1Selections);
+  return undefined;
+};
+
+export const ALL_OVER_COMBINATION_CONFLICT_MESSAGE =
+  '"All over" cannot be selected together with specific abdominal locations. Please review your selection.';
+
+/**
+ * True when Question 1's current answer illegally combines the "All over"
+ * exclusive option with one or more specific locations.
+ *
+ * Selecting through the UI can no longer produce this state — every click
+ * routes through computeMultiSelectToggle, which always clears one side or
+ * the other. This only exists to catch data persisted before that mutual
+ * exclusion was enforced (or edited outside the app), so a stale invalid
+ * combination is still reported at submit time rather than silently
+ * uploaded or silently rewritten.
+ */
+export const hasInvalidAllOverCombination = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  if (!isAbdominalPainLocationQuestion(question)) return false;
+
+  const value = answers[question.linkId];
+  if (!Array.isArray(value) || value.length < 2) return false;
+
+  const codes = value.filter((c): c is string => typeof c === 'string');
+  const hasExclusive = codes.some(code =>
+    isMutuallyExclusiveOption(question, code)
+  );
+  const hasNonExclusive = codes.some(
+    code => !isMutuallyExclusiveOption(question, code)
+  );
+  return hasExclusive && hasNonExclusive;
+};
+
+/**
+ * Same check as `hasInvalidAllOverCombination`, but locates Question 1
+ * itself (which — like "Pain radiates to" — can be nested arbitrarily deep,
+ * not just a direct top-level item) instead of requiring the caller to
+ * already have a direct reference to it. For validation passes that only
+ * have the full top-level item list (e.g. the overall stepper Submit), not
+ * whichever single question is currently being submitted.
+ */
+export const hasInvalidAllOverCombinationInTree = (
+  topLevelItems: AyuQuestion[],
+  answers: Record<string, AyuAnswerValue>
+): boolean => {
+  const question = findQuestion(topLevelItems, isAbdominalPainLocationQuestion);
+  return question ? hasInvalidAllOverCombination(question, answers) : false;
+};
+
+/**
+ * Removes any codes from `question`'s current (repeats) answer whose
+ * location identity is in `disallowedIdentities`, mutating `updated` in
+ * place — same convention as clearHiddenDescendantAnswers, which this is
+ * meant to run alongside.
+ */
+const stripDisallowedLocationCodes = (
+  question: AyuQuestion,
+  updated: Record<string, AyuAnswerValue>,
+  disallowedIdentities: ReadonlySet<string>
+): boolean => {
+  if (disallowedIdentities.size === 0) return false;
+
+  const value = updated[question.linkId];
+  if (!Array.isArray(value)) return false;
+
+  const codes = value.filter((c): c is string => typeof c === 'string');
+  const options = question.answerOption ?? [];
+  const filtered = codes.filter(code => {
+    const opt = options.find(o => optionCode(o) === code);
+    return !opt || !disallowedIdentities.has(getOptionLocationIdentity(opt));
+  });
+
+  if (filtered.length === codes.length) return false;
+  updated[question.linkId] = filtered;
+  return true;
+};
+
+/**
+ * After any answer change, clears whichever side of this business rule now
+ * holds a location the *other* side's current selection has made invalid —
+ * most notably, Question 1 switching to "All over" must clear any abdominal
+ * location already selected under "Pain radiates to", since selecting
+ * through the UI can no longer create that combination (disabled options are
+ * unclickable) but a pre-existing selection on one side doesn't retroactively
+ * un-select itself just because the other side changed underneath it.
+ *
+ * Symmetric by construction — the same disabled-identity computation already
+ * used to render each side's disabled options — so this needs no protocol-
+ * specific direction hardcoded: whichever side ends up holding a now-covered
+ * location gets it stripped, regardless of which question the user just
+ * changed. Call alongside clearHiddenDescendantAnswers in the same central
+ * setAnswer path so this applies no matter which question triggered it.
+ *
+ * Returns the linkId(s) actually modified (empty if neither side needed it)
+ * — a deliberately narrow, targeted signal for the caller to know a *specific*
+ * other question's answer changed as a side effect (so its own dirty/submit
+ * state can be updated too), rather than a generic whole-answers diff, which
+ * would also pick up unrelated incidental value shifts elsewhere.
+ */
+export const clearInvalidPainLocationAnswers = (
+  topLevelItems: AyuQuestion[],
+  updated: Record<string, AyuAnswerValue>
+): string[] => {
+  const q1 = findQuestion(topLevelItems, isAbdominalPainLocationQuestion);
+  const q2 = findQuestion(topLevelItems, isPainRadiatesToQuestion);
+  if (!q1 || !q2) return [];
+
+  const q1Selections = getSelectedLocationIdentities(q1, updated);
+  const q2Selections = getSelectedLocationIdentities(q2, updated);
+
+  const modified: string[] = [];
+  if (stripDisallowedLocationCodes(q2, updated, q1Selections)) {
+    modified.push(q2.linkId);
+  }
+  if (stripDisallowedLocationCodes(q1, updated, q2Selections)) {
+    modified.push(q1.linkId);
+  }
+  return modified;
+};

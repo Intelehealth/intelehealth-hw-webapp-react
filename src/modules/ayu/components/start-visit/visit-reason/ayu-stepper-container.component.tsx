@@ -11,8 +11,10 @@ import {
 import { showToast } from '../../../../../services/toast';
 import { evaluateEnableWhen } from '../../../../ayu-library/logic/enable-when.logic';
 import {
+  ALL_OVER_COMBINATION_CONFLICT_MESSAGE,
   getAbdominalPainLocationSelections,
   getPainRadiatesToSelections,
+  hasInvalidAllOverCombination,
 } from '../../../../ayu-library/logic/option-dependency.logic';
 import { validateQuestion } from '../../../../ayu-library/logic/validation.logic';
 import type {
@@ -646,6 +648,7 @@ export const AyuStepperContainer = forwardRef<
       total,
       answers,
       setAnswer,
+      lastChangedLinkIds,
       clearAnswers,
       goNext,
       topLevelItems,
@@ -669,20 +672,19 @@ export const AyuStepperContainer = forwardRef<
     /*
      * A location selected on either side of this business rule must disable
      * its match on the other — Question 1 → "Pain radiates to" and, equally,
-     * "Pain radiates to" → Question 1. Unioning both directions into one set
-     * and passing it uniformly to every question stays safe by construction:
-     * AyuSelectableOptionGroup only ever disables an identity that is both
-     * in this set AND one of the *current* question's own listed options, so
-     * it can only ever affect Question 1 or "Pain radiates to" themselves.
+     * "Pain radiates to" → Question 1. Kept as two separate sets (not
+     * unioned) so each question is only ever disabled by the *other*
+     * question's selections, never its own — AyuRenderer resolves which one
+     * applies to a given question via getDisabledLocationIdentitiesFor.
      */
-    const disabledLocationIdentities = useMemo(() => {
-      const q1Selections = getAbdominalPainLocationSelections(
-        topLevelItems,
-        answers
-      );
-      const q2Selections = getPainRadiatesToSelections(topLevelItems, answers);
-      return new Set([...q1Selections, ...q2Selections]);
-    }, [topLevelItems, answers]);
+    const q1LocationSelections = useMemo(
+      () => getAbdominalPainLocationSelections(topLevelItems, answers),
+      [topLevelItems, answers]
+    );
+    const q2LocationSelections = useMemo(
+      () => getPainRadiatesToSelections(topLevelItems, answers),
+      [topLevelItems, answers]
+    );
 
     const warnOnOpenEdit = useCallback((): boolean => {
       // Case 1: a question is in edit mode (Edit clicked, Submit not yet clicked)
@@ -869,6 +871,39 @@ export const AyuStepperContainer = forwardRef<
       }
     }, [showAll, topLevelItems, answers, skippedQuestions]);
 
+    /*
+     * A side effect of setAnswer (clearHiddenDescendantAnswers,
+     * clearInvalidPainLocationAnswers) can alter a DIFFERENT top-level
+     * question's answer than the one the user directly interacted with —
+     * e.g. Question 1 switching to "All over" clearing an already-selected
+     * "Pain radiates to" location nested under a separate top-level
+     * question. That question's own checkmark must clear too, even though
+     * it wasn't the one the user touched. useFHIRStepper reports which
+     * linkIds it changed as a side effect via `lastChangedLinkIds`; this
+     * effect (not a synchronous read right after calling setAnswer, which
+     * runs before React has actually processed the state update) is what
+     * lets that signal reliably reach submittedQuestions once the answers
+     * update has committed.
+     */
+    useEffect(() => {
+      if (!lastChangedLinkIds || lastChangedLinkIds.length === 0) return;
+      setSubmittedQuestions(prev => {
+        let next: Set<string> | null = null;
+        for (const item of topLevelItems) {
+          if (!prev.has(item.linkId)) continue;
+          const subtreeLinkIds = [
+            item.linkId,
+            ...collectDescendantLinkIds(item),
+          ];
+          if (subtreeLinkIds.some(id => lastChangedLinkIds.includes(id))) {
+            next = next ?? new Set(prev);
+            next.delete(item.linkId);
+          }
+        }
+        return next ?? prev;
+      });
+    }, [lastChangedLinkIds, topLevelItems]);
+
     useEffect(() => {
       lastQuestionRef.current?.scrollIntoView({
         behavior: 'smooth',
@@ -937,16 +972,20 @@ export const AyuStepperContainer = forwardRef<
                 if (collapseOnSelect) return new Set(prev).add(question.linkId);
                 if (!prev.has(question.linkId)) return prev;
                 /*
-                Only unsubmit the card when the TOP-LEVEL question's own answer
-                changes. Nested child changes (e.g. clearing Amount under Weight
-                Gain) must not unsubmit the card — validateAllQuestions handles
-                 the empty-field check and shows the correct validation toast.
+                 * Any answer change under this card — the top-level question's
+                 * own, or any nested descendant's (e.g. "Pain radiates to"
+                 * nested under "Does the pain move to other parts of the
+                 * body?") — means the current response no longer matches what
+                 * was last submitted, so the checkmark must clear. Previously
+                 * this only fired for q.linkId === question.linkId, which
+                 * meant a nested question's own answer changing (not just a
+                 * scalar detail field under it) never re-armed Submit.
                  */
-                if (q.linkId !== question.linkId) return prev;
                 const next = new Set(prev);
                 next.delete(question.linkId);
                 return next;
               });
+
               if (collapseOnSelect) {
                 setEditingQuestions(prev => {
                   const next = new Set(prev);
@@ -1003,7 +1042,8 @@ export const AyuStepperContainer = forwardRef<
                         onChange={val => handleSetAnswer(question, val)}
                         answers={answers}
                         setAnswer={handleSetAnswer}
-                        disabledOptionIdentities={disabledLocationIdentities}
+                        q1LocationSelections={q1LocationSelections}
+                        q2LocationSelections={q2LocationSelections}
                       />
                       {question.item &&
                         resolveAyuComponent(question) !==
@@ -1015,9 +1055,8 @@ export const AyuStepperContainer = forwardRef<
                             setAnswer={handleSetAnswer}
                             clearAnswers={clearAnswers}
                             showAllTriangles
-                            disabledOptionIdentities={
-                              disabledLocationIdentities
-                            }
+                            q1LocationSelections={q1LocationSelections}
+                            q2LocationSelections={q2LocationSelections}
                             selectable={
                               resolveAyuComponent(question) ===
                                 PHYSICAL_EXAM_OPTIONS_COMPONENT &&
@@ -1119,6 +1158,26 @@ export const AyuStepperContainer = forwardRef<
                                         : undefined,
                                       result.outOfRangeText
                                     ),
+                                    undefined,
+                                    'warning'
+                                  );
+                                  return;
+                                }
+
+                                /*
+                                 * Legacy/stale data only — a fresh selection can never
+                                 * reach this combination (every click routes through
+                                 * computeMultiSelectToggle, which always clears one side
+                                 * or the other). Caught here, at Submit, not on click.
+                                 */
+                                if (
+                                  hasInvalidAllOverCombination(
+                                    question,
+                                    answers
+                                  )
+                                ) {
+                                  showToast(
+                                    ALL_OVER_COMBINATION_CONFLICT_MESSAGE,
                                     undefined,
                                     'warning'
                                   );

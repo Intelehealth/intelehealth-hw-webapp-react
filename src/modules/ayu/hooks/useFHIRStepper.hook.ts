@@ -4,6 +4,11 @@ import { useGlobalModal } from '../../../components/modal/global-modal-context';
 import { showToast } from '../../../services/toast';
 import { evaluateEnableWhen } from '../../ayu-library/logic/enable-when.logic';
 import {
+  ALL_OVER_COMBINATION_CONFLICT_MESSAGE,
+  clearInvalidPainLocationAnswers,
+  hasInvalidAllOverCombinationInTree,
+} from '../../ayu-library/logic/option-dependency.logic';
+import {
   computeMultiSelectToggle,
   isTopLevelComplete,
 } from '../../ayu-library/logic/stepper.logic';
@@ -61,6 +66,19 @@ interface UseFHIRStepperReturn {
   total: number;
   answers: Record<string, AyuAnswerValue>;
   setAnswer: (question: AyuQuestion, value: AyuAnswerValue) => void;
+  /** linkId(s) whose answer was modified as a side effect of the most recent
+   *  setAnswer call (currently: clearInvalidPainLocationAnswers clearing a
+   *  now-invalid "Pain radiates to"/Question 1 answer) — not the linkId the
+   *  caller explicitly passed to setAnswer, which is already handled by the
+   *  caller itself. Deliberately narrow rather than a generic whole-answers
+   *  diff, which would also flag unrelated incidental value shifts (e.g.
+   *  positionally-indexed Physical Exam image references renumbering).
+   *  Exposed as state (not a ref read synchronously after calling setAnswer)
+   *  because setAnswers is a functional update: React is not guaranteed to
+   *  invoke its updater before setAnswer returns, so a caller reading a ref
+   *  written inside that updater immediately afterwards can observe a stale
+   *  value. Consumers should react to this via an effect. */
+  lastChangedLinkIds: string[];
   clearAnswers: (linkIds: string[]) => void;
   goNext: () => void;
   topLevelItems: AyuQuestion[];
@@ -102,6 +120,15 @@ export const useFHIRStepper = (
   // Ref to always access latest answers (avoids stale closure in setTimeout auto-advance)
   const answersRef = useRef(answers);
   answersRef.current = answers;
+  /**
+   * linkIds whose value actually changed on the most recent setAnswer call —
+   * including any changed by a side effect (clearHiddenDescendantAnswers,
+   * clearInvalidPainLocationAnswers), not just the one linkId the caller
+   * explicitly set. State, not a ref: consumers react to it via an effect,
+   * which is only guaranteed to see the value once the corresponding
+   * answers update has actually committed.
+   */
+  const [lastChangedLinkIds, setLastChangedLinkIds] = useState<string[]>([]);
   const { showVitalConfirmationModal } = useGlobalModal();
   // PE-only: null for Visit Reason and other non-PE flows (no provider mounted).
   const peCamera = usePhysicalExamCamera();
@@ -172,6 +199,18 @@ export const useFHIRStepper = (
 
   const validateAllQuestions = (): boolean => {
     const latestAnswers = answersRef.current;
+
+    /*
+     * Legacy/stale data only — see hasInvalidAllOverCombinationInTree. Checked
+     * once here (not per top-level item) since Question 1 may be nested and
+     * this must fire at Submit regardless of whether Question 1's own item
+     * happens to be revisited.
+     */
+    if (hasInvalidAllOverCombinationInTree(topLevelItems, latestAnswers)) {
+      showToast(ALL_OVER_COMBINATION_CONFLICT_MESSAGE, undefined, 'warning');
+      return false;
+    }
+
     for (let index = 0; index < topLevelItems.length; index++) {
       const question = topLevelItems[index];
       const answer = latestAnswers[question.linkId];
@@ -343,6 +382,19 @@ export const useFHIRStepper = (
       };
 
       clearHiddenDescendantAnswers(topLevelItems, updated);
+      const sideEffectLinkIds = clearInvalidPainLocationAnswers(
+        topLevelItems,
+        updated
+      );
+      /* Functional form so an unaffected answer change (the common case)
+       * bails out to the same array reference instead of scheduling a
+       * state update — clearInvalidPainLocationAnswers always allocates a
+       * fresh (possibly empty) array. */
+      setLastChangedLinkIds(prevIds =>
+        sideEffectLinkIds.length === 0 && prevIds.length === 0
+          ? prevIds
+          : sideEffectLinkIds
+      );
 
       if (!autoNext || !currentQuestion) return updated;
 
@@ -451,6 +503,7 @@ export const useFHIRStepper = (
     total: structuralTotal,
     answers,
     setAnswer,
+    lastChangedLinkIds,
     clearAnswers,
     goNext,
     topLevelItems,
