@@ -287,12 +287,20 @@ export function extractPhysicalExamination(
         obs.concept?.uuid &&
         physicalExamConcepts.includes(obs.concept.uuid)
       ) {
+        /*
+         * Each captured Physical Exam photo uploads as its own complex obs
+         * under this same concept (see uploadAllPhysicalExamImages) — value
+         * is an object whose display is OpenMRS's generic complex-obs
+         * placeholder (e.g. "raw file"), not exam text. The one obs that
+         * actually holds the exam summary is always a JSON string (see
+         * buildPhysicalExamData). Photos render separately via
+         * physicalExamImages, so skip them here rather than listing a
+         * meaningless "Exam: raw file" row per photo.
+         */
+        if (obs.value !== null && typeof obs.value === 'object') continue;
+
         const raw =
-          typeof obs.value === 'string'
-            ? obs.value
-            : typeof obs.value === 'number'
-              ? String(obs.value)
-              : (obs.value?.display ?? '');
+          typeof obs.value === 'string' ? obs.value : String(obs.value ?? '');
         try {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {
@@ -465,7 +473,16 @@ export function transformVisitSummaryResponse(
   const systolic = getObsNumericValue(encounters, CONCEPT_UUIDS.BP_SYSTOLIC);
   const diastolic = getObsNumericValue(encounters, CONCEPT_UUIDS.BP_DIASTOLIC);
   const pulse = getObsNumericValue(encounters, CONCEPT_UUIDS.PULSE);
-  const temperature = getObsNumericValue(encounters, CONCEPT_UUIDS.TEMPERATURE);
+  // Stored in Celsius (OpenMRS's TEMPERATURE concept) even though the app's
+  // field and this summary display it as Fahrenheit — convert back for display.
+  const temperatureCelsius = getObsNumericValue(
+    encounters,
+    CONCEPT_UUIDS.TEMPERATURE
+  );
+  const temperature =
+    temperatureCelsius != null
+      ? Math.round(((temperatureCelsius * 9) / 5 + 32) * 10) / 10
+      : null;
   const spo2 = getObsNumericValue(encounters, CONCEPT_UUIDS.SPO2);
   const respiratoryRate = getObsNumericValue(
     encounters,

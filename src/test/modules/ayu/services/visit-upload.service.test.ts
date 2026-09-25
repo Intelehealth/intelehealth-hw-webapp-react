@@ -163,6 +163,75 @@ describe('visit-upload.service', () => {
 
       expect(parsed.en).toContain('<b>Skin disorder, Sleep disorder</b>');
     });
+
+    it('should fall back to the joined reason names when a section title is empty', () => {
+      // Reproduces the real production shape: the main section (built by
+      // buildVisitSummary with sectionTitle='') has no title of its own, but
+      // combining it with an "Associated symptoms" section still triggers the
+      // multi-section (grouped) branch. Regression test for the bug where the
+      // resulting `<b></b>` header could not be parsed back out on read,
+      // making "Reason for Visit" appear blank after reopening a visit.
+      const details: Array<{ label: string; value: string }> = [];
+      const reasonNames = ['Back and Neck pain'];
+      const detailsSections = [
+        {
+          title: '',
+          items: [
+            { type: 'labelValue' as const, label: 'Site', value: 'Neck' },
+          ],
+        },
+        {
+          title: 'Associated symptoms',
+          items: [
+            {
+              type: 'subheading' as const,
+              heading: 'Patient reports',
+              values: ['Numbness'],
+            },
+          ],
+        },
+      ];
+
+      const result = buildVisitReasonHtml(details, reasonNames, detailsSections);
+      const parsed = parseObs(result.obsValue);
+
+      expect(parsed.en).toContain('<b>Back and Neck pain</b>');
+      expect(parsed.en).not.toContain('<b></b>');
+      expect(parsed.en).toContain('►<b>Associated symptoms</b>:');
+      expect(parsed.en).toContain('Site - Neck.<br/>');
+
+      expect(parsed['l-en']).toContain('►Back and Neck pain::');
+      expect(parsed['l-en']).not.toContain('►::');
+    });
+
+    it('should keep an explicit section title even when a fallback would apply', () => {
+      const details: Array<{ label: string; value: string }> = [];
+      const reasonNames = ['Fever'];
+      const detailsSections = [
+        {
+          title: 'Fever',
+          items: [
+            { type: 'labelValue' as const, label: 'Duration', value: '2 days' },
+          ],
+        },
+        {
+          title: 'Associated symptoms',
+          items: [
+            {
+              type: 'subheading' as const,
+              heading: 'Patient denies',
+              values: ['Chills'],
+            },
+          ],
+        },
+      ];
+
+      const result = buildVisitReasonHtml(details, reasonNames, detailsSections);
+      const parsed = parseObs(result.obsValue);
+
+      expect(parsed.en).toContain('►<b>Fever</b>:');
+      expect(parsed.en).not.toContain('<b>Fever, Fever</b>');
+    });
   });
 
   // ─── buildPhysicalExamData ─────────────────────────────────────────────────
@@ -550,7 +619,7 @@ describe('visit-upload.service', () => {
       expect(vitalsEnc.encounterType).toBe(ENCOUNTER_TYPES.VITALS);
       expect(vitalsEnc.patient).toBe('patient-uuid-1');
       expect(vitalsEnc.location).toBe('location-uuid-1');
-      expect(vitalsEnc.voided).toBe(0);
+      expect(vitalsEnc.voided).toBe(false);
       expect(vitalsEnc.encounterProviders).toHaveLength(1);
       expect(vitalsEnc.encounterProviders[0].encounterRole).toBe(ENCOUNTER_ROLE);
       expect(vitalsEnc.encounterProviders[0].provider).toBe('provider-uuid-1');
@@ -575,6 +644,67 @@ describe('visit-upload.service', () => {
 
       expect(vitalsObs).toHaveLength(1);
       expect(vitalsObs[0].concept).toBe('uuid-height');
+    });
+
+    describe('temperature Fahrenheit -> Celsius conversion', () => {
+      // Regression tests for the bug where the "Temperature (F)" field sent a
+      // raw Fahrenheit value to OpenMRS's TEMPERATURE(C) concept. OpenMRS's
+      // absolute-range validation rejected the out-of-range value, which
+      // silently failed the *entire* Vitals encounter (not just this obs) —
+      // so Vitals came back empty on every visit where Temperature was filled in.
+      const withTemperature = (fahrenheit: number) =>
+        makeParams({
+          vitalsFormValues: { temprature_f: fahrenheit },
+          vitalsConfig: [
+            {
+              name: 'Temperature (F)',
+              key: 'temprature_f',
+              uuid: 'uuid-temperature',
+              is_mandatory: false,
+              lang: null,
+              is_enabled: true,
+            },
+          ],
+        });
+
+      it('should convert the Fahrenheit input to Celsius before sending it', () => {
+        const result = buildVisitUploadPayload(withTemperature(98.6));
+        const tempObs = result.encounters[0].obs!.find(
+          o => o.concept === 'uuid-temperature'
+        );
+
+        // 98.6F is exactly 37C.
+        expect(tempObs?.value).toBe('37');
+      });
+
+      it('should round-trip whole and fractional Fahrenheit values without drift', () => {
+        const cases: Array<[number, number]> = [
+          [98, 98],
+          [98.5, 98.5],
+          [99, 99],
+          [97.5, 97.5],
+          [100, 100],
+        ];
+
+        for (const [inputF, expectedF] of cases) {
+          const result = buildVisitUploadPayload(withTemperature(inputF));
+          const tempObs = result.encounters[0].obs!.find(
+            o => o.concept === 'uuid-temperature'
+          );
+          const storedCelsius = Number(tempObs?.value);
+          const roundTrippedF = ((storedCelsius * 9) / 5 + 32);
+
+          expect(roundTrippedF).toBeCloseTo(expectedF, 6);
+        }
+      });
+
+      it('should not affect non-temperature vitals fields', () => {
+        const result = buildVisitUploadPayload(makeParams());
+        const vitalsObs = result.encounters[0].obs!;
+
+        expect(vitalsObs[0]).toEqual({ comments: '', concept: 'uuid-height', value: '170' });
+        expect(vitalsObs[1]).toEqual({ comments: '', concept: 'uuid-weight', value: '70' });
+      });
     });
 
     it('should create adult initial encounter as second encounter', () => {

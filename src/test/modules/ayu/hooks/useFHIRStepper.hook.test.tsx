@@ -4749,6 +4749,297 @@ describe('useFHIRStepper', () => {
       expect(isValid).toBe(true);
       expect(mockShowToast).not.toHaveBeenCalled();
     });
+
+    describe('legacy "All over" + specific location conflict (Abdominal Pain)', () => {
+      const abdominalPainQuestionnaire = {
+        item: [
+          {
+            linkId: 'abdominal-site',
+            text: 'Which part of the abdomen do you feel pain?',
+            type: 'choice',
+            repeats: true,
+            answerOption: [
+              { valueCoding: { code: 'RHC', display: 'Right Hypochondrium' } },
+              {
+                valueCoding: { code: 'ALL', display: 'All over' },
+                extension: [
+                  {
+                    url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+                    valueString: 'true',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      it('should show the conflict toast and block completion for stale data combining "All over" with a specific location', () => {
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: abdominalPainQuestionnaire,
+            // Data predating mutual-exclusion enforcement — never reachable
+            // via a fresh UI selection, only via already-stored answers.
+            initialAnswers: { 'abdominal-site': ['ALL', 'RHC'] },
+          })
+        );
+
+        let isValid = true;
+        act(() => {
+          isValid = result.current.validateAllQuestions();
+        });
+
+        expect(isValid).toBe(false);
+        expect(mockShowToast).toHaveBeenCalledWith(
+          '"All over" cannot be selected together with specific abdominal locations. Please review your selection.',
+          undefined,
+          'warning'
+        );
+      });
+
+      it('should pass validation once the answer only contains one side of the combination', () => {
+        const { result } = renderHook(() =>
+          useFHIRStepper({
+            questionnaire: abdominalPainQuestionnaire,
+            initialAnswers: { 'abdominal-site': ['RHC'] },
+          })
+        );
+
+        let isValid = false;
+        act(() => {
+          isValid = result.current.validateAllQuestions();
+        });
+
+        expect(isValid).toBe(true);
+        expect(mockShowToast).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('lastChangedLinkIds (Abdominal Pain cross-question side effect)', () => {
+    const abdominalPainQuestionnaire = {
+      item: [
+        {
+          linkId: 'abdominal-site',
+          text: 'Which part of the abdomen do you feel pain?',
+          type: 'choice',
+          repeats: true,
+          answerOption: [
+            { valueCoding: { code: 'RHC', display: 'Right Hypochondrium' } },
+            { valueCoding: { code: 'EPI', display: 'Epigastric' } },
+            {
+              valueCoding: { code: 'ALL', display: 'All over' },
+              extension: [
+                {
+                  url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+                  valueString: 'true',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          linkId: 'pain-movement',
+          text: 'Does the pain move to other parts of the body?',
+          type: 'choice',
+          answerOption: [
+            { valueCoding: { code: 'RADIATES', display: 'Pain radiates to' } },
+          ],
+          item: [
+            {
+              linkId: 'pain-radiates-to',
+              text: 'Pain radiates to',
+              type: 'choice',
+              repeats: true,
+              enableWhen: [
+                {
+                  question: 'pain-movement',
+                  operator: '=',
+                  answerCoding: { code: 'RADIATES' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'RHC', display: 'Right Hypochondrium' } },
+                {
+                  valueCoding: { code: 'RSHOULDER', display: 'Right shoulder' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should start empty', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: abdominalPainQuestionnaire })
+      );
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it("should report \"Pain radiates to\"'s linkId when Question 1 switching to \"All over\" strips its now-invalid selection", () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: abdominalPainQuestionnaire,
+          initialAnswers: {
+            'abdominal-site': ['RHC'],
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'ALL');
+      });
+
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+      expect(result.current.answers['pain-radiates-to']).toEqual([
+        'RSHOULDER',
+      ]);
+    });
+
+    it('should stay empty for an answer change with no cross-question side effect', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: abdominalPainQuestionnaire })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'RHC');
+      });
+
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it('should keep reporting a side effect on a later unaffected change until explicitly cleared', () => {
+      // Accumulates rather than resets on the next call — so a consumer that
+      // hasn't reacted yet (e.g. because its effect and this setAnswer call
+      // landed in the same React batch) can't have the earlier side effect
+      // silently shadowed by a later, unrelated call's empty result.
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: abdominalPainQuestionnaire,
+          initialAnswers: {
+            'abdominal-site': ['RHC'],
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'ALL');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+    });
+
+    it('should reset to empty once clearLastChangedLinkIds is called, and report a fresh side effect afterwards', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: abdominalPainQuestionnaire,
+          initialAnswers: {
+            'abdominal-site': ['RHC'],
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'ALL');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual(['pain-radiates-to']);
+
+      act(() => {
+        result.current.clearLastChangedLinkIds();
+      });
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
+      });
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it('should be a no-op to clear when nothing is pending', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({ questionnaire: abdominalPainQuestionnaire })
+      );
+
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+      act(() => {
+        result.current.clearLastChangedLinkIds();
+      });
+      expect(result.current.lastChangedLinkIds).toEqual([]);
+    });
+
+    it('should not add anything new when a later side effect repeats the exact same linkIds already pending', () => {
+      // Legacy data with the same location present on both sides at once
+      // (never reachable via a fresh click, which always disables the
+      // conflicting option first) makes clearInvalidPainLocationAnswers
+      // strip it from BOTH questions in one call: Question 1's own
+      // just-picked code is immediately un-picked because "Pain radiates to"
+      // already held it too. A second such pick reproduces the identical
+      // pair of linkIds — this is the merge's no-new-id bail-out path.
+      const richerQuestionnaire = {
+        item: [
+          abdominalPainQuestionnaire.item[0],
+          {
+            ...abdominalPainQuestionnaire.item[1],
+            item: [
+              {
+                ...abdominalPainQuestionnaire.item[1].item![0],
+                answerOption: [
+                  { valueCoding: { code: 'RHC', display: 'Right Hypochondrium' } },
+                  { valueCoding: { code: 'EPI', display: 'Epigastric' } },
+                  {
+                    valueCoding: { code: 'RSHOULDER', display: 'Right shoulder' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: richerQuestionnaire,
+          initialAnswers: {
+            'pain-movement': 'RADIATES',
+            'pain-radiates-to': ['RHC', 'EPI', 'RSHOULDER'],
+          },
+        })
+      );
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'RHC');
+      });
+      expect(result.current.lastChangedLinkIds.sort()).toEqual([
+        'abdominal-site',
+        'pain-radiates-to',
+      ]);
+      // Question 1's own pick was immediately un-picked back to empty.
+      expect(result.current.answers['abdominal-site']).toEqual([]);
+
+      act(() => {
+        result.current.setAnswer(result.current.topLevelItems[0], 'EPI');
+      });
+      // Same two linkIds again — nothing new for lastChangedLinkIds to add.
+      expect(result.current.lastChangedLinkIds.sort()).toEqual([
+        'abdominal-site',
+        'pain-radiates-to',
+      ]);
+      expect(result.current.answers['abdominal-site']).toEqual([]);
+      expect(result.current.answers['pain-radiates-to']).toEqual([
+        'RSHOULDER',
+      ]);
+    });
   });
 
   describe('handleComplete review mode', () => {

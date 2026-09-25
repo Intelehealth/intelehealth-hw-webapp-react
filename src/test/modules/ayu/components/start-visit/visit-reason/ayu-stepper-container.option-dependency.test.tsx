@@ -666,4 +666,184 @@ describe('Abdominal Distention: Question 2 selection blocks the same location in
       );
     }
   });
+
+  it('blocks Submit with a toast for legacy/stale data combining "All over" with a specific location', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuStepperContainer
+        questionnaire={abdominalQuestionnaireWithExclusiveAllOver}
+        skipSummary
+        // Data predating mutual-exclusion enforcement — never reachable via
+        // a fresh UI selection, since every click routes through
+        // computeMultiSelectToggle, which always clears one side or the other.
+        initialAnswers={{ 'abdominal-site': ['ALL', 'RHC'] }}
+        onComplete={vi.fn()}
+      />
+    );
+
+    // "Does the pain move..." is unanswered and not required, so it's
+    // auto-skipped and also shows its own "Edit answer" button. Question 1's
+    // Submit button already carries a check icon from initialAnswers, so its
+    // accessible name is "Submit yes", not a plain "Submit".
+    await user.click(screen.getAllByRole('button', { name: 'Edit answer' })[0]);
+    await user.click(screen.getByRole('button', { name: /^Submit/ }));
+
+    expect(showToast).toHaveBeenCalledWith(
+      '"All over" cannot be selected together with specific abdominal locations. Please review your selection.',
+      undefined,
+      'warning'
+    );
+  });
+});
+
+/**
+ * Regression: submitting Question 1 with "All over" silently strips an
+ * already-selected, now-invalid "Pain radiates to" answer (Question 2,
+ * nested under the separate top-level "Does the pain move to other parts of
+ * the body?" question) as a side effect — the user never touches Question 2
+ * directly. That top-level question's own Submit check icon must clear too,
+ * since its current answer no longer matches what was last submitted, even
+ * though it wasn't the card the user interacted with.
+ */
+describe('Abdominal Distention: Submit check icon clears for a question changed only as a side effect', () => {
+  beforeEach(() => {
+    vi.mocked(showToast).mockClear();
+  });
+
+  const submitButtons = () => screen.getAllByRole('button', { name: /^Submit/ });
+  const hasCheckIcon = (btn: HTMLElement) =>
+    Boolean(btn.querySelector('img[alt="yes"]'));
+
+  it('clears "Does the pain move..." check icon when editing Question 1 to "All over" strips Question 2\'s existing answer', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuStepperContainer
+        questionnaire={abdominalQuestionnaire}
+        skipSummary
+        initialAnswers={{
+          'abdominal-site': ['RHC'],
+          'pain-movement': 'RADIATES',
+          'pain-radiates-to': ['RHC', 'RSHOULDER'],
+        }}
+        onComplete={vi.fn()}
+      />
+    );
+
+    // Both cards start collapsed/submitted, from initialAnswers.
+    const editButtons = () => screen.getAllByRole('button', { name: 'Edit answer' });
+    expect(editButtons()).toHaveLength(2);
+
+    // Reopen Question 1 and switch it to "All over" — Question 2 stays collapsed.
+    await user.click(editButtons()[0]);
+    await user.click(screen.getByRole('button', { name: 'All over' }));
+    await settle();
+
+    expect(showToast).not.toHaveBeenCalled();
+
+    // Submit Question 1's own card.
+    await user.click(submitButtons()[0]);
+    await settle();
+
+    // Reopen "Does the pain move..." (Question 2's top-level ancestor) —
+    // its own answer ('RADIATES') never changed, only its nested child's
+    // did, as a side effect of the Question 1 submit above. Question 1 is
+    // collapsed again (submitted), so "Does the pain move..." is index 1.
+    await user.click(editButtons()[1]);
+
+    const painMovementSubmit = submitButtons()[0];
+    expect(hasCheckIcon(painMovementSubmit)).toBe(false);
+
+    // The underlying side effect itself: Right shoulder (Question 2-only,
+    // never in conflict with Question 1) must still be there — proving the
+    // strip only removed the now-invalid location, not the whole answer.
+    expect(screen.getByRole('button', { name: 'Right shoulder' })).toHaveClass(
+      'selected'
+    );
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('does not clear the check icon for an edit with no cross-question side effect', async () => {
+    const user = userEvent.setup();
+    render(
+      <AyuStepperContainer
+        questionnaire={abdominalQuestionnaire}
+        skipSummary
+        initialAnswers={{
+          'abdominal-site': ['RHC'],
+          'pain-movement': 'RADIATES',
+          'pain-radiates-to': ['RSHOULDER'],
+        }}
+        onComplete={vi.fn()}
+      />
+    );
+
+    const editButtons = () => screen.getAllByRole('button', { name: 'Edit answer' });
+
+    // Reopen and resubmit Question 1 unchanged (Epigastric, not covering
+    // Question 2's existing "Right shoulder" answer) — no side effect.
+    await user.click(editButtons()[0]);
+    await user.click(
+      screen.getByRole('button', { name: 'Upper (C) - Epigastric' })
+    );
+    await settle();
+    await user.click(submitButtons()[0]);
+    await settle();
+
+    // "Does the pain move..." was never touched and had no side effect —
+    // its check icon must still be showing. Question 1 is collapsed again
+    // (submitted), so "Does the pain move..." is index 1.
+    await user.click(editButtons()[1]);
+    expect(hasCheckIcon(submitButtons()[0])).toBe(true);
+  });
+
+  it('does not touch submittedQuestions when the side effect lands on a question that was never submitted', async () => {
+    // "Does the pain move..." is still the live, not-yet-submitted current
+    // question (confirmed never collapsed — only one "Edit answer" button
+    // exists throughout, Question 1's) when Question 1 is reopened and
+    // switched to "All over" — so the cross-question side effect on its
+    // nested "Pain radiates to" child has no currently-submitted top-level
+    // question to unsubmit. This exercises that no-op path without crashing
+    // or touching an unrelated question's state.
+    const exclusiveOption = (code: string, display: string) => ({
+      valueCoding: { code, display },
+      extension: [
+        {
+          url: 'https://intelehealth.org/fhir/StructureDefinition/exclude-from-multi-choice',
+          valueString: 'true',
+        },
+      ],
+    });
+    const questionnaire = {
+      item: [
+        {
+          ...abdominalSiteQuestion,
+          answerOption: [...abdominalRegionOptions, exclusiveOption('ALL', 'All over')],
+        },
+        painMovementQuestion,
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<AyuStepperContainer questionnaire={questionnaire} onComplete={vi.fn()} />);
+
+    await selectSiteAndAdvance(user, 'Upper (R) - Right Hypochondrium');
+    await clickOption(user, 'Pain radiates to');
+    // Epigastric isn't on Question 1 yet, so it's not disabled here.
+    await user.click(
+      screen.getByRole('button', { name: 'Upper (C) - Epigastric' })
+    );
+    await settle();
+
+    // Still only one collapsed/submitted card (Question 1) — "Does the pain
+    // move..." remains the live current question, never submitted.
+    expect(
+      screen.getAllByRole('button', { name: 'Edit answer' })
+    ).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Edit answer' }));
+    await user.click(screen.getByRole('button', { name: 'All over' }));
+    await settle();
+
+    expect(showToast).not.toHaveBeenCalled();
+  });
 });

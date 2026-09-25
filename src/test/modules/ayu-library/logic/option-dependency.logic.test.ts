@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   ABDOMINAL_PAIN_LOCATION_TEXT,
+  ALL_OVER_COMBINATION_CONFLICT_MESSAGE,
+  clearInvalidPainLocationAnswers,
   getAbdominalPainLocationSelections,
+  getDisabledLocationIdentitiesFor,
   getOptionLocationIdentity,
   getPainRadiatesConflictMessage,
   getPainRadiatesToSelections,
+  hasInvalidAllOverCombination,
+  hasInvalidAllOverCombinationInTree,
   isAbdominalPainLocationQuestion,
   isPainRadiatesOptionDisabled,
   isPainRadiatesToQuestion,
@@ -648,5 +653,240 @@ describe('getPainRadiatesConflictMessage', () => {
       answerOption: [region('SUD', 'Sudden')],
     };
     expect(getPainRadiatesConflictMessage(onset)).toBeUndefined();
+  });
+});
+
+describe('getDisabledLocationIdentitiesFor', () => {
+  it('should return undefined for an undefined question', () => {
+    expect(
+      getDisabledLocationIdentitiesFor(undefined, new Set(), new Set())
+    ).toBeUndefined();
+  });
+
+  it('should return undefined for an unrelated question', () => {
+    const onset: AyuQuestion = {
+      linkId: 'onset',
+      text: 'Onset',
+      type: 'choice',
+      answerOption: [region('SUD', 'Sudden')],
+    };
+    expect(
+      getDisabledLocationIdentitiesFor(onset, new Set(['x']), new Set(['y']))
+    ).toBeUndefined();
+  });
+
+  it("should resolve to Question 2's selections for Question 1 — never its own", () => {
+    const q1Selections = new Set([identityOf('Right shoulder')]);
+    const q2Selections = new Set([identityOf('Epigastric')]);
+    expect(
+      getDisabledLocationIdentitiesFor(siteQuestion, q1Selections, q2Selections)
+    ).toEqual(q2Selections);
+  });
+
+  it("should resolve to Question 1's selections for \"Pain radiates to\" — never its own", () => {
+    const q1Selections = new Set([identityOf('Right shoulder')]);
+    const q2Selections = new Set([identityOf('Epigastric')]);
+    expect(
+      getDisabledLocationIdentitiesFor(
+        radiatesQuestion,
+        q1Selections,
+        q2Selections
+      )
+    ).toEqual(q1Selections);
+  });
+});
+
+describe('hasInvalidAllOverCombination', () => {
+  it('should return false for a non-Question-1 question', () => {
+    expect(
+      hasInvalidAllOverCombination(radiatesQuestion, {
+        'pain-radiates-to': ['ALL', 'RHC'],
+      })
+    ).toBe(false);
+  });
+
+  it('should return false when Question 1 has no answer', () => {
+    expect(hasInvalidAllOverCombination(siteQuestionWithExclusiveAllOver, {})).toBe(
+      false
+    );
+  });
+
+  it('should return false for a single-value (non-array) answer', () => {
+    expect(
+      hasInvalidAllOverCombination(siteQuestionWithExclusiveAllOver, {
+        'abdominal-site': 'ALL',
+      })
+    ).toBe(false);
+  });
+
+  it('should return false when only the exclusive option is selected', () => {
+    expect(
+      hasInvalidAllOverCombination(siteQuestionWithExclusiveAllOver, {
+        'abdominal-site': ['ALL'],
+      })
+    ).toBe(false);
+  });
+
+  it('should return false when only specific locations are selected', () => {
+    expect(
+      hasInvalidAllOverCombination(siteQuestionWithExclusiveAllOver, {
+        'abdominal-site': ['RHC', 'EPI'],
+      })
+    ).toBe(false);
+  });
+
+  it('should return true for legacy/stale data combining "All over" with a specific location', () => {
+    expect(
+      hasInvalidAllOverCombination(siteQuestionWithExclusiveAllOver, {
+        'abdominal-site': ['ALL', 'RHC'],
+      })
+    ).toBe(true);
+  });
+});
+
+describe('hasInvalidAllOverCombinationInTree', () => {
+  it('should return false when Question 1 is not present at all', () => {
+    expect(hasInvalidAllOverCombinationInTree([radiatesQuestion], {})).toBe(
+      false
+    );
+  });
+
+  it('should find Question 1 nested arbitrarily deep and detect a stale conflict', () => {
+    const nested: AyuQuestion = {
+      linkId: 'associated-symptoms',
+      text: 'Associated symptoms',
+      type: 'choice',
+      item: [siteQuestionWithExclusiveAllOver],
+    };
+    expect(
+      hasInvalidAllOverCombinationInTree([nested], {
+        'abdominal-site': ['ALL', 'RHC'],
+      })
+    ).toBe(true);
+  });
+
+  it('should return false when the nested Question 1 has a valid answer', () => {
+    const nested: AyuQuestion = {
+      linkId: 'associated-symptoms',
+      text: 'Associated symptoms',
+      type: 'choice',
+      item: [siteQuestionWithExclusiveAllOver],
+    };
+    expect(
+      hasInvalidAllOverCombinationInTree([nested], {
+        'abdominal-site': ['RHC'],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('ALL_OVER_COMBINATION_CONFLICT_MESSAGE', () => {
+  it('should be a non-empty, human-readable string', () => {
+    expect(typeof ALL_OVER_COMBINATION_CONFLICT_MESSAGE).toBe('string');
+    expect(ALL_OVER_COMBINATION_CONFLICT_MESSAGE.length).toBeGreaterThan(0);
+  });
+});
+
+describe('clearInvalidPainLocationAnswers', () => {
+  it('should return an empty array and do nothing when Question 1 is absent', () => {
+    const updated: Record<string, AyuAnswerValue> = {
+      'pain-radiates-to': ['RHC'],
+    };
+    expect(clearInvalidPainLocationAnswers([radiatesQuestion], updated)).toEqual(
+      []
+    );
+    expect(updated['pain-radiates-to']).toEqual(['RHC']);
+  });
+
+  it('should return an empty array and do nothing when "Pain radiates to" is absent', () => {
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['RHC'],
+    };
+    expect(
+      clearInvalidPainLocationAnswers(
+        [siteQuestionWithExclusiveAllOver],
+        updated
+      )
+    ).toEqual([]);
+    expect(updated['abdominal-site']).toEqual(['RHC']);
+  });
+
+  it('should tolerate a question with no answerOption list at all when checking for codes to strip', () => {
+    const radiatesWithNoOptions: AyuQuestion = {
+      ...radiatesQuestion,
+      answerOption: undefined,
+    };
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['ALL'],
+      'pain-radiates-to': ['RHC'],
+    };
+    const topLevelItems = [siteQuestionWithExclusiveAllOver, radiatesWithNoOptions];
+    // No option list to resolve 'RHC' against on this side, so nothing can
+    // be identified as disallowed here — the code is left as is rather than
+    // throwing.
+    expect(clearInvalidPainLocationAnswers(topLevelItems, updated)).toEqual([]);
+    expect(updated['pain-radiates-to']).toEqual(['RHC']);
+  });
+
+  it('should leave both answers untouched when nothing conflicts', () => {
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['RHC'],
+      'pain-radiates-to': ['RSHOULDER'],
+    };
+    const topLevelItems = [siteQuestionWithExclusiveAllOver, radiatesQuestion];
+    expect(clearInvalidPainLocationAnswers(topLevelItems, updated)).toEqual([]);
+    expect(updated['abdominal-site']).toEqual(['RHC']);
+    expect(updated['pain-radiates-to']).toEqual(['RSHOULDER']);
+  });
+
+  it('should strip a "Pain radiates to" location that Question 1\'s new "All over" now covers, and report its linkId', () => {
+    const topLevelItems = [siteQuestionWithExclusiveAllOver, radiatesQuestion];
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['ALL'],
+      'pain-radiates-to': ['RHC', 'RSHOULDER'],
+    };
+    const modified = clearInvalidPainLocationAnswers(topLevelItems, updated);
+    expect(modified).toEqual(['pain-radiates-to']);
+    // RHC is now covered by Question 1's "All over" — stripped.
+    // Right shoulder is Q2-only — retained.
+    expect(updated['pain-radiates-to']).toEqual(['RSHOULDER']);
+    expect(updated['abdominal-site']).toEqual(['ALL']);
+  });
+
+  it('should strip a Question 1 location that "Pain radiates to" now covers, and report its linkId', () => {
+    const radiatesWithExclusive: AyuQuestion = {
+      ...radiatesQuestion,
+      answerOption: [
+        ...radiatesQuestion.answerOption!,
+        exclusiveOption('ALLRAD', 'All over'),
+      ],
+    };
+    const topLevelItems = [siteQuestion, radiatesWithExclusive];
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['RHC', 'EPI'],
+      'pain-radiates-to': ['ALLRAD'],
+    };
+    const modified = clearInvalidPainLocationAnswers(topLevelItems, updated);
+    expect(modified).toEqual(['abdominal-site']);
+    // Both RHC and EPI are now covered by "Pain radiates to"'s "All over" — both stripped.
+    expect(updated['abdominal-site']).toEqual([]);
+    expect(updated['pain-radiates-to']).toEqual(['ALLRAD']);
+  });
+
+  it('should find Question 1 and "Pain radiates to" nested arbitrarily deep', () => {
+    const nestedQ2: AyuQuestion = {
+      linkId: 'pain-movement',
+      text: 'Does the pain move to other parts of the body?',
+      type: 'choice',
+      item: [radiatesQuestion],
+    };
+    const topLevelItems = [siteQuestionWithExclusiveAllOver, nestedQ2];
+    const updated: Record<string, AyuAnswerValue> = {
+      'abdominal-site': ['ALL'],
+      'pain-radiates-to': ['RHC'],
+    };
+    const modified = clearInvalidPainLocationAnswers(topLevelItems, updated);
+    expect(modified).toEqual(['pain-radiates-to']);
+    expect(updated['pain-radiates-to']).toEqual([]);
   });
 });
