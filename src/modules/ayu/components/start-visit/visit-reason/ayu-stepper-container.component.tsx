@@ -872,6 +872,21 @@ export const AyuStepperContainer = forwardRef<
       }
     }, [showAll, topLevelItems, answers, skippedQuestions]);
 
+    const scrollTargetIndex = useMemo(() => {
+      if (!showAll) return currentIndex;
+      const next = topLevelItems.findIndex(
+        q =>
+          !submittedQuestions.has(q.linkId) && !skippedQuestions.has(q.linkId)
+      );
+      return next === -1 ? topLevelItems.length - 1 : next;
+    }, [
+      showAll,
+      currentIndex,
+      topLevelItems,
+      submittedQuestions,
+      skippedQuestions,
+    ]);
+
     /*
      * A side effect of setAnswer (clearHiddenDescendantAnswers,
      * clearInvalidPainLocationAnswers) can alter a DIFFERENT top-level
@@ -910,11 +925,20 @@ export const AyuStepperContainer = forwardRef<
     }, [lastChangedLinkIds, topLevelItems, clearLastChangedLinkIds]);
 
     useEffect(() => {
-      lastQuestionRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
+      let secondFrame = 0;
+      const firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+          lastQuestionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        });
       });
-    }, [currentIndex]);
+      return () => {
+        cancelAnimationFrame(firstFrame);
+        cancelAnimationFrame(secondFrame);
+      };
+    }, [scrollTargetIndex]);
 
     /* Keep onProgressUpdateRef current so the progress effects never need the
      * callback in their dependency arrays — prevents spurious re-runs when the
@@ -1009,7 +1033,7 @@ export const AyuStepperContainer = forwardRef<
             return (
               <div
                 key={question.linkId}
-                ref={isCurrentQuestion ? lastQuestionRef : null}
+                ref={index === scrollTargetIndex ? lastQuestionRef : null}
                 className="relative"
               >
                 {!isLastRendered && (

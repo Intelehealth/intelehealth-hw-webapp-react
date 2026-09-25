@@ -335,6 +335,15 @@ export const VisitReason = ({
   // DEFAULT VISIT REASON UI
   return (
     <div className="w-full flex flex-col">
+      <VisitReasonFooter
+        questionIndex={questionIndex}
+        totalQuestions={1}
+        onPrevQuestion={onPrevQuestion}
+        onPrevSection={onPrevSection}
+        onNextQuestion={handleNext}
+        isNextDisabled={!canSubmit}
+      />
+
       <div className="flex-1 flex items-center justify-center">
         <div className="flex flex-col gap-4 mt-4 w-full max-w-[996px]">
           <QuestionLoader
@@ -372,15 +381,6 @@ export const VisitReason = ({
           </div>
         </div>
       </div>
-
-      <VisitReasonFooter
-        questionIndex={questionIndex}
-        totalQuestions={1}
-        onPrevQuestion={onPrevQuestion}
-        onPrevSection={onPrevSection}
-        onNextQuestion={handleNext}
-        isNextDisabled={!canSubmit}
-      />
     </div>
   );
 };
