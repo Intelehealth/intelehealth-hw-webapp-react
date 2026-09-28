@@ -13,6 +13,7 @@ import type {
 } from '../../../assets/data/visit-summary.data';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
+import Tooltip from '../../../components/common/tooltip.component';
 import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
@@ -1096,7 +1097,9 @@ const VisitSummaryPage = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            <Tooltip text="Enable this in case visit is an Emergency.">
+              <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            </Tooltip>
           </div>
           <div className="w-12">
             <Toggle

@@ -1357,6 +1357,21 @@ describe('VisitSummaryPage', () => {
     expect(toggle).not.toBeChecked();
   });
 
+  it('should show a tooltip with the correct message when hovering the Priority Visit info icon', () => {
+    renderWithData(fullData);
+
+    const infoIcon = screen.getByAltText('info');
+    expect(
+      screen.queryByText('Enable this in case visit is an Emergency.')
+    ).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
+
+    expect(
+      screen.getByText('Enable this in case visit is an Emergency.')
+    ).toBeInTheDocument();
+  });
+
   it('should toggle priority visit when clicked', () => {
     renderWithData(fullData);
 

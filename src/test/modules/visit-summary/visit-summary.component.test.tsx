@@ -607,6 +607,20 @@ describe('VisitSummaryComponent', () => {
       });
     });
 
+    it('should show a tooltip with the correct message when hovering the Priority Visit info icon', async () => {
+      renderWithMockData();
+      const infoIcon = await screen.findByAltText('info');
+      expect(
+        screen.queryByText('Enable this in case visit is an Emergency.')
+      ).not.toBeInTheDocument();
+
+      fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
+
+      expect(
+        screen.getByText('Enable this in case visit is an Emergency.')
+      ).toBeInTheDocument();
+    });
+
     it('should render toggle unchecked when priority visit is false or undefined', async () => {
       renderWithMockData();
       await waitFor(() => {
