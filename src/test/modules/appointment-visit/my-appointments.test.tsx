@@ -160,6 +160,59 @@ describe('MyAppointments', () => {
       expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
     });
+
+    it('filters past appointments by OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-2' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Shantaram Rathod')).not.toBeInTheDocument();
+    });
+
+    it('is case-insensitive for OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100gl-2' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+    });
+
+    it('trims leading and trailing spaces from the OpenMRS ID search', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '  100GL-2  ' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+    });
+
+    it('shows no results for a non-existing OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '999XX-9' },
+      });
+      expect(screen.getByText('No appointments found')).toBeInTheDocument();
+    });
+
+    it('updates tab counts when searching by OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-1' },
+      });
+      expect(screen.getByText(/Upcoming \(1\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Past \(0\)/)).toBeInTheDocument();
+    });
+
+    it('switches from an OpenMRS ID search to a patient name search', () => {
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: '100GL-2' } });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+
+      fireEvent.change(input, { target: { value: 'Shantaram' } });
+      expect(screen.getAllByText(/Shantaram Rathod/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Vimla Jadhav')).not.toBeInTheDocument();
+    });
   });
 
   describe('statusBadge styling', () => {

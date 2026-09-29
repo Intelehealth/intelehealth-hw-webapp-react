@@ -121,6 +121,20 @@ describe('PatientSearch', () => {
     expect(screen.getByText('Patients (2 results)')).toBeInTheDocument();
   });
 
+  it('should display the matching patient when searching by OpenMRS ID', () => {
+    mockUsePatientSearch.mockReturnValue({
+      patients: [mockPatients[0]],
+      loading: false,
+    });
+    renderComponent();
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'OP-001' },
+    });
+    expect(mockUsePatientSearch).toHaveBeenCalledWith('OP-001');
+    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
+    expect(screen.queryByText(/Bob Jones/)).not.toBeInTheDocument();
+  });
+
   it('should navigate to patient page on selection', () => {
     mockUsePatientSearch.mockReturnValue({ patients: mockPatients, loading: false });
     renderComponent();

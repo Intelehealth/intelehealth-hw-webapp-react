@@ -62,10 +62,12 @@ export const AppointmentListComponent = ({
   };
 
   const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
     return data.filter(
       p =>
         p.type === activeTab &&
-        p.patientName.toLowerCase().includes(search.toLowerCase()) &&
+        (p.patientName.toLowerCase().includes(term) ||
+          p.openMrsId.toLowerCase().includes(term)) &&
         isDateInFilterRange(p.dateTime, dateFilter)
     );
   }, [data, activeTab, search, dateFilter]);

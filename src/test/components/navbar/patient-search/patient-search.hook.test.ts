@@ -214,6 +214,57 @@ describe('usePatientSearch', () => {
     expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('Jo');
   });
 
+  it('should search using an OpenMRS ID as the search term and return the matching patient', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: mockResults,
+    });
+
+    const { result } = renderHook(() => usePatientSearch('OPM-100'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('OPM-100');
+    expect(result.current.patients).toEqual(mockResults);
+  });
+
+  it('should return no patients for a non-existing OpenMRS ID', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: [],
+    });
+
+    const { result } = renderHook(() => usePatientSearch('NON-EXISTENT-999'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(result.current.patients).toEqual([]);
+  });
+
+  it('should switch from a patient name search to an OpenMRS ID search', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: mockResults,
+    });
+
+    const { rerender } = renderHook(
+      ({ term }) => usePatientSearch(term),
+      { initialProps: { term: 'John' } }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('John');
+
+    rerender({ term: 'OPM-100' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('OPM-100');
+  });
+
   it('should reset patients when search term becomes empty', async () => {
     vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
       results: mockResults,
