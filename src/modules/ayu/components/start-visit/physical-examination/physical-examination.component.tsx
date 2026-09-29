@@ -26,7 +26,7 @@ import {
   BUTTON_BACK,
   BUTTON_SAVE_NEXT,
   FHIR_RESOURCE_TYPE_QUESTIONNAIRE,
-  JOB_AID_FALLBACK,
+  jobAidFallbackFor,
   PE_CONFIG_NAME,
   PE_DEFAULT_SECTION_LABEL,
   PE_LOADING_TEXT,
@@ -352,10 +352,11 @@ export const PhysicalExamination = (props: SectionProps) => {
     const file =
       readExt(q, EXT_URL_JOB_AID_FILE) ??
       /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
-      /* v8 ignore next 3 */
-      JOB_AID_FALLBACK[
-        (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
-      ];
+      /* v8 ignore next 4 */
+      jobAidFallbackFor(
+        readExt(q, EXT_URL_PE_SECTION_KEY),
+        readExt(q, EXT_URL_PE_QUESTION_KEY)
+      );
     if (!file) return null;
     return getJobAidUrl(file) ?? null;
   }, []);
@@ -367,10 +368,11 @@ export const PhysicalExamination = (props: SectionProps) => {
       const file =
         readExt(q, EXT_URL_JOB_AID_FILE) ??
         /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
-        /* v8 ignore next 3 */
-        JOB_AID_FALLBACK[
-          (readExt(q, EXT_URL_PE_QUESTION_KEY) ?? '').toLowerCase()
-        ];
+        /* v8 ignore next 4 */
+        jobAidFallbackFor(
+          readExt(q, EXT_URL_PE_SECTION_KEY),
+          readExt(q, EXT_URL_PE_QUESTION_KEY)
+        );
       if (file) {
         const actual = getJobAidType(file);
         if (actual) return actual;

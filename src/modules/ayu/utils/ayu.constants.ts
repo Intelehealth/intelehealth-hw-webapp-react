@@ -23,14 +23,24 @@ export const JOB_AID_ABDOMINAL_REGIONS = 'abdominalregions9';
 export const JOB_AID_THYROID_SWELLING = 'thyroidswelling';
 
 /**
- * Fallback mapping from PE question key to job-aid asset filename.
- * Used when the FHIR questionnaire does not include a jobAidFile extension.
- * Keys must be **lowercase** — the lookup lowercases the PE_QUESTION_KEY.
+ * Fallback mapping from `<section key>|<PE question key>` to job-aid asset
+ * filename. Used when the FHIR questionnaire does not include a jobAidFile
+ * extension. Keys include the section because question keys repeat across
+ * sections ("Tenderness" exists under Abdomen, Back and Joint) and the
+ * abdominal-regions image only belongs to Abdomen.
+ * Keys must be **lowercase** — use {@link jobAidFallbackFor} to look up.
  */
 export const JOB_AID_FALLBACK: Record<string, string> = {
-  tenderness: JOB_AID_ABDOMINAL_REGIONS,
-  'thyroid swelling': JOB_AID_THYROID_SWELLING,
+  'abdomen|tenderness': JOB_AID_ABDOMINAL_REGIONS,
+  'neck|thyroid swelling': JOB_AID_THYROID_SWELLING,
 };
+
+/** Case-insensitive lookup into {@link JOB_AID_FALLBACK}. */
+export const jobAidFallbackFor = (
+  sectionKey: string | undefined,
+  questionKey: string | undefined
+): string | undefined =>
+  JOB_AID_FALLBACK[`${sectionKey ?? ''}|${questionKey ?? ''}`.toLowerCase()];
 
 // --- Selected Reasons ---
 export const SELECTED_REASONS_LABEL = 'Selected reasons';
