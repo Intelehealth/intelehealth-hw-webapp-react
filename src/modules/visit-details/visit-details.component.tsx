@@ -17,6 +17,12 @@ import iconShare from '../../assets/icons/icon-share.svg';
 import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
 import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
+import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
+import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import {
+  printVisitPrescriptionPdf,
+  shareVisitPrescriptionPdf,
+} from '../../utils/visit-prescription-pdf';
 import { visitDetailsService } from './visit-details.service';
 import type { TransformedVisitDetails } from './visit-details.types';
 
@@ -179,50 +185,103 @@ const VisitStatusCard: React.FC<{
   </div>
 );
 
-const QuickActionsCard: React.FC = () => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-    <h3 className="text-base font-semibold text-gray-800 mb-3">
-      Quick Actions
-    </h3>
-    <div className="flex flex-col gap-2">
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={
-          <img src={iconPrescriptionPlain} alt="" className="w-4 h-4" />
-        }
-        onClick={() => {
-          /* TODO: Implement view prescription */
-        }}
-      >
-        View Prescription
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
-        onClick={() => {
-          /* TODO: Implement print */
-        }}
-      >
-        Print
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
-        onClick={() => {
-          /* TODO: Implement share */
-        }}
-      >
-        Share
-      </Button>
+const QuickActionsCard: React.FC<{
+  visitId: string;
+  fromLabel?: string;
+  fromPath?: string;
+}> = ({ visitId, fromLabel, fromPath }) => {
+  const navigate = useNavigate();
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const handleViewPrescription = useCallback(() => {
+    navigate(`/prescription-detail/${visitId}`, {
+      state: { fromLabel, fromPath },
+    });
+  }, [navigate, visitId, fromLabel, fromPath]);
+
+  const handlePrint = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      const pdfData = await getVisitPrescriptionData(visitId);
+      await printVisitPrescriptionPdf(pdfData);
+    } catch (err) {
+      console.error('Failed to print prescription PDF:', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [visitId]);
+
+  const handleOpenShareModal = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleSharePdf = useCallback(
+    async (phoneNumber: string) => {
+      setShowShareModal(false);
+      setPdfLoading(true);
+      try {
+        const pdfData = await getVisitPrescriptionData(visitId);
+        await shareVisitPrescriptionPdf(pdfData, phoneNumber);
+      } catch (err) {
+        console.error('Failed to share prescription PDF:', err);
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [visitId]
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <h3 className="text-base font-semibold text-gray-800 mb-3">
+        Quick Actions
+      </h3>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={
+            <img src={iconPrescriptionPlain} alt="" className="w-4 h-4" />
+          }
+          onClick={handleViewPrescription}
+        >
+          View Prescription
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
+          onClick={handlePrint}
+          disabled={pdfLoading}
+          isLoading={pdfLoading}
+          loadingText="Printing..."
+        >
+          Print
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
+          onClick={handleOpenShareModal}
+          disabled={pdfLoading}
+        >
+          Share
+        </Button>
+      </div>
+
+      <WhatsAppShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShare={handleSharePdf}
+        isLoading={pdfLoading}
+      />
     </div>
-  </div>
-);
+  );
+};
 
 const VisitDetails: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
@@ -342,7 +401,11 @@ const VisitDetails: React.FC = () => {
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
           <VisitStatusCard status={data.visitStatus} />
-          <QuickActionsCard />
+          <QuickActionsCard
+            visitId={visitId as string}
+            fromLabel={fromLabel}
+            fromPath={fromPath}
+          />
         </div>
       </div>
     </div>
