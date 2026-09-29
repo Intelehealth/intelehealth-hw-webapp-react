@@ -185,7 +185,39 @@ vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () 
   ),
 }));
 
+/* Pass-through wrappers around the real transform/filter so individual tests
+   can feed the component shapes the real implementations never produce
+   (a root with no `item`, questions without PE extensions). */
+vi.mock(
+  '../../../../../modules/ayu-library/utils/fhir-to-ayu.util',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../modules/ayu-library/utils/fhir-to-ayu.util')
+      >();
+    return {
+      ...actual,
+      transformFhirPhysExamToAyu: vi.fn(actual.transformFhirPhysExamToAyu),
+    };
+  }
+);
+vi.mock(
+  '../../../../../modules/ayu/utils/physical-exam.utils',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../modules/ayu/utils/physical-exam.utils')
+      >();
+    return {
+      ...actual,
+      filterAyuQuestionsForPhysExam: vi.fn(actual.filterAyuQuestionsForPhysExam),
+    };
+  }
+);
+
 import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
+import * as fhirToAyu from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import * as physicalExamUtils from '../../../../../modules/ayu/utils/physical-exam.utils';
 
 const makeQuestion = (
   linkId: string,
@@ -1071,6 +1103,105 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         />
       );
       expect(capturedProviderProps.current?.visitId).toBeNull();
+    });
+
+    it('renders the loading placeholder when the transformed root has no item array', async () => {
+      const actual = await vi.importActual<typeof fhirToAyu>(
+        '../../../../../modules/ayu-library/utils/fhir-to-ayu.util'
+      );
+      vi.mocked(fhirToAyu.transformFhirPhysExamToAyu).mockReturnValueOnce({
+        linkId: 'root',
+        type: 'group',
+        text: 'No items',
+      } as AyuQuestion);
+      try {
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            ayuConfigFiles={makeAyuConfigFiles([
+              makeQuestion('seed', 'General', 'Seed', [
+                { code: 'yes', display: 'Yes' },
+              ]),
+            ])}
+          />
+        );
+        expect(screen.getByText(/Loading physical exam/i)).toBeInTheDocument();
+      } finally {
+        vi.mocked(fhirToAyu.transformFhirPhysExamToAyu).mockImplementation(
+          actual.transformFhirPhysExamToAyu
+        );
+      }
+    });
+
+    describe('summary rows for questions without PE extensions', () => {
+      const plainOption = [{ valueCoding: { code: 'yes', display: 'Yes' } }];
+      const renderWithFilteredItems = (items: AyuQuestion[]) => {
+        vi.mocked(
+          physicalExamUtils.filterAyuQuestionsForPhysExam
+        ).mockReturnValueOnce(items);
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            ayuConfigFiles={makeAyuConfigFiles([
+              makeQuestion('seed', 'General', 'Seed', [
+                { code: 'yes', display: 'Yes' },
+              ]),
+            ])}
+          />
+        );
+      };
+
+      it('uses an empty section title when the question has no section key', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'plain',
+            text: 'Plain question',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { plain: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections).toHaveLength(1);
+        expect(modalConfig.sections[0].title).toBe('');
+      });
+
+      it('falls back to the question text when there is no category label', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'plain',
+            text: 'Plain question',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { plain: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Plain question', value: 'Yes' }),
+        ]);
+      });
+
+      it('falls back to an empty label when there is no category label or text', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'bare',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { bare: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: '', value: 'Yes' }),
+        ]);
+      });
     });
 
     it('renders the loading placeholder when transformFhirPhysExamToAyu yields no items', () => {

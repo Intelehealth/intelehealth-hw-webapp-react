@@ -327,7 +327,6 @@ export const PhysicalExamination = (props: SectionProps) => {
     );
     if (!root) return null;
     const filteredItems = filterAyuQuestionsForPhysExam(
-      /* v8 ignore next */
       root.item ?? [],
       physicalExamFilter ?? ''
     );
@@ -393,10 +392,8 @@ export const PhysicalExamination = (props: SectionProps) => {
         const selectedCodes = physExamAnswers[q.linkId] ?? [];
         if (selectedCodes.length === 0) continue;
 
-        /* v8 ignore next */
         const sectionKey = readExt(q, EXT_URL_PE_SECTION_KEY) ?? '';
         const categoryLabel =
-          /* v8 ignore next */
           readExt(q, EXT_URL_PE_CATEGORY_LABEL) ?? q.text ?? '';
 
         const selectedTexts: string[] = [];
