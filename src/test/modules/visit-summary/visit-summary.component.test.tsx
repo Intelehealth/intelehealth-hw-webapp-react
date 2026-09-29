@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../../i18n';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';

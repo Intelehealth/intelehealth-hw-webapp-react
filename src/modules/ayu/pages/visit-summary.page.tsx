@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -498,6 +499,7 @@ const MedicalHistorySection: React.FC<{
 );
 
 const VisitSummaryPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   useBreadcrumb([
@@ -1097,7 +1099,7 @@ const VisitSummaryPage = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <Tooltip text="Enable this in case visit is an Emergency.">
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
               <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
             </Tooltip>
           </div>

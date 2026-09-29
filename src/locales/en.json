@@ -38,5 +38,8 @@
     "Change_Language_Confirm": "Are you sure you want to change language to {{language}}?",
     "Yes": "Yes",
     "No": "No"
+  },
+  "Visit_Summary": {
+    "Priority_Visit_Tooltip": "Enable this in case visit is an Emergency."
   }
 }

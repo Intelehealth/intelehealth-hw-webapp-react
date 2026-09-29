@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   AdditionalDocument,
   CheckupReason,
@@ -418,6 +419,7 @@ const MedicalHistorySection: React.FC<{ sections: HistorySection[] }> = ({
 );
 
 const VisitSummaryComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { visitId } = useParams<{ visitId: string }>();
   const location = useLocation();
 
@@ -732,7 +734,7 @@ const VisitSummaryComponent: React.FC = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <Tooltip text="Enable this in case visit is an Emergency.">
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
               <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
             </Tooltip>
           </div>
