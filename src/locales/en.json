@@ -40,7 +40,6 @@
     "No": "No"
   },
   "Visit_Summary": {
-    "Priority_Visit_Tooltip": "Enable this in case visit is an Emergency.",
-    "Priority_Visit_Tooltip_ReadOnly": "Marked when the visit is an emergency."
+    "Priority_Visit_Tooltip": "Enable this in case is an Emergency."
   }
 }

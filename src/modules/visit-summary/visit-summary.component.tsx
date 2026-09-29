@@ -734,7 +734,7 @@ const VisitSummaryComponent: React.FC = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip_ReadOnly')}>
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
               <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
             </Tooltip>
           </div>

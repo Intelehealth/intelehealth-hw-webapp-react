@@ -40,7 +40,6 @@
     "No": "ના"
   },
   "Visit_Summary": {
-    "Priority_Visit_Tooltip": "જો મુલાકાત ઇમરજન્સી હોય તો આને સક્ષમ કરો.",
-    "Priority_Visit_Tooltip_ReadOnly": "મુલાકાત ઇમરજન્સી હોય ત્યારે આ ચિહ્નિત થાય છે."
+    "Priority_Visit_Tooltip": "ઇમરજન્સી હોય તો આને સક્ષમ કરો."
   }
 }

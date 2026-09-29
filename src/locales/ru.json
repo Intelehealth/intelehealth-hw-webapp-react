@@ -40,7 +40,6 @@
     "No": "Нет"
   },
   "Visit_Summary": {
-    "Priority_Visit_Tooltip": "Включите, если визит экстренный.",
-    "Priority_Visit_Tooltip_ReadOnly": "Отмечается, если визит экстренный."
+    "Priority_Visit_Tooltip": "Включите, если это экстренный случай."
   }
 }

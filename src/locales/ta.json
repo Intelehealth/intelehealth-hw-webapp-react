@@ -40,7 +40,6 @@
     "No": "இல்லை"
   },
   "Visit_Summary": {
-    "Priority_Visit_Tooltip": "வருகை அவசரநிலையாக இருந்தால் இதை இயக்கவும்.",
-    "Priority_Visit_Tooltip_ReadOnly": "வருகை அவசரநிலையாக இருக்கும்போது இது குறிக்கப்படும்."
+    "Priority_Visit_Tooltip": "அவசரநிலையாக இருந்தால் இதை இயக்கவும்."
   }
 }

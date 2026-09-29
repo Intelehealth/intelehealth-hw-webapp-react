@@ -612,13 +612,13 @@ describe('VisitSummaryComponent', () => {
       renderWithMockData();
       const infoIcon = await screen.findByAltText('info');
       expect(
-        screen.queryByText('Marked when the visit is an emergency.')
+        screen.queryByText('Enable this in case is an Emergency.')
       ).not.toBeInTheDocument();
 
       fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
 
       expect(
-        screen.getByText('Marked when the visit is an emergency.')
+        screen.getByText('Enable this in case is an Emergency.')
       ).toBeInTheDocument();
     });
 

@@ -40,7 +40,6 @@
     "No": "కాదు"
   },
   "Visit_Summary": {
-    "Priority_Visit_Tooltip": "సందర్శన అత్యవసరమైతే దీన్ని ప్రారంభించండి.",
-    "Priority_Visit_Tooltip_ReadOnly": "సందర్శన అత్యవసరమైనప్పుడు ఇది గుర్తించబడుతుంది."
+    "Priority_Visit_Tooltip": "అత్యవసర పరిస్థితి అయితే దీన్ని ప్రారంభించండి."
   }
 }
