@@ -38,5 +38,9 @@
     "Change_Language_Confirm": "શું તમે ખરેખર ભાષા {{language}} માં બદલવા માંગો છો?",
     "Yes": "હા",
     "No": "ના"
+  },
+  "Visit_Summary": {
+    "Priority_Visit_Tooltip": "જો મુલાકાત ઇમરજન્સી હોય તો આને સક્ષમ કરો.",
+    "Priority_Visit_Tooltip_ReadOnly": "મુલાકાત ઇમરજન્સી હોય ત્યારે આ ચિહ્નિત થાય છે."
   }
 }

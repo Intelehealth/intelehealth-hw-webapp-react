@@ -39,6 +39,55 @@ describe('Tooltip', () => {
     vi.useRealTimers();
   });
 
+  describe('keyboard and touch access', () => {
+    const renderTooltip = () =>
+      render(
+        <Tooltip text="Tooltip text">
+          <img alt="info" />
+        </Tooltip>
+      );
+
+    it('makes the trigger focusable', () => {
+      renderTooltip();
+      expect(screen.getByAltText('info').parentElement).toHaveAttribute(
+        'tabindex',
+        '0'
+      );
+    });
+
+    it('shows the tooltip on focus and hides it on blur', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+
+      fireEvent.blur(trigger);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('shows the tooltip on click (tap)', () => {
+      renderTooltip();
+      fireEvent.click(screen.getByAltText('info').parentElement as HTMLElement);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('exposes role="tooltip" and links it via aria-describedby only while visible', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+      expect(trigger).not.toHaveAttribute('aria-describedby');
+
+      fireEvent.focus(trigger);
+      const tip = screen.getByRole('tooltip');
+      expect(tip).toHaveTextContent('Tooltip text');
+      expect(trigger).toHaveAttribute('aria-describedby', tip.id);
+    });
+  });
+
   it('renders children without tooltip initially', () => {
     render(
       <Tooltip text="Tooltip text">

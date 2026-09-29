@@ -38,5 +38,9 @@
     "Change_Language_Confirm": "நீங்கள் நிச்சயமாக மொழியை {{language}} ஆக மாற்ற விரும்புகிறீர்களா?",
     "Yes": "ஆம்",
     "No": "இல்லை"
+  },
+  "Visit_Summary": {
+    "Priority_Visit_Tooltip": "வருகை அவசரநிலையாக இருந்தால் இதை இயக்கவும்.",
+    "Priority_Visit_Tooltip_ReadOnly": "வருகை அவசரநிலையாக இருக்கும்போது இது குறிக்கப்படும்."
   }
 }

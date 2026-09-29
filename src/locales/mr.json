@@ -38,5 +38,9 @@
     "Change_Language_Confirm": "तुम्हाला खरोखर भाषा {{language}} मध्ये बदलायची आहे?",
     "Yes": "होय",
     "No": "नाही"
+  },
+  "Visit_Summary": {
+    "Priority_Visit_Tooltip": "भेट आपत्कालीन असल्यास हे सक्षम करा.",
+    "Priority_Visit_Tooltip_ReadOnly": "भेट आपत्कालीन असताना हे चिन्हांकित केले जाते."
   }
 }

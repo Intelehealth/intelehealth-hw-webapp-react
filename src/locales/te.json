@@ -38,5 +38,9 @@
     "Change_Language_Confirm": "మీరు ఖచ్చితంగా భాషను {{language}} కి మార్చాలనుకుంటున్నారా?",
     "Yes": "అవును",
     "No": "కాదు"
+  },
+  "Visit_Summary": {
+    "Priority_Visit_Tooltip": "సందర్శన అత్యవసరమైతే దీన్ని ప్రారంభించండి.",
+    "Priority_Visit_Tooltip_ReadOnly": "సందర్శన అత్యవసరమైనప్పుడు ఇది గుర్తించబడుతుంది."
   }
 }

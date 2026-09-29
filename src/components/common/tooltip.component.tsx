@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
@@ -13,6 +13,7 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipId = useId();
 
   const showTooltip = () => {
     if (!triggerRef.current) return;
@@ -48,8 +49,13 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
     <>
       <span
         ref={setTriggerRef}
+        tabIndex={0}
+        aria-describedby={visible ? tooltipId : undefined}
         onMouseEnter={showTooltip}
         onMouseLeave={hideTooltip}
+        onFocus={showTooltip}
+        onBlur={hideTooltip}
+        onClick={showTooltip}
         className="inline-block"
       >
         {children}
@@ -59,6 +65,8 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
         createPortal(
           <div
             ref={tooltipRef}
+            id={tooltipId}
+            role="tooltip"
             onMouseEnter={() => {
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);

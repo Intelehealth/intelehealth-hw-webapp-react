@@ -1,33 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  AdditionalDocument,
-  CheckupReason,
-  HistorySection,
-  Patient,
-  PhysicalExamination,
-  VisitData,
-  Vitals,
-} from '../../assets/data/visit-summary.data';
+import { useBreadcrumb } from '../../hooks/useBreadcrumb';
+import ROUTES from '../../routes/paths';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
+import { visitSummaryService } from './visit-summary.service';
+import type {
+  VisitData,
+  Patient,
+  Vitals,
+  CheckupReason,
+  PhysicalExamination,
+  HistorySection,
+  AdditionalDocument,
+} from '../../assets/data/visit-summary.data';
+import CollapsedComponent from './visit-summary-collapsed.component';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
+import iconVisitSummary from '../../assets/icons/icon-visit-summery.svg';
+import iconMedicalHistory from '../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
+import iconPhysicalExam from '../../assets/icons/icon-physical-examination.svg';
+import iconVitals from '../../assets/icons/vitals.svg';
+import iconVisitReason from '../../assets/icons/visit-reason.svg';
+import iconSync from '../../assets/icons/icon-sync.svg';
+import iconThreeDot from '../../assets/icons/icon-more-horizontal.svg';
 import iconChevronDown from '../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../assets/icons/icon-info.svg';
-import iconMedicalHistory from '../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
-import iconThreeDot from '../../assets/icons/icon-more-horizontal.svg';
-import iconPhysicalExam from '../../assets/icons/icon-physical-examination.svg';
-import iconSync from '../../assets/icons/icon-sync.svg';
-import iconVisitSummary from '../../assets/icons/icon-visit-summery.svg';
-import iconVisitReason from '../../assets/icons/visit-reason.svg';
-import iconVitals from '../../assets/icons/vitals.svg';
 import Dropdown from '../../components/common/dropdown.component';
 import Toggle from '../../components/common/toggle.component';
 import Tooltip from '../../components/common/tooltip.component';
-import { useBreadcrumb } from '../../hooks/useBreadcrumb';
-import ROUTES from '../../routes/paths';
-import CollapsedComponent from './visit-summary-collapsed.component';
-import { visitSummaryService } from './visit-summary.service';
 
 function getFileIcon(filename: string): { icon: string; color: string } {
   /* v8 ignore next -- .split() never returns an empty array */
@@ -734,7 +734,7 @@ const VisitSummaryComponent: React.FC = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip_ReadOnly')}>
               <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
             </Tooltip>
           </div>
