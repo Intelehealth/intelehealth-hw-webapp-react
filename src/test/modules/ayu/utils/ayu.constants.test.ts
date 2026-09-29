@@ -63,6 +63,22 @@ describe('ayu.constants', () => {
       }
     );
 
+    it.each([
+      ['Abdomen*', 'Tenderness', JOB_AID_ABDOMINAL_REGIONS],
+      ['Abdomen', 'Tenderness*', JOB_AID_ABDOMINAL_REGIONS],
+      [' Abdomen * ', ' Tenderness ', JOB_AID_ABDOMINAL_REGIONS],
+      ['Neck**', 'Thyroid swelling *', JOB_AID_THYROID_SWELLING],
+    ])(
+      'tolerates trailing asterisk and whitespace: "%s" > "%s"',
+      (section, question, expected) => {
+        expect(jobAidFallbackFor(section, question)).toBe(expected);
+      }
+    );
+
+    it('does not treat an asterisk inside the key as a marker', () => {
+      expect(jobAidFallbackFor('Ab*domen', 'Tenderness')).toBeUndefined();
+    });
+
     it('returns undefined when the section or question key is missing', () => {
       expect(jobAidFallbackFor(undefined, 'Tenderness')).toBeUndefined();
       expect(jobAidFallbackFor('Abdomen', undefined)).toBeUndefined();
