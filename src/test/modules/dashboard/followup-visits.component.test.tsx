@@ -122,6 +122,33 @@ describe('FollowupVisitsComponent', () => {
     expect(screen.queryAllByText('Ravi Kumar').length).toBe(0);
   });
 
+  it('filters patients by OpenMRS ID (case-insensitive, trimmed)', () => {
+    mockUseFollowupVisits.mockReturnValue({
+      data: mockData.map((p, i) => ({ ...p, openMrsId: `100GL-${i + 1}` })),
+      loading: false,
+      error: null,
+    });
+    renderComponent();
+    const input = screen.getByPlaceholderText('Find patient');
+    fireEvent.change(input, { target: { value: ' 100gl-2 ' } });
+    expect(screen.getAllByText('Priya Singh').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('Ravi Kumar').length).toBe(0);
+  });
+
+  it('shows no rows for a non-existing OpenMRS ID', () => {
+    mockUseFollowupVisits.mockReturnValue({
+      data: mockData.map((p, i) => ({ ...p, openMrsId: `100GL-${i + 1}` })),
+      loading: false,
+      error: null,
+    });
+    renderComponent();
+    fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+      target: { value: 'ZZZ-999' },
+    });
+    expect(screen.queryAllByText('Ravi Kumar').length).toBe(0);
+    expect(screen.queryAllByText('Priya Singh').length).toBe(0);
+  });
+
   it('shows loading state', () => {
     mockUseFollowupVisits.mockReturnValue({ data: [], loading: true, error: null });
     renderComponent();

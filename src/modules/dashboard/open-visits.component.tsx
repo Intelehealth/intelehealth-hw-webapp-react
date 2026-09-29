@@ -15,6 +15,7 @@ import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { OpenVisit } from '../../services/patient.service';
 import type { FilterValue } from '../../utils/date-filter';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 export const OPEN_VISITS_TABS = {
   OPEN: 'Open Visits',
@@ -82,9 +83,7 @@ export const OpenVisitsComponent = ({
   const { data, loading, error } = isPriorityTab ? priorityVisits : openVisits;
 
   const filtered = useMemo(() => {
-    const result = data.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
-    );
+    const result = data.filter(p => matchesPatientSearch(p, search));
     return applySort(applyNameSort(result));
   }, [data, search, applySort, applyNameSort]);
 

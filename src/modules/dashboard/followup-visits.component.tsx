@@ -13,6 +13,7 @@ import {
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
 import type { FilterValue } from '../../utils/date-filter';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 interface FollowupVisitsProps {
   initialRowCount?: number;
@@ -62,7 +63,7 @@ export const FollowupVisitsComponent = ({
 
   const filtered = useMemo(() => {
     const result = data.filter((p: FollowupVisit) =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
+      matchesPatientSearch(p, search)
     );
     return applySort(applyNameSort(result));
   }, [data, search, applySort, applyNameSort]);
