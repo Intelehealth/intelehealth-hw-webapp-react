@@ -74,6 +74,15 @@ const ayuAnswersToPhysicalExamAnswers = (
 const readExt = (q: AyuQuestion, url: string): string | undefined =>
   q.extension?.find(e => e.url === url)?.valueString;
 
+/* The job-aid file named in the FHIR data, else the section-scoped fallback
+ * for questions whose protocol omits the jobAidFile extension. */
+const jobAidFileFor = (q: AyuQuestion): string | undefined =>
+  readExt(q, EXT_URL_JOB_AID_FILE) ??
+  jobAidFallbackFor(
+    readExt(q, EXT_URL_PE_SECTION_KEY),
+    readExt(q, EXT_URL_PE_QUESTION_KEY)
+  );
+
 const isCameraOption = (
   opt: NonNullable<AyuQuestion['answerOption']>[number]
 ): boolean =>
@@ -349,14 +358,7 @@ export const PhysicalExamination = (props: SectionProps) => {
   const jobAidUrlFor = useCallback((questionId: string): string | null => {
     const q = questionByLinkIdRef.current.get(questionId);
     if (!q) return null;
-    const file =
-      readExt(q, EXT_URL_JOB_AID_FILE) ??
-      /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
-      /* v8 ignore next 4 */
-      jobAidFallbackFor(
-        readExt(q, EXT_URL_PE_SECTION_KEY),
-        readExt(q, EXT_URL_PE_QUESTION_KEY)
-      );
+    const file = jobAidFileFor(q);
     if (!file) return null;
     return getJobAidUrl(file) ?? null;
   }, []);
@@ -365,14 +367,7 @@ export const PhysicalExamination = (props: SectionProps) => {
     (questionId: string): 'image' | 'video' | null => {
       const q = questionByLinkIdRef.current.get(questionId);
       if (!q) return null;
-      const file =
-        readExt(q, EXT_URL_JOB_AID_FILE) ??
-        /* Fallback branch: only reached when FHIR data lacks jobAidFile extension */
-        /* v8 ignore next 4 */
-        jobAidFallbackFor(
-          readExt(q, EXT_URL_PE_SECTION_KEY),
-          readExt(q, EXT_URL_PE_QUESTION_KEY)
-        );
+      const file = jobAidFileFor(q);
       if (file) {
         const actual = getJobAidType(file);
         if (actual) return actual;

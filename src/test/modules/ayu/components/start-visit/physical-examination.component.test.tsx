@@ -159,7 +159,11 @@ vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   /* Derives type from the bundled asset: 'vidfile' → video, 'imgfile' → image,
      anything else → undefined (no bundled asset → fall back to FHIR type). */
   getJobAidType: (file: string) =>
-    file === 'vidfile' ? 'video' : file === 'imgfile' ? 'image' : undefined,
+    file === 'vidfile'
+      ? 'video'
+      : file === 'imgfile' || file === 'abdominalregions9'
+        ? 'image'
+        : undefined,
 }));
 
 const mockGetPendingImages = vi.fn().mockReturnValue([]);
@@ -967,6 +971,88 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         id: string
       ) => 'image' | 'video' | null;
       expect(fn('q-fallback')).toBe('video');
+    });
+
+    describe('section-scoped job-aid fallback (no job-aid-file in FHIR)', () => {
+      /* One section per entry, each holding a single choice question whose
+       * concept tag becomes the PE question key — the same shape the real
+       * physExam questionnaire has for Abdomen/Joint/Back > Tenderness. */
+      const makeSectionedConfig = (
+        sections: Array<{ text: string; concept: string; linkId: string }>
+      ) => [
+        {
+          id: 1,
+          name: 'physExam.json',
+          keyName: 'physExam',
+          isActive: true,
+          json: {
+            resourceType: 'Questionnaire' as const,
+            title: 'Physical exam',
+            item: sections.map(s => ({
+              linkId: `sec-${s.linkId}`,
+              text: s.text,
+              type: 'group',
+              answerOption: [
+                { valueCoding: { code: s.linkId, display: s.concept } },
+              ],
+              item: [
+                {
+                  linkId: s.linkId,
+                  text: `${s.concept}?`,
+                  type: 'choice',
+                  required: true,
+                  answerOption: [
+                    { valueCoding: { code: `${s.linkId}-no`, display: 'No' } },
+                    { valueCoding: { code: `${s.linkId}-yes`, display: 'Yes' } },
+                  ],
+                },
+              ],
+            })),
+          },
+        },
+      ];
+
+      const renderSections = () =>
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            physicalExamFilter="Abdomen:;Joint:;Back:;Neck:"
+            ayuConfigFiles={makeSectionedConfig([
+              { text: 'Abdomen', concept: 'Tenderness', linkId: 'abd' },
+              { text: 'Joint', concept: 'Tenderness', linkId: 'joint' },
+              { text: 'Back', concept: 'Tenderness', linkId: 'back' },
+              { text: 'Neck', concept: 'Thyroid swelling', linkId: 'neck' },
+            ])}
+          />
+        );
+
+      it('jobAidUrlFor shows the abdominal-regions image only for Abdomen > Tenderness', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        expect(fn('abd')).toBe('assets/abdominalregions9.png');
+        expect(fn('joint')).toBeNull();
+        expect(fn('back')).toBeNull();
+      });
+
+      it('jobAidUrlFor still shows the thyroid image for Neck > Thyroid swelling', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        expect(fn('neck')).toBe('assets/thyroidswelling.png');
+      });
+
+      it('jobAidTypeFor resolves the fallback asset type only for Abdomen > Tenderness', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidTypeFor as (
+          id: string
+        ) => 'image' | 'video' | null;
+        expect(fn('abd')).toBe('image');
+        expect(fn('joint')).toBeNull();
+        expect(fn('back')).toBeNull();
+      });
     });
   });
 
