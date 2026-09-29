@@ -456,6 +456,33 @@ describe('VisitDetails', () => {
       });
     });
 
+    it('should disable Print and Share while the PDF is being prepared, then re-enable them', async () => {
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+
+      const printingButton = await screen.findByRole('button', {
+        name: /Printing\.\.\./,
+      });
+      expect(printingButton).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Share/ })).toBeDisabled();
+
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+      expect(screen.getByRole('button', { name: /Share/ })).toBeEnabled();
+    });
+
     it('should log an error and stop loading when printing fails', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockGetVisitPrescriptionData.mockRejectedValue(new Error('boom'));
