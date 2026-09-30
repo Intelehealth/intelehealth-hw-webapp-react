@@ -354,6 +354,42 @@ describe('getVisitPrescriptionData', () => {
     expect(result.location).toBe('Central Clinic');
   });
 
+  it('passes the abort signal to the visit request so it can be cancelled', async () => {
+    mockGet.mockResolvedValue(makeVisit());
+    const controller = new AbortController();
+
+    await getVisitPrescriptionData('visit-uuid-1', controller.signal);
+
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    const [url, config] = mockGet.mock.calls[0];
+    expect(url).toContain('/visit/visit-uuid-1?v=');
+    expect(config).toEqual({ signal: controller.signal });
+    expect((config as { signal: AbortSignal }).signal).toBe(controller.signal);
+  });
+
+  it('sends no signal when the caller does not pass one', async () => {
+    mockGet.mockResolvedValue(makeVisit());
+
+    await getVisitPrescriptionData('visit-uuid-1');
+
+    expect(mockGet.mock.calls[0][1]).toEqual({ signal: undefined });
+  });
+
+  it('lets a cancelled request reject so the caller can stop', async () => {
+    const controller = new AbortController();
+    const abortError = Object.assign(new Error('canceled'), { name: 'CanceledError' });
+    mockGet.mockImplementation(async (_url, config) => {
+      // the request only ends because the caller aborted it
+      expect((config as { signal: AbortSignal }).signal.aborted).toBe(true);
+      throw abortError;
+    });
+    controller.abort();
+
+    await expect(
+      getVisitPrescriptionData('visit-uuid-1', controller.signal)
+    ).rejects.toBe(abortError);
+  });
+
   it('maps doctor fields correctly', async () => {
     mockGet.mockResolvedValue(makeVisit());
     const result = await getVisitPrescriptionData('visit-uuid-1');
