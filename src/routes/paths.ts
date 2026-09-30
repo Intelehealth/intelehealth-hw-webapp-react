@@ -42,6 +42,9 @@ const ROUTES = {
     DETAIL: ':uuid',
   },
   AYU: '/ayu/*',
+  // Static segment, so it always outranks AYU_WITH_PATIENT's `:patientUuid`
+  // and "visit-summary" can never be read as a patient id.
+  AYU_VISIT_SUMMARY: '/ayu/visit-summary',
   AYU_WITH_PATIENT: '/ayu/:patientUuid/*',
 };
 

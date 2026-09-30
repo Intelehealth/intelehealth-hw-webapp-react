@@ -76,7 +76,12 @@ const AyuLeaveGuard = () => {
   );
 };
 
-const AyuPage = () => {
+interface AyuPageProps {
+  /** Set by the dedicated `/ayu/visit-summary` route: show the summary at the route root. */
+  summaryAtRoot?: boolean;
+}
+
+const AyuPage = ({ summaryAtRoot = false }: AyuPageProps) => {
   const { patientUuid: paramUuid } = useParams<{ patientUuid: string }>();
   const location = useLocation();
   const stateUuid = (location.state as { patientUuid?: string })?.patientUuid;
@@ -96,7 +101,10 @@ const AyuPage = () => {
       <AyuLeaveGuard />
       <div className="mx-auto p-2 space-y-6">
         <Routes>
-          <Route path="/" element={<StartVisit />} />
+          <Route
+            path="/"
+            element={summaryAtRoot ? <VisitSummaryPage /> : <StartVisit />}
+          />
           <Route path="/visit-summary" element={<VisitSummaryPage />} />
         </Routes>
       </div>

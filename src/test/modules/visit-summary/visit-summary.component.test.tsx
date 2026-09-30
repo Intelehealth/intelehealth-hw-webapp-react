@@ -689,21 +689,21 @@ describe('VisitSummaryComponent', () => {
       visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
 
-    it('should show "No information" for BP when both systolic and diastolic are 0', async () => {
+    it('should show "No information" for BP when both systolic and diastolic are missing', async () => {
       const originalData = [...visitSummaryDataModule.visitSummaryData];
 
       visitSummaryDataModule.visitSummaryData[0] = {
         ...originalData[0],
         vitals: {
           ...originalData[0].vitals,
-          bp: { systolic: 0, diastolic: 0 },
+          bp: { systolic: null, diastolic: null },
         },
       };
 
       renderWithMockData();
       await waitFor(() => {
         expect(screen.getAllByText('BP').length).toBeGreaterThan(0);
-        // BP row should display "No information" since both values are 0
+        // BP row should display "No information" since both values are missing
         const noInfoElements = screen.getAllByText('No information');
         expect(noInfoElements.length).toBeGreaterThan(0);
       });

@@ -334,6 +334,14 @@ const router = createHashRouter(
             />
           </Route>
           <Route
+            path={ROUTES.AYU_VISIT_SUMMARY}
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <AyuModule summaryAtRoot />
+              </Suspense>
+            }
+          />
+          <Route
             path={ROUTES.AYU_WITH_PATIENT}
             element={
               <Suspense fallback={<RouteLoader />}>

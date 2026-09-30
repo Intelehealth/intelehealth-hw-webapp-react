@@ -524,7 +524,7 @@ export function transformVisitSummaryResponse(
       height: { value: height, unit: 'cm' },
       weight: { value: weight, unit: 'kg' },
       bmi: { value: bmi ?? 0 },
-      bp: { systolic: systolic ?? 0, diastolic: diastolic ?? 0 },
+      bp: { systolic, diastolic },
       pulse: { value: pulse, unit: 'bpm' },
       temperature: { value: temperature, unit: 'F' },
       spo2: {
