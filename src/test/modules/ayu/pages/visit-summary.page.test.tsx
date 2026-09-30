@@ -1363,13 +1363,13 @@ describe('VisitSummaryPage', () => {
 
     const infoIcon = screen.getByAltText('info');
     expect(
-      screen.queryByText('Enable this in case is an Emergency.')
+      screen.queryByText('Enable this in case visit is an Emergency.')
     ).not.toBeInTheDocument();
 
     fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
 
     expect(
-      screen.getByText('Enable this in case is an Emergency.')
+      screen.getByText('Enable this in case visit is an Emergency.')
     ).toBeInTheDocument();
   });
 

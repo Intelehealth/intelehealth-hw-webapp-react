@@ -33,6 +33,23 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
     }, 150);
   };
 
+  const dismissTooltip = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setVisible(false);
+  };
+
+  const toggleTooltip = () => {
+    if (visible) {
+      dismissTooltip();
+    } else {
+      showTooltip();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === 'Escape') dismissTooltip();
+  };
+
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -55,7 +72,8 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
         onMouseLeave={hideTooltip}
         onFocus={showTooltip}
         onBlur={hideTooltip}
-        onClick={showTooltip}
+        onClick={toggleTooltip}
+        onKeyDown={handleKeyDown}
         className="inline-block"
       >
         {children}
