@@ -18,7 +18,10 @@ import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
 import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
-import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import {
+  getVisitPrescriptionData,
+  type PrescriptionData,
+} from '../../services/visit-prescription.service';
 import { showToast } from '../../services/toast';
 import {
   printVisitPrescriptionPdf,
@@ -194,12 +197,44 @@ const QuickActionsCard: React.FC<{
   const navigate = useNavigate();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const isMountedRef = useRef(true);
+  // Controller of the PDF operation currently in flight (if any). Aborted on
+  // unmount so the request is cancelled and no print/download fires afterwards.
+  const pdfAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     return () => {
-      isMountedRef.current = false;
+      pdfAbortRef.current?.abort();
     };
   }, []);
+
+  // Runs one PDF operation: one at a time, cancellable, silent once aborted.
+  const runPdfOperation = useCallback(
+    async (
+      action: (pdfData: PrescriptionData) => Promise<void>,
+      failureMessage: string,
+      toastMessage: string
+    ) => {
+      if (pdfAbortRef.current) return;
+      const controller = new AbortController();
+      pdfAbortRef.current = controller;
+      setPdfLoading(true);
+      try {
+        const pdfData = await getVisitPrescriptionData(
+          visitId,
+          controller.signal
+        );
+        if (controller.signal.aborted) return;
+        await action(pdfData);
+      } catch {
+        if (controller.signal.aborted) return;
+        console.error(failureMessage);
+        showToast('Error', toastMessage, 'error');
+      } finally {
+        if (pdfAbortRef.current === controller) pdfAbortRef.current = null;
+        if (!controller.signal.aborted) setPdfLoading(false);
+      }
+    },
+    [visitId]
+  );
 
   const handleViewPrescription = useCallback(() => {
     navigate(`/prescription-detail/${visitId}`, {
@@ -207,46 +242,30 @@ const QuickActionsCard: React.FC<{
     });
   }, [navigate, visitId, fromLabel, fromPath]);
 
-  const handlePrint = useCallback(async () => {
-    setPdfLoading(true);
-    try {
-      const pdfData = await getVisitPrescriptionData(visitId);
-      await printVisitPrescriptionPdf(pdfData);
-    } catch {
-      console.error('Failed to print prescription PDF');
-      showToast(
-        'Error',
-        'Failed to print the prescription. Please try again.',
-        'error'
-      );
-    } finally {
-      if (isMountedRef.current) setPdfLoading(false);
-    }
-  }, [visitId]);
+  const handlePrint = useCallback(
+    () =>
+      runPdfOperation(
+        printVisitPrescriptionPdf,
+        'Failed to print prescription PDF',
+        'Failed to print the prescription. Please try again.'
+      ),
+    [runPdfOperation]
+  );
 
   const handleOpenShareModal = useCallback(() => {
     setShowShareModal(true);
   }, []);
 
   const handleSharePdf = useCallback(
-    async (phoneNumber: string) => {
+    (phoneNumber: string) => {
       setShowShareModal(false);
-      setPdfLoading(true);
-      try {
-        const pdfData = await getVisitPrescriptionData(visitId);
-        await shareVisitPrescriptionPdf(pdfData, phoneNumber);
-      } catch {
-        console.error('Failed to share prescription PDF');
-        showToast(
-          'Error',
-          'Failed to share the prescription. Please try again.',
-          'error'
-        );
-      } finally {
-        if (isMountedRef.current) setPdfLoading(false);
-      }
+      return runPdfOperation(
+        pdfData => shareVisitPrescriptionPdf(pdfData, phoneNumber),
+        'Failed to share prescription PDF',
+        'Failed to share the prescription. Please try again.'
+      );
     },
-    [visitId]
+    [runPdfOperation]
   );
 
   return (

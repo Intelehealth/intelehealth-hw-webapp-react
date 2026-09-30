@@ -455,7 +455,7 @@ describe('VisitDetails', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('test-visit-uuid');
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('test-visit-uuid', expect.any(AbortSignal));
       });
       await waitFor(() => {
         expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledWith(pdfData);
@@ -514,15 +514,16 @@ describe('VisitDetails', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should not update state after the component unmounts while printing', async () => {
+    it('should abort the request and never print when the component unmounts while printing', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let signal: AbortSignal | undefined;
       let resolvePdf: (value: unknown) => void = () => {};
-      mockGetVisitPrescriptionData.mockReturnValue(
-        new Promise(resolve => {
+      mockGetVisitPrescriptionData.mockImplementation((_id: string, s?: AbortSignal) => {
+        signal = s;
+        return new Promise(resolve => {
           resolvePdf = resolve;
-        })
-      );
-      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
+        });
+      });
       const { unmount } = renderWithRouter('test-visit-uuid');
       await waitFor(() => {
         expect(screen.getByText('Print')).toBeInTheDocument();
@@ -531,16 +532,81 @@ describe('VisitDetails', () => {
       await waitFor(() => {
         expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
       });
+      expect(signal?.aborted).toBe(false);
 
       unmount();
+      expect(signal?.aborted).toBe(true);
       resolvePdf({ visitUuid: 'test-visit-uuid' });
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('unmounted')
-      );
+      expect(mockPrintVisitPrescriptionPdf).not.toHaveBeenCalled();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+
+    it('should ignore a second Print while one is in flight and allow it again afterwards', async () => {
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      const printing = await screen.findByRole('button', { name: /Printing.../ });
+      fireEvent.click(printing);
+      fireEvent.click(printing);
+      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
+
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+      await waitFor(() => {
+        expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+      mockGetVisitPrescriptionData.mockResolvedValue({ visitUuid: 'test-visit-uuid' });
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => {
+        expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should cancel the old request on unmount and work normally after a remount', async () => {
+      const signals: (AbortSignal | undefined)[] = [];
+      mockGetVisitPrescriptionData.mockImplementation((_id: string, s?: AbortSignal) => {
+        signals.push(s);
+        return signals.length === 1
+          ? new Promise(() => {})
+          : Promise.resolve({ visitUuid: 'test-visit-uuid' });
+      });
+      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
+
+      const first = renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(signals).toHaveLength(1);
+      });
+      first.unmount();
+      expect(signals[0]?.aborted).toBe(true);
+
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
+      });
+      expect(signals[1]?.aborted).toBe(false);
     });
 
     it('should open the WhatsApp share modal when Share is clicked', async () => {
@@ -591,7 +657,7 @@ describe('VisitDetails', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('test-visit-uuid');
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('test-visit-uuid', expect.any(AbortSignal));
       });
       await waitFor(() => {
         expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledWith(pdfData, '919876543210');
@@ -631,15 +697,16 @@ describe('VisitDetails', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should not update state after the component unmounts while sharing', async () => {
+    it('should abort the request and never share when the component unmounts while sharing', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let signal: AbortSignal | undefined;
       let resolvePdf: (value: unknown) => void = () => {};
-      mockGetVisitPrescriptionData.mockReturnValue(
-        new Promise(resolve => {
+      mockGetVisitPrescriptionData.mockImplementation((_id: string, s?: AbortSignal) => {
+        signal = s;
+        return new Promise(resolve => {
           resolvePdf = resolve;
-        })
-      );
-      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
+        });
+      });
       const { unmount } = renderWithRouter('test-visit-uuid');
       await waitFor(() => {
         expect(screen.getByText('Share')).toBeInTheDocument();
@@ -656,15 +723,16 @@ describe('VisitDetails', () => {
       await waitFor(() => {
         expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
       });
+      expect(signal?.aborted).toBe(false);
 
       unmount();
+      expect(signal?.aborted).toBe(true);
       resolvePdf({ visitUuid: 'test-visit-uuid' });
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('unmounted')
-      );
+      expect(mockShareVisitPrescriptionPdf).not.toHaveBeenCalled();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
