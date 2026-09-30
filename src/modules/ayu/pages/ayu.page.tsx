@@ -76,7 +76,12 @@ const AyuLeaveGuard = () => {
   );
 };
 
-const AyuPage = () => {
+interface AyuPageProps {
+  /** Set by the dedicated `/ayu/visit-summary` route: show the summary at the route root. */
+  summaryAtRoot?: boolean;
+}
+
+const AyuPage = ({ summaryAtRoot = false }: AyuPageProps) => {
   const { patientUuid: paramUuid } = useParams<{ patientUuid: string }>();
   const location = useLocation();
   const stateUuid = (location.state as { patientUuid?: string })?.patientUuid;
@@ -88,11 +93,6 @@ const AyuPage = () => {
     stateUuid || validParamUuid || storage.get(PATIENT_UUID_KEY) || null;
   const resolvedGender = storage.get(PATIENT_GENDER_KEY) ?? null;
 
-  // Without a patient in the path, `/ayu/visit-summary` also matches the
-  // `/ayu/:patientUuid/*` route with patientUuid="visit-summary" and an empty
-  // splat, which would render StartVisit instead of the summary.
-  const isSummaryAtRoot = paramUuid === 'visit-summary';
-
   return (
     <StartVisitProvider
       initialPatientUuid={resolvedUuid}
@@ -103,7 +103,7 @@ const AyuPage = () => {
         <Routes>
           <Route
             path="/"
-            element={isSummaryAtRoot ? <VisitSummaryPage /> : <StartVisit />}
+            element={summaryAtRoot ? <VisitSummaryPage /> : <StartVisit />}
           />
           <Route path="/visit-summary" element={<VisitSummaryPage />} />
         </Routes>

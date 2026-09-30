@@ -410,11 +410,10 @@ describe('AyuPage', () => {
       expect(screen.getByText('Visit Summary Page')).toBeInTheDocument();
     });
 
-    it('should render VisitSummaryPage for /ayu/visit-summary, where "visit-summary" is captured as the patient param', () => {
-      mockParams.patientUuid = 'visit-summary';
+    it('should render VisitSummaryPage at the route root when summaryAtRoot is set (dedicated /ayu/visit-summary route)', () => {
       render(
         <MemoryRouter initialEntries={['/']}>
-          <AyuPage />
+          <AyuPage summaryAtRoot />
         </MemoryRouter>
       );
 
@@ -422,18 +421,32 @@ describe('AyuPage', () => {
       expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
     });
 
-    it('should not treat "visit-summary" as a patient id', () => {
-      mockParams.patientUuid = 'visit-summary';
+    it('should resolve the patient from storage on the dedicated summary route', () => {
       mockStorageGet.mockImplementation((key?: string) =>
         key === 'patientUuid' ? 'stored-patient' : null
       );
       render(
         <MemoryRouter initialEntries={['/']}>
+          <AyuPage summaryAtRoot />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBe('stored-patient');
+    });
+
+    it('should not treat a non-uuid path param such as "visit-summary" as a patient id', () => {
+      mockParams.patientUuid = 'visit-summary';
+      mockStorageGet.mockImplementation((key?: string) =>
+        key === 'patientUuid' ? 'stored-patient' : null
+      );
+      render(
+        <MemoryRouter initialEntries={['/visit-summary']}>
           <AyuPage />
         </MemoryRouter>
       );
 
       expect(mockStartVisitProviderProps.initialPatientUuid).toBe('stored-patient');
+      expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
     });
 
     it('should keep rendering StartVisit at the root for a real patient id', () => {

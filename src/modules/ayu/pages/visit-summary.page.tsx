@@ -80,6 +80,7 @@ import {
   RESOURCE_TYPE_VISIT,
 } from '../utils/ayu.constants';
 import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
+import { normalizeVitalValue } from '../utils/vital-value.util';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -168,25 +169,25 @@ const LabelValueRow: React.FC<{
   </div>
 );
 
-// Unfilled optional vitals are saved as '' by the form and survive the
-// temp-storage round trip, so treat '' the same as null/undefined.
-const isBlank = (val: unknown): boolean => val == null || val === '';
-
 const mapVitals = (formValues: VitalsFormValues): Vitals => {
-  const v = (val?: number) => ({
-    value: isBlank(val) ? null : val!,
-    note: isBlank(val) ? 'No information' : undefined,
-  });
+  const v = (raw: unknown) => {
+    const value = normalizeVitalValue(raw);
+    return {
+      value,
+      note: value == null ? 'No information' : undefined,
+    };
+  };
+  // `Vitals.bp` is shared with the reopened-visit summary, where 0 means "not
+  // recorded", so a missing reading maps to 0 after the same normalisation.
+  const bp = (raw: unknown) => normalizeVitalValue(raw) ?? 0;
 
   return {
     height: v(formValues.height_cm),
     weight: v(formValues.weight_kg),
-    bmi: { value: formValues.bmi ?? 0 },
+    bmi: { value: normalizeVitalValue(formValues.bmi) ?? 0 },
     bp: {
-      systolic: isBlank(formValues.bp_systolic) ? 0 : formValues.bp_systolic!,
-      diastolic: isBlank(formValues.bp_diastolic)
-        ? 0
-        : formValues.bp_diastolic!,
+      systolic: bp(formValues.bp_systolic),
+      diastolic: bp(formValues.bp_diastolic),
     },
     pulse: v(formValues.pulse_bpm),
     temperature: v(formValues.temprature_f),
@@ -525,11 +526,14 @@ const hasAnySection = (d: StartVisitData): boolean =>
 
 // sessionStorage: survives a refresh but not a closed tab, and holds patient
 // data only for the tab that just uploaded it.
-const saveUploadedSnapshot = (snapshot: UploadedSnapshot): void => {
+// Returns false when the browser refuses the write (quota, blocked storage) so
+// the caller can tell the user the summary won't survive a refresh.
+const saveUploadedSnapshot = (snapshot: UploadedSnapshot): boolean => {
   try {
     sessionStorage.setItem(UPLOADED_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    return true;
   } catch {
-    /* refresh will simply show an empty summary */
+    return false;
   }
 };
 
@@ -572,6 +576,9 @@ const VisitSummaryPage = () => {
   const [uploadedSnapshot] = useState(() =>
     readUploadedSnapshot(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
   );
+  // Derived from the same context values in a single render (the provider sets
+  // the restored data and clears `isRestoring` in one batched update), so the
+  // snapshot can never be applied on top of a draft that has just been restored.
   const restoredSnapshot =
     !isRestoring && !hasAnySection(ctxData) ? uploadedSnapshot : null;
   const data = restoredSnapshot?.data ?? ctxData;
@@ -873,7 +880,7 @@ const VisitSummaryPage = () => {
       storage.remove(PATIENT_GENDER_KEY);
 
       const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
-      saveUploadedSnapshot({
+      const snapshotSaved = saveUploadedSnapshot({
         patientUuid,
         visitUuid,
         speciality,
@@ -889,6 +896,13 @@ const VisitSummaryPage = () => {
       setIsUploaded(true);
       markVisitUploaded();
       showToast('Success', 'Visit uploaded successfully', 'success');
+      if (!snapshotSaved) {
+        showToast(
+          'Warning',
+          'This summary will not be available if the page is refreshed.',
+          'warning'
+        );
+      }
     } catch (error) {
       console.error('Failed to upload visit:', error);
       showToast('Error', 'Failed to upload visit. Please try again.', 'error');

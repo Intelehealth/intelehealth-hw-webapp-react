@@ -3239,6 +3239,47 @@ describe('VisitSummaryPage refresh behaviour', () => {
       expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
       expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
     });
+
+    it('never shows the snapshot when the restore finishes with draft data', () => {
+      seedSnapshot();
+      const view = renderCtx({ isRestoring: true });
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+
+      // restore completes: data and isRestoring change in the same render
+      mockUseStartVisitData.mockReturnValue({
+        ...mockUseStartVisitData(),
+        data: { ...emptyData, vitals: fullData.vitals },
+        isRestoring: false,
+      } as any);
+      view.rerender(
+        <BreadcrumbProvider>
+          <VisitSummaryPage />
+        </BreadcrumbProvider>
+      );
+
+      expect(screen.queryByText('Loading visit summary...')).not.toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the snapshot when the restore finishes with nothing', () => {
+      seedSnapshot();
+      const view = renderCtx({ isRestoring: true });
+
+      mockUseStartVisitData.mockReturnValue({
+        ...mockUseStartVisitData(),
+        data: emptyData,
+        isRestoring: false,
+      } as any);
+      view.rerender(
+        <BreadcrumbProvider>
+          <VisitSummaryPage />
+        </BreadcrumbProvider>
+      );
+
+      expect(screen.getByText('Schedule Appointment')).toBeInTheDocument();
+      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+    });
   });
 
   describe('blank vitals saved as empty strings', () => {
@@ -3290,6 +3331,25 @@ describe('VisitSummaryPage refresh behaviour', () => {
       expect(screen.getAllByText('120/0').length).toBeGreaterThan(0);
     });
 
+    it('normalises numeric strings and rejects non-numeric text the same way for every vital', () => {
+      renderCtx({
+        data: {
+          ...emptyData,
+          vitals: blankVitals({
+            height_cm: '172',
+            bp_systolic: '120',
+            bp_diastolic: '80',
+            pulse_bpm: 'abc',
+          }),
+        },
+      });
+
+      expect(screen.getAllByText('172').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('120/80').length).toBeGreaterThan(0);
+      // weight, pulse ('abc'), temperature, SpO2, respiratory rate; two layouts
+      expect(screen.getAllByText('No information')).toHaveLength(10);
+    });
+
     it('treats missing (undefined) vital fields the same as blank', () => {
       renderCtx({ data: { ...emptyData, vitals: { formValues: {}, config: [] } } });
 
@@ -3333,7 +3393,27 @@ describe('VisitSummaryPage refresh behaviour', () => {
         'Visit uploaded successfully',
         'success'
       );
+      // the user is told the summary won't survive a refresh
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Warning',
+        'This summary will not be available if the page is refreshed.',
+        'warning'
+      );
       setItem.mockRestore();
+    });
+
+    it('does not show the refresh warning when the snapshot is stored', async () => {
+      renderCtx({ data: fullData });
+      selectSpeciality();
+      fireEvent.click(screen.getByText('Upload Visit'));
+      fireEvent.click(screen.getByTestId('modal-confirm'));
+
+      await screen.findByText('Schedule Appointment');
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        'Warning',
+        expect.anything(),
+        'warning'
+      );
     });
 
     it('keeps the summary, uploaded state and appointment link after a refresh', async () => {
