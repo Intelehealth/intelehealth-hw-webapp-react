@@ -32,6 +32,7 @@ import type { ConceptAnswer } from '../../../types/config.types';
 import { storage } from '../../../utils/storage';
 import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
 import { patientService } from '../../patient/add/add-patient.service';
+import { formatBloodPressure } from '../../visit-summary/blood-pressure.util';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
 import type {
@@ -177,17 +178,14 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
       note: value == null ? 'No information' : undefined,
     };
   };
-  // `Vitals.bp` is shared with the reopened-visit summary, where 0 means "not
-  // recorded", so a missing reading maps to 0 after the same normalisation.
-  const bp = (raw: unknown) => normalizeVitalValue(raw) ?? 0;
 
   return {
     height: v(formValues.height_cm),
     weight: v(formValues.weight_kg),
     bmi: { value: normalizeVitalValue(formValues.bmi) ?? 0 },
     bp: {
-      systolic: bp(formValues.bp_systolic),
-      diastolic: bp(formValues.bp_diastolic),
+      systolic: normalizeVitalValue(formValues.bp_systolic),
+      diastolic: normalizeVitalValue(formValues.bp_diastolic),
     },
     pulse: v(formValues.pulse_bpm),
     temperature: v(formValues.temprature_f),
@@ -212,10 +210,7 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
     { label: 'BMI', value: vitals.bmi.value.toString() },
     {
       label: 'BP',
-      value:
-        vitals.bp.systolic || vitals.bp.diastolic
-          ? `${vitals.bp.systolic}/${vitals.bp.diastolic}`
-          : 'No information',
+      value: formatBloodPressure(vitals.bp),
     },
     {
       label: 'Pulse',

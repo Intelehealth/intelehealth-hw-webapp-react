@@ -61,8 +61,8 @@ export interface VitalValue {
 }
 
 export interface BP {
-  systolic: number;
-  diastolic: number;
+  systolic: number | null;
+  diastolic: number | null;
 }
 
 export interface BMI {

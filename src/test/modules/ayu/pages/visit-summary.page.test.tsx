@@ -3332,7 +3332,7 @@ describe('VisitSummaryPage refresh behaviour', () => {
         data: { ...emptyData, vitals: blankVitals({ bp_systolic: 120 }) },
       });
 
-      expect(screen.getAllByText('120/0').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('120/-').length).toBeGreaterThan(0);
     });
 
     it('normalises numeric strings and rejects non-numeric text the same way for every vital', () => {

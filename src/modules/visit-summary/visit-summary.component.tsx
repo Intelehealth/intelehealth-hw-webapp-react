@@ -14,6 +14,7 @@ import type {
   AdditionalDocument,
 } from '../../assets/data/visit-summary.data';
 import CollapsedComponent from './visit-summary-collapsed.component';
+import { formatBloodPressure } from './blood-pressure.util';
 import iconPatientImage from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconVisitSummary from '../../assets/icons/icon-visit-summery.svg';
 import iconMedicalHistory from '../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
@@ -181,10 +182,7 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
     },
     {
       label: 'BP',
-      value:
-        vitals.bp.systolic || vitals.bp.diastolic
-          ? `${vitals.bp.systolic}/${vitals.bp.diastolic}`
-          : 'No information',
+      value: formatBloodPressure(vitals.bp),
     },
     {
       label: 'Pulse',
