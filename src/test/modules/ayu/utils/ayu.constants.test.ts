@@ -3,6 +3,7 @@ import {
   JOB_AID_ABDOMINAL_REGIONS,
   JOB_AID_FALLBACK,
   JOB_AID_THYROID_SWELLING,
+  jobAidFallbackFor,
   validationMessageForReason,
   VALIDATION_ALL_COMPULSORY,
   VALIDATION_ENTER_VALUE,
@@ -13,14 +14,18 @@ import {
 
 describe('ayu.constants', () => {
   describe('JOB_AID_FALLBACK', () => {
-    it('maps "tenderness" to abdominal regions asset key', () => {
-      expect(JOB_AID_FALLBACK['tenderness']).toBe(JOB_AID_ABDOMINAL_REGIONS);
-      expect(JOB_AID_FALLBACK['tenderness']).toBe('abdominalregions9');
+    it('maps Abdomen "tenderness" to abdominal regions asset key', () => {
+      expect(JOB_AID_FALLBACK['abdomen|tenderness']).toBe(
+        JOB_AID_ABDOMINAL_REGIONS
+      );
+      expect(JOB_AID_FALLBACK['abdomen|tenderness']).toBe('abdominalregions9');
     });
 
-    it('maps "thyroid swelling" to thyroid swelling asset key', () => {
-      expect(JOB_AID_FALLBACK['thyroid swelling']).toBe(JOB_AID_THYROID_SWELLING);
-      expect(JOB_AID_FALLBACK['thyroid swelling']).toBe('thyroidswelling');
+    it('maps Neck "thyroid swelling" to thyroid swelling asset key', () => {
+      expect(JOB_AID_FALLBACK['neck|thyroid swelling']).toBe(
+        JOB_AID_THYROID_SWELLING
+      );
+      expect(JOB_AID_FALLBACK['neck|thyroid swelling']).toBe('thyroidswelling');
     });
 
     it('returns undefined for unmapped keys', () => {
@@ -35,6 +40,60 @@ describe('ayu.constants', () => {
       Object.keys(JOB_AID_FALLBACK).forEach(key => {
         expect(key).toBe(key.toLowerCase());
       });
+    });
+  });
+
+  describe('jobAidFallbackFor', () => {
+    it('returns the abdominal regions image for Abdomen > Tenderness', () => {
+      expect(jobAidFallbackFor('Abdomen', 'Tenderness')).toBe(
+        JOB_AID_ABDOMINAL_REGIONS
+      );
+    });
+
+    it('returns the thyroid image for Neck > Thyroid swelling', () => {
+      expect(jobAidFallbackFor('Neck', 'Thyroid swelling')).toBe(
+        JOB_AID_THYROID_SWELLING
+      );
+    });
+
+    it.each(['Joint', 'Back'])(
+      'returns undefined for %s > Tenderness (abdomen image must not leak)',
+      section => {
+        expect(jobAidFallbackFor(section, 'Tenderness')).toBeUndefined();
+      }
+    );
+
+    it.each([
+      ['Abdomen*', 'Tenderness', JOB_AID_ABDOMINAL_REGIONS],
+      ['Abdomen', 'Tenderness*', JOB_AID_ABDOMINAL_REGIONS],
+      [' Abdomen * ', ' Tenderness ', JOB_AID_ABDOMINAL_REGIONS],
+      ['Neck**', 'Thyroid swelling *', JOB_AID_THYROID_SWELLING],
+    ])(
+      'tolerates trailing asterisk and whitespace: "%s" > "%s"',
+      (section, question, expected) => {
+        expect(jobAidFallbackFor(section, question)).toBe(expected);
+      }
+    );
+
+    it('does not treat an asterisk inside the key as a marker', () => {
+      expect(jobAidFallbackFor('Ab*domen', 'Tenderness')).toBeUndefined();
+    });
+
+    it('returns undefined when the section or question key is missing', () => {
+      expect(jobAidFallbackFor(undefined, 'Tenderness')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdomen', undefined)).toBeUndefined();
+    });
+
+    it('returns undefined for empty-string section and/or question keys', () => {
+      expect(jobAidFallbackFor('', 'Tenderness')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdomen', '')).toBeUndefined();
+      expect(jobAidFallbackFor('', '')).toBeUndefined();
+    });
+
+    it('returns undefined for keys containing other special characters', () => {
+      expect(jobAidFallbackFor('Abdomen!', 'Tenderness')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdomen', 'Tenderness?')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdo|men', 'Tenderness')).toBeUndefined();
     });
   });
 

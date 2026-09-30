@@ -460,16 +460,6 @@ describe('AppointmentScheduleComponent', () => {
   });
 
   describe('Date selection', () => {
-    // Today rendered as non-selected is only reachable when the current month
-    // has at least one extra day after today (so we can click a sibling).
-    const isLastDayOfMonth = (() => {
-      const n = new Date();
-      return (
-        n.getDate() ===
-        new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()
-      );
-    })();
-
     it('clicking a date selects it (applies selected class)', () => {
       renderComponent();
       const todayBtn = screen.getByText('Today').closest('button')!;
@@ -478,7 +468,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayBtn).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-selected date has default class', () => {
+    it('non-selected date has default class', () => {
       renderComponent();
       let buttons = getDateArea().querySelectorAll('button');
       // If today is end-of-month, current view has only 1 button — go to next
@@ -501,17 +491,30 @@ describe('AppointmentScheduleComponent', () => {
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
-    it.skipIf(isLastDayOfMonth)(
-      'today button shows "Today" text with purple color when not selected',
-      () => {
-        renderComponent();
-        const secondBtn = getDateArea().querySelectorAll('button')[1];
-        fireEvent.click(secondBtn);
-        const todayLabel = screen.getByText('Today');
-        expect(todayLabel).toHaveClass('text-[#2E1E91]');
-        expect(todayLabel).toHaveClass('font-medium');
-      }
-    );
+    // Today rendered as non-selected requires a sibling date to click. Freeze
+    // the clock to the 15th of the real month (never the last day) and
+    // re-import the component so its module-level `today` constant reflects
+    // that date — this keeps the test deterministic regardless of which
+    // real-world day CI happens to run on.
+    it('today button shows "Today" text with purple color when not selected', async () => {
+      const now = new Date();
+      const safeToday = new Date(now.getFullYear(), now.getMonth(), 15);
+      vi.setSystemTime(safeToday);
+      vi.resetModules();
+      const { default: FreshComponent } = await import(
+        '../../../modules/appointment-visit/schedule-appointment.component'
+      );
+      render(
+        <GlobalModalProvider>
+          <FreshComponent />
+        </GlobalModalProvider>
+      );
+      const secondBtn = getDateArea().querySelectorAll('button')[1];
+      fireEvent.click(secondBtn);
+      const todayLabel = screen.getByText('Today');
+      expect(todayLabel).toHaveClass('text-[#2E1E91]');
+      expect(todayLabel).toHaveClass('font-medium');
+    });
 
     it('today button shows white text when selected (default state)', () => {
       renderComponent();
@@ -519,7 +522,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayLabel).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-today dates display short day name', () => {
+    it('non-today dates display short day name', () => {
       renderComponent();
       let buttons = getDateArea().querySelectorAll('button');
       if (buttons.length < 2) {
