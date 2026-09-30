@@ -88,6 +88,11 @@ const AyuPage = () => {
     stateUuid || validParamUuid || storage.get(PATIENT_UUID_KEY) || null;
   const resolvedGender = storage.get(PATIENT_GENDER_KEY) ?? null;
 
+  // Without a patient in the path, `/ayu/visit-summary` also matches the
+  // `/ayu/:patientUuid/*` route with patientUuid="visit-summary" and an empty
+  // splat, which would render StartVisit instead of the summary.
+  const isSummaryAtRoot = paramUuid === 'visit-summary';
+
   return (
     <StartVisitProvider
       initialPatientUuid={resolvedUuid}
@@ -96,7 +101,10 @@ const AyuPage = () => {
       <AyuLeaveGuard />
       <div className="mx-auto p-2 space-y-6">
         <Routes>
-          <Route path="/" element={<StartVisit />} />
+          <Route
+            path="/"
+            element={isSummaryAtRoot ? <VisitSummaryPage /> : <StartVisit />}
+          />
           <Route path="/visit-summary" element={<VisitSummaryPage />} />
         </Routes>
       </div>

@@ -34,7 +34,10 @@ import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.
 import { patientService } from '../../patient/add/add-patient.service';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
-import type { MedicalHistorySummary } from '../context/start-visit.context';
+import type {
+  MedicalHistorySummary,
+  StartVisitData,
+} from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { useAyuJsonList } from '../hooks/useAyuJson.hook';
 import {
@@ -165,10 +168,14 @@ const LabelValueRow: React.FC<{
   </div>
 );
 
+// Unfilled optional vitals are saved as '' by the form and survive the
+// temp-storage round trip, so treat '' the same as null/undefined.
+const isBlank = (val: unknown): boolean => val == null || val === '';
+
 const mapVitals = (formValues: VitalsFormValues): Vitals => {
   const v = (val?: number) => ({
-    value: val ?? null,
-    note: val == null ? 'No information' : undefined,
+    value: isBlank(val) ? null : val!,
+    note: isBlank(val) ? 'No information' : undefined,
   });
 
   return {
@@ -176,8 +183,10 @@ const mapVitals = (formValues: VitalsFormValues): Vitals => {
     weight: v(formValues.weight_kg),
     bmi: { value: formValues.bmi ?? 0 },
     bp: {
-      systolic: formValues.bp_systolic ?? 0,
-      diastolic: formValues.bp_diastolic ?? 0,
+      systolic: isBlank(formValues.bp_systolic) ? 0 : formValues.bp_systolic!,
+      diastolic: isBlank(formValues.bp_diastolic)
+        ? 0
+        : formValues.bp_diastolic!,
     },
     pulse: v(formValues.pulse_bpm),
     temperature: v(formValues.temprature_f),
@@ -200,7 +209,13 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
       value: getVitalDisplay(vitals.weight.value, vitals.weight.note),
     },
     { label: 'BMI', value: vitals.bmi.value.toString() },
-    { label: 'BP', value: `${vitals.bp.systolic}/${vitals.bp.diastolic}` },
+    {
+      label: 'BP',
+      value:
+        vitals.bp.systolic || vitals.bp.diastolic
+          ? `${vitals.bp.systolic}/${vitals.bp.diastolic}`
+          : 'No information',
+    },
     {
       label: 'Pulse',
       value: getVitalDisplay(vitals.pulse.value, vitals.pulse.note),
@@ -496,6 +511,43 @@ const MedicalHistorySection: React.FC<{
   </div>
 );
 
+const UPLOADED_SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
+
+interface UploadedSnapshot {
+  patientUuid: string;
+  visitUuid: string;
+  speciality: string;
+  data: StartVisitData;
+}
+
+const hasAnySection = (d: StartVisitData): boolean =>
+  !!(d.vitals || d.visitReason || d.physicalExam || d.medicalHistory);
+
+// sessionStorage: survives a refresh but not a closed tab, and holds patient
+// data only for the tab that just uploaded it.
+const saveUploadedSnapshot = (snapshot: UploadedSnapshot): void => {
+  try {
+    sessionStorage.setItem(UPLOADED_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    /* refresh will simply show an empty summary */
+  }
+};
+
+const readUploadedSnapshot = (
+  patientUuid: string | null
+): UploadedSnapshot | null => {
+  try {
+    const raw = sessionStorage.getItem(UPLOADED_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const snapshot = JSON.parse(raw) as UploadedSnapshot;
+    return patientUuid && snapshot.patientUuid === patientUuid
+      ? snapshot
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const VisitSummaryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -505,7 +557,7 @@ const VisitSummaryPage = () => {
     { label: 'Visit Summary' },
   ]);
   const {
-    data,
+    data: ctxData,
     patientUuid: ctxPatientUuid,
     visitId: ctxVisitId,
     tempRecordId,
@@ -513,7 +565,17 @@ const VisitSummaryPage = () => {
     setLastSectionIndex,
     markVisitUploaded,
     physExamPendingImages: ctxPendingImages,
+    isRestoring,
   } = useStartVisitData();
+  // Uploading deletes the draft, so a refresh afterwards would restore nothing.
+  // Fall back to the snapshot saved at upload time to keep the summary visible.
+  const [uploadedSnapshot] = useState(() =>
+    readUploadedSnapshot(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
+  );
+  const showUploadedSnapshot =
+    !isRestoring && !hasAnySection(ctxData) && !!uploadedSnapshot;
+  const data =
+    showUploadedSnapshot && uploadedSnapshot ? uploadedSnapshot.data : ctxData;
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const physicalExamQuestions = useMemo(() => {
@@ -530,10 +592,17 @@ const VisitSummaryPage = () => {
   }, [ayuList]);
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isUploaded, setIsUploaded] = useState(false);
-  const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
+  const [uploadedNow, setIsUploaded] = useState(false);
+  const isUploaded = uploadedNow || showUploadedSnapshot;
+  const [uploadedVisitUuidState, setUploadedVisitUuid] = useState<string>('');
+  const uploadedVisitUuid =
+    uploadedVisitUuidState ||
+    (showUploadedSnapshot ? uploadedSnapshot!.visitUuid : '');
   const [showConfirm, setShowConfirm] = useState(false);
-  const [speciality, setSpeciality] = useState('');
+  const [specialityState, setSpeciality] = useState('');
+  const speciality =
+    specialityState ||
+    (showUploadedSnapshot ? uploadedSnapshot!.speciality : '');
   const [specialityError, setSpecialityError] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
@@ -808,6 +877,18 @@ const VisitSummaryPage = () => {
       storage.remove(PATIENT_GENDER_KEY);
 
       const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
+      saveUploadedSnapshot({
+        patientUuid,
+        visitUuid,
+        speciality,
+        data: {
+          vitals: data.vitals,
+          visitReason: data.visitReason,
+          physicalExam: data.physicalExam,
+          medicalHistory: data.medicalHistory,
+          medicalHistoryAnswers: null,
+        },
+      });
       setUploadedVisitUuid(visitUuid);
       setIsUploaded(true);
       markVisitUploaded();
@@ -876,6 +957,16 @@ const VisitSummaryPage = () => {
 
   const { config } = useConfig();
   const specializations = config?.specialization ?? [];
+
+  // After a refresh the context is empty until the temp-storage restore
+  // finishes; rendering now would show "No ... recorded" for every section.
+  if (isRestoring) {
+    return (
+      <div className="w-full bg-white md:rounded-xl md:p-4 py-10 text-center text-sm text-gray-500">
+        Loading visit summary...
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
