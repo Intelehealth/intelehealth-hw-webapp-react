@@ -514,38 +514,37 @@ const MedicalHistorySection: React.FC<{
 
 const UPLOADED_SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
 
-interface UploadedSnapshot {
+// Identifiers only (no clinical data): once a visit is uploaded its summary is
+// served by the server, so all a refresh needs is to know which visit to open.
+interface UploadedVisitRef {
   patientUuid: string;
   visitUuid: string;
-  speciality: string;
-  data: StartVisitData;
 }
 
 const hasAnySection = (d: StartVisitData): boolean =>
   !!(d.vitals || d.visitReason || d.physicalExam || d.medicalHistory);
 
-// sessionStorage: survives a refresh but not a closed tab, and holds patient
-// data only for the tab that just uploaded it.
-// Returns false when the browser refuses the write (quota, blocked storage) so
-// the caller can tell the user the summary won't survive a refresh.
-const saveUploadedSnapshot = (snapshot: UploadedSnapshot): boolean => {
+// sessionStorage: survives a refresh but not a closed tab. Returns false when
+// the browser refuses the write (quota, blocked storage) so the caller can tell
+// the user the summary won't be reopened after a refresh.
+const saveUploadedVisitRef = (ref: UploadedVisitRef): boolean => {
   try {
-    sessionStorage.setItem(UPLOADED_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    sessionStorage.setItem(UPLOADED_SNAPSHOT_KEY, JSON.stringify(ref));
     return true;
   } catch {
     return false;
   }
 };
 
-const readUploadedSnapshot = (
+const readUploadedVisitRef = (
   patientUuid: string | null
-): UploadedSnapshot | null => {
+): UploadedVisitRef | null => {
   try {
     const raw = sessionStorage.getItem(UPLOADED_SNAPSHOT_KEY);
     if (!raw) return null;
-    const snapshot = JSON.parse(raw) as UploadedSnapshot;
-    return patientUuid && snapshot.patientUuid === patientUuid
-      ? snapshot
+    const ref = JSON.parse(raw) as UploadedVisitRef;
+    return patientUuid && ref.visitUuid && ref.patientUuid === patientUuid
+      ? ref
       : null;
   } catch {
     return null;
@@ -561,7 +560,7 @@ const VisitSummaryPage = () => {
     { label: 'Visit Summary' },
   ]);
   const {
-    data: ctxData,
+    data,
     patientUuid: ctxPatientUuid,
     visitId: ctxVisitId,
     tempRecordId,
@@ -571,17 +570,24 @@ const VisitSummaryPage = () => {
     physExamPendingImages: ctxPendingImages,
     isRestoring,
   } = useStartVisitData();
-  // Uploading deletes the draft, so a refresh afterwards would restore nothing.
-  // Fall back to the snapshot saved at upload time to keep the summary visible.
-  const [uploadedSnapshot] = useState(() =>
-    readUploadedSnapshot(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
+  // Uploading deletes the draft, so a refresh afterwards restores nothing. The
+  // uploaded visit is then reopened from the server instead of from browser
+  // storage, which keeps patient data out of client-side storage.
+  const [uploadedVisitRef] = useState(() =>
+    readUploadedVisitRef(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
   );
   // Derived from the same context values in a single render (the provider sets
   // the restored data and clears `isRestoring` in one batched update), so the
-  // snapshot can never be applied on top of a draft that has just been restored.
-  const restoredSnapshot =
-    !isRestoring && !hasAnySection(ctxData) ? uploadedSnapshot : null;
-  const data = restoredSnapshot?.data ?? ctxData;
+  // redirect can never fire for a draft that has just been restored.
+  const reopenUploadedVisit =
+    !isRestoring && !hasAnySection(data) ? uploadedVisitRef : null;
+  useEffect(() => {
+    if (!reopenUploadedVisit) return;
+    navigate(`/visit-summary/${reopenUploadedVisit.visitUuid}`, {
+      replace: true,
+      state: { fromLabel: 'Start Visit', fromPath: '/ayu' },
+    });
+  }, [navigate, reopenUploadedVisit]);
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const physicalExamQuestions = useMemo(() => {
@@ -598,14 +604,10 @@ const VisitSummaryPage = () => {
   }, [ayuList]);
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedNow, setIsUploaded] = useState(false);
-  const isUploaded = uploadedNow || !!restoredSnapshot;
-  const [uploadedVisitUuidState, setUploadedVisitUuid] = useState<string>('');
-  const uploadedVisitUuid =
-    uploadedVisitUuidState || (restoredSnapshot?.visitUuid ?? '');
+  const [isUploaded, setIsUploaded] = useState(false);
+  const [uploadedVisitUuid, setUploadedVisitUuid] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState(false);
-  const [specialityState, setSpeciality] = useState('');
-  const speciality = specialityState || (restoredSnapshot?.speciality ?? '');
+  const [speciality, setSpeciality] = useState('');
   const [specialityError, setSpecialityError] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
@@ -880,26 +882,16 @@ const VisitSummaryPage = () => {
       storage.remove(PATIENT_GENDER_KEY);
 
       const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
-      const snapshotSaved = saveUploadedSnapshot({
-        patientUuid,
-        visitUuid,
-        speciality,
-        data: {
-          vitals: data.vitals,
-          visitReason: data.visitReason,
-          physicalExam: data.physicalExam,
-          medicalHistory: data.medicalHistory,
-          medicalHistoryAnswers: null,
-        },
-      });
+      const visitRefSaved =
+        !!visitUuid && saveUploadedVisitRef({ patientUuid, visitUuid });
       setUploadedVisitUuid(visitUuid);
       setIsUploaded(true);
       markVisitUploaded();
       showToast('Success', 'Visit uploaded successfully', 'success');
-      if (!snapshotSaved) {
+      if (!visitRefSaved) {
         showToast(
           'Warning',
-          'This summary will not be available if the page is refreshed.',
+          'This summary will not be reopened if the page is refreshed. Find the visit from the patient profile instead.',
           'warning'
         );
       }
@@ -970,7 +962,8 @@ const VisitSummaryPage = () => {
 
   // After a refresh the context is empty until the temp-storage restore
   // finishes; rendering now would show "No ... recorded" for every section.
-  if (isRestoring) {
+  // The same placeholder covers the moment before an uploaded visit is reopened.
+  if (isRestoring || reopenUploadedVisit) {
     return (
       <div className="w-full bg-white md:rounded-xl md:p-4 py-10 text-center text-sm text-gray-500">
         Loading visit summary...

@@ -3148,7 +3148,7 @@ describe('VisitSummaryPage', () => {
   });
 });
 
-/* â”€â”€ Refresh behaviour: restore wait, blank vitals, post-upload snapshot â”€â”€â”€â”€ */
+/* -- Refresh behaviour: restore wait, blank vitals, post-upload snapshot ---- */
 
 describe('VisitSummaryPage refresh behaviour', () => {
   const SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
@@ -3195,25 +3195,30 @@ describe('VisitSummaryPage refresh behaviour', () => {
     );
   }
 
-  function seedSnapshot(overrides: Record<string, unknown> = {}) {
+  /** What a successful upload leaves behind: ids only, never clinical data. */
+  function seedVisitRef(overrides: Record<string, unknown> = {}) {
     sessionStorage.setItem(
       SNAPSHOT_KEY,
       JSON.stringify({
         patientUuid: PATIENT,
         visitUuid: 'uploaded-visit-uuid',
-        speciality: 'General Physician',
-        data: { ...emptyData, ...fullData },
         ...overrides,
       })
     );
   }
+
+  const expectRedirectedToServerSummary = (visitUuid: string) =>
+    expect(mockNavigate).toHaveBeenCalledWith(`/visit-summary/${visitUuid}`, {
+      replace: true,
+      state: { fromLabel: 'Start Visit', fromPath: '/ayu' },
+    });
 
   beforeEach(() => {
     mockAyuJsonList = [{ name: 'physExam.json', json: {} }];
   });
 
   describe('while the saved visit is being restored', () => {
-    it('shows a loading message instead of empty "No â€¦ recorded" sections', () => {
+    it('shows a loading message instead of empty "No … recorded" sections', () => {
       renderCtx({ isRestoring: true });
 
       expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
@@ -3232,16 +3237,16 @@ describe('VisitSummaryPage refresh behaviour', () => {
       expect(screen.getAllByText('Cough').length).toBeGreaterThan(0);
     });
 
-    it('does not apply an uploaded snapshot while still restoring', () => {
-      seedSnapshot();
+    it('does not redirect to an uploaded visit while still restoring', () => {
+      seedVisitRef();
       renderCtx({ isRestoring: true });
 
       expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
-      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('never shows the snapshot when the restore finishes with draft data', () => {
-      seedSnapshot();
+    it('never redirects when the restore finishes with draft data', () => {
+      seedVisitRef();
       const view = renderCtx({ isRestoring: true });
       expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
 
@@ -3259,11 +3264,11 @@ describe('VisitSummaryPage refresh behaviour', () => {
 
       expect(screen.queryByText('Loading visit summary...')).not.toBeInTheDocument();
       expect(screen.getByText('Upload Visit')).toBeInTheDocument();
-      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('falls back to the snapshot when the restore finishes with nothing', () => {
-      seedSnapshot();
+    it('redirects to the uploaded visit when the restore finishes with nothing', () => {
+      seedVisitRef();
       const view = renderCtx({ isRestoring: true });
 
       mockUseStartVisitData.mockReturnValue({
@@ -3277,8 +3282,7 @@ describe('VisitSummaryPage refresh behaviour', () => {
         </BreadcrumbProvider>
       );
 
-      expect(screen.getByText('Schedule Appointment')).toBeInTheDocument();
-      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+      expectRedirectedToServerSummary('uploaded-visit-uuid');
     });
   });
 
@@ -3358,57 +3362,32 @@ describe('VisitSummaryPage refresh behaviour', () => {
   });
 
   describe('after the visit has been uploaded', () => {
-    it('stores a snapshot of the uploaded summary for the patient', async () => {
-      renderCtx({ data: fullData });
-
+    const uploadVisit = async () => {
       selectSpeciality();
       fireEvent.click(screen.getByText('Upload Visit'));
       fireEvent.click(screen.getByTestId('modal-confirm'));
       await screen.findByText('Schedule Appointment');
+    };
 
-      const stored = JSON.parse(sessionStorage.getItem(SNAPSHOT_KEY) as string);
-      expect(stored.patientUuid).toBe(PATIENT);
-      expect(stored.visitUuid).toBe('mock-visit-uuid');
-      expect(stored.speciality).toBe('General Physician');
-      expect(stored.data.vitals.formValues.height_cm).toBe(170);
-      expect(stored.data.visitReason.reasonNames).toEqual(['Cough', 'Fever']);
-      expect(stored.data.medicalHistory).toBeTruthy();
+    it('stores only the patient and visit ids, never clinical data', async () => {
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      const raw = sessionStorage.getItem(SNAPSHOT_KEY) as string;
+      expect(JSON.parse(raw)).toEqual({
+        patientUuid: PATIENT,
+        visitUuid: 'mock-visit-uuid',
+      });
+      // nothing from the summary (vitals, complaints, history) is persisted
+      ['170', 'Cough', 'Diabetes', 'Hypertension', 'General Physician'].forEach(
+        text => expect(raw).not.toContain(text)
+      );
     });
 
-    it('still completes the upload when the snapshot cannot be stored', async () => {
-      const setItem = vi
-        .spyOn(Storage.prototype, 'setItem')
-        .mockImplementation(() => {
-          throw new Error('quota exceeded');
-        });
-
+    it('does not warn when the visit reference is stored', async () => {
       renderCtx({ data: fullData });
-      selectSpeciality();
-      fireEvent.click(screen.getByText('Upload Visit'));
-      fireEvent.click(screen.getByTestId('modal-confirm'));
+      await uploadVisit();
 
-      await screen.findByText('Schedule Appointment');
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'Success',
-        'Visit uploaded successfully',
-        'success'
-      );
-      // the user is told the summary won't survive a refresh
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'Warning',
-        'This summary will not be available if the page is refreshed.',
-        'warning'
-      );
-      setItem.mockRestore();
-    });
-
-    it('does not show the refresh warning when the snapshot is stored', async () => {
-      renderCtx({ data: fullData });
-      selectSpeciality();
-      fireEvent.click(screen.getByText('Upload Visit'));
-      fireEvent.click(screen.getByTestId('modal-confirm'));
-
-      await screen.findByText('Schedule Appointment');
       expect(mockShowToast).not.toHaveBeenCalledWith(
         'Warning',
         expect.anything(),
@@ -3416,81 +3395,117 @@ describe('VisitSummaryPage refresh behaviour', () => {
       );
     });
 
-    it('keeps the summary, uploaded state and appointment link after a refresh', async () => {
+    it('still completes the upload and warns when the reference cannot be stored', async () => {
+      const setItem = vi
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('quota exceeded');
+        });
+
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Warning',
+        'This summary will not be reopened if the page is refreshed. Find the visit from the patient profile instead.',
+        'warning'
+      );
+      setItem.mockRestore();
+    });
+
+    it('warns and stores nothing when the new visit id cannot be resolved', async () => {
+      mockGetLatestVisitUuid.mockResolvedValue(undefined);
+
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      expect(sessionStorage.getItem(SNAPSHOT_KEY)).toBeNull();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Warning',
+        expect.stringContaining('will not be reopened'),
+        'warning'
+      );
+    });
+
+    it('reopens the uploaded visit from the server after a refresh', async () => {
       // 1. upload the visit
       const first = renderCtx({ data: fullData });
-      selectSpeciality();
-      fireEvent.click(screen.getByText('Upload Visit'));
-      fireEvent.click(screen.getByTestId('modal-confirm'));
-      await screen.findByText('Schedule Appointment');
+      await uploadVisit();
       first.unmount();
+      mockNavigate.mockClear();
 
       // 2. refresh: the draft is gone, the context restores nothing
       renderCtx({ data: emptyData });
 
+      expectRedirectedToServerSummary('mock-visit-uuid');
+      // placeholder only: no empty "No ... recorded" sections, no second upload
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
       expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
-      expect(screen.getAllByText('170').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Cough').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Diabetes').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Hypertension').length).toBeGreaterThan(0);
-
-      // upload can't be repeated, and the user can move on
       expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
-      expect(screen.queryByText('Back to Edit')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByText('Schedule Appointment'));
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/appointment-schedule/mock-visit-uuid',
-        { state: { speciality: 'General Physician' } }
-      );
     });
 
     it('uses the storage patient id when the context has none yet', () => {
-      seedSnapshot();
+      seedVisitRef();
       mockStorageGet.mockImplementation((key: string) =>
         key === 'patientUuid' ? PATIENT : null
       );
       renderCtx({ patientUuid: null });
 
-      expect(screen.getByText('Schedule Appointment')).toBeInTheDocument();
+      expectRedirectedToServerSummary('uploaded-visit-uuid');
     });
 
-    it('ignores a snapshot that belongs to another patient', () => {
-      seedSnapshot({ patientUuid: 'some-other-patient' });
+    it('does not redirect for a visit that belongs to another patient', () => {
+      seedVisitRef({ patientUuid: 'some-other-patient' });
       renderCtx({});
 
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
       expect(screen.getByText('Upload Visit')).toBeInTheDocument();
-      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
     });
 
-    it('ignores the snapshot when no patient can be resolved', () => {
-      seedSnapshot();
+    it('does not redirect when no patient can be resolved', () => {
+      seedVisitRef();
       renderCtx({ patientUuid: null });
 
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
-      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
     });
 
-    it('ignores the snapshot when a new draft has data', () => {
-      seedSnapshot();
+    it('does not redirect when the stored reference has no visit id', () => {
+      seedVisitRef({ visitUuid: '' });
+      renderCtx({});
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+    });
+
+    it('does not redirect when a new draft has data', () => {
+      seedVisitRef();
       renderCtx({ data: { ...emptyData, vitals: fullData.vitals } });
 
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(screen.getByText('Upload Visit')).toBeInTheDocument();
       expect(screen.getByText('Back to Edit')).toBeInTheDocument();
-      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
     });
 
-    it('ignores an unreadable snapshot', () => {
+    it('ignores an unreadable stored reference', () => {
       sessionStorage.setItem(SNAPSHOT_KEY, '{not valid json');
       renderCtx({});
 
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
       expect(screen.getByText('Upload Visit')).toBeInTheDocument();
     });
 
-    it('shows an empty summary when there is nothing stored at all', () => {
+    it('shows an empty summary when nothing is stored at all', () => {
       renderCtx({});
 
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
       expect(screen.getByText('Upload Visit')).toBeInTheDocument();
     });
