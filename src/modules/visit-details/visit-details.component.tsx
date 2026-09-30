@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import ROUTES from '../../routes/paths';
@@ -19,6 +19,7 @@ import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
 import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
 import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import { showToast } from '../../services/toast';
 import {
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
@@ -193,6 +194,12 @@ const QuickActionsCard: React.FC<{
   const navigate = useNavigate();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleViewPrescription = useCallback(() => {
     navigate(`/prescription-detail/${visitId}`, {
@@ -205,10 +212,15 @@ const QuickActionsCard: React.FC<{
     try {
       const pdfData = await getVisitPrescriptionData(visitId);
       await printVisitPrescriptionPdf(pdfData);
-    } catch (err) {
-      console.error('Failed to print prescription PDF:', err);
+    } catch {
+      console.error('Failed to print prescription PDF');
+      showToast(
+        'Error',
+        'Failed to print the prescription. Please try again.',
+        'error'
+      );
     } finally {
-      setPdfLoading(false);
+      if (isMountedRef.current) setPdfLoading(false);
     }
   }, [visitId]);
 
@@ -223,10 +235,15 @@ const QuickActionsCard: React.FC<{
       try {
         const pdfData = await getVisitPrescriptionData(visitId);
         await shareVisitPrescriptionPdf(pdfData, phoneNumber);
-      } catch (err) {
-        console.error('Failed to share prescription PDF:', err);
+      } catch {
+        console.error('Failed to share prescription PDF');
+        showToast(
+          'Error',
+          'Failed to share the prescription. Please try again.',
+          'error'
+        );
       } finally {
-        setPdfLoading(false);
+        if (isMountedRef.current) setPdfLoading(false);
       }
     },
     [visitId]

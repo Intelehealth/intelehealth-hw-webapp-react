@@ -10,6 +10,11 @@ import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 
 const mockNavigate = vi.fn();
 const mockShowConfirmModal = vi.fn();
+const mockShowToast = vi.fn();
+
+vi.mock('../../../services/toast', () => ({
+  showToast: (...args: unknown[]) => mockShowToast(...args),
+}));
 
 const {
   mockGetVisitPrescriptionData,
@@ -413,6 +418,7 @@ describe('VisitDetails', () => {
     beforeEach(() => {
       vi.mocked(visitDetailsService.getVisitDetails).mockResolvedValue(makeVisitData());
       mockNavigate.mockClear();
+      mockShowToast.mockClear();
       mockGetVisitPrescriptionData.mockReset();
       mockPrintVisitPrescriptionPdf.mockReset();
       mockShareVisitPrescriptionPdf.mockReset();
@@ -483,7 +489,7 @@ describe('VisitDetails', () => {
       expect(screen.getByRole('button', { name: /Share/ })).toBeEnabled();
     });
 
-    it('should log an error and stop loading when printing fails', async () => {
+    it('should log a generic error, show an error toast, and stop loading when printing fails', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockGetVisitPrescriptionData.mockRejectedValue(new Error('boom'));
       renderWithRouter('test-visit-uuid');
@@ -492,12 +498,48 @@ describe('VisitDetails', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          'Failed to print prescription PDF:',
-          expect.any(Error)
-        );
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF');
       });
+      // The raw error object is never logged (may carry patient data/tokens).
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to print the prescription. Please try again.',
+        'error'
+      );
       expect(mockPrintVisitPrescriptionPdf).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+      consoleSpy.mockRestore();
+    });
+
+    it('should not update state after the component unmounts while printing', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
+      const { unmount } = renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+
+      unmount();
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('unmounted')
+      );
       consoleSpy.mockRestore();
     });
 
@@ -556,7 +598,7 @@ describe('VisitDetails', () => {
       });
     });
 
-    it('should log an error and stop loading when sharing fails', async () => {
+    it('should log a generic error, show an error toast, and stop loading when sharing fails', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockGetVisitPrescriptionData.mockRejectedValue(new Error('boom'));
       renderWithRouter('test-visit-uuid');
@@ -573,12 +615,56 @@ describe('VisitDetails', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          'Failed to share prescription PDF:',
-          expect.any(Error)
-        );
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF');
       });
+      // The raw error object is never logged (may carry patient data/tokens).
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Error',
+        'Failed to share the prescription. Please try again.',
+        'error'
+      );
       expect(mockShareVisitPrescriptionPdf).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Share/ })).toBeEnabled();
+      });
+      consoleSpy.mockRestore();
+    });
+
+    it('should not update state after the component unmounts while sharing', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
+      const { unmount } = renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
+      });
+      fireEvent.change(screen.getByPlaceholderText('+918179987770'), {
+        target: { value: '+919876543210' },
+      });
+      const shareButtons = screen.getAllByRole('button', { name: /share/i });
+      fireEvent.click(shareButtons[shareButtons.length - 1]);
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+
+      unmount();
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('unmounted')
+      );
       consoleSpy.mockRestore();
     });
   });
