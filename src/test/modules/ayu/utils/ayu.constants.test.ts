@@ -83,6 +83,18 @@ describe('ayu.constants', () => {
       expect(jobAidFallbackFor(undefined, 'Tenderness')).toBeUndefined();
       expect(jobAidFallbackFor('Abdomen', undefined)).toBeUndefined();
     });
+
+    it('returns undefined for empty-string section and/or question keys', () => {
+      expect(jobAidFallbackFor('', 'Tenderness')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdomen', '')).toBeUndefined();
+      expect(jobAidFallbackFor('', '')).toBeUndefined();
+    });
+
+    it('returns undefined for keys containing other special characters', () => {
+      expect(jobAidFallbackFor('Abdomen!', 'Tenderness')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdomen', 'Tenderness?')).toBeUndefined();
+      expect(jobAidFallbackFor('Abdo|men', 'Tenderness')).toBeUndefined();
+    });
   });
 
   describe('validationMessageForReason', () => {
