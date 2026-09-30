@@ -1085,6 +1085,33 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         expect(fn('joint')).toBeNull();
         expect(fn('back')).toBeNull();
       });
+
+      it('tolerates a trailing required-marker "*" on the section text, as real physExam data carries it', () => {
+        /* Real FHIR data can title the section "Abdomen*" (required-section
+           marker) without stripping it before it becomes the section key —
+           jobAidFallbackFor's normalizeJobAidKey must still resolve it. */
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            physicalExamFilter="Abdomen*:;Joint*:"
+            ayuConfigFiles={makeSectionedConfig([
+              { text: 'Abdomen*', concept: 'Tenderness', linkId: 'abd' },
+              { text: 'Joint*', concept: 'Tenderness', linkId: 'joint' },
+            ])}
+          />
+        );
+        const urlFn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        const typeFn = capturedProviderProps.current?.jobAidTypeFor as (
+          id: string
+        ) => 'image' | 'video' | null;
+        expect(urlFn('abd')).toBe('assets/abdominalregions9.png');
+        expect(typeFn('abd')).toBe('image');
+        // The asterisk-tolerant key is still section-scoped — Joint must not leak the image.
+        expect(urlFn('joint')).toBeNull();
+        expect(typeFn('joint')).toBeNull();
+      });
     });
   });
 
