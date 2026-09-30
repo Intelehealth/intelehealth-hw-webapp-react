@@ -189,12 +189,23 @@ const VisitStatusCard: React.FC<{
   </div>
 );
 
-const QuickActionsCard: React.FC<{
-  visitId: string;
-  fromLabel?: string;
-  fromPath?: string;
-}> = ({ visitId, fromLabel, fromPath }) => {
+/**
+ * Where the user came from, as set by the screen that navigated here. Used for
+ * the breadcrumb and forwarded as navigation state so the next screen can link
+ * back too. Read where it is needed instead of being passed down as props.
+ */
+const useFromState = () => {
+  const location = useLocation();
+  const state = location.state as {
+    fromLabel?: string;
+    fromPath?: string;
+  } | null;
+  return { fromLabel: state?.fromLabel, fromPath: state?.fromPath };
+};
+
+const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
+  const { fromLabel, fromPath } = useFromState();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   // Controller of the PDF operation currently in flight (if any). Aborted on
@@ -322,11 +333,8 @@ const QuickActionsCard: React.FC<{
 const VisitDetails: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { showConfirmModal } = useGlobalModal();
-
-  const fromLabel = (location.state as { fromLabel?: string })?.fromLabel;
-  const fromPath = (location.state as { fromPath?: string })?.fromPath;
+  const { fromLabel, fromPath } = useFromState();
 
   useBreadcrumb(
     [
@@ -372,8 +380,14 @@ const VisitDetails: React.FC = () => {
           await visitDetailsService.endVisit(visitId);
           /* c8 ignore next */
           setData(prev => (prev ? { ...prev, visitStatus: 'Closed' } : prev));
-        } catch (err) {
-          console.error('Failed to end visit:', err);
+        } catch {
+          // Generic message only: the raw error can carry patient data or tokens.
+          console.error('Failed to end visit');
+          showToast(
+            'Error',
+            'Failed to end the visit. Please try again.',
+            'error'
+          );
         }
       },
     });
@@ -437,11 +451,7 @@ const VisitDetails: React.FC = () => {
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
           <VisitStatusCard status={data.visitStatus} />
-          <QuickActionsCard
-            visitId={visitId as string}
-            fromLabel={fromLabel}
-            fromPath={fromPath}
-          />
+          <QuickActionsCard visitId={visitId as string} />
         </div>
       </div>
     </div>
