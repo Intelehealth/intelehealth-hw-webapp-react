@@ -1278,6 +1278,25 @@ describe('VisitSummaryComponent', () => {
         { uuid: 'doc-1', name: 'late.jpg', fileUrl: '', isImage: true },
       ]);
     });
+
+    it('ignores additional documents failures that reject after unmount', async () => {
+      let rejectDocuments: (e: unknown) => void = () => {};
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectDocuments = reject;
+        }) as any
+      );
+
+      const { unmount } = renderWithVisitId();
+      await waitFor(() =>
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalled()
+      );
+
+      unmount();
+      rejectDocuments(new Error('late'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 
   describe('getFileIcon edge cases', () => {

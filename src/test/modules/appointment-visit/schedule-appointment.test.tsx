@@ -3,6 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
 import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 
+// The component captures `today` at import time, and "today rendered as a
+// non-selected date" is unreachable on the last day of a month. Pin the clock
+// to a mid-month date *before* the component is imported so coverage does not
+// depend on the day CI happens to run. beforeEach re-applies fake timers using
+// a time derived from this pinned date.
+const PINNED_NOW = vi.hoisted(() => {
+  const pinned = new Date(2026, 0, 15, 12, 0, 0);
+  vi.useFakeTimers({ now: pinned });
+  return pinned;
+});
+
 const mockNavigate = vi.fn();
 let mockLocationState: {
   speciality?: string;
@@ -110,7 +121,7 @@ const MONTHS = [
 
 /** Remaining days in the current month (including today) */
 const remainingDaysInMonth = (() => {
-  const now = new Date();
+  const now = new Date(PINNED_NOW);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return lastDay - now.getDate() + 1;
 })();
@@ -127,7 +138,7 @@ const earlyMorningTime = (() => {
 
 /** Helper: how many dates remain from today through end-of-month (inclusive). */
 const remainingDaysInCurrentMonth = () => {
-  const now = new Date();
+  const now = new Date(PINNED_NOW);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return lastDay - now.getDate() + 1;
 };
