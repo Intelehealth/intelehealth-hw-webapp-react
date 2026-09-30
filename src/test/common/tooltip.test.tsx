@@ -136,6 +136,40 @@ describe('Tooltip', () => {
       expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
     });
 
+    it('keeps the tooltip open when the click follows the hover and focus of the same tap', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      // A tap fires emulated mouseenter and focus before the click.
+      fireEvent.mouseEnter(trigger);
+      fireEvent.focus(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('closes on the next tap after a tap that opened it via hover and focus', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.mouseEnter(trigger);
+      fireEvent.focus(trigger);
+      fireEvent.click(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('keeps the tooltip open when a mouse click follows hovering it', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.mouseEnter(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
     it('clears a pending hide timeout when a click toggles it closed', () => {
       vi.useFakeTimers();
       renderTooltip();

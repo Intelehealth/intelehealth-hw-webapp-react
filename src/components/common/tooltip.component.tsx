@@ -14,6 +14,9 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipId = useId();
+  // Set when hover/focus opened the tooltip, so the click that follows the same
+  // tap or mouse press keeps it open instead of toggling it straight closed.
+  const openedByPointerOrFocusRef = useRef(false);
 
   const showTooltip = () => {
     if (!triggerRef.current) return;
@@ -28,6 +31,7 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
   };
 
   const hideTooltip = () => {
+    openedByPointerOrFocusRef.current = false;
     timeoutRef.current = setTimeout(() => {
       setVisible(false);
     }, 150);
@@ -38,11 +42,18 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
     setVisible(false);
   };
 
+  const showFromPointerOrFocus = () => {
+    openedByPointerOrFocusRef.current = true;
+    showTooltip();
+  };
+
   const toggleTooltip = () => {
-    if (visible) {
-      dismissTooltip();
-    } else {
+    if (!visible) {
       showTooltip();
+    } else if (openedByPointerOrFocusRef.current) {
+      openedByPointerOrFocusRef.current = false;
+    } else {
+      dismissTooltip();
     }
   };
 
@@ -68,9 +79,9 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
         ref={setTriggerRef}
         tabIndex={0}
         aria-describedby={visible ? tooltipId : undefined}
-        onMouseEnter={showTooltip}
+        onMouseEnter={showFromPointerOrFocus}
         onMouseLeave={hideTooltip}
-        onFocus={showTooltip}
+        onFocus={showFromPointerOrFocus}
         onBlur={hideTooltip}
         onClick={toggleTooltip}
         onKeyDown={handleKeyDown}
