@@ -333,6 +333,8 @@ function selectSpeciality(name = 'General Physician') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // A successful upload leaves a snapshot behind; don't leak it between tests.
+  sessionStorage.clear();
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
   globalThis.URL.revokeObjectURL = vi.fn();
   mockStorageGet.mockReturnValue(null);
@@ -3142,6 +3144,275 @@ describe('VisitSummaryPage', () => {
       await waitFor(() => {
         expect(screen.getByAltText('Physical Exam')).toBeInTheDocument();
       });
+    });
+  });
+});
+
+/* â”€â”€ Refresh behaviour: restore wait, blank vitals, post-upload snapshot â”€â”€â”€â”€ */
+
+describe('VisitSummaryPage refresh behaviour', () => {
+  const SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
+  const PATIENT = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+  const emptyData = {
+    vitals: null,
+    visitReason: null,
+    physicalExam: null,
+    medicalHistory: null,
+    medicalHistoryAnswers: null,
+  };
+
+  function renderCtx(opts: {
+    data?: Record<string, unknown>;
+    patientUuid?: string | null;
+    isRestoring?: boolean;
+  }) {
+    mockUseStartVisitData.mockReturnValue({
+      data: opts.data ?? emptyData,
+      patientUuid: opts.patientUuid === undefined ? PATIENT : opts.patientUuid,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: opts.isRestoring ?? false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+      markVisitUploaded: vi.fn(),
+      physExamPendingImages: [],
+      setPhysExamPendingImages: vi.fn(),
+    } as any);
+    return render(
+      <BreadcrumbProvider>
+        <VisitSummaryPage />
+      </BreadcrumbProvider>
+    );
+  }
+
+  function seedSnapshot(overrides: Record<string, unknown> = {}) {
+    sessionStorage.setItem(
+      SNAPSHOT_KEY,
+      JSON.stringify({
+        patientUuid: PATIENT,
+        visitUuid: 'uploaded-visit-uuid',
+        speciality: 'General Physician',
+        data: { ...emptyData, ...fullData },
+        ...overrides,
+      })
+    );
+  }
+
+  beforeEach(() => {
+    mockAyuJsonList = [{ name: 'physExam.json', json: {} }];
+  });
+
+  describe('while the saved visit is being restored', () => {
+    it('shows a loading message instead of empty "No â€¦ recorded" sections', () => {
+      renderCtx({ isRestoring: true });
+
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+      expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
+      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+    });
+
+    it('renders the restored sections once restoring finishes', () => {
+      const view = renderCtx({ isRestoring: true });
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+
+      view.unmount();
+      renderCtx({ data: fullData, isRestoring: false });
+
+      expect(screen.queryByText('Loading visit summary...')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Cough').length).toBeGreaterThan(0);
+    });
+
+    it('does not apply an uploaded snapshot while still restoring', () => {
+      seedSnapshot();
+      renderCtx({ isRestoring: true });
+
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('blank vitals saved as empty strings', () => {
+    const blankVitals = (overrides: Record<string, unknown> = {}) => ({
+      formValues: {
+        height_cm: '',
+        weight_kg: '',
+        bmi: 0,
+        bp_systolic: '',
+        bp_diastolic: '',
+        pulse_bpm: '',
+        temprature_f: '',
+        spo2: '',
+        respiratory_rate: '',
+        ...overrides,
+      },
+      config: [],
+    });
+
+    it('shows "No information" for every blank vital, including BP', () => {
+      renderCtx({ data: { ...emptyData, vitals: blankVitals() } });
+
+      // height, weight, BP, pulse, temperature, SpO2, respiratory rate;
+      // each row is rendered in both the mobile and the desktop layout
+      expect(screen.getAllByText('No information')).toHaveLength(14);
+      expect(screen.queryByText('/')).not.toBeInTheDocument();
+    });
+
+    it('still shows the filled vitals next to the blank ones', () => {
+      renderCtx({
+        data: {
+          ...emptyData,
+          vitals: blankVitals({ height_cm: 172, pulse_bpm: 75, temprature_f: 0 }),
+        },
+      });
+
+      expect(screen.getAllByText('172').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('75').length).toBeGreaterThan(0);
+      // 0 is a real reading, not a blank
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('No information')).toHaveLength(8);
+    });
+
+    it('shows BP when only one of the two readings is filled', () => {
+      renderCtx({
+        data: { ...emptyData, vitals: blankVitals({ bp_systolic: 120 }) },
+      });
+
+      expect(screen.getAllByText('120/0').length).toBeGreaterThan(0);
+    });
+
+    it('treats missing (undefined) vital fields the same as blank', () => {
+      renderCtx({ data: { ...emptyData, vitals: { formValues: {}, config: [] } } });
+
+      expect(screen.getAllByText('No information')).toHaveLength(14);
+    });
+  });
+
+  describe('after the visit has been uploaded', () => {
+    it('stores a snapshot of the uploaded summary for the patient', async () => {
+      renderCtx({ data: fullData });
+
+      selectSpeciality();
+      fireEvent.click(screen.getByText('Upload Visit'));
+      fireEvent.click(screen.getByTestId('modal-confirm'));
+      await screen.findByText('Schedule Appointment');
+
+      const stored = JSON.parse(sessionStorage.getItem(SNAPSHOT_KEY) as string);
+      expect(stored.patientUuid).toBe(PATIENT);
+      expect(stored.visitUuid).toBe('mock-visit-uuid');
+      expect(stored.speciality).toBe('General Physician');
+      expect(stored.data.vitals.formValues.height_cm).toBe(170);
+      expect(stored.data.visitReason.reasonNames).toEqual(['Cough', 'Fever']);
+      expect(stored.data.medicalHistory).toBeTruthy();
+    });
+
+    it('still completes the upload when the snapshot cannot be stored', async () => {
+      const setItem = vi
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('quota exceeded');
+        });
+
+      renderCtx({ data: fullData });
+      selectSpeciality();
+      fireEvent.click(screen.getByText('Upload Visit'));
+      fireEvent.click(screen.getByTestId('modal-confirm'));
+
+      await screen.findByText('Schedule Appointment');
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+      setItem.mockRestore();
+    });
+
+    it('keeps the summary, uploaded state and appointment link after a refresh', async () => {
+      // 1. upload the visit
+      const first = renderCtx({ data: fullData });
+      selectSpeciality();
+      fireEvent.click(screen.getByText('Upload Visit'));
+      fireEvent.click(screen.getByTestId('modal-confirm'));
+      await screen.findByText('Schedule Appointment');
+      first.unmount();
+
+      // 2. refresh: the draft is gone, the context restores nothing
+      renderCtx({ data: emptyData });
+
+      expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
+      expect(screen.getAllByText('170').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Cough').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Diabetes').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Hypertension').length).toBeGreaterThan(0);
+
+      // upload can't be repeated, and the user can move on
+      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+      expect(screen.queryByText('Back to Edit')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText('Schedule Appointment'));
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/appointment-schedule/mock-visit-uuid',
+        { state: { speciality: 'General Physician' } }
+      );
+    });
+
+    it('uses the storage patient id when the context has none yet', () => {
+      seedSnapshot();
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientUuid' ? PATIENT : null
+      );
+      renderCtx({ patientUuid: null });
+
+      expect(screen.getByText('Schedule Appointment')).toBeInTheDocument();
+    });
+
+    it('ignores a snapshot that belongs to another patient', () => {
+      seedSnapshot({ patientUuid: 'some-other-patient' });
+      renderCtx({});
+
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+    });
+
+    it('ignores the snapshot when no patient can be resolved', () => {
+      seedSnapshot();
+      renderCtx({ patientUuid: null });
+
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+    });
+
+    it('ignores the snapshot when a new draft has data', () => {
+      seedSnapshot();
+      renderCtx({ data: { ...emptyData, vitals: fullData.vitals } });
+
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+      expect(screen.getByText('Back to Edit')).toBeInTheDocument();
+      expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+    });
+
+    it('ignores an unreadable snapshot', () => {
+      sessionStorage.setItem(SNAPSHOT_KEY, '{not valid json');
+      renderCtx({});
+
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+    });
+
+    it('shows an empty summary when there is nothing stored at all', () => {
+      renderCtx({});
+
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
     });
   });
 });

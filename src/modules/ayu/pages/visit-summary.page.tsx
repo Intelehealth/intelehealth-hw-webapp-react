@@ -572,10 +572,9 @@ const VisitSummaryPage = () => {
   const [uploadedSnapshot] = useState(() =>
     readUploadedSnapshot(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
   );
-  const showUploadedSnapshot =
-    !isRestoring && !hasAnySection(ctxData) && !!uploadedSnapshot;
-  const data =
-    showUploadedSnapshot && uploadedSnapshot ? uploadedSnapshot.data : ctxData;
+  const restoredSnapshot =
+    !isRestoring && !hasAnySection(ctxData) ? uploadedSnapshot : null;
+  const data = restoredSnapshot?.data ?? ctxData;
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const physicalExamQuestions = useMemo(() => {
@@ -593,16 +592,13 @@ const VisitSummaryPage = () => {
   const [allOpen, setAllOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedNow, setIsUploaded] = useState(false);
-  const isUploaded = uploadedNow || showUploadedSnapshot;
+  const isUploaded = uploadedNow || !!restoredSnapshot;
   const [uploadedVisitUuidState, setUploadedVisitUuid] = useState<string>('');
   const uploadedVisitUuid =
-    uploadedVisitUuidState ||
-    (showUploadedSnapshot ? uploadedSnapshot!.visitUuid : '');
+    uploadedVisitUuidState || (restoredSnapshot?.visitUuid ?? '');
   const [showConfirm, setShowConfirm] = useState(false);
   const [specialityState, setSpeciality] = useState('');
-  const speciality =
-    specialityState ||
-    (showUploadedSnapshot ? uploadedSnapshot!.speciality : '');
+  const speciality = specialityState || (restoredSnapshot?.speciality ?? '');
   const [specialityError, setSpecialityError] = useState('');
   const [priorityVisit, setPriorityVisit] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');

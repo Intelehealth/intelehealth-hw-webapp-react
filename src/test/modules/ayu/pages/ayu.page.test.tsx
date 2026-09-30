@@ -409,6 +409,44 @@ describe('AyuPage', () => {
       expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
       expect(screen.getByText('Visit Summary Page')).toBeInTheDocument();
     });
+
+    it('should render VisitSummaryPage for /ayu/visit-summary, where "visit-summary" is captured as the patient param', () => {
+      mockParams.patientUuid = 'visit-summary';
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('visit-summary-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('start-visit')).not.toBeInTheDocument();
+    });
+
+    it('should not treat "visit-summary" as a patient id', () => {
+      mockParams.patientUuid = 'visit-summary';
+      mockStorageGet.mockImplementation((key?: string) =>
+        key === 'patientUuid' ? 'stored-patient' : null
+      );
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(mockStartVisitProviderProps.initialPatientUuid).toBe('stored-patient');
+    });
+
+    it('should keep rendering StartVisit at the root for a real patient id', () => {
+      mockParams.patientUuid = '0f1d0961-56f9-4519-91ee-a4c6ddd8e979';
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AyuPage />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('start-visit')).toBeInTheDocument();
+      expect(screen.queryByTestId('visit-summary-page')).not.toBeInTheDocument();
+    });
   });
 
   /* ── Leave guard ────────────────────────────────────────────────────────── */
