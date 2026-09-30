@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import VisitDetails from '../../../modules/visit-details/visit-details.component';
@@ -575,6 +575,46 @@ describe('VisitDetails', () => {
       await waitFor(() => {
         expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(2);
       });
+    });
+
+    it('should ignore a second Print click dispatched before the loading state re-renders', async () => {
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      const printButton = screen.getByRole('button', { name: /^Print$/ });
+      act(() => {
+        printButton.click();
+        printButton.click();
+      });
+      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stay silent when the aborted request rejects after the component unmounts', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let rejectPdf: (reason: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectPdf = reject;
+        })
+      );
+      const { unmount } = renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+
+      unmount();
+      rejectPdf(new Error('canceled'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
 
     it('should cancel the old request on unmount and work normally after a remount', async () => {
