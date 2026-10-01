@@ -1278,6 +1278,39 @@ describe('VisitSummaryComponent', () => {
         { uuid: 'doc-1', name: 'late.jpg', fileUrl: '', isImage: true },
       ]);
     });
+
+    it('ignores additional documents failures that reject after unmount', async () => {
+      let rejectDocuments: (e: unknown) => void = () => {};
+      let catchSpy: { mock: { results: { value: unknown }[] } } | undefined;
+      const pending = new Promise<never>((_resolve, reject) => {
+        rejectDocuments = reject;
+      });
+      // vitest settles every promise a vi.fn returns, so a missing `.catch`
+      // would never surface as an unhandled rejection. Spy on the `.catch` of
+      // the chain the component builds (`.then(...).catch(...)`) instead.
+      const originalThen = pending.then.bind(pending);
+      vi.spyOn(pending, 'then').mockImplementation(((...args: Parameters<typeof originalThen>) => {
+        const derived = originalThen(...args);
+        catchSpy = vi.spyOn(derived, 'catch');
+        return derived;
+      }) as typeof pending.then);
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockReturnValue(
+        pending as any
+      );
+
+      const { unmount } = renderWithVisitId();
+      await waitFor(() =>
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalled()
+      );
+
+      unmount();
+      rejectDocuments(new Error('late'));
+
+      expect(catchSpy).toHaveBeenCalledTimes(1);
+      // The handler swallows the late failure, so the chain settles resolved.
+      await expect(catchSpy!.mock.results[0].value).resolves.toBeUndefined();
+    });
   });
 
   describe('getFileIcon edge cases', () => {
