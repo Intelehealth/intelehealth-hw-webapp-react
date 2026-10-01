@@ -320,6 +320,7 @@ export default function PatientInfo({
                 }
               }}
               dateFormat="dd/MM/yyyy"
+              maxDate={new Date()}
               isRequired={true}
             />
           </div>

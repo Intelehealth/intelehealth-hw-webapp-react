@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VisitReasonFooter } from '../../../../../../modules/ayu/components/start-visit/visit-reason/footer';
+import { HeaderActionsSlotContext } from '../../../../../../modules/ayu/components/start-visit/header-actions-slot.context';
 
 vi.mock('../../../../../../modules/ayu/components/common/ayu-button.component', () => ({
   default: ({ children, onClick, variant, disabled }: any) => (
@@ -166,5 +167,63 @@ describe('VisitReasonFooter', () => {
 
     await user.click(screen.getByText('Back'));
     expect(mockOnPrevQuestion).not.toHaveBeenCalled();
+  });
+
+  describe('header actions slot', () => {
+    const renderWithSlot = (slot: HTMLElement | null, isActive?: boolean) =>
+      render(
+        <HeaderActionsSlotContext.Provider value={slot}>
+          <VisitReasonFooter
+            questionIndex={0}
+            totalQuestions={6}
+            onNextQuestion={mockOnNextQuestion}
+            onPrevQuestion={mockOnPrevQuestion}
+            isActive={isActive}
+          />
+        </HeaderActionsSlotContext.Provider>
+      );
+
+    it('should portal the buttons into the header slot when one is provided', () => {
+      const slot = document.createElement('div');
+      document.body.appendChild(slot);
+
+      const { container } = renderWithSlot(slot);
+
+      // The buttons live in the header slot, not where the footer is rendered,
+      // so they no longer take a row of their own.
+      expect(slot).toHaveTextContent('Back');
+      expect(slot).toHaveTextContent('Start Assessment');
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('should stay wired up to its callbacks once portalled', async () => {
+      const user = userEvent.setup();
+      const slot = document.createElement('div');
+      document.body.appendChild(slot);
+
+      renderWithSlot(slot);
+      await user.click(screen.getByText('Start Assessment'));
+
+      expect(mockOnNextQuestion).toHaveBeenCalled();
+    });
+
+    it('should render nothing when the section is not active', () => {
+      const slot = document.createElement('div');
+      document.body.appendChild(slot);
+
+      // The header slot is shared between sections; a hidden section must not
+      // portal its actions into it, since a portal escapes `display: none`.
+      const { container } = renderWithSlot(slot, false);
+
+      expect(slot).toBeEmptyDOMElement();
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('should fall back to rendering in place when there is no slot', () => {
+      const { container } = renderWithSlot(null);
+
+      expect(container).toHaveTextContent('Back');
+      expect(container).toHaveTextContent('Start Assessment');
+    });
   });
 });

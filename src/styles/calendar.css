@@ -19,16 +19,10 @@
   margin-bottom: 0.5rem !important;
 }
 
-/* Force calendar to open at bottom */
-.react-datepicker-popper {
-  transform: translate3d(0px, 0px, 0px) !important;
-}
+/* Do NOT override `transform` here: Popper positions the calendar with it.
+   Forcing translate3d(0,0,0) pinned the popup on top of the input instead of
+   below it. Use margin for the gap and let Popper own the placement. */
 
-.react-datepicker-popper[data-placement^='bottom'] {
-  transform: translate3d(0px, 0px, 0px) !important;
-}
-
-/* Ensure calendar opens below input */
 .react-datepicker-popper[data-placement='bottom-start'] {
   margin-top: 0.25rem !important;
 }

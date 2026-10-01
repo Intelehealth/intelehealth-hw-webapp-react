@@ -758,6 +758,12 @@ export const AyuStepperContainer = forwardRef<
 
     const totalSteps = topLevelItems.length;
     const lastQuestionRef = useRef<HTMLDivElement | null>(null);
+    /* Marks the bottom edge of the question being answered. Selecting an option
+     * reveals follow-ups and the Submit button inside the SAME question, so
+     * scrollTargetIndex doesn't change and the scrollIntoView effect below never
+     * re-fires — the new controls ended up under the fold and had to be scrolled
+     * to by hand. Nudging this sentinel into view keeps them reachable. */
+    const activeQuestionEndRef = useRef<HTMLDivElement | null>(null);
     const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(
       () => {
         if (!initialAnswers || Object.keys(initialAnswers).length === 0)
@@ -938,6 +944,32 @@ export const AyuStepperContainer = forwardRef<
         cancelAnimationFrame(firstFrame);
         cancelAnimationFrame(secondFrame);
       };
+    }, [scrollTargetIndex]);
+
+    useEffect(() => {
+      const question = lastQuestionRef.current;
+      if (!question || typeof ResizeObserver === 'undefined') return;
+
+      let isFirstCallback = true;
+      const observer = new ResizeObserver(() => {
+        /* ResizeObserver fires once on observe; that initial call is the
+         * layout we just scrolled to, not a growth. */
+        if (isFirstCallback) {
+          isFirstCallback = false;
+          return;
+        }
+
+        if (question.getBoundingClientRect().height > window.innerHeight)
+          return;
+
+        activeQuestionEndRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      });
+
+      observer.observe(question);
+      return () => observer.disconnect();
     }, [scrollTargetIndex]);
 
     /* Keep onProgressUpdateRef current so the progress effects never need the
@@ -1315,6 +1347,16 @@ export const AyuStepperContainer = forwardRef<
                     </>
                   )}
                 </QuestionLoader>
+                {index === scrollTargetIndex && (
+                  /* scroll-mb clears the sticky bottom action bar that Medical
+                   * History and Physical Examination render, so 'nearest' does
+                   * not park the Submit button behind it. */
+                  <div
+                    ref={activeQuestionEndRef}
+                    aria-hidden="true"
+                    className="scroll-mb-28"
+                  />
+                )}
               </div>
             );
           })}

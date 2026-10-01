@@ -158,7 +158,7 @@ const DashboardComponent = ({
                   <span className="font-semibold">
                     {prescriptionCount} Patients{' '}
                   </span>
-                  are waiting their Prescriptions
+                  are waiting for their Prescriptions
                 </p>
               </div>
             </div>
