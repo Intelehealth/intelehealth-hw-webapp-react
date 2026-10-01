@@ -197,10 +197,12 @@ function obsStr(o: Obs): string {
 }
 
 export async function getVisitPrescriptionData(
-  visitUuid: string
+  visitUuid: string,
+  signal?: AbortSignal
 ): Promise<PrescriptionTypes.PrescriptionData> {
   const visit = await OpenMRSApi.get<VisitResponse>(
-    `/visit/${visitUuid}?v=${VISIT_CUSTOM_REP}`
+    `/visit/${visitUuid}?v=${VISIT_CUSTOM_REP}`,
+    { signal }
   );
   const patient = visit.patient;
   const person = patient?.person;
