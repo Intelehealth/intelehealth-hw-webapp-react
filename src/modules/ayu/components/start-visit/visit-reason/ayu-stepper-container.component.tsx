@@ -946,9 +946,6 @@ export const AyuStepperContainer = forwardRef<
       };
     }, [scrollTargetIndex]);
 
-    /* Follow the active question as it grows. block:'nearest' scrolls the
-     * minimum needed, so a question that already fits is left alone and the
-     * page never jumps while the user is reading. */
     useEffect(() => {
       const question = lastQuestionRef.current;
       if (!question || typeof ResizeObserver === 'undefined') return;
@@ -961,6 +958,10 @@ export const AyuStepperContainer = forwardRef<
           isFirstCallback = false;
           return;
         }
+
+        if (question.getBoundingClientRect().height > window.innerHeight)
+          return;
+
         activeQuestionEndRef.current?.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',

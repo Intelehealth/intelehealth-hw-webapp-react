@@ -533,6 +533,45 @@ describe('AyuStepperContainer', () => {
         });
       });
 
+      it('should not scroll a question taller than the viewport', () => {
+        const { fire } = renderWithObserver();
+        (
+          Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>
+        ).mockClear();
+
+        vi.spyOn(
+          Element.prototype,
+          'getBoundingClientRect'
+        ).mockReturnValue({ height: window.innerHeight + 1 } as DOMRect);
+
+        fire();
+        fire();
+
+        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+        vi.mocked(Element.prototype.getBoundingClientRect).mockRestore();
+      });
+
+      it('should still scroll a question that fits on screen', () => {
+        const { fire } = renderWithObserver();
+        (
+          Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>
+        ).mockClear();
+
+        vi.spyOn(
+          Element.prototype,
+          'getBoundingClientRect'
+        ).mockReturnValue({ height: window.innerHeight - 1 } as DOMRect);
+
+        fire();
+        fire();
+
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+        vi.mocked(Element.prototype.getBoundingClientRect).mockRestore();
+      });
+
       it('should disconnect the observer on unmount', () => {
         const { unmount, disconnect } = renderWithObserver();
         unmount();
