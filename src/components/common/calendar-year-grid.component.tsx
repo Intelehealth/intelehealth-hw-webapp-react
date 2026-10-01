@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import ChevronIcon from './chevron-icon.component';
 
 interface CalendarYearGridProps {
   date: Date;
@@ -25,24 +26,30 @@ const CalendarYearGrid: React.FC<CalendarYearGridProps> = ({
           <span>
             {decadeStart} – {decadeEnd}
           </span>
-          <button type="button" className="p-1 hover:bg-gray-100 rounded">
-            <i className="fa-solid fa-chevron-up text-gray-600 text-xs"></i>
+          <button
+            type="button"
+            aria-label="Year range"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
+          >
+            <ChevronIcon direction="up" className="w-3 h-3" />
           </button>
         </div>
         <div className="navigation">
           <button
             type="button"
             onClick={() => onNavigateDecade('prev')}
-            className="p-1 hover:bg-gray-100 rounded"
+            aria-label="Previous decade"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
           >
-            <i className="fa-solid fa-chevron-left text-gray-600 text-xs"></i>
+            <ChevronIcon direction="left" />
           </button>
           <button
             type="button"
             onClick={() => onNavigateDecade('next')}
-            className="p-1 hover:bg-gray-100 rounded"
+            aria-label="Next decade"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
           >
-            <i className="fa-solid fa-chevron-right text-gray-600 text-xs"></i>
+            <ChevronIcon direction="right" />
           </button>
         </div>
       </div>

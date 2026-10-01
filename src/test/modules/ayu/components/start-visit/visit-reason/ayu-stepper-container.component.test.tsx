@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AyuAnswerValue, AyuQuestion } from '../../../../../../modules/ayu-library/types/ayu.types';
 import type { AyuStepperContainerHandle } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
 import { AyuStepperContainer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
@@ -445,6 +445,129 @@ describe('AyuStepperContainer', () => {
           behavior: 'smooth',
           block: 'start',
         });
+      });
+    });
+
+    /* Selecting an option reveals follow-ups and the Submit button inside the
+     * SAME question, so scrollTargetIndex never changes and the effect above
+     * does not re-fire. A ResizeObserver on the active question is what keeps
+     * those newly revealed controls on screen. jsdom has no ResizeObserver, so
+     * these tests install one and drive its callback directly. */
+    describe('following the active question as it grows', () => {
+      const renderWithObserver = () => {
+        const question: AyuQuestion = {
+          linkId: 'q1',
+          text: 'Question 1',
+          type: 'string',
+        };
+
+        mockUseFHIRStepper.mockReturnValue({
+          currentQuestion: question,
+          currentIndex: 0,
+          total: 1,
+          answers: {},
+          setAnswer: mockSetAnswer,
+          clearAnswers: mockClearAnswers,
+          goNext: mockGoNext,
+          topLevelItems: [question],
+          isLast: true,
+        });
+
+        const observe = vi.fn();
+        const disconnect = vi.fn();
+        let trigger: (() => void) | undefined;
+
+        class MockResizeObserver {
+          constructor(callback: () => void) {
+            trigger = callback;
+          }
+          observe = observe;
+          unobserve = vi.fn();
+          disconnect = disconnect;
+        }
+        vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
+        const utils = render(
+          <AyuStepperContainer
+            questionnaire={createMockQuestionnaire([question])}
+            onComplete={mockOnComplete}
+            onProgressUpdate={mockOnProgressUpdate}
+          />
+        );
+
+        return { ...utils, observe, disconnect, fire: () => trigger?.() };
+      };
+
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('should observe the active question', () => {
+        const { observe } = renderWithObserver();
+        expect(observe).toHaveBeenCalled();
+      });
+
+      it('should ignore the initial callback fired on observe', () => {
+        const { fire } = renderWithObserver();
+        (Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear();
+
+        // ResizeObserver always fires once on observe; that is the layout the
+        // block:'start' scroll just produced, not the question growing.
+        fire();
+
+        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+      });
+
+      it('should scroll the question end into view when it grows', () => {
+        const { fire } = renderWithObserver();
+        (Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear();
+
+        fire();
+        fire();
+
+        // block:'nearest' scrolls the minimum needed, so a question that
+        // already fits on screen is left where it is.
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      });
+
+      it('should disconnect the observer on unmount', () => {
+        const { unmount, disconnect } = renderWithObserver();
+        unmount();
+        expect(disconnect).toHaveBeenCalled();
+      });
+
+      it('should do nothing when ResizeObserver is unavailable', () => {
+        vi.stubGlobal('ResizeObserver', undefined);
+
+        const question: AyuQuestion = {
+          linkId: 'q1',
+          text: 'Question 1',
+          type: 'string',
+        };
+        mockUseFHIRStepper.mockReturnValue({
+          currentQuestion: question,
+          currentIndex: 0,
+          total: 1,
+          answers: {},
+          setAnswer: mockSetAnswer,
+          clearAnswers: mockClearAnswers,
+          goNext: mockGoNext,
+          topLevelItems: [question],
+          isLast: true,
+        });
+
+        expect(() =>
+          render(
+            <AyuStepperContainer
+              questionnaire={createMockQuestionnaire([question])}
+              onComplete={mockOnComplete}
+              onProgressUpdate={mockOnProgressUpdate}
+            />
+          )
+        ).not.toThrow();
       });
     });
   });

@@ -6,6 +6,7 @@ import iconCalendar from '../../assets/icons/icon-calendar-blue.svg';
 import { cn } from '../../utils/cn';
 import CalendarMonthGrid from './calendar-month-grid.component';
 import CalendarYearGrid from './calendar-year-grid.component';
+import ChevronIcon from './chevron-icon.component';
 
 export interface CalendarProps {
   value?: string;
@@ -38,11 +39,18 @@ const Calendar: React.FC<CalendarProps> = ({
   size = 'default',
   boldLabel = false,
 }) => {
+  // Parse "yyyy-MM-dd" as a local date; `new Date(str)` treats it as UTC
+  // and shifts the day in negative-offset timezones.
+  const parseLocalDate = (val: string): Date | null => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+    const parsed = match
+      ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : new Date(val);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(
-    value ? new Date(value) : null
-  );
-  const [currentDate, setCurrentDate] = useState<Date>(
-    value ? new Date(value) : new Date()
+    value ? parseLocalDate(value) : null
   );
   const [showYearGrid, setShowYearGrid] = useState(false);
   const [showMonthGrid, setShowMonthGrid] = useState(false);
@@ -56,8 +64,12 @@ const Calendar: React.FC<CalendarProps> = ({
 
   const handleDateChange = (date: Date | null) => {
     setSelectedDate(date);
-    setCurrentDate(date || new Date());
     onChange?.(date ? formatLocalDate(date) : '');
+  };
+
+  const handleCalendarClose = () => {
+    setShowYearGrid(false);
+    setShowMonthGrid(false);
   };
 
   const sizeClasses = {
@@ -78,14 +90,7 @@ const Calendar: React.FC<CalendarProps> = ({
 
   // Sync currentDate when value prop changes
   useEffect(() => {
-    if (value) {
-      const newDate = new Date(value);
-      setSelectedDate(newDate);
-      setCurrentDate(newDate);
-    } else {
-      setSelectedDate(null);
-      setCurrentDate(new Date());
-    }
+    setSelectedDate(value ? parseLocalDate(value) : null);
   }, [value]);
 
   return (
@@ -115,7 +120,7 @@ const Calendar: React.FC<CalendarProps> = ({
           calendarClassName={cn(
             (showYearGrid || showMonthGrid) && 'react-datepicker--grid-mode'
           )}
-          openToDate={currentDate}
+          onCalendarClose={handleCalendarClose}
           renderDayContents={(dayOfMonth: number) => {
             if (showYearGrid || showMonthGrid) {
               return null; // Hide calendar days when year or month grid is shown
@@ -126,10 +131,14 @@ const Calendar: React.FC<CalendarProps> = ({
             date,
             decreaseMonth,
             increaseMonth,
+            changeYear,
+            changeMonth,
           }: {
             date: Date;
             decreaseMonth: () => void;
             increaseMonth: () => void;
+            changeYear: (year: number) => void;
+            changeMonth: (month: number) => void;
           }) => {
             const formatDateHeader = (date: Date) => {
               const dayNames = [
@@ -164,18 +173,12 @@ const Calendar: React.FC<CalendarProps> = ({
                 <CalendarMonthGrid
                   date={date}
                   onMonthSelect={monthIndex => {
-                    const newDate = new Date(currentDate);
-                    newDate.setMonth(monthIndex);
-                    setCurrentDate(newDate);
-                    setSelectedDate(newDate);
-                    onChange?.(formatLocalDate(newDate));
+                    // Only navigate the view: the date is committed when the
+                    // user picks an actual day.
+                    changeMonth(monthIndex);
                     setShowMonthGrid(false);
                   }}
-                  onYearChange={year => {
-                    const newDate = new Date(currentDate);
-                    newDate.setFullYear(year);
-                    setCurrentDate(newDate);
-                  }}
+                  onYearChange={changeYear}
                 />
               );
             }
@@ -183,22 +186,15 @@ const Calendar: React.FC<CalendarProps> = ({
             // If year grid is shown, render only the year grid
             if (showYearGrid) {
               const navigateDecade = (direction: 'prev' | 'next') => {
-                const currentYear = currentDate.getFullYear();
-                const decadeStart = Math.floor(currentYear / 10) * 10;
-                const newDecade =
-                  decadeStart + (direction === 'next' ? 10 : -10);
-                const newDate = new Date(currentDate);
-                newDate.setFullYear(newDecade);
-                setCurrentDate(newDate);
+                const decadeStart = Math.floor(date.getFullYear() / 10) * 10;
+                changeYear(decadeStart + (direction === 'next' ? 10 : -10));
               };
 
               return (
                 <CalendarYearGrid
                   date={date}
                   onYearSelect={year => {
-                    const newDate = new Date(currentDate);
-                    newDate.setFullYear(year);
-                    setCurrentDate(newDate);
+                    changeYear(year);
                     setShowYearGrid(false);
                     setShowMonthGrid(true);
                   }}
@@ -215,9 +211,10 @@ const Calendar: React.FC<CalendarProps> = ({
                   <button
                     type="button"
                     onClick={decreaseMonth}
-                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                    aria-label="Previous month"
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50 text-gray-600"
                   >
-                    <i className="fa-solid fa-chevron-left text-gray-600"></i>
+                    <ChevronIcon direction="left" />
                   </button>
 
                   <button
@@ -226,15 +223,16 @@ const Calendar: React.FC<CalendarProps> = ({
                     className="text-sm font-medium text-gray-700 hover:text-blue-600 flex items-center gap-1"
                   >
                     {formatDateHeader(date)}
-                    <i className="fa-solid fa-chevron-down text-xs"></i>
+                    <ChevronIcon direction="down" className="w-3 h-3" />
                   </button>
 
                   <button
                     type="button"
                     onClick={increaseMonth}
-                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                    aria-label="Next month"
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50 text-gray-600"
                   >
-                    <i className="fa-solid fa-chevron-right text-gray-600"></i>
+                    <ChevronIcon direction="right" />
                   </button>
                 </div>
               </div>

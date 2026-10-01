@@ -342,6 +342,7 @@ export const VisitReason = ({
         onPrevSection={onPrevSection}
         onNextQuestion={handleNext}
         isNextDisabled={!canSubmit}
+        isActive={isActive}
       />
 
       <div className="flex-1 flex items-center justify-center">
