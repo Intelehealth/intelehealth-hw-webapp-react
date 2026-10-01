@@ -131,7 +131,7 @@ const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
 
 /** Timestamp for midnight today – keeps all regular slots "in the future" by default. */
 const earlyMorningTime = (() => {
-  const d = new Date();
+  const d = new Date(PINNED_NOW);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 })();
