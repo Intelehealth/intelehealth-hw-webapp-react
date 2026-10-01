@@ -38,8 +38,5 @@
     "Change_Language_Confirm": "మీరు ఖచ్చితంగా భాషను {{language}} కి మార్చాలనుకుంటున్నారా?",
     "Yes": "అవును",
     "No": "కాదు"
-  },
-  "Visit_Summary": {
-    "Priority_Visit_Tooltip": "అత్యవసర పరిస్థితి అయితే దీన్ని ప్రారంభించండి."
   }
 }

@@ -38,8 +38,5 @@
     "Change_Language_Confirm": "നിങ്ങൾക്ക് ഭാഷ {{language}} ആയി മാറ്റണമെന്ന് ഉറപ്പാണോ?",
     "Yes": "അതെ",
     "No": "ഇല്ല"
-  },
-  "Visit_Summary": {
-    "Priority_Visit_Tooltip": "അടിയന്തര സാഹചര്യമാണെങ്കിൽ ഇത് പ്രവർത്തനക്ഷമമാക്കുക."
   }
 }

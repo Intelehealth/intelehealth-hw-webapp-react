@@ -38,8 +38,5 @@
     "Change_Language_Confirm": "શું તમે ખરેખર ભાષા {{language}} માં બદલવા માંગો છો?",
     "Yes": "હા",
     "No": "ના"
-  },
-  "Visit_Summary": {
-    "Priority_Visit_Tooltip": "ઇમરજન્સી હોય તો આને સક્ષમ કરો."
   }
 }

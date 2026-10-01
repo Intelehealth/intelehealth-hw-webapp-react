@@ -38,8 +38,5 @@
     "Change_Language_Confirm": "क्या आप वाकई भाषा {{language}} में बदलना चाहते हैं?",
     "Yes": "हाँ",
     "No": "नहीं"
-  },
-  "Visit_Summary": {
-    "Priority_Visit_Tooltip": "आपातकालीन स्थिति होने पर इसे सक्षम करें।"
   }
 }

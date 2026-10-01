@@ -38,8 +38,5 @@
     "Change_Language_Confirm": "Вы уверены, что хотите изменить язык на {{language}}?",
     "Yes": "Да",
     "No": "Нет"
-  },
-  "Visit_Summary": {
-    "Priority_Visit_Tooltip": "Включите, если это экстренный случай."
   }
 }

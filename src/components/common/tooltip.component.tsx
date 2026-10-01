@@ -32,6 +32,7 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
 
   const hideTooltip = () => {
     openedByPointerOrFocusRef.current = false;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setVisible(false);
     }, 150);

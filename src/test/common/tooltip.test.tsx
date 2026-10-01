@@ -170,6 +170,22 @@ describe('Tooltip', () => {
       expect(screen.getByText('Tooltip text')).toBeInTheDocument();
     });
 
+    it('keeps the tooltip open when it is hovered again before an earlier hide timer fires', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      fireEvent.blur(trigger); // starts a hide timer
+      fireEvent.mouseLeave(trigger); // must replace it, not orphan it
+      fireEvent.mouseEnter(trigger); // hover back within 150ms
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
     it('clears a pending hide timeout when a click toggles it closed', () => {
       vi.useFakeTimers();
       renderTooltip();
