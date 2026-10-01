@@ -39,6 +39,171 @@ describe('Tooltip', () => {
     vi.useRealTimers();
   });
 
+  describe('keyboard and touch access', () => {
+    const renderTooltip = () =>
+      render(
+        <Tooltip text="Tooltip text">
+          <img alt="info" />
+        </Tooltip>
+      );
+
+    it('makes the trigger focusable', () => {
+      renderTooltip();
+      expect(screen.getByAltText('info').parentElement).toHaveAttribute(
+        'tabindex',
+        '0'
+      );
+    });
+
+    it('shows the tooltip on focus and hides it on blur', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+
+      fireEvent.blur(trigger);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('shows the tooltip on click (tap)', () => {
+      renderTooltip();
+      fireEvent.click(screen.getByAltText('info').parentElement as HTMLElement);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('exposes role="tooltip" and links it via aria-describedby only while visible', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+      expect(trigger).not.toHaveAttribute('aria-describedby');
+
+      fireEvent.focus(trigger);
+      const tip = screen.getByRole('tooltip');
+      expect(tip).toHaveTextContent('Tooltip text');
+      expect(trigger).toHaveAttribute('aria-describedby', tip.id);
+    });
+
+    it('dismisses the tooltip on Escape', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+
+      fireEvent.keyDown(trigger, { key: 'Escape' });
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('ignores non-Escape keys', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+
+      fireEvent.keyDown(trigger, { key: 'Enter' });
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('clears a pending hide timeout when Escape dismisses it', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      fireEvent.blur(trigger);
+      fireEvent.keyDown(trigger, { key: 'Escape' });
+
+      // The blur timeout firing later should not throw or re-toggle anything.
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('toggles the tooltip closed on a second click (tap)', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.click(trigger);
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+
+      fireEvent.click(trigger);
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('keeps the tooltip open when the click follows the hover and focus of the same tap', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      // A tap fires emulated mouseenter and focus before the click.
+      fireEvent.mouseEnter(trigger);
+      fireEvent.focus(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('closes on the next tap after a tap that opened it via hover and focus', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.mouseEnter(trigger);
+      fireEvent.focus(trigger);
+      fireEvent.click(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+
+    it('keeps the tooltip open when a mouse click follows hovering it', () => {
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.mouseEnter(trigger);
+      fireEvent.click(trigger);
+
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('keeps the tooltip open when it is hovered again before an earlier hide timer fires', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      fireEvent.blur(trigger); // starts a hide timer
+      fireEvent.mouseLeave(trigger); // must replace it, not orphan it
+      fireEvent.mouseEnter(trigger); // hover back within 150ms
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(screen.getByText('Tooltip text')).toBeInTheDocument();
+    });
+
+    it('clears a pending hide timeout when a click toggles it closed', () => {
+      vi.useFakeTimers();
+      renderTooltip();
+      const trigger = screen.getByAltText('info').parentElement as HTMLElement;
+
+      fireEvent.focus(trigger);
+      fireEvent.blur(trigger);
+      // Toggle closed before the blur timeout would have fired.
+      fireEvent.click(trigger);
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText('Tooltip text')).not.toBeInTheDocument();
+    });
+  });
+
   it('renders children without tooltip initially', () => {
     render(
       <Tooltip text="Tooltip text">

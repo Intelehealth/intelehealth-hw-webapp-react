@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import ROUTES from '../../routes/paths';
 import { visitSummaryData } from '../../assets/data/visit-summary.data';
@@ -27,6 +28,7 @@ import iconChevronDown from '../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../assets/icons/icon-info.svg';
 import Dropdown from '../../components/common/dropdown.component';
 import Toggle from '../../components/common/toggle.component';
+import Tooltip from '../../components/common/tooltip.component';
 
 function getFileIcon(filename: string): { icon: string; color: string } {
   /* v8 ignore next -- .split() never returns an empty array */
@@ -415,6 +417,7 @@ const MedicalHistorySection: React.FC<{ sections: HistorySection[] }> = ({
 );
 
 const VisitSummaryComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { visitId } = useParams<{ visitId: string }>();
   const location = useLocation();
 
@@ -729,7 +732,9 @@ const VisitSummaryComponent: React.FC = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
+              <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            </Tooltip>
           </div>
           <div className="w-12">
             <Toggle checked={!!priorityVisit} size="md" disabled />

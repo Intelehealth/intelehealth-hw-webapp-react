@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
@@ -13,6 +13,10 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipId = useId();
+  // Set when hover/focus opened the tooltip, so the click that follows the same
+  // tap or mouse press keeps it open instead of toggling it straight closed.
+  const openedByPointerOrFocusRef = useRef(false);
 
   const showTooltip = () => {
     if (!triggerRef.current) return;
@@ -27,9 +31,35 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
   };
 
   const hideTooltip = () => {
+    openedByPointerOrFocusRef.current = false;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setVisible(false);
     }, 150);
+  };
+
+  const dismissTooltip = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setVisible(false);
+  };
+
+  const showFromPointerOrFocus = () => {
+    openedByPointerOrFocusRef.current = true;
+    showTooltip();
+  };
+
+  const toggleTooltip = () => {
+    if (!visible) {
+      showTooltip();
+    } else if (openedByPointerOrFocusRef.current) {
+      openedByPointerOrFocusRef.current = false;
+    } else {
+      dismissTooltip();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === 'Escape') dismissTooltip();
   };
 
   useEffect(() => {
@@ -48,8 +78,14 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
     <>
       <span
         ref={setTriggerRef}
-        onMouseEnter={showTooltip}
+        tabIndex={0}
+        aria-describedby={visible ? tooltipId : undefined}
+        onMouseEnter={showFromPointerOrFocus}
         onMouseLeave={hideTooltip}
+        onFocus={showFromPointerOrFocus}
+        onBlur={hideTooltip}
+        onClick={toggleTooltip}
+        onKeyDown={handleKeyDown}
         className="inline-block"
       >
         {children}
@@ -59,6 +95,8 @@ const Tooltip = ({ text, children, testRefOverride }: TooltipProps) => {
         createPortal(
           <div
             ref={tooltipRef}
+            id={tooltipId}
+            role="tooltip"
             onMouseEnter={() => {
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
