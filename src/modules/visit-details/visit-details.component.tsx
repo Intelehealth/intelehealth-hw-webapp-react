@@ -440,7 +440,7 @@ const VisitDetails: React.FC = () => {
             icon={iconVisitSummary}
             title="Visit summary"
             onClick={() =>
-              navigate(`/visit-summary/${visitId}`, {
+              navigate(generatePath(ROUTES.VISIT_SUMMARY, { visitId }), {
                 state: { fromLabel, fromPath },
               })
             }
@@ -455,7 +455,7 @@ const VisitDetails: React.FC = () => {
                 : undefined
             }
             onClick={() =>
-              navigate(`/prescription-detail/${visitId}`, {
+              navigate(generatePath(ROUTES.PRESCRIPTION_DETAIL, { visitId }), {
                 state: { fromLabel, fromPath },
               })
             }
