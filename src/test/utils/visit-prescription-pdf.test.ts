@@ -536,3 +536,86 @@ describe('shareVisitPrescriptionPdf', () => {
     expect(docDef.watermark.text).toBe('INTELEHEALTH');
   });
 });
+
+describe('cancellation via AbortSignal', () => {
+  const abortedSignal = () => {
+    const controller = new AbortController();
+    controller.abort();
+    return controller.signal;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // drop any once-queued fetch results left over by earlier suites
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it.each([
+    ['download', () => downloadVisitPrescriptionPdf(makePrescription(), abortedSignal())],
+    ['print', () => printVisitPrescriptionPdf(makePrescription(), abortedSignal())],
+    ['share', () => shareVisitPrescriptionPdf(makePrescription(), '919876543210', abortedSignal())],
+  ])('rejects with an AbortError and never reaches pdfMake or WhatsApp when %s is already aborted', async (_name, run) => {
+    await expect(run()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockCreatePdf).not.toHaveBeenCalled();
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockPrint).not.toHaveBeenCalled();
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['download', (signal: AbortSignal) => downloadVisitPrescriptionPdf(makePrescription(), signal)],
+    ['print', (signal: AbortSignal) => printVisitPrescriptionPdf(makePrescription(), signal)],
+    ['share', (signal: AbortSignal) => shareVisitPrescriptionPdf(makePrescription(), '919876543210', signal)],
+  ])('still completes %s when the signal is live', async (_name, run) => {
+    await run(new AbortController().signal);
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the signal to the signature image fetch', async () => {
+    const controller = new AbortController();
+    await printVisitPrescriptionPdf(
+      makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }),
+      controller.signal
+    );
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://example.com/sig.png',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
+  it.each([
+    [
+      'print',
+      (data: PrescriptionData, signal: AbortSignal) => printVisitPrescriptionPdf(data, signal),
+    ],
+    [
+      'share',
+      (data: PrescriptionData, signal: AbortSignal) =>
+        shareVisitPrescriptionPdf(data, '919876543210', signal),
+    ],
+  ])('does not %s when aborted while the signature image is still loading', async (_name, run) => {
+    const controller = new AbortController();
+    let finishFetch: (value: unknown) => void = () => {};
+    mockFetch.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishFetch = resolve;
+        })
+    );
+    const pending = run(
+      makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }),
+      controller.signal
+    );
+    // the signature fetch only starts once the icons are rendered
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    controller.abort();
+    finishFetch(makeImageResponse());
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockPrint).not.toHaveBeenCalled();
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(window.open).not.toHaveBeenCalled();
+  });
+});

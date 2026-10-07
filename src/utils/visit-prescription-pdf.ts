@@ -16,12 +16,18 @@ import defaultUserImgUrl from '../assets/images/default-user-img.svg?url';
 const vfsData = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs ?? {};
 (pdfMake as any).addVirtualFileSystem(vfsData);
 
+/** Throws an AbortError when the caller has cancelled the operation. */
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+}
+
 async function toBase64(
   url: string,
-  forceImageMime = false
+  forceImageMime = false,
+  signal?: AbortSignal
 ): Promise<string | null> {
   try {
-    const res = await fetch(url, { credentials: 'include' });
+    const res = await fetch(url, { credentials: 'include', signal });
     if (!res.ok) return null;
     const blob = await res.blob();
     /* c8 ignore next */
@@ -154,7 +160,10 @@ export function openPrescriptionPreview(visitUuid: string): void {
   );
 }
 
-async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
+async function buildPrescriptionDocDef(
+  data: PrescriptionData,
+  signal?: AbortSignal
+): Promise<any> {
   const [
     iConsultation,
     iDiagnosis,
@@ -180,7 +189,7 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
   const signatureB64 = data.doctorSignatureUrl
     ? data.doctorSignatureUrl.startsWith('data:')
       ? data.doctorSignatureUrl
-      : await toBase64(data.doctorSignatureUrl, true)
+      : await toBase64(data.doctorSignatureUrl, true, signal)
     : null;
 
   const avatarImg = iPatientAvatar;
@@ -572,24 +581,30 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
 }
 
 export async function downloadVisitPrescriptionPdf(
-  data: PrescriptionData
+  data: PrescriptionData,
+  signal?: AbortSignal
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
   pdfMake.createPdf(docDef).download('e-prescription.pdf');
 }
 
 export async function printVisitPrescriptionPdf(
-  data: PrescriptionData
+  data: PrescriptionData,
+  signal?: AbortSignal
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
   pdfMake.createPdf(docDef).print();
 }
 
 export async function shareVisitPrescriptionPdf(
   data: PrescriptionData,
-  phoneNumber: string
+  phoneNumber: string,
+  signal?: AbortSignal
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
   const pdfDoc = pdfMake.createPdf(docDef);
 
   // Download the PDF so the user has it locally

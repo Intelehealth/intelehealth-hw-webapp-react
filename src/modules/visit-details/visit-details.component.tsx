@@ -17,7 +17,9 @@ import iconShare from '../../assets/icons/icon-share.svg';
 import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
 import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
-import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
+import WhatsAppShareModal, {
+  SHARE_FAILED_MESSAGE,
+} from '../../components/modal/whatsapp-share.modal';
 import {
   getVisitPrescriptionData,
   type PrescriptionData,
@@ -218,31 +220,34 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   }, []);
 
   // Runs one PDF operation: one at a time, cancellable, silent once aborted.
+  // Resolves 'done', 'failed' (already logged; toasted when toastMessage is
+  // given), or 'skipped' (ignored while another one runs, or aborted).
   const runPdfOperation = useCallback(
     async (
-      action: (pdfData: PrescriptionData) => Promise<void>,
+      action: (pdfData: PrescriptionData, signal: AbortSignal) => Promise<void>,
       failureMessage: string,
-      toastMessage: string
-    ) => {
-      if (pdfAbortRef.current) return;
+      toastMessage?: string
+    ): Promise<'done' | 'failed' | 'skipped'> => {
+      if (pdfAbortRef.current) return 'skipped';
       const controller = new AbortController();
+      const { signal } = controller;
       pdfAbortRef.current = controller;
       setPdfLoading(true);
+      let outcome: 'done' | 'failed' = 'done';
       try {
-        const pdfData = await getVisitPrescriptionData(
-          visitId,
-          controller.signal
-        );
-        if (controller.signal.aborted) return;
-        await action(pdfData);
+        const pdfData = await getVisitPrescriptionData(visitId, signal);
+        if (signal.aborted) return 'skipped';
+        await action(pdfData, signal);
       } catch {
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return 'skipped';
         console.error(failureMessage);
-        showToast('Error', toastMessage, 'error');
+        if (toastMessage) showToast('Error', toastMessage, 'error');
+        outcome = 'failed';
       } finally {
         if (pdfAbortRef.current === controller) pdfAbortRef.current = null;
-        if (!controller.signal.aborted) setPdfLoading(false);
+        if (!signal.aborted) setPdfLoading(false);
       }
+      return signal.aborted ? 'skipped' : outcome;
     },
     [visitId]
   );
@@ -256,7 +261,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const handlePrint = useCallback(
     () =>
       runPdfOperation(
-        printVisitPrescriptionPdf,
+        (pdfData, signal) => printVisitPrescriptionPdf(pdfData, signal),
         'Failed to print prescription PDF',
         'Failed to print the prescription. Please try again.'
       ),
@@ -267,14 +272,17 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
     setShowShareModal(true);
   }, []);
 
+  // The modal stays open on failure: throwing makes it show the failure
+  // message in place, with the phone number kept so the user can retry.
   const handleSharePdf = useCallback(
-    (phoneNumber: string) => {
-      setShowShareModal(false);
-      return runPdfOperation(
-        pdfData => shareVisitPrescriptionPdf(pdfData, phoneNumber),
-        'Failed to share prescription PDF',
-        'Failed to share the prescription. Please try again.'
+    async (phoneNumber: string) => {
+      const outcome = await runPdfOperation(
+        (pdfData, signal) =>
+          shareVisitPrescriptionPdf(pdfData, phoneNumber, signal),
+        'Failed to share prescription PDF'
       );
+      if (outcome === 'failed') throw new Error(SHARE_FAILED_MESSAGE);
+      if (outcome === 'done') setShowShareModal(false);
     },
     [runPdfOperation]
   );

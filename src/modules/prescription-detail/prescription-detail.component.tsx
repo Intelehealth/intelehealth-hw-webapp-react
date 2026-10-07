@@ -24,7 +24,9 @@ import iconShareWhite from '../../assets/icons/icon-share-white.svg';
 import iconDiagnosis from '../../assets/icons/visit-reason.svg';
 import iconTests from '../../assets/icons/vitals.svg';
 import Button from '../../components/common/button.component';
-import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
+import WhatsAppShareModal, {
+  SHARE_FAILED_MESSAGE,
+} from '../../components/modal/whatsapp-share.modal';
 
 /* ── Sub-components ── */
 
@@ -307,8 +309,8 @@ const PrescriptionDetail: React.FC = () => {
     try {
       const pdfData = await getVisitPrescriptionData(visitId);
       await downloadVisitPrescriptionPdf(pdfData);
-    } catch (err) {
-      console.error('Failed to download prescription PDF:', err);
+    } catch {
+      console.error('Failed to download prescription PDF');
     } finally {
       setPdfLoading(false);
     }
@@ -321,8 +323,8 @@ const PrescriptionDetail: React.FC = () => {
     try {
       const pdfData = await getVisitPrescriptionData(visitId);
       await printVisitPrescriptionPdf(pdfData);
-    } catch (err) {
-      console.error('Failed to print prescription PDF:', err);
+    } catch {
+      console.error('Failed to print prescription PDF');
     } finally {
       setPdfLoading(false);
     }
@@ -336,13 +338,15 @@ const PrescriptionDetail: React.FC = () => {
     async (phoneNumber: string) => {
       /* c8 ignore next */
       if (!visitId) return;
-      setShowShareModal(false);
       setPdfLoading(true);
       try {
         const pdfData = await getVisitPrescriptionData(visitId);
         await shareVisitPrescriptionPdf(pdfData, phoneNumber);
-      } catch (err) {
-        console.error('Failed to share prescription PDF:', err);
+        setShowShareModal(false);
+      } catch {
+        console.error('Failed to share prescription PDF');
+        // Keeps the modal open and shows the failure in place for a retry.
+        throw new Error(SHARE_FAILED_MESSAGE);
       } finally {
         setPdfLoading(false);
       }

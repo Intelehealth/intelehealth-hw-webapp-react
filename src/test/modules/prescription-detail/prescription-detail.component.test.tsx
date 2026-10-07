@@ -300,6 +300,10 @@ describe('PrescriptionDetail', () => {
       await waitFor(() => {
         expect(mockSharePdf).toHaveBeenCalledWith(pdfData, '919876543210');
       });
+      // a successful share closes the modal
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
+      });
     });
 
     it('should call downloadVisitPrescriptionPdf when Download PDF is clicked', async () => {
@@ -328,7 +332,9 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Download PDF'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF');
+        // the raw error object is never logged (may carry patient data/tokens)
+        expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
       });
       consoleSpy.mockRestore();
     });
@@ -342,7 +348,8 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF');
+        expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
       });
       consoleSpy.mockRestore();
     });
@@ -363,8 +370,14 @@ describe('PrescriptionDetail', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF');
       });
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
+      // the failure is shown inside the modal, which stays open with the number kept
+      expect(
+        await screen.findByText('Failed to share the prescription. Please try again.')
+      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
       consoleSpy.mockRestore();
     });
   });
