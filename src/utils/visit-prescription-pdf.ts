@@ -589,19 +589,39 @@ export async function downloadVisitPrescriptionPdf(
   pdfMake.createPdf(docDef).download('e-prescription.pdf');
 }
 
+/**
+ * Opens a blank tab that a later async step (print / WhatsApp) can fill in.
+ * It must be called synchronously inside the user's click: browsers only
+ * allow a pop-up while the click's activation is still fresh, and a slow
+ * network request before window.open would lose it. Returns null when the
+ * browser blocks the pop-up.
+ */
+export function openPendingWindow(message: string): Window | null {
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.title = 'Intelehealth';
+    win.document.body.textContent = message;
+  }
+  return win;
+}
+
 export async function printVisitPrescriptionPdf(
   data: PrescriptionData,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetWindow?: Window | null
 ): Promise<void> {
   const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
-  pdfMake.createPdf(docDef).print();
+  // with no target window pdfmake opens its own, after the data has loaded
+  // awaited so an async pdfmake failure reaches the caller, which then closes the tab
+  await pdfMake.createPdf(docDef).print(targetWindow ?? undefined);
 }
 
 export async function shareVisitPrescriptionPdf(
   data: PrescriptionData,
   phoneNumber: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetWindow?: Window | null
 ): Promise<void> {
   const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
@@ -618,5 +638,10 @@ export async function shareVisitPrescriptionPdf(
   const message = encodeURIComponent(
     `Hello, Thank you for using Intelehealth. To download your prescription click here\nDownload here: ${downloadLink}`
   );
-  window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+  if (targetWindow) {
+    targetWindow.location.href = whatsappUrl;
+  } else {
+    window.open(whatsappUrl, '_blank');
+  }
 }

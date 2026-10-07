@@ -111,7 +111,13 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 });
 
 // ─── Import the functions under test (after mocks are set up) ─────────────────
-const { downloadVisitPrescriptionPdf, printVisitPrescriptionPdf, shareVisitPrescriptionPdf, openPrescriptionPreview } =
+const {
+  downloadVisitPrescriptionPdf,
+  printVisitPrescriptionPdf,
+  shareVisitPrescriptionPdf,
+  openPrescriptionPreview,
+  openPendingWindow,
+} =
   await import('../../utils/visit-prescription-pdf');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -617,5 +623,68 @@ describe('cancellation via AbortSignal', () => {
     expect(mockPrint).not.toHaveBeenCalled();
     expect(mockDownload).not.toHaveBeenCalled();
     expect(window.open).not.toHaveBeenCalled();
+  });
+});
+
+describe('pop-up safe windows', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const fakeWindow = () =>
+    ({ document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('openPendingWindow opens a blank tab and shows the given message in it', () => {
+    const win = fakeWindow();
+    (window.open as ReturnType<typeof vi.fn>).mockReturnValue(win);
+    expect(openPendingWindow('Preparing...')).toBe(win);
+    expect(window.open).toHaveBeenCalledWith('', '_blank');
+    expect(win.document.title).toBe('Intelehealth');
+    expect(win.document.body.textContent).toBe('Preparing...');
+  });
+
+  it('openPendingWindow returns null when the browser blocks the pop-up', () => {
+    (window.open as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    expect(openPendingWindow('Preparing...')).toBeNull();
+  });
+
+  it('print hands the pre-opened tab to pdfmake', async () => {
+    const win = fakeWindow();
+    await printVisitPrescriptionPdf(makePrescription(), undefined, win);
+    expect(mockPrint).toHaveBeenCalledWith(win);
+  });
+
+  it('print lets pdfmake open its own tab when none is given', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    expect(mockPrint).toHaveBeenCalledWith(undefined);
+  });
+
+  it('print lets pdfmake open its own tab when the given one is null', async () => {
+    await printVisitPrescriptionPdf(makePrescription(), undefined, null);
+    expect(mockPrint).toHaveBeenCalledWith(undefined);
+  });
+
+  it('print rejects when pdfmake fails asynchronously, so the caller can close the tab', async () => {
+    mockPrint.mockRejectedValueOnce(new Error('stream failed'));
+    await expect(printVisitPrescriptionPdf(makePrescription(), undefined, fakeWindow())).rejects.toThrow(
+      'stream failed'
+    );
+  });
+
+  it('share sends the pre-opened tab to WhatsApp instead of opening a new one', async () => {
+    const win = fakeWindow();
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    expect(win.location.href).toContain('https://wa.me/919876543210?text=');
+    expect(window.open).not.toHaveBeenCalled();
+    expect(mockDownload).toHaveBeenCalledWith('e-prescription.pdf');
+  });
+
+  it('share still opens WhatsApp itself when no tab is given', async () => {
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, null);
+    expect(window.open).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/919876543210'), '_blank');
   });
 });

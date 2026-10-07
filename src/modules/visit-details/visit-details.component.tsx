@@ -31,6 +31,7 @@ import {
 } from '../../services/visit-prescription.service';
 import { showToast } from '../../services/toast';
 import {
+  openPendingWindow,
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
 } from '../../utils/visit-prescription-pdf';
@@ -210,6 +211,9 @@ const useFromState = () => {
   return { fromLabel: state?.fromLabel, fromPath: state?.fromPath };
 };
 
+const POPUP_BLOCKED_MESSAGE =
+  'Your browser blocked the pop-up. Allow pop-ups for this site and try again.';
+
 const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
   const { fromLabel, fromPath } = useFromState();
@@ -227,29 +231,39 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   // Runs one PDF operation: one at a time, cancellable, silent once aborted.
   // Resolves 'done', 'failed' (already logged; toasted when toastMessage is
   // given), or 'skipped' (ignored while another one runs, or aborted).
+  // `win` is the tab opened inside the click; it is closed again unless the
+  // action succeeds and takes it over (print / WhatsApp), so no blank tab is
+  // left behind.
   const runPdfOperation = useCallback(
     async (
       op: 'print' | 'share',
+      win: Window,
       action: (pdfData: PrescriptionData, signal: AbortSignal) => Promise<void>,
       failureMessage: string,
       toastMessage?: string
     ): Promise<'done' | 'failed' | 'skipped'> => {
-      if (pdfAbortRef.current) return 'skipped';
+      if (pdfAbortRef.current) {
+        win.close();
+        return 'skipped';
+      }
       const controller = new AbortController();
       const { signal } = controller;
       pdfAbortRef.current = controller;
       setPdfOp(op);
       let outcome: 'done' | 'failed' = 'done';
+      let handedOff = false;
       try {
         const pdfData = await getVisitPrescriptionData(visitId, signal);
         if (signal.aborted) return 'skipped';
         await action(pdfData, signal);
+        handedOff = true;
       } catch {
         if (signal.aborted) return 'skipped';
         console.error(failureMessage);
         if (toastMessage) showToast('Error', toastMessage, 'error');
         outcome = 'failed';
       } finally {
+        if (!handedOff) win.close();
         if (pdfAbortRef.current === controller) pdfAbortRef.current = null;
         if (!signal.aborted) setPdfOp(null);
       }
@@ -264,16 +278,21 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
     });
   }, [navigate, visitId, fromLabel, fromPath]);
 
-  const handlePrint = useCallback(
-    () =>
-      runPdfOperation(
-        'print',
-        (pdfData, signal) => printVisitPrescriptionPdf(pdfData, signal),
-        'Failed to print prescription PDF',
-        'Failed to print the prescription. Please try again.'
-      ),
-    [runPdfOperation]
-  );
+  const handlePrint = useCallback(() => {
+    // opened now, inside the click, so the pop-up blocker lets it through
+    const win = openPendingWindow('Preparing your prescription...');
+    if (!win) {
+      showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
+      return;
+    }
+    return runPdfOperation(
+      'print',
+      win,
+      (pdfData, signal) => printVisitPrescriptionPdf(pdfData, signal, win),
+      'Failed to print prescription PDF',
+      'Failed to print the prescription. Please try again.'
+    );
+  }, [runPdfOperation]);
 
   const handleOpenShareModal = useCallback(() => {
     setShowShareModal(true);
@@ -283,10 +302,18 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   // message in place, with the phone number kept so the user can retry.
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
+      // opened now, inside the click, so the pop-up blocker lets it through;
+      // the modal stays open so the user can allow pop-ups and retry
+      const win = openPendingWindow('Opening WhatsApp...');
+      if (!win) {
+        showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
+        return;
+      }
       const outcome = await runPdfOperation(
         'share',
+        win,
         (pdfData, signal) =>
-          shareVisitPrescriptionPdf(pdfData, phoneNumber, signal),
+          shareVisitPrescriptionPdf(pdfData, phoneNumber, signal, win),
         'Failed to share prescription PDF'
       );
       if (outcome === 'failed') throw new Error(SHARE_FAILED_MESSAGE);
