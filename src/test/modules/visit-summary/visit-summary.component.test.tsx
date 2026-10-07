@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../../i18n';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
@@ -605,6 +606,20 @@ describe('VisitSummaryComponent', () => {
       await waitFor(() => {
         expect(screen.getByText('Priority Visit')).toBeInTheDocument();
       });
+    });
+
+    it('should show a tooltip with the correct message when hovering the Priority Visit info icon', async () => {
+      renderWithMockData();
+      const infoIcon = await screen.findByAltText('info');
+      expect(
+        screen.queryByText('Enable this in case visit is an Emergency.')
+      ).not.toBeInTheDocument();
+
+      fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
+
+      expect(
+        screen.getByText('Enable this in case visit is an Emergency.')
+      ).toBeInTheDocument();
     });
 
     it('should render toggle unchecked when priority visit is false or undefined', async () => {

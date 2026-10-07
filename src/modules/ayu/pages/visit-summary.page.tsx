@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -13,6 +14,7 @@ import type {
 } from '../../../assets/data/visit-summary.data';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
+import Tooltip from '../../../components/common/tooltip.component';
 import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
@@ -547,6 +549,7 @@ const readUploadedVisitRef = (
 };
 
 const VisitSummaryPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   useBreadcrumb([
@@ -1185,7 +1188,9 @@ const VisitSummaryPage = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
+              <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            </Tooltip>
           </div>
           <div className="w-12">
             <Toggle
