@@ -128,7 +128,8 @@ const renderWithoutVisitId = () => {
 const SHARE_FAILED = 'Failed to share the prescription. Please try again.';
 const POPUP_BLOCKED = 'Your browser blocked the pop-up. Allow pop-ups for this site and try again.';
 const anyWindow = expect.objectContaining({ close: expect.any(Function) });
-let openedWindows: { close: ReturnType<typeof vi.fn> }[] = [];
+const TAB_CLOSED = 'The tab was closed before the prescription was ready. Please try again.';
+let openedWindows: { close: ReturnType<typeof vi.fn>; closed: boolean }[] = [];
 
 describe('VisitDetails', () => {
   beforeEach(() => {
@@ -435,7 +436,7 @@ describe('VisitDetails', () => {
       openedWindows = [];
       mockOpenPendingWindow.mockReset();
       mockOpenPendingWindow.mockImplementation(() => {
-        const win = { close: vi.fn() };
+        const win = { close: vi.fn(), closed: false };
         openedWindows.push(win);
         return win;
       });
@@ -1293,6 +1294,67 @@ describe('VisitDetails', () => {
       expect(openedWindows).toHaveLength(2);
       expect(openedWindows[0].close).not.toHaveBeenCalled();
       expect(openedWindows[1].close).toHaveBeenCalledTimes(1);
+    });
+
+    it('should tell the user, and not print, when the print tab was closed before the data arrived', async () => {
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+
+      // the user presses Back in the new tab while it still says "Preparing..."
+      openedWindows[0].closed = true;
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
+      });
+      expect(mockPrintVisitPrescriptionPdf).not.toHaveBeenCalled();
+      // nothing is left busy: the user can click Print again
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+    });
+
+    it('should tell the user, keep the modal open and not share, when the WhatsApp tab was closed before the data arrived', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let resolvePdf: (value: unknown) => void = () => {};
+      mockGetVisitPrescriptionData.mockReturnValue(
+        new Promise(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      await submitShare();
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+
+      openedWindows[0].closed = true;
+      resolvePdf({ visitUuid: 'test-visit-uuid' });
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
+      });
+      expect(mockShareVisitPrescriptionPdf).not.toHaveBeenCalled();
+      // not reported as a share failure; the modal stays open with the number kept
+      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
 
     it('should open the WhatsApp share modal when Share is clicked', async () => {

@@ -31,6 +31,10 @@ import {
 } from '../../services/visit-prescription.service';
 import { showToast } from '../../services/toast';
 import {
+  POPUP_BLOCKED_MESSAGE,
+  TAB_CLOSED_MESSAGE,
+} from '../../utils/pdf-window-messages';
+import {
   openPendingWindow,
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
@@ -211,9 +215,6 @@ const useFromState = () => {
   return { fromLabel: state?.fromLabel, fromPath: state?.fromPath };
 };
 
-const POPUP_BLOCKED_MESSAGE =
-  'Your browser blocked the pop-up. Allow pop-ups for this site and try again.';
-
 const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
   const { fromLabel, fromPath } = useFromState();
@@ -230,7 +231,8 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
 
   // Runs one PDF operation: one at a time, cancellable, silent once aborted.
   // Resolves 'done', 'failed' (already logged; toasted when toastMessage is
-  // given), or 'skipped' (ignored while another one runs, or aborted).
+  // given), 'closed' (the user closed the pending tab; already toasted), or
+  // 'skipped' (ignored while another one runs, or aborted).
   // `win` is the tab opened inside the click; it is closed again unless the
   // action succeeds and takes it over (print / WhatsApp), so no blank tab is
   // left behind.
@@ -241,7 +243,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
       action: (pdfData: PrescriptionData, signal: AbortSignal) => Promise<void>,
       failureMessage: string,
       toastMessage?: string
-    ): Promise<'done' | 'failed' | 'skipped'> => {
+    ): Promise<'done' | 'failed' | 'skipped' | 'closed'> => {
       if (pdfAbortRef.current) {
         win.close();
         return 'skipped';
@@ -255,6 +257,11 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
       try {
         const pdfData = await getVisitPrescriptionData(visitId, signal);
         if (signal.aborted) return 'skipped';
+        // writing into a closed tab is a silent no-op, so say what happened
+        if (win.closed) {
+          showToast('Error', TAB_CLOSED_MESSAGE, 'error');
+          return 'closed';
+        }
         await action(pdfData, signal);
         handedOff = true;
       } catch {

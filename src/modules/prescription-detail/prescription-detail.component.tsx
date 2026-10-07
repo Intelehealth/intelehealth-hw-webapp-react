@@ -8,8 +8,14 @@ import type {
 } from '../../assets/data/prescription-detail.data';
 import { prescriptionDetailService } from './prescription-detail.service';
 import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import { showToast } from '../../services/toast';
+import {
+  POPUP_BLOCKED_MESSAGE,
+  TAB_CLOSED_MESSAGE,
+} from '../../utils/pdf-window-messages';
 import {
   downloadVisitPrescriptionPdf,
+  openPendingWindow,
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
 } from '../../utils/visit-prescription-pdf';
@@ -319,13 +325,26 @@ const PrescriptionDetail: React.FC = () => {
   const handlePrintPdf = useCallback(async () => {
     /* c8 ignore next */
     if (!visitId) return;
+    // opened now, inside the click, so the pop-up blocker lets it through
+    const win = openPendingWindow('Preparing your prescription...');
+    if (!win) {
+      showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
+      return;
+    }
     setPdfLoading(true);
+    let handedOff = false;
     try {
       const pdfData = await getVisitPrescriptionData(visitId);
-      await printVisitPrescriptionPdf(pdfData);
+      if (win.closed) {
+        showToast('Error', TAB_CLOSED_MESSAGE, 'error');
+        return;
+      }
+      await printVisitPrescriptionPdf(pdfData, undefined, win);
+      handedOff = true;
     } catch {
       console.error('Failed to print prescription PDF');
     } finally {
+      if (!handedOff) win.close();
       setPdfLoading(false);
     }
   }, [visitId]);
@@ -338,16 +357,30 @@ const PrescriptionDetail: React.FC = () => {
     async (phoneNumber: string) => {
       /* c8 ignore next */
       if (!visitId) return;
+      // opened now, inside the click, so the pop-up blocker lets it through;
+      // the modal stays open so the user can allow pop-ups and retry
+      const win = openPendingWindow('Opening WhatsApp...');
+      if (!win) {
+        showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
+        return;
+      }
       setPdfLoading(true);
+      let handedOff = false;
       try {
         const pdfData = await getVisitPrescriptionData(visitId);
-        await shareVisitPrescriptionPdf(pdfData, phoneNumber);
+        if (win.closed) {
+          showToast('Error', TAB_CLOSED_MESSAGE, 'error');
+          return;
+        }
+        await shareVisitPrescriptionPdf(pdfData, phoneNumber, undefined, win);
+        handedOff = true;
         setShowShareModal(false);
       } catch {
         console.error('Failed to share prescription PDF');
         // Keeps the modal open and shows the failure in place for a retry.
         throw new Error(SHARE_FAILED_MESSAGE);
       } finally {
+        if (!handedOff) win.close();
         setPdfLoading(false);
       }
     },
