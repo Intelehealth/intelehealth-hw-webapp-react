@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  generatePath,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import ROUTES from '../../routes/paths';
 import iconPhone from '../../assets/icons/appointment/green-field-apm-phone-icon.svg';
@@ -208,7 +213,7 @@ const useFromState = () => {
 const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
   const { fromLabel, fromPath } = useFromState();
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfOp, setPdfOp] = useState<'print' | 'share' | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   // Controller of the PDF operation currently in flight (if any). Aborted on
   // unmount so the request is cancelled and no print/download fires afterwards.
@@ -224,6 +229,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   // given), or 'skipped' (ignored while another one runs, or aborted).
   const runPdfOperation = useCallback(
     async (
+      op: 'print' | 'share',
       action: (pdfData: PrescriptionData, signal: AbortSignal) => Promise<void>,
       failureMessage: string,
       toastMessage?: string
@@ -232,7 +238,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
       const controller = new AbortController();
       const { signal } = controller;
       pdfAbortRef.current = controller;
-      setPdfLoading(true);
+      setPdfOp(op);
       let outcome: 'done' | 'failed' = 'done';
       try {
         const pdfData = await getVisitPrescriptionData(visitId, signal);
@@ -245,7 +251,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
         outcome = 'failed';
       } finally {
         if (pdfAbortRef.current === controller) pdfAbortRef.current = null;
-        if (!signal.aborted) setPdfLoading(false);
+        if (!signal.aborted) setPdfOp(null);
       }
       return signal.aborted ? 'skipped' : outcome;
     },
@@ -253,7 +259,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   );
 
   const handleViewPrescription = useCallback(() => {
-    navigate(`/prescription-detail/${visitId}`, {
+    navigate(generatePath(ROUTES.PRESCRIPTION_DETAIL, { visitId }), {
       state: { fromLabel, fromPath },
     });
   }, [navigate, visitId, fromLabel, fromPath]);
@@ -261,6 +267,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const handlePrint = useCallback(
     () =>
       runPdfOperation(
+        'print',
         (pdfData, signal) => printVisitPrescriptionPdf(pdfData, signal),
         'Failed to print prescription PDF',
         'Failed to print the prescription. Please try again.'
@@ -277,6 +284,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
       const outcome = await runPdfOperation(
+        'share',
         (pdfData, signal) =>
           shareVisitPrescriptionPdf(pdfData, phoneNumber, signal),
         'Failed to share prescription PDF'
@@ -310,8 +318,8 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
           fullWidth
           leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
           onClick={handlePrint}
-          disabled={pdfLoading}
-          isLoading={pdfLoading}
+          disabled={pdfOp !== null}
+          isLoading={pdfOp === 'print'}
           loadingText="Printing..."
         >
           Print
@@ -322,7 +330,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
           fullWidth
           leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
           onClick={handleOpenShareModal}
-          disabled={pdfLoading}
+          disabled={pdfOp !== null}
         >
           Share
         </Button>
@@ -332,7 +340,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
         onShare={handleSharePdf}
-        isLoading={pdfLoading}
+        isLoading={pdfOp === 'share'}
       />
     </div>
   );

@@ -785,6 +785,7 @@ describe('VisitDetails', () => {
       await screen.findByRole('button', { name: /Printing.../ });
       const shareWhilePrinting = screen.getByRole('button', { name: /^Share$/ });
       expect(shareWhilePrinting).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /Sharing.../ })).not.toBeInTheDocument();
       fireEvent.click(shareWhilePrinting);
       expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
       expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
@@ -804,8 +805,11 @@ describe('VisitDetails', () => {
       await waitFor(() => {
         expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(2);
       });
-      // both actions share one loading flag, so Print reads "Printing..." too
-      const printWhileSharing = await screen.findByRole('button', { name: /Printing.../ });
+      // only the running action shows a busy state: the modal says "Sharing...",
+      // while Print stays "Print" (disabled) instead of claiming to print
+      expect(await screen.findByRole('button', { name: /Sharing.../ })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /Printing.../ })).not.toBeInTheDocument();
+      const printWhileSharing = screen.getByRole('button', { name: /^Print$/ });
       expect(printWhileSharing).toBeDisabled();
       fireEvent.click(printWhileSharing);
       expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(2);
