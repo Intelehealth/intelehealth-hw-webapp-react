@@ -566,6 +566,7 @@ describe('PrescriptionDetail', () => {
         expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
       });
       unmount();
+      await Promise.resolve();
       expect(signal?.aborted).toBe(true);
       resolvePdf({ visitUuid: 'visit-123' });
       await new Promise(resolve => setTimeout(resolve, 0));

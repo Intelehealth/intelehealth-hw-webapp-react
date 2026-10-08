@@ -1,4 +1,5 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
+import { StrictMode, useLayoutEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePrescriptionPdfAction } from '../../hooks/usePrescriptionPdfAction';
 import {
@@ -245,6 +246,7 @@ describe('usePrescriptionPdfAction', () => {
     });
     expect(signal?.aborted).toBe(false);
     unmount();
+    await Promise.resolve();
     expect(signal?.aborted).toBe(true);
     request.resolve(PDF_DATA);
 
@@ -266,6 +268,7 @@ describe('usePrescriptionPdfAction', () => {
     });
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     unmount();
+    await Promise.resolve();
     actionResult.resolve();
 
     expect(await pending).toBe(false);
@@ -286,6 +289,7 @@ describe('usePrescriptionPdfAction', () => {
     });
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     unmount();
+    await Promise.resolve();
     actionResult.reject(new Error('failed after unmount: token=secret-123'));
 
     expect(await pending).toBe(false);
@@ -299,6 +303,7 @@ describe('usePrescriptionPdfAction', () => {
     const action = vi.fn().mockResolvedValue(undefined);
     const first = renderHook(() => usePrescriptionPdfAction('visit-1'));
     first.unmount();
+    await Promise.resolve();
 
     const second = renderHook(() => usePrescriptionPdfAction('visit-2'));
     let done: boolean | undefined;
@@ -307,5 +312,53 @@ describe('usePrescriptionPdfAction', () => {
     });
     expect(done).toBe(true);
     expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-2', expect.any(AbortSignal));
+  });
+
+  it('is not cancelled by the StrictMode mount, unmount, mount cycle when an operation starts first', async () => {
+    mockGetVisitPrescriptionData.mockResolvedValue(PDF_DATA);
+    const action = vi.fn().mockResolvedValue(undefined);
+    let outcome: Promise<boolean> | undefined;
+
+    // A layout effect runs before the passive effects that StrictMode then
+    // mounts, unmounts and mounts again. That is the order of a fast click.
+    function Probe() {
+      const { run } = usePrescriptionPdfAction('visit-1');
+      useLayoutEffect(() => {
+        outcome ??= run('print', action);
+      }, [run]);
+      return null;
+    }
+
+    await act(async () => {
+      render(
+        <StrictMode>
+          <Probe />
+        </StrictMode>
+      );
+    });
+
+    expect(await outcome).toBe(true);
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(windows[0].close).not.toHaveBeenCalled();
+  });
+
+  it('stops without running the action when the component unmounts just as the data arrives', async () => {
+    const request = deferred<typeof PDF_DATA>();
+    mockGetVisitPrescriptionData.mockReturnValue(request.promise);
+    const action = vi.fn();
+    const { result, unmount } = renderHook(() => usePrescriptionPdfAction('visit-1'));
+
+    let pending: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      pending = result.current.run('print', action);
+    });
+    // the data resolves first, and the unmount lands before the deferred abort
+    request.resolve(PDF_DATA);
+    unmount();
+
+    expect(await pending).toBe(false);
+    expect(action).not.toHaveBeenCalled();
+    expect(windows[0].close).toHaveBeenCalled();
+    expect(mockShowToast).not.toHaveBeenCalled();
   });
 });

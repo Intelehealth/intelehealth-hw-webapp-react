@@ -554,6 +554,8 @@ describe('VisitDetails', () => {
       expect(signal?.aborted).toBe(false);
 
       unmount();
+
+      await Promise.resolve();
       expect(signal?.aborted).toBe(true);
       resolvePdf({ visitUuid: 'test-visit-uuid' });
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -628,6 +630,8 @@ describe('VisitDetails', () => {
       });
 
       unmount();
+
+      await Promise.resolve();
       rejectPdf(new Error('canceled'));
       await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -655,6 +659,7 @@ describe('VisitDetails', () => {
         expect(signals).toHaveLength(1);
       });
       first.unmount();
+      await Promise.resolve();
       expect(signals[0]?.aborted).toBe(true);
 
       renderWithRouter('test-visit-uuid');
@@ -714,6 +719,7 @@ describe('VisitDetails', () => {
         expect(signals).toHaveLength(1);
       });
       first.unmount();
+      await Promise.resolve();
       expect(signals[0]?.aborted).toBe(true);
 
       // second instance starts its own print
@@ -767,6 +773,7 @@ describe('VisitDetails', () => {
           expect(signals).toHaveLength(cycle);
         });
         view.unmount();
+        await Promise.resolve();
         expect(signals[cycle - 1]?.aborted).toBe(true);
       }
       expect(signals.every(s => s?.aborted)).toBe(true);
@@ -884,6 +891,8 @@ describe('VisitDetails', () => {
         expect(signals[0]?.aborted).toBe(false);
 
         unmount();
+
+        await Promise.resolve();
         expect(signals[0]?.aborted).toBe(true);
         actionResult.reject(new Error('failed after unmount: token=secret-123'));
         await flushPromises();
@@ -928,6 +937,7 @@ describe('VisitDetails', () => {
 
         // the user leaves mid-step; the step then finishes on its own
         unmount();
+        await Promise.resolve();
         actionResult.resolve();
         await flushPromises();
 
@@ -958,6 +968,7 @@ describe('VisitDetails', () => {
         expect(signals).toHaveLength(1);
       });
       first.unmount();
+      await Promise.resolve();
       expect(signals[0]?.aborted).toBe(true);
 
       // second instance starts its own share
@@ -1016,6 +1027,7 @@ describe('VisitDetails', () => {
           expect(signals).toHaveLength(cycle);
         });
         view.unmount();
+        await Promise.resolve();
         expect(signals[cycle - 1]?.aborted).toBe(true);
       }
       expect(mockShareVisitPrescriptionPdf).not.toHaveBeenCalled();
@@ -1272,6 +1284,8 @@ describe('VisitDetails', () => {
       expect(openedWindows[0].close).not.toHaveBeenCalled();
 
       unmount();
+
+      await Promise.resolve();
       resolvePdf({ visitUuid: 'test-visit-uuid' });
       await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -1635,6 +1649,8 @@ describe('VisitDetails', () => {
       expect(signal?.aborted).toBe(false);
 
       unmount();
+
+      await Promise.resolve();
       expect(signal?.aborted).toBe(true);
       resolvePdf({ visitUuid: 'test-visit-uuid' });
       await new Promise(resolve => setTimeout(resolve, 0));
