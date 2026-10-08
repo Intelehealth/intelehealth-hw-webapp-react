@@ -1,6 +1,8 @@
+import { act } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../../i18n';
 import * as visitSummaryDataModule from '../../../assets/data/visit-summary.data';
 import { BreadcrumbProvider } from '../../../context/BreadcrumbContext';
 import VisitSummaryComponent from '../../../modules/visit-summary/visit-summary.component';
@@ -607,6 +609,20 @@ describe('VisitSummaryComponent', () => {
       });
     });
 
+    it('should show a tooltip with the correct message when hovering the Priority Visit info icon', async () => {
+      renderWithMockData();
+      const infoIcon = await screen.findByAltText('info');
+      expect(
+        screen.queryByText('Enable this in case visit is an Emergency.')
+      ).not.toBeInTheDocument();
+
+      fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
+
+      expect(
+        screen.getByText('Enable this in case visit is an Emergency.')
+      ).toBeInTheDocument();
+    });
+
     it('should render toggle unchecked when priority visit is false or undefined', async () => {
       renderWithMockData();
       await waitFor(() => {
@@ -689,21 +705,21 @@ describe('VisitSummaryComponent', () => {
       visitSummaryDataModule.visitSummaryData.push(...originalData);
     });
 
-    it('should show "No information" for BP when both systolic and diastolic are 0', async () => {
+    it('should show "No information" for BP when both systolic and diastolic are missing', async () => {
       const originalData = [...visitSummaryDataModule.visitSummaryData];
 
       visitSummaryDataModule.visitSummaryData[0] = {
         ...originalData[0],
         vitals: {
           ...originalData[0].vitals,
-          bp: { systolic: 0, diastolic: 0 },
+          bp: { systolic: null, diastolic: null },
         },
       };
 
       renderWithMockData();
       await waitFor(() => {
         expect(screen.getAllByText('BP').length).toBeGreaterThan(0);
-        // BP row should display "No information" since both values are 0
+        // BP row should display "No information" since both values are missing
         const noInfoElements = screen.getAllByText('No information');
         expect(noInfoElements.length).toBeGreaterThan(0);
       });
@@ -984,6 +1000,15 @@ describe('VisitSummaryComponent', () => {
 
       renderWithVisitId();
 
+      // "No documents attached" is also the initial state, so wait for the
+      // rejected request to be handled while the component is still mounted.
+      // Otherwise the test can end first and the failure branch never runs.
+      await waitFor(() => {
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalled();
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
       await waitFor(() => {
         expect(screen.getByText('No documents attached')).toBeInTheDocument();
       });
@@ -1277,6 +1302,39 @@ describe('VisitSummaryComponent', () => {
       resolveDocuments([
         { uuid: 'doc-1', name: 'late.jpg', fileUrl: '', isImage: true },
       ]);
+    });
+
+    it('ignores additional documents failures that reject after unmount', async () => {
+      let rejectDocuments: (e: unknown) => void = () => {};
+      let catchSpy: { mock: { results: { value: unknown }[] } } | undefined;
+      const pending = new Promise<never>((_resolve, reject) => {
+        rejectDocuments = reject;
+      });
+      // vitest settles every promise a vi.fn returns, so a missing `.catch`
+      // would never surface as an unhandled rejection. Spy on the `.catch` of
+      // the chain the component builds (`.then(...).catch(...)`) instead.
+      const originalThen = pending.then.bind(pending);
+      vi.spyOn(pending, 'then').mockImplementation(((...args: Parameters<typeof originalThen>) => {
+        const derived = originalThen(...args);
+        catchSpy = vi.spyOn(derived, 'catch');
+        return derived;
+      }) as typeof pending.then);
+      vi.mocked(visitSummaryService.getVisitSummary).mockResolvedValue(data);
+      vi.mocked(visitSummaryService.getAdditionalDocuments).mockReturnValue(
+        pending as any
+      );
+
+      const { unmount } = renderWithVisitId();
+      await waitFor(() =>
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalled()
+      );
+
+      unmount();
+      rejectDocuments(new Error('late'));
+
+      expect(catchSpy).toHaveBeenCalledTimes(1);
+      // The handler swallows the late failure, so the chain settles resolved.
+      await expect(catchSpy!.mock.results[0].value).resolves.toBeUndefined();
     });
   });
 
@@ -1681,6 +1739,15 @@ describe('VisitSummaryComponent', () => {
       // The component should render normally without crashing
       await waitFor(() => {
         expect(screen.getByText('Physical examination')).toBeInTheDocument();
+      });
+
+      // Let the rejected request be handled while the component is still
+      // mounted, so the failure branch always runs before the test ends.
+      await waitFor(() => {
+        expect(visitSummaryService.getPhysicalExamImages).toHaveBeenCalled();
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
       // No image section headings should appear since images failed to load

@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   CheckupReason,
   PhysicalExamination,
@@ -13,6 +14,7 @@ import type {
 } from '../../../assets/data/visit-summary.data';
 import iconChevronDown from '../../../assets/icons/icon-chevron-down.svg';
 import iconInfo from '../../../assets/icons/icon-info.svg';
+import Tooltip from '../../../components/common/tooltip.component';
 import iconMedicalHistory from '../../../assets/icons/icon-medical-history-green-rounded-bordered.svg';
 import iconPhysicalExam from '../../../assets/icons/icon-physical-examination.svg';
 import iconVisitSummary from '../../../assets/icons/icon-visit-summery.svg';
@@ -32,9 +34,13 @@ import type { ConceptAnswer } from '../../../types/config.types';
 import { storage } from '../../../utils/storage';
 import { transformFhirPhysExamToAyu } from '../../ayu-library/utils/fhir-to-ayu.util';
 import { patientService } from '../../patient/add/add-patient.service';
+import { formatBloodPressure } from '../../visit-summary/blood-pressure.util';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import { ENCOUNTER_TYPES } from '../constants/visit-upload.constants';
-import type { MedicalHistorySummary } from '../context/start-visit.context';
+import type {
+  MedicalHistorySummary,
+  StartVisitData,
+} from '../context/start-visit.context';
 import { useStartVisitData } from '../context/start-visit.context';
 import { useAyuJsonList } from '../hooks/useAyuJson.hook';
 import {
@@ -77,6 +83,7 @@ import {
   RESOURCE_TYPE_VISIT,
 } from '../utils/ayu.constants';
 import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
+import { normalizeVitalValue } from '../utils/vital-value.util';
 
 const PRIMARY_COLOR = '#0fd197';
 
@@ -166,18 +173,21 @@ const LabelValueRow: React.FC<{
 );
 
 const mapVitals = (formValues: VitalsFormValues): Vitals => {
-  const v = (val?: number) => ({
-    value: val ?? null,
-    note: val == null ? 'No information' : undefined,
-  });
+  const v = (raw: unknown) => {
+    const value = normalizeVitalValue(raw);
+    return {
+      value,
+      note: value == null ? 'No information' : undefined,
+    };
+  };
 
   return {
     height: v(formValues.height_cm),
     weight: v(formValues.weight_kg),
-    bmi: { value: formValues.bmi ?? 0 },
+    bmi: { value: normalizeVitalValue(formValues.bmi) ?? 0 },
     bp: {
-      systolic: formValues.bp_systolic ?? 0,
-      diastolic: formValues.bp_diastolic ?? 0,
+      systolic: normalizeVitalValue(formValues.bp_systolic),
+      diastolic: normalizeVitalValue(formValues.bp_diastolic),
     },
     pulse: v(formValues.pulse_bpm),
     temperature: v(formValues.temprature_f),
@@ -200,7 +210,10 @@ const VitalsSection: React.FC<{ vitals: Vitals }> = ({ vitals }) => {
       value: getVitalDisplay(vitals.weight.value, vitals.weight.note),
     },
     { label: 'BMI', value: vitals.bmi.value.toString() },
-    { label: 'BP', value: `${vitals.bp.systolic}/${vitals.bp.diastolic}` },
+    {
+      label: 'BP',
+      value: formatBloodPressure(vitals.bp),
+    },
     {
       label: 'Pulse',
       value: getVitalDisplay(vitals.pulse.value, vitals.pulse.note),
@@ -496,7 +509,47 @@ const MedicalHistorySection: React.FC<{
   </div>
 );
 
+const UPLOADED_SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
+
+// Identifiers only (no clinical data): once a visit is uploaded its summary is
+// served by the server, so all a refresh needs is to know which visit to open.
+interface UploadedVisitRef {
+  patientUuid: string;
+  visitUuid: string;
+}
+
+const hasAnySection = (d: StartVisitData): boolean =>
+  !!(d.vitals || d.visitReason || d.physicalExam || d.medicalHistory);
+
+// sessionStorage: survives a refresh but not a closed tab. Returns false when
+// the browser refuses the write (quota, blocked storage) so the caller can tell
+// the user the summary won't be reopened after a refresh.
+const saveUploadedVisitRef = (ref: UploadedVisitRef): boolean => {
+  try {
+    sessionStorage.setItem(UPLOADED_SNAPSHOT_KEY, JSON.stringify(ref));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const readUploadedVisitRef = (
+  patientUuid: string | null
+): UploadedVisitRef | null => {
+  try {
+    const raw = sessionStorage.getItem(UPLOADED_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const ref = JSON.parse(raw) as UploadedVisitRef;
+    return patientUuid && ref.visitUuid && ref.patientUuid === patientUuid
+      ? ref
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const VisitSummaryPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   useBreadcrumb([
@@ -513,7 +566,26 @@ const VisitSummaryPage = () => {
     setLastSectionIndex,
     markVisitUploaded,
     physExamPendingImages: ctxPendingImages,
+    isRestoring,
   } = useStartVisitData();
+  // Uploading deletes the draft, so a refresh afterwards restores nothing. The
+  // uploaded visit is then reopened from the server instead of from browser
+  // storage, which keeps patient data out of client-side storage.
+  const [uploadedVisitRef] = useState(() =>
+    readUploadedVisitRef(ctxPatientUuid || storage.get(PATIENT_UUID_KEY))
+  );
+  // Derived from the same context values in a single render (the provider sets
+  // the restored data and clears `isRestoring` in one batched update), so the
+  // redirect can never fire for a draft that has just been restored.
+  const reopenUploadedVisit =
+    !isRestoring && !hasAnySection(data) ? uploadedVisitRef : null;
+  useEffect(() => {
+    if (!reopenUploadedVisit) return;
+    navigate(`/visit-summary/${reopenUploadedVisit.visitUuid}`, {
+      replace: true,
+      state: { fromLabel: 'Start Visit', fromPath: '/ayu' },
+    });
+  }, [navigate, reopenUploadedVisit]);
   const { hwProfile } = useProfileContext();
   const ayuList = useAyuJsonList(AYU_JSON_KEY_NAME);
   const physicalExamQuestions = useMemo(() => {
@@ -808,10 +880,19 @@ const VisitSummaryPage = () => {
       storage.remove(PATIENT_GENDER_KEY);
 
       const visitUuid = (await getLatestVisitUuid(patientUuid)) ?? '';
+      const visitRefSaved =
+        !!visitUuid && saveUploadedVisitRef({ patientUuid, visitUuid });
       setUploadedVisitUuid(visitUuid);
       setIsUploaded(true);
       markVisitUploaded();
       showToast('Success', 'Visit uploaded successfully', 'success');
+      if (!visitRefSaved) {
+        showToast(
+          'Warning',
+          'This summary will not be reopened if the page is refreshed. Find the visit from the patient profile instead.',
+          'warning'
+        );
+      }
     } catch (error) {
       console.error('Failed to upload visit:', error);
       showToast('Error', 'Failed to upload visit. Please try again.', 'error');
@@ -876,6 +957,17 @@ const VisitSummaryPage = () => {
 
   const { config } = useConfig();
   const specializations = config?.specialization ?? [];
+
+  // After a refresh the context is empty until the temp-storage restore
+  // finishes; rendering now would show "No ... recorded" for every section.
+  // The same placeholder covers the moment before an uploaded visit is reopened.
+  if (isRestoring || reopenUploadedVisit) {
+    return (
+      <div className="w-full bg-white md:rounded-xl md:p-4 py-10 text-center text-sm text-gray-500">
+        Loading visit summary...
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-white md:rounded-xl md:p-4">
@@ -1096,7 +1188,9 @@ const VisitSummaryPage = () => {
             <span className="text-sm font-semibold text-[#2E1E91]">
               Priority Visit
             </span>
-            <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            <Tooltip text={t('Visit_Summary.Priority_Visit_Tooltip')}>
+              <img src={iconInfo} alt="info" className="w-4 h-4 opacity-40" />
+            </Tooltip>
           </div>
           <div className="w-12">
             <Toggle

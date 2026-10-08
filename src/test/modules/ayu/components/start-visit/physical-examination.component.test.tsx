@@ -159,7 +159,11 @@ vi.mock('../../../../../modules/ayu/utils/physExamAssets', () => ({
   /* Derives type from the bundled asset: 'vidfile' → video, 'imgfile' → image,
      anything else → undefined (no bundled asset → fall back to FHIR type). */
   getJobAidType: (file: string) =>
-    file === 'vidfile' ? 'video' : file === 'imgfile' ? 'image' : undefined,
+    file === 'vidfile'
+      ? 'video'
+      : file === 'imgfile' || file === 'abdominalregions9'
+        ? 'image'
+        : undefined,
 }));
 
 const mockGetPendingImages = vi.fn().mockReturnValue([]);
@@ -181,7 +185,39 @@ vi.mock('../../../../../modules/ayu/components/common/ayu-button.component', () 
   ),
 }));
 
+/* Pass-through wrappers around the real transform/filter so individual tests
+   can feed the component shapes the real implementations never produce
+   (a root with no `item`, questions without PE extensions). */
+vi.mock(
+  '../../../../../modules/ayu-library/utils/fhir-to-ayu.util',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../modules/ayu-library/utils/fhir-to-ayu.util')
+      >();
+    return {
+      ...actual,
+      transformFhirPhysExamToAyu: vi.fn(actual.transformFhirPhysExamToAyu),
+    };
+  }
+);
+vi.mock(
+  '../../../../../modules/ayu/utils/physical-exam.utils',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../modules/ayu/utils/physical-exam.utils')
+      >();
+    return {
+      ...actual,
+      filterAyuQuestionsForPhysExam: vi.fn(actual.filterAyuQuestionsForPhysExam),
+    };
+  }
+);
+
 import { PhysicalExamination } from '../../../../../modules/ayu/components/start-visit/physical-examination/physical-examination.component';
+import * as fhirToAyu from '../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import * as physicalExamUtils from '../../../../../modules/ayu/utils/physical-exam.utils';
 
 const makeQuestion = (
   linkId: string,
@@ -968,6 +1004,115 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       ) => 'image' | 'video' | null;
       expect(fn('q-fallback')).toBe('video');
     });
+
+    describe('section-scoped job-aid fallback (no job-aid-file in FHIR)', () => {
+      /* One section per entry, each holding a single choice question whose
+       * concept tag becomes the PE question key — the same shape the real
+       * physExam questionnaire has for Abdomen/Joint/Back > Tenderness. */
+      const makeSectionedConfig = (
+        sections: Array<{ text: string; concept: string; linkId: string }>
+      ) => [
+        {
+          id: 1,
+          name: 'physExam.json',
+          keyName: 'physExam',
+          isActive: true,
+          json: {
+            resourceType: 'Questionnaire' as const,
+            title: 'Physical exam',
+            item: sections.map(s => ({
+              linkId: `sec-${s.linkId}`,
+              text: s.text,
+              type: 'group',
+              answerOption: [
+                { valueCoding: { code: s.linkId, display: s.concept } },
+              ],
+              item: [
+                {
+                  linkId: s.linkId,
+                  text: `${s.concept}?`,
+                  type: 'choice',
+                  required: true,
+                  answerOption: [
+                    { valueCoding: { code: `${s.linkId}-no`, display: 'No' } },
+                    { valueCoding: { code: `${s.linkId}-yes`, display: 'Yes' } },
+                  ],
+                },
+              ],
+            })),
+          },
+        },
+      ];
+
+      const renderSections = () =>
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            physicalExamFilter="Abdomen:;Joint:;Back:;Neck:"
+            ayuConfigFiles={makeSectionedConfig([
+              { text: 'Abdomen', concept: 'Tenderness', linkId: 'abd' },
+              { text: 'Joint', concept: 'Tenderness', linkId: 'joint' },
+              { text: 'Back', concept: 'Tenderness', linkId: 'back' },
+              { text: 'Neck', concept: 'Thyroid swelling', linkId: 'neck' },
+            ])}
+          />
+        );
+
+      it('jobAidUrlFor shows the abdominal-regions image only for Abdomen > Tenderness', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        expect(fn('abd')).toBe('assets/abdominalregions9.png');
+        expect(fn('joint')).toBeNull();
+        expect(fn('back')).toBeNull();
+      });
+
+      it('jobAidUrlFor still shows the thyroid image for Neck > Thyroid swelling', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        expect(fn('neck')).toBe('assets/thyroidswelling.png');
+      });
+
+      it('jobAidTypeFor resolves the fallback asset type only for Abdomen > Tenderness', () => {
+        renderSections();
+        const fn = capturedProviderProps.current?.jobAidTypeFor as (
+          id: string
+        ) => 'image' | 'video' | null;
+        expect(fn('abd')).toBe('image');
+        expect(fn('joint')).toBeNull();
+        expect(fn('back')).toBeNull();
+      });
+
+      it('tolerates a trailing required-marker "*" on the section text, as real physExam data carries it', () => {
+        /* Real FHIR data can title the section "Abdomen*" (required-section
+           marker) without stripping it before it becomes the section key —
+           jobAidFallbackFor's normalizeJobAidKey must still resolve it. */
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            physicalExamFilter="Abdomen*:;Joint*:"
+            ayuConfigFiles={makeSectionedConfig([
+              { text: 'Abdomen*', concept: 'Tenderness', linkId: 'abd' },
+              { text: 'Joint*', concept: 'Tenderness', linkId: 'joint' },
+            ])}
+          />
+        );
+        const urlFn = capturedProviderProps.current?.jobAidUrlFor as (
+          id: string
+        ) => string | null;
+        const typeFn = capturedProviderProps.current?.jobAidTypeFor as (
+          id: string
+        ) => 'image' | 'video' | null;
+        expect(urlFn('abd')).toBe('assets/abdominalregions9.png');
+        expect(typeFn('abd')).toBe('image');
+        // The asterisk-tolerant key is still section-scoped — Joint must not leak the image.
+        expect(urlFn('joint')).toBeNull();
+        expect(typeFn('joint')).toBeNull();
+      });
+    });
   });
 
   describe('edge cases', () => {
@@ -985,6 +1130,105 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         />
       );
       expect(capturedProviderProps.current?.visitId).toBeNull();
+    });
+
+    it('renders the loading placeholder when the transformed root has no item array', async () => {
+      const actual = await vi.importActual<typeof fhirToAyu>(
+        '../../../../../modules/ayu-library/utils/fhir-to-ayu.util'
+      );
+      vi.mocked(fhirToAyu.transformFhirPhysExamToAyu).mockReturnValueOnce({
+        linkId: 'root',
+        type: 'group',
+        text: 'No items',
+      } as AyuQuestion);
+      try {
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            ayuConfigFiles={makeAyuConfigFiles([
+              makeQuestion('seed', 'General', 'Seed', [
+                { code: 'yes', display: 'Yes' },
+              ]),
+            ])}
+          />
+        );
+        expect(screen.getByText(/Loading physical exam/i)).toBeInTheDocument();
+      } finally {
+        vi.mocked(fhirToAyu.transformFhirPhysExamToAyu).mockImplementation(
+          actual.transformFhirPhysExamToAyu
+        );
+      }
+    });
+
+    describe('summary rows for questions without PE extensions', () => {
+      const plainOption = [{ valueCoding: { code: 'yes', display: 'Yes' } }];
+      const renderWithFilteredItems = (items: AyuQuestion[]) => {
+        vi.mocked(
+          physicalExamUtils.filterAyuQuestionsForPhysExam
+        ).mockReturnValueOnce(items);
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            ayuConfigFiles={makeAyuConfigFiles([
+              makeQuestion('seed', 'General', 'Seed', [
+                { code: 'yes', display: 'Yes' },
+              ]),
+            ])}
+          />
+        );
+      };
+
+      it('uses an empty section title when the question has no section key', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'plain',
+            text: 'Plain question',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { plain: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections).toHaveLength(1);
+        expect(modalConfig.sections[0].title).toBe('');
+      });
+
+      it('falls back to the question text when there is no category label', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'plain',
+            text: 'Plain question',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { plain: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Plain question', value: 'Yes' }),
+        ]);
+      });
+
+      it('falls back to an empty label when there is no category label or text', async () => {
+        const user = userEvent.setup();
+        renderWithFilteredItems([
+          {
+            linkId: 'bare',
+            type: 'choice',
+            answerOption: plainOption,
+          } as AyuQuestion,
+        ]);
+        capturedStepperProps._completeAnswers = { bare: ['yes'] };
+        await user.click(screen.getByTestId('trigger-complete'));
+        const modalConfig = mockShowVitalConfirmationModal.mock.calls[0][0];
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: '', value: 'Yes' }),
+        ]);
+      });
     });
 
     it('renders the loading placeholder when transformFhirPhysExamToAyu yields no items', () => {

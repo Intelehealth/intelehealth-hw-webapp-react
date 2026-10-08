@@ -3,6 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GlobalModalProvider } from '../../../components/modal/global-modal-context';
 import AppointmentScheduleComponent from '../../../modules/appointment-visit/schedule-appointment.component';
 
+// The component captures `today` at import time, and "today rendered as a
+// non-selected date" is unreachable on the last day of a month. Pin the clock
+// to a mid-month date *before* the component is imported so coverage does not
+// depend on the day CI happens to run. beforeEach re-applies fake timers using
+// a time derived from this pinned date.
+const PINNED_NOW = vi.hoisted(() => {
+  const pinned = new Date(2026, 0, 15, 12, 0, 0);
+  vi.useFakeTimers({ now: pinned });
+  return pinned;
+});
+
 const mockNavigate = vi.fn();
 let mockLocationState: {
   speciality?: string;
@@ -110,7 +121,7 @@ const MONTHS = [
 
 /** Remaining days in the current month (including today) */
 const remainingDaysInMonth = (() => {
-  const now = new Date();
+  const now = new Date(PINNED_NOW);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return lastDay - now.getDate() + 1;
 })();
@@ -120,14 +131,14 @@ const getDateArea = () => document.querySelector('.flex.gap-\\[8px\\]')!;
 
 /** Timestamp for midnight today – keeps all regular slots "in the future" by default. */
 const earlyMorningTime = (() => {
-  const d = new Date();
+  const d = new Date(PINNED_NOW);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 })();
 
 /** Helper: how many dates remain from today through end-of-month (inclusive). */
 const remainingDaysInCurrentMonth = () => {
-  const now = new Date();
+  const now = new Date(PINNED_NOW);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return lastDay - now.getDate() + 1;
 };
@@ -460,16 +471,6 @@ describe('AppointmentScheduleComponent', () => {
   });
 
   describe('Date selection', () => {
-    // Today rendered as non-selected is only reachable when the current month
-    // has at least one extra day after today (so we can click a sibling).
-    const isLastDayOfMonth = (() => {
-      const n = new Date();
-      return (
-        n.getDate() ===
-        new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()
-      );
-    })();
-
     it('clicking a date selects it (applies selected class)', () => {
       renderComponent();
       const todayBtn = screen.getByText('Today').closest('button')!;
@@ -478,7 +479,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayBtn).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-selected date has default class', () => {
+    it('non-selected date has default class', () => {
       renderComponent();
       let buttons = getDateArea().querySelectorAll('button');
       // If today is end-of-month, current view has only 1 button — go to next
@@ -501,17 +502,30 @@ describe('AppointmentScheduleComponent', () => {
       expect(timeBtn).not.toHaveClass('bg-[#3F2E9C]');
     });
 
-    it.skipIf(isLastDayOfMonth)(
-      'today button shows "Today" text with purple color when not selected',
-      () => {
-        renderComponent();
-        const secondBtn = getDateArea().querySelectorAll('button')[1];
-        fireEvent.click(secondBtn);
-        const todayLabel = screen.getByText('Today');
-        expect(todayLabel).toHaveClass('text-[#2E1E91]');
-        expect(todayLabel).toHaveClass('font-medium');
-      }
-    );
+    // Today rendered as non-selected requires a sibling date to click. Freeze
+    // the clock to the 15th of the real month (never the last day) and
+    // re-import the component so its module-level `today` constant reflects
+    // that date — this keeps the test deterministic regardless of which
+    // real-world day CI happens to run on.
+    it('today button shows "Today" text with purple color when not selected', async () => {
+      const now = new Date();
+      const safeToday = new Date(now.getFullYear(), now.getMonth(), 15);
+      vi.setSystemTime(safeToday);
+      vi.resetModules();
+      const { default: FreshComponent } = await import(
+        '../../../modules/appointment-visit/schedule-appointment.component'
+      );
+      render(
+        <GlobalModalProvider>
+          <FreshComponent />
+        </GlobalModalProvider>
+      );
+      const secondBtn = getDateArea().querySelectorAll('button')[1];
+      fireEvent.click(secondBtn);
+      const todayLabel = screen.getByText('Today');
+      expect(todayLabel).toHaveClass('text-[#2E1E91]');
+      expect(todayLabel).toHaveClass('font-medium');
+    });
 
     it('today button shows white text when selected (default state)', () => {
       renderComponent();
@@ -519,7 +533,7 @@ describe('AppointmentScheduleComponent', () => {
       expect(todayLabel).toHaveClass('text-white');
     });
 
-    it.skipIf(remainingDaysInCurrentMonth() < 2)('non-today dates display short day name', () => {
+    it('non-today dates display short day name', () => {
       renderComponent();
       let buttons = getDateArea().querySelectorAll('button');
       if (buttons.length < 2) {

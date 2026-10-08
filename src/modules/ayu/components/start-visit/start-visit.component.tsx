@@ -25,6 +25,7 @@ import {
 } from '../../utils/ayu.constants';
 import { SectionCompletionLoader } from '../loaders/section-completion-loader.component';
 import { SideLoader } from '../loaders/side-loader.component';
+import { HeaderActionsSlotContext } from './header-actions-slot.context';
 import { MedicalHistory } from './medical-history/medical-history.component';
 import { PhysicalExamination } from './physical-examination/physical-examination.component';
 import { VisitReason } from './visit-reason/visit-reason.component';
@@ -82,6 +83,10 @@ export const StartVisit = () => {
   } = useStartVisitData();
   const visitReasons = useVisitReasons();
   const { ayuConfigFiles } = visitReasons;
+  // Set by a callback ref, so a re-render happens once the node exists and
+  // sections can portal their actions into it.
+  const [headerActionsSlot, setHeaderActionsSlot] =
+    useState<HTMLDivElement | null>(null);
   const [confirmedReasons, setConfirmedReasons] = useState<string[]>([]);
   const [medicalHistorySubtitle, setMedicalHistorySubtitle] = useState('');
   const [downstreamResetKey, setDownstreamResetKey] = useState(0);
@@ -406,107 +411,123 @@ export const StartVisit = () => {
   }
 
   return (
-    <div className="bg-white">
-      <div className="mx-auto">
-        <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
-          <img
-            src={iconStartVisit}
-            className="object-cover rounded-full"
-            alt="Ayu Loader"
-          />
-          Start Visit
-        </div>
-        <div className="mt-2 border-b border-gray-200">
-          {patientName && (
-            <span className="text-gray-700 font-medium text-lg">
-              {patientName}
-              <span className="text-[#7f7b92] text-sm font-medium ml-2">
-                {patientAge}
-                {patientGender ? ` • ${patientGender}` : ''}
-              </span>
-            </span>
-          )}
-          <div
-            className="mb-2 font-medium text-lg md:text-sm"
-            style={{ color: '#2e1e91' }}
-          >
-            {currentSectionIndex + 1}/{sections.length}{' '}
-            {sections[currentSectionIndex].name}
-            {getSectionSubtitle(sections[currentSectionIndex].name) && (
-              <> : {getSectionSubtitle(sections[currentSectionIndex].name)}</>
-            )}
-          </div>
-        </div>
-        {showAssessmentProgress && (
-          <div className="pt-3">
-            <SectionCompletionLoader
-              sections={sections}
-              currentSectionIndex={currentSectionIndex}
+    <HeaderActionsSlotContext.Provider value={headerActionsSlot}>
+      <div className="bg-white">
+        <div className="mx-auto">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-gray-700 font-semibold">
+            <img
+              src={iconStartVisit}
+              className="object-cover rounded-full"
+              alt="Ayu Loader"
             />
+            Start Visit
           </div>
-        )}
-
-        {showAssessmentProgress &&
-          sections[currentSectionIndex]?.totalQuestions > 1 && (
-            <div className="hidden md:block">
-              <SideLoader
+          <div className="mt-2 border-b border-gray-200 flex items-end justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              {patientName && (
+                <span className="text-gray-700 font-medium text-lg">
+                  {patientName}
+                  <span className="text-[#7f7b92] text-sm font-medium ml-2">
+                    {patientAge}
+                    {patientGender ? ` • ${patientGender}` : ''}
+                  </span>
+                </span>
+              )}
+              <div
+                className="mb-2 font-medium text-lg md:text-sm"
+                style={{ color: '#2e1e91' }}
+              >
+                {currentSectionIndex + 1}/{sections.length}{' '}
+                {sections[currentSectionIndex].name}
+                {getSectionSubtitle(sections[currentSectionIndex].name) && (
+                  <>
+                    {' '}
+                    : {getSectionSubtitle(sections[currentSectionIndex].name)}
+                  </>
+                )}
+              </div>
+            </div>
+            {/* Sections render their Back / Next actions here so they sit on the
+              step-label row rather than claiming a row of their own. */}
+            <div ref={setHeaderActionsSlot} className="shrink-0 mb-2" />
+          </div>
+          {showAssessmentProgress && (
+            <div className="pt-3">
+              <SectionCompletionLoader
                 sections={sections}
                 currentSectionIndex={currentSectionIndex}
-                currentQuestionIndex={currentQuestionIndex}
               />
             </div>
           )}
 
-        {currentSectionIndex === 0 && (
-          <Vitals
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-          />
-        )}
+          {showAssessmentProgress &&
+            sections[currentSectionIndex]?.totalQuestions > 1 && (
+              <div className="hidden md:block">
+                <SideLoader
+                  sections={sections}
+                  currentSectionIndex={currentSectionIndex}
+                  currentQuestionIndex={currentQuestionIndex}
+                />
+              </div>
+            )}
 
-        <div style={{ display: currentSectionIndex === 1 ? 'block' : 'none' }}>
-          <VisitReason
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-            onPrevSection={goPreviousSection}
-            onProgressUpdate={handleVisitReasonProgress}
-            visitReasons={visitReasons}
-            onReasonsConfirmed={handleReasonsConfirmed}
-            onStepperActiveChange={setIsVisitReasonStepperActive}
-            onProtocolCleared={handleProtocolCleared}
-            isActive={currentSectionIndex === 1}
-          />
-        </div>
+          {currentSectionIndex === 0 && (
+            <Vitals
+              questionIndex={currentQuestionIndex}
+              onNextQuestion={goNextQuestion}
+              onPrevQuestion={goPreviousQuestion}
+            />
+          )}
 
-        <div style={{ display: currentSectionIndex === 2 ? 'block' : 'none' }}>
-          <PhysicalExamination
-            key={`physical-exam-${downstreamResetKey}`}
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-            onPrevSection={goPreviousSection}
-            onProgressUpdate={handlePhysicalExamProgress}
-            physicalExamFilter={physicalExamFilter}
-            ayuConfigFiles={ayuConfigFiles}
-            isActive={currentSectionIndex === 2}
-          />
-        </div>
+          <div
+            style={{ display: currentSectionIndex === 1 ? 'block' : 'none' }}
+          >
+            <VisitReason
+              questionIndex={currentQuestionIndex}
+              onNextQuestion={goNextQuestion}
+              onPrevQuestion={goPreviousQuestion}
+              onPrevSection={goPreviousSection}
+              onProgressUpdate={handleVisitReasonProgress}
+              visitReasons={visitReasons}
+              onReasonsConfirmed={handleReasonsConfirmed}
+              onStepperActiveChange={setIsVisitReasonStepperActive}
+              onProtocolCleared={handleProtocolCleared}
+              isActive={currentSectionIndex === 1}
+            />
+          </div>
 
-        <div style={{ display: currentSectionIndex === 3 ? 'block' : 'none' }}>
-          <MedicalHistory
-            key={`medical-history-${downstreamResetKey}`}
-            questionIndex={currentQuestionIndex}
-            onNextQuestion={goNextQuestion}
-            onPrevQuestion={goPreviousQuestion}
-            onPrevSection={goPreviousSection}
-            onProgressUpdate={handleMedicalHistoryProgress}
-            onSubtitleChange={handleMedicalHistorySubtitleChange}
-            ayuConfigFiles={ayuConfigFiles}
-          />
+          <div
+            style={{ display: currentSectionIndex === 2 ? 'block' : 'none' }}
+          >
+            <PhysicalExamination
+              key={`physical-exam-${downstreamResetKey}`}
+              questionIndex={currentQuestionIndex}
+              onNextQuestion={goNextQuestion}
+              onPrevQuestion={goPreviousQuestion}
+              onPrevSection={goPreviousSection}
+              onProgressUpdate={handlePhysicalExamProgress}
+              physicalExamFilter={physicalExamFilter}
+              ayuConfigFiles={ayuConfigFiles}
+              isActive={currentSectionIndex === 2}
+            />
+          </div>
+
+          <div
+            style={{ display: currentSectionIndex === 3 ? 'block' : 'none' }}
+          >
+            <MedicalHistory
+              key={`medical-history-${downstreamResetKey}`}
+              questionIndex={currentQuestionIndex}
+              onNextQuestion={goNextQuestion}
+              onPrevQuestion={goPreviousQuestion}
+              onPrevSection={goPreviousSection}
+              onProgressUpdate={handleMedicalHistoryProgress}
+              onSubtitleChange={handleMedicalHistorySubtitleChange}
+              ayuConfigFiles={ayuConfigFiles}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </HeaderActionsSlotContext.Provider>
   );
 };

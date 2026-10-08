@@ -3,12 +3,17 @@ import { describe, expect, it, vi } from 'vitest';
 import Calendar from '../../../components/common/calendar.component';
 import DatePicker from 'react-datepicker';
 
+// The real datepicker renders the date in local time; mirror that here rather
+// than using toISOString(), which is UTC and shifts the day.
+const toLocalISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 // Mock react-datepicker
 vi.mock('react-datepicker', () => ({
   default: vi.fn(({ selected, onChange, placeholderText, disabled, className }: any) => (
     <input
       data-testid="datepicker-input"
-      value={selected ? selected.toISOString().split('T')[0] : ''}
+      value={selected ? toLocalISO(selected) : ''}
       placeholder={placeholderText}
       disabled={disabled}
       className={className}

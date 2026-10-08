@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../../../i18n';
 import { BreadcrumbProvider } from '../../../../context/BreadcrumbContext';
 
 /* ── Mock navigation ─────────────────────────────────────────────────────── */
@@ -333,6 +334,8 @@ function selectSpeciality(name = 'General Physician') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // A successful upload leaves a snapshot behind; don't leak it between tests.
+  sessionStorage.clear();
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
   globalThis.URL.revokeObjectURL = vi.fn();
   mockStorageGet.mockReturnValue(null);
@@ -1355,6 +1358,21 @@ describe('VisitSummaryPage', () => {
     // Toggle checkbox should be unchecked by default
     const toggle = screen.getByRole('checkbox');
     expect(toggle).not.toBeChecked();
+  });
+
+  it('should show a tooltip with the correct message when hovering the Priority Visit info icon', () => {
+    renderWithData(fullData);
+
+    const infoIcon = screen.getByAltText('info');
+    expect(
+      screen.queryByText('Enable this in case visit is an Emergency.')
+    ).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(infoIcon.parentElement as HTMLElement);
+
+    expect(
+      screen.getByText('Enable this in case visit is an Emergency.')
+    ).toBeInTheDocument();
   });
 
   it('should toggle priority visit when clicked', () => {
@@ -3142,6 +3160,370 @@ describe('VisitSummaryPage', () => {
       await waitFor(() => {
         expect(screen.getByAltText('Physical Exam')).toBeInTheDocument();
       });
+    });
+  });
+});
+
+/* -- Refresh behaviour: restore wait, blank vitals, post-upload snapshot ---- */
+
+describe('VisitSummaryPage refresh behaviour', () => {
+  const SNAPSHOT_KEY = 'ayu_uploaded_visit_summary';
+  const PATIENT = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+  const emptyData = {
+    vitals: null,
+    visitReason: null,
+    physicalExam: null,
+    medicalHistory: null,
+    medicalHistoryAnswers: null,
+  };
+
+  function renderCtx(opts: {
+    data?: Record<string, unknown>;
+    patientUuid?: string | null;
+    isRestoring?: boolean;
+  }) {
+    mockUseStartVisitData.mockReturnValue({
+      data: opts.data ?? emptyData,
+      patientUuid: opts.patientUuid === undefined ? PATIENT : opts.patientUuid,
+      visitId: 'test-visit-id',
+      tempRecordId: null,
+      isRestoring: opts.isRestoring ?? false,
+      restoredSectionIndex: null,
+      lastSectionIndex: 0,
+      setLastSectionIndex: vi.fn(),
+      setPatientUuid: vi.fn(),
+      setVitalsData: vi.fn(),
+      setVisitReasonData: vi.fn(),
+      setPhysicalExamData: vi.fn(),
+      setMedicalHistoryData: vi.fn(),
+      setMedicalHistoryAnswers: vi.fn(),
+      saveSectionToTemp: mockSaveSectionToTemp,
+      clearVisitId: mockClearVisitId,
+      markVisitUploaded: vi.fn(),
+      physExamPendingImages: [],
+      setPhysExamPendingImages: vi.fn(),
+    } as any);
+    return render(
+      <BreadcrumbProvider>
+        <VisitSummaryPage />
+      </BreadcrumbProvider>
+    );
+  }
+
+  /** What a successful upload leaves behind: ids only, never clinical data. */
+  function seedVisitRef(overrides: Record<string, unknown> = {}) {
+    sessionStorage.setItem(
+      SNAPSHOT_KEY,
+      JSON.stringify({
+        patientUuid: PATIENT,
+        visitUuid: 'uploaded-visit-uuid',
+        ...overrides,
+      })
+    );
+  }
+
+  const expectRedirectedToServerSummary = (visitUuid: string) =>
+    expect(mockNavigate).toHaveBeenCalledWith(`/visit-summary/${visitUuid}`, {
+      replace: true,
+      state: { fromLabel: 'Start Visit', fromPath: '/ayu' },
+    });
+
+  beforeEach(() => {
+    mockAyuJsonList = [{ name: 'physExam.json', json: {} }];
+  });
+
+  describe('while the saved visit is being restored', () => {
+    it('shows a loading message instead of empty "No … recorded" sections', () => {
+      renderCtx({ isRestoring: true });
+
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+      expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
+      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+    });
+
+    it('renders the restored sections once restoring finishes', () => {
+      const view = renderCtx({ isRestoring: true });
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+
+      view.unmount();
+      renderCtx({ data: fullData, isRestoring: false });
+
+      expect(screen.queryByText('Loading visit summary...')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Cough').length).toBeGreaterThan(0);
+    });
+
+    it('does not redirect to an uploaded visit while still restoring', () => {
+      seedVisitRef();
+      renderCtx({ isRestoring: true });
+
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('never redirects when the restore finishes with draft data', () => {
+      seedVisitRef();
+      const view = renderCtx({ isRestoring: true });
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+
+      // restore completes: data and isRestoring change in the same render
+      mockUseStartVisitData.mockReturnValue({
+        ...mockUseStartVisitData(),
+        data: { ...emptyData, vitals: fullData.vitals },
+        isRestoring: false,
+      } as any);
+      view.rerender(
+        <BreadcrumbProvider>
+          <VisitSummaryPage />
+        </BreadcrumbProvider>
+      );
+
+      expect(screen.queryByText('Loading visit summary...')).not.toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('redirects to the uploaded visit when the restore finishes with nothing', () => {
+      seedVisitRef();
+      const view = renderCtx({ isRestoring: true });
+
+      mockUseStartVisitData.mockReturnValue({
+        ...mockUseStartVisitData(),
+        data: emptyData,
+        isRestoring: false,
+      } as any);
+      view.rerender(
+        <BreadcrumbProvider>
+          <VisitSummaryPage />
+        </BreadcrumbProvider>
+      );
+
+      expectRedirectedToServerSummary('uploaded-visit-uuid');
+    });
+  });
+
+  describe('blank vitals saved as empty strings', () => {
+    const blankVitals = (overrides: Record<string, unknown> = {}) => ({
+      formValues: {
+        height_cm: '',
+        weight_kg: '',
+        bmi: 0,
+        bp_systolic: '',
+        bp_diastolic: '',
+        pulse_bpm: '',
+        temprature_f: '',
+        spo2: '',
+        respiratory_rate: '',
+        ...overrides,
+      },
+      config: [],
+    });
+
+    it('shows "No information" for every blank vital, including BP', () => {
+      renderCtx({ data: { ...emptyData, vitals: blankVitals() } });
+
+      // height, weight, BP, pulse, temperature, SpO2, respiratory rate;
+      // each row is rendered in both the mobile and the desktop layout
+      expect(screen.getAllByText('No information')).toHaveLength(14);
+      expect(screen.queryByText('/')).not.toBeInTheDocument();
+    });
+
+    it('still shows the filled vitals next to the blank ones', () => {
+      renderCtx({
+        data: {
+          ...emptyData,
+          vitals: blankVitals({ height_cm: 172, pulse_bpm: 75, temprature_f: 0 }),
+        },
+      });
+
+      expect(screen.getAllByText('172').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('75').length).toBeGreaterThan(0);
+      // 0 is a real reading, not a blank
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('No information')).toHaveLength(8);
+    });
+
+    it('shows BP when only one of the two readings is filled', () => {
+      renderCtx({
+        data: { ...emptyData, vitals: blankVitals({ bp_systolic: 120 }) },
+      });
+
+      expect(screen.getAllByText('120/-').length).toBeGreaterThan(0);
+    });
+
+    it('normalises numeric strings and rejects non-numeric text the same way for every vital', () => {
+      renderCtx({
+        data: {
+          ...emptyData,
+          vitals: blankVitals({
+            height_cm: '172',
+            bp_systolic: '120',
+            bp_diastolic: '80',
+            pulse_bpm: 'abc',
+          }),
+        },
+      });
+
+      expect(screen.getAllByText('172').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('120/80').length).toBeGreaterThan(0);
+      // weight, pulse ('abc'), temperature, SpO2, respiratory rate; two layouts
+      expect(screen.getAllByText('No information')).toHaveLength(10);
+    });
+
+    it('treats missing (undefined) vital fields the same as blank', () => {
+      renderCtx({ data: { ...emptyData, vitals: { formValues: {}, config: [] } } });
+
+      expect(screen.getAllByText('No information')).toHaveLength(14);
+    });
+  });
+
+  describe('after the visit has been uploaded', () => {
+    const uploadVisit = async () => {
+      selectSpeciality();
+      fireEvent.click(screen.getByText('Upload Visit'));
+      fireEvent.click(screen.getByTestId('modal-confirm'));
+      await screen.findByText('Schedule Appointment');
+    };
+
+    it('stores only the patient and visit ids, never clinical data', async () => {
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      const raw = sessionStorage.getItem(SNAPSHOT_KEY) as string;
+      expect(JSON.parse(raw)).toEqual({
+        patientUuid: PATIENT,
+        visitUuid: 'mock-visit-uuid',
+      });
+      // nothing from the summary (vitals, complaints, history) is persisted
+      ['170', 'Cough', 'Diabetes', 'Hypertension', 'General Physician'].forEach(
+        text => expect(raw).not.toContain(text)
+      );
+    });
+
+    it('does not warn when the visit reference is stored', async () => {
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        'Warning',
+        expect.anything(),
+        'warning'
+      );
+    });
+
+    it('still completes the upload and warns when the reference cannot be stored', async () => {
+      const setItem = vi
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('quota exceeded');
+        });
+
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Success',
+        'Visit uploaded successfully',
+        'success'
+      );
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Warning',
+        'This summary will not be reopened if the page is refreshed. Find the visit from the patient profile instead.',
+        'warning'
+      );
+      setItem.mockRestore();
+    });
+
+    it('warns and stores nothing when the new visit id cannot be resolved', async () => {
+      mockGetLatestVisitUuid.mockResolvedValue(undefined);
+
+      renderCtx({ data: fullData });
+      await uploadVisit();
+
+      expect(sessionStorage.getItem(SNAPSHOT_KEY)).toBeNull();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Warning',
+        expect.stringContaining('will not be reopened'),
+        'warning'
+      );
+    });
+
+    it('reopens the uploaded visit from the server after a refresh', async () => {
+      // 1. upload the visit
+      const first = renderCtx({ data: fullData });
+      await uploadVisit();
+      first.unmount();
+      mockNavigate.mockClear();
+
+      // 2. refresh: the draft is gone, the context restores nothing
+      renderCtx({ data: emptyData });
+
+      expectRedirectedToServerSummary('mock-visit-uuid');
+      // placeholder only: no empty "No ... recorded" sections, no second upload
+      expect(screen.getByText('Loading visit summary...')).toBeInTheDocument();
+      expect(screen.queryByText('No vitals recorded')).not.toBeInTheDocument();
+      expect(screen.queryByText('Upload Visit')).not.toBeInTheDocument();
+    });
+
+    it('uses the storage patient id when the context has none yet', () => {
+      seedVisitRef();
+      mockStorageGet.mockImplementation((key: string) =>
+        key === 'patientUuid' ? PATIENT : null
+      );
+      renderCtx({ patientUuid: null });
+
+      expectRedirectedToServerSummary('uploaded-visit-uuid');
+    });
+
+    it('does not redirect for a visit that belongs to another patient', () => {
+      seedVisitRef({ patientUuid: 'some-other-patient' });
+      renderCtx({});
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+    });
+
+    it('does not redirect when no patient can be resolved', () => {
+      seedVisitRef();
+      renderCtx({ patientUuid: null });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+    });
+
+    it('does not redirect when the stored reference has no visit id', () => {
+      seedVisitRef({ visitUuid: '' });
+      renderCtx({});
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+    });
+
+    it('does not redirect when a new draft has data', () => {
+      seedVisitRef();
+      renderCtx({ data: { ...emptyData, vitals: fullData.vitals } });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+      expect(screen.getByText('Back to Edit')).toBeInTheDocument();
+    });
+
+    it('ignores an unreadable stored reference', () => {
+      sessionStorage.setItem(SNAPSHOT_KEY, '{not valid json');
+      renderCtx({});
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
+    });
+
+    it('shows an empty summary when nothing is stored at all', () => {
+      renderCtx({});
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('No vitals recorded')).toBeInTheDocument();
+      expect(screen.getByText('Upload Visit')).toBeInTheDocument();
     });
   });
 });

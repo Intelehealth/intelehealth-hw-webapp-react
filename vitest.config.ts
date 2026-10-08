@@ -105,13 +105,13 @@ export default defineConfig({
         'src/modules/patient/add/add-patient.types.ts',
       ],
       // 100% coverage requirements
+      // (metrics must sit directly under `thresholds`; a `global` key is
+      // treated by vitest as a file glob and silently enforces nothing)
       thresholds: {
-        global: {
-          branches: 100,
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
+        branches: 100,
+        functions: 100,
+        lines: 100,
+        statements: 100,
       },
       // Detailed coverage info
       all: true,

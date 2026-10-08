@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import ChevronIcon from './chevron-icon.component';
 
 interface CalendarMonthGridProps {
   date: Date;
@@ -33,24 +34,30 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({
       <div className="calendar-header">
         <div className="year-range">
           <span className="text-lg font-bold">{date.getFullYear()}</span>
-          <button type="button" className="p-1 hover:bg-gray-100 rounded">
-            <i className="fa-solid fa-chevron-up text-gray-600 text-xs"></i>
+          <button
+            type="button"
+            aria-label="Year"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
+          >
+            <ChevronIcon direction="up" className="w-3 h-3" />
           </button>
         </div>
         <div className="navigation">
           <button
             type="button"
             onClick={() => onYearChange(date.getFullYear() - 1)}
-            className="p-1 hover:bg-gray-100 rounded"
+            aria-label="Previous year"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
           >
-            <i className="fa-solid fa-chevron-left text-gray-600 text-xs"></i>
+            <ChevronIcon direction="left" />
           </button>
           <button
             type="button"
             onClick={() => onYearChange(date.getFullYear() + 1)}
-            className="p-1 hover:bg-gray-100 rounded"
+            aria-label="Next year"
+            className="p-1 hover:bg-gray-100 rounded text-gray-600"
           >
-            <i className="fa-solid fa-chevron-right text-gray-600 text-xs"></i>
+            <ChevronIcon direction="right" />
           </button>
         </div>
       </div>

@@ -581,8 +581,8 @@ describe('visitSummaryService', () => {
 
     it('should set 0 for missing BP values', () => {
       const result = transformVisitSummaryResponse(makeResponse());
-      expect(result.vitals.bp.systolic).toBe(0);
-      expect(result.vitals.bp.diastolic).toBe(0);
+      expect(result.vitals.bp.systolic).toBeNull();
+      expect(result.vitals.bp.diastolic).toBeNull();
     });
 
     describe('temperature Celsius -> Fahrenheit conversion', () => {
