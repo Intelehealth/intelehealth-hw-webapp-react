@@ -640,9 +640,9 @@ export async function shareVisitPrescriptionPdf(
   const pdfDoc = pdfMake.createPdf(docDef);
 
   // Download the PDF so the user has it locally. Awaited so a failure reaches
-  // the caller, and the tab is checked again because the download takes time.
+  // the caller. The tab is not checked again after this: the file is already
+  // saved, and reporting a closed tab now would make a retry save it twice.
   await pdfDoc.download('e-prescription.pdf');
-  throwIfTabClosed(targetWindow);
 
   // TODO: Replace dummy link with actual upload URL once backend API is ready
   const downloadLink =

@@ -1,7 +1,7 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TabClosedError } from '../../../utils/pdf-window';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { PrescriptionData } from '../../../assets/data/prescription-detail.data';
 
 /* ── Hoisted mock data ── */
@@ -607,6 +607,154 @@ describe('PrescriptionDetail', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should show a failure toast when downloading fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(new Error('API error'));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Download PDF'));
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'Error',
+          'Failed to download the prescription. Please try again.',
+          'error'
+        );
+      });
+      consoleSpy.mockRestore();
+    });
+
+    it('should not fetch or save twice for a double click on Download PDF', async () => {
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      const button = screen.getByRole('button', { name: /^Download PDF$/ });
+      act(() => {
+        button.click();
+        button.click();
+      });
+      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
+    });
+
+    it('should cancel the request and save nothing when the user leaves while downloading', async () => {
+      let resolvePdf: (value: unknown) => void = () => {};
+      let signal: AbortSignal | undefined;
+      mockGetVisitPrescriptionData.mockImplementation((_id: string, s?: AbortSignal) => {
+        signal = s;
+        return new Promise(resolve => {
+          resolvePdf = resolve;
+        });
+      });
+      const { unmount } = renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Download PDF'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+      unmount();
+      await Promise.resolve();
+      expect(signal?.aborted).toBe(true);
+      resolvePdf({ visitUuid: 'visit-123' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(mockDownloadPdf).not.toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it('should show the busy state only on the button that is working', async () => {
+      // a share in progress: neither Print nor Download claims to be working
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      await submitShare();
+      await screen.findByRole('button', { name: /Sharing.../ });
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /^Download PDF$/ })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /Printing.../ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Downloading.../ })).not.toBeInTheDocument();
+    });
+
+    it('should show "Printing..." only on Print, and "Downloading..." only on Download', async () => {
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      const first = renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await screen.findByRole('button', { name: /Printing.../ });
+      expect(screen.getByRole('button', { name: /^Download PDF$/ })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /Downloading.../ })).not.toBeInTheDocument();
+      first.unmount();
+
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Download PDF'));
+      await screen.findByRole('button', { name: /Downloading.../ });
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /Printing.../ })).not.toBeInTheDocument();
+    });
+
+    it('should cancel an in-flight Print and free the buttons when the route moves to another visit', async () => {
+      let resolveA: (value: unknown) => void = () => {};
+      const calls: { id: string; signal?: AbortSignal }[] = [];
+      mockGetVisitPrescriptionData.mockImplementation((id: string, s?: AbortSignal) => {
+        calls.push({ id, signal: s });
+        return id === 'visit-a'
+          ? new Promise(resolve => {
+              resolveA = resolve;
+            })
+          : Promise.resolve({ visitUuid: id });
+      });
+      mockPrintPdf.mockResolvedValue(undefined);
+      render(
+        <MemoryRouter initialEntries={['/prescription-detail/visit-a']}>
+          <BreadcrumbProvider>
+            <Link to="/prescription-detail/visit-b">go to visit b</Link>
+            <Routes>
+              <Route path="/prescription-detail/:visitId" element={<PrescriptionDetail />} />
+            </Routes>
+          </BreadcrumbProvider>
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(calls).toHaveLength(1);
+      });
+
+      // the page stays mounted when only the visit in the route changes
+      fireEvent.click(screen.getByText('go to visit b'));
+      await waitFor(() => {
+        expect(calls[0].signal?.aborted).toBe(true);
+      });
+      resolveA({ visitUuid: 'visit-a' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      // visit A's prescription must not print from what is now visit B's page
+      expect(mockPrintPdf).not.toHaveBeenCalled();
+      expect(openedWindows[0].close).toHaveBeenCalled();
+
+      // visit B is usable straight away and prints its own data
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockPrintPdf).toHaveBeenCalledTimes(1);
+      });
+      expect(calls[1].id).toBe('visit-b');
+      expect(mockPrintPdf).toHaveBeenCalledWith({ visitUuid: 'visit-b' }, expect.any(AbortSignal), anyWindow);
+    });
+
     it('should call downloadVisitPrescriptionPdf when Download PDF is clicked', async () => {
       const pdfData = { visitUuid: 'visit-123', patientName: 'Test' };
       mockGetVisitPrescriptionData.mockResolvedValue(pdfData);
@@ -617,11 +765,13 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Download PDF'));
       await waitFor(() => {
-        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123', expect.any(AbortSignal));
       });
       await waitFor(() => {
-        expect(mockDownloadPdf).toHaveBeenCalledWith(pdfData);
+        expect(mockDownloadPdf).toHaveBeenCalledWith(pdfData, expect.any(AbortSignal));
       });
+      // downloading saves a file: no tab is opened for it
+      expect(mockOpenPendingWindow).not.toHaveBeenCalled();
     });
 
     it('should handle download error gracefully', async () => {

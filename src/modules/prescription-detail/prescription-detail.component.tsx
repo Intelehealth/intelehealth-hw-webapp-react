@@ -7,10 +7,11 @@ import type {
   PrescriptionData,
 } from '../../assets/data/prescription-detail.data';
 import { prescriptionDetailService } from './prescription-detail.service';
-import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
-import { usePrescriptionPdfAction } from '../../hooks/usePrescriptionPdfAction';
+import {
+  usePrescriptionPdfAction,
+  type PdfOperation,
+} from '../../hooks/usePrescriptionPdfAction';
 import { showToast } from '../../services/toast';
-import { describeError } from '../../utils/safe-error';
 import {
   downloadVisitPrescriptionPdf,
   printVisitPrescriptionPdf,
@@ -36,8 +37,8 @@ const PrescriptionHeader: React.FC<{
   onPrint: () => void;
   onShare: () => void;
   onDownload: () => void;
-  pdfLoading: boolean;
-}> = ({ data, onPrint, onShare, onDownload, pdfLoading }) => (
+  pdfOp: PdfOperation | null;
+}> = ({ data, onPrint, onShare, onDownload, pdfOp }) => (
   <div className="pb-3">
     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
       {/* Patient & Doctor info */}
@@ -87,8 +88,8 @@ const PrescriptionHeader: React.FC<{
           size="sm"
           leftIcon={<img src={iconPrintWhite} alt="" className="w-4 h-4" />}
           onClick={onPrint}
-          disabled={pdfLoading}
-          isLoading={pdfLoading}
+          disabled={pdfOp !== null}
+          isLoading={pdfOp === 'print'}
           loadingText="Printing..."
         >
           Print
@@ -98,7 +99,7 @@ const PrescriptionHeader: React.FC<{
           size="sm"
           leftIcon={<img src={iconShareWhite} alt="" className="w-4 h-4" />}
           onClick={onShare}
-          disabled={pdfLoading}
+          disabled={pdfOp !== null}
         >
           Share
         </Button>
@@ -108,8 +109,8 @@ const PrescriptionHeader: React.FC<{
           className="!border-[var(--color-primary)]"
           leftIcon={<img src={iconDownload} alt="" className="w-4 h-4" />}
           onClick={onDownload}
-          disabled={pdfLoading}
-          isLoading={pdfLoading}
+          disabled={pdfOp !== null}
+          isLoading={pdfOp === 'download'}
           loadingText="Downloading..."
         >
           Download PDF
@@ -286,9 +287,7 @@ const PrescriptionDetail: React.FC = () => {
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
   const { pdfOp, run } = usePrescriptionPdfAction(visitId as string);
-  const pdfLoading = downloading || pdfOp !== null;
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
@@ -306,19 +305,18 @@ const PrescriptionDetail: React.FC = () => {
   }, [visitId]);
 
   const handleDownloadPdf = useCallback(async () => {
-    /* c8 ignore next */
-    if (!visitId) return;
-    setDownloading(true);
     try {
-      const pdfData = await getVisitPrescriptionData(visitId);
-      await downloadVisitPrescriptionPdf(pdfData);
-    } catch (err) {
-      // Safe fields only: the raw error can carry patient data or tokens.
-      console.error('Failed to download prescription PDF', describeError(err));
-    } finally {
-      setDownloading(false);
+      await run('download', (pdfData, signal) =>
+        downloadVisitPrescriptionPdf(pdfData, signal)
+      );
+    } catch {
+      showToast(
+        'Error',
+        'Failed to download the prescription. Please try again.',
+        'error'
+      );
     }
-  }, [visitId]);
+  }, [run]);
 
   const handlePrintPdf = useCallback(async () => {
     try {
@@ -385,7 +383,7 @@ const PrescriptionDetail: React.FC = () => {
             onPrint={handlePrintPdf}
             onShare={handleOpenShareModal}
             onDownload={handleDownloadPdf}
-            pdfLoading={pdfLoading}
+            pdfOp={pdfOp}
           />
 
           <hr className="border-t border-gray-200 mt-3 mb-1" />

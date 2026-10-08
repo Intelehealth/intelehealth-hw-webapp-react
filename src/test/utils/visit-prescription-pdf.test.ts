@@ -781,14 +781,14 @@ describe('awaited downloads', () => {
     expect(win.location.href).toContain('https://wa.me/919876543210');
   });
 
-  it('share reports a tab that was closed while the file was being saved, and does not redirect it', async () => {
+  it('share does not report a closed tab once the file is already saved, so a retry cannot save it twice', async () => {
     const win = tab();
     mockDownload.mockImplementationOnce(async () => {
       (win as unknown as { closed: boolean }).closed = true;
     });
-    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toBeInstanceOf(
-      TabClosedError
-    );
-    expect(win.location.href).toBe('');
+    await expect(
+      shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)
+    ).resolves.toBeUndefined();
+    expect(mockDownload).toHaveBeenCalledTimes(1);
   });
 });
