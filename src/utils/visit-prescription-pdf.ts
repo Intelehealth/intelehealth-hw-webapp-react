@@ -2,6 +2,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from './pdfmake-vfs';
 import type { PrescriptionData } from '../services/visit-prescription.service';
+import { TabClosedError } from './pdf-window';
 import iconConsultationUrl from '../assets/icons/prescription-consultation.svg?url';
 import iconDiagnosisUrl from '../assets/icons/prescription-diagnosis.svg?url';
 import iconMedicationUrl from '../assets/icons/prescription-medication.svg?url';
@@ -15,6 +16,11 @@ import defaultUserImgUrl from '../assets/images/default-user-img.svg?url';
 /* c8 ignore next 2 */
 const vfsData = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs ?? {};
 (pdfMake as any).addVirtualFileSystem(vfsData);
+
+/** The tab may have been closed while the PDF was being built (e.g. Back on Android). */
+function throwIfTabClosed(win?: Window | null) {
+  if (win?.closed) throw new TabClosedError();
+}
 
 /** Throws an AbortError when the caller has cancelled the operation. */
 function throwIfAborted(signal?: AbortSignal) {
@@ -586,7 +592,8 @@ export async function downloadVisitPrescriptionPdf(
 ): Promise<void> {
   const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
-  pdfMake.createPdf(docDef).download('e-prescription.pdf');
+  // awaited so an asynchronous pdfmake failure reaches the caller
+  await pdfMake.createPdf(docDef).download('e-prescription.pdf');
 }
 
 /**
@@ -599,6 +606,9 @@ export async function downloadVisitPrescriptionPdf(
 export function openPendingWindow(message: string): Window | null {
   const win = window.open('', '_blank');
   if (win) {
+    // The tab will be sent to a third-party page (WhatsApp). Cut its link back
+    // to this app so that page cannot redirect the EMR tab (reverse tabnabbing).
+    win.opener = null;
     win.document.title = 'Intelehealth';
     win.document.body.textContent = message;
   }
@@ -612,6 +622,7 @@ export async function printVisitPrescriptionPdf(
 ): Promise<void> {
   const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
+  throwIfTabClosed(targetWindow);
   // with no target window pdfmake opens its own, after the data has loaded
   // awaited so an async pdfmake failure reaches the caller, which then closes the tab
   await pdfMake.createPdf(docDef).print(targetWindow ?? undefined);
@@ -625,10 +636,13 @@ export async function shareVisitPrescriptionPdf(
 ): Promise<void> {
   const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
+  throwIfTabClosed(targetWindow);
   const pdfDoc = pdfMake.createPdf(docDef);
 
-  // Download the PDF so the user has it locally
-  pdfDoc.download('e-prescription.pdf');
+  // Download the PDF so the user has it locally. Awaited so a failure reaches
+  // the caller, and the tab is checked again because the download takes time.
+  await pdfDoc.download('e-prescription.pdf');
+  throwIfTabClosed(targetWindow);
 
   // TODO: Replace dummy link with actual upload URL once backend API is ready
   const downloadLink =

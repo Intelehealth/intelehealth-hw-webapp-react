@@ -1,6 +1,7 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { StrictMode } from 'react';
+import { TabClosedError } from '../../../utils/pdf-window';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import VisitDetails from '../../../modules/visit-details/visit-details.component';
 import { visitDetailsService } from '../../../modules/visit-details/visit-details.service';
@@ -516,7 +517,7 @@ describe('VisitDetails', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF', { name: 'Error', status: undefined });
       });
       // The raw error object is never logged (may carry patient data/tokens).
       expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
@@ -1278,7 +1279,7 @@ describe('VisitDetails', () => {
       expect(openedWindows[0].close).toHaveBeenCalled();
     });
 
-    it('should close the extra tab opened by a second click that is ignored while one is running', async () => {
+    it('should not open a second tab for a second click while one is running', async () => {
       mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
       renderWithRouter('test-visit-uuid');
       await waitFor(() => {
@@ -1290,10 +1291,10 @@ describe('VisitDetails', () => {
         printButton.click();
       });
 
+      // the guard is checked before a tab opens, so nothing extra flashes open
       expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
-      expect(openedWindows).toHaveLength(2);
+      expect(openedWindows).toHaveLength(1);
       expect(openedWindows[0].close).not.toHaveBeenCalled();
-      expect(openedWindows[1].close).toHaveBeenCalledTimes(1);
     });
 
     it('should tell the user, and not print, when the print tab was closed before the data arrived', async () => {
@@ -1354,6 +1355,57 @@ describe('VisitDetails', () => {
       expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
       expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
       expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should tell the user when the tab turns out to be closed during the PDF build, and not report a failure', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockResolvedValue({ visitUuid: 'test-visit-uuid' });
+      mockPrintVisitPrescriptionPdf.mockRejectedValue(new TabClosedError());
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
+      });
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(openedWindows[0].close).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should keep the Share modal open when the tab turns out to be closed during the PDF build', async () => {
+      mockGetVisitPrescriptionData.mockResolvedValue({ visitUuid: 'test-visit-uuid' });
+      mockShareVisitPrescriptionPdf.mockRejectedValue(new TabClosedError());
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      await submitShare();
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
+      });
+      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
+    });
+
+    it('should log only the error type and HTTP status, never the message, when printing fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(
+        Object.assign(new Error('token=secret-123 patient=John'), { response: { status: 401 } })
+      );
+      renderWithRouter('test-visit-uuid');
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF', { name: 'Error', status: 401 });
+      });
+      expect(JSON.stringify(consoleSpy.mock.calls)).not.toContain('secret-123');
+      expect(JSON.stringify(consoleSpy.mock.calls)).not.toContain('John');
       consoleSpy.mockRestore();
     });
 
@@ -1433,7 +1485,7 @@ describe('VisitDetails', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF', { name: 'Error', status: undefined });
       });
       // The raw error object is never logged (may carry patient data/tokens).
       expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
@@ -1474,7 +1526,7 @@ describe('VisitDetails', () => {
         expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledWith(pdfData, '919876543210', expect.any(AbortSignal), anyWindow);
       });
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF', { name: 'Error', status: undefined });
       });
       // nothing from the rejected error (token, patient name) reaches the console
       expect(consoleSpy).toHaveBeenCalledTimes(1);
@@ -1659,7 +1711,7 @@ describe('VisitDetails', () => {
       // only the fixed message is logged: the raw error (and anything it
       // carries) never reaches the console
       expect(consoleSpy).toHaveBeenCalledTimes(1);
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to end visit');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to end visit', { name: 'Error', status: undefined });
       expect(mockShowToast).toHaveBeenCalledWith(
         'Error',
         'Failed to end the visit. Please try again.',

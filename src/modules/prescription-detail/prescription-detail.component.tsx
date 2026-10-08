@@ -8,14 +8,11 @@ import type {
 } from '../../assets/data/prescription-detail.data';
 import { prescriptionDetailService } from './prescription-detail.service';
 import { getVisitPrescriptionData } from '../../services/visit-prescription.service';
+import { usePrescriptionPdfAction } from '../../hooks/usePrescriptionPdfAction';
 import { showToast } from '../../services/toast';
-import {
-  POPUP_BLOCKED_MESSAGE,
-  TAB_CLOSED_MESSAGE,
-} from '../../utils/pdf-window-messages';
+import { describeError } from '../../utils/safe-error';
 import {
   downloadVisitPrescriptionPdf,
-  openPendingWindow,
   printVisitPrescriptionPdf,
   shareVisitPrescriptionPdf,
 } from '../../utils/visit-prescription-pdf';
@@ -30,9 +27,7 @@ import iconShareWhite from '../../assets/icons/icon-share-white.svg';
 import iconDiagnosis from '../../assets/icons/visit-reason.svg';
 import iconTests from '../../assets/icons/vitals.svg';
 import Button from '../../components/common/button.component';
-import WhatsAppShareModal, {
-  SHARE_FAILED_MESSAGE,
-} from '../../components/modal/whatsapp-share.modal';
+import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
 
 /* ── Sub-components ── */
 
@@ -291,7 +286,9 @@ const PrescriptionDetail: React.FC = () => {
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const { pdfOp, run } = usePrescriptionPdfAction(visitId as string);
+  const pdfLoading = downloading || pdfOp !== null;
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
@@ -311,80 +308,46 @@ const PrescriptionDetail: React.FC = () => {
   const handleDownloadPdf = useCallback(async () => {
     /* c8 ignore next */
     if (!visitId) return;
-    setPdfLoading(true);
+    setDownloading(true);
     try {
       const pdfData = await getVisitPrescriptionData(visitId);
       await downloadVisitPrescriptionPdf(pdfData);
-    } catch {
-      console.error('Failed to download prescription PDF');
+    } catch (err) {
+      // Safe fields only: the raw error can carry patient data or tokens.
+      console.error('Failed to download prescription PDF', describeError(err));
     } finally {
-      setPdfLoading(false);
+      setDownloading(false);
     }
   }, [visitId]);
 
   const handlePrintPdf = useCallback(async () => {
-    /* c8 ignore next */
-    if (!visitId) return;
-    // opened now, inside the click, so the pop-up blocker lets it through
-    const win = openPendingWindow('Preparing your prescription...');
-    if (!win) {
-      showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
-      return;
-    }
-    setPdfLoading(true);
-    let handedOff = false;
     try {
-      const pdfData = await getVisitPrescriptionData(visitId);
-      if (win.closed) {
-        showToast('Error', TAB_CLOSED_MESSAGE, 'error');
-        return;
-      }
-      await printVisitPrescriptionPdf(pdfData, undefined, win);
-      handedOff = true;
+      await run('print', (pdfData, signal, win) =>
+        printVisitPrescriptionPdf(pdfData, signal, win)
+      );
     } catch {
-      console.error('Failed to print prescription PDF');
-    } finally {
-      if (!handedOff) win.close();
-      setPdfLoading(false);
+      showToast(
+        'Error',
+        'Failed to print the prescription. Please try again.',
+        'error'
+      );
     }
-  }, [visitId]);
+  }, [run]);
 
   const handleOpenShareModal = useCallback(() => {
     setShowShareModal(true);
   }, []);
 
+  // A failure rejects out to the modal, which shows it in place and keeps the
+  // phone number so the user can retry; the modal closes only on success.
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
-      /* c8 ignore next */
-      if (!visitId) return;
-      // opened now, inside the click, so the pop-up blocker lets it through;
-      // the modal stays open so the user can allow pop-ups and retry
-      const win = openPendingWindow('Opening WhatsApp...');
-      if (!win) {
-        showToast('Error', POPUP_BLOCKED_MESSAGE, 'error');
-        return;
-      }
-      setPdfLoading(true);
-      let handedOff = false;
-      try {
-        const pdfData = await getVisitPrescriptionData(visitId);
-        if (win.closed) {
-          showToast('Error', TAB_CLOSED_MESSAGE, 'error');
-          return;
-        }
-        await shareVisitPrescriptionPdf(pdfData, phoneNumber, undefined, win);
-        handedOff = true;
-        setShowShareModal(false);
-      } catch {
-        console.error('Failed to share prescription PDF');
-        // Keeps the modal open and shows the failure in place for a retry.
-        throw new Error(SHARE_FAILED_MESSAGE);
-      } finally {
-        if (!handedOff) win.close();
-        setPdfLoading(false);
-      }
+      const shared = await run('share', (pdfData, signal, win) =>
+        shareVisitPrescriptionPdf(pdfData, phoneNumber, signal, win)
+      );
+      if (shared) setShowShareModal(false);
     },
-    [visitId]
+    [run]
   );
 
   if (loading) {
@@ -475,7 +438,7 @@ const PrescriptionDetail: React.FC = () => {
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
         onShare={handleSharePdf}
-        isLoading={pdfLoading}
+        isLoading={pdfOp === 'share'}
       />
     </div>
   );

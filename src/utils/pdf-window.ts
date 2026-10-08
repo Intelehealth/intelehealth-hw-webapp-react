@@ -9,3 +9,11 @@ export const POPUP_BLOCKED_MESSAGE =
  */
 export const TAB_CLOSED_MESSAGE =
   'The tab was closed before the prescription was ready. Please try again.';
+
+/** Thrown when the pending tab is found closed just before it is used. */
+export class TabClosedError extends Error {
+  constructor() {
+    super(TAB_CLOSED_MESSAGE);
+    this.name = 'TabClosedError';
+  }
+}

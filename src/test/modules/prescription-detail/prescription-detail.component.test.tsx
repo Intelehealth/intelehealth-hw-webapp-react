@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { TabClosedError } from '../../../utils/pdf-window';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { PrescriptionData } from '../../../assets/data/prescription-detail.data';
@@ -250,10 +251,10 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123', expect.any(AbortSignal));
       });
       await waitFor(() => {
-        expect(mockPrintPdf).toHaveBeenCalledWith(pdfData, undefined, anyWindow);
+        expect(mockPrintPdf).toHaveBeenCalledWith(pdfData, expect.any(AbortSignal), anyWindow);
       });
     });
 
@@ -325,10 +326,10 @@ describe('PrescriptionDetail', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123');
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalledWith('visit-123', expect.any(AbortSignal));
       });
       await waitFor(() => {
-        expect(mockSharePdf).toHaveBeenCalledWith(pdfData, '919876543210', undefined, anyWindow);
+        expect(mockSharePdf).toHaveBeenCalledWith(pdfData, '919876543210', expect.any(AbortSignal), anyWindow);
       });
       // a successful share closes the modal
       await waitFor(() => {
@@ -472,7 +473,7 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF', { name: 'Error', status: undefined });
       });
       expect(openedWindows[0].close).toHaveBeenCalled();
       consoleSpy.mockRestore();
@@ -489,6 +490,119 @@ describe('PrescriptionDetail', () => {
       await submitShare();
       expect(await screen.findByText(SHARE_FAILED)).toBeInTheDocument();
       expect(openedWindows[0].close).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should show the same error message as Visit Details, and close the tab, when printing fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(new Error('API error'));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'Error',
+          'Failed to print the prescription. Please try again.',
+          'error'
+        );
+      });
+      expect(openedWindows[0].close).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should not open two tabs or fetch twice for a double click on Print', async () => {
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      const printButton = screen.getByRole('button', { name: /^Print$/ });
+      act(() => {
+        printButton.click();
+        printButton.click();
+      });
+      expect(openedWindows).toHaveLength(1);
+      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not open two tabs, fetch twice or share twice for a double click on the modal Share button', async () => {
+      mockGetVisitPrescriptionData.mockReturnValue(new Promise(() => {}));
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Share')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^Share$/ }));
+      fireEvent.change(await screen.findByPlaceholderText('+918179987770'), {
+        target: { value: '+919876543210' },
+      });
+      const shareButtons = screen.getAllByRole('button', { name: /share/i });
+      const submit = shareButtons[shareButtons.length - 1];
+      act(() => {
+        submit.click();
+        submit.click();
+      });
+      expect(openedWindows).toHaveLength(1);
+      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
+      expect(mockSharePdf).not.toHaveBeenCalled();
+    });
+
+    it('should cancel the request, close the tab and stay silent when the user leaves while printing', async () => {
+      let resolvePdf: (value: unknown) => void = () => {};
+      let signal: AbortSignal | undefined;
+      mockGetVisitPrescriptionData.mockImplementation((_id: string, s?: AbortSignal) => {
+        signal = s;
+        return new Promise(resolve => {
+          resolvePdf = resolve;
+        });
+      });
+      const { unmount } = renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockGetVisitPrescriptionData).toHaveBeenCalled();
+      });
+      unmount();
+      expect(signal?.aborted).toBe(true);
+      resolvePdf({ visitUuid: 'visit-123' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockPrintPdf).not.toHaveBeenCalled();
+      expect(openedWindows[0].close).toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it('should tell the user when the tab turns out to be closed during the PDF build', async () => {
+      mockGetVisitPrescriptionData.mockResolvedValue({ visitUuid: 'visit-123' });
+      mockPrintPdf.mockRejectedValue(new TabClosedError());
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Print')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Print'));
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
+      });
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+    });
+
+    it('should log only the error type and HTTP status when downloading fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetVisitPrescriptionData.mockRejectedValue(
+        Object.assign(new Error('token=secret-123 patient=John'), { response: { status: 500 } })
+      );
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Download PDF')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Download PDF'));
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF', { name: 'Error', status: 500 });
+      });
+      expect(JSON.stringify(consoleSpy.mock.calls)).not.toContain('secret-123');
       consoleSpy.mockRestore();
     });
 
@@ -518,7 +632,7 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Download PDF'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to download prescription PDF', { name: 'Error', status: undefined });
         // the raw error object is never logged (may carry patient data/tokens)
         expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
       });
@@ -534,7 +648,7 @@ describe('PrescriptionDetail', () => {
       });
       fireEvent.click(screen.getByText('Print'));
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to print prescription PDF', { name: 'Error', status: undefined });
         expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
       });
       consoleSpy.mockRestore();
@@ -556,7 +670,7 @@ describe('PrescriptionDetail', () => {
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
       fireEvent.click(shareButtons[shareButtons.length - 1]);
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF', { name: 'Error', status: undefined });
       });
       expect(consoleSpy).not.toHaveBeenCalledWith(expect.anything(), expect.any(Error));
       // the failure is shown inside the modal, which stays open with the number kept

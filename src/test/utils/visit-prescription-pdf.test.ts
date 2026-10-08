@@ -1,3 +1,4 @@
+import { TabClosedError } from '../../utils/pdf-window';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { PrescriptionData } from '../../services/visit-prescription.service';
 
@@ -644,6 +645,8 @@ describe('pop-up safe windows', () => {
     expect(openPendingWindow('Preparing...')).toBe(win);
     expect(window.open).toHaveBeenCalledWith('', '_blank');
     expect(win.document.title).toBe('Intelehealth');
+    // the tab is cut off from this app before it is sent to a third-party page
+    expect(win.opener).toBeNull();
     expect(win.document.body.textContent).toBe('Preparing...');
   });
 
@@ -686,5 +689,106 @@ describe('pop-up safe windows', () => {
   it('share still opens WhatsApp itself when no tab is given', async () => {
     await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, null);
     expect(window.open).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/919876543210'), '_blank');
+  });
+});
+
+describe('closed target tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const closedWindow = () =>
+    ({ closed: true, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+  const openWindow = () =>
+    ({ closed: false, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('print rejects with TabClosedError, and never calls pdfmake, when the tab was closed while the PDF was built', async () => {
+    await expect(printVisitPrescriptionPdf(makePrescription(), undefined, closedWindow())).rejects.toBeInstanceOf(
+      TabClosedError
+    );
+    expect(mockCreatePdf).not.toHaveBeenCalled();
+    expect(mockPrint).not.toHaveBeenCalled();
+  });
+
+  it('share rejects with TabClosedError, and neither downloads nor redirects, when the tab was closed while the PDF was built', async () => {
+    const win = closedWindow();
+    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toBeInstanceOf(
+      TabClosedError
+    );
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(win.location.href).toBe('');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('print still hands over a tab that is open', async () => {
+    const win = openWindow();
+    await printVisitPrescriptionPdf(makePrescription(), undefined, win);
+    expect(mockPrint).toHaveBeenCalledWith(win);
+  });
+
+  it('share still redirects a tab that is open', async () => {
+    const win = openWindow();
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    expect(win.location.href).toContain('https://wa.me/919876543210');
+  });
+});
+
+describe('awaited downloads', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const tab = () =>
+    ({ closed: false, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('download rejects when pdfmake fails to save the file', async () => {
+    mockDownload.mockRejectedValueOnce(new Error('save failed'));
+    await expect(downloadVisitPrescriptionPdf(makePrescription())).rejects.toThrow('save failed');
+  });
+
+  it('share rejects, and does not open WhatsApp, when saving the file fails', async () => {
+    const win = tab();
+    mockDownload.mockRejectedValueOnce(new Error('save failed'));
+    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toThrow(
+      'save failed'
+    );
+    expect(win.location.href).toBe('');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('share waits for the download to finish before opening WhatsApp', async () => {
+    const win = tab();
+    let finishDownload: () => void = () => {};
+    mockDownload.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishDownload = resolve;
+      })
+    );
+    const sharing = shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    await vi.waitFor(() => expect(mockDownload).toHaveBeenCalled());
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(win.location.href).toBe('');
+    finishDownload();
+    await sharing;
+    expect(win.location.href).toContain('https://wa.me/919876543210');
+  });
+
+  it('share reports a tab that was closed while the file was being saved, and does not redirect it', async () => {
+    const win = tab();
+    mockDownload.mockImplementationOnce(async () => {
+      (win as unknown as { closed: boolean }).closed = true;
+    });
+    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toBeInstanceOf(
+      TabClosedError
+    );
+    expect(win.location.href).toBe('');
   });
 });
