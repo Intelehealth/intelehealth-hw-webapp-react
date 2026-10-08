@@ -2,6 +2,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from './pdfmake-vfs';
 import type { PrescriptionData } from '../services/visit-prescription.service';
+import { TabClosedError } from './pdf-window';
 import iconConsultationUrl from '../assets/icons/prescription-consultation.svg?url';
 import iconDiagnosisUrl from '../assets/icons/prescription-diagnosis.svg?url';
 import iconMedicationUrl from '../assets/icons/prescription-medication.svg?url';
@@ -16,12 +17,23 @@ import defaultUserImgUrl from '../assets/images/default-user-img.svg?url';
 const vfsData = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs ?? {};
 (pdfMake as any).addVirtualFileSystem(vfsData);
 
+/** The tab may have been closed while the PDF was being built (e.g. Back on Android). */
+function throwIfTabClosed(win?: Window | null) {
+  if (win?.closed) throw new TabClosedError();
+}
+
+/** Throws an AbortError when the caller has cancelled the operation. */
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+}
+
 async function toBase64(
   url: string,
-  forceImageMime = false
+  forceImageMime = false,
+  signal?: AbortSignal
 ): Promise<string | null> {
   try {
-    const res = await fetch(url, { credentials: 'include' });
+    const res = await fetch(url, { credentials: 'include', signal });
     if (!res.ok) return null;
     const blob = await res.blob();
     /* c8 ignore next */
@@ -154,7 +166,10 @@ export function openPrescriptionPreview(visitUuid: string): void {
   );
 }
 
-async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
+async function buildPrescriptionDocDef(
+  data: PrescriptionData,
+  signal?: AbortSignal
+): Promise<any> {
   const [
     iConsultation,
     iDiagnosis,
@@ -180,7 +195,7 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
   const signatureB64 = data.doctorSignatureUrl
     ? data.doctorSignatureUrl.startsWith('data:')
       ? data.doctorSignatureUrl
-      : await toBase64(data.doctorSignatureUrl, true)
+      : await toBase64(data.doctorSignatureUrl, true, signal)
     : null;
 
   const avatarImg = iPatientAvatar;
@@ -572,28 +587,62 @@ async function buildPrescriptionDocDef(data: PrescriptionData): Promise<any> {
 }
 
 export async function downloadVisitPrescriptionPdf(
-  data: PrescriptionData
+  data: PrescriptionData,
+  signal?: AbortSignal
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
-  pdfMake.createPdf(docDef).download('e-prescription.pdf');
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
+  // awaited so an asynchronous pdfmake failure reaches the caller
+  await pdfMake.createPdf(docDef).download('e-prescription.pdf');
+}
+
+/**
+ * Opens a blank tab that a later async step (print / WhatsApp) can fill in.
+ * It must be called synchronously inside the user's click: browsers only
+ * allow a pop-up while the click's activation is still fresh, and a slow
+ * network request before window.open would lose it. Returns null when the
+ * browser blocks the pop-up.
+ */
+export function openPendingWindow(message: string): Window | null {
+  const win = window.open('', '_blank');
+  if (win) {
+    // The tab will be sent to a third-party page (WhatsApp). Cut its link back
+    // to this app so that page cannot redirect the EMR tab (reverse tabnabbing).
+    win.opener = null;
+    win.document.title = 'Intelehealth';
+    win.document.body.textContent = message;
+  }
+  return win;
 }
 
 export async function printVisitPrescriptionPdf(
-  data: PrescriptionData
+  data: PrescriptionData,
+  signal?: AbortSignal,
+  targetWindow?: Window | null
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
-  pdfMake.createPdf(docDef).print();
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
+  throwIfTabClosed(targetWindow);
+  // with no target window pdfmake opens its own, after the data has loaded
+  // awaited so an async pdfmake failure reaches the caller, which then closes the tab
+  await pdfMake.createPdf(docDef).print(targetWindow ?? undefined);
 }
 
 export async function shareVisitPrescriptionPdf(
   data: PrescriptionData,
-  phoneNumber: string
+  phoneNumber: string,
+  signal?: AbortSignal,
+  targetWindow?: Window | null
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data);
+  const docDef = await buildPrescriptionDocDef(data, signal);
+  throwIfAborted(signal);
+  throwIfTabClosed(targetWindow);
   const pdfDoc = pdfMake.createPdf(docDef);
 
-  // Download the PDF so the user has it locally
-  pdfDoc.download('e-prescription.pdf');
+  // Download the PDF so the user has it locally. Awaited so a failure reaches
+  // the caller. The tab is not checked again after this: the file is already
+  // saved, and reporting a closed tab now would make a retry save it twice.
+  await pdfDoc.download('e-prescription.pdf');
 
   // TODO: Replace dummy link with actual upload URL once backend API is ready
   const downloadLink =
@@ -603,5 +652,10 @@ export async function shareVisitPrescriptionPdf(
   const message = encodeURIComponent(
     `Hello, Thank you for using Intelehealth. To download your prescription click here\nDownload here: ${downloadLink}`
   );
-  window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+  if (targetWindow) {
+    targetWindow.location.href = whatsappUrl;
+  } else {
+    window.open(whatsappUrl, '_blank');
+  }
 }

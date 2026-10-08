@@ -1,3 +1,4 @@
+import { act } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -999,6 +1000,15 @@ describe('VisitSummaryComponent', () => {
 
       renderWithVisitId();
 
+      // "No documents attached" is also the initial state, so wait for the
+      // rejected request to be handled while the component is still mounted.
+      // Otherwise the test can end first and the failure branch never runs.
+      await waitFor(() => {
+        expect(visitSummaryService.getAdditionalDocuments).toHaveBeenCalled();
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
       await waitFor(() => {
         expect(screen.getByText('No documents attached')).toBeInTheDocument();
       });
@@ -1729,6 +1739,15 @@ describe('VisitSummaryComponent', () => {
       // The component should render normally without crashing
       await waitFor(() => {
         expect(screen.getByText('Physical examination')).toBeInTheDocument();
+      });
+
+      // Let the rejected request be handled while the component is still
+      // mounted, so the failure branch always runs before the test ends.
+      await waitFor(() => {
+        expect(visitSummaryService.getPhysicalExamImages).toHaveBeenCalled();
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
       // No image section headings should appear since images failed to load

@@ -1,12 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getCountryCode } from '../../utils/countries';
 
 interface WhatsAppShareModalProps {
   open: boolean;
   onClose: () => void;
-  onShare: (fullPhoneNumber: string) => void;
+  /**
+   * Called with the digits to share to. If it returns a promise that rejects,
+   * the modal stays open and shows a failure message so the user can retry.
+   */
+  onShare: (fullPhoneNumber: string) => void | Promise<void>;
   isLoading?: boolean;
 }
+
+export const SHARE_FAILED_MESSAGE =
+  'Failed to share the prescription. Please try again.';
 
 const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   open,
@@ -16,6 +23,11 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('+91');
   const [error, setError] = useState('');
+
+  // A failure from an earlier attempt must not greet the user on reopen.
+  useEffect(() => {
+    if (open) setError('');
+  }, [open]);
 
   if (!open) return null;
 
@@ -33,7 +45,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     if (error) setError('');
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const digits = phoneNumber.replace(/[^\d]/g, '');
 
     const code = getCountryCode(digits);
@@ -49,7 +61,11 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     }
 
     setError('');
-    onShare(digits);
+    try {
+      await onShare(digits);
+    } catch {
+      setError(SHARE_FAILED_MESSAGE);
+    }
   };
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {

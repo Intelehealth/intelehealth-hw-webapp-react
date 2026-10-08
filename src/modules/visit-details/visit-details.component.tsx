@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  generatePath,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import ROUTES from '../../routes/paths';
 import iconPhone from '../../assets/icons/appointment/green-field-apm-phone-icon.svg';
@@ -17,6 +22,14 @@ import iconShare from '../../assets/icons/icon-share.svg';
 import iconVisitSummaryIcon from '../../assets/icons/icon-visit-summery.svg';
 import Button from '../../components/common/button.component';
 import { useGlobalModal } from '../../components/modal/global-modal-context';
+import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
+import { usePrescriptionPdfAction } from '../../hooks/usePrescriptionPdfAction';
+import { showToast } from '../../services/toast';
+import { describeError } from '../../utils/safe-error';
+import {
+  printVisitPrescriptionPdf,
+  shareVisitPrescriptionPdf,
+} from '../../utils/visit-prescription-pdf';
 import { visitDetailsService } from './visit-details.service';
 import type { TransformedVisitDetails } from './visit-details.types';
 
@@ -179,59 +192,118 @@ const VisitStatusCard: React.FC<{
   </div>
 );
 
-const QuickActionsCard: React.FC = () => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-    <h3 className="text-base font-semibold text-gray-800 mb-3">
-      Quick Actions
-    </h3>
-    <div className="flex flex-col gap-2">
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={
-          <img src={iconPrescriptionPlain} alt="" className="w-4 h-4" />
-        }
-        onClick={() => {
-          /* TODO: Implement view prescription */
-        }}
-      >
-        View Prescription
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
-        onClick={() => {
-          /* TODO: Implement print */
-        }}
-      >
-        Print
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        fullWidth
-        leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
-        onClick={() => {
-          /* TODO: Implement share */
-        }}
-      >
-        Share
-      </Button>
+/**
+ * Where the user came from, as set by the screen that navigated here. Used for
+ * the breadcrumb and forwarded as navigation state so the next screen can link
+ * back too. Read where it is needed instead of being passed down as props.
+ */
+const useFromState = () => {
+  const location = useLocation();
+  const state = location.state as {
+    fromLabel?: string;
+    fromPath?: string;
+  } | null;
+  return { fromLabel: state?.fromLabel, fromPath: state?.fromPath };
+};
+
+const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
+  const navigate = useNavigate();
+  const { fromLabel, fromPath } = useFromState();
+  const { pdfOp, run } = usePrescriptionPdfAction(visitId);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const handleViewPrescription = useCallback(() => {
+    navigate(generatePath(ROUTES.PRESCRIPTION_DETAIL, { visitId }), {
+      state: { fromLabel, fromPath },
+    });
+  }, [navigate, visitId, fromLabel, fromPath]);
+
+  const handlePrint = useCallback(async () => {
+    try {
+      await run('print', (pdfData, signal, win) =>
+        printVisitPrescriptionPdf(pdfData, signal, win)
+      );
+    } catch {
+      showToast(
+        'Error',
+        'Failed to print the prescription. Please try again.',
+        'error'
+      );
+    }
+  }, [run]);
+
+  const handleOpenShareModal = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  // A failure rejects out to the modal, which shows it in place and keeps the
+  // phone number so the user can retry; the modal closes only on success.
+  const handleSharePdf = useCallback(
+    async (phoneNumber: string) => {
+      const shared = await run('share', (pdfData, signal, win) =>
+        shareVisitPrescriptionPdf(pdfData, phoneNumber, signal, win)
+      );
+      if (shared) setShowShareModal(false);
+    },
+    [run]
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <h3 className="text-base font-semibold text-gray-800 mb-3">
+        Quick Actions
+      </h3>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={
+            <img src={iconPrescriptionPlain} alt="" className="w-4 h-4" />
+          }
+          onClick={handleViewPrescription}
+        >
+          View Prescription
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={<img src={iconPrint} alt="" className="w-4 h-4" />}
+          onClick={handlePrint}
+          disabled={pdfOp !== null}
+          isLoading={pdfOp === 'print'}
+          loadingText="Printing..."
+        >
+          Print
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          leftIcon={<img src={iconShare} alt="" className="w-4 h-4" />}
+          onClick={handleOpenShareModal}
+          disabled={pdfOp !== null}
+        >
+          Share
+        </Button>
+      </div>
+
+      <WhatsAppShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShare={handleSharePdf}
+        isLoading={pdfOp === 'share'}
+      />
     </div>
-  </div>
-);
+  );
+};
 
 const VisitDetails: React.FC = () => {
   const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { showConfirmModal } = useGlobalModal();
-
-  const fromLabel = (location.state as { fromLabel?: string })?.fromLabel;
-  const fromPath = (location.state as { fromPath?: string })?.fromPath;
+  const { fromLabel, fromPath } = useFromState();
 
   useBreadcrumb(
     [
@@ -278,7 +350,13 @@ const VisitDetails: React.FC = () => {
           /* c8 ignore next */
           setData(prev => (prev ? { ...prev, visitStatus: 'Closed' } : prev));
         } catch (err) {
-          console.error('Failed to end visit:', err);
+          // Safe fields only: the raw error can carry patient data or tokens.
+          console.error('Failed to end visit', describeError(err));
+          showToast(
+            'Error',
+            'Failed to end the visit. Please try again.',
+            'error'
+          );
         }
       },
     });
@@ -315,7 +393,7 @@ const VisitDetails: React.FC = () => {
             icon={iconVisitSummary}
             title="Visit summary"
             onClick={() =>
-              navigate(`/visit-summary/${visitId}`, {
+              navigate(generatePath(ROUTES.VISIT_SUMMARY, { visitId }), {
                 state: { fromLabel, fromPath },
               })
             }
@@ -330,7 +408,7 @@ const VisitDetails: React.FC = () => {
                 : undefined
             }
             onClick={() =>
-              navigate(`/prescription-detail/${visitId}`, {
+              navigate(generatePath(ROUTES.PRESCRIPTION_DETAIL, { visitId }), {
                 state: { fromLabel, fromPath },
               })
             }
@@ -342,7 +420,7 @@ const VisitDetails: React.FC = () => {
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
           <VisitStatusCard status={data.visitStatus} />
-          <QuickActionsCard />
+          <QuickActionsCard visitId={visitId as string} />
         </div>
       </div>
     </div>

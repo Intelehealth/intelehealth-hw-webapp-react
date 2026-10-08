@@ -1,3 +1,4 @@
+import { TabClosedError } from '../../utils/pdf-window';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { PrescriptionData } from '../../services/visit-prescription.service';
 
@@ -111,7 +112,13 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 });
 
 // ─── Import the functions under test (after mocks are set up) ─────────────────
-const { downloadVisitPrescriptionPdf, printVisitPrescriptionPdf, shareVisitPrescriptionPdf, openPrescriptionPreview } =
+const {
+  downloadVisitPrescriptionPdf,
+  printVisitPrescriptionPdf,
+  shareVisitPrescriptionPdf,
+  openPrescriptionPreview,
+  openPendingWindow,
+} =
   await import('../../utils/visit-prescription-pdf');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -534,5 +541,254 @@ describe('shareVisitPrescriptionPdf', () => {
     const docDef = (mockCreatePdf.mock.calls as any[][])[0][0];
     expect(docDef.pageSize).toBe('A4');
     expect(docDef.watermark.text).toBe('INTELEHEALTH');
+  });
+});
+
+describe('cancellation via AbortSignal', () => {
+  const abortedSignal = () => {
+    const controller = new AbortController();
+    controller.abort();
+    return controller.signal;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // drop any once-queued fetch results left over by earlier suites
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it.each([
+    ['download', () => downloadVisitPrescriptionPdf(makePrescription(), abortedSignal())],
+    ['print', () => printVisitPrescriptionPdf(makePrescription(), abortedSignal())],
+    ['share', () => shareVisitPrescriptionPdf(makePrescription(), '919876543210', abortedSignal())],
+  ])('rejects with an AbortError and never reaches pdfMake or WhatsApp when %s is already aborted', async (_name, run) => {
+    await expect(run()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockCreatePdf).not.toHaveBeenCalled();
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockPrint).not.toHaveBeenCalled();
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['download', (signal: AbortSignal) => downloadVisitPrescriptionPdf(makePrescription(), signal)],
+    ['print', (signal: AbortSignal) => printVisitPrescriptionPdf(makePrescription(), signal)],
+    ['share', (signal: AbortSignal) => shareVisitPrescriptionPdf(makePrescription(), '919876543210', signal)],
+  ])('still completes %s when the signal is live', async (_name, run) => {
+    await run(new AbortController().signal);
+    expect(mockCreatePdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the signal to the signature image fetch', async () => {
+    const controller = new AbortController();
+    await printVisitPrescriptionPdf(
+      makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }),
+      controller.signal
+    );
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://example.com/sig.png',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
+  it.each([
+    [
+      'print',
+      (data: PrescriptionData, signal: AbortSignal) => printVisitPrescriptionPdf(data, signal),
+    ],
+    [
+      'share',
+      (data: PrescriptionData, signal: AbortSignal) =>
+        shareVisitPrescriptionPdf(data, '919876543210', signal),
+    ],
+  ])('does not %s when aborted while the signature image is still loading', async (_name, run) => {
+    const controller = new AbortController();
+    let finishFetch: (value: unknown) => void = () => {};
+    mockFetch.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishFetch = resolve;
+        })
+    );
+    const pending = run(
+      makePrescription({ doctorSignatureUrl: 'https://example.com/sig.png' }),
+      controller.signal
+    );
+    // the signature fetch only starts once the icons are rendered
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    controller.abort();
+    finishFetch(makeImageResponse());
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockPrint).not.toHaveBeenCalled();
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(window.open).not.toHaveBeenCalled();
+  });
+});
+
+describe('pop-up safe windows', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const fakeWindow = () =>
+    ({ document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('openPendingWindow opens a blank tab and shows the given message in it', () => {
+    const win = fakeWindow();
+    (window.open as ReturnType<typeof vi.fn>).mockReturnValue(win);
+    expect(openPendingWindow('Preparing...')).toBe(win);
+    expect(window.open).toHaveBeenCalledWith('', '_blank');
+    expect(win.document.title).toBe('Intelehealth');
+    // the tab is cut off from this app before it is sent to a third-party page
+    expect(win.opener).toBeNull();
+    expect(win.document.body.textContent).toBe('Preparing...');
+  });
+
+  it('openPendingWindow returns null when the browser blocks the pop-up', () => {
+    (window.open as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    expect(openPendingWindow('Preparing...')).toBeNull();
+  });
+
+  it('print hands the pre-opened tab to pdfmake', async () => {
+    const win = fakeWindow();
+    await printVisitPrescriptionPdf(makePrescription(), undefined, win);
+    expect(mockPrint).toHaveBeenCalledWith(win);
+  });
+
+  it('print lets pdfmake open its own tab when none is given', async () => {
+    await printVisitPrescriptionPdf(makePrescription());
+    expect(mockPrint).toHaveBeenCalledWith(undefined);
+  });
+
+  it('print lets pdfmake open its own tab when the given one is null', async () => {
+    await printVisitPrescriptionPdf(makePrescription(), undefined, null);
+    expect(mockPrint).toHaveBeenCalledWith(undefined);
+  });
+
+  it('print rejects when pdfmake fails asynchronously, so the caller can close the tab', async () => {
+    mockPrint.mockRejectedValueOnce(new Error('stream failed'));
+    await expect(printVisitPrescriptionPdf(makePrescription(), undefined, fakeWindow())).rejects.toThrow(
+      'stream failed'
+    );
+  });
+
+  it('share sends the pre-opened tab to WhatsApp instead of opening a new one', async () => {
+    const win = fakeWindow();
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    expect(win.location.href).toContain('https://wa.me/919876543210?text=');
+    expect(window.open).not.toHaveBeenCalled();
+    expect(mockDownload).toHaveBeenCalledWith('e-prescription.pdf');
+  });
+
+  it('share still opens WhatsApp itself when no tab is given', async () => {
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, null);
+    expect(window.open).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/919876543210'), '_blank');
+  });
+});
+
+describe('closed target tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const closedWindow = () =>
+    ({ closed: true, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+  const openWindow = () =>
+    ({ closed: false, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('print rejects with TabClosedError, and never calls pdfmake, when the tab was closed while the PDF was built', async () => {
+    await expect(printVisitPrescriptionPdf(makePrescription(), undefined, closedWindow())).rejects.toBeInstanceOf(
+      TabClosedError
+    );
+    expect(mockCreatePdf).not.toHaveBeenCalled();
+    expect(mockPrint).not.toHaveBeenCalled();
+  });
+
+  it('share rejects with TabClosedError, and neither downloads nor redirects, when the tab was closed while the PDF was built', async () => {
+    const win = closedWindow();
+    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toBeInstanceOf(
+      TabClosedError
+    );
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(win.location.href).toBe('');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('print still hands over a tab that is open', async () => {
+    const win = openWindow();
+    await printVisitPrescriptionPdf(makePrescription(), undefined, win);
+    expect(mockPrint).toHaveBeenCalledWith(win);
+  });
+
+  it('share still redirects a tab that is open', async () => {
+    const win = openWindow();
+    await shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    expect(win.location.href).toContain('https://wa.me/919876543210');
+  });
+});
+
+describe('awaited downloads', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeImageResponse());
+    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  const tab = () =>
+    ({ closed: false, document: { title: '', body: { textContent: '' } }, location: { href: '' } }) as unknown as Window;
+
+  it('download rejects when pdfmake fails to save the file', async () => {
+    mockDownload.mockRejectedValueOnce(new Error('save failed'));
+    await expect(downloadVisitPrescriptionPdf(makePrescription())).rejects.toThrow('save failed');
+  });
+
+  it('share rejects, and does not open WhatsApp, when saving the file fails', async () => {
+    const win = tab();
+    mockDownload.mockRejectedValueOnce(new Error('save failed'));
+    await expect(shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)).rejects.toThrow(
+      'save failed'
+    );
+    expect(win.location.href).toBe('');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('share waits for the download to finish before opening WhatsApp', async () => {
+    const win = tab();
+    let finishDownload: () => void = () => {};
+    mockDownload.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishDownload = resolve;
+      })
+    );
+    const sharing = shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win);
+    await vi.waitFor(() => expect(mockDownload).toHaveBeenCalled());
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(win.location.href).toBe('');
+    finishDownload();
+    await sharing;
+    expect(win.location.href).toContain('https://wa.me/919876543210');
+  });
+
+  it('share does not report a closed tab once the file is already saved, so a retry cannot save it twice', async () => {
+    const win = tab();
+    mockDownload.mockImplementationOnce(async () => {
+      (win as unknown as { closed: boolean }).closed = true;
+    });
+    await expect(
+      shareVisitPrescriptionPdf(makePrescription(), '919876543210', undefined, win)
+    ).resolves.toBeUndefined();
+    expect(mockDownload).toHaveBeenCalledTimes(1);
   });
 });
