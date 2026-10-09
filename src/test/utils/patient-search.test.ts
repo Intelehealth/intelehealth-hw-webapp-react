@@ -33,6 +33,17 @@ describe('matchesPatientSearch', () => {
     expect(matchesPatientSearch(p, '')).toBe(true);
   });
 
+  it('does not throw when patientName is null or missing, and can still match on the ID', () => {
+    expect(matchesPatientSearch({ patientName: null, openMrsId: '100GL-1' }, '100gl')).toBe(true);
+    expect(matchesPatientSearch({ patientName: null, openMrsId: '100GL-1' }, 'ravi')).toBe(false);
+    expect(matchesPatientSearch({ openMrsId: '100GL-1' }, 'ravi')).toBe(false);
+  });
+
+  it('does not throw when both the name and the ID are missing, and only an empty search matches', () => {
+    expect(matchesPatientSearch({ patientName: null, openMrsId: null }, 'x')).toBe(false);
+    expect(matchesPatientSearch({}, '')).toBe(true);
+  });
+
   it('does not throw when openMrsId is missing', () => {
     const p = { patientName: 'Priya Singh' };
     expect(matchesPatientSearch(p, 'priya')).toBe(true);

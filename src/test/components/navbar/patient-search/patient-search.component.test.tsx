@@ -26,8 +26,10 @@ const mockPatients: Patient[] = [
   },
 ];
 
-const mockUsePatientSearch = vi.fn((_searchTerm: string) => ({
-  patients: [] as Patient[],
+const mockUsePatientSearch = vi.fn<
+  (searchTerm: string) => { patients: Patient[]; loading: boolean }
+>(() => ({
+  patients: [],
   loading: false,
 }));
 
