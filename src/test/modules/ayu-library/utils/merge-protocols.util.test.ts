@@ -279,7 +279,7 @@ describe('mergeProtocols', () => {
             linkId: 'kid',
             text: 'Kid only',
             type: 'string',
-            extension: [{ url: EXT_URL_AGE_MAX, valueString: '12' }],
+            extension: [{ url: EXT_URL_AGE_MAX[0], valueString: '12' }],
           },
           { linkId: 'all', text: 'All ages', type: 'string' },
         ],
@@ -1094,7 +1094,7 @@ describe('mergeProtocols', () => {
             linkId: 'A1',
             text: 'A1',
             type: 'string',
-            extension: [{ url: EXT_URL_AGE_MIN, valueString: '99' }],
+            extension: [{ url: EXT_URL_AGE_MIN[0], valueString: '99' }],
           },
         ],
       };
