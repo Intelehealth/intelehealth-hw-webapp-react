@@ -13,6 +13,7 @@ import FilterModule from '../../components/common/filter-module.component';
 import { useAppointmentList } from '../../hooks/useAppointmentList';
 import type { FilterValue } from '../../utils/date-filter';
 import { isDateInFilterRange } from '../../utils/date-filter';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 interface Column {
   header: string;
@@ -62,12 +63,10 @@ export const AppointmentListComponent = ({
   };
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return data.filter(
       p =>
         p.type === activeTab &&
-        (p.patientName.toLowerCase().includes(term) ||
-          p.openMrsId.toLowerCase().includes(term)) &&
+        matchesPatientSearch(p, search) &&
         isDateInFilterRange(p.dateTime, dateFilter)
     );
   }, [data, activeTab, search, dateFilter]);

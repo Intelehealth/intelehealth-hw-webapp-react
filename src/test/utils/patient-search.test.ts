@@ -26,6 +26,13 @@ describe('matchesPatientSearch', () => {
     expect(matchesPatientSearch(patient, 'ZZZ-999')).toBe(false);
   });
 
+  it('does not throw when openMrsId is null, as the backend can send, and cannot match on it', () => {
+    const p = { patientName: 'Priya Singh', openMrsId: null };
+    expect(matchesPatientSearch(p, 'priya')).toBe(true);
+    expect(matchesPatientSearch(p, '100GL')).toBe(false);
+    expect(matchesPatientSearch(p, '')).toBe(true);
+  });
+
   it('does not throw when openMrsId is missing', () => {
     const p = { patientName: 'Priya Singh' };
     expect(matchesPatientSearch(p, 'priya')).toBe(true);

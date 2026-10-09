@@ -214,7 +214,10 @@ describe('usePatientSearch', () => {
     expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('Jo');
   });
 
-  it('should search using an OpenMRS ID as the search term and return the matching patient', async () => {
+  // OpenMRS does the ID matching on the server; the service is mocked here, so these
+  // tests only check that an ID-style term is passed through unchanged and that whatever
+  // the service returns is what the hook returns.
+  it('should pass an OpenMRS-ID-style term to the service unchanged and return what the service returns', async () => {
     vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
       results: mockResults,
     });
@@ -229,7 +232,7 @@ describe('usePatientSearch', () => {
     expect(result.current.patients).toEqual(mockResults);
   });
 
-  it('should return no patients for a non-existing OpenMRS ID', async () => {
+  it('should return an empty list when the service finds nothing for an OpenMRS-ID-style term', async () => {
     vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
       results: [],
     });

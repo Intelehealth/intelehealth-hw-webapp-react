@@ -232,6 +232,13 @@ describe('patientService', () => {
       expect((await patientService.getPrescriptionsPending('hw'))[0].openMrsId).toBe('100GL-2');
     });
 
+    it('prefers openMrsId over openmrs_id when both are sent, and still drops the snake_case copy', async () => {
+      respond([{ visitUuid: 'v1', patientName: 'A', openMrsId: '100GL-1', openmrs_id: '100GL-9' }]);
+      const visit = (await patientService.getOpenVisits('hw')).visits[0];
+      expect(visit.openMrsId).toBe('100GL-1');
+      expect(visit).not.toHaveProperty('openmrs_id');
+    });
+
     it('leaves openMrsId undefined when neither key is present', async () => {
       respond([{ visitUuid: 'v1', patientName: 'A' }]);
       expect((await patientService.getOpenVisits('hw')).visits[0].openMrsId).toBeUndefined();

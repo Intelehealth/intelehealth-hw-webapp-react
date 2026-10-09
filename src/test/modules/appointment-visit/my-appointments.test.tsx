@@ -107,6 +107,59 @@ describe('MyAppointments', () => {
     });
   });
 
+  describe('Appointment with no OpenMRS ID', () => {
+    // The backend column is nullable, so a booked appointment can arrive without one.
+    const pastTemplate = appointmentsListData.find(a => a.type === 'past')!;
+    const pastCountWithout = appointmentsListData.filter(a => a.type === 'past').length;
+    const noIdAppointment = {
+      ...pastTemplate,
+      id: 9001,
+      patientName: 'Meera Nair',
+      openMrsId: null as unknown as string,
+    };
+
+    beforeEach(() => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [...appointmentsListData, noIdAppointment],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+    });
+
+    it('does not throw when a search term matches no name, and does not show that appointment', () => {
+      renderComponent();
+      // sanity: the appointment is listed before any search
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(() =>
+        fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+          target: { value: 'Vimla' },
+        })
+      ).not.toThrow();
+      expect(screen.queryAllByText(/Meera Nair/)).toHaveLength(0);
+    });
+
+    it('still finds that appointment by name', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: 'meera' },
+      });
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Past \(1\)/)).toBeInTheDocument();
+    });
+
+    it('does not count that appointment for an OpenMRS ID search it cannot match', () => {
+      renderComponent();
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(screen.getByText(new RegExp('Past \\(' + (pastCountWithout + 1) + '\\)'))).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL' },
+      });
+      expect(screen.queryAllByText(/Meera Nair/)).toHaveLength(0);
+      expect(screen.getByText(new RegExp('Past \\(' + pastCountWithout + '\\)'))).toBeInTheDocument();
+    });
+  });
+
   describe('Search filtering', () => {
     it('filters past appointments by patient name', () => {
       renderComponent();

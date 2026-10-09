@@ -112,11 +112,24 @@ function buildDateParams(fromDate?: string, toDate?: string): string {
   return params;
 }
 
-/** The middleware may send the ID as openMrsId or openmrs_id; expose it as openMrsId. */
-function normalizeVisits<T extends { openMrsId?: string }>(visits: T[]): T[] {
+/**
+ * A visit as the middleware sends it. The OpenMRS ID arrives as openMrsId or,
+ * on some payloads, as the snake_case openmrs_id (the public middleware uses
+ * both spellings in different DTOs). Which one each endpoint sends has to be
+ * confirmed against the middleware.
+ */
+type RawVisit<T extends { openMrsId?: string }> = T & {
+  openmrs_id?: string;
+};
+
+/** Expose the ID as openMrsId whichever way it arrived, and drop the snake_case copy. */
+function normalizeVisits<T extends { openMrsId?: string }>(
+  visits: RawVisit<T>[]
+): T[] {
   return visits.map(v => {
-    const { openmrs_id, ...rest } = v as T & { openmrs_id?: string };
-    return { ...rest, openMrsId: v.openMrsId ?? openmrs_id } as unknown as T;
+    const visit = { ...v, openMrsId: v.openMrsId ?? v.openmrs_id };
+    delete visit.openmrs_id;
+    return visit;
   });
 }
 

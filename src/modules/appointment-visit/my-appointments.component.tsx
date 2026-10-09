@@ -15,6 +15,7 @@ import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-r
 import { useAppointmentList } from '../../hooks/useAppointmentList';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 export default function MyAppointments() {
   useBreadcrumb([
@@ -35,12 +36,9 @@ export default function MyAppointments() {
   const { data: appointments, loading, error } = useAppointmentList();
 
   const filteredAppointments = useMemo(() => {
-    const term = search.trim().toLowerCase();
     const filtered = appointments.filter(item => {
       const matchTab = item.type === activeTab;
-      const matchSearch =
-        item.patientName.toLowerCase().includes(term) ||
-        item.openMrsId.toLowerCase().includes(term);
+      const matchSearch = matchesPatientSearch(item, search);
       /* c8 ignore next */
       const matchStatus = statusFilter ? item.status === statusFilter : true;
       return matchTab && matchSearch && matchStatus;
@@ -49,11 +47,8 @@ export default function MyAppointments() {
   }, [appointments, activeTab, search, statusFilter, applySort, applyNameSort]);
 
   const upcomingCount = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return appointments.filter(a => {
-      const matchSearch =
-        a.patientName.toLowerCase().includes(term) ||
-        a.openMrsId.toLowerCase().includes(term);
+      const matchSearch = matchesPatientSearch(a, search);
       /* c8 ignore next */
       const matchStatus = statusFilter ? a.status === statusFilter : true;
       return a.type === 'upcoming' && matchSearch && matchStatus;
@@ -61,11 +56,8 @@ export default function MyAppointments() {
   }, [appointments, search, statusFilter]);
 
   const pastCount = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return appointments.filter(a => {
-      const matchSearch =
-        a.patientName.toLowerCase().includes(term) ||
-        a.openMrsId.toLowerCase().includes(term);
+      const matchSearch = matchesPatientSearch(a, search);
       /* c8 ignore next */
       const matchStatus = statusFilter ? a.status === statusFilter : true;
       return a.type === 'past' && matchSearch && matchStatus;

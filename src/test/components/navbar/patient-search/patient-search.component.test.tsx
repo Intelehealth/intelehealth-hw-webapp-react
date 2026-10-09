@@ -121,7 +121,9 @@ describe('PatientSearch', () => {
     expect(screen.getByText('Patients (2 results)')).toBeInTheDocument();
   });
 
-  it('should display the matching patient when searching by OpenMRS ID', () => {
+  // OpenMRS does the ID matching on the server; the hook is mocked here, so this only
+  // checks that an ID-style term reaches the hook unchanged and what it returns is shown.
+  it('should pass an OpenMRS-ID-style term to the search hook unchanged and show the patients it returns', () => {
     mockUsePatientSearch.mockReturnValue({
       patients: [mockPatients[0]],
       loading: false,
@@ -132,7 +134,6 @@ describe('PatientSearch', () => {
     });
     expect(mockUsePatientSearch).toHaveBeenCalledWith('OP-001');
     expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
-    expect(screen.queryByText(/Bob Jones/)).not.toBeInTheDocument();
   });
 
   it('should navigate to patient page on selection', () => {
