@@ -1,11 +1,11 @@
+import type * as PrescriptionTypes from '../types/prescription.types';
 import { OpenMRSApi } from './openmrs';
 import {
-  PRESCRIPTION_CONCEPT_IDS,
   IDENTIFIER_TYPES,
   PERSON_ATTRIBUTES,
+  PRESCRIPTION_CONCEPT_IDS,
   PROVIDER_ATTRIBUTES,
 } from './prescription.constant';
-import type * as PrescriptionTypes from '../types/prescription.types';
 
 interface ObsValue {
   display?: string;
@@ -23,11 +23,13 @@ interface EncProvider {
   provider?: {
     uuid?: string;
     display?: string;
+    person?: { display?: string };
     attributes?: { value?: string; attributeType?: { display: string } }[];
   };
 }
 interface Encounter {
   encounterDatetime: string;
+  encounterType?: { display?: string };
   obs?: Obs[];
   encounterProviders?: EncProvider[];
 }
@@ -67,10 +69,10 @@ interface VisitResponse {
 
 export type {
   DiagnosisItem,
-  MedicineItem,
   FollowUpData,
-  VitalsData,
+  MedicineItem,
   PrescriptionData,
+  VitalsData,
 } from '../types/prescription.types';
 
 const VISIT_CUSTOM_REP =
@@ -80,7 +82,15 @@ const VISIT_CUSTOM_REP =
   'attributes:(value,attributeType:(display,uuid)),preferredAddress:(address1,address2,cityVillage,countyDistrict,stateProvince,postalCode))),' +
   'encounters:(encounterDatetime,encounterType:(display),' +
   'obs:(uuid,display,value,concept:(uuid,display),groupMembers:(uuid,display,value,concept:(uuid,display))),' +
-  'encounterProviders:(provider:(uuid,display,attributes:(value,attributeType:(display))))))';
+  'encounterProviders:(provider:(uuid,display,person:(display),attributes:(value,attributeType:(display))))))';
+
+// Only the doctor's encounters; the health worker's encounters are not read for doctor details.
+const DOCTOR_ENCOUNTER_TYPES = ['Visit Complete', 'Visit Note'];
+const ADDITIONAL_INSTRUCTION_PREFIX = '[ADDITIONAL_INSTRUCTION]';
+
+// Fallback only: provider.display is "<identifier> - <name>", e.g. "522-3 - Jane Doe".
+const stripProviderIdentifier = (display: string) =>
+  display.replace(/^\S+\s-\s/, '').trim();
 
 type Person = NonNullable<NonNullable<VisitResponse['patient']>['person']>;
 
@@ -253,11 +263,17 @@ export async function getVisitPrescriptionData(
     doctorQualification = '',
     doctorRegNumber = '',
     doctorSignatureUrl: string | null = null;
-  for (const enc of encounters) {
+  const doctorEncounters = DOCTOR_ENCOUNTER_TYPES.flatMap(type =>
+    encounters.filter(e => e.encounterType?.display === type)
+  );
+  for (const enc of doctorEncounters) {
     for (const ep of enc.encounterProviders || []) {
       const prov = ep.provider;
       if (!prov) continue;
-      doctorName = doctorName || prov.display || '';
+      doctorName =
+        doctorName ||
+        prov.person?.display ||
+        stripProviderIdentifier(prov.display || '');
       for (const attr of prov.attributes || []) {
         const d = (attr.attributeType?.display || '').toLowerCase();
         if (
@@ -329,7 +345,12 @@ export async function getVisitPrescriptionData(
     medicines: byConceptId(PRESCRIPTION_CONCEPT_IDS.MEDICATION).map(o =>
       parseMedicine(obsStr(o))
     ),
-    advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o => obsStr(o)),
+    advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o => {
+      const s = obsStr(o);
+      return s.startsWith(ADDITIONAL_INSTRUCTION_PREFIX)
+        ? s.slice(ADDITIONAL_INSTRUCTION_PREFIX.length)
+        : s;
+    }),
     tests: byConceptId(PRESCRIPTION_CONCEPT_IDS.TEST).map(o => obsStr(o)),
     referrals: byConceptId(PRESCRIPTION_CONCEPT_IDS.REFERRAL).map(o =>
       parseReferral(obsStr(o))
