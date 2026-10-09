@@ -514,6 +514,56 @@ describe('useVerifyOtp hook', () => {
     });
   });
 
+  it('should not send a second verify request while one is in flight, but allow a retry after a failure', async () => {
+    vi.useRealTimers();
+
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      message: 'OTP sent successfully',
+      data: { userUuid: 'test-uuid-123' },
+    });
+
+    let rejectVerify: (reason: unknown) => void = () => {};
+    vi.mocked(requestOtpService.default.verifyOtp).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectVerify = reject;
+      })
+    );
+
+    const { result } = renderHook(() => useVerifyOtp(mockStateData));
+    await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
+
+    for (let i = 0; i < 6; i++) {
+      act(() => {
+        result.current.handleChange(i, String(i + 1));
+      });
+    }
+    await waitFor(() => expect(result.current.otp.join('')).toBe('123456'));
+
+    // Double submit: both calls land before the first request settles
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = Promise.resolve(result.current.verifyOtp());
+      await result.current.verifyOtp();
+    });
+    expect(requestOtpService.default.verifyOtp).toHaveBeenCalledTimes(1);
+
+    // The first attempt fails -> the guard is released so the user can retry
+    vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValueOnce({
+      success: true,
+      message: 'OTP verified successfully',
+    });
+    await act(async () => {
+      rejectVerify(new Error('Invalid OTP'));
+      await first;
+    });
+    await act(async () => {
+      await result.current.verifyOtp();
+    });
+    expect(requestOtpService.default.verifyOtp).toHaveBeenCalledTimes(2);
+  });
+
   it('should handle verifyOtp when result.success is false', async () => {
     vi.useRealTimers(); // Use real timers for async operations
     

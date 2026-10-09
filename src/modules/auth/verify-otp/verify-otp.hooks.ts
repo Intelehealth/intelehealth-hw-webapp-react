@@ -39,6 +39,7 @@ export const useVerifyOtp = (stateData?: {
   const [userUuid, setUserUuid] = useState<string>('');
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const didRequestOtp = useRef(false);
+  const verifyInFlight = useRef(false);
 
   // ✅ Request OTP (initial & resend)
   const requestOtp = useCallback(async () => {
@@ -92,6 +93,12 @@ export const useVerifyOtp = (stateData?: {
 
     if (!userUuid || otp.includes('')) return;
 
+    // A second in-flight verify (double click / Enter) would reach the backend
+    // after the first one consumed the OTP and surface a bogus "Invalid OTP"
+    // toast on top of the success navigation.
+    if (verifyInFlight.current) return;
+    verifyInFlight.current = true;
+
     const enteredOtp = otp.join('');
 
     try {
@@ -125,6 +132,8 @@ export const useVerifyOtp = (stateData?: {
         message = axiosError.response?.data?.message || message;
       }
       showToast('Invalid OTP', message, 'error');
+    } finally {
+      verifyInFlight.current = false;
     }
   };
 
