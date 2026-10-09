@@ -44,6 +44,7 @@ export interface RecentPatientsResponse {
 export interface PrescriptionReceivedVisit {
   visitUuid: string;
   patientName: string;
+  openMrsId?: string;
   gender: string;
   age?: number;
   visitCreatedDate: string;
@@ -64,6 +65,7 @@ export interface PrescriptionReceivedResponse {
 export interface OpenVisit {
   visitUuid: string;
   patientName: string;
+  openMrsId?: string;
   gender: string;
   age?: number;
   visitCreatedDate: string;
@@ -85,6 +87,7 @@ export interface OpenVisitsResponse {
 export interface PrescriptionPendingVisit {
   visitUuid: string;
   patientName: string;
+  openMrsId?: string;
   gender: string;
   age?: number;
   visitCreatedDate: string;
@@ -109,6 +112,27 @@ function buildDateParams(fromDate?: string, toDate?: string): string {
   return params;
 }
 
+/**
+ * A visit as the middleware sends it. The OpenMRS ID arrives as openMrsId or,
+ * on some payloads, as the snake_case openmrs_id (the public middleware uses
+ * both spellings in different DTOs). Which one each endpoint sends has to be
+ * confirmed against the middleware.
+ */
+type RawVisit<T extends { openMrsId?: string }> = T & {
+  openmrs_id?: string;
+};
+
+/** Expose the ID as openMrsId whichever way it arrived, and drop the snake_case copy. */
+function normalizeVisits<T extends { openMrsId?: string }>(
+  visits: RawVisit<T>[]
+): T[] {
+  return visits.map(v => {
+    const visit = { ...v, openMrsId: v.openMrsId ?? v.openmrs_id };
+    delete visit.openmrs_id;
+    return visit;
+  });
+}
+
 export const patientService = {
   async getFollowupVisits(
     locationId: string,
@@ -124,7 +148,10 @@ export const patientService = {
     const res = await EmrMiddlewareApi.get<{
       data: { visits: FollowupVisit[]; totalCount: number };
     }>(url);
-    return { visits: res.data.visits, totalCount: res.data.totalCount };
+    return {
+      visits: normalizeVisits(res.data.visits),
+      totalCount: res.data.totalCount,
+    };
   },
   async getRecentPatients(
     hwId: string,
@@ -147,7 +174,7 @@ export const patientService = {
   ): Promise<PrescriptionReceivedVisit[]> {
     const url = `/pull/hw-visits/${hwId}?type=prescription-received&page=${page}&limit=${limit}${buildDateParams(fromDate, toDate)}`;
     const res = await EmrMiddlewareApi.get<PrescriptionReceivedResponse>(url);
-    return res.data.visits;
+    return normalizeVisits(res.data.visits);
   },
 
   async getOpenVisits(
@@ -159,7 +186,10 @@ export const patientService = {
   ): Promise<{ visits: OpenVisit[]; totalCount: number }> {
     const url = `/pull/hw-visits/${hwId}?type=open-visits&page=${page}&limit=${limit}${buildDateParams(fromDate, toDate)}`;
     const res = await EmrMiddlewareApi.get<OpenVisitsResponse>(url);
-    return { visits: res.data.visits, totalCount: res.data.totalCount };
+    return {
+      visits: normalizeVisits(res.data.visits),
+      totalCount: res.data.totalCount,
+    };
   },
 
   async getPriorityVisits(
@@ -171,7 +201,10 @@ export const patientService = {
   ): Promise<{ visits: OpenVisit[]; totalCount: number }> {
     const url = `/pull/hw-visits/${hwId}?type=priority-visits&page=${page}&limit=${limit}${buildDateParams(fromDate, toDate)}`;
     const res = await EmrMiddlewareApi.get<OpenVisitsResponse>(url);
-    return { visits: res.data.visits, totalCount: res.data.totalCount };
+    return {
+      visits: normalizeVisits(res.data.visits),
+      totalCount: res.data.totalCount,
+    };
   },
 
   async getPrescriptionsPending(
@@ -183,6 +216,6 @@ export const patientService = {
   ): Promise<PrescriptionPendingVisit[]> {
     const url = `/pull/hw-visits/${hwId}?type=prescription-pending&page=${page}&limit=${limit}${buildDateParams(fromDate, toDate)}`;
     const res = await EmrMiddlewareApi.get<PrescriptionPendingResponse>(url);
-    return res.data.visits;
+    return normalizeVisits(res.data.visits);
   },
 };

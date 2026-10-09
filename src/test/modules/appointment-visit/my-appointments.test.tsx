@@ -107,6 +107,59 @@ describe('MyAppointments', () => {
     });
   });
 
+  describe('Appointment with no OpenMRS ID', () => {
+    // The backend column is nullable, so a booked appointment can arrive without one.
+    const pastTemplate = appointmentsListData.find(a => a.type === 'past')!;
+    const pastCountWithout = appointmentsListData.filter(a => a.type === 'past').length;
+    const noIdAppointment = {
+      ...pastTemplate,
+      id: 9001,
+      patientName: 'Meera Nair',
+      openMrsId: null as unknown as string,
+    };
+
+    beforeEach(() => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [...appointmentsListData, noIdAppointment],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+    });
+
+    it('does not throw when a search term matches no name, and does not show that appointment', () => {
+      renderComponent();
+      // sanity: the appointment is listed before any search
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(() =>
+        fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+          target: { value: 'Vimla' },
+        })
+      ).not.toThrow();
+      expect(screen.queryAllByText(/Meera Nair/)).toHaveLength(0);
+    });
+
+    it('still finds that appointment by name', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: 'meera' },
+      });
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Past \(1\)/)).toBeInTheDocument();
+    });
+
+    it('does not count that appointment for an OpenMRS ID search it cannot match', () => {
+      renderComponent();
+      expect(screen.getAllByText(/Meera Nair/).length).toBeGreaterThan(0);
+      expect(screen.getByText(new RegExp('Past \\(' + (pastCountWithout + 1) + '\\)'))).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL' },
+      });
+      expect(screen.queryAllByText(/Meera Nair/)).toHaveLength(0);
+      expect(screen.getByText(new RegExp('Past \\(' + pastCountWithout + '\\)'))).toBeInTheDocument();
+    });
+  });
+
   describe('Search filtering', () => {
     it('filters past appointments by patient name', () => {
       renderComponent();
@@ -159,6 +212,59 @@ describe('MyAppointments', () => {
       fireEvent.click(screen.getByText(/Upcoming/));
       expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
+    });
+
+    it('filters past appointments by OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-2' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Shantaram Rathod')).not.toBeInTheDocument();
+    });
+
+    it('is case-insensitive for OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100gl-2' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+    });
+
+    it('trims leading and trailing spaces from the OpenMRS ID search', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '  100GL-2  ' },
+      });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+    });
+
+    it('shows no results for a non-existing OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '999XX-9' },
+      });
+      expect(screen.getByText('No appointments found')).toBeInTheDocument();
+    });
+
+    it('updates tab counts when searching by OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-1' },
+      });
+      expect(screen.getByText(/Upcoming \(1\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Past \(0\)/)).toBeInTheDocument();
+    });
+
+    it('switches from an OpenMRS ID search to a patient name search', () => {
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: '100GL-2' } });
+      expect(screen.getAllByText(/Vimla Jadhav/).length).toBeGreaterThan(0);
+
+      fireEvent.change(input, { target: { value: 'Shantaram' } });
+      expect(screen.getAllByText(/Shantaram Rathod/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Vimla Jadhav')).not.toBeInTheDocument();
     });
   });
 

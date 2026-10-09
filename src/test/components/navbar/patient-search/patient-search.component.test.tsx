@@ -26,8 +26,10 @@ const mockPatients: Patient[] = [
   },
 ];
 
-const mockUsePatientSearch = vi.fn((_searchTerm: string) => ({
-  patients: [] as Patient[],
+const mockUsePatientSearch = vi.fn<
+  (searchTerm: string) => { patients: Patient[]; loading: boolean }
+>(() => ({
+  patients: [],
   loading: false,
 }));
 
@@ -119,6 +121,21 @@ describe('PatientSearch', () => {
     renderComponent();
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ali' } });
     expect(screen.getByText('Patients (2 results)')).toBeInTheDocument();
+  });
+
+  // OpenMRS does the ID matching on the server; the hook is mocked here, so this only
+  // checks that an ID-style term reaches the hook unchanged and what it returns is shown.
+  it('should pass an OpenMRS-ID-style term to the search hook unchanged and show the patients it returns', () => {
+    mockUsePatientSearch.mockReturnValue({
+      patients: [mockPatients[0]],
+      loading: false,
+    });
+    renderComponent();
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'OP-001' },
+    });
+    expect(mockUsePatientSearch).toHaveBeenCalledWith('OP-001');
+    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
   });
 
   it('should navigate to patient page on selection', () => {

@@ -214,6 +214,60 @@ describe('usePatientSearch', () => {
     expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('Jo');
   });
 
+  // OpenMRS does the ID matching on the server; the service is mocked here, so these
+  // tests only check that an ID-style term is passed through unchanged and that whatever
+  // the service returns is what the hook returns.
+  it('should pass an OpenMRS-ID-style term to the service unchanged and return what the service returns', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: mockResults,
+    });
+
+    const { result } = renderHook(() => usePatientSearch('OPM-100'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('OPM-100');
+    expect(result.current.patients).toEqual(mockResults);
+  });
+
+  it('should return an empty list when the service finds nothing for an OpenMRS-ID-style term', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: [],
+    });
+
+    const { result } = renderHook(() => usePatientSearch('NON-EXISTENT-999'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(result.current.patients).toEqual([]);
+  });
+
+  it('should switch from a patient name search to an OpenMRS ID search', async () => {
+    vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
+      results: mockResults,
+    });
+
+    const { rerender } = renderHook(
+      ({ term }) => usePatientSearch(term),
+      { initialProps: { term: 'John' } }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('John');
+
+    rerender({ term: 'OPM-100' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(PatientSearchService.searchPatient).toHaveBeenCalledWith('OPM-100');
+  });
+
   it('should reset patients when search term becomes empty', async () => {
     vi.mocked(PatientSearchService.searchPatient).mockResolvedValue({
       results: mockResults,

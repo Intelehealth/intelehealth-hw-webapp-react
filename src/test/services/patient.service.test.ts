@@ -202,6 +202,49 @@ describe('patientService', () => {
     });
   });
 
+  describe('OpenMRS ID normalization', () => {
+    const respond = (visits: unknown[]) =>
+      h.mockGet.mockResolvedValue({ data: { status: 'success', data: { visits, totalCount: visits.length } } });
+
+    it('keeps openMrsId when the API sends it', async () => {
+      respond([{ visitUuid: 'v1', patientName: 'A', openMrsId: '100GL-1' }]);
+      const { visits } = await patientService.getOpenVisits('hw');
+      expect(visits[0].openMrsId).toBe('100GL-1');
+    });
+
+    it('maps snake_case openmrs_id to openMrsId on every visit list', async () => {
+      const raw = { visitUuid: 'v1', patientName: 'A', openmrs_id: '100GL-2' };
+
+      respond([raw]);
+      expect((await patientService.getOpenVisits('hw')).visits[0]).toMatchObject({ openMrsId: '100GL-2' });
+      expect((await patientService.getOpenVisits('hw')).visits[0]).not.toHaveProperty('openmrs_id');
+
+      respond([raw]);
+      expect((await patientService.getPriorityVisits('hw')).visits[0].openMrsId).toBe('100GL-2');
+
+      respond([raw]);
+      expect((await patientService.getFollowupVisits('hw')).visits[0].openMrsId).toBe('100GL-2');
+
+      respond([raw]);
+      expect((await patientService.getPrescriptionsReceived('hw'))[0].openMrsId).toBe('100GL-2');
+
+      respond([raw]);
+      expect((await patientService.getPrescriptionsPending('hw'))[0].openMrsId).toBe('100GL-2');
+    });
+
+    it('prefers openMrsId over openmrs_id when both are sent, and still drops the snake_case copy', async () => {
+      respond([{ visitUuid: 'v1', patientName: 'A', openMrsId: '100GL-1', openmrs_id: '100GL-9' }]);
+      const visit = (await patientService.getOpenVisits('hw')).visits[0];
+      expect(visit.openMrsId).toBe('100GL-1');
+      expect(visit).not.toHaveProperty('openmrs_id');
+    });
+
+    it('leaves openMrsId undefined when neither key is present', async () => {
+      respond([{ visitUuid: 'v1', patientName: 'A' }]);
+      expect((await patientService.getOpenVisits('hw')).visits[0].openMrsId).toBeUndefined();
+    });
+  });
+
   describe('getPriorityVisits', () => {
     it('calls the correct URL and returns visits', async () => {
       const mockVisits = [
