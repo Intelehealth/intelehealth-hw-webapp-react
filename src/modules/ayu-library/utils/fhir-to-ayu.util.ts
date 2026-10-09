@@ -120,9 +120,14 @@ export function normalizePatientGenderCode(
 
 function readExt(
   extensions: FhirExtension[] | undefined,
-  url: string
+  url: string | string[]
 ): string | undefined {
-  return extensions?.find(e => e.url === url)?.valueString;
+  const urls = ([] as string[]).concat(url);
+  for (const candidate of urls) {
+    const value = extensions?.find(e => e.url === candidate)?.valueString;
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 // True when an item's gender/age-min/age-max extensions allow the current patient; missing constraints fail open.
