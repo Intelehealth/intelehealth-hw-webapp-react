@@ -15,6 +15,7 @@ import iconsPatientRecevied from '../../assets/icons/appointment/icons-patient-r
 import { useAppointmentList } from '../../hooks/useAppointmentList';
 import { useColumnSort } from '../../hooks/useColumnSort';
 import { useSortByName } from '../../hooks/useSortByName';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 export default function MyAppointments() {
   useBreadcrumb([
@@ -37,9 +38,7 @@ export default function MyAppointments() {
   const filteredAppointments = useMemo(() => {
     const filtered = appointments.filter(item => {
       const matchTab = item.type === activeTab;
-      const matchSearch = item.patientName
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const matchSearch = matchesPatientSearch(item, search);
       /* c8 ignore next */
       const matchStatus = statusFilter ? item.status === statusFilter : true;
       return matchTab && matchSearch && matchStatus;
@@ -47,31 +46,23 @@ export default function MyAppointments() {
     return applySort(applyNameSort(filtered));
   }, [appointments, activeTab, search, statusFilter, applySort, applyNameSort]);
 
-  const upcomingCount = useMemo(
-    () =>
-      appointments.filter(a => {
-        const matchSearch = a.patientName
-          .toLowerCase()
-          .includes(search.toLowerCase());
-        /* c8 ignore next */
-        const matchStatus = statusFilter ? a.status === statusFilter : true;
-        return a.type === 'upcoming' && matchSearch && matchStatus;
-      }).length,
-    [appointments, search, statusFilter]
-  );
+  const upcomingCount = useMemo(() => {
+    return appointments.filter(a => {
+      const matchSearch = matchesPatientSearch(a, search);
+      /* c8 ignore next */
+      const matchStatus = statusFilter ? a.status === statusFilter : true;
+      return a.type === 'upcoming' && matchSearch && matchStatus;
+    }).length;
+  }, [appointments, search, statusFilter]);
 
-  const pastCount = useMemo(
-    () =>
-      appointments.filter(a => {
-        const matchSearch = a.patientName
-          .toLowerCase()
-          .includes(search.toLowerCase());
-        /* c8 ignore next */
-        const matchStatus = statusFilter ? a.status === statusFilter : true;
-        return a.type === 'past' && matchSearch && matchStatus;
-      }).length,
-    [appointments, search, statusFilter]
-  );
+  const pastCount = useMemo(() => {
+    return appointments.filter(a => {
+      const matchSearch = matchesPatientSearch(a, search);
+      /* c8 ignore next */
+      const matchStatus = statusFilter ? a.status === statusFilter : true;
+      return a.type === 'past' && matchSearch && matchStatus;
+    }).length;
+  }, [appointments, search, statusFilter]);
 
   /* c8 ignore next */
   const clearStatusFilter = () => setStatusFilter('');

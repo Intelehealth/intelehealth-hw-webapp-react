@@ -22,10 +22,15 @@ export const EXT_URL_LANGUGAE_TEXT =
  */
 export const EXT_URL_GENDER =
   'https://intelehealth.org/fhir/StructureDefinition/gender';
-export const EXT_URL_AGE_MIN =
-  'https://intelehealth.org/fhir/StructureDefinition/age-min';
-export const EXT_URL_AGE_MAX =
-  'https://intelehealth.org/fhir/StructureDefinition/age-max';
+
+export const EXT_URL_AGE_MIN = [
+  'https://intelehealth.org/fhir/StructureDefinition/age_min',
+  'https://intelehealth.org/fhir/StructureDefinition/age-min',
+];
+export const EXT_URL_AGE_MAX = [
+  'https://intelehealth.org/fhir/StructureDefinition/age_max',
+  'https://intelehealth.org/fhir/StructureDefinition/age-max',
+];
 
 export const EXT_URL_MIN_VALUE =
   'http://hl7.org/fhir/StructureDefinition/minValue';

@@ -19,6 +19,7 @@ import type {
   PrescriptionReceivedVisit,
 } from '../../services/patient.service';
 import type { FilterValue } from '../../utils/date-filter';
+import { matchesPatientSearch } from '../../utils/patient-search';
 
 interface PrescriptionsReceivedProps {
   onCountLoaded?: (count: number) => void;
@@ -107,16 +108,12 @@ export const PrescriptionsReceived = ({
   };
 
   const filteredReceived = useMemo(() => {
-    const filtered = receivedData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = receivedData.filter(p => matchesPatientSearch(p, search));
     return applySort(applyNameSort(filtered));
   }, [receivedData, search, applySort, applyNameSort]);
 
   const filteredPending = useMemo(() => {
-    const filtered = pendingData.filter(p =>
-      p.patientName.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = pendingData.filter(p => matchesPatientSearch(p, search));
     return applySort(applyNameSort(filtered));
   }, [pendingData, search, applySort, applyNameSort]);
 
