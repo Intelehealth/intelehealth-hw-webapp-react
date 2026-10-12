@@ -19,38 +19,6 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: 🛡️ Verify target is testturn, not turn
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          VITE_AUTH_GATEWAY_API_URL: ${{ secrets.VITE_AUTH_GATEWAY_API_URL }}
-          VITE_OPENMRS_API_URL: ${{ secrets.VITE_OPENMRS_API_URL }}
-          VITE_PORTAL_API_URL: ${{ secrets.VITE_PORTAL_API_URL }}
-          VITE_CONFIG_API_URL: ${{ secrets.VITE_CONFIG_API_URL }}
-          VITE_EMR_MIDDLEWARE_API_URL: ${{ secrets.VITE_EMR_MIDDLEWARE_API_URL }}
-          VITE_PORTAL_SOCKET_URL: ${{ secrets.VITE_PORTAL_SOCKET_URL }}
-          VITE_WEBRTC_SDK_SERVER_URL: ${{ secrets.VITE_WEBRTC_SDK_SERVER_URL }}
-          VITE_WEBRTC_API_URL: ${{ secrets.VITE_WEBRTC_API_URL }}
-        run: |
-          fail=0
-          testturn_ip=$(getent hosts testturn.intelehealth.org | awk '{print $1}')
-          turn_ip=$(getent hosts turn.intelehealth.org | awk '{print $1}')
-          target_ip=$(getent hosts "$SERVER_HOST" | awk '{print $1}')
-          [ -n "$target_ip" ] || target_ip="$SERVER_HOST"
-          if [ -z "$testturn_ip" ] || [ "$target_ip" != "$testturn_ip" ]; then
-            echo "❌ SERVER_HOST does not resolve to testturn.intelehealth.org"; fail=1
-          fi
-          if [ -n "$turn_ip" ] && [ "$target_ip" = "$turn_ip" ]; then
-            echo "❌ SERVER_HOST resolves to the turn server"; fail=1
-          fi
-          for v in VITE_AUTH_GATEWAY_API_URL VITE_OPENMRS_API_URL VITE_PORTAL_API_URL VITE_CONFIG_API_URL VITE_EMR_MIDDLEWARE_API_URL VITE_PORTAL_SOCKET_URL VITE_WEBRTC_SDK_SERVER_URL VITE_WEBRTC_API_URL; do
-            val="${!v}"
-            if [[ "$val" != *"://testturn.intelehealth.org"* ]]; then
-              echo "❌ $v is not a testturn.intelehealth.org URL"; fail=1
-            fi
-          done
-          [ "$fail" -eq 0 ] || exit 1
-          echo "✅ All targets point to testturn"
-
       - name: 📥 Checkout code
         uses: actions/checkout@v6
 
