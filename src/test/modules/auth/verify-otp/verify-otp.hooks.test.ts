@@ -544,7 +544,7 @@ describe('useVerifyOtp hook', () => {
     // Double submit: both calls land before the first request settles
     let first: Promise<void> = Promise.resolve();
     await act(async () => {
-      first = Promise.resolve(result.current.verifyOtp());
+      first = result.current.verifyOtp();
       await result.current.verifyOtp();
     });
     expect(requestOtpService.default.verifyOtp).toHaveBeenCalledTimes(1);
@@ -760,8 +760,148 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Could not verify the OTP right now. Please check your connection and try again.', 'error');
     expect(result.current.loading).toBe(false);
+  });
+
+  describe('verifyOtp failure messages', () => {
+    const NETWORK_MESSAGE =
+      'Could not verify the OTP right now. Please check your connection and try again.';
+
+    // Renders the hook with a received OTP (userUuid set) and a fully typed code
+    const renderReadyHook = async () => {
+      vi.useRealTimers();
+      const service = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+      const toast = await import('../../../../services/toast');
+      vi.mocked(service.default.requestOtp).mockResolvedValue({
+        success: true,
+        message: 'OTP sent successfully',
+        data: { userUuid: 'test-uuid-123' },
+      });
+      const { result } = renderHook(() => useVerifyOtp(mockStateData));
+      await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
+      for (let i = 0; i < 6; i++) {
+        act(() => {
+          result.current.handleChange(i, String(i + 1));
+        });
+      }
+      await waitFor(() => expect(result.current.otp.join('')).toBe('123456'));
+      vi.mocked(toast.showToast).mockClear();
+      return { result, service, toast };
+    };
+
+    it('shows the backend "Otp expired!" message and lets the user resend immediately', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+      });
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBe(0);
+      expect(result.current.loading).toBe(false);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('shows the backend "Otp incorrect!" message without touching the resend timer', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp incorrect!',
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Otp incorrect!', 'error');
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+    });
+
+    it('falls back to "Invalid OTP" when the backend sends no message', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: undefined as unknown as string,
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    });
+
+    it('does not report a network error as an invalid OTP', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue(
+        Object.assign(new Error('Network Error'), { isAxiosError: true })
+      );
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+      expect(toast.showToast).not.toHaveBeenCalledWith('Invalid OTP', expect.anything(), 'error');
+    });
+
+    it('does not report a 5xx without a message as an invalid OTP', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue({ response: { status: 502, data: {} } });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+    });
+
+    it('shows the server message for a 5xx response', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue({
+        response: { status: 500, data: { message: 'i is not defined' } },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'i is not defined', 'error');
+    });
+
+    it('shows the server message for a 4xx response and falls back to "Invalid OTP" without one', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValueOnce({
+        response: { status: 400, data: { message: 'Bad request' } },
+      });
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Bad request', 'error');
+
+      vi.mocked(service.default.verifyOtp).mockRejectedValueOnce({ response: { status: 400 } });
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenLastCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    });
+
+    it('handles a rejection that is not an object', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue(null);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+    });
   });
 
   // Additional tests for branch coverage

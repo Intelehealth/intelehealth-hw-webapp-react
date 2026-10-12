@@ -19,7 +19,7 @@ interface UseVerifyOtpReturn {
     e: React.KeyboardEvent<HTMLInputElement>
   ) => void;
   handleResend: () => Promise<void>;
-  verifyOtp: () => void;
+  verifyOtp: () => Promise<void>;
   formatTime: (seconds: number) => string;
   requestOtp: () => Promise<void>;
   userUuid: string;
@@ -93,9 +93,8 @@ export const useVerifyOtp = (stateData?: {
 
     if (!userUuid || otp.includes('')) return;
 
-    // A second in-flight verify (double click / Enter) would reach the backend
-    // after the first one consumed the OTP and surface a bogus "Invalid OTP"
-    // toast on top of the success navigation.
+    // Defensive: never run two verify requests at once. The ref is per hook
+    // instance and is always released in `finally`.
     if (verifyInFlight.current) return;
     verifyInFlight.current = true;
 
@@ -112,7 +111,16 @@ export const useVerifyOtp = (stateData?: {
       const result = await requestOtpService.verifyOtp(payload);
 
       if (result.success === false) {
-        throw new Error(result.message || 'OTP verification failed');
+        // The backend answers HTTP 200 + success:false with "Otp expired!" or
+        // "Otp incorrect!" - show that instead of a blanket "Invalid OTP".
+        const message = result.message || 'Invalid OTP';
+        const expired = /expired/i.test(message);
+        // An expired OTP can never be accepted again, so don't make the user
+        // wait for the countdown before they can ask for a new one.
+        if (expired) setTimeLeft(0);
+        setLoading(false);
+        showToast(expired ? 'OTP Expired' : 'Invalid OTP', message, 'error');
+        return;
       }
 
       showToast('Verify OTP', 'OTP verified successfully', 'success');
@@ -124,14 +132,26 @@ export const useVerifyOtp = (stateData?: {
       });
     } catch (error: unknown) {
       setLoading(false);
-      let message = 'Invalid OTP';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as {
-          response?: { data?: { message?: string } };
-        };
-        message = axiosError.response?.data?.message || message;
+      const response = (
+        error as {
+          response?: { status?: number; data?: { message?: string } };
+        } | null
+      )?.response;
+      if (response && (response.status ?? 0) < 500) {
+        showToast(
+          'Invalid OTP',
+          response.data?.message || 'Invalid OTP',
+          'error'
+        );
+      } else {
+        // Network failure, timeout or 5xx: the OTP itself may well be valid.
+        showToast(
+          'Verify OTP Failed',
+          response?.data?.message ||
+            'Could not verify the OTP right now. Please check your connection and try again.',
+          'error'
+        );
       }
-      showToast('Invalid OTP', message, 'error');
     } finally {
       verifyInFlight.current = false;
     }
