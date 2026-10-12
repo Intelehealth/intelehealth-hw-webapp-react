@@ -25,11 +25,9 @@ interface UseVerifyOtpReturn {
   userUuid: string;
 }
 
-// How long the backend accepts an OTP (portal auth.service.js `verifyOtp`):
-// a password-reset OTP is valid for under 1 minute, the others for 3 minutes.
-// The Resend countdown must match, otherwise users keep typing an OTP that has
-// already expired while the screen still says "Resend in 2:xx".
-export const PASSWORD_OTP_VALIDITY_SECONDS = 60;
+// How long an OTP is valid. The backend returns the real value as
+// `expiresInSeconds` when it sends the OTP and the countdown follows it; this
+// is only the fallback for a response that does not carry it.
 export const DEFAULT_OTP_VALIDITY_SECONDS = 180;
 
 export const useVerifyOtp = (stateData?: {
@@ -39,13 +37,9 @@ export const useVerifyOtp = (stateData?: {
   countryCode?: string;
 }): UseVerifyOtpReturn => {
   const navigate = useNavigate();
-  const otpValiditySeconds =
-    stateData?.otpFor === 'password'
-      ? PASSWORD_OTP_VALIDITY_SECONDS
-      : DEFAULT_OTP_VALIDITY_SECONDS;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [timeLeft, setTimeLeft] = useState(otpValiditySeconds);
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_OTP_VALIDITY_SECONDS);
   const [loading, setLoading] = useState(false);
   const [userUuid, setUserUuid] = useState<string>('');
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
@@ -70,6 +64,11 @@ export const useVerifyOtp = (stateData?: {
 
       if (response.success && response.data?.userUuid) {
         setUserUuid(response.data.userUuid);
+        // Count down the validity the backend actually applies to this OTP
+        const expiresInSeconds = response.data.expiresInSeconds;
+        if (typeof expiresInSeconds === 'number' && expiresInSeconds > 0) {
+          setTimeLeft(expiresInSeconds);
+        }
         showToast('Request OTP', 'OTP sent successfully', 'success');
       } else {
         showToast(
@@ -171,7 +170,7 @@ export const useVerifyOtp = (stateData?: {
   // ✅ Resend OTP
   const handleResend = async () => {
     setOtp(['', '', '', '', '', '']);
-    setTimeLeft(otpValiditySeconds);
+    setTimeLeft(DEFAULT_OTP_VALIDITY_SECONDS);
     inputsRef.current[0]?.focus();
     await requestOtp();
   };

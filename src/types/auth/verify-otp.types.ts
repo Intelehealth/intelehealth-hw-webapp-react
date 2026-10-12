@@ -11,6 +11,7 @@ export interface RequestOtpResponseModel {
   message: string;
   data?: {
     userUuid: string;
+    expiresInSeconds?: number; // how long the OTP stays valid
   };
 }
 
