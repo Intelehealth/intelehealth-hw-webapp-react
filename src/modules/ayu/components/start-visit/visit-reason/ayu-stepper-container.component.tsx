@@ -193,10 +193,10 @@ const hasCameraOption = (question: AyuQuestion): boolean =>
     )
   );
 
-/** True when a PE question has only one non-camera regular option (auto-selected). */
 const isSingleOptionPE = (question: AyuQuestion): boolean => {
   if (resolveAyuComponent(question) !== PHYSICAL_EXAM_OPTIONS_COMPONENT)
     return false;
+  if ((question.item?.length ?? 0) === 0) return false;
   const allOpts = question.answerOption ?? [];
   const regularCount = allOpts.filter(
     o =>
