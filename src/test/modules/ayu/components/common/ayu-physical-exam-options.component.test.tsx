@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AyuPhysicalExamOptions } from '../../../../../modules/ayu/components/common/ayu-physical-exam-options.component';
 import type { AyuQuestion } from '../../../../../modules/ayu-library/types/ayu.types';
 import {
   EXT_URL_DISPLAY_TEXT,
@@ -13,6 +12,7 @@ import {
   EXT_URL_PE_SECTION_KEY,
   PE_OPTION_KIND_CAMERA,
 } from '../../../../../modules/ayu-library/utils/constants';
+import { AyuPhysicalExamOptions } from '../../../../../modules/ayu/components/common/ayu-physical-exam-options.component';
 
 /* Camera-context mock with mutable handlers so tests can:
  *   - vary the images returned by cameraImagesFor
@@ -460,6 +460,9 @@ describe('AyuPhysicalExamOptions', () => {
             },
           },
         ],
+        item: [
+          { linkId: 'sys', text: 'Enter systolic BP', type: 'integer' },
+        ],
       };
       const setAnswer = vi.fn();
       render(
@@ -488,6 +491,9 @@ describe('AyuPhysicalExamOptions', () => {
         answerOption: [
           { valueString: 'lying-vs' },
         ],
+        item: [
+          { linkId: 'sys', text: 'Enter systolic BP', type: 'integer' },
+        ],
       };
       const setAnswer = vi.fn();
       render(
@@ -498,6 +504,36 @@ describe('AyuPhysicalExamOptions', () => {
         />
       );
       expect(setAnswer).toHaveBeenCalledWith(question, 'lying-vs');
+    });
+
+    it('renders the tile for a single option that has no child questions', () => {
+      const question: AyuQuestion = {
+        linkId: '15fqgqi5n6m8q6kencbks5ocgi',
+        text: 'For the following joint examinations; please always compare with other side',
+        type: 'choice',
+        extension: [{ url: EXT_URL_PE_SECTION_KEY, valueString: 'Joint' }],
+        answerOption: [
+          {
+            valueCoding: {
+              code: 'ID_1596151277',
+              display: 'Yes, I understand',
+            },
+          },
+        ],
+      };
+      const setAnswer = vi.fn();
+      render(
+        <AyuPhysicalExamOptions
+          question={question}
+          value={undefined}
+          setAnswer={setAnswer}
+        />
+      );
+    
+      expect(
+        screen.getByRole('button', { name: 'Yes, I understand' })
+      ).toBeInTheDocument();
+      expect(setAnswer).not.toHaveBeenCalled();
     });
 
     it('shows camera tile when single regular option with camera option present', () => {
@@ -518,6 +554,9 @@ describe('AyuPhysicalExamOptions', () => {
               { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
             ],
           },
+        ],
+        item: [
+          { linkId: 'sys', text: 'Enter systolic BP', type: 'integer' },
         ],
       };
       const setAnswer = vi.fn();

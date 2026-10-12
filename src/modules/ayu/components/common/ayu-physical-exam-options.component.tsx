@@ -46,7 +46,9 @@ export const AyuPhysicalExamOptions = ({
   );
   const cameraCode = cameraOption?.valueCoding?.code;
   const regularOptions = allOptions.filter(o => o !== cameraOption);
-  const isSingleOption = regularOptions.length === 1;
+
+  const isSingleOption =
+    regularOptions.length === 1 && (question?.item?.length ?? 0) > 0;
   const isMultiChoice = !!question?.repeats;
 
   /*
