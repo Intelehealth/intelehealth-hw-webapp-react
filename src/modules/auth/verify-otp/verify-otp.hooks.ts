@@ -25,6 +25,13 @@ interface UseVerifyOtpReturn {
   userUuid: string;
 }
 
+// How long the backend accepts an OTP (portal auth.service.js `verifyOtp`):
+// a password-reset OTP is valid for under 1 minute, the others for 3 minutes.
+// The Resend countdown must match, otherwise users keep typing an OTP that has
+// already expired while the screen still says "Resend in 2:xx".
+export const PASSWORD_OTP_VALIDITY_SECONDS = 60;
+export const DEFAULT_OTP_VALIDITY_SECONDS = 180;
+
 export const useVerifyOtp = (stateData?: {
   value: string;
   type: 'username' | 'phonenumber' | 'email';
@@ -32,9 +39,13 @@ export const useVerifyOtp = (stateData?: {
   countryCode?: string;
 }): UseVerifyOtpReturn => {
   const navigate = useNavigate();
+  const otpValiditySeconds =
+    stateData?.otpFor === 'password'
+      ? PASSWORD_OTP_VALIDITY_SECONDS
+      : DEFAULT_OTP_VALIDITY_SECONDS;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [timeLeft, setTimeLeft] = useState(180);
+  const [timeLeft, setTimeLeft] = useState(otpValiditySeconds);
   const [loading, setLoading] = useState(false);
   const [userUuid, setUserUuid] = useState<string>('');
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
@@ -160,7 +171,7 @@ export const useVerifyOtp = (stateData?: {
   // ✅ Resend OTP
   const handleResend = async () => {
     setOtp(['', '', '', '', '', '']);
-    setTimeLeft(180);
+    setTimeLeft(otpValiditySeconds);
     inputsRef.current[0]?.focus();
     await requestOtp();
   };

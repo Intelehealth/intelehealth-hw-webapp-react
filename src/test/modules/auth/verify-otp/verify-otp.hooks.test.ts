@@ -1,7 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { useVerifyOtp } from '../../../../modules/auth/verify-otp/verify-otp.hooks';
+import {
+  DEFAULT_OTP_VALIDITY_SECONDS,
+  PASSWORD_OTP_VALIDITY_SECONDS,
+  useVerifyOtp,
+} from '../../../../modules/auth/verify-otp/verify-otp.hooks';
 
 // Mock external dependencies
 vi.mock('../../../../modules/auth/verify-otp/verify-otp.service', () => ({
@@ -764,6 +768,43 @@ describe('useVerifyOtp hook', () => {
     expect(result.current.loading).toBe(false);
   });
 
+  describe('resend countdown matches the backend OTP validity', () => {
+    const passwordState = {
+      value: 'testuser',
+      type: 'username' as const,
+      otpFor: 'password',
+    };
+
+    it('uses the 1 minute validity of a password-reset OTP', () => {
+      const { result } = renderHook(() => useVerifyOtp(passwordState));
+      expect(result.current.timeLeft).toBe(PASSWORD_OTP_VALIDITY_SECONDS);
+      expect(PASSWORD_OTP_VALIDITY_SECONDS).toBe(60);
+    });
+
+    it('keeps the 3 minute window for any other purpose', () => {
+      const { result } = renderHook(() => useVerifyOtp(mockStateData));
+      expect(result.current.timeLeft).toBe(DEFAULT_OTP_VALIDITY_SECONDS);
+      expect(DEFAULT_OTP_VALIDITY_SECONDS).toBe(180);
+    });
+
+    it('offers Resend when the password OTP validity ends and restarts the same window on resend', async () => {
+      const { result } = renderHook(() => useVerifyOtp(passwordState));
+
+      // The countdown re-arms a 1s timeout on every render, so tick it second by second
+      for (let i = 0; i < PASSWORD_OTP_VALIDITY_SECONDS; i++) {
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+      }
+      expect(result.current.timeLeft).toBe(0);
+
+      await act(async () => {
+        await result.current.handleResend();
+      });
+      expect(result.current.timeLeft).toBe(PASSWORD_OTP_VALIDITY_SECONDS);
+    });
+  });
+
   describe('verifyOtp failure messages', () => {
     const NETWORK_MESSAGE =
       'Could not verify the OTP right now. Please check your connection and try again.';
@@ -789,6 +830,26 @@ describe('useVerifyOtp hook', () => {
       vi.mocked(toast.showToast).mockClear();
       return { result, service, toast };
     };
+
+    it('releases the in-flight guard after a successful verify and shows no error toast', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: true,
+        message: 'Otp verified successfully!',
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP', 'OTP verified successfully', 'success');
+      expect(toast.showToast).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), 'error');
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(service.default.verifyOtp).toHaveBeenCalledTimes(2);
+    });
 
     it('shows the backend "Otp expired!" message and lets the user resend immediately', async () => {
       const { result, service, toast } = await renderReadyHook();
@@ -2061,17 +2122,22 @@ describe('useVerifyOtp hook', () => {
     // but returns falsy (empty string) on subsequent property accesses.
     // The guard checks !stateData?.value (first access) -> truthy
     // Line 101 uses stateData?.value (second access) -> falsy -> triggers || ''
+    // Reads are only counted once `armed` (the render itself also reads otpFor
+    // to pick the resend countdown, so it must not consume the "first access").
+    let armed = false;
     let valueCallCount = 0;
     let otpForCallCount = 0;
     const trickStateData = {
       type: 'username' as const,
       get value() {
+        if (!armed) return 'testuser';
         valueCallCount++;
         // First access (guard check): return truthy value
         // Subsequent accesses (line 101): return empty string
         return valueCallCount <= 1 ? 'testuser' : '';
       },
       get otpFor() {
+        if (!armed) return 'login';
         otpForCallCount++;
         // First access (guard check): return truthy value
         // Subsequent accesses (line 102): return empty string
@@ -2100,7 +2166,8 @@ describe('useVerifyOtp hook', () => {
       expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
     }, { timeout: 1000 });
 
-    // Reset the getter call counts so the next verifyOtp call has fresh counters
+    // Arm the getters (fresh counters) so the next verifyOtp call is counted
+    armed = true;
     valueCallCount = 0;
     otpForCallCount = 0;
 
