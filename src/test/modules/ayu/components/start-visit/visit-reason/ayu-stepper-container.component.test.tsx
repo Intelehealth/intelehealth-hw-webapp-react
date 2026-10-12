@@ -8018,6 +8018,43 @@ describe('AyuStepperContainer', () => {
       // Nested value should still appear
       expect(screen.getByText('120')).toBeInTheDocument();
     });
+
+    it('should not treat a PE question that has nested items but no answerOption as single-option', () => {
+      // answerOption is absent (undefined), so the option list falls back to []
+      // and the question must not be hidden as an auto-selected single option
+      const question: AyuQuestion = {
+        linkId: 'bp-pe-no-options',
+        text: 'Blood Pressure',
+        type: 'choice',
+        item: [{ linkId: 'systolic-no-options', text: 'Systolic', type: 'integer' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions' as never);
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'bp-pe-no-options': 'lying', 'systolic-no-options': '130' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [question, { linkId: 'q2', text: 'Next', type: 'string' }],
+        isLast: true,
+      });
+
+      render(
+        <AyuStepperContainer
+          questionnaire={createMockQuestionnaire([question])}
+          initialAnswers={{ 'bp-pe-no-options': 'lying', 'systolic-no-options': '130' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      expect(screen.getByText('130')).toBeInTheDocument();
+    });
   });
 
   describe('collectAnsweredRows Check 2 branches (lines 239, 246)', () => {
