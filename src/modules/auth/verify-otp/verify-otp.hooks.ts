@@ -135,9 +135,12 @@ export const useVerifyOtp = (stateData?: {
         // The backend answers HTTP 200 + success:false with "Otp expired!" or
         // "Otp incorrect!" - show that instead of a blanket "Invalid OTP".
         const message = result.message || 'Invalid OTP';
-        // The portal has no machine-readable reason, only the "Otp expired!"
-        // wording, so match on it; switch to a reason code once it sends one.
-        const expired = /expired/i.test(message);
+        // Prefer the portal's machine-readable reason when it sends one; until
+        // it does, fall back to matching the "Otp expired!" wording.
+        const reason = result.data?.reason;
+        const expired = reason
+          ? reason === 'EXPIRED'
+          : /expired/i.test(message);
         // An expired OTP can never be accepted again, so don't make the user
         // wait for the countdown before they can ask for a new one.
         if (expired) setTimeLeft(0);

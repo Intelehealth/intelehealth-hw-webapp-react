@@ -29,6 +29,12 @@ export interface VerifyOtpModel {
 export interface VerifyOtpResponseModel {
   success: boolean;
   message: string;
+  data?: {
+    // Planned, not sent by the portal yet. When present it decides whether a
+    // failed verification counts as expired; the "Otp expired!" wording is only
+    // the fallback.
+    reason?: 'EXPIRED' | 'INCORRECT';
+  } | null;
 }
 
 export interface VerifyOtpState {

@@ -936,6 +936,56 @@ describe('useVerifyOtp hook', () => {
       expect(result.current.timeLeft).toBeGreaterThan(0);
     });
 
+    it('treats a reason code of EXPIRED as expired whatever the wording', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Le code a expire',
+        data: { reason: 'EXPIRED' },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Le code a expire', 'error');
+      expect(result.current.timeLeft).toBe(0);
+    });
+
+    it('lets a reason code of INCORRECT win over an "expired" wording', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+        data: { reason: 'INCORRECT' },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+    });
+
+    it.each([
+      ['data is null', null],
+      ['data has no reason', {}],
+    ])('falls back to the "Otp expired!" wording when %s', async (_label, data) => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+        data,
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBe(0);
+    });
     it('falls back to "Invalid OTP" when the backend sends no message', async () => {
       const { result, service, toast } = await renderReadyHook();
       vi.mocked(service.default.verifyOtp).mockResolvedValue({
