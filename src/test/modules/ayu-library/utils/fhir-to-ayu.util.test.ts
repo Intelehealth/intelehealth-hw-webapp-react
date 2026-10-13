@@ -7,8 +7,8 @@ import type {
   FhirQuestionnaire,
 } from '../../../../modules/ayu-library/types/fhir-raw.types';
 import {
-  EXT_URL_AGE_MAX as EXT_AGE_MAX,
-  EXT_URL_AGE_MIN as EXT_AGE_MIN,
+  EXT_URL_AGE_MAX as EXT_AGE_MAX_URLS,
+  EXT_URL_AGE_MIN as EXT_AGE_MIN_URLS,
   EXT_URL_GENDER as EXT_GENDER,
   EXT_URL_IS_EXCLUSIVE_OPTION,
   EXT_URL_ITEM_CONTROL,
@@ -32,6 +32,10 @@ import {
   transformFhirPhysExamToAyu,
   transformFhirToAyu,
 } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+
+
+const [EXT_AGE_MIN, EXT_AGE_MIN_LEGACY] = EXT_AGE_MIN_URLS;
+const [EXT_AGE_MAX, EXT_AGE_MAX_LEGACY] = EXT_AGE_MAX_URLS;
 
 describe('fhir-to-ayu.util', () => {
   describe('normalizeType', () => {
@@ -1145,6 +1149,17 @@ describe('fhir-to-ayu.util', () => {
       const ext = [
         { url: EXT_AGE_MIN, valueString: '14' },
         { url: EXT_AGE_MAX, valueString: '49' },
+      ];
+      expect(matchesDemographics(ext, { age: 13 })).toBe(false);
+      expect(matchesDemographics(ext, { age: 14 })).toBe(true);
+      expect(matchesDemographics(ext, { age: 49 })).toBe(true);
+      expect(matchesDemographics(ext, { age: 50 })).toBe(false);
+    });
+
+    it('still honours the legacy hyphenated age-min/age-max spellings', () => {
+      const ext = [
+        { url: EXT_AGE_MIN_LEGACY, valueString: '14' },
+        { url: EXT_AGE_MAX_LEGACY, valueString: '49' },
       ];
       expect(matchesDemographics(ext, { age: 13 })).toBe(false);
       expect(matchesDemographics(ext, { age: 14 })).toBe(true);

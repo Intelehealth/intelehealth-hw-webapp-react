@@ -113,6 +113,48 @@ describe('AppointmentListComponent', () => {
     });
   });
 
+  describe('Appointment with no OpenMRS ID', () => {
+    // The backend column is nullable, so a booked appointment can arrive without one.
+    const upcomingTemplate = appointmentsListData.find(a => a.type === 'upcoming')!;
+    const noIdAppointment = {
+      ...upcomingTemplate,
+      id: 9001,
+      patientName: 'Meera Nair',
+      openMrsId: null as unknown as string,
+    };
+
+    beforeEach(() => {
+      vi.spyOn(useAppointmentListModule, 'useAppointmentList').mockReturnValue({
+        data: [...appointmentsListData, noIdAppointment],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+    });
+
+    it('does not throw when a search term matches no name, and does not show that appointment', () => {
+      renderComponent();
+      expect(() =>
+        fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+          target: { value: 'Bapu' },
+        })
+      ).not.toThrow();
+      expect(screen.queryAllByText('Meera Nair')).toHaveLength(0);
+    });
+
+    it('still finds that appointment by name, and not by an ID it does not have', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: 'meera' },
+      });
+      expect(screen.getAllByText('Meera Nair').length).toBeGreaterThan(0);
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL' },
+      });
+      expect(screen.queryAllByText('Meera Nair')).toHaveLength(0);
+    });
+  });
+
   describe('Search filtering', () => {
     it('filters upcoming appointments by patient name', () => {
       renderComponent();
@@ -146,6 +188,86 @@ describe('AppointmentListComponent', () => {
       fireEvent.change(input, { target: { value: '' } });
       expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
+    });
+
+    it('filters upcoming appointments by OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-1' },
+      });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Ramesh Patil')).not.toBeInTheDocument();
+    });
+
+    it('is case-insensitive for OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100gl-1' },
+      });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+    });
+
+    it('matches a partial OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: 'GL-4' },
+      });
+      expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Bapu Mali')).not.toBeInTheDocument();
+    });
+
+    it('trims leading and trailing spaces from the OpenMRS ID search', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '  100GL-1  ' },
+      });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+    });
+
+    it('shows no appointments found for a non-existing OpenMRS ID', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '999XX-9' },
+      });
+      expect(screen.getByText('No appointments found.')).toBeInTheDocument();
+    });
+
+    it('updates results when the OpenMRS ID search changes', () => {
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: '100GL-1' } });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Ramesh Patil')).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: '100GL-4' } });
+      expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('Bapu Mali')).not.toBeInTheDocument();
+    });
+
+    it('does not filter results when the OpenMRS ID search is empty', () => {
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '' },
+      });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Ramesh Patil/).length).toBeGreaterThan(0);
+    });
+
+    it('combines OpenMRS ID search with the date filter', () => {
+      renderComponent();
+      fireEvent.click(screen.getByAltText('filter'));
+      // Mock filter applies 2025-10-10, which matches Bapu Mali's visit
+      fireEvent.click(screen.getByTestId('mock-filter-apply'));
+
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '100GL-1' },
+      });
+      expect(screen.getAllByText(/Bapu Mali/).length).toBeGreaterThan(0);
+
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: '999XX-9' },
+      });
+      expect(screen.getByText('No appointments found.')).toBeInTheDocument();
     });
   });
 

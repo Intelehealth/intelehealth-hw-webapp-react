@@ -273,6 +273,32 @@ describe('PrescriptionsReceived', () => {
       expect(screen.getAllByText('Sarrah Paul').length).toBeGreaterThan(0);
       expect(screen.queryByText('Nikita Agrawal')).not.toBeInTheDocument();
     });
+
+    it('filters Received tab by OpenMRS ID (case-insensitive, trimmed)', () => {
+      mockUsePrescriptionsReceived.mockReturnValue({
+        ...defaultReceivedState,
+        data: mockReceivedData.map((p, i) => ({ ...p, openMrsId: `100GL-${i + 1}` })),
+      });
+      renderComponent();
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: '  100gl-2 ' } });
+      expect(screen.getAllByText('Nikita Agrawal').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Sarrah Paul')).not.toBeInTheDocument();
+    });
+
+    it('filters Pending tab by OpenMRS ID', () => {
+      mockUsePrescriptionsPending.mockReturnValue({
+        ...defaultPendingState,
+        data: [{ ...mockPendingData[0], openMrsId: '100GL-9' }],
+      });
+      renderComponent();
+      fireEvent.click(screen.getByText('Pending').closest('button')!);
+      const input = screen.getByPlaceholderText('Find patient');
+      fireEvent.change(input, { target: { value: '100GL-9' } });
+      expect(screen.getAllByText('Ravi Kumar').length).toBeGreaterThan(0);
+      fireEvent.change(input, { target: { value: 'NOPE-1' } });
+      expect(screen.queryByText('Ravi Kumar')).not.toBeInTheDocument();
+    });
   });
 
   describe('Loading and error states', () => {

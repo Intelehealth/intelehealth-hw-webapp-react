@@ -659,6 +659,11 @@ describe('appointmentService', () => {
       hwName: 'Nurse One',
     };
 
+    it('maps a null OpenMRS ID from the backend to an empty string, so the list item never holds null', () => {
+      const item = mapBookedAppointment({ ...rawAppointment, openMrsId: null }, now);
+      expect(item.openMrsId).toBe('');
+    });
+
     it('maps API fields onto the list item shape', () => {
       const item = mapBookedAppointment(rawAppointment, now);
       expect(item.id).toBe(42);

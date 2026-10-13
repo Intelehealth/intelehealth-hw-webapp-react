@@ -108,7 +108,8 @@ export interface RawBookedAppointment {
   locationUuid: string;
   hwUUID: string;
   patientName: string;
-  openMrsId: string;
+  /** The backend column is nullable and booking does not require it. */
+  openMrsId: string | null;
   status: string;
   reason: string | null;
   patientAge: string | null;

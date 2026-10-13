@@ -119,7 +119,7 @@ export function mapBookedAppointment(
     gender: raw.patientGender ?? '',
     age: raw.patientAge ?? '',
     visitId: raw.visitUuid,
-    openMrsId: raw.openMrsId,
+    openMrsId: raw.openMrsId ?? '',
     symptom: raw.speciality,
     dateTime: formatDateTime(raw.slotDate, raw.slotTime),
     slotDay: raw.slotDay,

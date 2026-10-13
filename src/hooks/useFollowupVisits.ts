@@ -5,6 +5,7 @@ import { patientService } from '../services/patient.service';
 export interface FollowupVisit {
   visitUuid: string;
   patientName: string;
+  openMrsId?: string;
   age: number;
   visitCreatedDate: string;
   clinicName: string;

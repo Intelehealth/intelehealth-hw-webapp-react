@@ -121,6 +121,30 @@ describe('OpenVisitsComponent', () => {
     mockUsePriorityVisits.mockReturnValue(defaultPriorityState);
   });
 
+  describe('OpenMRS ID search', () => {
+    const withIds = mockData.map((p, i) => ({ ...p, openMrsId: `100GL-${i + 1}` }));
+
+    it('filters by OpenMRS ID (case-insensitive, trimmed)', () => {
+      mockUseOpenVisits.mockReturnValue({ ...defaultState, data: withIds });
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: ' 100gl-3 ' },
+      });
+      expect(screen.getAllByText('Zara Malik').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Ravi Kumar')).not.toBeInTheDocument();
+    });
+
+    it('shows no rows for a non-existing OpenMRS ID', () => {
+      mockUseOpenVisits.mockReturnValue({ ...defaultState, data: withIds });
+      renderComponent();
+      fireEvent.change(screen.getByPlaceholderText('Find patient'), {
+        target: { value: 'ZZZ-999' },
+      });
+      expect(screen.queryByText('Ravi Kumar')).not.toBeInTheDocument();
+      expect(screen.queryByText('Zara Malik')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Initial render', () => {
     it('renders without crashing', () => {
       expect(() => renderComponent()).not.toThrow();
