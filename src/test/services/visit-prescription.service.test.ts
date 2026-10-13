@@ -508,6 +508,26 @@ describe('getVisitPrescriptionData', () => {
     expect(result.advices).toEqual(['Drink plenty of water', 'Please do not walk fast']);
   });
 
+  it('falls back to the stripped display when person.display is empty', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: { display: '522-3 - Jane Doe', person: { display: '' }, uuid: 'p', attributes: [] },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorName).toBe('Jane Doe');
+  });
+
+  it('only strips the [ADDITIONAL_INSTRUCTION] marker at the start of an advice', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '67a050c1-35e5-451c-a4ab-fff9d57b0db1' }, value: 'Note [ADDITIONAL_INSTRUCTION]keep this' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.advices).toEqual(['Note [ADDITIONAL_INSTRUCTION]keep this']);
+  });
+
   it('maps diagnoses, medicines, advices, tests, referrals, followUp', async () => {
     mockGet.mockResolvedValue(makeVisit());
     const result = await getVisitPrescriptionData('visit-uuid-1');
