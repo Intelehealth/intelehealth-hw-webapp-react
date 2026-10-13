@@ -1,7 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { useVerifyOtp } from '../../../../modules/auth/verify-otp/verify-otp.hooks';
+import {
+  DEFAULT_OTP_VALIDITY_SECONDS,
+  SHORT_OTP_VALIDITY_SECONDS,
+  useVerifyOtp,
+} from '../../../../modules/auth/verify-otp/verify-otp.hooks';
 
 // Mock external dependencies
 vi.mock('../../../../modules/auth/verify-otp/verify-otp.service', () => ({
@@ -514,6 +518,56 @@ describe('useVerifyOtp hook', () => {
     });
   });
 
+  it('should not send a second verify request while one is in flight, but allow a retry after a failure', async () => {
+    vi.useRealTimers();
+
+    const requestOtpService = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+    vi.mocked(requestOtpService.default.requestOtp).mockResolvedValue({
+      success: true,
+      message: 'OTP sent successfully',
+      data: { userUuid: 'test-uuid-123' },
+    });
+
+    let rejectVerify: (reason: unknown) => void = () => {};
+    vi.mocked(requestOtpService.default.verifyOtp).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectVerify = reject;
+      })
+    );
+
+    const { result } = renderHook(() => useVerifyOtp(mockStateData));
+    await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
+
+    for (let i = 0; i < 6; i++) {
+      act(() => {
+        result.current.handleChange(i, String(i + 1));
+      });
+    }
+    await waitFor(() => expect(result.current.otp.join('')).toBe('123456'));
+
+    // Double submit: both calls land before the first request settles
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = result.current.verifyOtp();
+      await result.current.verifyOtp();
+    });
+    expect(requestOtpService.default.verifyOtp).toHaveBeenCalledTimes(1);
+
+    // The first attempt fails -> the guard is released so the user can retry
+    vi.mocked(requestOtpService.default.verifyOtp).mockResolvedValueOnce({
+      success: true,
+      message: 'OTP verified successfully',
+    });
+    await act(async () => {
+      rejectVerify(new Error('Invalid OTP'));
+      await first;
+    });
+    await act(async () => {
+      await result.current.verifyOtp();
+    });
+    expect(requestOtpService.default.verifyOtp).toHaveBeenCalledTimes(2);
+  });
+
   it('should handle verifyOtp when result.success is false', async () => {
     vi.useRealTimers(); // Use real timers for async operations
     
@@ -710,8 +764,307 @@ describe('useVerifyOtp hook', () => {
       await result.current.verifyOtp();
     });
 
-    expect(showToast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    expect(showToast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'Could not verify the OTP right now. Please check your connection and try again.', 'error');
     expect(result.current.loading).toBe(false);
+  });
+
+  describe('resend countdown follows the OTP validity', () => {
+    const stateFor = (otpFor: string) => ({
+      value: 'testuser',
+      type: 'username' as const,
+      otpFor,
+    });
+
+    // Renders the hook after the backend answered the OTP request with `data`
+    const renderAfterRequest = async (
+      otpFor: string,
+      data: Record<string, unknown>
+    ) => {
+      vi.useRealTimers();
+      const service = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+      vi.mocked(service.default.requestOtp).mockResolvedValue({
+        success: true,
+        message: 'OTP sent successfully',
+        data: { userUuid: 'test-uuid-123', ...data },
+      } as never);
+      const state = stateFor(otpFor);
+      const { result } = renderHook(() => useVerifyOtp(state));
+      await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
+      return result;
+    };
+
+    it.each(['password', 'verification'])(
+      'starts a %s OTP at the 1 minute validity the portal applies',
+      otpFor => {
+        const { result } = renderHook(() => useVerifyOtp(stateFor(otpFor)));
+        expect(result.current.timeLeft).toBe(SHORT_OTP_VALIDITY_SECONDS);
+        expect(SHORT_OTP_VALIDITY_SECONDS).toBe(60);
+      }
+    );
+
+    it('keeps the 3 minute window for the other purposes and without state', () => {
+      const { result } = renderHook(() => useVerifyOtp(stateFor('username')));
+      expect(result.current.timeLeft).toBe(DEFAULT_OTP_VALIDITY_SECONDS);
+      expect(DEFAULT_OTP_VALIDITY_SECONDS).toBe(180);
+
+      const { result: noState } = renderHook(() => useVerifyOtp(undefined));
+      expect(noState.current.timeLeft).toBe(DEFAULT_OTP_VALIDITY_SECONDS);
+    });
+
+    it('offers Resend when the password OTP validity ends and restarts the same window on resend', async () => {
+      const state = stateFor('password');
+      const { result } = renderHook(() => useVerifyOtp(state));
+
+      // The countdown re-arms a 1s timeout on every render, so tick it second by second
+      for (let i = 0; i < SHORT_OTP_VALIDITY_SECONDS; i++) {
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+      }
+      expect(result.current.timeLeft).toBe(0);
+
+      await act(async () => {
+        await result.current.handleResend();
+      });
+      expect(result.current.timeLeft).toBe(SHORT_OTP_VALIDITY_SECONDS);
+    });
+
+    it('lets an expiresInSeconds sent by the backend override the default', async () => {
+      const result = await renderAfterRequest('password', { expiresInSeconds: 90 });
+      expect(result.current.timeLeft).toBeLessThanOrEqual(90);
+      expect(result.current.timeLeft).toBeGreaterThan(85);
+    });
+
+    it('restarts from the backend value when the OTP is resent', async () => {
+      const result = await renderAfterRequest('password', { expiresInSeconds: 120 });
+
+      await act(async () => {
+        await result.current.handleResend();
+      });
+
+      expect(result.current.timeLeft).toBeLessThanOrEqual(120);
+      expect(result.current.timeLeft).toBeGreaterThan(115);
+    });
+
+    it.each([
+      ['is missing', {}],
+      ['is zero', { expiresInSeconds: 0 }],
+      ['is negative', { expiresInSeconds: -5 }],
+      ['is not a number', { expiresInSeconds: '180' }],
+    ])('keeps the 1 minute password default when expiresInSeconds %s', async (_label, data) => {
+      const result = await renderAfterRequest('password', data);
+      expect(result.current.timeLeft).toBeLessThanOrEqual(SHORT_OTP_VALIDITY_SECONDS);
+      expect(result.current.timeLeft).toBeGreaterThan(SHORT_OTP_VALIDITY_SECONDS - 10);
+    });
+  });
+  describe('verifyOtp failure messages', () => {
+    const NETWORK_MESSAGE =
+      'Could not verify the OTP right now. Please check your connection and try again.';
+
+    // Renders the hook with a received OTP (userUuid set) and a fully typed code
+    const renderReadyHook = async () => {
+      vi.useRealTimers();
+      const service = await import('../../../../modules/auth/verify-otp/verify-otp.service');
+      const toast = await import('../../../../services/toast');
+      vi.mocked(service.default.requestOtp).mockResolvedValue({
+        success: true,
+        message: 'OTP sent successfully',
+        data: { userUuid: 'test-uuid-123' },
+      });
+      const { result } = renderHook(() => useVerifyOtp(mockStateData));
+      await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
+      for (let i = 0; i < 6; i++) {
+        act(() => {
+          result.current.handleChange(i, String(i + 1));
+        });
+      }
+      await waitFor(() => expect(result.current.otp.join('')).toBe('123456'));
+      vi.mocked(toast.showToast).mockClear();
+      return { result, service, toast };
+    };
+
+    it('releases the in-flight guard after a successful verify and shows no error toast', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: true,
+        message: 'Otp verified successfully!',
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP', 'OTP verified successfully', 'success');
+      expect(toast.showToast).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), 'error');
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(service.default.verifyOtp).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows the backend "Otp expired!" message and lets the user resend immediately', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+      });
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBe(0);
+      expect(result.current.loading).toBe(false);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('shows the backend "Otp incorrect!" message without touching the resend timer', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp incorrect!',
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Otp incorrect!', 'error');
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+    });
+
+    it('treats a reason code of EXPIRED as expired whatever the wording', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Le code a expire',
+        data: { reason: 'EXPIRED' },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Le code a expire', 'error');
+      expect(result.current.timeLeft).toBe(0);
+    });
+
+    it('lets a reason code of INCORRECT win over an "expired" wording', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+        data: { reason: 'INCORRECT' },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBeGreaterThan(0);
+    });
+
+    it.each([
+      ['data is null', null],
+      ['data has no reason', {}],
+    ])('falls back to the "Otp expired!" wording when %s', async (_label, data) => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: 'Otp expired!',
+        data,
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('OTP Expired', 'Otp expired!', 'error');
+      expect(result.current.timeLeft).toBe(0);
+    });
+    it('falls back to "Invalid OTP" when the backend sends no message', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockResolvedValue({
+        success: false,
+        message: undefined as unknown as string,
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    });
+
+    it('does not report a network error as an invalid OTP', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue(
+        Object.assign(new Error('Network Error'), { isAxiosError: true })
+      );
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+      expect(toast.showToast).not.toHaveBeenCalledWith('Invalid OTP', expect.anything(), 'error');
+    });
+
+    it('does not report a 5xx without a message as an invalid OTP', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue({ response: { status: 502, data: {} } });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+    });
+
+    it('shows the server message for a 5xx response', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue({
+        response: { status: 500, data: { message: 'i is not defined' } },
+      });
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', 'i is not defined', 'error');
+    });
+
+    it('shows the server message for a 4xx response and falls back to "Invalid OTP" without one', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValueOnce({
+        response: { status: 400, data: { message: 'Bad request' } },
+      });
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenCalledWith('Invalid OTP', 'Bad request', 'error');
+
+      vi.mocked(service.default.verifyOtp).mockRejectedValueOnce({ response: { status: 400 } });
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+      expect(toast.showToast).toHaveBeenLastCalledWith('Invalid OTP', 'Invalid OTP', 'error');
+    });
+
+    it('handles a rejection that is not an object', async () => {
+      const { result, service, toast } = await renderReadyHook();
+      vi.mocked(service.default.verifyOtp).mockRejectedValue(null);
+
+      await act(async () => {
+        await result.current.verifyOtp();
+      });
+
+      expect(toast.showToast).toHaveBeenCalledWith('Verify OTP Failed', NETWORK_MESSAGE, 'error');
+    });
   });
 
   // Additional tests for branch coverage
@@ -1871,17 +2224,22 @@ describe('useVerifyOtp hook', () => {
     // but returns falsy (empty string) on subsequent property accesses.
     // The guard checks !stateData?.value (first access) -> truthy
     // Line 101 uses stateData?.value (second access) -> falsy -> triggers || ''
+    // Reads are only counted once `armed` (the render itself also reads otpFor
+    // to pick the resend countdown, so it must not consume the "first access").
+    let armed = false;
     let valueCallCount = 0;
     let otpForCallCount = 0;
     const trickStateData = {
       type: 'username' as const,
       get value() {
+        if (!armed) return 'testuser';
         valueCallCount++;
         // First access (guard check): return truthy value
         // Subsequent accesses (line 101): return empty string
         return valueCallCount <= 1 ? 'testuser' : '';
       },
       get otpFor() {
+        if (!armed) return 'login';
         otpForCallCount++;
         // First access (guard check): return truthy value
         // Subsequent accesses (line 102): return empty string
@@ -1910,7 +2268,8 @@ describe('useVerifyOtp hook', () => {
       expect(result.current.otp).toEqual(['1', '2', '3', '4', '5', '6']);
     }, { timeout: 1000 });
 
-    // Reset the getter call counts so the next verifyOtp call has fresh counters
+    // Arm the getters (fresh counters) so the next verifyOtp call is counted
+    armed = true;
     valueCallCount = 0;
     otpForCallCount = 0;
 
