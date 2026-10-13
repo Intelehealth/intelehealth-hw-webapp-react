@@ -8018,6 +8018,48 @@ describe('AyuStepperContainer', () => {
       // Nested value should still appear
       expect(screen.getByText('120')).toBeInTheDocument();
     });
+
+    it('should show primary value when a PE question has child items but no answerOption', () => {
+      const question: AyuQuestion = {
+        linkId: 'pe-no-options',
+        text: 'Free text exam finding',
+        type: 'choice',
+        item: [{ linkId: 'systolic', text: 'Systolic', type: 'integer' }],
+      };
+
+      mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+      mockResolveAyuComponentLogic.mockReturnValue(
+        'physicalExamOptions' as never
+      );
+
+      mockUseFHIRStepper.mockReturnValue({
+        currentQuestion: { linkId: 'q2', text: 'Next', type: 'string' },
+        currentIndex: 1,
+        total: 2,
+        answers: { 'pe-no-options': 'recorded' },
+        setAnswer: mockSetAnswer,
+        clearAnswers: mockClearAnswers,
+        goNext: mockGoNext,
+        topLevelItems: [
+          question,
+          { linkId: 'q2', text: 'Next', type: 'string' },
+        ],
+        isLast: true,
+      });
+
+      const questionnaire = createMockQuestionnaire([question]);
+      render(
+        <AyuStepperContainer
+          questionnaire={questionnaire}
+          initialAnswers={{ 'pe-no-options': 'recorded' }}
+          onComplete={mockOnComplete}
+          onProgressUpdate={mockOnProgressUpdate}
+        />
+      );
+
+      
+      expect(screen.getByText('recorded')).toBeInTheDocument();
+    });
   });
 
   describe('collectAnsweredRows Check 2 branches (lines 239, 246)', () => {
