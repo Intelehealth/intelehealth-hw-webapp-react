@@ -11,7 +11,9 @@ export interface RequestOtpResponseModel {
   message: string;
   data?: {
     userUuid: string;
-    expiresInSeconds?: number; // how long the OTP stays valid
+    // Planned, not sent by the portal yet. When present it overrides the
+    // client's per-purpose countdown default.
+    expiresInSeconds?: number;
   };
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
   DEFAULT_OTP_VALIDITY_SECONDS,
+  SHORT_OTP_VALIDITY_SECONDS,
   useVerifyOtp,
 } from '../../../../modules/auth/verify-otp/verify-otp.hooks';
 
@@ -768,8 +769,17 @@ describe('useVerifyOtp hook', () => {
   });
 
   describe('resend countdown follows the OTP validity', () => {
+    const stateFor = (otpFor: string) => ({
+      value: 'testuser',
+      type: 'username' as const,
+      otpFor,
+    });
+
     // Renders the hook after the backend answered the OTP request with `data`
-    const renderAfterRequest = async (data: Record<string, unknown>) => {
+    const renderAfterRequest = async (
+      otpFor: string,
+      data: Record<string, unknown>
+    ) => {
       vi.useRealTimers();
       const service = await import('../../../../modules/auth/verify-otp/verify-otp.service');
       vi.mocked(service.default.requestOtp).mockResolvedValue({
@@ -777,25 +787,56 @@ describe('useVerifyOtp hook', () => {
         message: 'OTP sent successfully',
         data: { userUuid: 'test-uuid-123', ...data },
       } as never);
-      const { result } = renderHook(() => useVerifyOtp(mockStateData));
+      const state = stateFor(otpFor);
+      const { result } = renderHook(() => useVerifyOtp(state));
       await waitFor(() => expect(result.current.userUuid).toBe('test-uuid-123'));
       return result;
     };
 
-    it('starts from the 3 minute fallback', () => {
-      const { result } = renderHook(() => useVerifyOtp(mockStateData));
+    it.each(['password', 'verification'])(
+      'starts a %s OTP at the 1 minute validity the portal applies',
+      otpFor => {
+        const { result } = renderHook(() => useVerifyOtp(stateFor(otpFor)));
+        expect(result.current.timeLeft).toBe(SHORT_OTP_VALIDITY_SECONDS);
+        expect(SHORT_OTP_VALIDITY_SECONDS).toBe(60);
+      }
+    );
+
+    it('keeps the 3 minute window for the other purposes and without state', () => {
+      const { result } = renderHook(() => useVerifyOtp(stateFor('username')));
       expect(result.current.timeLeft).toBe(DEFAULT_OTP_VALIDITY_SECONDS);
       expect(DEFAULT_OTP_VALIDITY_SECONDS).toBe(180);
+
+      const { result: noState } = renderHook(() => useVerifyOtp(undefined));
+      expect(noState.current.timeLeft).toBe(DEFAULT_OTP_VALIDITY_SECONDS);
     });
 
-    it('counts down the expiresInSeconds returned by the backend', async () => {
-      const result = await renderAfterRequest({ expiresInSeconds: 90 });
+    it('offers Resend when the password OTP validity ends and restarts the same window on resend', async () => {
+      const state = stateFor('password');
+      const { result } = renderHook(() => useVerifyOtp(state));
+
+      // The countdown re-arms a 1s timeout on every render, so tick it second by second
+      for (let i = 0; i < SHORT_OTP_VALIDITY_SECONDS; i++) {
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+      }
+      expect(result.current.timeLeft).toBe(0);
+
+      await act(async () => {
+        await result.current.handleResend();
+      });
+      expect(result.current.timeLeft).toBe(SHORT_OTP_VALIDITY_SECONDS);
+    });
+
+    it('lets an expiresInSeconds sent by the backend override the default', async () => {
+      const result = await renderAfterRequest('password', { expiresInSeconds: 90 });
       expect(result.current.timeLeft).toBeLessThanOrEqual(90);
       expect(result.current.timeLeft).toBeGreaterThan(85);
     });
 
-    it('restarts the countdown from the backend value when the OTP is resent', async () => {
-      const result = await renderAfterRequest({ expiresInSeconds: 120 });
+    it('restarts from the backend value when the OTP is resent', async () => {
+      const result = await renderAfterRequest('password', { expiresInSeconds: 120 });
 
       await act(async () => {
         await result.current.handleResend();
@@ -809,11 +850,11 @@ describe('useVerifyOtp hook', () => {
       ['is missing', {}],
       ['is zero', { expiresInSeconds: 0 }],
       ['is negative', { expiresInSeconds: -5 }],
-      ['is not a number', { expiresInSeconds: '60' }],
-    ])('keeps the 3 minute fallback when expiresInSeconds %s', async (_label, data) => {
-      const result = await renderAfterRequest(data);
-      expect(result.current.timeLeft).toBeLessThanOrEqual(DEFAULT_OTP_VALIDITY_SECONDS);
-      expect(result.current.timeLeft).toBeGreaterThan(DEFAULT_OTP_VALIDITY_SECONDS - 10);
+      ['is not a number', { expiresInSeconds: '180' }],
+    ])('keeps the 1 minute password default when expiresInSeconds %s', async (_label, data) => {
+      const result = await renderAfterRequest('password', data);
+      expect(result.current.timeLeft).toBeLessThanOrEqual(SHORT_OTP_VALIDITY_SECONDS);
+      expect(result.current.timeLeft).toBeGreaterThan(SHORT_OTP_VALIDITY_SECONDS - 10);
     });
   });
   describe('verifyOtp failure messages', () => {

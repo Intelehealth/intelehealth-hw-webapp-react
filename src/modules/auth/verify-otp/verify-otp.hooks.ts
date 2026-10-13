@@ -25,10 +25,15 @@ interface UseVerifyOtpReturn {
   userUuid: string;
 }
 
-// How long an OTP is valid. The backend returns the real value as
-// `expiresInSeconds` when it sends the OTP and the countdown follows it; this
-// is only the fallback for a response that does not carry it.
+// How long the portal accepts an OTP (auth.service.js `verifyOtp`): password
+// and verification OTPs only while `diff(updatedAt, 'minutes') < 1`, i.e. under
+// 1 minute, username OTPs for 3 minutes. The Resend countdown must match,
+// otherwise users keep typing an OTP that has already expired while the screen
+// still says "Resend in 2:xx". The portal does not send the validity yet; if it
+// ever returns `expiresInSeconds` that value overrides these defaults.
+export const SHORT_OTP_VALIDITY_SECONDS = 60;
 export const DEFAULT_OTP_VALIDITY_SECONDS = 180;
+const SHORT_LIVED_OTP_PURPOSES = ['password', 'verification'];
 
 export const useVerifyOtp = (stateData?: {
   value: string;
@@ -37,9 +42,14 @@ export const useVerifyOtp = (stateData?: {
   countryCode?: string;
 }): UseVerifyOtpReturn => {
   const navigate = useNavigate();
+  const otpValiditySeconds = SHORT_LIVED_OTP_PURPOSES.includes(
+    stateData?.otpFor ?? ''
+  )
+    ? SHORT_OTP_VALIDITY_SECONDS
+    : DEFAULT_OTP_VALIDITY_SECONDS;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_OTP_VALIDITY_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(otpValiditySeconds);
   const [loading, setLoading] = useState(false);
   const [userUuid, setUserUuid] = useState<string>('');
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
@@ -64,7 +74,8 @@ export const useVerifyOtp = (stateData?: {
 
       if (response.success && response.data?.userUuid) {
         setUserUuid(response.data.userUuid);
-        // Count down the validity the backend actually applies to this OTP
+        // Only when the backend states the validity does it override the
+        // per-purpose default the countdown already started from
         const expiresInSeconds = response.data.expiresInSeconds;
         if (typeof expiresInSeconds === 'number' && expiresInSeconds > 0) {
           setTimeLeft(expiresInSeconds);
@@ -124,6 +135,8 @@ export const useVerifyOtp = (stateData?: {
         // The backend answers HTTP 200 + success:false with "Otp expired!" or
         // "Otp incorrect!" - show that instead of a blanket "Invalid OTP".
         const message = result.message || 'Invalid OTP';
+        // The portal has no machine-readable reason, only the "Otp expired!"
+        // wording, so match on it; switch to a reason code once it sends one.
         const expired = /expired/i.test(message);
         // An expired OTP can never be accepted again, so don't make the user
         // wait for the countdown before they can ask for a new one.
@@ -170,7 +183,7 @@ export const useVerifyOtp = (stateData?: {
   // ✅ Resend OTP
   const handleResend = async () => {
     setOtp(['', '', '', '', '', '']);
-    setTimeLeft(DEFAULT_OTP_VALIDITY_SECONDS);
+    setTimeLeft(otpValiditySeconds);
     inputsRef.current[0]?.focus();
     await requestOtp();
   };
