@@ -70,22 +70,57 @@ describe('usePrescriptionPdfAction', () => {
   });
 
   it('uses the WhatsApp message for a share, and reports which operation is running', async () => {
-    const request = deferred<typeof PDF_DATA>();
-    mockGetVisitPrescriptionData.mockReturnValue(request.promise);
+    const shareResult = deferred<void>();
     const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
 
     let pending: Promise<boolean> = Promise.resolve(false);
     act(() => {
-      pending = result.current.run('share', vi.fn().mockResolvedValue(undefined));
+      pending = result.current.share(vi.fn().mockReturnValue(shareResult.promise));
     });
     expect(mockOpenPendingWindow).toHaveBeenCalledWith('Opening WhatsApp...');
     expect(result.current.pdfOp).toBe('share');
 
     await act(async () => {
-      request.resolve(PDF_DATA);
+      shareResult.resolve();
       await pending;
     });
     expect(result.current.pdfOp).toBeNull();
+  });
+
+  it('runs a share with the signal and tab only, and never fetches the prescription', async () => {
+    const action = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
+
+    let done: boolean | undefined;
+    await act(async () => {
+      done = await result.current.share(action);
+    });
+
+    expect(done).toBe(true);
+    expect(mockGetVisitPrescriptionData).not.toHaveBeenCalled();
+    expect(action).toHaveBeenCalledWith(expect.any(AbortSignal), windows[0]);
+    expect(windows[0].close).not.toHaveBeenCalled();
+  });
+
+  it('ignores a second share while the first is running', async () => {
+    const shareResult = deferred<void>();
+    const action = vi.fn().mockReturnValue(shareResult.promise);
+    const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    let second: boolean | undefined;
+    await act(async () => {
+      first = result.current.share(action);
+      second = await result.current.share(action);
+    });
+    expect(second).toBe(false);
+    expect(windows).toHaveLength(1);
+
+    await act(async () => {
+      shareResult.resolve();
+      await first;
+    });
+    expect(action).toHaveBeenCalledTimes(1);
   });
 
   it('tells the user to allow pop-ups, and does no work, when the tab is blocked', async () => {
@@ -159,7 +194,7 @@ describe('usePrescriptionPdfAction', () => {
     {
       name: 'the share step fails',
       op: 'share' as const,
-      setup: () => mockGetVisitPrescriptionData.mockResolvedValue(PDF_DATA),
+      setup: () => {},
       action: vi.fn().mockRejectedValue(new TypeError('whatsapp token=secret-123')),
       message: 'Failed to share prescription PDF',
       details: { name: 'TypeError', status: undefined },
@@ -172,7 +207,9 @@ describe('usePrescriptionPdfAction', () => {
     let caught: unknown;
     await act(async () => {
       try {
-        await result.current.run(op, action);
+        await (op === 'share'
+          ? result.current.share(action)
+          : result.current.run('print', action));
       } catch (err) {
         caught = err;
       }
@@ -211,15 +248,14 @@ describe('usePrescriptionPdfAction', () => {
     expect(windows[0].close).toHaveBeenCalled();
   });
 
-  it('tells the user when the tab is found closed during the slow PDF build', async () => {
-    mockGetVisitPrescriptionData.mockResolvedValue(PDF_DATA);
+  it('tells the user when the tab is found closed by the share step', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const action = vi.fn().mockRejectedValue(new TabClosedError());
     const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
 
     let done: boolean | undefined;
     await act(async () => {
-      done = await result.current.run('share', action);
+      done = await result.current.share(action);
     });
 
     expect(done).toBe(false);
@@ -277,7 +313,6 @@ describe('usePrescriptionPdfAction', () => {
   });
 
   it('stays silent when the action fails after the user has left', async () => {
-    mockGetVisitPrescriptionData.mockResolvedValue(PDF_DATA);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const actionResult = deferred<void>();
     const action = vi.fn().mockReturnValue(actionResult.promise);
@@ -285,7 +320,7 @@ describe('usePrescriptionPdfAction', () => {
 
     let pending: Promise<boolean> = Promise.resolve(true);
     act(() => {
-      pending = result.current.run('share', action);
+      pending = result.current.share(action);
     });
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     unmount();

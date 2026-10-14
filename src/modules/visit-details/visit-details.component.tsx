@@ -209,7 +209,7 @@ const useFromState = () => {
 const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
   const { fromLabel, fromPath } = useFromState();
-  const { pdfOp, run } = usePrescriptionPdfAction(visitId);
+  const { pdfOp, run, share } = usePrescriptionPdfAction(visitId);
   const [showShareModal, setShowShareModal] = useState(false);
 
   const handleViewPrescription = useCallback(() => {
@@ -240,12 +240,12 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   // phone number so the user can retry; the modal closes only on success.
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
-      const shared = await run('share', (pdfData, signal, win) =>
-        shareVisitPrescriptionPdf(pdfData, phoneNumber, signal, win)
+      const shared = await share((signal, win) =>
+        shareVisitPrescriptionPdf(phoneNumber, signal, win)
       );
       if (shared) setShowShareModal(false);
     },
-    [run]
+    [share]
   );
 
   return (

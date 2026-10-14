@@ -29,9 +29,17 @@ const FAILURE_MESSAGE: Record<PdfOperation, string> = {
   download: 'Failed to download prescription PDF',
 };
 
+type WindowAction = (signal: AbortSignal, win: Window | null) => Promise<void>;
+type DataAction = (
+  pdfData: PrescriptionData,
+  signal: AbortSignal,
+  win: Window | null
+) => Promise<void>;
+
 /**
  * Runs a Print, Share or Download of a visit's prescription PDF, shared by
- * every screen that offers them.
+ * every screen that offers them. Print and Download (run) fetch the
+ * prescription first; Share (share) does not.
  *
  * - One operation at a time. The guard is checked before a tab is opened, so a
  *   double click opens nothing extra and fetches nothing twice.
@@ -81,14 +89,16 @@ export function usePrescriptionPdfAction(visitId: string) {
     setPdfOp(null);
   }, [visitId]);
 
-  const run = useCallback(
+  // The steps every operation shares. `perform` does the work and returns
+  // false when it stopped early because the operation was cancelled.
+  const execute = useCallback(
     async (
       op: PdfOperation,
-      action: (
-        pdfData: PrescriptionData,
+      perform: (
         signal: AbortSignal,
-        win: Window | null
-      ) => Promise<void>
+        win: Window | null,
+        cancelled: () => boolean
+      ) => Promise<boolean>
     ): Promise<boolean> => {
       if (abortRef.current) return false;
       let win: Window | null = null;
@@ -108,11 +118,7 @@ export function usePrescriptionPdfAction(visitId: string) {
       setPdfOp(op);
       let handedOff = false;
       try {
-        const pdfData = await getVisitPrescriptionData(visitId, signal);
-        if (cancelled()) return false;
-        // writing into a closed tab is a silent no-op, so say what happened
-        if (win?.closed) throw new TabClosedError();
-        await action(pdfData, signal, win);
+        if (!(await perform(signal, win, cancelled))) return false;
         handedOff = true;
       } catch (err) {
         if (cancelled()) return false;
@@ -131,8 +137,32 @@ export function usePrescriptionPdfAction(visitId: string) {
       // reached only when the action ran; false if the user left meanwhile
       return !cancelled();
     },
-    [visitId]
+    []
   );
 
-  return { pdfOp, run };
+  /** Print or Download: fetches the prescription, then runs the action on it. */
+  const run = useCallback(
+    (op: Exclude<PdfOperation, 'share'>, action: DataAction) =>
+      execute(op, async (signal, win, cancelled) => {
+        const pdfData = await getVisitPrescriptionData(visitId, signal);
+        if (cancelled()) return false;
+        // writing into a closed tab is a silent no-op, so say what happened
+        if (win?.closed) throw new TabClosedError();
+        await action(pdfData, signal, win);
+        return true;
+      }),
+    [execute, visitId]
+  );
+
+  /** Share only opens WhatsApp, so unlike `run` it fetches nothing. */
+  const share = useCallback(
+    (action: WindowAction) =>
+      execute('share', async (signal, win) => {
+        await action(signal, win);
+        return true;
+      }),
+    [execute]
+  );
+
+  return { pdfOp, run, share };
 }

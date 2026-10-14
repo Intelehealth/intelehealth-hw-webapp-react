@@ -287,7 +287,7 @@ const PrescriptionDetail: React.FC = () => {
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { pdfOp, run } = usePrescriptionPdfAction(visitId as string);
+  const { pdfOp, run, share } = usePrescriptionPdfAction(visitId as string);
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
@@ -340,12 +340,12 @@ const PrescriptionDetail: React.FC = () => {
   // phone number so the user can retry; the modal closes only on success.
   const handleSharePdf = useCallback(
     async (phoneNumber: string) => {
-      const shared = await run('share', (pdfData, signal, win) =>
-        shareVisitPrescriptionPdf(pdfData, phoneNumber, signal, win)
+      const shared = await share((signal, win) =>
+        shareVisitPrescriptionPdf(phoneNumber, signal, win)
       );
       if (shared) setShowShareModal(false);
     },
-    [run]
+    [share]
   );
 
   if (loading) {

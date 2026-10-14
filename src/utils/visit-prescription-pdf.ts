@@ -628,21 +628,17 @@ export async function printVisitPrescriptionPdf(
   await pdfMake.createPdf(docDef).print(targetWindow ?? undefined);
 }
 
+/**
+ * Opens WhatsApp with a message for `phoneNumber`. Sharing never saves the PDF
+ * to the user's device; that is what the Download button is for.
+ */
 export async function shareVisitPrescriptionPdf(
-  data: PrescriptionData,
   phoneNumber: string,
   signal?: AbortSignal,
   targetWindow?: Window | null
 ): Promise<void> {
-  const docDef = await buildPrescriptionDocDef(data, signal);
   throwIfAborted(signal);
   throwIfTabClosed(targetWindow);
-  const pdfDoc = pdfMake.createPdf(docDef);
-
-  // Download the PDF so the user has it locally. Awaited so a failure reaches
-  // the caller. The tab is not checked again after this: the file is already
-  // saved, and reporting a closed tab now would make a retry save it twice.
-  await pdfDoc.download('e-prescription.pdf');
 
   // TODO: Replace dummy link with actual upload URL once backend API is ready
   const downloadLink =
