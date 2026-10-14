@@ -194,14 +194,13 @@ describe('usePrescriptionPdfAction', () => {
     {
       name: 'the share step fails',
       op: 'share' as const,
-      setup: () => {},
       action: vi.fn().mockRejectedValue(new TypeError('whatsapp token=secret-123')),
       message: 'Failed to share prescription PDF',
       details: { name: 'TypeError', status: undefined },
     },
   ])('logs only safe details, closes the tab and rejects when $name', async ({ op, setup, action, message, details }) => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    setup();
+    setup?.();
     const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
 
     let caught: unknown;
