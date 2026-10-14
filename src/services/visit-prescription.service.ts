@@ -1,11 +1,13 @@
-import type * as PrescriptionTypes from '../types/prescription.types';
 import { OpenMRSApi } from './openmrs';
 import {
+  ADDITIONAL_INSTRUCTION_PREFIX,
+  DOCTOR_ENCOUNTER_TYPES,
+  PRESCRIPTION_CONCEPT_IDS,
   IDENTIFIER_TYPES,
   PERSON_ATTRIBUTES,
-  PRESCRIPTION_CONCEPT_IDS,
   PROVIDER_ATTRIBUTES,
 } from './prescription.constant';
+import type * as PrescriptionTypes from '../types/prescription.types';
 
 interface ObsValue {
   display?: string;
@@ -69,10 +71,10 @@ interface VisitResponse {
 
 export type {
   DiagnosisItem,
-  FollowUpData,
   MedicineItem,
-  PrescriptionData,
+  FollowUpData,
   VitalsData,
+  PrescriptionData,
 } from '../types/prescription.types';
 
 const VISIT_CUSTOM_REP =
@@ -84,13 +86,34 @@ const VISIT_CUSTOM_REP =
   'obs:(uuid,display,value,concept:(uuid,display),groupMembers:(uuid,display,value,concept:(uuid,display))),' +
   'encounterProviders:(provider:(uuid,display,person:(display),attributes:(value,attributeType:(display))))))';
 
-// Only the doctor's encounters; the health worker's encounters are not read for doctor details.
-const DOCTOR_ENCOUNTER_TYPES = ['Visit Complete', 'Visit Note'];
-const ADDITIONAL_INSTRUCTION_PREFIX = '[ADDITIONAL_INSTRUCTION]';
-
-// Fallback only: provider.display is "<identifier> - <name>", e.g. "522-3 - Jane Doe".
+// Best-effort fallback, used only when the provider has no person name.
+// OpenMRS builds provider.display as "<identifier> - <name>", e.g.
+// "522-3 - Jane Doe". A display in any other format is returned unchanged.
 const stripProviderIdentifier = (display: string) =>
   display.replace(/^\S+\s-\s/, '').trim();
+
+const byDatetimeDesc = (a: Encounter, b: Encounter) =>
+  new Date(b.encounterDatetime).getTime() -
+  new Date(a.encounterDatetime).getTime();
+
+/**
+ * The single provider whose details go on the prescription: the first provider
+ * of the latest Visit Complete encounter, else of the latest Visit Note.
+ * Choosing one provider keeps name, signature, qualification and registration
+ * number from the same doctor.
+ */
+function pickDoctorProvider(encounters: Encounter[]): EncProvider['provider'] {
+  for (const type of DOCTOR_ENCOUNTER_TYPES) {
+    const sameType = encounters
+      .filter(e => e.encounterType?.display === type)
+      .sort(byDatetimeDesc);
+    for (const enc of sameType) {
+      const prov = (enc.encounterProviders || []).find(ep => ep.provider);
+      if (prov) return prov.provider;
+    }
+  }
+  return undefined;
+}
 
 type Person = NonNullable<NonNullable<VisitResponse['patient']>['person']>;
 
@@ -263,35 +286,27 @@ export async function getVisitPrescriptionData(
     doctorQualification = '',
     doctorRegNumber = '',
     doctorSignatureUrl: string | null = null;
-  const doctorEncounters = DOCTOR_ENCOUNTER_TYPES.flatMap(type =>
-    encounters.filter(e => e.encounterType?.display === type)
-  );
-  for (const enc of doctorEncounters) {
-    for (const ep of enc.encounterProviders || []) {
-      const prov = ep.provider;
-      if (!prov) continue;
-      doctorName =
-        doctorName ||
-        prov.person?.display ||
-        stripProviderIdentifier(prov.display || '');
-      for (const attr of prov.attributes || []) {
-        const d = (attr.attributeType?.display || '').toLowerCase();
-        if (
-          d === PROVIDER_ATTRIBUTES.SIGNATURE ||
-          d === PROVIDER_ATTRIBUTES.QUALIFICATION_CERTIFICATE
-        )
-          doctorSignatureUrl = doctorSignatureUrl || attr.value || null;
-        if (
-          d === PROVIDER_ATTRIBUTES.QUALIFICATION ||
-          d === PROVIDER_ATTRIBUTES.TYPE_OF_PROFESSION
-        )
-          doctorQualification = doctorQualification || attr.value || '';
-        if (
-          d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER ||
-          d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER_ALT
-        )
-          doctorRegNumber = doctorRegNumber || attr.value || '';
-      }
+  const doctor = pickDoctorProvider(encounters);
+  if (doctor) {
+    doctorName =
+      doctor.person?.display || stripProviderIdentifier(doctor.display || '');
+    for (const attr of doctor.attributes || []) {
+      const d = (attr.attributeType?.display || '').toLowerCase();
+      if (
+        d === PROVIDER_ATTRIBUTES.SIGNATURE ||
+        d === PROVIDER_ATTRIBUTES.QUALIFICATION_CERTIFICATE
+      )
+        doctorSignatureUrl = doctorSignatureUrl || attr.value || null;
+      if (
+        d === PROVIDER_ATTRIBUTES.QUALIFICATION ||
+        d === PROVIDER_ATTRIBUTES.TYPE_OF_PROFESSION
+      )
+        doctorQualification = doctorQualification || attr.value || '';
+      if (
+        d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER ||
+        d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER_ALT
+      )
+        doctorRegNumber = doctorRegNumber || attr.value || '';
     }
   }
 
@@ -348,7 +363,7 @@ export async function getVisitPrescriptionData(
     advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o => {
       const s = obsStr(o);
       return s.startsWith(ADDITIONAL_INSTRUCTION_PREFIX)
-        ? s.slice(ADDITIONAL_INSTRUCTION_PREFIX.length)
+        ? s.slice(ADDITIONAL_INSTRUCTION_PREFIX.length).trimStart()
         : s;
     }),
     tests: byConceptId(PRESCRIPTION_CONCEPT_IDS.TEST).map(o => obsStr(o)),

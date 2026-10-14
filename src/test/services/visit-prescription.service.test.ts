@@ -508,6 +508,134 @@ describe('getVisitPrescriptionData', () => {
     expect(result.advices).toEqual(['Drink plenty of water', 'Please do not walk fast']);
   });
 
+  describe('single doctor provider', () => {
+    const provider = (
+      name: string,
+      attrs: Record<string, string> = {}
+    ) => ({
+      provider: {
+        display: `1-1 - ${name}`,
+        person: { display: name },
+        uuid: name,
+        attributes: Object.entries(attrs).map(([type, value]) => ({
+          value,
+          attributeType: { display: type },
+        })),
+      },
+    });
+    const enc = (
+      type: string,
+      datetime: string,
+      encounterProviders: unknown[]
+    ) => ({
+      encounterDatetime: datetime,
+      encounterType: { display: type },
+      obs: [],
+      encounterProviders,
+    });
+
+    it('never mixes a Visit Complete provider with a Visit Note provider\'s signature', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-01T10:00:00', [
+          provider('Complete Doc', { Qualification: 'MBBS', RegistrationNumber: 'REG-C' }),
+        ]),
+        enc('Visit Note', '2026-03-01T09:00:00', [
+          provider('Note Doc', {
+            Qualification: 'MD',
+            RegistrationNumber: 'REG-N',
+            Signature: 'https://example.com/note-sig.png',
+          }),
+        ]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('Complete Doc');
+      expect(result.doctorQualification).toBe('MBBS');
+      expect(result.doctorRegNumber).toBe('REG-C');
+      expect(result.doctorSignatureUrl).toBeNull();
+    });
+
+    it('uses the latest Visit Complete encounter regardless of array order', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-01T10:00:00', [provider('Older Doc', { RegistrationNumber: 'OLD' })]),
+        enc('Visit Complete', '2026-03-05T10:00:00', [provider('Newer Doc', { RegistrationNumber: 'NEW' })]),
+        enc('Visit Complete', '2026-03-03T10:00:00', [provider('Middle Doc', { RegistrationNumber: 'MID' })]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('Newer Doc');
+      expect(result.doctorRegNumber).toBe('NEW');
+    });
+
+    it('does not reorder the visit encounters it was given', async () => {
+      const visit = makeVisit();
+      const first = enc('Visit Complete', '2026-03-01T10:00:00', [provider('A')]);
+      const second = enc('Visit Complete', '2026-03-05T10:00:00', [provider('B')]);
+      visit.encounters = [first, second];
+      mockGet.mockResolvedValue(visit);
+      await getVisitPrescriptionData('visit-uuid-1');
+      expect(visit.encounters).toEqual([first, second]);
+    });
+
+    it('takes the first provider that exists within an encounter', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-01T10:00:00', [{ provider: null }, provider('Second Slot')]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('Second Slot');
+    });
+
+    it('moves on to the next encounter when a Visit Complete has no provider', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-05T10:00:00', [{ provider: null }]),
+        enc('Visit Complete', '2026-03-04T10:00:00', null as unknown as unknown[]),
+        enc('Visit Complete', '2026-03-03T10:00:00', [provider('Earlier Complete')]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('Earlier Complete');
+    });
+
+    it('falls through to Visit Note only when no Visit Complete has a provider', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-05T10:00:00', []),
+        enc('Visit Note', '2026-03-01T10:00:00', [provider('Note Doc', { Qualification: 'MD' })]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('Note Doc');
+      expect(result.doctorQualification).toBe('MD');
+    });
+
+    it('returns the display unchanged when it has no "<identifier> - " prefix', async () => {
+      const visit = makeVisit();
+      visit.encounters = [
+        enc('Visit Complete', '2026-03-01T10:00:00', [
+          { provider: { display: 'JaneDoe', uuid: 'p', attributes: [] } },
+        ]),
+      ];
+      mockGet.mockResolvedValue(visit);
+      const result = await getVisitPrescriptionData('visit-uuid-1');
+      expect(result.doctorName).toBe('JaneDoe');
+    });
+  });
+
+  it('trims the space left after the [ADDITIONAL_INSTRUCTION] marker', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].obs = [
+      { concept: { uuid: '67a050c1-35e5-451c-a4ab-fff9d57b0db1' }, value: '[ADDITIONAL_INSTRUCTION]   Take rest' },
+    ];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.advices).toEqual(['Take rest']);
+  });
+
   it('falls back to the stripped display when person.display is empty', async () => {
     const visit = makeVisit();
     visit.encounters[0].encounterProviders = [{
