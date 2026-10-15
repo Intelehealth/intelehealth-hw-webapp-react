@@ -12,38 +12,28 @@ import {
 import { describeError } from '../utils/safe-error';
 import { openPendingWindow } from '../utils/visit-prescription-pdf';
 
-export type PdfOperation = 'print' | 'share' | 'download';
+export type PdfOperation = 'print' | 'download';
 
 /**
- * Print and Share hand a tab to the PDF step, opened in the click. Download
- * saves a file and needs no tab.
+ * Print hands a tab to the PDF step, opened in the click. Download saves a
+ * file and needs no tab.
  */
 const PENDING_MESSAGE: Partial<Record<PdfOperation, string>> = {
   print: 'Preparing your prescription...',
-  share: 'Opening WhatsApp...',
 };
 
 const FAILURE_MESSAGE: Record<PdfOperation, string> = {
   print: 'Failed to print prescription PDF',
-  share: 'Failed to share prescription PDF',
   download: 'Failed to download prescription PDF',
 };
 
-type WindowAction = (signal: AbortSignal, win: Window | null) => Promise<void>;
-type DataAction = (
-  pdfData: PrescriptionData,
-  signal: AbortSignal,
-  win: Window | null
-) => Promise<void>;
-
 /**
- * Runs a Print, Share or Download of a visit's prescription PDF, shared by
- * every screen that offers them. Print and Download (run) fetch the
- * prescription first; Share (share) does not.
+ * Runs a Print or Download of a visit's prescription PDF, shared by
+ * every screen that offers them.
  *
  * - One operation at a time. The guard is checked before a tab is opened, so a
  *   double click opens nothing extra and fetches nothing twice.
- * - For Print and Share the tab is opened here, synchronously inside the
+ * - For Print the tab is opened here, synchronously inside the
  *   click, so the pop-up blocker allows it; it is handed to the action and
  *   closed again unless the action succeeds and takes it over.
  * - Cancelled when the component unmounts, and when `visitId` changes while
@@ -89,16 +79,14 @@ export function usePrescriptionPdfAction(visitId: string) {
     setPdfOp(null);
   }, [visitId]);
 
-  // The steps every operation shares. `perform` does the work and returns
-  // false when it stopped early because the operation was cancelled.
-  const execute = useCallback(
+  const run = useCallback(
     async (
       op: PdfOperation,
-      perform: (
+      action: (
+        pdfData: PrescriptionData,
         signal: AbortSignal,
-        win: Window | null,
-        cancelled: () => boolean
-      ) => Promise<boolean>
+        win: Window | null
+      ) => Promise<void>
     ): Promise<boolean> => {
       if (abortRef.current) return false;
       let win: Window | null = null;
@@ -118,7 +106,11 @@ export function usePrescriptionPdfAction(visitId: string) {
       setPdfOp(op);
       let handedOff = false;
       try {
-        if (!(await perform(signal, win, cancelled))) return false;
+        const pdfData = await getVisitPrescriptionData(visitId, signal);
+        if (cancelled()) return false;
+        // writing into a closed tab is a silent no-op, so say what happened
+        if (win?.closed) throw new TabClosedError();
+        await action(pdfData, signal, win);
         handedOff = true;
       } catch (err) {
         if (cancelled()) return false;
@@ -137,32 +129,8 @@ export function usePrescriptionPdfAction(visitId: string) {
       // reached only when the action ran; false if the user left meanwhile
       return !cancelled();
     },
-    []
+    [visitId]
   );
 
-  /** Print or Download: fetches the prescription, then runs the action on it. */
-  const run = useCallback(
-    (op: Exclude<PdfOperation, 'share'>, action: DataAction) =>
-      execute(op, async (signal, win, cancelled) => {
-        const pdfData = await getVisitPrescriptionData(visitId, signal);
-        if (cancelled()) return false;
-        // writing into a closed tab is a silent no-op, so say what happened
-        if (win?.closed) throw new TabClosedError();
-        await action(pdfData, signal, win);
-        return true;
-      }),
-    [execute, visitId]
-  );
-
-  /** Share only opens WhatsApp, so unlike `run` it fetches nothing. */
-  const share = useCallback(
-    (action: WindowAction) =>
-      execute('share', async (signal, win) => {
-        await action(signal, win);
-        return true;
-      }),
-    [execute]
-  );
-
-  return { pdfOp, run, share };
+  return { pdfOp, run };
 }

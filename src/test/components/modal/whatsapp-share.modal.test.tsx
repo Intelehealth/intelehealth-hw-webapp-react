@@ -39,6 +39,10 @@ describe('WhatsAppShareModal', () => {
     await userEvent.type(input, '+911234567890');
     fireEvent.click(screen.getByText('Share'));
     expect(onShare).toHaveBeenCalledWith('911234567890');
+    // a successful share clears the number
+    await waitFor(() => {
+      expect(input).toHaveValue('+91');
+    });
   });
 
   it('should show error when country code is not recognized', async () => {
@@ -176,6 +180,157 @@ describe('WhatsAppShareModal', () => {
       rerender(<WhatsAppShareModal {...defaultProps} onShare={onShare} open={false} />);
       rerender(<WhatsAppShareModal {...defaultProps} onShare={onShare} open />);
       expect(screen.queryByText(SHARE_FAILED_MESSAGE)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('phone number after sharing', () => {
+    const INITIAL = '+91';
+    const NUMBER = '+911234567890';
+
+    const typeNumber = async (number = NUMBER) => {
+      const input = screen.getByPlaceholderText('+918179987770');
+      await userEvent.clear(input);
+      await userEvent.type(input, number);
+      return input;
+    };
+
+    it.each([
+      ['a promise that resolves', () => vi.fn().mockResolvedValue(undefined)],
+      ['a promise that resolves to true', () => vi.fn().mockResolvedValue(true)],
+      ['a synchronous true', () => vi.fn().mockReturnValue(true)],
+      ['a synchronous undefined', () => vi.fn()],
+    ])('should reset the number to its initial value after a successful share (%s)', async (_name, makeOnShare) => {
+      const onShare = makeOnShare();
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber();
+
+      fireEvent.click(screen.getByText('Share'));
+
+      await waitFor(() => {
+        expect(input).toHaveValue(INITIAL);
+      });
+      expect(onShare).toHaveBeenCalledWith('911234567890');
+      expect(screen.queryByText(SHARE_FAILED_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['an API error', () => vi.fn().mockRejectedValue(new Error('API 500'))],
+      ['a network error', () => vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))],
+      ['a synchronous throw', () => vi.fn(() => { throw new Error('sync failure'); })],
+    ])('should keep the number, and show the failure message, after %s', async (_name, makeOnShare) => {
+      render(<WhatsAppShareModal {...defaultProps} onShare={makeOnShare()} />);
+      const input = await typeNumber();
+
+      fireEvent.click(screen.getByText('Share'));
+
+      expect(await screen.findByText(SHARE_FAILED_MESSAGE)).toBeInTheDocument();
+      expect(input).toHaveValue(NUMBER);
+    });
+
+    it.each([
+      ['false', () => vi.fn().mockReturnValue(false)],
+      ['a promise that resolves to false', () => vi.fn().mockResolvedValue(false)],
+    ])('should keep the number, without a failure message, when onShare returns %s', async (_name, makeOnShare) => {
+      const onShare = makeOnShare();
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber();
+
+      fireEvent.click(screen.getByText('Share'));
+
+      await waitFor(() => {
+        expect(onShare).toHaveBeenCalledTimes(1);
+      });
+      expect(input).toHaveValue(NUMBER);
+      expect(screen.queryByText(SHARE_FAILED_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it('should not clear the number when validation fails', async () => {
+      const onShare = vi.fn();
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber('+9112345');
+
+      fireEvent.click(screen.getByText('Share'));
+
+      expect(await screen.findByText('Please enter a valid 10-digit phone number')).toBeInTheDocument();
+      expect(input).toHaveValue('+9112345');
+      expect(onShare).not.toHaveBeenCalled();
+    });
+
+    it('should not clear the number while the share is still in progress, only once it succeeds', async () => {
+      let finishShare: () => void = () => {};
+      const onShare = vi.fn(
+        () =>
+          new Promise<void>(resolve => {
+            finishShare = resolve;
+          })
+      );
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber();
+
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(onShare).toHaveBeenCalledTimes(1);
+      });
+      // still in progress: the number is untouched
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(input).toHaveValue(NUMBER);
+
+      finishShare();
+      await waitFor(() => {
+        expect(input).toHaveValue(INITIAL);
+      });
+    });
+
+    it('should keep the loading state of the modal while a share is in progress', () => {
+      render(<WhatsAppShareModal {...defaultProps} isLoading />);
+
+      expect(screen.getByText('Sharing...')).toBeDisabled();
+      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue(INITIAL);
+    });
+
+    it('should let the user retry with the kept number after a failed share, then clear it on success', async () => {
+      const onShare = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('first attempt failed'))
+        .mockResolvedValueOnce(undefined);
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber();
+
+      fireEvent.click(screen.getByText('Share'));
+      expect(await screen.findByText(SHARE_FAILED_MESSAGE)).toBeInTheDocument();
+      expect(input).toHaveValue(NUMBER);
+
+      // retry without typing anything again
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(input).toHaveValue(INITIAL);
+      });
+      expect(onShare).toHaveBeenCalledTimes(2);
+      expect(onShare).toHaveBeenNthCalledWith(1, '911234567890');
+      expect(onShare).toHaveBeenNthCalledWith(2, '911234567890');
+      expect(screen.queryByText(SHARE_FAILED_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it('should share to a different number after a successful share', async () => {
+      const onShare = vi.fn().mockResolvedValue(undefined);
+      render(<WhatsAppShareModal {...defaultProps} onShare={onShare} />);
+      const input = await typeNumber();
+      fireEvent.click(screen.getByText('Share'));
+      await waitFor(() => {
+        expect(input).toHaveValue(INITIAL);
+      });
+
+      await typeNumber('+919876543210');
+      fireEvent.click(screen.getByText('Share'));
+
+      await waitFor(() => {
+        expect(onShare).toHaveBeenCalledTimes(2);
+      });
+      expect(onShare).toHaveBeenNthCalledWith(1, '911234567890');
+      expect(onShare).toHaveBeenNthCalledWith(2, '919876543210');
+      await waitFor(() => {
+        expect(input).toHaveValue(INITIAL);
+      });
     });
   });
 });

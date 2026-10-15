@@ -15,8 +15,8 @@ import { showToast } from '../../services/toast';
 import {
   downloadVisitPrescriptionPdf,
   printVisitPrescriptionPdf,
-  shareVisitPrescriptionPdf,
 } from '../../utils/visit-prescription-pdf';
+import { openWhatsAppShare } from '../../utils/whatsapp-share';
 import iconPatientPhoto from '../../assets/icons/appointment/icon-patient-image.svg';
 import iconAdvice from '../../assets/icons/icon-advice.svg';
 import iconDownload from '../../assets/icons/icon-download.svg';
@@ -287,7 +287,7 @@ const PrescriptionDetail: React.FC = () => {
   const [data, setData] = useState<PrescriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { pdfOp, run, share } = usePrescriptionPdfAction(visitId as string);
+  const { pdfOp, run } = usePrescriptionPdfAction(visitId as string);
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
@@ -336,17 +336,15 @@ const PrescriptionDetail: React.FC = () => {
     setShowShareModal(true);
   }, []);
 
-  // A failure rejects out to the modal, which shows it in place and keeps the
-  // phone number so the user can retry; the modal closes only on success.
-  const handleSharePdf = useCallback(
-    async (phoneNumber: string) => {
-      const shared = await share((signal, win) =>
-        shareVisitPrescriptionPdf(phoneNumber, signal, win)
-      );
-      if (shared) setShowShareModal(false);
-    },
-    [share]
-  );
+  // Runs straight from the click so the browser allows the new tab. The modal
+  // closes once WhatsApp has opened; if the pop-up is blocked the user is told
+  // and the modal stays open with the number kept for a retry. The result
+  // tells the modal whether to clear the number.
+  const handleWhatsAppShare = useCallback((phoneNumber: string) => {
+    const opened = openWhatsAppShare(phoneNumber);
+    if (opened) setShowShareModal(false);
+    return opened;
+  }, []);
 
   if (loading) {
     return (
@@ -435,8 +433,7 @@ const PrescriptionDetail: React.FC = () => {
       <WhatsAppShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
-        onShare={handleSharePdf}
-        isLoading={pdfOp === 'share'}
+        onShare={handleWhatsAppShare}
       />
     </div>
   );

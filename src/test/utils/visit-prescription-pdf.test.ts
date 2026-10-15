@@ -115,7 +115,6 @@ const makePrescription = (overrides: Partial<PrescriptionData> = {}): Prescripti
 const {
   downloadVisitPrescriptionPdf,
   printVisitPrescriptionPdf,
-  shareVisitPrescriptionPdf,
   openPrescriptionPreview,
   openPendingWindow,
 } =
@@ -508,41 +507,6 @@ describe('printVisitPrescriptionPdf', () => {
   });
 });
 
-describe('shareVisitPrescriptionPdf', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockFetch.mockResolvedValue(makeImageResponse());
-    mockToDataURL.mockReturnValue('data:image/png;base64,CANVAS');
-    vi.stubGlobal('open', vi.fn());
-  });
-
-  it('opens WhatsApp with the phone number', async () => {
-    await shareVisitPrescriptionPdf('919876543210');
-
-    expect(window.open).toHaveBeenCalledWith(
-      expect.stringContaining('https://wa.me/919876543210'),
-      '_blank'
-    );
-  });
-
-  it('does not download the PDF or build one as a side effect', async () => {
-    await shareVisitPrescriptionPdf('919876543210');
-
-    expect(mockDownload).not.toHaveBeenCalled();
-    expect(mockPrint).not.toHaveBeenCalled();
-    expect(mockCreatePdf).not.toHaveBeenCalled();
-  });
-
-  it('includes download link in WhatsApp message', async () => {
-    await shareVisitPrescriptionPdf('11234567890');
-
-    const url = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-    const message = decodeURIComponent(url.split('?text=')[1]);
-    expect(message).toContain('Download here:');
-    expect(message).toContain('https://');
-  });
-});
-
 describe('cancellation via AbortSignal', () => {
   const abortedSignal = () => {
     const controller = new AbortController();
@@ -562,8 +526,7 @@ describe('cancellation via AbortSignal', () => {
   it.each([
     ['download', () => downloadVisitPrescriptionPdf(makePrescription(), abortedSignal())],
     ['print', () => printVisitPrescriptionPdf(makePrescription(), abortedSignal())],
-    ['share', () => shareVisitPrescriptionPdf('919876543210', abortedSignal())],
-  ])('rejects with an AbortError and never reaches pdfMake or WhatsApp when %s is already aborted', async (_name, run) => {
+  ])('rejects with an AbortError and never reaches pdfMake when %s is already aborted', async (_name, run) => {
     await expect(run()).rejects.toMatchObject({ name: 'AbortError' });
     expect(mockCreatePdf).not.toHaveBeenCalled();
     expect(mockDownload).not.toHaveBeenCalled();
@@ -577,11 +540,6 @@ describe('cancellation via AbortSignal', () => {
   ])('still completes %s when the signal is live', async (_name, run) => {
     await run(new AbortController().signal);
     expect(mockCreatePdf).toHaveBeenCalledTimes(1);
-  });
-
-  it('still completes share when the signal is live', async () => {
-    await shareVisitPrescriptionPdf('919876543210', new AbortController().signal);
-    expect(window.open).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/919876543210'), '_blank');
   });
 
   it('passes the signal to the signature image fetch', async () => {
@@ -671,18 +629,6 @@ describe('pop-up safe windows', () => {
     );
   });
 
-  it('share sends the pre-opened tab to WhatsApp instead of opening a new one', async () => {
-    const win = fakeWindow();
-    await shareVisitPrescriptionPdf('919876543210', undefined, win);
-    expect(win.location.href).toContain('https://wa.me/919876543210?text=');
-    expect(window.open).not.toHaveBeenCalled();
-    expect(mockDownload).not.toHaveBeenCalled();
-  });
-
-  it('share still opens WhatsApp itself when no tab is given', async () => {
-    await shareVisitPrescriptionPdf('919876543210', undefined, null);
-    expect(window.open).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/919876543210'), '_blank');
-  });
 });
 
 describe('closed target tab', () => {
@@ -707,27 +653,12 @@ describe('closed target tab', () => {
     expect(mockPrint).not.toHaveBeenCalled();
   });
 
-  it('share rejects with TabClosedError, and neither downloads nor redirects, when the tab was closed before WhatsApp was opened', async () => {
-    const win = closedWindow();
-    await expect(shareVisitPrescriptionPdf('919876543210', undefined, win)).rejects.toBeInstanceOf(
-      TabClosedError
-    );
-    expect(mockDownload).not.toHaveBeenCalled();
-    expect(win.location.href).toBe('');
-    expect(window.open).not.toHaveBeenCalled();
-  });
-
   it('print still hands over a tab that is open', async () => {
     const win = openWindow();
     await printVisitPrescriptionPdf(makePrescription(), undefined, win);
     expect(mockPrint).toHaveBeenCalledWith(win);
   });
 
-  it('share still redirects a tab that is open', async () => {
-    const win = openWindow();
-    await shareVisitPrescriptionPdf('919876543210', undefined, win);
-    expect(win.location.href).toContain('https://wa.me/919876543210');
-  });
 });
 
 describe('awaited downloads', () => {

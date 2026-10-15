@@ -26,10 +26,8 @@ import WhatsAppShareModal from '../../components/modal/whatsapp-share.modal';
 import { usePrescriptionPdfAction } from '../../hooks/usePrescriptionPdfAction';
 import { showToast } from '../../services/toast';
 import { describeError } from '../../utils/safe-error';
-import {
-  printVisitPrescriptionPdf,
-  shareVisitPrescriptionPdf,
-} from '../../utils/visit-prescription-pdf';
+import { printVisitPrescriptionPdf } from '../../utils/visit-prescription-pdf';
+import { openWhatsAppShare } from '../../utils/whatsapp-share';
 import { visitDetailsService } from './visit-details.service';
 import type { TransformedVisitDetails } from './visit-details.types';
 
@@ -209,7 +207,7 @@ const useFromState = () => {
 const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
   const navigate = useNavigate();
   const { fromLabel, fromPath } = useFromState();
-  const { pdfOp, run, share } = usePrescriptionPdfAction(visitId);
+  const { pdfOp, run } = usePrescriptionPdfAction(visitId);
   const [showShareModal, setShowShareModal] = useState(false);
 
   const handleViewPrescription = useCallback(() => {
@@ -236,17 +234,15 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
     setShowShareModal(true);
   }, []);
 
-  // A failure rejects out to the modal, which shows it in place and keeps the
-  // phone number so the user can retry; the modal closes only on success.
-  const handleSharePdf = useCallback(
-    async (phoneNumber: string) => {
-      const shared = await share((signal, win) =>
-        shareVisitPrescriptionPdf(phoneNumber, signal, win)
-      );
-      if (shared) setShowShareModal(false);
-    },
-    [share]
-  );
+  // Runs straight from the click so the browser allows the new tab. The modal
+  // closes once WhatsApp has opened; if the pop-up is blocked the user is told
+  // and the modal stays open with the number kept for a retry. The result
+  // tells the modal whether to clear the number.
+  const handleWhatsAppShare = useCallback((phoneNumber: string) => {
+    const opened = openWhatsAppShare(phoneNumber);
+    if (opened) setShowShareModal(false);
+    return opened;
+  }, []);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -292,8 +288,7 @@ const QuickActionsCard: React.FC<{ visitId: string }> = ({ visitId }) => {
       <WhatsAppShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
-        onShare={handleSharePdf}
-        isLoading={pdfOp === 'share'}
+        onShare={handleWhatsAppShare}
       />
     </div>
   );

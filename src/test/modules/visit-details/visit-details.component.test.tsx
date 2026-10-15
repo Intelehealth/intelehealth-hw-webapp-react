@@ -22,12 +22,12 @@ const {
   mockGetVisitPrescriptionData,
   mockOpenPendingWindow,
   mockPrintVisitPrescriptionPdf,
-  mockShareVisitPrescriptionPdf,
+  mockOpenWhatsAppShare,
 } = vi.hoisted(() => ({
   mockGetVisitPrescriptionData: vi.fn(),
   mockOpenPendingWindow: vi.fn(),
   mockPrintVisitPrescriptionPdf: vi.fn(),
-  mockShareVisitPrescriptionPdf: vi.fn(),
+  mockOpenWhatsAppShare: vi.fn(),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -57,7 +57,10 @@ vi.mock('../../../services/visit-prescription.service', () => ({
 vi.mock('../../../utils/visit-prescription-pdf', () => ({
   openPendingWindow: mockOpenPendingWindow,
   printVisitPrescriptionPdf: mockPrintVisitPrescriptionPdf,
-  shareVisitPrescriptionPdf: mockShareVisitPrescriptionPdf,
+}));
+
+vi.mock('../../../utils/whatsapp-share', () => ({
+  openWhatsAppShare: mockOpenWhatsAppShare,
 }));
 
 // SVG icon mocks
@@ -126,7 +129,6 @@ const renderWithoutVisitId = () => {
 
 /* ── Tests ── */
 
-const SHARE_FAILED = 'Failed to share the prescription. Please try again.';
 const POPUP_BLOCKED = 'Your browser blocked the pop-up. Allow pop-ups for this site and try again.';
 const anyWindow = expect.objectContaining({ close: expect.any(Function) });
 const TAB_CLOSED = 'The tab was closed before the prescription was ready. Please try again.';
@@ -432,7 +434,7 @@ describe('VisitDetails', () => {
       mockShowToast.mockClear();
       mockGetVisitPrescriptionData.mockReset();
       mockPrintVisitPrescriptionPdf.mockReset();
-      mockShareVisitPrescriptionPdf.mockReset();
+      mockOpenWhatsAppShare.mockReset();
       // every click opens a fresh fake tab, like window.open('', '_blank')
       openedWindows = [];
       mockOpenPendingWindow.mockReset();
@@ -695,7 +697,7 @@ describe('VisitDetails', () => {
       const input = await screen.findByPlaceholderText('+918179987770');
       fireEvent.change(input, { target: { value: number } });
       const shareButtons = screen.getAllByRole('button', { name: /share/i });
-      // Share needs no request, so it can finish right away: let that settle
+      // a successful share also resets the modal's number: let that settle
       await act(async () => {
         fireEvent.click(shareButtons[shareButtons.length - 1]);
       });
@@ -796,62 +798,6 @@ describe('VisitDetails', () => {
       expect(mockShowToast).not.toHaveBeenCalled();
     });
 
-    it('should not start a Share while a Print is running, or a Print while a Share is running', async () => {
-      const printData = deferred<{ visitUuid: string }>();
-      mockGetVisitPrescriptionData.mockReturnValueOnce(printData.promise);
-      mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
-      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Print')).toBeInTheDocument();
-      });
-
-      // Print in flight: Share is locked out and the modal cannot be opened
-      fireEvent.click(screen.getByText('Print'));
-      await screen.findByRole('button', { name: /Printing.../ });
-      const shareWhilePrinting = screen.getByRole('button', { name: /^Share$/ });
-      expect(shareWhilePrinting).toBeDisabled();
-      expect(screen.queryByRole('button', { name: /Sharing.../ })).not.toBeInTheDocument();
-      fireEvent.click(shareWhilePrinting);
-      expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
-
-      printData.resolve({ visitUuid: 'print-data' });
-      await waitFor(() => {
-        expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      });
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
-      });
-
-      // Share in flight: Print is locked out
-      const shareStep = deferred<void>();
-      mockShareVisitPrescriptionPdf.mockReturnValueOnce(shareStep.promise);
-      await submitShare();
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      });
-      // only the running action shows a busy state: the modal says "Sharing...",
-      // while Print stays "Print" (disabled) instead of claiming to print
-      expect(await screen.findByRole('button', { name: /Sharing.../ })).toBeDisabled();
-      expect(screen.queryByRole('button', { name: /Printing.../ })).not.toBeInTheDocument();
-      const printWhileSharing = screen.getByRole('button', { name: /^Print$/ });
-      expect(printWhileSharing).toBeDisabled();
-      fireEvent.click(printWhileSharing);
-      // Share fetched nothing, and the click on Print was ignored
-      expect(mockGetVisitPrescriptionData).toHaveBeenCalledTimes(1);
-      expect(mockPrintVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-
-      shareStep.resolve();
-      expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledWith(
-        '919876543210',
-        expect.any(AbortSignal), anyWindow
-      );
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
-      });
-    });
-
     it.each([
       {
         name: 'print',
@@ -859,13 +805,6 @@ describe('VisitDetails', () => {
           fireEvent.click(screen.getByText('Print'));
         },
         action: mockPrintVisitPrescriptionPdf,
-      },
-      {
-        name: 'share',
-        start: async () => {
-          await submitShare();
-        },
-        action: mockShareVisitPrescriptionPdf,
       },
     ])(
       'should stay silent when the $name step fails after the component has unmounted',
@@ -908,13 +847,6 @@ describe('VisitDetails', () => {
         },
         action: mockPrintVisitPrescriptionPdf,
       },
-      {
-        name: 'share',
-        start: async () => {
-          await submitShare();
-        },
-        action: mockShareVisitPrescriptionPdf,
-      },
     ])(
       'should stay silent when the $name step succeeds after the component has unmounted',
       async ({ start, action }) => {
@@ -944,99 +876,10 @@ describe('VisitDetails', () => {
       }
     );
 
-    it('should ignore a stale Share that finishes after a remount and leave the new instance untouched', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const oldShare = deferred<void>();
-      const newShare = deferred<void>();
-      mockShareVisitPrescriptionPdf
-        .mockReturnValueOnce(oldShare.promise)
-        .mockReturnValueOnce(newShare.promise);
-
-      // first instance starts sharing, then is unmounted
-      const first = renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      await submitShare();
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      });
-      first.unmount();
-      await Promise.resolve();
-      expect(mockShareVisitPrescriptionPdf.mock.calls[0][1].aborted).toBe(true);
-
-      // second instance starts its own share
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
-      });
-      await submitShare('+911234567890');
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(2);
-      });
-
-      // the OLD share finishes: it must not touch the new instance
-      oldShare.resolve();
-      await flushPromises();
-      expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
-      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
-      expect(mockShowToast).not.toHaveBeenCalled();
-
-      // the new share completes normally with its own number
-      newShare.resolve();
-      expect(mockShareVisitPrescriptionPdf).toHaveBeenLastCalledWith(
-        '911234567890',
-        expect.any(AbortSignal), anyWindow
-      );
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-      expect(consoleSpy).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
-    });
-
-    it('should cancel every Share across several rapid unmount/remount cycles', async () => {
-      // the first three shares never finish; the last one does
-      mockShareVisitPrescriptionPdf
-        .mockReturnValueOnce(new Promise(() => {}))
-        .mockReturnValueOnce(new Promise(() => {}))
-        .mockReturnValueOnce(new Promise(() => {}))
-        .mockResolvedValue(undefined);
-
-      for (let cycle = 1; cycle <= 3; cycle++) {
-        const view = renderWithRouter('test-visit-uuid');
-        await waitFor(() => {
-          expect(screen.getByRole('button', { name: /^Share$/ })).toBeEnabled();
-        });
-        await submitShare();
-        await waitFor(() => {
-          expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(cycle);
-        });
-        view.unmount();
-        await Promise.resolve();
-        expect(mockShareVisitPrescriptionPdf.mock.calls[cycle - 1][1].aborted).toBe(true);
-      }
-
-      // after all that churn a fresh mount still works
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Share$/ })).toBeEnabled();
-      });
-      await submitShare();
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(4);
-      });
-      expect(mockShareVisitPrescriptionPdf.mock.calls[3][1].aborted).toBe(false);
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-      expect(mockShowToast).not.toHaveBeenCalled();
-    });
-
-    it('should still print and share when React StrictMode runs the mount effect twice', async () => {
+    it('should still print and open WhatsApp when React StrictMode runs the mount effect twice', async () => {
       mockGetVisitPrescriptionData.mockResolvedValue({ visitUuid: 'test-visit-uuid' });
       mockPrintVisitPrescriptionPdf.mockResolvedValue(undefined);
-      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
+      mockOpenWhatsAppShare.mockReturnValue(true);
       render(
         <StrictMode>
           <MemoryRouter initialEntries={['/visit-details/test-visit-uuid']}>
@@ -1063,13 +906,10 @@ describe('VisitDetails', () => {
 
       await submitShare();
       await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
+        expect(mockOpenWhatsAppShare).toHaveBeenCalledTimes(1);
       });
       await waitFor(() => {
         expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Share$/ })).toBeEnabled();
       });
       expect(mockShowToast).not.toHaveBeenCalled();
     });
@@ -1156,32 +996,6 @@ describe('VisitDetails', () => {
       expect(openedWindows[0].close).not.toHaveBeenCalled();
     });
 
-    it('should open the WhatsApp tab synchronously in the click and hand it to share', async () => {
-      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByRole('button', { name: /^Share$/ }));
-      fireEvent.change(await screen.findByPlaceholderText('+918179987770'), {
-        target: { value: '+919876543210' },
-      });
-      const shareButtons = screen.getAllByRole('button', { name: /share/i });
-      fireEvent.click(shareButtons[shareButtons.length - 1]);
-
-      expect(mockOpenPendingWindow).toHaveBeenCalledWith('Opening WhatsApp...');
-      expect(openedWindows).toHaveLength(1);
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      });
-      expect(mockShareVisitPrescriptionPdf.mock.calls[0][2]).toBe(openedWindows[0]);
-      // the modal closes once the share has handed the tab over
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-      expect(openedWindows[0].close).not.toHaveBeenCalled();
-    });
-
     it('should tell the user to allow pop-ups, and do no work, when the browser blocks the print tab', async () => {
       mockOpenPendingWindow.mockReturnValue(null);
       renderWithRouter('test-visit-uuid');
@@ -1195,21 +1009,6 @@ describe('VisitDetails', () => {
       expect(mockPrintVisitPrescriptionPdf).not.toHaveBeenCalled();
       // nothing is left busy: the user can allow pop-ups and click again
       expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
-    });
-
-    it('should tell the user to allow pop-ups, keep the modal open and do no work, when the browser blocks the WhatsApp tab', async () => {
-      mockOpenPendingWindow.mockReturnValue(null);
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      await submitShare();
-
-      expect(mockShowToast).toHaveBeenCalledWith('Error', POPUP_BLOCKED, 'error');
-      expect(mockGetVisitPrescriptionData).not.toHaveBeenCalled();
-      expect(mockShareVisitPrescriptionPdf).not.toHaveBeenCalled();
-      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
-      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
     });
 
     it.each([
@@ -1236,20 +1035,6 @@ describe('VisitDetails', () => {
           'error'
         );
       });
-      expect(openedWindows).toHaveLength(1);
-      expect(openedWindows[0].close).toHaveBeenCalled();
-      consoleSpy.mockRestore();
-    });
-
-    it('should close the blank WhatsApp tab when sharing fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockShareVisitPrescriptionPdf.mockRejectedValue(new Error('share failed'));
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      await submitShare();
-      expect(await screen.findByText(SHARE_FAILED)).toBeInTheDocument();
       expect(openedWindows).toHaveLength(1);
       expect(openedWindows[0].close).toHaveBeenCalled();
       consoleSpy.mockRestore();
@@ -1348,23 +1133,6 @@ describe('VisitDetails', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should keep the Share modal open when the share step finds the tab closed', async () => {
-      mockShareVisitPrescriptionPdf.mockRejectedValue(new TabClosedError());
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      await submitShare();
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith('Error', TAB_CLOSED, 'error');
-      });
-      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
-      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /^Share$/ }).at(-1)).toBeEnabled();
-      });
-    });
-
     it('should log only the error type and HTTP status, never the message, when printing fails', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockGetVisitPrescriptionData.mockRejectedValue(
@@ -1413,164 +1181,58 @@ describe('VisitDetails', () => {
       });
     });
 
-    it('should call shareVisitPrescriptionPdf with the phone number, without fetching the prescription, when share is submitted', async () => {
-      mockShareVisitPrescriptionPdf.mockResolvedValue(undefined);
+
+    it('should open WhatsApp with the phone number, and close the modal, when share is submitted', async () => {
+      mockOpenWhatsAppShare.mockReturnValue(true);
       renderWithRouter('test-visit-uuid');
       await waitFor(() => {
         expect(screen.getByText('Share')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByText('Share'));
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
-      });
-      fireEvent.change(screen.getByPlaceholderText('+918179987770'), {
-        target: { value: '+919876543210' },
-      });
-      const shareButtons = screen.getAllByRole('button', { name: /share/i });
-      fireEvent.click(shareButtons[shareButtons.length - 1]);
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledWith('919876543210', expect.any(AbortSignal), anyWindow);
-      });
-      expect(mockGetVisitPrescriptionData).not.toHaveBeenCalled();
-      // a successful share closes the modal
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should log a generic error, show the failure inside the modal, and stop loading when sharing fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockShareVisitPrescriptionPdf.mockRejectedValue(
-        new Error('whatsapp failed: token=secret-123 patient=John')
-      );
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByText('Share'));
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
-      });
-      fireEvent.change(screen.getByPlaceholderText('+918179987770'), {
-        target: { value: '+919876543210' },
-      });
-      const shareButtons = screen.getAllByRole('button', { name: /share/i });
-      fireEvent.click(shareButtons[shareButtons.length - 1]);
-
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledWith('919876543210', expect.any(AbortSignal), anyWindow);
-      });
-      await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to share prescription PDF', { name: 'Error', status: undefined });
-      });
-      // nothing from the rejected error (token, patient name) reaches the console
-      expect(consoleSpy).toHaveBeenCalledTimes(1);
-      expect(await screen.findByText(SHARE_FAILED)).toBeInTheDocument();
-      expect(mockShowToast).not.toHaveBeenCalled();
-      // the failure text is fixed; nothing from the rejected error reaches the page
-      expect(screen.queryByText(/secret-123/)).not.toBeInTheDocument();
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /^Share$/ }).at(-1)).toBeEnabled();
-      });
-      consoleSpy.mockRestore();
-    });
-
-    it('should keep the modal open on a failed share so the user can retry with the number still filled in', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockShareVisitPrescriptionPdf
-        .mockRejectedValueOnce(new Error('temporary failure'))
-        .mockResolvedValueOnce(undefined);
-      renderWithRouter('test-visit-uuid');
-      await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
-      });
-
-      // first attempt fails: the failure appears in the modal, which stays open
       await submitShare();
-      expect(await screen.findByText(SHARE_FAILED)).toBeInTheDocument();
-      const input = screen.getByPlaceholderText('+918179987770');
-      expect(input).toHaveValue('+919876543210');
-      expect(mockShowToast).not.toHaveBeenCalled();
 
-      // retry from the same open modal, no retyping needed
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /^Share$/ }).at(-1)).toBeEnabled();
-      });
-      const shareButtons = screen.getAllByRole('button', { name: /^Share$/ });
-      fireEvent.click(shareButtons[shareButtons.length - 1]);
-
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(2);
-      });
-      expect(mockShareVisitPrescriptionPdf).toHaveBeenLastCalledWith('919876543210', expect.any(AbortSignal), anyWindow);
-      // success clears the failure and closes the modal
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
-      });
-      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
-      expect(mockShowToast).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(mockOpenWhatsAppShare).toHaveBeenCalledTimes(1);
+      expect(mockOpenWhatsAppShare).toHaveBeenCalledWith('919876543210');
+      // sharing opens no holding tab and fetches nothing
+      expect(mockOpenPendingWindow).not.toHaveBeenCalled();
+      expect(mockGetVisitPrescriptionData).not.toHaveBeenCalled();
+      expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
     });
 
-    it('should not show a failure for a Share submit that is ignored while one is already running', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockShareVisitPrescriptionPdf.mockReturnValue(new Promise(() => {}));
+    it('should keep the modal open with the number kept when the browser blocks WhatsApp, and close it on a retry that works', async () => {
+      mockOpenWhatsAppShare.mockReturnValueOnce(false).mockReturnValueOnce(true);
       renderWithRouter('test-visit-uuid');
       await waitFor(() => {
         expect(screen.getByText('Share')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByText('Share'));
-      fireEvent.change(await screen.findByPlaceholderText('+918179987770'), {
-        target: { value: '+919876543210' },
-      });
+
+      await submitShare();
+      expect(screen.getByPlaceholderText('+918179987770')).toHaveValue('+919876543210');
+
       const shareButtons = screen.getAllByRole('button', { name: /^Share$/ });
-      const submit = shareButtons[shareButtons.length - 1];
-      // two submits before the loading state re-renders: the second is ignored
-      act(() => {
-        submit.click();
-        submit.click();
+      await act(async () => {
+        fireEvent.click(shareButtons[shareButtons.length - 1]);
       });
-      expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      await flushPromises();
-      expect(screen.queryByText(SHARE_FAILED)).not.toBeInTheDocument();
-      expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
-      expect(consoleSpy).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
+
+      expect(mockOpenWhatsAppShare).toHaveBeenCalledTimes(2);
+      expect(mockOpenWhatsAppShare).toHaveBeenLastCalledWith('919876543210');
+      expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
     });
 
-    it('should abort the signal and stay silent when the component unmounts while sharing', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const shareStep = deferred<void>();
-      mockShareVisitPrescriptionPdf.mockReturnValue(shareStep.promise);
-      const { unmount } = renderWithRouter('test-visit-uuid');
+    it('should not open the Share modal while a Print is running', async () => {
+      mockGetVisitPrescriptionData.mockReturnValueOnce(new Promise(() => {}));
+      renderWithRouter('test-visit-uuid');
       await waitFor(() => {
-        expect(screen.getByText('Share')).toBeInTheDocument();
+        expect(screen.getByText('Print')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByText('Share'));
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('+918179987770')).toBeInTheDocument();
-      });
-      fireEvent.change(screen.getByPlaceholderText('+918179987770'), {
-        target: { value: '+919876543210' },
-      });
-      const shareButtons = screen.getAllByRole('button', { name: /share/i });
-      fireEvent.click(shareButtons[shareButtons.length - 1]);
-      await waitFor(() => {
-        expect(mockShareVisitPrescriptionPdf).toHaveBeenCalledTimes(1);
-      });
-      const signal = mockShareVisitPrescriptionPdf.mock.calls[0][1] as AbortSignal;
-      expect(signal.aborted).toBe(false);
 
-      unmount();
+      fireEvent.click(screen.getByText('Print'));
+      await screen.findByRole('button', { name: /Printing.../ });
+      const shareWhilePrinting = screen.getByRole('button', { name: /^Share$/ });
+      expect(shareWhilePrinting).toBeDisabled();
+      fireEvent.click(shareWhilePrinting);
 
-      await Promise.resolve();
-      expect(signal.aborted).toBe(true);
-      shareStep.resolve();
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(consoleSpy).not.toHaveBeenCalled();
-      expect(mockShowToast).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(screen.queryByPlaceholderText('+918179987770')).not.toBeInTheDocument();
+      expect(mockOpenWhatsAppShare).not.toHaveBeenCalled();
     });
   });
 

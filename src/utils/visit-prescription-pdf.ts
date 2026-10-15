@@ -597,7 +597,7 @@ export async function downloadVisitPrescriptionPdf(
 }
 
 /**
- * Opens a blank tab that a later async step (print / WhatsApp) can fill in.
+ * Opens a blank tab that the print step can fill in later.
  * It must be called synchronously inside the user's click: browsers only
  * allow a pop-up while the click's activation is still fresh, and a slow
  * network request before window.open would lose it. Returns null when the
@@ -606,8 +606,8 @@ export async function downloadVisitPrescriptionPdf(
 export function openPendingWindow(message: string): Window | null {
   const win = window.open('', '_blank');
   if (win) {
-    // The tab will be sent to a third-party page (WhatsApp). Cut its link back
-    // to this app so that page cannot redirect the EMR tab (reverse tabnabbing).
+    // Cut the new tab's link back to this app so nothing loaded in it can
+    // redirect the EMR tab (reverse tabnabbing).
     win.opener = null;
     win.document.title = 'Intelehealth';
     win.document.body.textContent = message;
@@ -626,32 +626,4 @@ export async function printVisitPrescriptionPdf(
   // with no target window pdfmake opens its own, after the data has loaded
   // awaited so an async pdfmake failure reaches the caller, which then closes the tab
   await pdfMake.createPdf(docDef).print(targetWindow ?? undefined);
-}
-
-/**
- * Opens WhatsApp with a message for `phoneNumber`. Sharing never saves the PDF
- * to the user's device; that is what the Download button is for.
- */
-export async function shareVisitPrescriptionPdf(
-  phoneNumber: string,
-  signal?: AbortSignal,
-  targetWindow?: Window | null
-): Promise<void> {
-  throwIfAborted(signal);
-  throwIfTabClosed(targetWindow);
-
-  // TODO: Replace dummy link with actual upload URL once backend API is ready
-  const downloadLink =
-    'https://pathqa.intelehealth.org/intelehealth/index.html#/i/2vpa';
-
-  // Open WhatsApp with the provided phone number and download link
-  const message = encodeURIComponent(
-    `Hello, Thank you for using Intelehealth. To download your prescription click here\nDownload here: ${downloadLink}`
-  );
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
-  if (targetWindow) {
-    targetWindow.location.href = whatsappUrl;
-  } else {
-    window.open(whatsappUrl, '_blank');
-  }
 }
