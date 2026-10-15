@@ -303,7 +303,7 @@ describe('JoinCallPage', () => {
   });
 
   it('resets stale state when a new magic token arrives on a live page', async () => {
- 
+
     redeem.mockResolvedValue(sampleCall);
     const { rerender } = render(<JoinCallPage />);
     await flush();
@@ -321,7 +321,7 @@ describe('JoinCallPage', () => {
       rerender(<JoinCallPage />);
     });
 
- 
+
     expect(screen.queryByText('Call ended')).not.toBeInTheDocument();
     expect(screen.getByText('Preparing your call…')).toBeInTheDocument();
     expect(redeem).toHaveBeenLastCalledWith('magic-456');

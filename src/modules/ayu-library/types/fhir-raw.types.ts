@@ -57,7 +57,7 @@ export interface FhirItem {
     answerCoding?: { code: string };
   }[];
 
-  // enableBehavior?: string;
+  enableBehavior?: string;
 
   extension?: FhirExtension[];
   item?: FhirItem[];

@@ -11,6 +11,7 @@ import type {
   FhirQuestionnaire,
 } from '../types/fhir-raw.types';
 import {
+  ENABLE_BEHAVIOR_ANY,
   EXT_URL_AGE_MAX,
   EXT_URL_AGE_MIN,
   EXT_URL_GENDER,
@@ -304,12 +305,16 @@ function transformItemTracked(
 ): TransformedItem {
   const originalChildren = item.item ?? [];
 
-  const children = originalChildren
+  const keptChildren = originalChildren
     .filter(child => matchesDemographics(child.extension, demographics))
     .filter(child => child.type !== FHIR_TYPE_ATTACHMENT)
-    .map(child => transformItemTracked(child, demographics))
-    .filter(child => !child.emptiedByDemographics)
-    .map(child => child.out);
+    .map(source => ({
+      source,
+      tracked: transformItemTracked(source, demographics),
+    }))
+    .filter(({ tracked }) => !tracked.emptiedByDemographics);
+
+  const children = keptChildren.map(({ tracked }) => tracked.out);
 
   // Restructure any Yes-choice / No-display sibling pairs into proper Yes/No questions
   const patchedChildren = patchYesNoDisplayPattern(item, children);
@@ -336,13 +341,29 @@ function transformItemTracked(
    * this question — with no selectable option those branches can never be
    * reached. A sub-question gated on something else (or on nothing) is still
    * live, so the question stays. */
+  /* With every option gone, a rule pointing at this question can never be
+   * satisfied. Under enableBehavior 'any' one rule is enough to reveal the
+   * child, so a rule pointing elsewhere keeps it live; under the default 'all'
+   * every rule must hold, so a single dead rule is enough to strand it.
+   *
+   * Read from the kept source children rather than the patched output, which
+   * does not carry enableBehavior. The two agree here: patching only merges a
+   * Yes/No pair into one question gated on a removed option code, so a merged
+   * child is unreachable exactly when both of its sources were. */
+  const isStranded = (child: AyuQuestion): boolean => {
+    const rules = child.enableWhen ?? [];
+    if (rules.length === 0) return false;
+    const pointsHere = (rule: AyuEnableWhen) => rule.question === item.linkId;
+    return child.enableBehavior === ENABLE_BEHAVIOR_ANY
+      ? rules.every(pointsHere)
+      : rules.some(pointsHere);
+  };
+
   const emptiedByDemographics =
     type === FHIR_TYPE_CHOICE &&
     sourceOptionCount > 0 &&
     keptOptionCount === 0 &&
-    patchedChildren.every(child =>
-      child.enableWhen?.some(rule => rule.question === item.linkId)
-    );
+    keptChildren.every(({ source }) => isStranded(source));
 
   return {
     out: {

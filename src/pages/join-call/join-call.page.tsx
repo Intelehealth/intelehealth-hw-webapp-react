@@ -27,10 +27,10 @@ const JoinCallPage = () => {
   const [doctorPresent, setDoctorPresent] = useState(false);
   const [error, setError] = useState('');
   const stateRef = useRef<JoinState>('loading');
-  const tokenRef = useRef<string | undefined>(magicToken);
+  const [prevToken, setPrevToken] = useState(magicToken);
 
-  if (tokenRef.current !== magicToken) {
-    tokenRef.current = magicToken;
+  if (prevToken !== magicToken) {
+    setPrevToken(magicToken);
     setState('loading');
     setCall(null);
     setDevices(null);
