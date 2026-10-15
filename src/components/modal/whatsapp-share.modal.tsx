@@ -5,12 +5,18 @@ interface WhatsAppShareModalProps {
   open: boolean;
   onClose: () => void;
   /**
-   * Called with the digits to share to. If it returns a promise that rejects,
-   * the modal stays open and shows a failure message so the user can retry.
+   * Called with the digits to share to. The number is cleared once this
+   * succeeds. Returning false means nothing was shared, and a promise that
+   * rejects means the share failed: either way the number stays for a retry,
+   * and a rejection also shows a failure message.
    */
-  onShare: (fullPhoneNumber: string) => void | Promise<void>;
+  onShare: (
+    fullPhoneNumber: string
+  ) => boolean | void | Promise<boolean | void>;
   isLoading?: boolean;
 }
+
+const INITIAL_PHONE_NUMBER = '+91';
 
 export const SHARE_FAILED_MESSAGE =
   'Failed to share the prescription. Please try again.';
@@ -21,7 +27,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   onShare,
   isLoading = false,
 }) => {
-  const [phoneNumber, setPhoneNumber] = useState('+91');
+  const [phoneNumber, setPhoneNumber] = useState(INITIAL_PHONE_NUMBER);
   const [error, setError] = useState('');
 
   // A failure from an earlier attempt must not greet the user on reopen.
@@ -62,7 +68,8 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
     setError('');
     try {
-      await onShare(digits);
+      const shared = await onShare(digits);
+      if (shared !== false) setPhoneNumber(INITIAL_PHONE_NUMBER);
     } catch {
       setError(SHARE_FAILED_MESSAGE);
     }

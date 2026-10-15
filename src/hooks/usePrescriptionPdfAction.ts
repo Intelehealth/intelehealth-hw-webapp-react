@@ -12,30 +12,28 @@ import {
 import { describeError } from '../utils/safe-error';
 import { openPendingWindow } from '../utils/visit-prescription-pdf';
 
-export type PdfOperation = 'print' | 'share' | 'download';
+export type PdfOperation = 'print' | 'download';
 
 /**
- * Print and Share hand a tab to the PDF step, opened in the click. Download
- * saves a file and needs no tab.
+ * Print hands a tab to the PDF step, opened in the click. Download saves a
+ * file and needs no tab.
  */
 const PENDING_MESSAGE: Partial<Record<PdfOperation, string>> = {
   print: 'Preparing your prescription...',
-  share: 'Opening WhatsApp...',
 };
 
 const FAILURE_MESSAGE: Record<PdfOperation, string> = {
   print: 'Failed to print prescription PDF',
-  share: 'Failed to share prescription PDF',
   download: 'Failed to download prescription PDF',
 };
 
 /**
- * Runs a Print, Share or Download of a visit's prescription PDF, shared by
+ * Runs a Print or Download of a visit's prescription PDF, shared by
  * every screen that offers them.
  *
  * - One operation at a time. The guard is checked before a tab is opened, so a
  *   double click opens nothing extra and fetches nothing twice.
- * - For Print and Share the tab is opened here, synchronously inside the
+ * - For Print the tab is opened here, synchronously inside the
  *   click, so the pop-up blocker allows it; it is handed to the action and
  *   closed again unless the action succeeds and takes it over.
  * - Cancelled when the component unmounts, and when `visitId` changes while

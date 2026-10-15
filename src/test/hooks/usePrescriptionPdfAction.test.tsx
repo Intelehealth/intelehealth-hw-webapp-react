@@ -69,17 +69,16 @@ describe('usePrescriptionPdfAction', () => {
     expect(result.current.pdfOp).toBeNull();
   });
 
-  it('uses the WhatsApp message for a share, and reports which operation is running', async () => {
+  it('reports which operation is running', async () => {
     const request = deferred<typeof PDF_DATA>();
     mockGetVisitPrescriptionData.mockReturnValue(request.promise);
     const { result } = renderHook(() => usePrescriptionPdfAction('visit-1'));
 
     let pending: Promise<boolean> = Promise.resolve(false);
     act(() => {
-      pending = result.current.run('share', vi.fn().mockResolvedValue(undefined));
+      pending = result.current.run('print', vi.fn().mockResolvedValue(undefined));
     });
-    expect(mockOpenPendingWindow).toHaveBeenCalledWith('Opening WhatsApp...');
-    expect(result.current.pdfOp).toBe('share');
+    expect(result.current.pdfOp).toBe('print');
 
     await act(async () => {
       request.resolve(PDF_DATA);
@@ -157,11 +156,11 @@ describe('usePrescriptionPdfAction', () => {
       details: { name: 'Error', status: 401 },
     },
     {
-      name: 'the share step fails',
-      op: 'share' as const,
+      name: 'the print step fails',
+      op: 'print' as const,
       setup: () => mockGetVisitPrescriptionData.mockResolvedValue(PDF_DATA),
-      action: vi.fn().mockRejectedValue(new TypeError('whatsapp token=secret-123')),
-      message: 'Failed to share prescription PDF',
+      action: vi.fn().mockRejectedValue(new TypeError('print token=secret-123')),
+      message: 'Failed to print prescription PDF',
       details: { name: 'TypeError', status: undefined },
     },
   ])('logs only safe details, closes the tab and rejects when $name', async ({ op, setup, action, message, details }) => {
@@ -219,7 +218,7 @@ describe('usePrescriptionPdfAction', () => {
 
     let done: boolean | undefined;
     await act(async () => {
-      done = await result.current.run('share', action);
+      done = await result.current.run('print', action);
     });
 
     expect(done).toBe(false);
@@ -285,7 +284,7 @@ describe('usePrescriptionPdfAction', () => {
 
     let pending: Promise<boolean> = Promise.resolve(true);
     act(() => {
-      pending = result.current.run('share', action);
+      pending = result.current.run('print', action);
     });
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     unmount();
@@ -379,7 +378,7 @@ describe('usePrescriptionPdfAction', () => {
       expect(result.current.pdfOp).toBeNull();
     });
 
-    it('is guarded like Print and Share: a second download while one runs is ignored', async () => {
+    it('is guarded like Print: a second download while one runs is ignored', async () => {
       const request = deferred<typeof PDF_DATA>();
       mockGetVisitPrescriptionData.mockReturnValue(request.promise);
       const action = vi.fn().mockResolvedValue(undefined);
