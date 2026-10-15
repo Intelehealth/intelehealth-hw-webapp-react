@@ -302,6 +302,31 @@ describe('JoinCallPage', () => {
     expect(hrefValue).toBe('myapp://home');
   });
 
+  it('resets stale state when a new magic token arrives on a live page', async () => {
+
+    redeem.mockResolvedValue(sampleCall);
+    const { rerender } = render(<JoinCallPage />);
+    await flush();
+    await act(async () => {
+      h.lobby.onJoin({ cameraEnabled: true } as any);
+    });
+    await act(async () => {
+      h.callroom.onEnd(undefined);
+    });
+    expect(screen.getByText('Call ended')).toBeInTheDocument();
+
+    h.params = { magicToken: 'magic-456' };
+    redeem.mockReturnValue(new Promise(() => {}));
+    await act(async () => {
+      rerender(<JoinCallPage />);
+    });
+
+
+    expect(screen.queryByText('Call ended')).not.toBeInTheDocument();
+    expect(screen.getByText('Preparing your call…')).toBeInTheDocument();
+    expect(redeem).toHaveBeenLastCalledWith('magic-456');
+  });
+
   it('ignores a redeem success that resolves after unmount', async () => {
     let resolveRedeem: (v: unknown) => void = () => {};
     redeem.mockReturnValue(

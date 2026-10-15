@@ -94,6 +94,8 @@ export interface AyuQuestion {
 
   enableWhen?: AyuEnableWhen[];
 
+  enableBehavior?: string;
+
   extension?: FhirExtension[];
 
   /** FHIR: item.answerOption */

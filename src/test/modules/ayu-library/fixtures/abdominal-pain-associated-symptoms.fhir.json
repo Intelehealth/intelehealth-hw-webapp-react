@@ -1,0 +1,135 @@
+{
+  "resourceType": "Questionnaire",
+  "item": [
+    {
+      "linkId": "ID-294177528",
+      "type": "choice",
+      "text": "Associated symptoms",
+      "answerOption": [
+        {
+          "valueCoding": {
+            "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+            "code": "ID_1516120181",
+            "display": "Nausea"
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+            "code": "ID_1320736262",
+            "display": "Vaginal discharge [describe]"
+          },
+          "extension": [
+            {
+              "url": "https://intelehealth.org/fhir/StructureDefinition/gender",
+              "valueString": "0"
+            },
+            {
+              "url": "https://intelehealth.org/fhir/StructureDefinition/age_min",
+              "valueString": "8"
+            },
+            {
+              "url": "https://intelehealth.org/fhir/StructureDefinition/age_max",
+              "valueString": "120"
+            }
+          ]
+        }
+      ],
+      "item": [
+        {
+          "linkId": "ID-1972625858",
+          "text": "Smell of the discharge",
+          "type": "choice",
+          "enableWhen": [
+            {
+              "question": "ID-294177528",
+              "operator": "=",
+              "answerCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_1320736262"
+              }
+            }
+          ],
+          "extension": [
+            {
+              "url": "https://intelehealth.org/fhir/StructureDefinition/display",
+              "valueString": "Is the discharge foul-smelling?"
+            },
+            {
+              "url": "https://intelehealth.org/fhir/StructureDefinition/language",
+              "valueString": "%"
+            }
+          ],
+          "answerOption": [
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_1635710830",
+                "display": "Yes"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_859766874",
+                "display": "No"
+              }
+            }
+          ]
+        },
+        {
+          "linkId": "ID-157083625",
+          "text": "Character of the discharge [describe]",
+          "type": "choice",
+          "enableWhen": [
+            {
+              "question": "ID-294177528",
+              "operator": "=",
+              "answerCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_1320736262"
+              }
+            }
+          ],
+          "answerOption": [
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_395803531",
+                "display": "Curd-like"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_1161135312",
+                "display": "Greenish"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_922767326",
+                "display": "White"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_936970040",
+                "display": "Watery"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "https://intelehealth.org/fhir/CodeSystem/questionnaire-options",
+                "code": "ID_581162594",
+                "display": "Blood-stained"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

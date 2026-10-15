@@ -11,6 +11,7 @@ import type {
   FhirQuestionnaire,
 } from '../types/fhir-raw.types';
 import {
+  ENABLE_BEHAVIOR_ANY,
   EXT_URL_AGE_MAX,
   EXT_URL_AGE_MIN,
   EXT_URL_GENDER,
@@ -280,53 +281,108 @@ function patchYesNoDisplayPattern(
   return result;
 }
 
+/**
+ * A transformed question plus whether demographic filtering is what stripped
+ * it of every answer, leaving a shell the patient can't act on. The flag is
+ * computed here, where the source item and the filtered results are both in
+ * scope, rather than inferred from the output afterwards.
+ */
+type TransformedItem = {
+  out: AyuQuestion;
+  emptiedByDemographics: boolean;
+};
+
 function transformItem(
   item: AyuQuestion,
   demographics?: PatientDemographics
 ): AyuQuestion {
+  return transformItemTracked(item, demographics).out;
+}
+
+function transformItemTracked(
+  item: AyuQuestion,
+  demographics?: PatientDemographics
+): TransformedItem {
   const originalChildren = item.item ?? [];
 
-  const children = originalChildren
+  const keptChildren = originalChildren
     .filter(child => matchesDemographics(child.extension, demographics))
-
     .filter(child => child.type !== FHIR_TYPE_ATTACHMENT)
-    .map(child => transformItem(child, demographics));
+    .map(source => ({
+      source,
+      tracked: transformItemTracked(source, demographics),
+    }))
+    .filter(({ tracked }) => !tracked.emptiedByDemographics);
+
+  const children = keptChildren.map(({ tracked }) => tracked.out);
 
   // Restructure any Yes-choice / No-display sibling pairs into proper Yes/No questions
   const patchedChildren = patchYesNoDisplayPattern(item, children);
 
-  const isOptionOrphanedByDemographics = (optCode: string): boolean => {
-    const enabledChildren = originalChildren.filter(child =>
-      child.enableWhen?.some(rule => rule.answerCoding?.code === optCode)
-    );
-    if (enabledChildren.length === 0) return false;
-    return enabledChildren.every(
-      child => !matchesDemographics(child.extension, demographics)
-    );
+  /* An option is hidden purely on its own gender/age extensions. The protocol
+   * converter emits those onto the answerOption entry and onto any child it
+   * generates from the same source option (ANSWER_OPTION_KEYS / EXTENSION_MAP
+   * both carry gender + age_min/age_max), so the option-level rule is always
+   * present when a restating sub-question is excluded -- no inference from a
+   * child's wording is needed. */
+  const answerOption = item.answerOption?.filter(opt =>
+    matchesDemographics(opt.extension, demographics)
+  );
+
+  const type = normalizeType(item.type);
+  const sourceOptionCount = item.answerOption?.length ?? 0;
+  const keptOptionCount = answerOption?.length ?? 0;
+
+  /* Keyed on the cause, not the result: a question authored with no options at
+   * all is left alone, since no rule removed anything. Only one that had
+   * options in the source and has none left is a candidate.
+   *
+   * Remaining sub-questions don't save it if they're all gated on an answer to
+   * this question — with no selectable option those branches can never be
+   * reached. A sub-question gated on something else (or on nothing) is still
+   * live, so the question stays. */
+  /* With every option gone, a rule pointing at this question can never be
+   * satisfied. Under enableBehavior 'any' one rule is enough to reveal the
+   * child, so a rule pointing elsewhere keeps it live; under the default 'all'
+   * every rule must hold, so a single dead rule is enough to strand it.
+   *
+   * Read from the kept source children rather than the patched output, which
+   * does not carry enableBehavior. The two agree here: patching only merges a
+   * Yes/No pair into one question gated on a removed option code, so a merged
+   * child is unreachable exactly when both of its sources were. */
+  const isStranded = (child: AyuQuestion): boolean => {
+    const rules = child.enableWhen ?? [];
+    if (rules.length === 0) return false;
+    const pointsHere = (rule: AyuEnableWhen) => rule.question === item.linkId;
+    return child.enableBehavior === ENABLE_BEHAVIOR_ANY
+      ? rules.every(pointsHere)
+      : rules.some(pointsHere);
   };
 
-  const answerOption = item.answerOption?.filter(opt => {
-    if (!matchesDemographics(opt.extension, demographics)) return false;
-    const code = opt.valueCoding?.code || opt.valueString;
-    if (code && isOptionOrphanedByDemographics(code)) return false;
-    return true;
-  });
+  const emptiedByDemographics =
+    type === FHIR_TYPE_CHOICE &&
+    sourceOptionCount > 0 &&
+    keptOptionCount === 0 &&
+    keptChildren.every(({ source }) => isStranded(source));
 
   return {
-    linkId: item.linkId,
-    text: item.text,
-    _text: item._text,
+    out: {
+      linkId: item.linkId,
+      text: item.text,
+      _text: item._text,
 
-    type: normalizeType(item.type),
+      type,
 
-    required: item.required,
-    readOnly: item.readOnly,
-    repeats: item.repeats,
+      required: item.required,
+      readOnly: item.readOnly,
+      repeats: item.repeats,
 
-    answerOption,
-    enableWhen: normalizeEnableWhen(item.enableWhen),
-    extension: item.extension,
-    item: patchedChildren,
+      answerOption,
+      enableWhen: normalizeEnableWhen(item.enableWhen),
+      extension: item.extension,
+      item: patchedChildren,
+    },
+    emptiedByDemographics,
   };
 }
 
@@ -350,7 +406,9 @@ export function transformFhirToAyu(
   // Wrap root items into a single AYU root group
   const items = questionnaire.item
     .filter(item => matchesDemographics(item.extension, demographics))
-    .map(item => transformItem(item, demographics));
+    .map(item => transformItemTracked(item, demographics))
+    .filter(item => !item.emptiedByDemographics)
+    .map(item => item.out);
 
   return {
     linkId: 'root',

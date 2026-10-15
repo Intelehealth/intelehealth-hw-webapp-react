@@ -131,6 +131,8 @@ export const FHIR_TYPE_ATTACHMENT = 'attachment';
 export const FHIR_TYPE_DISPLAY = 'display';
 export const FHIR_TYPE_GROUP = 'group';
 
+export const ENABLE_BEHAVIOR_ANY = 'any';
+
 // ========================
 // Associated Symptoms
 // ========================

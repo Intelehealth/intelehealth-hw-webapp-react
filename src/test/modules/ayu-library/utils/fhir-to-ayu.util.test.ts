@@ -32,6 +32,7 @@ import {
   transformFhirPhysExamToAyu,
   transformFhirToAyu,
 } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import associatedSymptomsFixture from '../fixtures/abdominal-pain-associated-symptoms.fhir.json';
 
 
 const [EXT_AGE_MIN, EXT_AGE_MIN_LEGACY] = EXT_AGE_MIN_URLS;
@@ -1315,7 +1316,338 @@ describe('fhir-to-ayu.util', () => {
       ).toEqual(['fever']);
     });
 
-    it('hides an option when its only enabled child is demographically excluded', () => {
+    it('drops a choice question whose every option is demographically excluded', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'marital',
+            type: 'choice',
+            text: 'Marital status',
+            answerOption: [
+              { valueCoding: { code: 'married', display: 'Married' } },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy',
+                type: 'choice',
+                text: 'Pregnancy history',
+                answerOption: [
+                  {
+                    valueCoding: { code: 'count', display: 'Pregnancies' },
+                    extension: [{ url: EXT_GENDER, valueString: '0' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const female = transformFhirToAyu(questionnaire, { gender: 'F' });
+      expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
+
+      // Male patient: the option is filtered away, so the now-empty
+      // "Pregnancy history" shell must not render at all.
+      const male = transformFhirToAyu(questionnaire, { gender: 'M' });
+      expect(male?.item?.[0].item ?? []).toEqual([]);
+    });
+
+    it('keeps an option whose excluded child asks something narrower', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'marital',
+            type: 'choice',
+            text: 'Marital status',
+            answerOption: [
+              { valueCoding: { code: 'married', display: 'Married' } },
+              { valueCoding: { code: 'single', display: 'Not married' } },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy',
+                type: 'choice',
+                text: 'Pregnancy history',
+                enableWhen: [
+                  {
+                    question: 'marital',
+                    operator: '=',
+                    answerCoding: { code: 'married' },
+                  },
+                ],
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+                answerOption: [
+                  { valueCoding: { code: 'count', display: 'Pregnancies' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(
+        male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['married', 'single']);
+      expect(male?.item?.[0].item ?? []).toEqual([]);
+
+      const female = transformFhirToAyu(questionnaire, { age: 30, gender: 'F' });
+      expect(
+        female?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['married', 'single']);
+      expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
+    });
+
+   
+    const associatedSymptoms = associatedSymptomsFixture as FhirQuestionnaire;
+
+    it('hides a female-only option in real converter output', () => {
+      const displays = (q: AyuQuestion | null) =>
+        (q?.item?.[0].answerOption ?? []).map(o => o.valueCoding?.display);
+
+      const male = transformFhirToAyu(associatedSymptoms, {
+        age: 30,
+        gender: 'M',
+      });
+      expect(displays(male)).toEqual(['Nausea']);
+
+     
+      const keptCodes = (male?.item?.[0].answerOption ?? []).map(
+        o => o.valueCoding?.code
+      );
+      const orphans = male?.item?.[0].item ?? [];
+      expect(orphans.map(i => i.linkId)).toEqual([
+        'ID-1972625858',
+        'ID-157083625',
+      ]);
+      orphans.forEach(child => {
+        expect(
+          child.enableWhen?.every(
+            rule =>
+              rule.answerCoding?.code !== undefined &&
+              !keptCodes.includes(rule.answerCoding.code)
+          )
+        ).toBe(true);
+      });
+
+      const female = transformFhirToAyu(associatedSymptoms, {
+        age: 30,
+        gender: 'F',
+      });
+      expect(displays(female)).toEqual([
+        'Nausea',
+        'Vaginal discharge [describe]',
+      ]);
+      expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual([
+        'ID-1972625858',
+        'ID-157083625',
+      ]);
+    });
+
+    it('keeps a choice question authored with no options at all', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'notes',
+            type: 'choice',
+            text: 'Authored with an empty option list',
+            answerOption: [],
+          },
+        ],
+      };
+
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item?.map(i => i.linkId)).toEqual(['notes']);
+    });
+
+    it('keeps an emptied question that still has a reachable sub-question', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+
+                linkId: 'pregnancy-note',
+                type: 'string',
+                text: 'Anything else to note?',
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item?.map(i => i.linkId)).toEqual(['pregnancy']);
+      expect(male?.item?.[0].answerOption).toEqual([]);
+    });
+
+    it('drops an emptied question whose sub-questions are all gated on its own answers', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+
+                linkId: 'pregnancy-count',
+                type: 'string',
+                text: 'How many?',
+                enableWhen: [
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'count' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item ?? []).toEqual([]);
+
+      const female = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'F',
+      });
+      expect(female?.item?.map(i => i.linkId)).toEqual(['pregnancy']);
+    });
+
+    it.each([
+      {
+        label: "keeps an emptied question when enableBehavior 'any' leaves a live rule",
+        enableBehavior: 'any',
+        expected: ['pregnancy'],
+      },
+      {
+        label: "drops an emptied question when 'all' makes one dead rule fatal",
+        enableBehavior: undefined,
+        expected: [],
+      },
+    ])('$label', ({ enableBehavior, expected }) => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sex',
+            type: 'choice',
+            text: 'Sexually active',
+            answerOption: [{ valueCoding: { code: 'yes', display: 'Yes' } }],
+          },
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy-count',
+                type: 'string',
+                text: 'How many?',
+                enableBehavior,
+                enableWhen: [
+                  // Dead once 'count' is filtered away...
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'count' },
+                  },
+                  // ...but this one can still be satisfied.
+                  {
+                    question: 'sex',
+                    operator: '=',
+                    answerCoding: { code: 'yes' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(
+        (male?.item ?? []).map(i => i.linkId).filter(id => id !== 'sex')
+      ).toEqual(expected);
+    });
+
+    it("drops an emptied question when every 'any' rule points at it", () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+              {
+                valueCoding: { code: 'none', display: 'Never pregnant' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy-detail',
+                type: 'string',
+                text: 'Details',
+                enableBehavior: 'any',
+                enableWhen: [
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'count' },
+                  },
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'none' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item ?? []).toEqual([]);
+    });
+
+    it('hides an option excluded by its own demographic extensions', () => {
       const questionnaire: FhirQuestionnaire = {
         resourceType: 'Questionnaire',
         item: [
@@ -1330,6 +1662,12 @@ describe('fhir-to-ayu.util', () => {
                   code: 'vag',
                   display: 'Vaginal discharge [describe]',
                 },
+
+                extension: [
+                  { url: EXT_GENDER, valueString: '0' },
+                  { url: EXT_AGE_MIN, valueString: '8' },
+                  { url: EXT_AGE_MAX, valueString: '120' },
+                ],
               },
             ],
             item: [
