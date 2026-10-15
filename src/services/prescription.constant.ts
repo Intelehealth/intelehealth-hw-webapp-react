@@ -25,6 +25,15 @@ export const PERSON_ATTRIBUTES = {
   OCCUPATION: 'Occupation',
 } as const;
 
+/**
+ * Encounter types written by the doctor, in priority order. Providers on other
+ * encounter types (e.g. the health worker's) are never read as the doctor.
+ */
+export const DOCTOR_ENCOUNTER_TYPES = ['Visit Complete', 'Visit Note'] as const;
+
+/** Prefix the doctor webapp puts on additional-instruction advice text. */
+export const ADDITIONAL_INSTRUCTION_PREFIX = '[ADDITIONAL_INSTRUCTION]';
+
 export const PROVIDER_ATTRIBUTES = {
   SIGNATURE: 'signature',
   QUALIFICATION_CERTIFICATE: 'qualificationcertificate',

@@ -3,6 +3,10 @@ import type {
   PrescriptionData,
 } from '../../assets/data/prescription-detail.data';
 import { OpenMRSApi } from '../../services/openmrs';
+import {
+  pickDoctorProvider,
+  stripAdditionalInstructionPrefix,
+} from '../../utils/prescription-mapping';
 import type { VisitDetailsResponse } from '../visit-details/visit-details.types';
 
 export const API_ENDPOINTS = {
@@ -57,22 +61,15 @@ function getDoctorInfo(encounters: VisitDetailsResponse['encounters']): {
   name: string;
   qualification: string;
 } {
-  for (const encounter of encounters) {
-    const provider = encounter.encounterProviders?.[0]?.provider;
-    if (provider) {
-      const qualAttr = provider.attributes?.find(attr =>
-        matchesConcept(attr.attributeType?.display, [
-          'qualification',
-          'special',
-        ])
-      );
-      return {
-        name: provider.person?.display ?? provider.display ?? '',
-        qualification: qualAttr?.value ?? '',
-      };
-    }
-  }
-  return { name: '', qualification: '' };
+  const provider = pickDoctorProvider(encounters);
+  if (!provider) return { name: '', qualification: '' };
+  const qualAttr = provider.attributes?.find(attr =>
+    matchesConcept(attr.attributeType?.display, ['qualification', 'special'])
+  );
+  return {
+    name: provider.person?.display ?? provider.display ?? '',
+    qualification: qualAttr?.value ?? '',
+  };
 }
 
 function getObsValue(obs: {
@@ -184,7 +181,11 @@ function getAdvice(encounters: VisitDetailsResponse['encounters']): string[] {
   for (const encounter of encounters) {
     for (const obs of encounter.obs) {
       if (matchesConcept(obs.concept?.display, ['advice'])) {
-        advice.push(...parseListFromObs(getObsValue(obs)));
+        advice.push(
+          ...parseListFromObs(getObsValue(obs)).map(
+            stripAdditionalInstructionPrefix
+          )
+        );
       }
     }
   }
