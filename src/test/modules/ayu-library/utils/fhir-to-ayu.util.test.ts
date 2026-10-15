@@ -1343,7 +1343,6 @@ describe('fhir-to-ayu.util', () => {
         ],
       };
 
-     
       const female = transformFhirToAyu(questionnaire, { gender: 'F' });
       expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
 
@@ -1387,7 +1386,6 @@ describe('fhir-to-ayu.util', () => {
         ],
       };
 
-   
       const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
       expect(
         male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
@@ -1401,7 +1399,99 @@ describe('fhir-to-ayu.util', () => {
       expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
     });
 
-    it('hides an option when its only enabled child is demographically excluded', () => {
+    it('keeps a choice question authored with no options at all', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'notes',
+            type: 'choice',
+            text: 'Authored with an empty option list',
+            answerOption: [],
+          },
+        ],
+      };
+
+      
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item?.map(i => i.linkId)).toEqual(['notes']);
+    });
+
+    it('keeps an emptied question that still has a reachable sub-question', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+              
+                linkId: 'pregnancy-note',
+                type: 'string',
+                text: 'Anything else to note?',
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item?.map(i => i.linkId)).toEqual(['pregnancy']);
+      expect(male?.item?.[0].answerOption).toEqual([]);
+    });
+
+    it('drops an emptied question whose sub-questions are all gated on its own answers', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'pregnancy',
+            type: 'choice',
+            text: 'Pregnancy history',
+            answerOption: [
+              {
+                valueCoding: { code: 'count', display: 'Pregnancies' },
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+              },
+            ],
+            item: [
+              {
+               
+                linkId: 'pregnancy-count',
+                type: 'string',
+                text: 'How many?',
+                enableWhen: [
+                  {
+                    question: 'pregnancy',
+                    operator: '=',
+                    answerCoding: { code: 'count' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(male?.item ?? []).toEqual([]);
+
+      const female = transformFhirToAyu(questionnaire, {
+        age: 30,
+        gender: 'F',
+      });
+      expect(female?.item?.map(i => i.linkId)).toEqual(['pregnancy']);
+    });
+
+    it('hides an option excluded by its own demographic extensions', () => {
       const questionnaire: FhirQuestionnaire = {
         resourceType: 'Questionnaire',
         item: [
@@ -1416,6 +1506,12 @@ describe('fhir-to-ayu.util', () => {
                   code: 'vag',
                   display: 'Vaginal discharge [describe]',
                 },
+           
+                extension: [
+                  { url: EXT_GENDER, valueString: '0' },
+                  { url: EXT_AGE_MIN, valueString: '8' },
+                  { url: EXT_AGE_MAX, valueString: '120' },
+                ],
               },
             ],
             item: [
