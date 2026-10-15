@@ -20,7 +20,6 @@ import {
   EXT_URL_JOB_AID_TYPE,
   EXT_URL_LANGUGAE_TEXT,
   EXT_URL_PE_CATEGORY_LABEL,
-  PE_OPTION_LANG_MARKER_PICTURE_TAKEN,
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
@@ -32,6 +31,7 @@ import {
   GENDER_CODE_MALE,
   GENDER_CODE_OTHER,
   PE_OPTION_KIND_CAMERA,
+  PE_OPTION_LANG_MARKER_PICTURE_TAKEN,
 } from './constants';
 import { getRowLabel } from './question.utils';
 
@@ -280,6 +280,14 @@ function patchYesNoDisplayPattern(
   return result;
 }
 
+function isEmptiedByDemographics(question: AyuQuestion): boolean {
+  if (question.type !== FHIR_TYPE_CHOICE) return false;
+  if (question.answerOption === undefined) return false;
+  if (question.answerOption.length > 0) return false;
+
+  return question.item!.length === 0;
+}
+
 function transformItem(
   item: AyuQuestion,
   demographics?: PatientDemographics
@@ -290,14 +298,31 @@ function transformItem(
     .filter(child => matchesDemographics(child.extension, demographics))
 
     .filter(child => child.type !== FHIR_TYPE_ATTACHMENT)
-    .map(child => transformItem(child, demographics));
+    .map(child => transformItem(child, demographics))
+    .filter(child => !isEmptiedByDemographics(child));
 
   // Restructure any Yes-choice / No-display sibling pairs into proper Yes/No questions
   const patchedChildren = patchYesNoDisplayPattern(item, children);
 
-  const isOptionOrphanedByDemographics = (optCode: string): boolean => {
-    const enabledChildren = originalChildren.filter(child =>
-      child.enableWhen?.some(rule => rule.answerCoding?.code === optCode)
+  const restatesOption = (
+    child: FhirItem,
+    optCode: string,
+    optLabel?: string
+  ) => {
+    if (child.linkId === `${item.linkId}_${optCode}`) return true;
+    const a = child.text?.trim().toLowerCase();
+    const b = optLabel?.trim().toLowerCase();
+    return !!a && !!b && a === b;
+  };
+
+  const isOptionOrphanedByDemographics = (
+    optCode: string,
+    optLabel?: string
+  ): boolean => {
+    const enabledChildren = originalChildren.filter(
+      child =>
+        child.enableWhen?.some(rule => rule.answerCoding?.code === optCode) &&
+        restatesOption(child, optCode, optLabel)
     );
     if (enabledChildren.length === 0) return false;
     return enabledChildren.every(
@@ -308,7 +333,8 @@ function transformItem(
   const answerOption = item.answerOption?.filter(opt => {
     if (!matchesDemographics(opt.extension, demographics)) return false;
     const code = opt.valueCoding?.code || opt.valueString;
-    if (code && isOptionOrphanedByDemographics(code)) return false;
+    const label = opt.valueCoding?.display || opt.valueString;
+    if (code && isOptionOrphanedByDemographics(code, label)) return false;
     return true;
   });
 
@@ -350,7 +376,8 @@ export function transformFhirToAyu(
   // Wrap root items into a single AYU root group
   const items = questionnaire.item
     .filter(item => matchesDemographics(item.extension, demographics))
-    .map(item => transformItem(item, demographics));
+    .map(item => transformItem(item, demographics))
+    .filter(item => !isEmptiedByDemographics(item));
 
   return {
     linkId: 'root',

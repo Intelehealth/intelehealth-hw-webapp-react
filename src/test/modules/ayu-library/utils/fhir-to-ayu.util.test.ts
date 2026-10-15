@@ -1315,6 +1315,92 @@ describe('fhir-to-ayu.util', () => {
       ).toEqual(['fever']);
     });
 
+    it('drops a choice question whose every option is demographically excluded', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'marital',
+            type: 'choice',
+            text: 'Marital status',
+            answerOption: [
+              { valueCoding: { code: 'married', display: 'Married' } },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy',
+                type: 'choice',
+                text: 'Pregnancy history',
+                answerOption: [
+                  {
+                    valueCoding: { code: 'count', display: 'Pregnancies' },
+                    extension: [{ url: EXT_GENDER, valueString: '0' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+     
+      const female = transformFhirToAyu(questionnaire, { gender: 'F' });
+      expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
+
+      // Male patient: the option is filtered away, so the now-empty
+      // "Pregnancy history" shell must not render at all.
+      const male = transformFhirToAyu(questionnaire, { gender: 'M' });
+      expect(male?.item?.[0].item ?? []).toEqual([]);
+    });
+
+    it('keeps an option whose excluded child asks something narrower', () => {
+      const questionnaire: FhirQuestionnaire = {
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'marital',
+            type: 'choice',
+            text: 'Marital status',
+            answerOption: [
+              { valueCoding: { code: 'married', display: 'Married' } },
+              { valueCoding: { code: 'single', display: 'Not married' } },
+            ],
+            item: [
+              {
+                linkId: 'pregnancy',
+                type: 'choice',
+                text: 'Pregnancy history',
+                enableWhen: [
+                  {
+                    question: 'marital',
+                    operator: '=',
+                    answerCoding: { code: 'married' },
+                  },
+                ],
+                extension: [{ url: EXT_GENDER, valueString: '0' }],
+                answerOption: [
+                  { valueCoding: { code: 'count', display: 'Pregnancies' } },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+   
+      const male = transformFhirToAyu(questionnaire, { age: 30, gender: 'M' });
+      expect(
+        male?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['married', 'single']);
+      expect(male?.item?.[0].item ?? []).toEqual([]);
+
+      const female = transformFhirToAyu(questionnaire, { age: 30, gender: 'F' });
+      expect(
+        female?.item?.[0].answerOption?.map(o => o.valueCoding?.code)
+      ).toEqual(['married', 'single']);
+      expect(female?.item?.[0].item?.map(i => i.linkId)).toEqual(['pregnancy']);
+    });
+
     it('hides an option when its only enabled child is demographically excluded', () => {
       const questionnaire: FhirQuestionnaire = {
         resourceType: 'Questionnaire',
