@@ -986,6 +986,30 @@ describe('getVisitPrescriptionData', () => {
     expect(result.doctorSignatureUrl).toBeNull();
   });
 
+  it('uses the first attribute of a type that has a value, skipping empty ones', async () => {
+    const visit = makeVisit();
+    visit.encounters[0].encounterProviders = [{
+      provider: {
+        display: 'Dr. Dup', uuid: 'prov-dup',
+        attributes: [
+          { value: '', attributeType: { display: 'Qualification' } },
+          { value: 'MBBS', attributeType: { display: 'Qualification' } },
+          { value: 'MD', attributeType: { display: 'TypeOfProfession' } },
+          { value: 'REG-1', attributeType: { display: 'RegistrationNumber' } },
+          { value: 'REG-2', attributeType: { display: 'Registration Number' } },
+          { value: '', attributeType: { display: 'Signature' } },
+          { value: 'https://example.com/sig.png', attributeType: { display: 'Signature' } },
+          { value: 'https://example.com/cert.png', attributeType: { display: 'QualificationCertificate' } },
+        ],
+      },
+    }];
+    mockGet.mockResolvedValue(visit);
+    const result = await getVisitPrescriptionData('visit-uuid-1');
+    expect(result.doctorQualification).toBe('MBBS');
+    expect(result.doctorRegNumber).toBe('REG-1');
+    expect(result.doctorSignatureUrl).toBe('https://example.com/sig.png');
+  });
+
   it('handles provider attribute with null attributeType (line 308)', async () => {
     const visit = makeVisit();
     visit.encounters[0].encounterProviders = [{

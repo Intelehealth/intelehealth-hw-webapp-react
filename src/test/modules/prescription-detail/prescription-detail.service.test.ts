@@ -195,6 +195,49 @@ describe('prescriptionDetailService', () => {
       expect(result.doctorQualification).toBe('MBBS, MD');
     });
 
+    it('should read the doctor from the Visit Complete encounter, not a health worker encounter listed first', async () => {
+      const resp = buildVisitResponse();
+      const healthWorker = {
+        ...resp.encounters[0],
+        uuid: 'enc-hw',
+        encounterType: { uuid: 'et-hw', display: 'ADULTINITIAL' },
+        encounterProviders: [
+          {
+            uuid: 'ep-hw',
+            display: 'Health Worker',
+            provider: {
+              uuid: 'prov-hw',
+              display: 'Health Worker',
+              person: { uuid: 'pp-hw', display: 'Health Worker' },
+              attributes: [
+                {
+                  uuid: 'attr-hw',
+                  display: 'Qualification: ANM',
+                  attributeType: { uuid: 'at-hw', display: 'Qualification' },
+                  value: 'ANM',
+                },
+              ],
+            },
+          },
+        ],
+        obs: [],
+      };
+      resp.encounters = [healthWorker, ...resp.encounters];
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.doctorName).toBe('Rohith M S');
+      expect(result.doctorQualification).toBe('MBBS, MD');
+    });
+
+    it('should leave the doctor empty when only a health worker encounter has a provider', async () => {
+      const resp = buildVisitResponse();
+      resp.encounters[0].encounterType = { uuid: 'et-hw', display: 'ADULTINITIAL' };
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.doctorName).toBe('');
+      expect(result.doctorQualification).toBe('');
+    });
+
     it('should return empty doctor info when no providers', async () => {
       const resp = buildVisitResponse();
       resp.encounters[0].encounterProviders = [];
@@ -319,6 +362,24 @@ describe('prescriptionDetailService', () => {
 
     it('should extract advice from JSON array', async () => {
       mockGet.mockResolvedValue(buildVisitResponse());
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.advice).toEqual(['Drink water', 'Take rest']);
+    });
+
+    it('should strip the [ADDITIONAL_INSTRUCTION] marker from plain text advice', async () => {
+      const resp = buildVisitResponse();
+      const adviceObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Advice'));
+      adviceObs!.value = '[ADDITIONAL_INSTRUCTION]Please do not walk fast';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.advice).toEqual(['Please do not walk fast']);
+    });
+
+    it('should strip the marker and the space after it from items of a JSON advice list', async () => {
+      const resp = buildVisitResponse();
+      const adviceObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Advice'));
+      adviceObs!.value = JSON.stringify(['Drink water', '[ADDITIONAL_INSTRUCTION] Take rest']);
+      mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.advice).toEqual(['Drink water', 'Take rest']);
     });

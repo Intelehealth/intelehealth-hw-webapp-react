@@ -1,13 +1,15 @@
 import { OpenMRSApi } from './openmrs';
 import {
-  ADDITIONAL_INSTRUCTION_PREFIX,
-  DOCTOR_ENCOUNTER_TYPES,
   PRESCRIPTION_CONCEPT_IDS,
   IDENTIFIER_TYPES,
   PERSON_ATTRIBUTES,
   PROVIDER_ATTRIBUTES,
 } from './prescription.constant';
 import type * as PrescriptionTypes from '../types/prescription.types';
+import {
+  pickDoctorProvider,
+  stripAdditionalInstructionPrefix,
+} from '../utils/prescription-mapping';
 
 interface ObsValue {
   display?: string;
@@ -91,29 +93,6 @@ const VISIT_CUSTOM_REP =
 // "522-3 - Jane Doe". A display in any other format is returned unchanged.
 const stripProviderIdentifier = (display: string) =>
   display.replace(/^\S+\s-\s/, '').trim();
-
-const byDatetimeDesc = (a: Encounter, b: Encounter) =>
-  new Date(b.encounterDatetime).getTime() -
-  new Date(a.encounterDatetime).getTime();
-
-/**
- * The single provider whose details go on the prescription: the first provider
- * of the latest Visit Complete encounter, else of the latest Visit Note.
- * Choosing one provider keeps name, signature, qualification and registration
- * number from the same doctor.
- */
-function pickDoctorProvider(encounters: Encounter[]): EncProvider['provider'] {
-  for (const type of DOCTOR_ENCOUNTER_TYPES) {
-    const sameType = encounters
-      .filter(e => e.encounterType?.display === type)
-      .sort(byDatetimeDesc);
-    for (const enc of sameType) {
-      const prov = (enc.encounterProviders || []).find(ep => ep.provider);
-      if (prov) return prov.provider;
-    }
-  }
-  return undefined;
-}
 
 type Person = NonNullable<NonNullable<VisitResponse['patient']>['person']>;
 
@@ -282,33 +261,32 @@ export async function getVisitPrescriptionData(
       })
     : '';
 
-  let doctorName = '',
-    doctorQualification = '',
-    doctorRegNumber = '',
-    doctorSignatureUrl: string | null = null;
+  // All doctor details come from this one provider, never mixed across several.
   const doctor = pickDoctorProvider(encounters);
-  if (doctor) {
-    doctorName =
-      doctor.person?.display || stripProviderIdentifier(doctor.display || '');
-    for (const attr of doctor.attributes || []) {
-      const d = (attr.attributeType?.display || '').toLowerCase();
-      if (
-        d === PROVIDER_ATTRIBUTES.SIGNATURE ||
-        d === PROVIDER_ATTRIBUTES.QUALIFICATION_CERTIFICATE
-      )
-        doctorSignatureUrl = doctorSignatureUrl || attr.value || null;
-      if (
-        d === PROVIDER_ATTRIBUTES.QUALIFICATION ||
-        d === PROVIDER_ATTRIBUTES.TYPE_OF_PROFESSION
-      )
-        doctorQualification = doctorQualification || attr.value || '';
-      if (
-        d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER ||
-        d === PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER_ALT
-      )
-        doctorRegNumber = doctorRegNumber || attr.value || '';
-    }
-  }
+  // The first attribute of the given types that has a value.
+  const doctorAttr = (...types: string[]) =>
+    doctor?.attributes?.find(
+      attr =>
+        attr.value &&
+        types.includes((attr.attributeType?.display || '').toLowerCase())
+    )?.value;
+  const doctorName =
+    doctor?.person?.display || stripProviderIdentifier(doctor?.display || '');
+  const doctorQualification =
+    doctorAttr(
+      PROVIDER_ATTRIBUTES.QUALIFICATION,
+      PROVIDER_ATTRIBUTES.TYPE_OF_PROFESSION
+    ) ?? '';
+  const doctorRegNumber =
+    doctorAttr(
+      PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER,
+      PROVIDER_ATTRIBUTES.REGISTRATION_NUMBER_ALT
+    ) ?? '';
+  const doctorSignatureUrl =
+    doctorAttr(
+      PROVIDER_ATTRIBUTES.SIGNATURE,
+      PROVIDER_ATTRIBUTES.QUALIFICATION_CERTIFICATE
+    ) ?? null;
 
   const allObs: Obs[] = encounters.flatMap(enc => enc.obs || []);
   const byConceptId = (id: string) =>
@@ -360,12 +338,9 @@ export async function getVisitPrescriptionData(
     medicines: byConceptId(PRESCRIPTION_CONCEPT_IDS.MEDICATION).map(o =>
       parseMedicine(obsStr(o))
     ),
-    advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o => {
-      const s = obsStr(o);
-      return s.startsWith(ADDITIONAL_INSTRUCTION_PREFIX)
-        ? s.slice(ADDITIONAL_INSTRUCTION_PREFIX.length).trimStart()
-        : s;
-    }),
+    advices: byConceptId(PRESCRIPTION_CONCEPT_IDS.ADVICE).map(o =>
+      stripAdditionalInstructionPrefix(obsStr(o))
+    ),
     tests: byConceptId(PRESCRIPTION_CONCEPT_IDS.TEST).map(o => obsStr(o)),
     referrals: byConceptId(PRESCRIPTION_CONCEPT_IDS.REFERRAL).map(o =>
       parseReferral(obsStr(o))

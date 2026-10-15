@@ -508,8 +508,14 @@ describe('visit-details service', () => {
   /* ── getDoctorInfo ── */
 
   describe('getDoctorInfo', () => {
+    // the doctor is read only from Visit Complete / Visit Note encounters
+    const doctorEncounter = (overrides: Record<string, unknown>) =>
+      makeEncounter({
+        encounterType: { uuid: 'et', display: 'Visit Complete' },
+        ...overrides,
+      });
     it('should extract doctor name from provider.person.display', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {
@@ -525,7 +531,7 @@ describe('visit-details service', () => {
     });
 
     it('should fall back to provider.display when person is absent', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {
@@ -541,7 +547,7 @@ describe('visit-details service', () => {
     });
 
     it('should extract speciality from "special" attribute', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {
@@ -559,7 +565,7 @@ describe('visit-details service', () => {
     });
 
     it('should extract speciality from "qualification" attribute', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {
@@ -577,7 +583,7 @@ describe('visit-details service', () => {
     });
 
     it('should default speciality to "General Physician" when no matching attribute', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {
@@ -594,6 +600,34 @@ describe('visit-details service', () => {
       expect(r.doctorSpeciality).toBe('General Physician');
     });
 
+    const providerOf = (name: string, attributeType?: string, value?: string) => ({
+      uuid: `ep-${name}`, display: 'EP',
+      provider: {
+        uuid: `prov-${name}`, display: name,
+        person: { uuid: `pp-${name}`, display: name },
+        attributes: attributeType
+          ? [{ uuid: `a-${name}`, display: attributeType, attributeType: { uuid: 'at', display: attributeType }, value }]
+          : [],
+      },
+    });
+
+    it('should read the doctor from the Visit Complete encounter, not a health worker encounter listed first', async () => {
+      const healthWorker = makeEncounter({ encounterProviders: [providerOf('Health Worker', 'Qualification', 'ANM')] });
+      const doctor = doctorEncounter({ encounterProviders: [providerOf('Dr. Real', 'Specialization', 'Cardiologist')] });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [healthWorker, doctor] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.doctorName).toBe('Dr. Real');
+      expect(r.doctorSpeciality).toBe('Cardiologist');
+    });
+
+    it('should not show the health worker as the doctor before any doctor encounter exists', async () => {
+      const healthWorker = makeEncounter({ encounterProviders: [providerOf('Health Worker', 'Qualification', 'ANM')] });
+      vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [healthWorker] }));
+      const r = await visitDetailsService.getVisitDetails('x');
+      expect(r.doctorName).toBe('');
+      expect(r.doctorSpeciality).toBe('General Physician');
+    });
+
     it('should return empty name and "General Physician" when no providers', async () => {
       vi.mocked(OpenMRSApi.get).mockResolvedValue(makeResponse({ encounters: [makeEncounter()] }));
       const r = await visitDetailsService.getVisitDetails('x');
@@ -602,7 +636,7 @@ describe('visit-details service', () => {
     });
 
     it('should return empty string when both person and provider display are undefined', async () => {
-      const enc = makeEncounter({
+      const enc = doctorEncounter({
         encounterProviders: [{
           uuid: 'ep1', display: 'EP',
           provider: {

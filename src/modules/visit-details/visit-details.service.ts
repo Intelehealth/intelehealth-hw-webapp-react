@@ -1,4 +1,5 @@
 import { OpenMRSApi } from '../../services/openmrs';
+import { pickDoctorProvider } from '../../utils/prescription-mapping';
 import type {
   VisitDetailsResponse,
   TransformedVisitDetails,
@@ -122,21 +123,17 @@ function getDoctorInfo(encounters: VisitDetailsResponse['encounters']): {
   name: string;
   speciality: string;
 } {
-  for (const encounter of encounters) {
-    const provider = encounter.encounterProviders?.[0]?.provider;
-    if (provider) {
-      const specialityAttr = provider.attributes?.find(
-        attr =>
-          attr.attributeType?.display?.toLowerCase().includes('special') ||
-          attr.attributeType?.display?.toLowerCase().includes('qualification')
-      );
-      return {
-        name: provider.person?.display ?? provider.display ?? '',
-        speciality: specialityAttr?.value ?? 'General Physician',
-      };
-    }
-  }
-  return { name: '', speciality: 'General Physician' };
+  const provider = pickDoctorProvider(encounters);
+  if (!provider) return { name: '', speciality: 'General Physician' };
+  const specialityAttr = provider.attributes?.find(
+    attr =>
+      attr.attributeType?.display?.toLowerCase().includes('special') ||
+      attr.attributeType?.display?.toLowerCase().includes('qualification')
+  );
+  return {
+    name: provider.person?.display ?? provider.display ?? '',
+    speciality: specialityAttr?.value ?? 'General Physician',
+  };
 }
 
 function getPrescriptionDate(
