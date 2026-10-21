@@ -19,7 +19,13 @@ import {
   clearVisitForPatient,
   hasInProgressVisit,
 } from '../../ayu/utils/visit-id.util';
-import { RESUME_VISIT_MODAL } from '../../../utils/constant';
+import type { OpenMRSVisit } from '../../../types/patient/profile/patient-profile.types';
+import {
+  OPEN_VISIT_LABEL,
+  PAST_VISIT_LABEL,
+  PATIENT_DETAILS_LABEL,
+  RESUME_VISIT_MODAL,
+} from '../../../utils/constant';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   getVisitTitle,
@@ -39,6 +45,50 @@ const Row = ({ label, value }: { label: string; value: string }) => (
   </li>
 );
 
+const VisitSection = ({
+  title,
+  visits,
+  onSelect,
+}: {
+  title: string;
+  visits: OpenMRSVisit[];
+  onSelect: (visit: OpenMRSVisit) => void;
+}) => (
+  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+      <img src={iconVisit} alt="" className="w-9 h-9" />
+      <span className="font-semibold text-gray-800 text-base">{title}</span>
+    </div>
+    <div className="px-4 pb-3 pt-2 space-y-2">
+      {visits.map(visit => (
+        <button
+          key={visit.uuid}
+          className="w-full flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3 hover:bg-gray-100 text-left"
+          onClick={() => onSelect(visit)}
+        >
+          <div>
+            {getVisitTitle(visit) && (
+              <p className="font-semibold text-gray-800 text-sm">
+                {getVisitTitle(visit)}
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Visit ID: {maskVisitId(visit.uuid)}
+            </p>
+            <p className="text-xs text-gray-500">
+              Visit Date:{' '}
+              {visit.startDatetime
+                ? new Date(visit.startDatetime).toISOString().split('T')[0]
+                : ''}
+            </p>
+          </div>
+          <img src={iconRight} alt="" className="w-4 h-4 shrink-0" />
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const PatientProfileComponent: React.FC = () => {
   const { uuid } = useParams<{ uuid: string }>();
   const navigate = useNavigate();
@@ -47,6 +97,7 @@ const PatientProfileComponent: React.FC = () => {
     patientData,
     rawPatient,
     visits,
+    pastVisits,
     loading,
     refreshing,
     error,
@@ -257,8 +308,35 @@ const PatientProfileComponent: React.FC = () => {
           </ul>
         </CollapsedComponent>
 
+        {visits.length > 0 && (
+          <VisitSection
+            title={OPEN_VISIT_LABEL}
+            visits={visits}
+            onSelect={visit =>
+              navigate(`/visit-summary/${visit.uuid}`, {
+                state: { visitUuid: visit.uuid },
+              })
+            }
+          />
+        )}
+
+        {pastVisits.length > 0 && (
+          <VisitSection
+            title={PAST_VISIT_LABEL}
+            visits={pastVisits}
+            onSelect={visit =>
+              navigate(`/visit-details/${visit.uuid}`, {
+                state: {
+                  fromLabel: PATIENT_DETAILS_LABEL,
+                  fromPath: `/patient/${uuid}`,
+                },
+              })
+            }
+          />
+        )}
+
         {visits.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-4">
+          <div className="flex flex-col items-center gap-3">
             <Button
               variant="primary"
               className="w-auto px-8"
@@ -267,50 +345,6 @@ const PatientProfileComponent: React.FC = () => {
             >
               Start Visit
             </Button>
-          </div>
-        )}
-
-        {visits.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-              <img src={iconVisit} alt="" className="w-9 h-9" />
-              <span className="font-semibold text-gray-800 text-base">
-                Open Visit
-              </span>
-            </div>
-            <div className="px-4 pb-3 pt-2 space-y-2">
-              {visits.map(visit => (
-                <button
-                  key={visit.uuid}
-                  className="w-full flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3 hover:bg-gray-100 text-left"
-                  onClick={() =>
-                    navigate(`/visit-summary/${visit.uuid}`, {
-                      state: { visitUuid: visit.uuid },
-                    })
-                  }
-                >
-                  <div>
-                    {getVisitTitle(visit) && (
-                      <p className="font-semibold text-gray-800 text-sm">
-                        {getVisitTitle(visit)}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      Visit ID: {maskVisitId(visit.uuid)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Visit Date:{' '}
-                      {visit.startDatetime
-                        ? new Date(visit.startDatetime)
-                            .toISOString()
-                            .split('T')[0]
-                        : ''}
-                    </p>
-                  </div>
-                  <img src={iconRight} alt="" className="w-4 h-4 shrink-0" />
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </div>

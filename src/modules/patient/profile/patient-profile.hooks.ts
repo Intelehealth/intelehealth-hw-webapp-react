@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { patientAttributes } from '../../../assets/data/openmrs_uuids';
 import type { PatientFormData } from '../../../types/patient/add/add-patient.types';
 import type {
@@ -161,13 +161,18 @@ export const usePatientProfile = (
   );
   const [rawPatient, setRawPatient] = useState<OpenMRSPatient | null>(null);
   const [visits, setVisits] = useState<OpenMRSVisit[]>([]);
+  const [pastVisits, setPastVisits] = useState<OpenMRSVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequest = useRef(0);
 
   const fetchData = useCallback(
     (showSpinner = true) => {
       if (!uuid) return;
+      // A slow response for a previous patient must not overwrite this one.
+      const requestId = ++latestRequest.current;
+      const isStale = () => requestId !== latestRequest.current;
       if (showSpinner) setLoading(true);
       else setRefreshing(true);
       setError(null);
@@ -177,17 +182,21 @@ export const usePatientProfile = (
         patientService.getPatientVisits(uuid),
       ])
         .then(([p, v]) => {
+          if (isStale()) return;
           const patient = p as OpenMRSPatient;
           setRawPatient(patient);
           setPatientData(mapPatientDisplayData(patient));
-          setVisits(
-            ((v as Record<string, unknown>)?.results as OpenMRSVisit[]) ?? []
-          );
+          const allVisits =
+            ((v as Record<string, unknown>)?.results as OpenMRSVisit[]) ?? [];
+          setVisits(allVisits.filter(visit => !visit.stopDatetime));
+          setPastVisits(allVisits.filter(visit => visit.stopDatetime));
         })
-        .catch(() =>
-          setError('Failed to load patient details. Please try again.')
-        )
+        .catch(() => {
+          if (isStale()) return;
+          setError('Failed to load patient details. Please try again.');
+        })
         .finally(() => {
+          if (isStale()) return;
           setLoading(false);
           setRefreshing(false);
         });
@@ -205,6 +214,7 @@ export const usePatientProfile = (
     patientData,
     rawPatient,
     visits,
+    pastVisits,
     loading,
     refreshing,
     error,

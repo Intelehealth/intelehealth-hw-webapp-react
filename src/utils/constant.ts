@@ -7,6 +7,8 @@ export const CAMERA_MAX_RETRIES = 3;
 export const CAMERA_RETRY_DELAY_MS = 600;
 export const ADD_PATIENT_LABEL = 'Add Patient';
 export const PATIENT_DETAILS_LABEL = 'Patient Details';
+export const OPEN_VISIT_LABEL = 'Open Visit';
+export const PAST_VISIT_LABEL = 'Past Visit';
 
 /** "Continue or Start Over?" confirmation shown before reopening a saved visit. */
 export const RESUME_VISIT_MODAL = {
