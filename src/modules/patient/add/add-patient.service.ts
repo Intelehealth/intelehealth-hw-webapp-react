@@ -23,6 +23,8 @@ export const patientService = {
   getPatient: (uuid: string) =>
     OpenMRSApi.get<OpenMRSPatient>(`${API_ENDPOINTS.PATIENT}/${uuid}?v=full`),
 
+  // No `limit`: OpenMRS applies its default page size (50, newest first), so a
+  // patient with a longer history sees only their most recent visits.
   getPatientVisits: (patientUuid: string) =>
     OpenMRSApi.get<{ results: OpenMRSVisit[] }>(
       `/visit?patient=${patientUuid}&includeInactive=true&v=custom:(uuid,startDatetime,stopDatetime,visitType:(display),encounters:(encounterType:(display)))`

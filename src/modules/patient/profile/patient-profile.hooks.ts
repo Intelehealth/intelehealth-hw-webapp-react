@@ -7,6 +7,7 @@ import type {
   PatientDisplayData,
   UsePatientProfileReturn,
 } from '../../../types/patient/profile/patient-profile.types';
+import { PATIENT_PROFILE_LOAD_ERROR } from '../../../utils/constant';
 import { getCountryCode } from '../../../utils/countries';
 import { patientService } from '../add/add-patient.service';
 
@@ -46,6 +47,11 @@ function formatDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/** YYYY-MM-DD in the user's local time, so late-night visits keep their day. */
+export function formatVisitDate(iso: string): string {
+  return iso ? new Date(iso).toLocaleDateString('en-CA') : '';
 }
 
 export function maskVisitId(uuid: string): string {
@@ -169,9 +175,9 @@ export const usePatientProfile = (
 
   const fetchData = useCallback(
     (showSpinner = true) => {
-      if (!uuid) return;
       // A slow response for a previous patient must not overwrite this one.
       const requestId = ++latestRequest.current;
+      if (!uuid) return;
       const isStale = () => requestId !== latestRequest.current;
       if (showSpinner) setLoading(true);
       else setRefreshing(true);
@@ -193,7 +199,7 @@ export const usePatientProfile = (
         })
         .catch(() => {
           if (isStale()) return;
-          setError('Failed to load patient details. Please try again.');
+          setError(PATIENT_PROFILE_LOAD_ERROR);
         })
         .finally(() => {
           if (isStale()) return;

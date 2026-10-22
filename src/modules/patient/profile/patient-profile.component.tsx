@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { generatePath, useNavigate, useParams } from 'react-router-dom';
 import { useBreadcrumb } from '../../../hooks/useBreadcrumb';
 import ROUTES from '../../../routes/paths';
 import iconClose from '../../../assets/icons/close.svg';
@@ -25,9 +25,12 @@ import {
   PAST_VISIT_LABEL,
   PATIENT_DETAILS_LABEL,
   RESUME_VISIT_MODAL,
+  VISIT_DATE_LABEL,
+  VISIT_ID_LABEL,
 } from '../../../utils/constant';
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
+  formatVisitDate,
   getVisitTitle,
   mapRawPatientToFormData,
   maskVisitId,
@@ -73,13 +76,10 @@ const VisitSection = ({
               </p>
             )}
             <p className="text-xs text-gray-500">
-              Visit ID: {maskVisitId(visit.uuid)}
+              {VISIT_ID_LABEL} {maskVisitId(visit.uuid)}
             </p>
             <p className="text-xs text-gray-500">
-              Visit Date:{' '}
-              {visit.startDatetime
-                ? new Date(visit.startDatetime).toISOString().split('T')[0]
-                : ''}
+              {VISIT_DATE_LABEL} {formatVisitDate(visit.startDatetime)}
             </p>
           </div>
           <img src={iconRight} alt="" className="w-4 h-4 shrink-0" />
@@ -325,12 +325,15 @@ const PatientProfileComponent: React.FC = () => {
             title={PAST_VISIT_LABEL}
             visits={pastVisits}
             onSelect={visit =>
-              navigate(`/visit-details/${visit.uuid}`, {
-                state: {
-                  fromLabel: PATIENT_DETAILS_LABEL,
-                  fromPath: `/patient/${uuid}`,
-                },
-              })
+              navigate(
+                generatePath(ROUTES.VISIT_DETAILS, { visitId: visit.uuid }),
+                {
+                  state: {
+                    fromLabel: fullName || PATIENT_DETAILS_LABEL,
+                    fromPath: `${ROUTES.PATIENT.BASE}/${uuid}`,
+                  },
+                }
+              )
             }
           />
         )}

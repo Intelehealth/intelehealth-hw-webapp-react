@@ -29,6 +29,7 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
 }));
 
 import {
+  formatVisitDate,
   getVisitTitle,
   mapRawPatientToFormData,
   maskVisitId,
@@ -102,6 +103,26 @@ const buildVisit = (uuid: string, stopDatetime: string | null) => ({
 });
 
 
+
+describe('formatVisitDate', () => {
+  it('formats a visit start as YYYY-MM-DD', () => {
+    expect(formatVisitDate(new Date(2025, 8, 12, 12, 0).toISOString())).toBe(
+      '2025-09-12'
+    );
+  });
+
+  it('keeps the local day for a visit started just after local midnight', () => {
+    // Built from local parts: in a timezone ahead of UTC (e.g. IST) the UTC
+    // date of this instant is the previous day.
+    expect(formatVisitDate(new Date(2025, 8, 12, 0, 30).toISOString())).toBe(
+      '2025-09-12'
+    );
+  });
+
+  it('returns an empty string when there is no start date', () => {
+    expect(formatVisitDate('')).toBe('');
+  });
+});
 
 describe('maskVisitId', () => {
   it('returns XXXX + last 4 chars of UUID without dashes', () => {
@@ -648,6 +669,26 @@ describe('usePatientProfile', () => {
     expect(h.mockGetPatientVisits).toHaveBeenCalledWith('uuid');
   });
 
+  it('treats a visit with an empty or missing stopDatetime as open, not past', async () => {
+    h.mockGetPatient.mockResolvedValue(buildPatient());
+    h.mockGetPatientVisits.mockResolvedValue({
+      results: [
+        buildVisit('empty-stop', ''),
+        { ...buildVisit('missing-stop', null), stopDatetime: undefined },
+        buildVisit('ended', '2025-08-01T10:00:00.000+0000'),
+      ],
+    });
+
+    const { result } = renderHook(() => usePatientProfile('uuid'));
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+    expect(result.current.visits.map(v => v.uuid)).toEqual([
+      'empty-stop',
+      'missing-stop',
+    ]);
+    expect(result.current.pastVisits.map(v => v.uuid)).toEqual(['ended']);
+  });
+
   it('leaves pastVisits empty when every visit is still open', async () => {
     h.mockGetPatient.mockResolvedValue(buildPatient());
     h.mockGetPatientVisits.mockResolvedValue(singleVisit);
@@ -693,6 +734,32 @@ describe('usePatientProfile', () => {
 
     expect(result.current.patientData?.fullName).toBe('patient-b Doe');
     expect(result.current.pastVisits.map(v => v.uuid)).toEqual(['visit-of-b']);
+  });
+
+  it('ignores a response that arrives after the patient id has gone away', async () => {
+    let resolveVisits!: (v: unknown) => void;
+    h.mockGetPatient.mockResolvedValue(buildPatient());
+    h.mockGetPatientVisits.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveVisits = resolve;
+        })
+    );
+
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string | undefined }) => usePatientProfile(id),
+      { initialProps: { id: 'patient-a' as string | undefined } }
+    );
+    rerender({ id: undefined });
+
+    await act(async () => {
+      resolveVisits({
+        results: [buildVisit('visit-of-a', '2025-01-01T10:00:00.000+0000')],
+      });
+    });
+
+    expect(result.current.patientData).toBeNull();
+    expect(result.current.pastVisits).toEqual([]);
   });
 
   it('ignores a stale failure from a previous patient\'s request', async () => {
