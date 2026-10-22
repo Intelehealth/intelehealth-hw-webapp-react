@@ -49,9 +49,16 @@ function formatDate(iso: string): string {
   }
 }
 
-/** YYYY-MM-DD in the user's local time, so late-night visits keep their day. */
+/**
+ * YYYY-MM-DD in the user's local time, so late-night visits keep their day.
+ * Built from the date parts rather than a locale, as the format is fixed.
+ */
 export function formatVisitDate(iso: string): string {
-  return iso ? new Date(iso).toLocaleDateString('en-CA') : '';
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 export function maskVisitId(uuid: string): string {

@@ -426,7 +426,8 @@ describe('PatientProfileComponent', () => {
       pastVisits: [
         {
           ...pastVisit,
-          startDatetime: new Date(2025, 8, 12, 0, 30).toISOString(),
+          // 00:30 IST on 12 Sep (the test zone is pinned) is 11 Sep in UTC.
+          startDatetime: '2025-09-11T19:00:00.000Z',
         },
       ],
     });

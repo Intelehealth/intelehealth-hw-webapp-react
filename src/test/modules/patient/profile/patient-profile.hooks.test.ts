@@ -112,15 +112,17 @@ describe('formatVisitDate', () => {
   });
 
   it('keeps the local day for a visit started just after local midnight', () => {
-    // Built from local parts: in a timezone ahead of UTC (e.g. IST) the UTC
-    // date of this instant is the previous day.
-    expect(formatVisitDate(new Date(2025, 8, 12, 0, 30).toISOString())).toBe(
-      '2025-09-12'
-    );
+    // vitest.config.ts pins TZ to Asia/Kolkata: 00:30 IST on 12 Sep is still
+    // 11 Sep in UTC, which is what the old toISOString() version showed.
+    expect(formatVisitDate('2025-09-11T19:00:00.000Z')).toBe('2025-09-12');
   });
 
   it('returns an empty string when there is no start date', () => {
     expect(formatVisitDate('')).toBe('');
+  });
+
+  it('returns an empty string for a malformed date', () => {
+    expect(formatVisitDate('not-a-date')).toBe('');
   });
 });
 
