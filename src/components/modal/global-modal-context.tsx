@@ -13,6 +13,8 @@ export type ModalSectionItem =
       label: string;
       value: string | number | null;
       isChild?: boolean;
+      /** Question with no answer of its own — its answers are the rows below. */
+      isQuestionOnly?: boolean;
     }
   | { type: 'subheading'; heading: string; values: string[] };
 

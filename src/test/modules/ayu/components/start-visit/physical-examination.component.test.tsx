@@ -1231,6 +1231,190 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
       });
     });
 
+    describe('question / answer rows in the summary', () => {
+      const peExt = (label: string) => [
+        { url: EXT_URL_PE_SECTION_KEY, valueString: 'General' },
+        { url: EXT_URL_PE_CATEGORY_LABEL, valueString: label },
+      ];
+      const stringChild = (linkId: string, text: string): AyuQuestion => ({
+        linkId,
+        text,
+        type: 'string',
+        required: false,
+        repeats: false,
+      });
+      const lyingBp = (linkId = 'lying-bp'): AyuQuestion => ({
+        linkId,
+        text: 'Lying BP?',
+        type: 'choice',
+        extension: peExt('Lying BP'),
+        answerOption: [
+          { valueCoding: { code: 'take', display: "Take the patient's BP lying down" } },
+          {
+            valueCoding: { code: 'cam', display: 'Picture Taken' },
+            extension: [
+              { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+            ],
+          },
+        ],
+        item: [
+          stringChild('systolic', 'Enter systolic BP'),
+          stringChild('diastolic', 'Enter diastolic BP'),
+        ],
+      });
+      const scars = (withChild = true): AyuQuestion => ({
+        linkId: 'scars',
+        text: 'Scars?',
+        type: 'choice',
+        extension: peExt('Scars'),
+        answerOption: [
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+          { valueCoding: { code: 'no', display: 'No' } },
+        ],
+        item: withChild ? [stringChild('where', 'Where is it?')] : undefined,
+      });
+      const renderWithItems = (items: AyuQuestion[]) => {
+        vi.mocked(
+          physicalExamUtils.filterAyuQuestionsForPhysExam
+        ).mockReturnValueOnce(items);
+        render(
+          <PhysicalExamination
+            {...defaultProps}
+            ayuConfigFiles={makeAyuConfigFiles([
+              makeQuestion('seed', 'General', 'Seed', [
+                { code: 'yes', display: 'Yes' },
+              ]),
+            ])}
+          />
+        );
+      };
+      const completeWith = async (answers: Record<string, unknown>) => {
+        capturedStepperProps._completeAnswers = answers;
+        await userEvent.setup().click(screen.getByTestId('trigger-complete'));
+        return mockShowVitalConfirmationModal.mock.calls[0][0];
+      };
+
+      it('shows the lone BP prompt as a sub-question, not as the parent answer', async () => {
+        renderWithItems([lyingBp()]);
+        const modalConfig = await completeWith({
+          'lying-bp': ['take'],
+          systolic: '96',
+          diastolic: '82',
+        });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({
+            label: 'Lying BP',
+            value: '',
+            isQuestionOnly: true,
+          }),
+          expect.objectContaining({
+            label: "Take the patient's BP lying down",
+            value: '',
+            isChild: true,
+            isQuestionOnly: true,
+          }),
+          expect.objectContaining({ label: 'systolic BP', value: '96', isChild: true }),
+          expect.objectContaining({ label: 'diastolic BP', value: '82', isChild: true }),
+        ]);
+      });
+
+      it('keeps the prompt text out of the stored details', async () => {
+        renderWithItems([lyingBp()]);
+        const modalConfig = await completeWith({
+          'lying-bp': ['take'],
+          systolic: '96',
+        });
+        modalConfig.onConfirm();
+
+        expect(mockSetPhysicalExamData.mock.calls[0][1]).toEqual([
+          expect.objectContaining({ label: 'systolic BP', value: '96' }),
+        ]);
+      });
+
+      it('omits a prompt question when no nested value or picture was entered', async () => {
+        renderWithItems([lyingBp()]);
+        const modalConfig = await completeWith({ 'lying-bp': ['take'] });
+
+        expect(modalConfig.sections).toEqual([]);
+      });
+
+      it('shows "Picture Taken" as the parent answer of a prompt question', async () => {
+        renderWithItems([lyingBp('with-images')]);
+        const modalConfig = await completeWith({
+          'with-images': ['take', 'cam'],
+          systolic: '96',
+        });
+
+        const items = modalConfig.sections[0].items;
+        expect(items[0]).toEqual(
+          expect.objectContaining({
+            label: 'Lying BP',
+            value: 'Picture Taken',
+          })
+        );
+        expect(items[0].isQuestionOnly).toBeUndefined();
+        expect(items[1]).toEqual(
+          expect.objectContaining({
+            label: "Take the patient's BP lying down",
+            isChild: true,
+          })
+        );
+      });
+
+      it('keeps a real Yes/No answer on the parent row with its sub-question below', async () => {
+        renderWithItems([scars()]);
+        const modalConfig = await completeWith({
+          scars: ['yes'],
+          where: 'Middle (L)',
+        });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Scars', value: 'Yes' }),
+          expect.objectContaining({
+            label: 'Where is it?',
+            value: 'Middle (L)',
+            isChild: true,
+          }),
+        ]);
+        expect(modalConfig.sections[0].items[0].isQuestionOnly).toBeUndefined();
+      });
+
+      it('keeps a parent question without sub-questions as a single row', async () => {
+        renderWithItems([scars(false)]);
+        const modalConfig = await completeWith({ scars: ['no'] });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Scars', value: 'No' }),
+        ]);
+      });
+
+      it('lists several questions together in order', async () => {
+        renderWithItems([scars(), lyingBp()]);
+        const modalConfig = await completeWith({
+          scars: ['yes'],
+          where: 'Middle (L)',
+          'lying-bp': ['take'],
+          systolic: '96',
+          diastolic: '82',
+        });
+
+        expect(
+          modalConfig.sections[0].items.map(
+            (i: { label: string; isChild?: boolean }) =>
+              `${i.isChild ? 'child' : 'parent'}:${i.label}`
+          )
+        ).toEqual([
+          'parent:Scars',
+          'child:Where is it?',
+          'parent:Lying BP',
+          "child:Take the patient's BP lying down",
+          'child:systolic BP',
+          'child:diastolic BP',
+        ]);
+      });
+    });
+
     it('renders the loading placeholder when transformFhirPhysExamToAyu yields no items', () => {
       /* physExam.json has the right shape but no section items → transform
          returns root with empty item[] → topLevelItems is empty → loader */

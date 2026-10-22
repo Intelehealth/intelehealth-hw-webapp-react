@@ -38,6 +38,7 @@ import {
 } from '../../../utils/ayu.constants';
 import {
   filterAyuQuestionsForPhysExam,
+  isSingleOptionPrompt,
   parsePhysicalExamFilter,
 } from '../../../utils/physical-exam.utils';
 import { getJobAidType, getJobAidUrl } from '../../../utils/physExamAssets';
@@ -396,6 +397,10 @@ export const PhysicalExamination = (props: SectionProps) => {
         const categoryLabel =
           readExt(q, EXT_URL_PE_CATEGORY_LABEL) ?? q.text ?? '';
 
+        /* A lone auto-selected option (e.g. "Take the patient's BP lying
+         * down") prompts the nested fields: it is a question, not an answer. */
+        const isPrompt = isSingleOptionPrompt(q);
+        const promptTexts: string[] = [];
         const selectedTexts: string[] = [];
         const summaryTexts: string[] = [];
         for (const code of selectedCodes) {
@@ -405,8 +410,10 @@ export const PhysicalExamination = (props: SectionProps) => {
           if (isCameraOption(opt)) {
             const hasImages = cameraImagesFor(q.linkId).length > 0;
             if (hasImages) summaryTexts.push(PE_PICTURE_TAKEN_LABEL);
-          } else {
-            if (display) {
+          } else if (display) {
+            if (isPrompt) {
+              promptTexts.push(display);
+            } else {
               selectedTexts.push(display);
               summaryTexts.push(display);
             }
@@ -436,11 +443,22 @@ export const PhysicalExamination = (props: SectionProps) => {
 
         if (nestedValues.length > 0) {
           /* Parent answer (e.g. "Yes") as its own row */
-          if (summaryTexts.length > 0) {
+          if (summaryTexts.length > 0 || isPrompt) {
             sectionMap.get(sectionKey)!.items.push({
               type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
               label: categoryLabel,
               value: summaryTexts.join(', '),
+              ...(summaryTexts.length === 0 && { isQuestionOnly: true }),
+            });
+          }
+          /* The prompt is a sub-question of the parent; its fields follow. */
+          if (promptTexts.length > 0) {
+            sectionMap.get(sectionKey)!.items.push({
+              type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+              label: promptTexts.join(', '),
+              value: '',
+              isChild: true,
+              isQuestionOnly: true,
             });
           }
           /* Each child answer as an indented row below the parent. */

@@ -63,6 +63,25 @@ export const filterPhysicalExamQuestions = (
 };
 
 /**
+ * A PE question whose only non-camera option is auto-selected so its nested
+ * questions (e.g. Systolic / Diastolic under "Take the patient's BP lying
+ * down") appear straight away. That option is the prompt for the nested
+ * fields — a question, not an answer the user chose.
+ */
+export const isSingleOptionPrompt = (question: AyuQuestion): boolean => {
+  if ((question.item?.length ?? 0) === 0) return false;
+  const regularCount = (question.answerOption ?? []).filter(
+    o =>
+      !o.extension?.some(
+        ext =>
+          ext.url === EXT_URL_PE_OPTION_KIND &&
+          ext.valueString === PE_OPTION_KIND_CAMERA
+      )
+  ).length;
+  return regularCount === 1;
+};
+
+/**
  * FHIR-shaped sibling of filterPhysicalExamQuestions. Operates on the
  * AyuQuestion[] produced by transformFhirPhysExamToAyu, reading the PE
  * section-key and question-key from extensions instead of typed fields.

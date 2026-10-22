@@ -7,6 +7,7 @@ import {
   filterPhysicalExamQuestions,
   flattenAyuPhysExamQuestions,
   getPhysicalExamFilterFromComplaints,
+  isSingleOptionPrompt,
   parsePhysicalExamFilter,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
 import type { AyuJsonItem } from '../../../../modules/ayu-library/types/ayu-json.types';
@@ -618,5 +619,75 @@ describe('flattenAyuPhysExamQuestions', () => {
     const result = flattenAyuPhysExamQuestions(root);
     expect(result).toHaveLength(1);
     expect(result[0].options).toEqual([]);
+  });
+});
+
+// ── isSingleOptionPrompt ────────────────────────────────────────────────────
+
+describe('isSingleOptionPrompt', () => {
+  const option = (code: string, display: string, camera = false) => ({
+    valueCoding: { code, display },
+    extension: camera
+      ? [{ url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA }]
+      : undefined,
+  });
+  const nested = [
+    { linkId: 'systolic', text: 'Enter systolic BP', type: 'string' as const },
+  ];
+
+  it('is true for a lone option with nested fields (Lying BP)', () => {
+    const q: AyuQuestion = {
+      linkId: 'bp',
+      text: 'Lying BP',
+      type: 'choice',
+      answerOption: [option('take', "Take the patient's BP lying down")],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(true);
+  });
+
+  it('ignores a camera option when counting regular options', () => {
+    const q: AyuQuestion = {
+      linkId: 'bp',
+      text: 'Lying BP',
+      type: 'choice',
+      answerOption: [
+        option('take', 'Take BP'),
+        option('cam', 'Picture Taken', true),
+      ],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(true);
+  });
+
+  it('is false when there are several regular options (a real Yes/No answer)', () => {
+    const q: AyuQuestion = {
+      linkId: 'scars',
+      text: 'Scars',
+      type: 'choice',
+      answerOption: [option('y', 'Yes'), option('n', 'No')],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
+  });
+
+  it('is false for a lone option without nested fields', () => {
+    const q: AyuQuestion = {
+      linkId: 'x',
+      text: 'X',
+      type: 'choice',
+      answerOption: [option('y', 'Yes')],
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
+  });
+
+  it('is false when no answer options exist', () => {
+    const q: AyuQuestion = {
+      linkId: 'x',
+      text: 'X',
+      type: 'choice',
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
   });
 });

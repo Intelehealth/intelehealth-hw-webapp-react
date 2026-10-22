@@ -140,7 +140,7 @@ export const VitalConfirmationModal = ({
                           return (
                             <div
                               key={iIdx}
-                              className={`${isChild ? (size === 'lg' ? 'ml-6 grid grid-cols-[0px_200px_1fr] gap-4 ' : 'ml-6 grid grid-cols-[0px_120px_1fr] gap-2 ') : size === 'lg' ? 'grid grid-cols-[0px_240px_260px] gap-4 ' : 'grid grid-cols-[0px_150px_1fr] gap-2 '}items-center text-sm w-full`}
+                              className={`${isChild ? (size === 'lg' ? 'ml-6 pl-[14px] border-l-2 border-gray-400 grid grid-cols-[0px_200px_1fr] gap-4 ' : 'ml-6 pl-[14px] border-l-2 border-gray-400 grid grid-cols-[0px_110px_1fr] gap-2 ') : size === 'lg' ? 'grid grid-cols-[0px_240px_260px] gap-4 ' : 'grid grid-cols-[0px_150px_1fr] gap-2 '}items-center text-sm w-full`}
                             >
                               <span className="text-gray-500 font-bold">
                                 &#8226;
@@ -154,9 +154,11 @@ export const VitalConfirmationModal = ({
                                     {String(item.value)}
                                   </span>
                                 ) : (
-                                  <span className="text-gray-500">
-                                    No information
-                                  </span>
+                                  !item.isQuestionOnly && (
+                                    <span className="text-gray-500">
+                                      No information
+                                    </span>
+                                  )
                                 )}
                               </span>
                             </div>

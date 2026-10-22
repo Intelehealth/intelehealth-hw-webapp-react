@@ -485,7 +485,8 @@ describe('VitalConfirmationModal', () => {
 
       // Child row should have ml-6 and different grid columns
       expect(gridItems![1]).toHaveClass('ml-6');
-      expect(gridItems![1]).toHaveClass('grid-cols-[0px_120px_1fr]');
+      expect(gridItems![1]).toHaveClass('grid-cols-[0px_110px_1fr]');
+      expect(gridItems![1]).toHaveClass('border-l-2');
     });
 
     it('renders isChild labelValue items with ml-6 indent (lg size)', () => {
@@ -516,6 +517,53 @@ describe('VitalConfirmationModal', () => {
       // Child row (lg) should have ml-6 and lg child grid columns
       expect(gridItems![1]).toHaveClass('ml-6');
       expect(gridItems![1]).toHaveClass('grid-cols-[0px_200px_1fr]');
+    });
+
+    it('leaves the answer cell empty for isQuestionOnly rows instead of "No information"', () => {
+      render(
+        <VitalConfirmationModal
+          {...defaultProps}
+          sections={[
+            {
+              title: 'Section',
+              items: [
+                { type: 'labelValue' as const, label: 'Lying BP', value: '', isQuestionOnly: true },
+                {
+                  type: 'labelValue' as const,
+                  label: "Take the patient's BP lying down",
+                  value: '',
+                  isChild: true,
+                  isQuestionOnly: true,
+                },
+                { type: 'labelValue' as const, label: 'systolic BP', value: '96', isChild: true },
+              ],
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText('Lying BP')).toBeInTheDocument();
+      expect(screen.getByText("Take the patient's BP lying down")).toBeInTheDocument();
+      expect(screen.getByText('96')).toBeInTheDocument();
+      expect(screen.queryByText('No information')).not.toBeInTheDocument();
+    });
+
+    it('still shows the answer of an isQuestionOnly row that has one', () => {
+      render(
+        <VitalConfirmationModal
+          {...defaultProps}
+          sections={[
+            {
+              title: 'Section',
+              items: [
+                { type: 'labelValue' as const, label: 'Lying BP', value: 'Picture Taken', isQuestionOnly: true },
+              ],
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText('Picture Taken')).toBeInTheDocument();
     });
 
     it('renders isChild=false same as no isChild property', () => {
