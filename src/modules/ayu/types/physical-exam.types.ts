@@ -24,4 +24,12 @@ export interface PhysicalExamQuestion {
   sectionKey: string;
   /** Protocol question key — matches the question name in perform-physical-exam (e.g. "Nails cyanosis") */
   questionKey?: string;
+  /** Its only non-camera option prompts the nested fields — a question, not an answer. */
+  isPrompt?: boolean;
 }
+
+/** Sub-question rows of each Physical Exam question, keyed by `physicalExamChildRowsKey`. */
+export type PhysicalExamChildRows = Record<
+  string,
+  Array<{ label: string; value: string }>
+>;

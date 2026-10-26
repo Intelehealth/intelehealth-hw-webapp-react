@@ -975,6 +975,68 @@ describe('VisitSummaryPage', () => {
     expect(screen.getByText('No information')).toBeInTheDocument();
   });
 
+  it('should render physical exam sub-questions indented, question-only rows without an answer, answers in regular weight', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { bp: ['take'] },
+        details: [],
+        detailsSections: [
+          {
+            title: 'General Exams',
+            items: [
+              { type: 'labelValue' as const, label: 'Scars', value: 'Yes' },
+              { type: 'labelValue' as const, label: 'Where is it?', value: 'Middle (L)', isChild: true },
+              { type: 'labelValue' as const, label: 'Lying BP', value: '', isQuestionOnly: true },
+              {
+                type: 'labelValue' as const,
+                label: "Take the patient's BP lying down",
+                value: '',
+                isChild: true,
+                isQuestionOnly: true,
+              },
+              { type: 'labelValue' as const, label: 'systolic BP', value: '96', isChild: true },
+            ],
+          },
+        ],
+      },
+    });
+
+    // Parent row: no indent, answer in regular weight
+    const scars = screen.getByText('Scars');
+    expect(scars.parentElement).not.toHaveClass('border-l-2');
+    expect(scars.nextElementSibling).toHaveTextContent('Yes');
+    expect(scars.nextElementSibling).toHaveClass('font-normal');
+    expect(scars.nextElementSibling).not.toHaveClass('font-medium');
+
+    // Sub-question: indented with a line, answer on the right
+    const subQuestion = screen.getByText('Where is it?');
+    expect(subQuestion.parentElement).toHaveClass('border-l-2', 'ml-4');
+    expect(subQuestion.nextElementSibling).toHaveTextContent('Middle (L)');
+
+    // Question-only rows show no answer and no "No information"
+    expect(screen.getByText('Lying BP').nextElementSibling).toBeEmptyDOMElement();
+    const prompt = screen.getByText("Take the patient's BP lying down");
+    expect(prompt.parentElement).toHaveClass('border-l-2');
+    expect(prompt.nextElementSibling).toBeEmptyDOMElement();
+    expect(screen.getByText('systolic BP').nextElementSibling).toHaveTextContent('96');
+    expect(screen.queryByText('No information')).not.toBeInTheDocument();
+  });
+
+  it('should render flat physical exam details with answers in regular weight', () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        answers: { pe1: ['opt1'] },
+        details: [{ label: 'Jaundice', value: 'Present' }],
+      },
+    });
+
+    const label = screen.getByText('Jaundice');
+    expect(label.nextElementSibling).toHaveTextContent('Present');
+    expect(label.nextElementSibling).toHaveClass('font-normal');
+  });
+
   it('should render physical exam detailsSections with subheading items', () => {
     renderWithData({
       ...fullData,

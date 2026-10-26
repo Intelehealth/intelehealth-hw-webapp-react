@@ -106,7 +106,12 @@ export interface CheckupReason {
 export interface GeneralExam {
   label: string;
   value: string;
+  /** Sub-question row, shown indented under the preceding parent row. */
+  isChild?: boolean;
 }
+
+/** Marks a Physical Exam sub-question line in the saved exam text. */
+export const PE_CHILD_ROW_MARKER = '◦';
 
 export interface PhysicalExamination {
   generalExams: GeneralExam[];

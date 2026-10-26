@@ -1,3 +1,4 @@
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../ayu-library/types/ayu.types';
 import {
@@ -9,9 +10,11 @@ import {
   PE_OPTION_KIND_CAMERA,
 } from '../../ayu-library/utils/constants';
 import type {
+  PhysicalExamChildRows,
   PhysicalExamOption,
   PhysicalExamQuestion,
 } from '../types/physical-exam.types';
+import { ITEM_TYPES } from './ayu.constants';
 
 /** Section that is always shown regardless of the protocol filter. */
 export const ALWAYS_INCLUDED_SECTION_KEY = 'General Exams';
@@ -188,6 +191,7 @@ const ayuQuestionToLegacy = (q: AyuQuestion): PhysicalExamQuestion | null => {
     questionText: q.text ?? '',
     isRequired: q.required === true,
     isMultiChoice: q.repeats === true,
+    ...(isSingleOptionPrompt(q) && { isPrompt: true }),
     options,
     sectionKey,
     ...(questionKey !== undefined ? { questionKey } : {}),
@@ -219,4 +223,36 @@ export const flattenAyuPhysExamQuestions = (
   };
   walk(root?.item);
   return out;
+};
+
+/** Key of a question in `PhysicalExamChildRows` — labels can repeat across sections. */
+export const physicalExamChildRowsKey = (
+  sectionKey: string,
+  label: string
+): string => `${sectionKey}::${label}`;
+
+/**
+ * Group the sub-question rows (`isChild`) of the Physical Exam summary under
+ * the parent row that precedes them.
+ */
+export const collectPhysicalExamChildRows = (
+  sections?: Array<{ title: string; items: ModalSectionItem[] }>
+): PhysicalExamChildRows => {
+  const childRows: PhysicalExamChildRows = {};
+  for (const section of sections ?? []) {
+    let parentLabel: string | null = null;
+    for (const item of section.items) {
+      if (item.type !== ITEM_TYPES.LABEL_VALUE) continue;
+      if (!item.isChild) {
+        parentLabel = item.label;
+      } else if (parentLabel !== null) {
+        (childRows[physicalExamChildRowsKey(section.title, parentLabel)] ??=
+          []).push({
+          label: item.label,
+          value: String(item.value ?? ''),
+        });
+      }
+    }
+  }
+  return childRows;
 };

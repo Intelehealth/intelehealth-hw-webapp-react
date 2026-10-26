@@ -1128,6 +1128,47 @@ describe('visitSummaryService', () => {
       ]);
     });
 
+    it('should mark saved sub-question lines as child rows, in order', () => {
+      const jsonValue = JSON.stringify({
+        en: '►<b>General exams: </b><br/>• Scars-yes. <br/>◦ Where is it?-Middle (L).<br/>◦ Size-2.5 cm.<br/>• Eyes-normal. <br/>',
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Scars', value: 'yes' },
+        { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+        { label: 'Size', value: '2.5 cm', isChild: true },
+        { label: 'Eyes', value: 'normal' },
+      ]);
+    });
+
+    it('should read a question-only parent and its prompt as rows with no answer', () => {
+      const jsonValue = JSON.stringify({
+        en: "• Lying BP-. <br/>◦ Take the patient's BP lying down-.<br/>◦ systolic BP-96.<br/>",
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Lying BP', value: '' },
+        { label: "Take the patient's BP lying down", value: '', isChild: true },
+        { label: 'systolic BP', value: '96', isChild: true },
+      ]);
+    });
+
+    it('should not add isChild to rows saved without sub-question lines', () => {
+      const jsonValue = JSON.stringify({ en: '• Eyes-normal. <br/>' });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([{ label: 'Eyes', value: 'normal' }]);
+      expect(result.generalExams[0]).not.toHaveProperty('isChild');
+    });
+
     it('should fallback to l-en key when en is absent', () => {
       const jsonValue = JSON.stringify({
         'l-en': '• Eyes - Normal.',

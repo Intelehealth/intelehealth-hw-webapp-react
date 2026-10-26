@@ -8,6 +8,7 @@ import type {
 } from '../../assets/data/visit-summary.data';
 import {
   CONCEPT_UUIDS,
+  PE_CHILD_ROW_MARKER,
   VISIT_SUMMARY_CUSTOM_REP,
 } from '../../assets/data/visit-summary.data';
 import { OpenMRSApi } from '../../services/openmrs';
@@ -272,6 +273,28 @@ export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
   };
 }
 
+/**
+ * Reads exam text that carries sub-question lines (`PE_CHILD_ROW_MARKER
+ * label-value.`) as well as parent lines (`• label-value.`). A parent that is
+ * only a question has an empty value.
+ */
+function extractPhysicalExamRowsFromHtml(html: string): GeneralExam[] {
+  const rowLine = new RegExp(
+    '^\\s*([•' + PE_CHILD_ROW_MARKER + '])\\s*([^-]+?)\\s*-\\s*(.*?)\\.?\\s*$'
+  );
+  const rows: GeneralExam[] = [];
+  for (const line of html.split(/<br\s*\/?>/gi)) {
+    const match = line.match(rowLine);
+    if (!match) continue;
+    rows.push({
+      label: match[2].trim(),
+      value: match[3].trim(),
+      ...(match[1] === PE_CHILD_ROW_MARKER && { isChild: true }),
+    });
+  }
+  return rows;
+}
+
 export function extractPhysicalExamination(
   encounters: VisitDetailsEncounter[]
 ): { generalExams: GeneralExam[] } {
@@ -306,9 +329,15 @@ export function extractPhysicalExamination(
           if (typeof parsed === 'object' && parsed !== null) {
             const html = parsed.en || parsed['l-en'];
             if (html) {
-              const details = extractDetailsFromHtml(html);
+              const details: GeneralExam[] = html.includes(PE_CHILD_ROW_MARKER)
+                ? extractPhysicalExamRowsFromHtml(html)
+                : extractDetailsFromHtml(html);
               for (const detail of details) {
-                generalExams.push({ label: detail.label, value: detail.value });
+                generalExams.push({
+                  label: detail.label,
+                  value: detail.value,
+                  ...(detail.isChild && { isChild: true }),
+                });
               }
             } else {
               for (const [key, val] of Object.entries(parsed)) {

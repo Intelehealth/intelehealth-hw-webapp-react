@@ -82,7 +82,10 @@ import {
   RESOURCE_TYPE_ASSET,
   RESOURCE_TYPE_VISIT,
 } from '../utils/ayu.constants';
-import { flattenAyuPhysExamQuestions } from '../utils/physical-exam.utils';
+import {
+  collectPhysicalExamChildRows,
+  flattenAyuPhysExamQuestions,
+} from '../utils/physical-exam.utils';
 import { normalizeVitalValue } from '../utils/vital-value.util';
 
 const PRIMARY_COLOR = '#0fd197';
@@ -158,14 +161,22 @@ const AdditionalMeasurementsSection: React.FC<{
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
-}> = ({ label, value }) => (
-  <div className="flex items-center text-sm py-1">
-    <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
+  /** Physical Exam only: indent the row as a sub-question. */
+  isChild?: boolean;
+  /** Physical Exam only: answer in regular weight, like the label. */
+  regularValue?: boolean;
+}> = ({ label, value, isChild, regularValue }) => (
+  <div
+    className={`flex items-center text-sm py-1${isChild ? ' ml-4 pl-[10px] border-l-2 border-gray-400' : ''}`}
+  >
+    <span
+      className={`text-[#7F7B92] flex items-center gap-2 shrink-0 ${isChild ? 'w-[calc(50%-14px)]' : 'w-1/2'}`}
+    >
       <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
       {label}
     </span>
     <span
-      className={`font-medium ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+      className={`${regularValue ? 'font-normal' : 'font-medium'} ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
     >
       {value}
     </span>
@@ -423,6 +434,8 @@ const PhysicalExaminationSection: React.FC<{
                       key={iIdx}
                       label={item.label}
                       value={String(item.value ?? 'No information')}
+                      isChild={item.isChild}
+                      regularValue
                     />
                   );
                 }
@@ -458,7 +471,7 @@ const PhysicalExaminationSection: React.FC<{
   return (
     <div>
       {physicalExamination.generalExams.map(({ label, value }, idx) => (
-        <LabelValueRow key={idx} label={label} value={value} />
+        <LabelValueRow key={idx} label={label} value={value} regularValue />
       ))}
       {Object.entries(imagesBySection).map(([key, sectionImages]) => (
         <div key={key} className="mt-3">
@@ -806,7 +819,8 @@ const VisitSummaryPage = () => {
 
       const physicalExam = buildPhysicalExamData(
         data.physicalExam.answers,
-        physicalExamQuestions
+        physicalExamQuestions,
+        collectPhysicalExamChildRows(data.physicalExam.detailsSections)
       );
 
       const medicalHistory = buildMedicalHistoryData(

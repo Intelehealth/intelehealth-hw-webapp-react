@@ -102,14 +102,22 @@ const LabelValueRow: React.FC<{
   label: string;
   value: string;
   compact?: boolean;
-}> = ({ label, value, compact = false }) => (
-  <div className={`flex items-center text-sm ${compact ? '' : 'py-1'}`}>
-    <span className="text-[#7F7B92] flex items-center gap-2 w-1/2 shrink-0">
+  /** Physical Exam only: indent the row as a sub-question. */
+  isChild?: boolean;
+  /** Physical Exam only: answer in regular weight, like the label. */
+  regularValue?: boolean;
+}> = ({ label, value, compact = false, isChild, regularValue }) => (
+  <div
+    className={`flex items-center text-sm ${compact ? '' : 'py-1'}${isChild ? ' ml-4 pl-[10px] border-l-2 border-gray-400' : ''}`}
+  >
+    <span
+      className={`text-[#7F7B92] flex items-center gap-2 shrink-0 ${isChild ? 'w-[calc(50%-14px)]' : 'w-1/2'}`}
+    >
       <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
       {label}
     </span>
     <span
-      className={`font-medium ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+      className={`${regularValue ? 'font-normal' : 'font-medium'} ${value === 'No information' ? 'text-gray-400 italic' : 'text-gray-800'}`}
     >
       {value}
     </span>
@@ -341,9 +349,17 @@ const PhysicalExaminationSection: React.FC<{
 
   return (
     <div>
-      {physicalExamination.generalExams.map(({ label, value }, idx) => (
-        <LabelValueRow key={idx} label={label} value={value} />
-      ))}
+      {physicalExamination.generalExams.map(
+        ({ label, value, isChild }, idx) => (
+          <LabelValueRow
+            key={idx}
+            label={label}
+            value={value}
+            isChild={isChild}
+            regularValue
+          />
+        )
+      )}
       {Object.entries(imagesBySection).map(([sectionName, sectionImages]) => (
         <div key={sectionName} className="mt-3">
           <p className="text-sm font-semibold text-gray-500 mb-2">
