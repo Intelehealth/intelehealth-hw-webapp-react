@@ -341,6 +341,32 @@ describe('prescriptionDetailService', () => {
       ]);
     });
 
+    it('should split a colon-delimited drug order obs value into separate fields', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value =
+        'Albendazole 400 mg Oral Tablet:100 Mg:14:1 - 0 - 0:1dsfsdf:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications).toEqual([
+        {
+          name: 'Albendazole 400 mg Oral Tablet',
+          strength: '100 Mg',
+          duration: '14',
+          frequency: 'Once daily',
+        },
+      ]);
+    });
+
+    it('should fall back to the raw value when the colon-split name segment is empty', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = ':100 Mg:14:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].name).toBe(':100 Mg:14:1 - 0 - 0:note:Once daily');
+    });
+
     it('should return empty medications when no matching obs', async () => {
       const resp = buildVisitResponse();
       resp.encounters[0].obs = resp.encounters[0].obs.filter(
