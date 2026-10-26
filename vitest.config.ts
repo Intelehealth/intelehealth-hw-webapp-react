@@ -62,6 +62,10 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     env: {
       VITE_OPENMRS_API_URL: 'http://localhost:8080/openmrs/ws/rest/v1',
+      // Pin the zone so date-formatting tests behave the same on a UTC CI
+      // runner and on a developer machine: a zone ahead of UTC is what
+      // exposes UTC-vs-local date bugs.
+      TZ: 'Asia/Kolkata',
     },
     /**
      * Scope vitest to the app. Without this its default glob sweeps the whole

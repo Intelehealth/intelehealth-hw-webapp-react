@@ -139,7 +139,7 @@ describe('patientService', () => {
 
       expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
       expect(mockOpenMRSGet).toHaveBeenCalledWith(
-        `/visit?patient=${patientUuid}&includeInactive=false&v=custom:(uuid,startDatetime,visitType:(display),encounters:(encounterType:(display)))`
+        `/visit?patient=${patientUuid}&includeInactive=true&v=custom:(uuid,startDatetime,stopDatetime,visitType:(display),encounters:(encounterType:(display)))`
       );
       expect(result).toEqual(response);
     });

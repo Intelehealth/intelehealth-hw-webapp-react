@@ -31,6 +31,7 @@ export interface OpenMRSPatient {
 export interface OpenMRSVisit {
   uuid: string;
   startDatetime: string;
+  stopDatetime?: string | null;
   visitType: { display: string } | null;
   encounters: {
     encounterType: { display: string };
@@ -58,6 +59,7 @@ export interface UsePatientProfileReturn {
   patientData: PatientDisplayData | null;
   rawPatient: OpenMRSPatient | null;
   visits: OpenMRSVisit[];
+  pastVisits: OpenMRSVisit[];
   loading: boolean;
   refreshing: boolean;
   error: string | null;

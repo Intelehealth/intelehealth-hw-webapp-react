@@ -12,7 +12,10 @@ const h = vi.hoisted(() => ({
 }));
 
 let mockUuid: string | undefined = 'test-uuid';
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router-dom', async () => ({
+  ...(await vi.importActual<typeof import('react-router-dom')>(
+    'react-router-dom'
+  )),
   useNavigate: () => h.mockNavigate,
   useParams: () => ({ uuid: mockUuid }),
 }));
@@ -193,10 +196,19 @@ const defaultHookReturn = {
   patientData: basePatientData,
   rawPatient: baseRawPatient,
   visits: [],
+  pastVisits: [],
   loading: false,
   refreshing: false,
   error: null,
   refresh: vi.fn(),
+};
+
+const pastVisit = {
+  uuid: 'past-uuid-wxyz9876',
+  startDatetime: new Date(2025, 2, 4, 12, 0).toISOString(),
+  stopDatetime: new Date(2025, 2, 4, 13, 0).toISOString(),
+  visitType: { display: 'Follow-up Visit' },
+  encounters: [],
 };
 
 
@@ -310,13 +322,92 @@ describe('PatientProfileComponent', () => {
 
  
 
+  it('renders the Past Visit section for ended visits and keeps Start Visit when none are open', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [],
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Past Visit')).toBeInTheDocument();
+    expect(screen.getByText('Follow-up Visit')).toBeInTheDocument();
+    expect(screen.getByText(/XXXX9876/)).toBeInTheDocument();
+    expect(screen.getByText(/2025-03-04/)).toBeInTheDocument();
+    expect(screen.queryByText('Open Visit')).not.toBeInTheDocument();
+    expect(screen.getByText('Start Visit')).toBeInTheDocument();
+    expect(
+      screen
+        .getByText('Past Visit')
+        .compareDocumentPosition(screen.getByText('Start Visit')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('does not render the Past Visit section when there are no past visits', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      pastVisits: [],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.queryByText('Past Visit')).not.toBeInTheDocument();
+  });
+
+  it('renders open and past visits in separate sections without mixing them', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [
+        {
+          uuid: 'open-uuid-abcd1234',
+          startDatetime: '2025-09-12T20:14:36.000+0000',
+          stopDatetime: null,
+          visitType: { display: 'OPD Visit' },
+          encounters: [],
+        },
+      ],
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Open Visit')).toBeInTheDocument();
+    expect(screen.getByText('Past Visit')).toBeInTheDocument();
+    expect(screen.getAllByText(/Visit ID:/)).toHaveLength(2);
+    expect(screen.getByText(/XXXX1234/)).toBeInTheDocument();
+    expect(screen.getByText(/XXXX9876/)).toBeInTheDocument();
+  });
+
+  it('navigates to /visit-details with a way back to the patient when a past visit is clicked', async () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    await userEvent.click(screen.getByRole('button', { name: /Visit ID/i }));
+    expect(h.mockNavigate).toHaveBeenCalledWith(
+      '/visit-details/past-uuid-wxyz9876',
+      { state: { fromLabel: 'John K Doe', fromPath: '/patient/test-uuid' } }
+    );
+  });
+
+  it('falls back to "Patient Details" as the way-back label when the patient has no name', async () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      patientData: { ...basePatientData, fullName: '' },
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    await userEvent.click(screen.getByRole('button', { name: /Visit ID/i }));
+    expect(h.mockNavigate).toHaveBeenCalledWith(
+      '/visit-details/past-uuid-wxyz9876',
+      { state: { fromLabel: 'Patient Details', fromPath: '/patient/test-uuid' } }
+    );
+  });
+
   it('renders visit card with title, id, and date', () => {
     h.mockUsePatientProfile.mockReturnValue({
       ...defaultHookReturn,
       visits: [
         {
           uuid: 'vis-uuid-abcd1234',
-          startDatetime: '2025-09-12T20:14:36.000+0000',
+          startDatetime: new Date(2025, 8, 12, 12, 0).toISOString(),
           visitType: { display: 'OPD Visit' },
           encounters: [],
         },
@@ -327,6 +418,21 @@ describe('PatientProfileComponent', () => {
     expect(screen.getByText(/Visit ID:/)).toBeInTheDocument();
     expect(screen.getByText(/XXXX1234/)).toBeInTheDocument();
     expect(screen.getByText(/2025-09-12/)).toBeInTheDocument();
+  });
+
+  it('shows the local date for a visit started just after local midnight', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      pastVisits: [
+        {
+          ...pastVisit,
+          // 00:30 IST on 12 Sep (the test zone is pinned) is 11 Sep in UTC.
+          startDatetime: '2025-09-11T19:00:00.000Z',
+        },
+      ],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText(/Visit Date: 2025-09-12/)).toBeInTheDocument();
   });
 
   it('does not render title paragraph when visitType is null and no encounters', () => {
