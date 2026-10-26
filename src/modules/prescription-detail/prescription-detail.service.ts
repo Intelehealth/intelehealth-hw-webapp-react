@@ -134,9 +134,16 @@ function parseMedications(raw: string): Medication[] {
       ];
     }
   } catch {
-    // Not JSON - return as single medication name
     if (raw.trim()) {
-      return [{ name: raw.trim(), strength: '', frequency: '', duration: '' }];
+      const p = raw.split(':');
+      return [
+        {
+          name: p[0]?.trim() || raw.trim(),
+          strength: p[1]?.trim() || '',
+          frequency: p[5]?.trim() || '',
+          duration: p[2]?.trim() || '',
+        },
+      ];
     }
   }
   return [];
