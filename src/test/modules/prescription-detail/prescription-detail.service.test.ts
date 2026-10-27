@@ -315,7 +315,14 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(buildVisitResponse());
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Ambroxol', strength: '10 mg', frequency: '3 times/day', duration: '7 days' },
+        {
+          name: 'Ambroxol',
+          strength: '10 mg',
+          frequency: '3 times/day',
+          duration: '7 days',
+          timing: '',
+          remark: '',
+        },
       ]);
     });
 
@@ -326,7 +333,14 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Single Med', strength: '5 mg', frequency: 'Once', duration: '3 days' },
+        {
+          name: 'Single Med',
+          strength: '5 mg',
+          frequency: 'Once',
+          duration: '3 days',
+          timing: '',
+          remark: '',
+        },
       ]);
     });
 
@@ -651,19 +665,21 @@ describe('prescriptionDetailService', () => {
       expect(result.age).toBe(0);
     });
 
-    it('should use medication alternative field names (name, dose, timing)', async () => {
+    it('should use medication alternative field names and keep timing in its own column', async () => {
       const resp = buildVisitResponse();
       const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
       medObs!.value = JSON.stringify([
-        { name: 'MedName', dose: '5 mg', timing: 'Twice daily', duration: '3 days' },
+        { name: 'MedName', dose: '5 mg', timing: '1 - 0 - 0', remark: 'After food', duration: '3 days' },
       ]);
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications[0]).toEqual({
         name: 'MedName',
         strength: '5 mg',
-        frequency: 'Twice daily',
+        frequency: '',
         duration: '3 days',
+        timing: '1 - 0 - 0',
+        remark: 'After food',
       });
     });
 

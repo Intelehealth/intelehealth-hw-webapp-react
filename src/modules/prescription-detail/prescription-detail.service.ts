@@ -145,8 +145,10 @@ function mapJsonMedication(med: Record<string, string>): Medication {
   return {
     name: med.drug || med.name || med.medicine || '',
     strength: med.strength || med.dose || '',
-    frequency: med.frequency || med.timing || '',
+    frequency: med.frequency || '',
     duration: med.duration || '',
+    timing: med.timing || '',
+    remark: med.remark || '',
   };
 }
 
