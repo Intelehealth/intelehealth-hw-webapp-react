@@ -478,6 +478,39 @@ describe('VisitSummaryPage', () => {
     });
   });
 
+  it('should upload the confirmed physical exam summary rows, marking sub-questions', async () => {
+    renderWithData({
+      ...fullData,
+      physicalExam: {
+        ...fullData.physicalExam,
+        detailsSections: [
+          {
+            title: 'General Exams',
+            items: [
+              { type: 'labelValue' as const, label: 'Scars', value: 'Yes' },
+              { type: 'labelValue' as const, label: 'Where is it?', value: 'Middle (L)', isChild: true },
+            ],
+          },
+        ],
+      },
+    });
+
+    selectSpeciality();
+    fireEvent.click(screen.getByText('Upload Visit'));
+    fireEvent.click(screen.getByTestId('modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockBuildPhysicalExamData).toHaveBeenCalledWith(
+        fullData.physicalExam.answers,
+        expect.any(Array),
+        [
+          { label: 'Scars', value: 'Yes' },
+          { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+        ]
+      );
+    });
+  });
+
   /* ── "Schedule Appointment" button after upload ───────────────────────── */
 
   it('should show Schedule Appointment button after successful upload and navigate on click', async () => {

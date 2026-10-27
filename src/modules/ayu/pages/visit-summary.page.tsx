@@ -83,8 +83,8 @@ import {
   RESOURCE_TYPE_VISIT,
 } from '../utils/ayu.constants';
 import {
-  collectPhysicalExamChildRows,
   flattenAyuPhysExamQuestions,
+  toPhysicalExamRows,
 } from '../utils/physical-exam.utils';
 import { normalizeVitalValue } from '../utils/vital-value.util';
 
@@ -820,7 +820,7 @@ const VisitSummaryPage = () => {
       const physicalExam = buildPhysicalExamData(
         data.physicalExam.answers,
         physicalExamQuestions,
-        collectPhysicalExamChildRows(data.physicalExam.detailsSections)
+        toPhysicalExamRows(data.physicalExam.detailsSections)
       );
 
       const medicalHistory = buildMedicalHistoryData(

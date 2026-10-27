@@ -1,3 +1,4 @@
+import type { GeneralExam } from '../../../assets/data/visit-summary.data';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../ayu-library/types/ayu.types';
@@ -10,7 +11,6 @@ import {
   PE_OPTION_KIND_CAMERA,
 } from '../../ayu-library/utils/constants';
 import type {
-  PhysicalExamChildRows,
   PhysicalExamOption,
   PhysicalExamQuestion,
 } from '../types/physical-exam.types';
@@ -191,7 +191,6 @@ const ayuQuestionToLegacy = (q: AyuQuestion): PhysicalExamQuestion | null => {
     questionText: q.text ?? '',
     isRequired: q.required === true,
     isMultiChoice: q.repeats === true,
-    ...(isSingleOptionPrompt(q) && { isPrompt: true }),
     options,
     sectionKey,
     ...(questionKey !== undefined ? { questionKey } : {}),
@@ -225,34 +224,24 @@ export const flattenAyuPhysExamQuestions = (
   return out;
 };
 
-/** Key of a question in `PhysicalExamChildRows` — labels can repeat across sections. */
-export const physicalExamChildRowsKey = (
-  sectionKey: string,
-  label: string
-): string => `${sectionKey}::${label}`;
-
 /**
- * Group the sub-question rows (`isChild`) of the Physical Exam summary under
- * the parent row that precedes them.
+ * The Physical Exam summary rows the health worker confirmed, in order, with
+ * sub-questions marked. Saved with the visit so the visit summary can show the
+ * same question / answer structure.
  */
-export const collectPhysicalExamChildRows = (
-  sections?: Array<{ title: string; items: ModalSectionItem[] }>
-): PhysicalExamChildRows => {
-  const childRows: PhysicalExamChildRows = {};
-  for (const section of sections ?? []) {
-    let parentLabel: string | null = null;
-    for (const item of section.items) {
-      if (item.type !== ITEM_TYPES.LABEL_VALUE) continue;
-      if (!item.isChild) {
-        parentLabel = item.label;
-      } else if (parentLabel !== null) {
-        (childRows[physicalExamChildRowsKey(section.title, parentLabel)] ??=
-          []).push({
-          label: item.label,
-          value: String(item.value ?? ''),
-        });
-      }
-    }
-  }
-  return childRows;
-};
+export const toPhysicalExamRows = (
+  sections?: Array<{ items: ModalSectionItem[] }>
+): GeneralExam[] =>
+  (sections ?? []).flatMap(section =>
+    section.items.flatMap(item =>
+      item.type === ITEM_TYPES.LABEL_VALUE
+        ? [
+            {
+              label: item.label,
+              value: String(item.value ?? ''),
+              ...(item.isChild && { isChild: true }),
+            },
+          ]
+        : []
+    )
+  );

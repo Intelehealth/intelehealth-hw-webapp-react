@@ -442,15 +442,14 @@ export const PhysicalExamination = (props: SectionProps) => {
         }
 
         if (nestedValues.length > 0) {
-          /* Parent answer (e.g. "Yes") as its own row */
-          if (summaryTexts.length > 0 || isPrompt) {
-            sectionMap.get(sectionKey)!.items.push({
-              type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
-              label: categoryLabel,
-              value: summaryTexts.join(', '),
-              ...(summaryTexts.length === 0 && { isQuestionOnly: true }),
-            });
-          }
+          /* Parent row (e.g. "Yes"); always present so the child rows below
+           * belong to this question, even when it has no answer of its own. */
+          sectionMap.get(sectionKey)!.items.push({
+            type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
+            label: categoryLabel,
+            value: summaryTexts.join(', '),
+            ...(summaryTexts.length === 0 && { isQuestionOnly: true }),
+          });
           /* The prompt is a sub-question of the parent; its fields follow. */
           if (promptTexts.length > 0) {
             sectionMap.get(sectionKey)!.items.push({

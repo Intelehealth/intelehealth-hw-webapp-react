@@ -1,4 +1,4 @@
-import { PE_CHILD_ROW_MARKER } from '../../../assets/data/visit-summary.data';
+import type { GeneralExam } from '../../../assets/data/visit-summary.data';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
 import {
@@ -11,7 +11,6 @@ import {
 import type { MedicalHistorySummary } from '../context/start-visit.context';
 import type {
   PhysicalExamAnswers,
-  PhysicalExamChildRows,
   PhysicalExamOption,
   PhysicalExamQuestion,
 } from '../types/physical-exam.types';
@@ -23,7 +22,6 @@ import type {
 } from '../types/visit-upload.types';
 import type { VitalField, VitalsFormValues } from '../types/vitals.types';
 import { ITEM_TYPES, PE_PICTURE_TAKEN_LABEL } from '../utils/ayu.constants';
-import { physicalExamChildRowsKey } from '../utils/physical-exam.utils';
 
 function formatDatetime(date: Date): string {
   return date.toISOString().replace('Z', '+0000');
@@ -142,10 +140,15 @@ export interface PhysicalExamData {
   obsValue: string;
 }
 
+/**
+ * `en` / `l-en` hold the exam text that other apps (doctor webapp, Android)
+ * parse, so their format stays as it was. `rows` carries the confirmed summary
+ * rows, with sub-questions marked, for the visit summary screen.
+ */
 export function buildPhysicalExamData(
   answers: PhysicalExamAnswers,
   questions: PhysicalExamQuestion[],
-  childRows: PhysicalExamChildRows = {}
+  rows: GeneralExam[] = []
 ): PhysicalExamData {
   let displayHtml = '';
   let rawHtml = '';
@@ -164,25 +167,13 @@ export function buildPhysicalExamData(
     // "Picture Taken" is an annotation on the finding, not an answer of its
     // own — e.g. selecting "Yes" + capturing a photo reads "yes [Picture
     // Taken]" rather than listing "picture taken" as a separate answer.
-    // A prompt question's lone option ("Take the patient's BP lying down")
-    // is a question, not an answer: it is saved as a sub-question row.
     const answerTexts = selectedOptions
-      .filter(o => !o.isCamera && !question.isPrompt)
+      .filter(o => !o.isCamera)
       .map(o => o.text)
       .filter(Boolean);
     const hasPicture = selectedOptions.some(o => o.isCamera);
-    const questionChildRows =
-      childRows[
-        physicalExamChildRowsKey(question.sectionKey, question.categoryLabel)
-      ] ?? [];
 
-    if (
-      answerTexts.length === 0 &&
-      !hasPicture &&
-      questionChildRows.length === 0
-    ) {
-      continue;
-    }
+    if (answerTexts.length === 0 && !hasPicture) continue;
 
     if (question.sectionLabel && question.sectionLabel !== currentSection) {
       currentSection = question.sectionLabel;
@@ -196,20 +187,17 @@ export function buildPhysicalExamData(
       ? `${baseText ? `${baseText} ` : ''}${pictureTag}`
       : baseText;
     displayHtml += `• ${question.categoryLabel}-${answerText}. <br/>`;
-    for (const child of questionChildRows) {
-      displayHtml += `${PE_CHILD_ROW_MARKER} ${child.label}-${child.value}.<br/>`;
-    }
 
     rawHtml += `• ${question.categoryLabel}-● ${question.questionText}${question.isRequired ? '*' : ''}<br/>`;
-    if (answerTexts.length > 0) {
+    if (answerTexts.length === 0) {
+      // Picture-only finding.
+      rawHtml += `•${pictureTag}-<br/>`;
+    } else {
       answerTexts.forEach((text, idx) => {
         const isLast = idx === answerTexts.length - 1;
         const suffix = hasPicture && isLast ? ` ${pictureTag}` : '';
         rawHtml += `•${text}${suffix}-<br/>`;
       });
-    } else if (hasPicture) {
-      // Picture-only finding.
-      rawHtml += `•${pictureTag}-<br/>`;
     }
   }
 
@@ -217,6 +205,7 @@ export function buildPhysicalExamData(
     obsValue: JSON.stringify({
       en: displayHtml.trim(),
       'l-en': rawHtml.trim(),
+      ...(rows.length > 0 && { rows }),
     }),
   };
 }

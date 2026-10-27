@@ -110,9 +110,6 @@ export interface GeneralExam {
   isChild?: boolean;
 }
 
-/** Marks a Physical Exam sub-question line in the saved exam text. */
-export const PE_CHILD_ROW_MARKER = '◦';
-
 export interface PhysicalExamination {
   generalExams: GeneralExam[];
 }

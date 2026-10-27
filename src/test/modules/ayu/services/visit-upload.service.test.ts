@@ -253,96 +253,50 @@ describe('visit-upload.service', () => {
       ...overrides,
     });
 
-    it('should save sub-question rows right after their parent row', () => {
-      const questions: PhysicalExamQuestion[] = [
-        makeQuestion({ id: 'q1' }),
-        makeQuestion({ id: 'q2', categoryLabel: 'Arm' }),
+    describe('summary rows', () => {
+      const rows = [
+        { label: 'Lying BP', value: '' },
+        { label: "Take the patient's BP lying down", value: '', isChild: true },
+        { label: 'systolic BP', value: '96', isChild: true },
       ];
-      const answers = { q1: ['no_jaundice'], q2: ['jaundice'] };
-
-      const result = buildPhysicalExamData(answers, questions, {
-        'general::Eyes': [{ label: 'Where is it?', value: 'Middle (L)' }],
-      });
-      const { en } = parseObs(result.obsValue);
-
-      expect(en).toContain(
-        'Eyes-no jaundice seen. <br/>◦ Where is it?-Middle (L).<br/>• Arm-jaundice present. <br/>'
-      );
-    });
-
-    it('should not attach sub-question rows of a same-labelled question in another section', () => {
-      const questions: PhysicalExamQuestion[] = [
-        makeQuestion({ id: 'q1', sectionKey: 'other' }),
-      ];
-
-      const result = buildPhysicalExamData({ q1: ['no_jaundice'] }, questions, {
-        'general::Eyes': [{ label: 'Where is it?', value: 'Middle (L)' }],
+      const lyingBp = makeQuestion({
+        id: 'bp',
+        categoryLabel: 'Lying BP',
+        questionText: 'Lying BP?',
+        options: [{ id: 'take', text: "Take the patient's BP lying down" }],
       });
 
-      expect(parseObs(result.obsValue).en).not.toContain('Where is it?');
-    });
-
-    it('should not save sub-question rows of a question that was not answered', () => {
-      const questions: PhysicalExamQuestion[] = [makeQuestion({ id: 'q1' })];
-
-      const result = buildPhysicalExamData({}, questions, {
-        'general::Eyes': [{ label: 'Where is it?', value: 'Middle (L)' }],
-      });
-
-      expect(parseObs(result.obsValue).en).not.toContain('Where is it?');
-    });
-
-    describe('prompt question (single auto-selected option with nested fields)', () => {
-      const lyingBp = (overrides: Partial<PhysicalExamQuestion> = {}) =>
-        makeQuestion({
-          id: 'bp',
-          categoryLabel: 'Lying BP',
-          questionText: 'Lying BP?',
-          isPrompt: true,
-          options: [
-            { id: 'take', text: "Take the patient's BP lying down" },
-            { id: 'cam', text: 'Picture Taken', isCamera: true },
-          ],
-          ...overrides,
-        });
-      const bpRows = {
-        'general::Lying BP': [
-          { label: "Take the patient's BP lying down", value: '' },
-          { label: 'systolic BP', value: '96' },
-        ],
-      };
-
-      it('saves the option as a sub-question, not as the parent answer', () => {
-        const { en, ['l-en']: raw } = parseObs(
-          buildPhysicalExamData({ bp: ['take'] }, [lyingBp()], bpRows).obsValue
+      it('saves the confirmed summary rows next to the exam text', () => {
+        const saved = JSON.parse(
+          buildPhysicalExamData({ bp: ['take'] }, [lyingBp], rows).obsValue
         );
 
-        expect(en).toContain(
-          "• Lying BP-. <br/>◦ Take the patient's BP lying down-.<br/>◦ systolic BP-96.<br/>"
-        );
-        expect(en).not.toContain("lying BP-take");
-        expect(raw).not.toContain('Picture Taken');
+        expect(saved.rows).toEqual(rows);
       });
 
-      it('keeps the picture annotation on the parent row', () => {
-        const { en, ['l-en']: raw } = parseObs(
-          buildPhysicalExamData({ bp: ['take', 'cam'] }, [lyingBp()], bpRows)
-            .obsValue
+      it('leaves the exam text other apps read exactly as it is without rows', () => {
+        const withRows = JSON.parse(
+          buildPhysicalExamData({ bp: ['take'] }, [lyingBp], rows).obsValue
+        );
+        const withoutRows = JSON.parse(
+          buildPhysicalExamData({ bp: ['take'] }, [lyingBp]).obsValue
         );
 
-        expect(en).toContain('• Lying BP-[Picture Taken]. <br/>');
-        expect(raw).toContain('•[Picture Taken]-<br/>');
+        expect(withRows.en).toBe(withoutRows.en);
+        expect(withRows['l-en']).toBe(withoutRows['l-en']);
+        expect(withRows.en).toContain(
+          "Lying BP-take the patient's bp lying down."
+        );
       });
 
-      it('saves nothing when no nested value or picture was entered', () => {
-        const { en } = parseObs(
-          buildPhysicalExamData({ bp: ['take'] }, [lyingBp()]).obsValue
+      it('does not add a rows field when there are no rows', () => {
+        const saved = JSON.parse(
+          buildPhysicalExamData({ bp: ['take'] }, [lyingBp], []).obsValue
         );
 
-        expect(en).toBe('');
+        expect(saved).not.toHaveProperty('rows');
       });
     });
-
     it('should build HTML from answered questions', () => {
       const questions: PhysicalExamQuestion[] = [
         makeQuestion({ id: 'q1' }),

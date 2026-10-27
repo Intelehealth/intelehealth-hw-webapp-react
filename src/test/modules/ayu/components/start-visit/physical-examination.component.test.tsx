@@ -1380,6 +1380,45 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         expect(modalConfig.sections[0].items[0].isQuestionOnly).toBeUndefined();
       });
 
+      it('keeps the sub-questions under their own question when it has no visible answer', async () => {
+        const noPhoto: AyuQuestion = {
+          ...scars(),
+          linkId: 'photo-only',
+          extension: peExt('Marks'),
+          answerOption: [
+            { valueCoding: { code: 'yes', display: 'Yes' } },
+            { valueCoding: { code: 'no', display: 'No' } },
+            {
+              valueCoding: { code: 'cam', display: 'Picture Taken' },
+              extension: [
+                { url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA },
+              ],
+            },
+          ],
+        };
+        renderWithItems([scars(false), noPhoto]);
+        const modalConfig = await completeWith({
+          scars: ['no'],
+          'photo-only': ['cam'],
+          where: 'Left arm',
+        });
+
+        expect(
+          modalConfig.sections[0].items.map(
+            (i: { label: string; value: string; isChild?: boolean }) => [
+              i.label,
+              i.value,
+              Boolean(i.isChild),
+            ]
+          )
+        ).toEqual([
+          ['Scars', 'No', false],
+          ['Marks', '', false],
+          ['Where is it?', 'Left arm', true],
+        ]);
+        expect(modalConfig.sections[0].items[1].isQuestionOnly).toBe(true);
+      });
+
       it('keeps a parent question without sub-questions as a single row', async () => {
         renderWithItems([scars(false)]);
         const modalConfig = await completeWith({ scars: ['no'] });

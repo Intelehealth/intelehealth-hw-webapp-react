@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import type { PhysicalExamQuestion } from '../../../../modules/ayu/types/physical-exam.types';
 import {
-  collectPhysicalExamChildRows,
   combinePhysicalExamFilters,
   filterAyuQuestionsForPhysExam,
   filterPhysicalExamQuestions,
@@ -10,7 +9,7 @@ import {
   getPhysicalExamFilterFromComplaints,
   isSingleOptionPrompt,
   parsePhysicalExamFilter,
-  physicalExamChildRowsKey,
+  toPhysicalExamRows,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
 import type { AyuJsonItem } from '../../../../modules/ayu-library/types/ayu-json.types';
 import {
@@ -693,111 +692,54 @@ describe('isSingleOptionPrompt', () => {
     expect(isSingleOptionPrompt(q)).toBe(false);
   });
 });
-// ── isPrompt on flattened questions ─────────────────────────────────────────
 
-describe('flattenAyuPhysExamQuestions isPrompt', () => {
-  const question = (optionCount: number, withChildren = true): AyuQuestion => ({
-    linkId: 'bp',
-    type: 'choice',
-    text: 'Lying BP',
-    extension: [
-      { url: EXT_URL_PE_SECTION_KEY, valueString: 'General' },
-      { url: EXT_URL_PE_CATEGORY_LABEL, valueString: 'Lying BP' },
-    ],
-    answerOption: Array.from({ length: optionCount }, (_, i) => ({
-      valueCoding: { code: `opt${i}`, display: `Option ${i}` },
-    })),
-    ...(withChildren
-      ? { item: [{ linkId: 'sys', text: 'Enter systolic BP', type: 'string' as const }] }
-      : {}),
-  });
+// ── toPhysicalExamRows ──────────────────────────────────────────────────────
 
-  const flatten = (q: AyuQuestion) =>
-    flattenAyuPhysExamQuestions({ linkId: 'root', type: 'group', item: [q] });
-
-  it('flags a lone option with nested fields as a prompt', () => {
-    expect(flatten(question(1))[0].isPrompt).toBe(true);
-  });
-
-  it('does not flag real choices or a lone option without nested fields', () => {
-    expect(flatten(question(2))[0].isPrompt).toBeUndefined();
-    expect(flatten(question(1, false))[0].isPrompt).toBeUndefined();
-  });
-});
-// ── collectPhysicalExamChildRows ────────────────────────────────────────────
-
-describe('collectPhysicalExamChildRows', () => {
-  it('groups sub-question rows under the preceding parent row', () => {
-    const rows = collectPhysicalExamChildRows([
-      {
-        title: 'General',
-        items: [
-          { type: 'labelValue', label: 'Scars', value: 'Yes' },
-          { type: 'labelValue', label: 'Where is it?', value: 'Middle (L)', isChild: true },
-          { type: 'labelValue', label: 'Size', value: 3, isChild: true },
-          { type: 'labelValue', label: 'Eyes', value: 'Normal' },
-        ],
-      },
-      {
-        title: 'Hands',
-        items: [
-          { type: 'labelValue', label: 'Arm', value: 'Normal' },
-          { type: 'labelValue', label: 'Detail', value: null, isChild: true },
-        ],
-      },
-    ]);
-
-    expect(rows).toEqual({
-      [physicalExamChildRowsKey('General', 'Scars')]: [
-        { label: 'Where is it?', value: 'Middle (L)' },
-        { label: 'Size', value: '3' },
-      ],
-      [physicalExamChildRowsKey('Hands', 'Arm')]: [
-        { label: 'Detail', value: '' },
-      ],
-    });
-  });
-
-  it('keeps same-labelled questions of different sections apart', () => {
-    const rows = collectPhysicalExamChildRows([
-      {
-        title: 'Head',
-        items: [
-          { type: 'labelValue', label: 'Tenderness', value: 'Yes' },
-          { type: 'labelValue', label: 'Where?', value: 'Jaw', isChild: true },
-        ],
-      },
-      {
-        title: 'Abdomen',
-        items: [
-          { type: 'labelValue', label: 'Tenderness', value: 'Yes' },
-          { type: 'labelValue', label: 'Where?', value: 'Left', isChild: true },
-        ],
-      },
-    ]);
-
-    expect(rows).toEqual({
-      [physicalExamChildRowsKey('Head', 'Tenderness')]: [
-        { label: 'Where?', value: 'Jaw' },
-      ],
-      [physicalExamChildRowsKey('Abdomen', 'Tenderness')]: [
-        { label: 'Where?', value: 'Left' },
-      ],
-    });
-  });
-
-  it('ignores child rows with no parent, non-labelValue items and missing sections', () => {
+describe('toPhysicalExamRows', () => {
+  it('lists the summary rows of every section in order, marking sub-questions', () => {
     expect(
-      collectPhysicalExamChildRows([
+      toPhysicalExamRows([
         {
-          title: 'General',
           items: [
-            { type: 'labelValue', label: 'Orphan', value: 'x', isChild: true },
-            { type: 'subheading', heading: 'Heading', values: [] },
+            { type: 'labelValue', label: 'Scars', value: 'Yes' },
+            { type: 'labelValue', label: 'Where is it?', value: 'Middle (L)', isChild: true },
+          ],
+        },
+        {
+          items: [{ type: 'labelValue', label: 'Eyes', value: 'Normal' }],
+        },
+      ])
+    ).toEqual([
+      { label: 'Scars', value: 'Yes' },
+      { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+      { label: 'Eyes', value: 'Normal' },
+    ]);
+  });
+
+  it('keeps question-only rows with an empty answer and turns numbers and null into text', () => {
+    expect(
+      toPhysicalExamRows([
+        {
+          items: [
+            { type: 'labelValue', label: 'Lying BP', value: '', isQuestionOnly: true },
+            { type: 'labelValue', label: 'Size', value: 0, isChild: true },
+            { type: 'labelValue', label: 'Note', value: null, isChild: true },
           ],
         },
       ])
-    ).toEqual({});
-    expect(collectPhysicalExamChildRows(undefined)).toEqual({});
+    ).toEqual([
+      { label: 'Lying BP', value: '' },
+      { label: 'Size', value: '0', isChild: true },
+      { label: 'Note', value: '', isChild: true },
+    ]);
+  });
+
+  it('skips non-labelValue items and returns nothing for missing sections', () => {
+    expect(
+      toPhysicalExamRows([
+        { items: [{ type: 'subheading', heading: 'Heading', values: [] }] },
+      ])
+    ).toEqual([]);
+    expect(toPhysicalExamRows(undefined)).toEqual([]);
   });
 });
