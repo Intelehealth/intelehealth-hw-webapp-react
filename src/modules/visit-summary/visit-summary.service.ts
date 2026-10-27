@@ -205,6 +205,20 @@ function parseChiefComplaintSections(html: string): HistorySection[] {
   return sections;
 }
 
+function complaintNames(
+  sections: HistorySection[],
+  fallback: string
+): string[] {
+  const names = sections.length > 0 ? sections.map(s => s.title) : [fallback];
+  return names.filter(name => name && name !== ASSOCIATED_SYMPTOMS_TITLE);
+}
+
+/** Protocol names held in a chief-complaint observation value. */
+export function getChiefComplaintNames(value: string): string[] {
+  const parsed = parseChiefComplaintValue(value);
+  return complaintNames(parseChiefComplaintSections(parsed.html), parsed.name);
+}
+
 export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
   chiefComplaints: string[];
   details: Detail[];
@@ -226,14 +240,8 @@ export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
               : (obs.value?.display ?? '');
         const parsed = parseChiefComplaintValue(raw);
         const sections = parseChiefComplaintSections(parsed.html);
-        const names =
-          sections.length > 0 ? sections.map(s => s.title) : [parsed.name];
-        for (const name of names) {
-          if (
-            name &&
-            name !== ASSOCIATED_SYMPTOMS_TITLE &&
-            !complaints.includes(name)
-          ) {
+        for (const name of complaintNames(sections, parsed.name)) {
+          if (!complaints.includes(name)) {
             complaints.push(name);
           }
         }

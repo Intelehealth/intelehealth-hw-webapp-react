@@ -36,6 +36,12 @@ export interface OpenMRSVisit {
   encounters: {
     encounterType: { display: string };
   }[];
+  protocolNames?: string[];
+}
+
+export interface OpenMRSVisitProtocolObs {
+  value: unknown;
+  encounter: { visit: { uuid: string } | null } | null;
 }
 
 export interface PatientDisplayData {
