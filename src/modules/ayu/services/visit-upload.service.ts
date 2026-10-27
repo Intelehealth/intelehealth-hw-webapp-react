@@ -1,3 +1,4 @@
+import type { GeneralExam } from '../../../assets/data/visit-summary.data';
 import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import { EmrMiddlewareApi } from '../../../services/patient.service';
 import {
@@ -139,9 +140,22 @@ export interface PhysicalExamData {
   obsValue: string;
 }
 
+// The exam text is parsed by splitting on "<b>", "<br/>" and "-", so typed
+// values must not carry angle brackets.
+const escapeAngleBrackets = (text: string): string =>
+  text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * `en` / `l-en` hold the exam text that other apps (doctor webapp, Android)
+ * parse; `en` is the source of truth for them. Besides each question's answer,
+ * `en` lists the answered sub-questions as ordinary "• label-value." lines.
+ * `rows` is a snapshot of the confirmed summary rows, with sub-questions
+ * marked, that only the visit summary screen reads.
+ */
 export function buildPhysicalExamData(
   answers: PhysicalExamAnswers,
-  questions: PhysicalExamQuestion[]
+  questions: PhysicalExamQuestion[],
+  rows: GeneralExam[] = []
 ): PhysicalExamData {
   let displayHtml = '';
   let rawHtml = '';
@@ -180,6 +194,11 @@ export function buildPhysicalExamData(
       ? `${baseText ? `${baseText} ` : ''}${pictureTag}`
       : baseText;
     displayHtml += `• ${question.categoryLabel}-${answerText}. <br/>`;
+    for (const row of rows) {
+      if (row.isChild && row.value && row.questionId === question.id) {
+        displayHtml += `• ${escapeAngleBrackets(row.label)}-${escapeAngleBrackets(row.value)}. <br/>`;
+      }
+    }
 
     rawHtml += `• ${question.categoryLabel}-● ${question.questionText}${question.isRequired ? '*' : ''}<br/>`;
     if (answerTexts.length === 0) {
@@ -198,6 +217,7 @@ export function buildPhysicalExamData(
     obsValue: JSON.stringify({
       en: displayHtml.trim(),
       'l-en': rawHtml.trim(),
+      ...(rows.length > 0 && { rows }),
     }),
   };
 }

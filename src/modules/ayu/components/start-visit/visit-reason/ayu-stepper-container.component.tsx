@@ -51,6 +51,7 @@ import {
   VALIDATION_SUBMIT_EDIT,
   validationMessageForReason,
 } from '../../../utils/ayu.constants';
+import { isSingleOptionPrompt } from '../../../utils/physical-exam.utils';
 import { buildVisitSummary } from '../../../utils/visit-summary.util';
 import AyuButton from '../../common/ayu-button.component';
 import { QuestionLoader } from '../../loaders/question-loader.component';
@@ -196,17 +197,7 @@ const hasCameraOption = (question: AyuQuestion): boolean =>
 const isSingleOptionPE = (question: AyuQuestion): boolean => {
   if (resolveAyuComponent(question) !== PHYSICAL_EXAM_OPTIONS_COMPONENT)
     return false;
-  if ((question.item?.length ?? 0) === 0) return false;
-  const allOpts = question.answerOption ?? [];
-  const regularCount = allOpts.filter(
-    o =>
-      !o.extension?.some(
-        ext =>
-          ext.url === EXT_URL_PE_OPTION_KIND &&
-          ext.valueString === PE_OPTION_KIND_CAMERA
-      )
-  ).length;
-  return regularCount === 1;
+  return isSingleOptionPrompt(question);
 };
 
 const isChildVisible = (

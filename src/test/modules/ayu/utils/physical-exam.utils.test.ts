@@ -7,7 +7,9 @@ import {
   filterPhysicalExamQuestions,
   flattenAyuPhysExamQuestions,
   getPhysicalExamFilterFromComplaints,
+  isSingleOptionPrompt,
   parsePhysicalExamFilter,
+  toPhysicalExamRows,
 } from '../../../../modules/ayu/utils/physical-exam.utils';
 import type { AyuJsonItem } from '../../../../modules/ayu-library/types/ayu-json.types';
 import {
@@ -618,5 +620,142 @@ describe('flattenAyuPhysExamQuestions', () => {
     const result = flattenAyuPhysExamQuestions(root);
     expect(result).toHaveLength(1);
     expect(result[0].options).toEqual([]);
+  });
+});
+
+// ── isSingleOptionPrompt ────────────────────────────────────────────────────
+
+describe('isSingleOptionPrompt', () => {
+  const option = (code: string, display: string, camera = false) => ({
+    valueCoding: { code, display },
+    extension: camera
+      ? [{ url: EXT_URL_PE_OPTION_KIND, valueString: PE_OPTION_KIND_CAMERA }]
+      : undefined,
+  });
+  const nested = [
+    { linkId: 'systolic', text: 'Enter systolic BP', type: 'string' as const },
+  ];
+
+  it('is true for a lone option with nested fields (Lying BP)', () => {
+    const q: AyuQuestion = {
+      linkId: 'bp',
+      text: 'Lying BP',
+      type: 'choice',
+      answerOption: [option('take', "Take the patient's BP lying down")],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(true);
+  });
+
+  it('ignores a camera option when counting regular options', () => {
+    const q: AyuQuestion = {
+      linkId: 'bp',
+      text: 'Lying BP',
+      type: 'choice',
+      answerOption: [
+        option('take', 'Take BP'),
+        option('cam', 'Picture Taken', true),
+      ],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(true);
+  });
+
+  it('is false when there are several regular options (a real Yes/No answer)', () => {
+    const q: AyuQuestion = {
+      linkId: 'scars',
+      text: 'Scars',
+      type: 'choice',
+      answerOption: [option('y', 'Yes'), option('n', 'No')],
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
+  });
+
+  it('is false for a lone option without nested fields', () => {
+    const q: AyuQuestion = {
+      linkId: 'x',
+      text: 'X',
+      type: 'choice',
+      answerOption: [option('y', 'Yes')],
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
+  });
+
+  it('is false when no answer options exist', () => {
+    const q: AyuQuestion = {
+      linkId: 'x',
+      text: 'X',
+      type: 'choice',
+      item: nested,
+    };
+    expect(isSingleOptionPrompt(q)).toBe(false);
+  });
+});
+
+// ── toPhysicalExamRows ──────────────────────────────────────────────────────
+
+describe('toPhysicalExamRows', () => {
+  it('lists the summary rows of every section in order, marking sub-questions', () => {
+    expect(
+      toPhysicalExamRows([
+        {
+          items: [
+            { type: 'labelValue', label: 'Scars', value: 'Yes' },
+            { type: 'labelValue', label: 'Where is it?', value: 'Middle (L)', isChild: true },
+          ],
+        },
+        {
+          items: [{ type: 'labelValue', label: 'Eyes', value: 'Normal' }],
+        },
+      ])
+    ).toEqual([
+      { label: 'Scars', value: 'Yes' },
+      { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+      { label: 'Eyes', value: 'Normal' },
+    ]);
+  });
+
+  it('keeps question-only rows with an empty answer and turns numbers and null into text', () => {
+    expect(
+      toPhysicalExamRows([
+        {
+          items: [
+            { type: 'labelValue', label: 'Lying BP', value: '', isQuestionOnly: true },
+            { type: 'labelValue', label: 'Size', value: 0, isChild: true },
+            { type: 'labelValue', label: 'Note', value: null, isChild: true },
+          ],
+        },
+      ])
+    ).toEqual([
+      { label: 'Lying BP', value: '' },
+      { label: 'Size', value: '0', isChild: true },
+      { label: 'Note', value: '', isChild: true },
+    ]);
+  });
+
+  it('keeps the question a sub-question row answers', () => {
+    expect(
+      toPhysicalExamRows([
+        {
+          items: [
+            { type: 'labelValue', label: 'Lying BP', value: '' },
+            { type: 'labelValue', label: 'systolic BP', value: '96', isChild: true, questionId: 'bp' },
+          ],
+        },
+      ])
+    ).toEqual([
+      { label: 'Lying BP', value: '' },
+      { label: 'systolic BP', value: '96', isChild: true, questionId: 'bp' },
+    ]);
+  });
+
+  it('skips non-labelValue items and returns nothing for missing sections', () => {
+    expect(
+      toPhysicalExamRows([
+        { items: [{ type: 'subheading', heading: 'Heading', values: [] }] },
+      ])
+    ).toEqual([]);
+    expect(toPhysicalExamRows(undefined)).toEqual([]);
   });
 });

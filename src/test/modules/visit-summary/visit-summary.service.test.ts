@@ -1128,6 +1128,70 @@ describe('visitSummaryService', () => {
       ]);
     });
 
+    it('should read the saved summary rows, keeping sub-questions and empty answers', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Lying BP-take the patient\'s bp lying down.',
+        'l-en': '',
+        rows: [
+          { label: 'Lying BP', value: '' },
+          { label: "Take the patient's BP lying down", value: '', isChild: true },
+          { label: 'Foot-care <b>note</b>', value: '36.5', isChild: true },
+        ],
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Lying BP', value: '' },
+        { label: "Take the patient's BP lying down", value: '', isChild: true },
+        { label: 'Foot-care <b>note</b>', value: '36.5', isChild: true },
+      ]);
+    });
+
+    it('should skip saved rows that are not a text label and text value', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Eyes-normal. <br/>',
+        rows: [
+          null,
+          'Scars',
+          { value: 'no label' },
+          { label: 'no value' },
+          { label: 'Number value', value: 3 },
+          { label: 'Scars', value: 'Yes' },
+          { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+        ],
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Scars', value: 'Yes' },
+        { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+      ]);
+    });
+
+    it('should fall back to the exam text when none of the saved rows are valid or rows is not a list', () => {
+      for (const rows of [[null, { label: 'x' }], 'not a list', { label: 'x', value: 'y' }]) {
+        const jsonValue = JSON.stringify({ en: '• Eyes-normal. <br/>', rows });
+        const encounters = [
+          makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+        ];
+        expect(extractPhysicalExamination(encounters).generalExams).toEqual([
+          { label: 'Eyes', value: 'normal' },
+        ]);
+      }
+    });
+
+    it('should fall back to the exam text when the saved rows are empty', () => {
+      const jsonValue = JSON.stringify({ en: '• Eyes-normal. <br/>', rows: [] });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([{ label: 'Eyes', value: 'normal' }]);
+    });
     it('should fallback to l-en key when en is absent', () => {
       const jsonValue = JSON.stringify({
         'l-en': '• Eyes - Normal.',

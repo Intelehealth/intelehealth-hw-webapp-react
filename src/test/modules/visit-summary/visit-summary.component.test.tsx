@@ -511,6 +511,58 @@ describe('VisitSummaryComponent', () => {
       });
     });
 
+    it('should indent saved sub-question rows and leave question-only answers empty', async () => {
+      const originalData = [...visitSummaryDataModule.visitSummaryData];
+      visitSummaryDataModule.visitSummaryData[0] = {
+        ...originalData[0],
+        physicalExamination: {
+          generalExams: [
+            { label: 'Lying BP', value: '' },
+            { label: "Take the patient's BP lying down", value: '', isChild: true },
+            { label: 'systolic BP', value: '96', isChild: true },
+          ],
+        },
+      };
+
+      try {
+        renderWithMockData();
+        await waitFor(() => {
+          expect(screen.getByText('Lying BP')).toBeInTheDocument();
+        });
+
+        const parent = screen.getByText('Lying BP');
+        expect(parent.parentElement).not.toHaveClass('border-l-2');
+        expect(parent.nextElementSibling).toBeEmptyDOMElement();
+
+        const prompt = screen.getByText("Take the patient's BP lying down");
+        // Each sub-question has its own line (a gap below it) and the pop-up's indent
+        expect(prompt.parentElement).toHaveClass(
+          'border-l-2',
+          'ml-6',
+          'pl-[14px]',
+          'mb-2'
+        );
+        expect(prompt.nextElementSibling).toBeEmptyDOMElement();
+
+        const systolic = screen.getByText('systolic BP');
+        expect(systolic.parentElement).toHaveClass('border-l-2');
+        expect(systolic.nextElementSibling).toHaveTextContent('96');
+        expect(systolic.nextElementSibling).toHaveClass('font-normal');
+      } finally {
+        visitSummaryDataModule.visitSummaryData.length = 0;
+        visitSummaryDataModule.visitSummaryData.push(...originalData);
+      }
+    });
+
+    it('should render exam answers in regular weight like their labels', async () => {
+      renderWithMockData();
+      await waitFor(() => {
+        const answer = screen.getByText('Person Consultation');
+        expect(answer).toHaveClass('font-normal');
+        expect(answer).not.toHaveClass('font-medium');
+      });
+    });
+
     it('should render exam labels', async () => {
       renderWithMockData();
       await waitFor(() => {

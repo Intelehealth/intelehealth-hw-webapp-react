@@ -1,3 +1,5 @@
+import type { GeneralExam } from '../../../assets/data/visit-summary.data';
+import type { ModalSectionItem } from '../../../components/modal/global-modal-context';
 import type { AyuJsonItem } from '../../ayu-library/types/ayu-json.types';
 import type { AyuQuestion } from '../../ayu-library/types/ayu.types';
 import {
@@ -12,6 +14,7 @@ import type {
   PhysicalExamOption,
   PhysicalExamQuestion,
 } from '../types/physical-exam.types';
+import { ITEM_TYPES } from './ayu.constants';
 
 /** Section that is always shown regardless of the protocol filter. */
 export const ALWAYS_INCLUDED_SECTION_KEY = 'General Exams';
@@ -60,6 +63,25 @@ export const filterPhysicalExamQuestions = (
       q.questionKey !== undefined && allowedQuestions.includes(q.questionKey)
     );
   });
+};
+
+/**
+ * A PE question whose only non-camera option is auto-selected so its nested
+ * questions (e.g. Systolic / Diastolic under "Take the patient's BP lying
+ * down") appear straight away. That option is the prompt for the nested
+ * fields — a question, not an answer the user chose.
+ */
+export const isSingleOptionPrompt = (question: AyuQuestion): boolean => {
+  if ((question.item?.length ?? 0) === 0) return false;
+  const regularCount = (question.answerOption ?? []).filter(
+    o =>
+      !o.extension?.some(
+        ext =>
+          ext.url === EXT_URL_PE_OPTION_KIND &&
+          ext.valueString === PE_OPTION_KIND_CAMERA
+      )
+  ).length;
+  return regularCount === 1;
 };
 
 /**
@@ -201,3 +223,26 @@ export const flattenAyuPhysExamQuestions = (
   walk(root?.item);
   return out;
 };
+
+/**
+ * The Physical Exam summary rows the health worker confirmed, in order, with
+ * sub-questions marked. Saved with the visit so the visit summary can show the
+ * same question / answer structure.
+ */
+export const toPhysicalExamRows = (
+  sections?: Array<{ items: ModalSectionItem[] }>
+): GeneralExam[] =>
+  (sections ?? []).flatMap(section =>
+    section.items.flatMap(item =>
+      item.type === ITEM_TYPES.LABEL_VALUE
+        ? [
+            {
+              label: item.label,
+              value: String(item.value ?? ''),
+              ...(item.isChild && { isChild: true }),
+              ...(item.questionId && { questionId: item.questionId }),
+            },
+          ]
+        : []
+    )
+  );
