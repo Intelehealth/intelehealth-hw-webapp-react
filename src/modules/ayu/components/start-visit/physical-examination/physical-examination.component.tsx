@@ -469,6 +469,7 @@ export const PhysicalExamination = (props: SectionProps) => {
               label,
               value: nv.value,
               isChild: true,
+              questionId: q.linkId,
             });
           }
         } else {

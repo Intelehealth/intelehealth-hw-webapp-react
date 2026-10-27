@@ -1149,6 +1149,41 @@ describe('visitSummaryService', () => {
       ]);
     });
 
+    it('should skip saved rows that are not a text label and text value', () => {
+      const jsonValue = JSON.stringify({
+        en: '• Eyes-normal. <br/>',
+        rows: [
+          null,
+          'Scars',
+          { value: 'no label' },
+          { label: 'no value' },
+          { label: 'Number value', value: 3 },
+          { label: 'Scars', value: 'Yes' },
+          { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+        ],
+      });
+      const encounters = [
+        makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+      ];
+      const result = extractPhysicalExamination(encounters);
+      expect(result.generalExams).toEqual([
+        { label: 'Scars', value: 'Yes' },
+        { label: 'Where is it?', value: 'Middle (L)', isChild: true },
+      ]);
+    });
+
+    it('should fall back to the exam text when none of the saved rows are valid or rows is not a list', () => {
+      for (const rows of [[null, { label: 'x' }], 'not a list', { label: 'x', value: 'y' }]) {
+        const jsonValue = JSON.stringify({ en: '• Eyes-normal. <br/>', rows });
+        const encounters = [
+          makeEncounter([makeObs(CONCEPT_UUIDS.PHYSICAL_EXAMINATION, jsonValue)]),
+        ];
+        expect(extractPhysicalExamination(encounters).generalExams).toEqual([
+          { label: 'Eyes', value: 'normal' },
+        ]);
+      }
+    });
+
     it('should fall back to the exam text when the saved rows are empty', () => {
       const jsonValue = JSON.stringify({ en: '• Eyes-normal. <br/>', rows: [] });
       const encounters = [

@@ -274,7 +274,7 @@ describe('visit-upload.service', () => {
         expect(saved.rows).toEqual(rows);
       });
 
-      it('leaves the exam text other apps read exactly as it is without rows', () => {
+      it('keeps the question line and l-en that other apps read as they are', () => {
         const withRows = JSON.parse(
           buildPhysicalExamData({ bp: ['take'] }, [lyingBp], rows).obsValue
         );
@@ -296,7 +296,75 @@ describe('visit-upload.service', () => {
 
         expect(saved).not.toHaveProperty('rows');
       });
+
+      describe('answered sub-questions in the exam text', () => {
+        const arm = makeQuestion({ id: 'arm', categoryLabel: 'Arm' });
+        const bpRows = [
+          { label: 'Lying BP', value: '' },
+          { label: "Take the patient's BP lying down", value: '', isChild: true },
+          { label: 'systolic BP', value: '96', isChild: true, questionId: 'bp' },
+          { label: 'diastolic BP', value: '82', isChild: true, questionId: 'bp' },
+        ];
+
+        it('lists them as ordinary lines right after their question', () => {
+          const { en } = JSON.parse(
+            buildPhysicalExamData({ bp: ['take'], arm: ['jaundice'] }, [lyingBp, arm], bpRows)
+              .obsValue
+          );
+
+          expect(en).toContain(
+            "• Lying BP-take the patient's bp lying down. <br/>• systolic BP-96. <br/>• diastolic BP-82. <br/>• Arm-jaundice present. <br/>"
+          );
+        });
+
+        it('skips question-only rows and rows of other questions', () => {
+          const { en } = JSON.parse(
+            buildPhysicalExamData({ bp: ['take'] }, [lyingBp], [
+              ...bpRows,
+              { label: 'other', value: 'x', isChild: true, questionId: 'not-asked' },
+              { label: 'no id', value: 'y', isChild: true },
+              { label: 'parent', value: 'z', questionId: 'bp' },
+            ]).obsValue
+          );
+
+          expect(en).not.toContain("Take the patient's BP lying down-");
+          expect(en).not.toContain('other-');
+          expect(en).not.toContain('no id-');
+          expect(en).not.toContain('parent-');
+        });
+
+        it('keeps same-labelled questions apart by their question id', () => {
+          const first = makeQuestion({ id: 'a', categoryLabel: 'Tenderness' });
+          const second = makeQuestion({ id: 'b', categoryLabel: 'Tenderness' });
+          const { en } = JSON.parse(
+            buildPhysicalExamData({ a: ['jaundice'], b: ['jaundice'] }, [first, second], [
+              { label: 'Where?', value: 'Jaw', isChild: true, questionId: 'a' },
+              { label: 'Where?', value: 'Left', isChild: true, questionId: 'b' },
+            ]).obsValue
+          );
+
+          expect(en).toContain(
+            '• Tenderness-jaundice present. <br/>• Where?-Jaw. <br/>• Tenderness-jaundice present. <br/>• Where?-Left. <br/>'
+          );
+        });
+
+        it('escapes angle brackets so typed text cannot break the exam text parsing', () => {
+          const { en } = JSON.parse(
+            buildPhysicalExamData({ bp: ['take'] }, [lyingBp], [
+              { label: 'note <b>', value: 'a<br/>b > c', isChild: true, questionId: 'bp' },
+            ]).obsValue
+          );
+
+          expect(en).toContain('• note &lt;b&gt;-a&lt;br/&gt;b &gt; c. <br/>');
+          // The typed text stays on one line, and the only <b> is the section header's.
+          expect(
+            en.split('<br/>').filter((line: string) => line.includes('note'))
+          ).toEqual(['• note &lt;b&gt;-a&lt;br/&gt;b &gt; c. ']);
+          expect(en.match(/<b>/g)).toHaveLength(1);
+        });
+      });
     });
+
     it('should build HTML from answered questions', () => {
       const questions: PhysicalExamQuestion[] = [
         makeQuestion({ id: 'q1' }),

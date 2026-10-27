@@ -108,6 +108,8 @@ export interface GeneralExam {
   value: string;
   /** Sub-question row, shown indented under the preceding parent row. */
   isChild?: boolean;
+  /** Question a sub-question row answers; lets the saved exam text list its value. */
+  questionId?: string;
 }
 
 export interface PhysicalExamination {

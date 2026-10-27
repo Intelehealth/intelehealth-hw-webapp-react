@@ -272,6 +272,13 @@ export function extractChiefComplaints(encounters: VisitDetailsEncounter[]): {
   };
 }
 
+/** A saved summary row has a text label and a text value (see buildPhysicalExamData). */
+const isSavedRow = (row: unknown): row is GeneralExam =>
+  typeof row === 'object' &&
+  row !== null &&
+  typeof (row as GeneralExam).label === 'string' &&
+  typeof (row as GeneralExam).value === 'string';
+
 export function extractPhysicalExamination(
   encounters: VisitDetailsEncounter[]
 ): { generalExams: GeneralExam[] } {
@@ -305,8 +312,11 @@ export function extractPhysicalExamination(
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {
             const html = parsed.en || parsed['l-en'];
-            if (Array.isArray(parsed.rows) && parsed.rows.length > 0) {
-              for (const row of parsed.rows as GeneralExam[]) {
+            const savedRows = Array.isArray(parsed.rows)
+              ? parsed.rows.filter(isSavedRow)
+              : [];
+            if (savedRows.length > 0) {
+              for (const row of savedRows) {
                 generalExams.push({
                   label: row.label,
                   value: row.value,

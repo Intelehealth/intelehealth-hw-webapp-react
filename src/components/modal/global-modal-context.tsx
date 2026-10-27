@@ -13,6 +13,8 @@ export type ModalSectionItem =
       label: string;
       value: string | number | null;
       isChild?: boolean;
+      /** Question a sub-question row answers (Physical Exam summary). */
+      questionId?: string;
       /** Question with no answer of its own — its answers are the rows below. */
       isQuestionOnly?: boolean;
     }

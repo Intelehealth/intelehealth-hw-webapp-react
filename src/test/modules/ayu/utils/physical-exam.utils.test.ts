@@ -734,6 +734,22 @@ describe('toPhysicalExamRows', () => {
     ]);
   });
 
+  it('keeps the question a sub-question row answers', () => {
+    expect(
+      toPhysicalExamRows([
+        {
+          items: [
+            { type: 'labelValue', label: 'Lying BP', value: '' },
+            { type: 'labelValue', label: 'systolic BP', value: '96', isChild: true, questionId: 'bp' },
+          ],
+        },
+      ])
+    ).toEqual([
+      { label: 'Lying BP', value: '' },
+      { label: 'systolic BP', value: '96', isChild: true, questionId: 'bp' },
+    ]);
+  });
+
   it('skips non-labelValue items and returns nothing for missing sections', () => {
     expect(
       toPhysicalExamRows([

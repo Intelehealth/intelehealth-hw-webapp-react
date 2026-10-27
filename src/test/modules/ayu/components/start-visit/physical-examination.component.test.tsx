@@ -1314,8 +1314,8 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
             isChild: true,
             isQuestionOnly: true,
           }),
-          expect.objectContaining({ label: 'systolic BP', value: '96', isChild: true }),
-          expect.objectContaining({ label: 'diastolic BP', value: '82', isChild: true }),
+          expect.objectContaining({ label: 'systolic BP', value: '96', isChild: true, questionId: 'lying-bp' }),
+          expect.objectContaining({ label: 'diastolic BP', value: '82', isChild: true, questionId: 'lying-bp' }),
         ]);
       });
 
@@ -1375,6 +1375,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
             label: 'Where is it?',
             value: 'Middle (L)',
             isChild: true,
+            questionId: 'scars',
           }),
         ]);
         expect(modalConfig.sections[0].items[0].isQuestionOnly).toBeUndefined();

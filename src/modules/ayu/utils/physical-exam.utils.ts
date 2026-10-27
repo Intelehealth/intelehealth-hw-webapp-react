@@ -240,6 +240,7 @@ export const toPhysicalExamRows = (
               label: item.label,
               value: String(item.value ?? ''),
               ...(item.isChild && { isChild: true }),
+              ...(item.questionId && { questionId: item.questionId }),
             },
           ]
         : []
