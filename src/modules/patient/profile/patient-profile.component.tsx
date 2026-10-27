@@ -5,8 +5,7 @@ import ROUTES from '../../../routes/paths';
 import iconClose from '../../../assets/icons/close.svg';
 import iconEdit from '../../../assets/icons/edit.svg';
 import iconAddress from '../../../assets/icons/icon-location-green-rounded-bordered.svg';
-import iconRight from '../../../assets/icons/icon-right-arrow.svg';
-import iconVisit from '../../../assets/icons/icon-summary-list.svg';
+import iconChevronRight from '../../../assets/icons/icon-chevron-right-gray.svg';
 import iconSync from '../../../assets/icons/icon-sync.svg';
 import iconOther from '../../../assets/icons/icon-three-dot-green-rounded-bordered.svg';
 import iconPersonal from '../../../assets/icons/icon-user-green-rounded-bordered.svg';
@@ -21,7 +20,10 @@ import {
 } from '../../ayu/utils/visit-id.util';
 import type { OpenMRSVisit } from '../../../types/patient/profile/patient-profile.types';
 import {
+  CONTINUE_VISIT_LABEL,
   OPEN_VISIT_LABEL,
+  OPEN_VISIT_STARTED_LABEL,
+  OPEN_VISIT_SYMPTOMS_LABEL,
   PAST_VISIT_LABEL,
   PATIENT_DETAILS_LABEL,
   RESUME_VISIT_MODAL,
@@ -31,6 +33,7 @@ import {
 import CollapsedComponent from '../../visit-summary/visit-summary-collapsed.component';
 import {
   formatVisitDate,
+  formatVisitStartedDate,
   getVisitTitle,
   mapRawPatientToFormData,
   maskVisitId,
@@ -58,34 +61,86 @@ const VisitSection = ({
   onSelect: (visit: OpenMRSVisit) => void;
 }) => (
   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-      <img src={iconVisit} alt="" className="w-9 h-9" />
-      <span className="font-semibold text-gray-800 text-base">{title}</span>
+    <div className="flex items-center gap-3 px-4 pt-3">
+      <img src={iconPersonal} alt="" className="w-9 h-9" />
+      <span className="font-medium text-gray-800 text-base">{title}</span>
     </div>
-    <div className="px-4 pb-3 pt-2 space-y-2">
+    <div className="mx-4 mt-3 border-b border-gray-100" />
+    <ul className="px-4 divide-y divide-gray-100">
       {visits.map(visit => (
-        <button
-          key={visit.uuid}
-          className="w-full flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3 hover:bg-gray-100 text-left"
-          onClick={() => onSelect(visit)}
-        >
-          <div>
-            {getVisitTitle(visit) && (
-              <p className="font-semibold text-gray-800 text-sm">
-                {getVisitTitle(visit)}
+        <li key={visit.uuid}>
+          <button
+            className="w-full flex items-center justify-between py-3 text-left"
+            onClick={() => onSelect(visit)}
+          >
+            <div className="space-y-0.5">
+              {getVisitTitle(visit) && (
+                <p className="text-sm text-gray-800">{getVisitTitle(visit)}</p>
+              )}
+              <p className="text-xs text-gray-400">
+                {VISIT_ID_LABEL} {maskVisitId(visit.uuid)}
               </p>
-            )}
-            <p className="text-xs text-gray-500">
-              {VISIT_ID_LABEL} {maskVisitId(visit.uuid)}
-            </p>
-            <p className="text-xs text-gray-500">
-              {VISIT_DATE_LABEL} {formatVisitDate(visit.startDatetime)}
-            </p>
-          </div>
-          <img src={iconRight} alt="" className="w-4 h-4 shrink-0" />
-        </button>
+              <p className="text-xs text-gray-400">
+                {VISIT_DATE_LABEL} {formatVisitDate(visit.startDatetime)}
+              </p>
+            </div>
+            <img src={iconChevronRight} alt="" className="w-5 h-5 shrink-0" />
+          </button>
+        </li>
       ))}
+    </ul>
+  </div>
+);
+
+const OpenVisitSection = ({
+  visits,
+  onContinue,
+}: {
+  visits: OpenMRSVisit[];
+  onContinue: (visit: OpenMRSVisit) => void;
+}) => (
+  <div className="bg-white rounded-2xl border-2 border-[#2F1E91] overflow-hidden">
+    <div className="flex items-center gap-3 px-4 pt-3">
+      <img src={iconPersonal} alt="" className="w-9 h-9" />
+      <span className="font-semibold text-gray-800 text-base">
+        {OPEN_VISIT_LABEL}
+      </span>
     </div>
+    {visits.map(visit => (
+      <div
+        key={visit.uuid}
+        className="flex items-center justify-between gap-4 px-4 py-3"
+      >
+        <ul className="space-y-1">
+          {visit.protocolNames?.length ? (
+            <li className="flex text-sm">
+              <span className="w-24 shrink-0 font-semibold text-gray-900">
+                {OPEN_VISIT_SYMPTOMS_LABEL}
+              </span>
+              <span className="text-gray-700">
+                {visit.protocolNames.join(', ')}
+              </span>
+            </li>
+          ) : null}
+          <li className="flex text-sm">
+            <span className="w-24 shrink-0 font-semibold text-gray-900">
+              {OPEN_VISIT_STARTED_LABEL}
+            </span>
+            <span className="text-gray-700">
+              {formatVisitStartedDate(visit.startDatetime)}
+            </span>
+          </li>
+        </ul>
+        <Button
+          variant="primary"
+          className="w-auto px-6 shrink-0"
+          type="button"
+          onClick={() => onContinue(visit)}
+        >
+          {CONTINUE_VISIT_LABEL}
+        </Button>
+      </div>
+    ))}
   </div>
 );
 
@@ -327,10 +382,9 @@ const PatientProfileComponent: React.FC = () => {
         )}
 
         {visits.length > 0 && (
-          <VisitSection
-            title={OPEN_VISIT_LABEL}
+          <OpenVisitSection
             visits={visits}
-            onSelect={visit =>
+            onContinue={visit =>
               navigate(`/visit-summary/${visit.uuid}`, {
                 state: { visitUuid: visit.uuid },
               })

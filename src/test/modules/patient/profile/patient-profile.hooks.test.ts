@@ -33,6 +33,7 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
 
 import {
   formatVisitDate,
+  formatVisitStartedDate,
   getVisitTitle,
   mapRawPatientToFormData,
   maskVisitId,
@@ -126,6 +127,30 @@ describe('formatVisitDate', () => {
 
   it('returns an empty string for a malformed date', () => {
     expect(formatVisitDate('not-a-date')).toBe('');
+  });
+});
+
+describe('formatVisitStartedDate', () => {
+  it('formats a start as a long date', () => {
+    expect(formatVisitStartedDate('2026-03-28T06:30:00.000Z')).toBe(
+      'March 28, 2026'
+    );
+  });
+
+  it('keeps the local day for a visit started just after local midnight', () => {
+    // vitest.config.ts pins TZ to Asia/Kolkata: 00:30 IST on 28 Mar is still
+    // 27 Mar in UTC.
+    expect(formatVisitStartedDate('2026-03-27T19:00:00.000Z')).toBe(
+      'March 28, 2026'
+    );
+  });
+
+  it('returns an empty string when there is no start date', () => {
+    expect(formatVisitStartedDate('')).toBe('');
+  });
+
+  it('returns an empty string for a malformed date', () => {
+    expect(formatVisitStartedDate('not-a-date')).toBe('');
   });
 });
 

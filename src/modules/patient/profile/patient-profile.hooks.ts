@@ -63,6 +63,18 @@ export function formatVisitDate(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** Long date in the user's local time, e.g. "March 28, 2026". */
+export function formatVisitStartedDate(iso: string): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export function maskVisitId(uuid: string): string {
   return 'XXXX' + uuid.replaceAll('-', '').slice(-4);
 }
