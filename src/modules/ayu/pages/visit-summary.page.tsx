@@ -161,16 +161,18 @@ const AdditionalMeasurementsSection: React.FC<{
 const LabelValueRow: React.FC<{
   label: string;
   value: string;
-  /** Physical Exam only: indent the row as a sub-question. */
+  /** Physical Exam only: a sub-question row, indented with its own line like
+   *  the summary pop-up. The label is narrowed by that indent (24px margin, 2px
+   *  line, 14px padding) so its answer stays in line with the parent rows'. */
   isChild?: boolean;
   /** Physical Exam only: answer in regular weight, like the label. */
   regularValue?: boolean;
 }> = ({ label, value, isChild, regularValue }) => (
   <div
-    className={`flex items-center text-sm py-1${isChild ? ' ml-4 pl-[10px] border-l-2 border-gray-400' : ''}`}
+    className={`flex items-center text-sm ${isChild ? 'mt-1 mb-2 ml-6 pl-[14px] border-l-2 border-gray-400' : 'py-1'}`}
   >
     <span
-      className={`text-[#7F7B92] flex items-center gap-2 shrink-0 ${isChild ? 'w-[calc(50%-14px)]' : 'w-1/2'}`}
+      className={`text-[#7F7B92] flex items-center gap-2 shrink-0 ${isChild ? 'w-[calc(50%-20px)]' : 'w-1/2'}`}
     >
       <span className="w-1 h-1 rounded-full bg-[#E5E5E9] shrink-0" />
       {label}

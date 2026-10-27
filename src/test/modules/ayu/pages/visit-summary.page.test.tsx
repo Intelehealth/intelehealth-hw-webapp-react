@@ -1044,7 +1044,13 @@ describe('VisitSummaryPage', () => {
 
     // Sub-question: indented with a line, answer on the right
     const subQuestion = screen.getByText('Where is it?');
-    expect(subQuestion.parentElement).toHaveClass('border-l-2', 'ml-4');
+    // Each sub-question has its own line (a gap below it) and the pop-up's indent
+    expect(subQuestion.parentElement).toHaveClass(
+      'border-l-2',
+      'ml-6',
+      'pl-[14px]',
+      'mb-2'
+    );
     expect(subQuestion.nextElementSibling).toHaveTextContent('Middle (L)');
 
     // Question-only rows show no answer and no "No information"
