@@ -160,23 +160,29 @@ const MedicationsTable: React.FC<{ medications: Medication[] }> = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-400 border-b border-gray-100">
-              <th className="pb-2 pr-6 font-medium w-[45%]">Medicine</th>
-              <th className="pb-2 pr-6 font-medium w-[20%]">Strength</th>
-              <th className="pb-2 pr-6 font-medium w-[20%]">Frequency</th>
-              <th className="pb-2 font-medium w-[15%]">Duration</th>
+              <th className="pb-2 pr-6 font-medium w-[30%]">Medicine</th>
+              <th className="pb-2 pr-6 font-medium w-[14%]">Strength</th>
+              <th className="pb-2 pr-6 font-medium w-[14%]">Frequency</th>
+              <th className="pb-2 pr-6 font-medium w-[12%]">Duration</th>
+              <th className="pb-2 pr-6 font-medium w-[14%]">Timing</th>
+              <th className="pb-2 font-medium w-[16%]">Remarks</th>
             </tr>
           </thead>
           <tbody>
             {medications.map((med, idx) => (
               <tr key={idx} className="border-b border-gray-50 last:border-0">
-                <td className="py-3 pr-6 text-gray-800">{med.name}</td>
+                <td className="py-3 pr-6 text-gray-800">{med.name || '—'}</td>
                 <td className="py-3 pr-6 text-gray-600">
                   {med.strength || '—'}
                 </td>
                 <td className="py-3 pr-6 text-gray-600">
                   {med.frequency || '—'}
                 </td>
-                <td className="py-3 text-gray-600">{med.duration || '—'}</td>
+                <td className="py-3 pr-6 text-gray-600">
+                  {med.duration || '—'}
+                </td>
+                <td className="py-3 pr-6 text-gray-600">{med.timing || '—'}</td>
+                <td className="py-3 text-gray-600">{med.remark || '—'}</td>
               </tr>
             ))}
           </tbody>

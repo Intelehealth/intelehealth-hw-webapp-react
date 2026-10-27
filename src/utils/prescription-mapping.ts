@@ -2,6 +2,7 @@ import {
   ADDITIONAL_INSTRUCTION_PREFIX,
   DOCTOR_ENCOUNTER_TYPES,
 } from '../services/prescription.constant';
+import type { MedicineItem } from '../types/prescription.types';
 
 /** The parts of a visit encounter needed to find the doctor's provider. */
 interface DoctorEncounter<Provider> {
@@ -47,3 +48,15 @@ export const stripAdditionalInstructionPrefix = (advice: string) =>
   advice.startsWith(ADDITIONAL_INSTRUCTION_PREFIX)
     ? advice.slice(ADDITIONAL_INSTRUCTION_PREFIX.length).trimStart()
     : advice;
+
+export function parseMedicine(value: string): MedicineItem {
+  const p = value.split(':');
+  return {
+    drug: p[0] || '',
+    strength: p[1] || '',
+    days: p[2] || '',
+    timing: p[3] || '',
+    remark: p[4] || '',
+    frequency: p[5] || '',
+  };
+}

@@ -744,8 +744,47 @@ describe('PrescriptionDetail', () => {
       expect(screen.getByText('Strength')).toBeInTheDocument();
       expect(screen.getByText('Frequency')).toBeInTheDocument();
       expect(screen.getByText('Duration')).toBeInTheDocument();
+      expect(screen.getByText('Timing')).toBeInTheDocument();
+      expect(screen.getByText('Remarks')).toBeInTheDocument();
       expect(screen.getByText('Ambroxol Drops')).toBeInTheDocument();
       expect(screen.getByText('Paracetamol')).toBeInTheDocument();
+    });
+
+    it('should render the dosing timing and remark', async () => {
+      mockGetPrescriptionData.mockResolvedValue({
+        ...fullData,
+        medications: [
+          {
+            name: 'Albendazole 400 mg Oral Tablet',
+            strength: '100 Mg',
+            frequency: 'Once daily',
+            duration: '14 days',
+            timing: '1 - 0 - 0',
+            remark: 'After food',
+          },
+        ],
+      });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Albendazole 400 mg Oral Tablet')).toBeInTheDocument();
+      });
+      expect(screen.getByText('1 - 0 - 0')).toBeInTheDocument();
+      expect(screen.getByText('After food')).toBeInTheDocument();
+      expect(screen.getByText('14 days')).toBeInTheDocument();
+    });
+
+    it('should show dash for a medication with no name', async () => {
+      mockGetPrescriptionData.mockResolvedValue({
+        ...fullData,
+        medications: [
+          { name: '', strength: '100 Mg', frequency: 'Once daily', duration: '14 days' },
+        ],
+      });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('100 Mg')).toBeInTheDocument();
+      });
+      expect(screen.getAllByText('—').length).toBe(3);
     });
 
     it('should not render medications section when array is empty', async () => {
@@ -767,7 +806,7 @@ describe('PrescriptionDetail', () => {
         expect(screen.getByText('Test Med')).toBeInTheDocument();
       });
       const dashes = screen.getAllByText('—');
-      expect(dashes.length).toBe(3);
+      expect(dashes.length).toBe(5);
     });
   });
 

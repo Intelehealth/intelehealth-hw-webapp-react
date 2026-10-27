@@ -7,9 +7,12 @@ import {
 } from './prescription.constant';
 import type * as PrescriptionTypes from '../types/prescription.types';
 import {
+  parseMedicine,
   pickDoctorProvider,
   stripAdditionalInstructionPrefix,
 } from '../utils/prescription-mapping';
+
+export { parseMedicine };
 
 interface ObsValue {
   display?: string;
@@ -132,18 +135,6 @@ export function parseDiagnosis(value: string): PrescriptionTypes.DiagnosisItem {
     diagnosisName: c[0] || value,
     diagnosisType: c[1] || '',
     diagnosisStatus: c[2] || '',
-  };
-}
-
-export function parseMedicine(value: string): PrescriptionTypes.MedicineItem {
-  const p = value.split(':');
-  return {
-    drug: p[0] || '',
-    strength: p[1] || '',
-    days: p[2] || '',
-    timing: p[3] || '',
-    remark: p[4] || '',
-    frequency: p[5] || '',
   };
 }
 

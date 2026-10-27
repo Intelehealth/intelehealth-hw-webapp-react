@@ -8,6 +8,9 @@ export interface Medication {
   strength: string;
   frequency: string;
   duration: string;
+
+  timing?: string;
+  remark?: string;
 }
 
 export interface PrescriptionData {

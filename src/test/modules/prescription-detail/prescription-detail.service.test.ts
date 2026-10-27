@@ -315,7 +315,14 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(buildVisitResponse());
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Ambroxol', strength: '10 mg', frequency: '3 times/day', duration: '7 days' },
+        {
+          name: 'Ambroxol',
+          strength: '10 mg',
+          frequency: '3 times/day',
+          duration: '7 days',
+          timing: '',
+          remark: '',
+        },
       ]);
     });
 
@@ -326,7 +333,14 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Single Med', strength: '5 mg', frequency: 'Once', duration: '3 days' },
+        {
+          name: 'Single Med',
+          strength: '5 mg',
+          frequency: 'Once',
+          duration: '3 days',
+          timing: '',
+          remark: '',
+        },
       ]);
     });
 
@@ -337,8 +351,71 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Paracetamol 500mg', strength: '', frequency: '', duration: '' },
+        {
+          name: 'Paracetamol 500mg',
+          strength: '',
+          frequency: '',
+          duration: '',
+          timing: '',
+          remark: '',
+        },
       ]);
+    });
+
+    it('should split a colon-delimited drug order obs value into separate fields', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value =
+        'Albendazole 400 mg Oral Tablet:100 Mg:14:1 - 0 - 0:1dsfsdf:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications).toEqual([
+        {
+          name: 'Albendazole 400 mg Oral Tablet',
+          strength: '100 Mg',
+          duration: '14 days',
+          frequency: 'Once daily',
+          timing: '1 - 0 - 0',
+          remark: '1dsfsdf',
+        },
+      ]);
+    });
+
+    it('should use a singular unit for a one day duration', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = 'Albendazole:100 Mg:1:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].duration).toBe('1 day');
+    });
+
+    it('should leave a non-numeric duration segment unchanged', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = 'Albendazole:100 Mg:2 weeks:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].duration).toBe('2 weeks');
+    });
+
+    it('should leave the name empty when the colon-split name segment is empty', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = ':100 Mg:14:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].name).toBe('');
+      expect(result.medications[0].strength).toBe('100 Mg');
+    });
+
+    it('should keep a medication whose obs value is a bare number', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = '500';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].name).toBe('500');
     });
 
     it('should return empty medications when no matching obs', async () => {
@@ -588,19 +665,21 @@ describe('prescriptionDetailService', () => {
       expect(result.age).toBe(0);
     });
 
-    it('should use medication alternative field names (name, dose, timing)', async () => {
+    it('should use medication alternative field names and keep timing in its own column', async () => {
       const resp = buildVisitResponse();
       const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
       medObs!.value = JSON.stringify([
-        { name: 'MedName', dose: '5 mg', timing: 'Twice daily', duration: '3 days' },
+        { name: 'MedName', dose: '5 mg', timing: '1 - 0 - 0', remark: 'After food', duration: '3 days' },
       ]);
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications[0]).toEqual({
         name: 'MedName',
         strength: '5 mg',
-        frequency: 'Twice daily',
+        frequency: '',
         duration: '3 days',
+        timing: '1 - 0 - 0',
+        remark: 'After food',
       });
     });
 
