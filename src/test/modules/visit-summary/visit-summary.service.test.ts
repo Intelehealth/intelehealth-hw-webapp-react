@@ -9,6 +9,7 @@ import {
   extractDetailsFromHtml,
   extractMedicalHistory,
   extractPhysicalExamination,
+  getChiefComplaintNames,
   getObsNumericValue,
   transformObsToDocuments,
   transformVisitSummaryResponse,
@@ -276,6 +277,42 @@ describe('visitSummaryService', () => {
 
     it('should return empty array for empty string', () => {
       expect(extractDetailsFromHtml('')).toEqual([]);
+    });
+  });
+
+  describe('getChiefComplaintNames', () => {
+    it('should return one name per protocol section', () => {
+      expect(
+        getChiefComplaintNames(
+          '►<b>Back pain</b>: <br/>Site - Neck<br/>►<b>Headache</b>: <br/>Onset - 2 days'
+        )
+      ).toEqual(['Back pain', 'Headache']);
+    });
+
+    it('should read the names from a JSON-wrapped value', () => {
+      expect(
+        getChiefComplaintNames(
+          JSON.stringify({ en: '►<b>Fever</b>: <br/>Onset - 1 day' })
+        )
+      ).toEqual(['Fever']);
+    });
+
+    it('should leave out the associated-symptoms section', () => {
+      expect(
+        getChiefComplaintNames(
+          '►<b>Fever</b>: <br/>Onset - 1 day<br/>►<b>Associated symptoms</b>: <br/>Patient reports - cough'
+        )
+      ).toEqual(['Fever']);
+    });
+
+    it('should fall back to the plain value when there are no sections', () => {
+      expect(getChiefComplaintNames('Abdominal pain')).toEqual([
+        'Abdominal pain',
+      ]);
+    });
+
+    it('should return nothing for an empty value', () => {
+      expect(getChiefComplaintNames('')).toEqual([]);
     });
   });
 

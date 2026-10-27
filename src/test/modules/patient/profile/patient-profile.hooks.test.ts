@@ -6,12 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   mockGetPatient: vi.fn(),
   mockGetPatientVisits: vi.fn(),
+  mockGetPatientVisitProtocols: vi.fn(),
 }));
 
 vi.mock('../../../../modules/patient/add/add-patient.service', () => ({
   patientService: {
     getPatient: (...args: unknown[]) => h.mockGetPatient(...args),
     getPatientVisits: (...args: unknown[]) => h.mockGetPatientVisits(...args),
+    getPatientVisitProtocols: (...args: unknown[]) =>
+      h.mockGetPatientVisitProtocols(...args),
   },
 }));
 
@@ -139,6 +142,26 @@ describe('maskVisitId', () => {
 
 
 describe('getVisitTitle', () => {
+  it('returns the protocol names, comma separated, ahead of the visit type', () => {
+    expect(
+      getVisitTitle({
+        visitType: { display: 'OPD Visit' },
+        encounters: [],
+        protocolNames: ['Back pain', 'Headache'],
+      })
+    ).toBe('Back pain, Headache');
+  });
+
+  it('falls back to the visit type when there are no protocol names', () => {
+    expect(
+      getVisitTitle({
+        visitType: { display: 'OPD Visit' },
+        encounters: [],
+        protocolNames: [],
+      })
+    ).toBe('OPD Visit');
+  });
+
   it('returns visitType.display when present', () => {
     expect(
       getVisitTitle({ visitType: { display: 'OPD Visit' }, encounters: [] })
@@ -352,7 +375,10 @@ describe('mapRawPatientToFormData', () => {
 });
 
 describe('usePatientProfile', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    h.mockGetPatientVisitProtocols.mockResolvedValue({ results: [] });
+  });
 
   it('does not fetch and keeps loading true when uuid is undefined', () => {
     const { result } = renderHook(() => usePatientProfile(undefined));
@@ -689,6 +715,104 @@ describe('usePatientProfile', () => {
       'missing-stop',
     ]);
     expect(result.current.pastVisits.map(v => v.uuid)).toEqual(['ended']);
+  });
+
+  describe('protocol names', () => {
+    const protocolObs = (visitUuid: string | null, value: unknown) => ({
+      value,
+      encounter: visitUuid ? { visit: { uuid: visitUuid } } : null,
+    });
+
+    it('attaches each visit\'s own protocol names to its open and past visits', async () => {
+      h.mockGetPatient.mockResolvedValue(buildPatient());
+      h.mockGetPatientVisits.mockResolvedValue({
+        results: [
+          buildVisit('open-1', null),
+          buildVisit('past-1', '2025-08-01T10:00:00.000+0000'),
+          buildVisit('past-2', '2025-07-01T10:00:00.000+0000'),
+        ],
+      });
+      h.mockGetPatientVisitProtocols.mockResolvedValue({
+        results: [
+          protocolObs(
+            'past-1',
+            '►<b>Back & Neck pain</b>: <br/>Site - Neck<br/>►<b>Headache</b>: <br/>Onset - 2 days'
+          ),
+          protocolObs('open-1', '►<b>Fever</b>: <br/>Onset - 1 day'),
+        ],
+      });
+
+      const { result } = renderHook(() => usePatientProfile('uuid'));
+      await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+      expect(h.mockGetPatientVisitProtocols).toHaveBeenCalledWith('uuid');
+      expect(result.current.pastVisits.map(v => v.protocolNames)).toEqual([
+        ['Back & Neck pain', 'Headache'],
+        undefined,
+      ]);
+      expect(result.current.visits[0].protocolNames).toEqual(['Fever']);
+    });
+
+    it('reads the name from a JSON-wrapped value and merges repeated observations without duplicates', async () => {
+      h.mockGetPatient.mockResolvedValue(buildPatient());
+      h.mockGetPatientVisits.mockResolvedValue({
+        results: [buildVisit('past-1', '2025-08-01T10:00:00.000+0000')],
+      });
+      h.mockGetPatientVisitProtocols.mockResolvedValue({
+        results: [
+          protocolObs('past-1', JSON.stringify({ en: '►<b>Fever</b>: <br/>Onset - 1 day' })),
+          protocolObs('past-1', '►<b>Fever</b>: <br/>Onset - 3 days'),
+          protocolObs('past-1', '►<b>Cough</b>: <br/>Onset - 3 days'),
+        ],
+      });
+
+      const { result } = renderHook(() => usePatientProfile('uuid'));
+      await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+      expect(result.current.pastVisits[0].protocolNames).toEqual(['Fever', 'Cough']);
+    });
+
+    it('ignores observations without a visit or without a text value', async () => {
+      h.mockGetPatient.mockResolvedValue(buildPatient());
+      h.mockGetPatientVisits.mockResolvedValue({
+        results: [buildVisit('past-1', '2025-08-01T10:00:00.000+0000')],
+      });
+      h.mockGetPatientVisitProtocols.mockResolvedValue({
+        results: [
+          protocolObs(null, '►<b>Fever</b>: <br/>Onset - 1 day'),
+          { value: '►<b>Fever</b>', encounter: { visit: null } },
+          protocolObs('past-1', { display: 'raw file' }),
+        ],
+      });
+
+      const { result } = renderHook(() => usePatientProfile('uuid'));
+      await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+      expect(result.current.pastVisits[0].protocolNames).toBeUndefined();
+    });
+
+    it('still loads the patient and visits when the protocol request fails', async () => {
+      h.mockGetPatient.mockResolvedValue(buildPatient());
+      h.mockGetPatientVisits.mockResolvedValue({
+        results: [buildVisit('past-1', '2025-08-01T10:00:00.000+0000')],
+      });
+      const failure = new Error('obs failed');
+      h.mockGetPatientVisitProtocols.mockRejectedValue(failure);
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const { result } = renderHook(() => usePatientProfile('uuid'));
+      await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load visit protocols:',
+        failure
+      );
+      consoleSpy.mockRestore();
+      expect(result.current.error).toBeNull();
+      expect(result.current.patientData).not.toBeNull();
+      expect(result.current.pastVisits.map(v => v.uuid)).toEqual(['past-1']);
+      expect(result.current.pastVisits[0].protocolNames).toBeUndefined();
+    });
   });
 
   it('leaves pastVisits empty when every visit is still open', async () => {

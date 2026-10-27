@@ -4,11 +4,13 @@ import type { PatientFormData } from '../../../types/patient/add/add-patient.typ
 import type {
   OpenMRSPatient,
   OpenMRSVisit,
+  OpenMRSVisitProtocolObs,
   PatientDisplayData,
   UsePatientProfileReturn,
 } from '../../../types/patient/profile/patient-profile.types';
 import { PATIENT_PROFILE_LOAD_ERROR } from '../../../utils/constant';
 import { getCountryCode } from '../../../utils/countries';
+import { getChiefComplaintNames } from '../../visit-summary/visit-summary.service';
 import { patientService } from '../add/add-patient.service';
 
 function getAttr(
@@ -66,10 +68,27 @@ export function maskVisitId(uuid: string): string {
 }
 
 export function getVisitTitle(
-  visit: Pick<OpenMRSVisit, 'visitType' | 'encounters'>
+  visit: Pick<OpenMRSVisit, 'visitType' | 'encounters' | 'protocolNames'>
 ): string {
+  if (visit.protocolNames?.length) return visit.protocolNames.join(', ');
   if (visit.visitType?.display) return visit.visitType.display;
   return visit.encounters?.[0]?.encounterType?.display ?? '';
+}
+
+function groupProtocolNames(
+  obsList: OpenMRSVisitProtocolObs[]
+): Map<string, string[]> {
+  const byVisit = new Map<string, string[]>();
+  for (const obs of obsList) {
+    const visitUuid = obs.encounter?.visit?.uuid;
+    if (!visitUuid || typeof obs.value !== 'string') continue;
+    const names = byVisit.get(visitUuid) ?? [];
+    for (const name of getChiefComplaintNames(obs.value)) {
+      if (!names.includes(name)) names.push(name);
+    }
+    byVisit.set(visitUuid, names);
+  }
+  return byVisit;
 }
 
 function mapPatientDisplayData(patient: OpenMRSPatient): PatientDisplayData {
@@ -193,16 +212,31 @@ export const usePatientProfile = (
       Promise.all([
         patientService.getPatient(uuid),
         patientService.getPatientVisits(uuid),
+        // Protocol names only decorate the cards, so a failure here must not
+        // hide the patient's details.
+        patientService.getPatientVisitProtocols(uuid).catch(error => {
+          console.error('Failed to load visit protocols:', error);
+          return undefined;
+        }),
       ])
-        .then(([p, v]) => {
+        .then(([p, v, protocolObs]) => {
           if (isStale()) return;
           const patient = p as OpenMRSPatient;
           setRawPatient(patient);
           setPatientData(mapPatientDisplayData(patient));
           const allVisits =
             ((v as Record<string, unknown>)?.results as OpenMRSVisit[]) ?? [];
-          setVisits(allVisits.filter(visit => !visit.stopDatetime));
-          setPastVisits(allVisits.filter(visit => visit.stopDatetime));
+          const protocols = groupProtocolNames(protocolObs?.results ?? []);
+          const withProtocols = (visit: OpenMRSVisit): OpenMRSVisit => ({
+            ...visit,
+            protocolNames: protocols.get(visit.uuid),
+          });
+          setVisits(
+            allVisits.filter(visit => !visit.stopDatetime).map(withProtocols)
+          );
+          setPastVisits(
+            allVisits.filter(visit => visit.stopDatetime).map(withProtocols)
+          );
         })
         .catch(() => {
           if (isStale()) return;

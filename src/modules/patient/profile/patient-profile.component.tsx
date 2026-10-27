@@ -308,18 +308,6 @@ const PatientProfileComponent: React.FC = () => {
           </ul>
         </CollapsedComponent>
 
-        {visits.length > 0 && (
-          <VisitSection
-            title={OPEN_VISIT_LABEL}
-            visits={visits}
-            onSelect={visit =>
-              navigate(`/visit-summary/${visit.uuid}`, {
-                state: { visitUuid: visit.uuid },
-              })
-            }
-          />
-        )}
-
         {pastVisits.length > 0 && (
           <VisitSection
             title={PAST_VISIT_LABEL}
@@ -334,6 +322,18 @@ const PatientProfileComponent: React.FC = () => {
                   },
                 }
               )
+            }
+          />
+        )}
+
+        {visits.length > 0 && (
+          <VisitSection
+            title={OPEN_VISIT_LABEL}
+            visits={visits}
+            onSelect={visit =>
+              navigate(`/visit-summary/${visit.uuid}`, {
+                state: { visitUuid: visit.uuid },
+              })
             }
           />
         )}

@@ -154,6 +154,30 @@ describe('patientService', () => {
     });
   });
 
+  describe('getPatientVisitProtocols', () => {
+    it('should request only the chief-complaint observations of the patient, with their visit', async () => {
+      const response = { results: [] };
+      mockOpenMRSGet.mockResolvedValue(response);
+
+      const result =
+        await patientService.getPatientVisitProtocols('patient-uuid-456');
+
+      expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
+      expect(mockOpenMRSGet).toHaveBeenCalledWith(
+        '/obs?patient=patient-uuid-456&concept=3edb0e09-9135-481e-b8f0-07a26fa9a5ce&v=custom:(value,encounter:(visit:(uuid)))'
+      );
+      expect(result).toEqual(response);
+    });
+
+    it('should propagate errors from getPatientVisitProtocols', async () => {
+      mockOpenMRSGet.mockRejectedValue(new Error('Obs fetch failed'));
+
+      await expect(
+        patientService.getPatientVisitProtocols('patient-uuid-456')
+      ).rejects.toThrow('Obs fetch failed');
+    });
+  });
+
   describe('genratePatientIdentifier', () => {
     it('should call the identifier generation endpoint with correct parameters', async () => {
       const response = {

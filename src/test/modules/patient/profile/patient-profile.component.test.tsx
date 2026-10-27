@@ -329,7 +329,7 @@ describe('PatientProfileComponent', () => {
       pastVisits: [pastVisit],
     });
     render(<PatientProfileComponent />);
-    expect(screen.getByText('Past Visit')).toBeInTheDocument();
+    expect(screen.getByText('Past Visits')).toBeInTheDocument();
     expect(screen.getByText('Follow-up Visit')).toBeInTheDocument();
     expect(screen.getByText(/XXXX9876/)).toBeInTheDocument();
     expect(screen.getByText(/2025-03-04/)).toBeInTheDocument();
@@ -337,7 +337,7 @@ describe('PatientProfileComponent', () => {
     expect(screen.getByText('Start Visit')).toBeInTheDocument();
     expect(
       screen
-        .getByText('Past Visit')
+        .getByText('Past Visits')
         .compareDocumentPosition(screen.getByText('Start Visit')) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -349,7 +349,7 @@ describe('PatientProfileComponent', () => {
       pastVisits: [],
     });
     render(<PatientProfileComponent />);
-    expect(screen.queryByText('Past Visit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Past Visits')).not.toBeInTheDocument();
   });
 
   it('renders open and past visits in separate sections without mixing them', () => {
@@ -368,10 +368,66 @@ describe('PatientProfileComponent', () => {
     });
     render(<PatientProfileComponent />);
     expect(screen.getByText('Open Visit')).toBeInTheDocument();
-    expect(screen.getByText('Past Visit')).toBeInTheDocument();
+    expect(screen.getByText('Past Visits')).toBeInTheDocument();
     expect(screen.getAllByText(/Visit ID:/)).toHaveLength(2);
     expect(screen.getByText(/XXXX1234/)).toBeInTheDocument();
     expect(screen.getByText(/XXXX9876/)).toBeInTheDocument();
+  });
+
+  it('titles open and past visit cards with their protocol names, ahead of the visit type', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [
+        {
+          uuid: 'open-uuid-abcd1234',
+          startDatetime: '2025-09-12T12:00:00.000+0000',
+          stopDatetime: null,
+          visitType: { display: 'OPD Visit' },
+          encounters: [],
+          protocolNames: ['Fever'],
+        },
+      ],
+      pastVisits: [
+        { ...pastVisit, protocolNames: ['Back & Neck pain', 'Headache'] },
+      ],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Back & Neck pain, Headache')).toBeInTheDocument();
+    expect(screen.getByText('Fever')).toBeInTheDocument();
+    expect(screen.queryByText('Follow-up Visit')).not.toBeInTheDocument();
+    expect(screen.queryByText('OPD Visit')).not.toBeInTheDocument();
+  });
+
+  it('titles a visit with no protocol names by its visit type', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    expect(screen.getByText('Follow-up Visit')).toBeInTheDocument();
+  });
+
+  it('lists the Open Visit section below the Past Visit section', () => {
+    h.mockUsePatientProfile.mockReturnValue({
+      ...defaultHookReturn,
+      visits: [
+        {
+          uuid: 'open-uuid-abcd1234',
+          startDatetime: '2025-09-12T12:00:00.000+0000',
+          stopDatetime: null,
+          visitType: { display: 'OPD Visit' },
+          encounters: [],
+        },
+      ],
+      pastVisits: [pastVisit],
+    });
+    render(<PatientProfileComponent />);
+    expect(
+      screen
+        .getByText('Past Visits')
+        .compareDocumentPosition(screen.getByText('Open Visit')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('navigates to /visit-details with a way back to the patient when a past visit is clicked', async () => {
