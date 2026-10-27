@@ -4,6 +4,7 @@ import type {
 } from '../../assets/data/prescription-detail.data';
 import { OpenMRSApi } from '../../services/openmrs';
 import {
+  parseMedicine,
   pickDoctorProvider,
   stripAdditionalInstructionPrefix,
 } from '../../utils/prescription-mapping';
@@ -111,42 +112,54 @@ function getDiagnosis(encounters: VisitDetailsResponse['encounters']): string {
   return '';
 }
 
-function parseMedications(raw: string): Medication[] {
+function formatDuration(days: string): string {
+  if (!/^\d+$/.test(days)) return days;
+  return days === '1' ? '1 day' : `${days} days`;
+}
+
+function parseDelimitedMedication(raw: string): Medication[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const med = parseMedicine(trimmed);
+  return [
+    {
+      name: med.drug.trim(),
+      strength: med.strength.trim(),
+      frequency: med.frequency.trim(),
+      duration: formatDuration(med.days.trim()),
+      timing: med.timing.trim(),
+      remark: med.remark.trim(),
+    },
+  ];
+}
+
+function tryParseJson(raw: string): unknown {
   try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.map((med: Record<string, string>) => ({
-        name: med.drug || med.name || med.medicine || '',
-        strength: med.strength || med.dose || '',
-        frequency: med.frequency || med.timing || '',
-        duration: med.duration || '',
-      }));
-    }
-    // Single medication object
-    if (parsed && typeof parsed === 'object') {
-      return [
-        {
-          name: parsed.drug || parsed.name || parsed.medicine || '',
-          strength: parsed.strength || parsed.dose || '',
-          frequency: parsed.frequency || parsed.timing || '',
-          duration: parsed.duration || '',
-        },
-      ];
-    }
+    return JSON.parse(raw);
   } catch {
-    if (raw.trim()) {
-      const p = raw.split(':');
-      return [
-        {
-          name: p[0]?.trim() || raw.trim(),
-          strength: p[1]?.trim() || '',
-          frequency: p[5]?.trim() || '',
-          duration: p[2]?.trim() || '',
-        },
-      ];
-    }
+    return undefined;
   }
-  return [];
+}
+
+function mapJsonMedication(med: Record<string, string>): Medication {
+  return {
+    name: med.drug || med.name || med.medicine || '',
+    strength: med.strength || med.dose || '',
+    frequency: med.frequency || med.timing || '',
+    duration: med.duration || '',
+  };
+}
+
+function parseMedications(raw: string): Medication[] {
+  const parsed = tryParseJson(raw);
+  if (Array.isArray(parsed)) {
+    return parsed.map(med => mapJsonMedication(med as Record<string, string>));
+  }
+  if (parsed && typeof parsed === 'object') {
+    return [mapJsonMedication(parsed as Record<string, string>)];
+  }
+
+  return parseDelimitedMedication(raw);
 }
 
 function getMedications(

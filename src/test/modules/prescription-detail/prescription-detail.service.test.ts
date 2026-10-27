@@ -337,7 +337,14 @@ describe('prescriptionDetailService', () => {
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
       expect(result.medications).toEqual([
-        { name: 'Paracetamol 500mg', strength: '', frequency: '', duration: '' },
+        {
+          name: 'Paracetamol 500mg',
+          strength: '',
+          frequency: '',
+          duration: '',
+          timing: '',
+          remark: '',
+        },
       ]);
     });
 
@@ -352,19 +359,49 @@ describe('prescriptionDetailService', () => {
         {
           name: 'Albendazole 400 mg Oral Tablet',
           strength: '100 Mg',
-          duration: '14',
+          duration: '14 days',
           frequency: 'Once daily',
+          timing: '1 - 0 - 0',
+          remark: '1dsfsdf',
         },
       ]);
     });
 
-    it('should fall back to the raw value when the colon-split name segment is empty', async () => {
+    it('should use a singular unit for a one day duration', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = 'Albendazole:100 Mg:1:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].duration).toBe('1 day');
+    });
+
+    it('should leave a non-numeric duration segment unchanged', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = 'Albendazole:100 Mg:2 weeks:1 - 0 - 0:note:Once daily';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].duration).toBe('2 weeks');
+    });
+
+    it('should leave the name empty when the colon-split name segment is empty', async () => {
       const resp = buildVisitResponse();
       const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
       medObs!.value = ':100 Mg:14:1 - 0 - 0:note:Once daily';
       mockGet.mockResolvedValue(resp);
       const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
-      expect(result.medications[0].name).toBe(':100 Mg:14:1 - 0 - 0:note:Once daily');
+      expect(result.medications[0].name).toBe('');
+      expect(result.medications[0].strength).toBe('100 Mg');
+    });
+
+    it('should keep a medication whose obs value is a bare number', async () => {
+      const resp = buildVisitResponse();
+      const medObs = resp.encounters[0].obs.find(o => o.concept.display.includes('Medication'));
+      medObs!.value = '500';
+      mockGet.mockResolvedValue(resp);
+      const result = await prescriptionDetailService.getPrescriptionData('visit-abc-123');
+      expect(result.medications[0].name).toBe('500');
     });
 
     it('should return empty medications when no matching obs', async () => {
