@@ -803,6 +803,32 @@ function buildPhysExamCameraOption(child: FhirItem): AyuAnswerOption | null {
   };
 }
 
+function withWrapperExtras(target: FhirItem, wrapper: FhirItem): FhirItem {
+  let result = target;
+  if (readJobAidFromItem(target).length === 0) {
+    let wrapperJobAid = readJobAidFromItem(wrapper);
+    if (wrapperJobAid.length === 0) {
+      wrapperJobAid = findJobAidInTree(wrapper.item!);
+    }
+    if (wrapperJobAid.length > 0) {
+      result = {
+        ...result,
+        extension: [...(target.extension ?? []), ...wrapperJobAid],
+      };
+    }
+  }
+  const hasOwnCamera = (target.item ?? []).some(
+    c => c.type === FHIR_TYPE_ATTACHMENT
+  );
+  if (!hasOwnCamera) {
+    const wrapperCamera = findFirstAttachment(wrapper.item!);
+    if (wrapperCamera) {
+      result = { ...result, item: [...(target.item ?? []), wrapperCamera] };
+    }
+  }
+  return result;
+}
+
 function buildPhysExamQuestion(
   q: FhirItem,
   sectionKey: string,
@@ -995,10 +1021,6 @@ export function transformFhirPhysExamToAyu(
       const categoryLabel = wrapperText ?? conceptTag ?? questionText;
       const questionKey = categoryLabel;
 
-      /* A branching sub-form (Skin Rash → Yes → several follow-up questions of
-       * mixed types) cannot be flattened into a single tile. Keep the original
-       * outer item `q` as a nested tree so the same AyuNestedRenderer the Visit
-       * Reason flow uses can render the follow-ups; everything else flattens. */
       let transformed: AyuQuestion | null;
       /* A concept-tag wrapper has exactly 1 answerOption; items with 2+
        * answerOptions carry real user-facing options (Yes/No, locations, …).
@@ -1010,10 +1032,11 @@ export function transformFhirPhysExamToAyu(
       const targetHasOwnOptions =
         didUnwrap && (target.answerOption?.length ?? 0) > 1;
 
+      if (didUnwrap && !matchesDemographics(q.extension, demographics)) return;
+      const effectiveTarget = didUnwrap ? withWrapperExtras(target, q) : target;
+
       if (hasSubQuestionChildren(target)) {
         if (isConceptTagWrapper && !targetHasOwnOptions) {
-          // Wrapper pattern with sub-questions (e.g. Skin Rash → Yes → mixed
-          // follow-ups): use the branching builder which collapses the wrapper.
           transformed = buildBranchingPhysExamQuestion(
             q,
             sectionKey,
@@ -1022,10 +1045,6 @@ export function transformFhirPhysExamToAyu(
             demographics
           );
         } else {
-          // Non-wrapper with sub-questions (e.g. flat-sibling Tenderness after
-          // nestGatedSiblings): keep the parent's own options (Yes/No) and
-          // attach gated children so the nested renderer reveals them based on
-          // enableWhen.
           const targetItems = target.item!;
           const gatedChildren = targetItems
             .filter(
@@ -1042,7 +1061,7 @@ export function transformFhirPhysExamToAyu(
               )
             );
           transformed = buildPhysExamQuestion(
-            target,
+            effectiveTarget,
             sectionKey,
             categoryLabel,
             questionKey,
@@ -1051,25 +1070,6 @@ export function transformFhirPhysExamToAyu(
           );
         }
       } else {
-        /* When the question was unwrapped, the outer wrapper `q` may carry
-         * job-aid extensions that the inner `target` does not. Copy them so
-         * the question renders the reference image/video. */
-        let effectiveTarget = target;
-        if (didUnwrap) {
-          const targetJobAid = readJobAidFromItem(target);
-          if (targetJobAid.length === 0) {
-            let wrapperJobAid = readJobAidFromItem(q);
-            if (wrapperJobAid.length === 0) {
-              wrapperJobAid = findJobAidInTree(q.item!);
-            }
-            if (wrapperJobAid.length > 0) {
-              effectiveTarget = {
-                ...target,
-                extension: [...(target.extension ?? []), ...wrapperJobAid],
-              };
-            }
-          }
-        }
         transformed = buildPhysExamQuestion(
           effectiveTarget,
           sectionKey,

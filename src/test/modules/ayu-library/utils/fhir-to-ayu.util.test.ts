@@ -2461,6 +2461,112 @@ describe('transformFhirPhysExamToAyu', () => {
       });
     });
 
+    const makeScarsWithWrapperExtras = (
+      innerItems?: FhirItem[]
+    ): FhirItem => {
+      const wrapped = makeWrappedQuestion(
+        'wrap-scars',
+        'Scars',
+        'inner-scars',
+        'Are there visible scars?*',
+        innerItems ? { item: innerItems } : {}
+      );
+      return {
+        ...wrapped,
+        extension: [
+          { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+          { url: EXT_URL_JOB_AID_FILE, valueString: 'scars.png' },
+        ],
+        item: [
+          ...wrapped.item!,
+          {
+            linkId: 'cam-scars',
+            text: 'Take a picture',
+            type: 'attachment',
+            extension: [
+              { url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' },
+            ],
+          },
+        ],
+      };
+    };
+
+    const abdomen = (children: FhirItem[]): FhirQuestionnaire => ({
+      resourceType: 'Questionnaire',
+      item: [
+        { linkId: 'sec-abdomen', text: 'Abdomen', type: 'group', item: children },
+      ],
+    });
+
+    it('keeps No/Yes, wrapper camera, wrapper job aid and follow-ups together', () => {
+      const root = transformFhirPhysExamToAyu(
+        abdomen([
+          makeScarsWithWrapperExtras([
+            {
+              linkId: 'q-where',
+              text: 'Where is it?',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'inner-scars',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'upper-r', display: 'Upper(R)' } },
+              ],
+            },
+          ]),
+        ])
+      );
+      const q = root?.item?.[0];
+      expect(q?.linkId).toBe('inner-scars');
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'no',
+        'yes',
+        'cam-scars',
+      ]);
+      expect(q?.answerOption?.[2]?.extension).toContainEqual({
+        url: EXT_URL_PE_OPTION_KIND,
+        valueString: PE_OPTION_KIND_CAMERA,
+      });
+      expect(q?.extension).toContainEqual({
+        url: EXT_URL_JOB_AID_FILE,
+        valueString: 'scars.png',
+      });
+      expect(q?.item?.map(i => i.linkId)).toEqual(['q-where']);
+    });
+
+    it('adds the wrapper camera to a simple unwrapped No/Yes question', () => {
+      const root = transformFhirPhysExamToAyu(
+        abdomen([makeScarsWithWrapperExtras()])
+      );
+      const q = root?.item?.[0];
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'no',
+        'yes',
+        'cam-scars',
+      ]);
+      expect(q?.item).toBeUndefined();
+    });
+
+    it('drops an unwrapped question when the wrapper fails demographics', () => {
+      const wrapped = makeWrappedQuestion(
+        'wrap-breast',
+        'Lumps',
+        'inner-breast',
+        'Any lumps?'
+      );
+      const root = transformFhirPhysExamToAyu(
+        abdomen([
+          { ...wrapped, extension: [{ url: EXT_GENDER, valueString: '1' }] },
+        ]),
+        { gender: 'F' }
+      );
+      expect(root?.item).toEqual([]);
+    });
+
     it('uses the branching builder when the inner question has no options', () => {
       const root = transformFhirPhysExamToAyu({
         resourceType: 'Questionnaire',
