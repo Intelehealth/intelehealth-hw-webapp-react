@@ -18,7 +18,7 @@ vi.mock(
 import { useActivityHeartbeat } from '../../../../modules/daily-time-tracking/hooks/useActivityHeartbeat';
 import { flushActivityHeartbeat } from '../../../../modules/daily-time-tracking/utils/activity-flush';
 import { pendingKey, serverKey } from '../../../../modules/daily-time-tracking/utils/activity-buffer';
-import { ACTIVITY_KEY, ACTIVITY_PENDING_EVENT, ACTIVITY_SENT_EVENT, HEARTBEAT_MAX_SECONDS, HIDE_SEND_MIN_GAP_MS, HIDE_SEND_MIN_SECONDS, IDLE_LIMIT_MS, LEASE_KEY, MAX_ENDED_SECONDS_AGO } from '../../../../modules/daily-time-tracking/constants/activity-config';
+import { ACTIVITY_KEY, ACTIVITY_PENDING_EVENT, ACTIVITY_SENT_EVENT, HEARTBEAT_MAX_SECONDS, HIDE_SEND_MIN_GAP_MS, HIDE_SEND_MIN_SECONDS, IDLE_LIMIT_MS, LEASE_KEY, MAX_ENDED_SECONDS_AGO, PERIODIC_SEND_MIN_GAP_MS, PERIODIC_SEND_MIN_SECONDS } from '../../../../modules/daily-time-tracking/constants/activity-config';
 
 let hidden = false;
 let online = true;
@@ -46,8 +46,9 @@ const advanceActive = async (minutes: number) => {
   }
 };
 
-// The hook sends on events, not on a timer. The connection coming back is one
-// of those events: it counts what has passed and sends what is waiting.
+// The hook sends on events, and once an hour from the lease timer. The
+// connection coming back is one of those events: it counts what has passed and
+// sends what is waiting.
 const sendNow = () =>
   act(async () => {
     window.dispatchEvent(new Event('online'));
@@ -139,14 +140,118 @@ describe('useActivityHeartbeat', () => {
     expect(HIDE_SEND_MIN_GAP_MS).toBe(5 * 60_000);
   });
 
+  it('sends from the lease timer at most once an hour, when at least a minute is waiting', () => {
+    expect(PERIODIC_SEND_MIN_SECONDS).toBe(60);
+    expect(PERIODIC_SEND_MIN_GAP_MS).toBe(60 * 60_000);
+  });
+
   describe('when it sends', () => {
-    it('sends nothing on its own, however long the page stays open and in use', async () => {
+    it('sends nothing on its own in the first hour, however long the page stays open and in use', async () => {
       renderHook(() => useActivityHeartbeat());
 
-      await advanceActive(120);
+      await advanceActive(59);
 
       expect(mockSendHeartbeat).not.toHaveBeenCalled();
       expect(mockSendHeartbeatOnExit).not.toHaveBeenCalled();
+    });
+
+    describe('once an hour, while the page stays open', () => {
+      it('sends what is waiting each hour, with no event to ask for it', async () => {
+        renderHook(() => useActivityHeartbeat());
+
+        await advanceActive(60);
+        expect(sentPeriods()).toEqual([[3600, 0]]);
+
+        await advanceActive(59);
+        expect(sentPeriods()).toHaveLength(1);
+
+        await advanceActive(1);
+        expect(sentPeriods()).toEqual([
+          [3600, 0],
+          [3600, 0],
+        ]);
+        // from the timer, not from the exit path
+        expect(mockSendHeartbeatOnExit).not.toHaveBeenCalled();
+      });
+
+      it('counts the hour from the last send, not from the page opening', async () => {
+        renderHook(() => useActivityHeartbeat());
+
+        await advanceActive(30);
+        await sendNow(); // an event sends the first half hour
+        expect(sentPeriods()).toEqual([[1800, 0]]);
+
+        await advanceActive(59);
+        expect(sentPeriods()).toHaveLength(1);
+
+        await advanceActive(1); // an hour after that send
+        expect(sentPeriods()).toEqual([
+          [1800, 0],
+          [3600, 0],
+        ]);
+      });
+
+      it('sends nothing when nothing is waiting', async () => {
+        renderHook(() => useActivityHeartbeat());
+        await advanceActive(60);
+        expect(sentPeriods()).toHaveLength(1);
+
+        // The person stops. What the idle limit still counts goes out on the next
+        // hour, and after that there is nothing waiting to send.
+        await advance(60 * 60_000);
+        expect(sentPeriods()).toHaveLength(2);
+        await advance(60 * 60_000);
+
+        expect(sentPeriods()).toHaveLength(2);
+      });
+
+      it('sends nothing when less than a minute is waiting', async () => {
+        renderHook(() => useActivityHeartbeat());
+        await advanceActive(30); // the last move is at 29 minutes
+        // Counting stops 30 minutes after that move, at 3,540 s. An event sends
+        // everything counted until 3,510 s, which leaves 30 s still to be counted.
+        await advance(1_710_000);
+        await sendNow();
+        expect(sentPeriods()).toEqual([[3510, 0]]);
+
+        // An hour after that send, 30 s are waiting: too few to send.
+        await advance(60 * 60_000);
+
+        expect(sentPeriods()).toHaveLength(1);
+      });
+
+      it('sends nothing while offline, and the connection coming back sends it', async () => {
+        online = false;
+        renderHook(() => useActivityHeartbeat());
+
+        await advanceActive(61);
+        expect(mockSendHeartbeat).not.toHaveBeenCalled();
+
+        online = true;
+        await sendNow();
+
+        expect(sentPeriods()).toEqual([
+          [3600, 60],
+          [60, 0],
+        ]);
+      });
+
+      it('after a failed send, tries again only an hour later, with the time that failed', async () => {
+        mockSendHeartbeat.mockRejectedValueOnce({ response: { status: 500 } });
+        renderHook(() => useActivityHeartbeat());
+
+        await advanceActive(60);
+        expect(sentPeriods()).toEqual([[3600, 0]]); // failed
+
+        await advanceActive(59);
+        expect(sentPeriods()).toHaveLength(1); // not tried again straight away
+
+        await advanceActive(1);
+        expect(sentPeriods().slice(1)).toEqual([
+          [3600, 3600],
+          [3600, 0],
+        ]);
+      });
     });
 
     it('sends the time that has passed when an event asks for it', async () => {
@@ -697,6 +802,30 @@ describe('useActivityHeartbeat: several tabs of one browser', () => {
     expect(readLease()?.ts).not.toBe(0);
   });
 
+  it('does not send on the hour from a tab that does not lead', async () => {
+    writeLease({ id: 'other', ts: Date.now(), upTo: Date.now() });
+    renderHook(() => useActivityHeartbeat());
+
+    await advanceWhileOtherTabLeads(61 * 60_000);
+
+    expect(mockSendHeartbeat).not.toHaveBeenCalled();
+    expect(mockSendHeartbeatOnExit).not.toHaveBeenCalled();
+  });
+
+  it('does not send on the hour from a tab that lost the lease and still holds time', async () => {
+    online = false; // offline, so the time that was counted cannot be sent
+    renderHook(() => useActivityHeartbeat());
+    await advanceActive(30);
+
+    writeLease({ id: 'other', ts: Date.now(), upTo: Date.now() }); // another tab takes over
+    await advance(15_000);
+    online = true;
+    await advanceWhileOtherTabLeads(35 * 60_000); // past the hour since the page opened
+
+    expect(mockSendHeartbeat).not.toHaveBeenCalled();
+    expect(mockSendHeartbeatOnExit).not.toHaveBeenCalled();
+  });
+
   it('takes over when the leader stops renewing, and counts the time in between as far as moves allow', async () => {
     writeLease({ id: 'other', ts: Date.now(), upTo: Date.now() });
     renderHook(() => useActivityHeartbeat());
@@ -1203,8 +1332,10 @@ describe('useActivityHeartbeat: the time kept in the browser', () => {
     });
 
     it('sends all of it, oldest first, when more than an hour is waiting', async () => {
+      online = false; // offline, so nothing was sent on the hour
       renderHook(() => useActivityHeartbeat());
-      await advanceActive(125); // 7,500 seconds, no event sent any of it
+      await advanceActive(125); // 7,500 seconds, none of it sent
+      online = true;
 
       await flushActivityHeartbeat();
 

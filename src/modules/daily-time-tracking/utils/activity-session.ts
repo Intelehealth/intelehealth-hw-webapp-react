@@ -22,8 +22,10 @@ import {
  *   last move. If the computer's clock is set back, the elapsed time is taken
  *   from the monotonic clock (performance.now, which a clock change does not
  *   move), and everything already counted is moved with the clock so ages stay
- *   right. A clock set forward, or a computer that slept, adds nothing, because
- *   counting is capped by the last move.
+ *   right. A clock set forward, or a computer that slept, adds only what is left
+ *   of IDLE_LIMIT_MS after the last move, because counting stops at the last
+ *   move plus IDLE_LIMIT_MS. So a break, whether the page is hidden or the
+ *   computer sleeps, can add up to IDLE_LIMIT_MS, and nothing beyond that.
  */
 export interface ActivitySessionOptions {
   /** Working time that was counted: a stretch to add to what is waiting to be sent. */

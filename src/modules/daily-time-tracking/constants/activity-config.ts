@@ -27,7 +27,7 @@ export const IDLE_LIMIT_MS = 30 * 60_000;
 export const ACTIVITY_THROTTLE_MS = 1_000;
 /**
  * The computer's clock set back by more than this is corrected for. (Forward
- * jumps need no correction: counting is capped by the last move.)
+ * jumps need no correction: counting stops at the last move plus IDLE_LIMIT_MS.)
  */
 export const CLOCK_SET_BACK_TOLERANCE_MS = 5_000;
 
@@ -46,6 +46,16 @@ export const MAX_ENDED_SECONDS_AGO = 86_400;
  */
 export const HIDE_SEND_MIN_SECONDS = 60;
 export const HIDE_SEND_MIN_GAP_MS = 5 * 60_000;
+/**
+ * A page that stays open and is never hidden or closed still sends: the tab that
+ * counts sends what is waiting from the lease timer, when at least this many
+ * seconds are waiting and this long has passed since the page opened or since
+ * the last send. At most once an hour, which is also one heartbeat of at most
+ * HEARTBEAT_MAX_SECONDS. It keeps the portal from being a day behind, and the
+ * time from living only on the device for a whole day.
+ */
+export const PERIODIC_SEND_MIN_SECONDS = 60;
+export const PERIODIC_SEND_MIN_GAP_MS = 60 * 60_000;
 /**
  * A request sent as the page is hidden or closed gives up after this long if no answer
  * comes. Until it is answered no other request is sent, so it must not wait for ever.

@@ -6,6 +6,8 @@ import {
   HIDE_SEND_MIN_GAP_MS,
   HIDE_SEND_MIN_SECONDS,
   LEASE_REFRESH_MS,
+  PERIODIC_SEND_MIN_GAP_MS,
+  PERIODIC_SEND_MIN_SECONDS,
 } from '../constants/activity-config';
 import { registerActivityFlush } from '../utils/activity-flush';
 import { createActivitySession } from '../utils/activity-session';
@@ -33,7 +35,7 @@ const ACTIVITY_EVENTS = [
  *   it, sending, retrying;
  * all of them using the settings in activity-config.
  *
- * There is no timer that sends. Time is sent by events:
+ * Time is sent by events, and once an hour at most by the lease timer:
  * - when the page is closed or left (pagehide), when the layout goes away, when
  *   the person logs out (flushActivityHeartbeat, see activity-flush: all of it,
  *   one request after the other), when the connection returns, when a page loads
@@ -42,8 +44,13 @@ const ACTIVITY_EVENTS = [
  * - when the page is hidden (the person switched tab or window), but only if
  *   HIDE_SEND_MIN_SECONDS are waiting and the last send was at least
  *   HIDE_SEND_MIN_GAP_MS ago, so switching tabs often does not send each time.
- * The one timer that runs, every LEASE_REFRESH_MS, makes no request: it keeps
- * this tab's place as the leader and writes the waiting time to localStorage.
+ * - while the page stays open: the one timer that runs, every LEASE_REFRESH_MS,
+ *   keeps this tab's place as the leader and writes the waiting time to
+ *   localStorage, and the leader also sends when at least
+ *   PERIODIC_SEND_MIN_SECONDS are waiting and PERIODIC_SEND_MIN_GAP_MS have passed
+ *   since the page opened or the last send. So a page that is never hidden or
+ *   closed still reaches the portal within about an hour, and does not keep the
+ *   time on the device for a whole day.
  *
  * Only one tab of the same browser counts and sends (see tab-leader). A move in
  * any tab keeps the leader counting, even when the leader is hidden. A tab that
@@ -79,6 +86,20 @@ export const useActivityHeartbeat = (): void => {
       return sync.flush();
     };
 
+    // The leader sends what is waiting once an hour at most, even if the page is
+    // never hidden or closed. The hour counts from the page opening or the last
+    // send, whichever is later, so a short visit sends nothing extra.
+    const openedAt = session.now();
+    const sendIfDue = () => {
+      if (!isLeader) return;
+      const lastSend = Math.max(sync.lastSendAt(), openedAt);
+      if (
+        sync.waitingSeconds() >= PERIODIC_SEND_MIN_SECONDS &&
+        session.now() - lastSend >= PERIODIC_SEND_MIN_GAP_MS
+      )
+        void sync.flush();
+    };
+
     // Renew the lease if this tab leads, take it if it is free. A tab that has
     // just become the leader picks up time that an earlier session left in the
     // browser, and continues from where the previous leader had counted. A tab
@@ -100,6 +121,7 @@ export const useActivityHeartbeat = (): void => {
         sendAll();
       }
       sync.persist();
+      sendIfDue();
     };
 
     const onActivity = () => {

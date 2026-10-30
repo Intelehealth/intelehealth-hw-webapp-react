@@ -558,6 +558,66 @@ describe('createActivitySync', () => {
       expect(mockSendHeartbeat.mock.calls.at(-1)?.slice(0, 2)).toEqual([20, 70]);
     });
 
+    it('keeps sending after the clock was set back while a request was on its way', async () => {
+      const gate = deferred<typeof ANSWER>();
+      mockSendHeartbeat.mockReturnValueOnce(gate.promise);
+      const sync = make();
+      sync.add(seg(60, 0));
+      const running = sync.flush(); // the request is on its way
+
+      sync.shift(-30_000);
+      gate.resolve(ANSWER);
+      await running;
+
+      // The answer found its piece even though the clock moved it: nothing is
+      // left waiting, so the next time that comes in is not held back.
+      expect(sync.waitingSeconds()).toBe(0);
+      sync.add(seg(20, 0));
+      await sync.flush();
+
+      expect(mockSendHeartbeat).toHaveBeenCalledTimes(2);
+      expect(mockSendHeartbeat.mock.calls[1].slice(0, 2)).toEqual([20, 0]);
+    });
+
+    it('keeps sending after the clock was set back while an exit request was on its way', async () => {
+      const gate = deferred<typeof ANSWER>();
+      mockSendHeartbeatOnExit.mockReturnValueOnce(gate.promise);
+      const sync = make();
+      sync.add(seg(60, 0));
+      sync.sendOnExit(); // the request is on its way
+
+      sync.shift(-30_000);
+      gate.resolve(ANSWER);
+      await settle();
+
+      expect(sync.waitingSeconds()).toBe(0);
+      sync.add(seg(20, 0));
+      await sync.flush();
+
+      expect(mockSendHeartbeat).toHaveBeenCalledTimes(1);
+      expect(mockSendHeartbeat.mock.calls[0].slice(0, 2)).toEqual([20, 0]);
+    });
+
+    it('sends again after the clock was set back when the request on its way failed', async () => {
+      const gate = deferred<typeof ANSWER>();
+      mockSendHeartbeat.mockReturnValueOnce(gate.promise);
+      const sync = make();
+      sync.add(seg(60, 0));
+      const running = sync.flush();
+
+      sync.shift(-30_000);
+      gate.reject({ response: { status: 500 } });
+      await running;
+
+      // The failed piece is not stuck on its way: it is waiting to be sent, as it
+      // was moved with the clock (60 s long, ended 30 s further back in time).
+      expect(sync.waitingSeconds()).toBe(60);
+      await sync.flush();
+
+      expect(mockSendHeartbeat).toHaveBeenCalledTimes(2);
+      expect(mockSendHeartbeat.mock.calls[1].slice(0, 2)).toEqual([60, 30]);
+    });
+
     it('takes time an earlier session left in the browser', async () => {
       savePending('u1', [seg(120, 60)]);
       const sync = make();

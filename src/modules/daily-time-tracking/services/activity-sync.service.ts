@@ -300,13 +300,15 @@ export const createActivitySync = ({
     },
 
     shift: byMs => {
-      const move = (list: Segment[]) =>
-        list.map(s => ({ start: s.start + byMs, end: s.end + byMs }));
-      // The outbox and the pieces on their way are shifted together, so a piece
-      // can still be matched with its answer.
-      waiting = move(waiting);
-      outbox = move(outbox);
-      onTheirWay = move(onTheirWay);
+      // Moved in place, not copied: a request that is on its way holds the very
+      // object that is in the outbox and in onTheirWay, and its answer finds the
+      // piece by its times. A copy would leave the piece stuck on its way and
+      // block every later send. The outbox and onTheirWay share their objects,
+      // so each one is moved once.
+      for (const piece of new Set([...waiting, ...outbox, ...onTheirWay])) {
+        piece.start += byMs;
+        piece.end += byMs;
+      }
     },
 
     adoptStored: () => {
