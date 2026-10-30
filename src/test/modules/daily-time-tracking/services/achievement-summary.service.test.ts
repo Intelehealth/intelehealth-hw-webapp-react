@@ -33,12 +33,12 @@ import {
 const summary = {
   from: '2026-10-27',
   to: '2026-10-27',
-  doctorVisitsToday: 3,
+  doctorVisitsInRange: 3,
   doctorVisitsCompletedTotal: 42,
-  beneficiariesRegisteredToday: 5,
+  beneficiariesRegisteredInRange: 5,
   beneficiariesRegisteredTotal: 120,
   visitsPendingFromDoctor: 7,
-  dailyTimeSpentSeconds: 5460,
+  timeSpentSecondsInRange: 5460,
   status: 'Active' as const,
 };
 

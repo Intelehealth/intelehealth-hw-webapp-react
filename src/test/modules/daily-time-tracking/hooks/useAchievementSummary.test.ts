@@ -27,12 +27,12 @@ import { ACTIVITY_SENT_EVENT, REFRESH_AFTER_HIDDEN_MS } from '../../../../module
 const summary = (doctorVisits: number) => ({
   from: '2026-10-27',
   to: '2026-10-27',
-  doctorVisitsToday: doctorVisits,
+  doctorVisitsInRange: doctorVisits,
   doctorVisitsCompletedTotal: doctorVisits,
-  beneficiariesRegisteredToday: 5,
+  beneficiariesRegisteredInRange: 5,
   beneficiariesRegisteredTotal: 5,
   visitsPendingFromDoctor: 2,
-  dailyTimeSpentSeconds: 600,
+  timeSpentSecondsInRange: 600,
   status: 'Active' as const,
 });
 
@@ -101,7 +101,7 @@ describe('useAchievementSummary', () => {
 
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe(false);
-    expect(result.current.data?.doctorVisitsToday).toBe(3);
+    expect(result.current.data?.doctorVisitsInRange).toBe(3);
     expect(mockGetSummary).toHaveBeenCalledTimes(1);
   });
 
@@ -162,7 +162,7 @@ describe('useAchievementSummary', () => {
       });
 
       expect(mockGetSummary).toHaveBeenCalledTimes(2);
-      expect(result.current.data?.doctorVisitsToday).toBe(2);
+      expect(result.current.data?.doctorVisitsInRange).toBe(2);
     });
 
     it('does not ask when the tab is shown without having been hidden', async () => {
@@ -193,7 +193,7 @@ describe('useAchievementSummary', () => {
 
       expect(mockGetSummary).toHaveBeenCalledTimes(2);
       expect(result.current.error).toBe(false);
-      expect(result.current.data?.doctorVisitsToday).toBe(6);
+      expect(result.current.data?.doctorVisitsInRange).toBe(6);
     });
 
     it('does not ask when the connection returns and nothing had failed', async () => {
@@ -224,14 +224,14 @@ describe('useAchievementSummary', () => {
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(result.current.error).toBe(true);
-      expect(result.current.data?.doctorVisitsToday).toBe(4);
+      expect(result.current.data?.doctorVisitsInRange).toBe(4);
 
       await act(async () => {
         window.dispatchEvent(new Event('online'));
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(result.current.error).toBe(false);
-      expect(result.current.data?.doctorVisitsToday).toBe(6);
+      expect(result.current.data?.doctorVisitsInRange).toBe(6);
     });
 
     it('shares one request between events that come close together', async () => {
@@ -280,7 +280,7 @@ describe('useAchievementSummary', () => {
     it('shows the total the server gave, as Active, without asking again', async () => {
       mockGetSummary.mockResolvedValue({
         ...summary(3),
-        dailyTimeSpentSeconds: 0,
+        timeSpentSecondsInRange: 0,
         status: 'Inactive' as const,
       });
       const { result } = renderHook(() => useAchievementSummary());
@@ -289,15 +289,15 @@ describe('useAchievementSummary', () => {
       await answer('2026-10-27', 900);
 
       expect(mockGetSummary).toHaveBeenCalledTimes(1);
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(900);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(900);
       expect(result.current.data?.status).toBe('Active');
-      expect(result.current.data?.doctorVisitsToday).toBe(3);
+      expect(result.current.data?.doctorVisitsInRange).toBe(3);
     });
 
     it('treats a missing total as 0', async () => {
       mockGetSummary.mockResolvedValue({
         ...summary(3),
-        dailyTimeSpentSeconds: null,
+        timeSpentSecondsInRange: null,
         status: 'Inactive' as const,
       });
       const { result } = renderHook(() => useAchievementSummary());
@@ -305,7 +305,7 @@ describe('useAchievementSummary', () => {
 
       await answer('2026-10-27', 120);
 
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(120);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(120);
     });
 
     it('does not take the number back for a smaller or equal total', async () => {
@@ -318,7 +318,7 @@ describe('useAchievementSummary', () => {
       await answer('2026-10-27', 600);
 
       expect(result.current.data).toBe(before);
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(600);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(600);
     });
 
     it('ignores an answer that comes before the first load has finished', async () => {
@@ -338,7 +338,7 @@ describe('useAchievementSummary', () => {
         resolveFirst(summary(3));
         await vi.advanceTimersByTimeAsync(0);
       });
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(600);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(600);
     });
 
     it('ignores an event that carries no answer', async () => {
@@ -363,7 +363,7 @@ describe('useAchievementSummary', () => {
           ...summary(0),
           from: '2026-10-28',
           to: '2026-10-28',
-          dailyTimeSpentSeconds: 60,
+          timeSpentSecondsInRange: 60,
         });
       const { result } = renderHook(() => useAchievementSummary());
       await settle();
@@ -372,7 +372,7 @@ describe('useAchievementSummary', () => {
 
       expect(mockGetSummary).toHaveBeenCalledTimes(2);
       expect(result.current.data?.to).toBe('2026-10-28');
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(60);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(60);
     });
 
     it('does not follow answers when the numbers are for a range of days or all time', async () => {
@@ -387,7 +387,7 @@ describe('useAchievementSummary', () => {
       await answer('2026-10-27', 900);
 
       expect(mockGetSummary).toHaveBeenCalledTimes(1);
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(600);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(600);
     });
 
     it('does not follow an event after the hook is removed', async () => {
@@ -420,7 +420,7 @@ describe('useAchievementSummary', () => {
     it('shows the total it left, as Active, without asking again', async () => {
       mockGetSummary.mockResolvedValue({
         ...summary(3),
-        dailyTimeSpentSeconds: 0,
+        timeSpentSecondsInRange: 0,
         status: 'Inactive' as const,
       });
       const { result } = renderHook(() => useAchievementSummary());
@@ -429,7 +429,7 @@ describe('useAchievementSummary', () => {
       await otherTabSaved(record('2026-10-27', 900));
 
       expect(mockGetSummary).toHaveBeenCalledTimes(1);
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(900);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(900);
       expect(result.current.data?.status).toBe('Active');
     });
 
@@ -440,7 +440,7 @@ describe('useAchievementSummary', () => {
           ...summary(0),
           from: '2026-10-28',
           to: '2026-10-28',
-          dailyTimeSpentSeconds: 60,
+          timeSpentSecondsInRange: 60,
         });
       const { result } = renderHook(() => useAchievementSummary());
       await settle();
@@ -524,12 +524,12 @@ describe('useAchievementSummary', () => {
 
     it('does not take the time back, and keeps the day Active', async () => {
       const { result } = await raiseThenRefresh({
-        dailyTimeSpentSeconds: 600,
+        timeSpentSecondsInRange: 600,
         status: 'Inactive',
       });
 
       expect(mockGetSummary).toHaveBeenCalledTimes(2);
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(900);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(900);
       expect(result.current.data?.status).toBe('Active');
     });
 
@@ -537,28 +537,28 @@ describe('useAchievementSummary', () => {
       const { result } = await raiseThenRefresh({
         from: '2026-10-20',
         to: '2026-10-27',
-        dailyTimeSpentSeconds: 600,
+        timeSpentSecondsInRange: 600,
       });
 
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(600);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(600);
     });
 
     it('takes a bigger total as it is', async () => {
-      const { result } = await raiseThenRefresh({ dailyTimeSpentSeconds: 1200 });
+      const { result } = await raiseThenRefresh({ timeSpentSecondsInRange: 1200 });
 
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(1200);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(1200);
     });
 
     it('takes the incoming status when the day was not Active before', async () => {
       mockGetSummary
         .mockResolvedValueOnce({
           ...summary(3),
-          dailyTimeSpentSeconds: 900,
+          timeSpentSecondsInRange: 900,
           status: 'Inactive',
         })
         .mockResolvedValueOnce({
           ...summary(3),
-          dailyTimeSpentSeconds: 300,
+          timeSpentSecondsInRange: 300,
           status: 'Inactive',
         });
       const { result } = renderHook(() => useAchievementSummary());
@@ -571,14 +571,14 @@ describe('useAchievementSummary', () => {
         await vi.advanceTimersByTimeAsync(0);
       });
 
-      expect(result.current.data?.dailyTimeSpentSeconds).toBe(900);
+      expect(result.current.data?.timeSpentSecondsInRange).toBe(900);
       expect(result.current.data?.status).toBe('Inactive');
     });
 
     it('counts a missing total as 0 when comparing', async () => {
       mockGetSummary
-        .mockResolvedValueOnce({ ...summary(3), dailyTimeSpentSeconds: null })
-        .mockResolvedValueOnce({ ...summary(3), dailyTimeSpentSeconds: null });
+        .mockResolvedValueOnce({ ...summary(3), timeSpentSecondsInRange: null })
+        .mockResolvedValueOnce({ ...summary(3), timeSpentSecondsInRange: null });
       const { result } = renderHook(() => useAchievementSummary());
       await settle();
 
@@ -589,7 +589,7 @@ describe('useAchievementSummary', () => {
         await vi.advanceTimersByTimeAsync(0);
       });
 
-      expect(result.current.data?.dailyTimeSpentSeconds).toBeNull();
+      expect(result.current.data?.timeSpentSecondsInRange).toBeNull();
     });
   });
 
@@ -653,7 +653,7 @@ describe('useAchievementSummary', () => {
     it('remembers 0 when the summary has no total', async () => {
       mockGetSummary.mockResolvedValue({
         ...summary(3),
-        dailyTimeSpentSeconds: null,
+        timeSpentSecondsInRange: null,
       });
       renderHook(() => useAchievementSummary());
       await settle();
@@ -686,7 +686,7 @@ describe('useAchievementSummary', () => {
       );
       mockGetSummary.mockResolvedValue({
         ...summary(3),
-        dailyTimeSpentSeconds: null,
+        timeSpentSecondsInRange: null,
       });
       renderHook(() => useAchievementSummary());
       await settle();

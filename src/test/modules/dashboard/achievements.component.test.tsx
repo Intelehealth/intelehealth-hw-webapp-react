@@ -30,12 +30,12 @@ const summary = (
 ): AchievementSummary => ({
   from: '2026-10-27',
   to: '2026-10-27',
-  doctorVisitsToday: 0, // for the dates asked for (today)
+  doctorVisitsInRange: 0, // for the dates asked for (today)
   doctorVisitsCompletedTotal: 3, // everything up to now: this is what the panel shows
   visitsPendingFromDoctor: 7, // in the response, not shown on the panel
-  beneficiariesRegisteredToday: 0,
+  beneficiariesRegisteredInRange: 0,
   beneficiariesRegisteredTotal: 5,
-  dailyTimeSpentSeconds: 5460,
+  timeSpentSecondsInRange: 5460,
   status: 'Active',
   ...overrides,
 });
@@ -121,9 +121,9 @@ describe('AchievementsComponent', () => {
       mockUseAchievementSummary.mockReturnValue(
         loaded(
           summary({
-            doctorVisitsToday: 9,
+            doctorVisitsInRange: 9,
             doctorVisitsCompletedTotal: 166,
-            beneficiariesRegisteredToday: 8,
+            beneficiariesRegisteredInRange: 8,
             beneficiariesRegisteredTotal: 729,
           })
         )
@@ -183,7 +183,7 @@ describe('AchievementsComponent', () => {
 
     it('shows time under an hour as minutes only', () => {
       mockUseAchievementSummary.mockReturnValue(
-        loaded(summary({ dailyTimeSpentSeconds: 0 }))
+        loaded(summary({ timeSpentSecondsInRange: 0 }))
       );
       renderComponent();
       expect(screen.getByText('0m')).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe('AchievementsComponent', () => {
 
     it('shows time of a first day even when the server has none yet', () => {
       mockUseAchievementSummary.mockReturnValue(
-        loaded(summary({ dailyTimeSpentSeconds: 0, status: 'Inactive' }))
+        loaded(summary({ timeSpentSecondsInRange: 0, status: 'Inactive' }))
       );
       mockUnsentSeconds.mockReturnValue(300);
       renderComponent();
@@ -357,7 +357,7 @@ describe('AchievementsComponent', () => {
 
     it('does not show a time when the server sent none, whatever is waiting', () => {
       mockUseAchievementSummary.mockReturnValue(
-        loaded(summary({ dailyTimeSpentSeconds: null }))
+        loaded(summary({ timeSpentSecondsInRange: null }))
       );
       mockUnsentSeconds.mockReturnValue(600);
       renderComponent();

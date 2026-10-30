@@ -35,11 +35,11 @@ const formatValue = (
   unsent: number
 ) => {
   switch (key) {
-    case 'dailyTimeSpentSeconds':
+    case 'timeSpentSecondsInRange':
       return formatDuration(
-        summary.dailyTimeSpentSeconds === null
+        summary.timeSpentSecondsInRange === null
           ? null
-          : summary.dailyTimeSpentSeconds + unsent
+          : summary.timeSpentSecondsInRange + unsent
       );
     default:
       return formatCount(summary[key]);
@@ -93,13 +93,13 @@ export const AchievementsComponent = () => {
   const unsent = useUnsentActivitySeconds(
     data?.from ?? today,
     data?.to ?? today,
-    data ? data.dailyTimeSpentSeconds : remembered
+    data ? data.timeSpentSecondsInRange : remembered
   );
 
   const valueFor = (item: AchievementItem) => {
     if (item.key === 'status') return STATUS_ACTIVE;
     if (data) return formatValue(item.key, data, unsent);
-    if (item.key === 'dailyTimeSpentSeconds' && remembered !== null)
+    if (item.key === 'timeSpentSecondsInRange' && remembered !== null)
       return formatDuration(remembered + unsent);
     return loading ? LOADING_VALUE : NO_VALUE;
   };

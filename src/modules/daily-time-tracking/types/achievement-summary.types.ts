@@ -2,8 +2,8 @@
  * Types for the portal's Achievements summary and activity heartbeat APIs.
  * `from` and `to` are null for the all-time range.
  *
- * `doctorVisitsToday` and `beneficiariesRegisteredToday` are for the dates
- * asked for (today by default). `doctorVisitsCompletedTotal` and
+ * `doctorVisitsInRange`, `beneficiariesRegisteredInRange` and
+ * `timeSpentSecondsInRange` are for the dates asked for (today by default). `doctorVisitsCompletedTotal` and
  * `beneficiariesRegisteredTotal` (this health worker's own number) are
  * everything up to now; the dashboard panel shows those two.
  *
@@ -18,12 +18,12 @@
 export interface AchievementSummary {
   from: string | null;
   to: string | null;
-  doctorVisitsToday: number | null;
+  doctorVisitsInRange: number | null;
   doctorVisitsCompletedTotal: number | null;
   visitsPendingFromDoctor: number | null;
-  beneficiariesRegisteredToday: number | null;
+  beneficiariesRegisteredInRange: number | null;
   beneficiariesRegisteredTotal: number | null;
-  dailyTimeSpentSeconds: number | null;
+  timeSpentSecondsInRange: number | null;
   averageDailyTimeSpentSeconds?: number;
   activeDaysCount?: number;
   status: 'Active' | 'Inactive' | null;

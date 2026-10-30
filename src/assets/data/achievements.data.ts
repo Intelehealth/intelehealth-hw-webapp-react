@@ -7,7 +7,7 @@ import iconStatus from '../icons/icon-status.svg';
 export type AchievementKey =
   | 'doctorVisitsCompletedTotal'
   | 'beneficiariesRegisteredTotal'
-  | 'dailyTimeSpentSeconds'
+  | 'timeSpentSecondsInRange'
   | 'status';
 
 export interface AchievementItem {
@@ -40,7 +40,7 @@ export const achievementsData: AchievementItem[] = [
   {
     id: 'daily-time-spent',
     label: 'Time on Duty',
-    key: 'dailyTimeSpentSeconds',
+    key: 'timeSpentSecondsInRange',
     icon: iconTimeSpent,
     valueColor: 'text-green-500',
   },

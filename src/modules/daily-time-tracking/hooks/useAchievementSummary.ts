@@ -33,11 +33,12 @@ const withNewerTime = (
     isOneDay(current) &&
     current.from === incoming.from &&
     current.to === incoming.to &&
-    (current.dailyTimeSpentSeconds ?? 0) > (incoming.dailyTimeSpentSeconds ?? 0)
+    (current.timeSpentSecondsInRange ?? 0) >
+      (incoming.timeSpentSecondsInRange ?? 0)
   )
     return {
       ...incoming,
-      dailyTimeSpentSeconds: current.dailyTimeSpentSeconds,
+      timeSpentSecondsInRange: current.timeSpentSecondsInRange,
       status: current.status === 'Active' ? 'Active' : incoming.status,
     };
   return incoming;
@@ -85,12 +86,12 @@ export const useAchievementSummary = () => {
         apply(next);
         if (userId && isOneDay(next) && next.to) {
           const known = loadServerSeconds(userId, next.to);
-          if (known !== null && (summary.dailyTimeSpentSeconds ?? 0) < known)
+          if (known !== null && (summary.timeSpentSecondsInRange ?? 0) < known)
             reportActivityIssue('server_total_lower', {
               known,
-              given: summary.dailyTimeSpentSeconds ?? 0,
+              given: summary.timeSpentSecondsInRange ?? 0,
             });
-          saveServerSeconds(userId, next.to, next.dailyTimeSpentSeconds ?? 0);
+          saveServerSeconds(userId, next.to, next.timeSpentSecondsInRange ?? 0);
         }
         setError(false);
       } catch {
@@ -131,10 +132,10 @@ export const useAchievementSummary = () => {
         void load(); // the day has changed: ask again for the new day
         return;
       }
-      if (answer.todaySeconds > (current.dailyTimeSpentSeconds ?? 0))
+      if (answer.todaySeconds > (current.timeSpentSecondsInRange ?? 0))
         apply({
           ...current,
-          dailyTimeSpentSeconds: answer.todaySeconds,
+          timeSpentSecondsInRange: answer.todaySeconds,
           status: 'Active',
         });
     };
