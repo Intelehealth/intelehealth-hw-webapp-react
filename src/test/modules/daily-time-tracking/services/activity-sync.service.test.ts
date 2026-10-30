@@ -458,6 +458,26 @@ describe('createActivitySync', () => {
       expect(loadServerSeconds('u1', DAY)).toBeNull();
     });
 
+    it('treats a request that rejects as not acknowledged, so the piece can be sent again', async () => {
+      const rejected = Promise.reject(new Error('exit request failed'));
+      const handled = vi.spyOn(rejected, 'catch');
+      mockSendHeartbeatOnExit.mockReturnValueOnce(rejected);
+      const sync = make();
+      sync.add(seg(60, 0));
+
+      sync.sendOnExit();
+      await settle();
+
+      expect(handled).toHaveBeenCalled();
+      expect(loadPending('u1')).toEqual([seg(60, 0)]);
+      expect(sync.waitingSeconds()).toBe(60);
+
+      // The piece is no longer on its way, so the next send is not blocked.
+      await sync.flush();
+
+      expect(mockSendHeartbeat.mock.calls.map(call => call.slice(0, 2))).toEqual([[60, 0]]);
+    });
+
     it('only saves the time while offline', () => {
       online = false;
       const sync = make();

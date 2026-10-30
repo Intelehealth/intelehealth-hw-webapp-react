@@ -72,7 +72,9 @@ export interface ActivitySync {
 }
 
 // A failed request is sent again at the next event, unless the server has said
-// the request itself is wrong.
+// the request itself is wrong. A 401 is not that: the session can be renewed or
+// the person can sign in again, and the time is kept under their id until then.
+// It is not a loop: one failure ends the run (see flush).
 const isRetryable = (error: unknown): boolean => {
   const status = (error as { response?: { status?: number } } | null)?.response
     ?.status;
@@ -277,12 +279,16 @@ export const createActivitySync = ({
         next.endedSecondsAgo,
         next.requestId
       )
-    ).then(answer => {
-      answered(next.piece);
-      if (!isAnswer(answer)) return; // not acknowledged: it stays, to be sent again
-      settle(next.piece);
-      announce(answer);
-    });
+    )
+      // It answers null when it fails. A rejection counts the same, so the piece
+      // is never left on its way, which would block every later send.
+      .catch(() => null)
+      .then(answer => {
+        answered(next.piece);
+        if (!isAnswer(answer)) return; // not acknowledged: it stays, to be sent again
+        settle(next.piece);
+        announce(answer);
+      });
   };
 
   return {

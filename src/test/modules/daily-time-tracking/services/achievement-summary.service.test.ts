@@ -26,8 +26,7 @@ vi.mock('../../../../config/env', () => ({
 
 import { EXIT_REQUEST_TIMEOUT_MS } from '../../../../modules/daily-time-tracking/constants/activity-config';
 import {
-  ACHIEVEMENT_SUMMARY_URL,
-  ACTIVITY_HEARTBEAT_URL,
+  API_ENDPOINTS,
   achievementSummaryService,
 } from '../../../../modules/daily-time-tracking/services/achievement-summary.service';
 
@@ -50,8 +49,8 @@ describe('achievementSummaryService', () => {
   });
 
   it('uses the portal paths', () => {
-    expect(ACHIEVEMENT_SUMMARY_URL).toBe('/openmrs/achievements/summary');
-    expect(ACTIVITY_HEARTBEAT_URL).toBe('/activity/heartbeat');
+    expect(API_ENDPOINTS.ACHIEVEMENT_SUMMARY).toBe('/openmrs/achievements/summary');
+    expect(API_ENDPOINTS.ACTIVITY_HEARTBEAT).toBe('/activity/heartbeat');
   });
 
   describe('getSummary', () => {
@@ -65,7 +64,7 @@ describe('achievementSummaryService', () => {
       const result = await achievementSummaryService.getSummary();
 
       expect(mockGet).toHaveBeenCalledTimes(1);
-      expect(mockGet).toHaveBeenCalledWith(ACHIEVEMENT_SUMMARY_URL, {
+      expect(mockGet).toHaveBeenCalledWith(API_ENDPOINTS.ACHIEVEMENT_SUMMARY, {
         headers: { loader: false },
         params: undefined,
       });
@@ -80,7 +79,7 @@ describe('achievementSummaryService', () => {
         to: '2026-10-27',
       });
 
-      expect(mockGet).toHaveBeenCalledWith(ACHIEVEMENT_SUMMARY_URL, {
+      expect(mockGet).toHaveBeenCalledWith(API_ENDPOINTS.ACHIEVEMENT_SUMMARY, {
         headers: { loader: false },
         params: { from: '2026-10-01', to: '2026-10-27' },
       });
@@ -92,7 +91,7 @@ describe('achievementSummaryService', () => {
       await achievementSummaryService.getSummary({ period: 'overall' });
 
       expect(mockGet).toHaveBeenCalledWith(
-        ACHIEVEMENT_SUMMARY_URL,
+        API_ENDPOINTS.ACHIEVEMENT_SUMMARY,
         expect.objectContaining({ params: { period: 'overall' } })
       );
     });
@@ -122,7 +121,7 @@ describe('achievementSummaryService', () => {
 
       expect(mockPost).toHaveBeenCalledTimes(1);
       expect(mockPost).toHaveBeenCalledWith(
-        ACTIVITY_HEARTBEAT_URL,
+        API_ENDPOINTS.ACTIVITY_HEARTBEAT,
         { activeSeconds: 60, endedSecondsAgo: 0 },
         { headers: { loader: false } }
       );
@@ -139,7 +138,7 @@ describe('achievementSummaryService', () => {
       await achievementSummaryService.sendHeartbeat(300, 360);
 
       expect(mockPost).toHaveBeenCalledWith(
-        ACTIVITY_HEARTBEAT_URL,
+        API_ENDPOINTS.ACTIVITY_HEARTBEAT,
         { activeSeconds: 300, endedSecondsAgo: 360 },
         { headers: { loader: false } }
       );
@@ -155,7 +154,7 @@ describe('achievementSummaryService', () => {
       await achievementSummaryService.sendHeartbeat(300, 360, 'piece-1');
 
       expect(mockPost).toHaveBeenCalledWith(
-        ACTIVITY_HEARTBEAT_URL,
+        API_ENDPOINTS.ACTIVITY_HEARTBEAT,
         { activeSeconds: 300, endedSecondsAgo: 360, requestId: 'piece-1' },
         { headers: { loader: false } }
       );

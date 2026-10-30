@@ -10,8 +10,10 @@ import { EXIT_REQUEST_TIMEOUT_MS } from '../constants/activity-config';
 import { storage } from '../../../utils/storage';
 import { MindmapPortalApi } from '../../../services/mindmap';
 
-export const ACHIEVEMENT_SUMMARY_URL = '/openmrs/achievements/summary';
-export const ACTIVITY_HEARTBEAT_URL = '/activity/heartbeat';
+export const API_ENDPOINTS = {
+  ACHIEVEMENT_SUMMARY: '/openmrs/achievements/summary',
+  ACTIVITY_HEARTBEAT: '/activity/heartbeat',
+} as const;
 
 // Background calls: no full-screen loader.
 const config = { headers: { loader: false } };
@@ -25,7 +27,7 @@ export const achievementSummaryService = {
     params?: AchievementSummaryParams
   ): Promise<AchievementSummary> {
     const response = await MindmapPortalApi.get<AchievementSummaryResponse>(
-      ACHIEVEMENT_SUMMARY_URL,
+      API_ENDPOINTS.ACHIEVEMENT_SUMMARY,
       { ...config, params }
     );
     return response.data;
@@ -46,7 +48,7 @@ export const achievementSummaryService = {
     requestId?: string
   ): Promise<HeartbeatResult> {
     const response = await MindmapPortalApi.post<HeartbeatResponse>(
-      ACTIVITY_HEARTBEAT_URL,
+      API_ENDPOINTS.ACTIVITY_HEARTBEAT,
       { activeSeconds, endedSecondsAgo, requestId },
       config
     );
@@ -67,8 +69,9 @@ export const achievementSummaryService = {
   ): Promise<HeartbeatResult | null> {
     const token = storage.getAuthToken();
     if (!token) return Promise.resolve(null);
+    const url = `${env.PORTAL_API_URL ?? ''}${API_ENDPOINTS.ACTIVITY_HEARTBEAT}`;
     try {
-      return fetch(`${env.PORTAL_API_URL ?? ''}${ACTIVITY_HEARTBEAT_URL}`, {
+      return fetch(url, {
         method: 'POST',
         keepalive: true,
         // Gives up if no answer comes, so a request that is stuck does not hold up the next one.
