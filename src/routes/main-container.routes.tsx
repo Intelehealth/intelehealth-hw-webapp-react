@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom';
+import ActivityHeartbeat from '../modules/daily-time-tracking/components/activity-heartbeat.component';
 import Breadcrumb from '../components/common/breadcrumb.component';
 import DownMenu from '../components/down-menu/down-menu.component';
 import Navbar from '../components/navbar/navbar.component';
@@ -45,6 +46,7 @@ const MainContainer = () => {
     <ProfileProvider>
       <NotificationProvider>
         <NotificationManager autoRequest={true} requestDelay={300} />
+        <ActivityHeartbeat />
         <div
           className="flex flex-col h-full bg-(--color-maint-bg)"
           data-testid="main-container"

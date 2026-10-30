@@ -22,7 +22,21 @@ vi.mock('../../components/notifications/notification-manager.component', () => (
   default: () => null,
 }));
 
+vi.mock('../../modules/daily-time-tracking/components/activity-heartbeat.component', () => ({
+  default: () => <div data-testid="activity-heartbeat" />,
+}));
+
 describe('MainContainer', () => {
+  it('should start the activity heartbeat for the signed-in layout', () => {
+    render(
+      <MemoryRouter>
+        <MainContainer />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('activity-heartbeat')).toBeInTheDocument();
+  });
+
   it('should render the main container layout', () => {
     render(
       <MemoryRouter>

@@ -10,6 +10,7 @@ import iconVideos from '../../assets/icons/icon-videos.svg';
 import mainLogo from '../../assets/logo/intelehealth-logo-white.png';
 import thumbnailLogo from '../../assets/logo/intelehealth-thumbnail-logo-white.png';
 import ROUTES from '../../routes/paths';
+import { flushActivityHeartbeat } from '../../modules/daily-time-tracking/utils/activity-flush';
 import { cookie } from '../../utils/cookie';
 import { storage } from '../../utils/storage';
 import { useGlobalModal } from '../modal/global-modal-context';
@@ -239,7 +240,9 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     description: 'Are you sure you want to log out?',
                     confirmText: 'Log out',
                     cancelText: 'Cancel',
-                    onConfirm: () => {
+                    onConfirm: async () => {
+                      // Send the working time that is waiting while the login is still there.
+                      await flushActivityHeartbeat();
                       storage.clearAuthToken();
                       storage.clearBasicAuthHeader();
                       cookie.removeJSessionId();
