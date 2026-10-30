@@ -21,7 +21,6 @@ import {
   EXT_URL_JOB_AID_TYPE,
   EXT_URL_LANGUGAE_TEXT,
   EXT_URL_PE_CATEGORY_LABEL,
-  PE_OPTION_LANG_MARKER_PICTURE_TAKEN,
   EXT_URL_PE_OPTION_KIND,
   EXT_URL_PE_QUESTION_KEY,
   EXT_URL_PE_SECTION_KEY,
@@ -33,6 +32,7 @@ import {
   GENDER_CODE_MALE,
   GENDER_CODE_OTHER,
   PE_OPTION_KIND_CAMERA,
+  PE_OPTION_LANG_MARKER_PICTURE_TAKEN,
 } from './constants';
 import { getRowLabel } from './question.utils';
 
@@ -1007,8 +1007,11 @@ export function transformFhirPhysExamToAyu(
        * so the answerOption count is the stable discriminator. */
       const isConceptTagWrapper = q.answerOption?.length === 1 || didUnwrap;
 
+      const targetHasOwnOptions =
+        didUnwrap && (target.answerOption?.length ?? 0) > 1;
+
       if (hasSubQuestionChildren(target)) {
-        if (isConceptTagWrapper) {
+        if (isConceptTagWrapper && !targetHasOwnOptions) {
           // Wrapper pattern with sub-questions (e.g. Skin Rash → Yes → mixed
           // follow-ups): use the branching builder which collapses the wrapper.
           transformed = buildBranchingPhysExamQuestion(
