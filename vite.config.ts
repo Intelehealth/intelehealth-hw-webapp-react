@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite';
 
 /**
  * Vite plugin that injects VITE_FIREBASE_* env variables into
@@ -75,6 +75,26 @@ function firebaseSWEnvPlugin(): Plugin {
   };
 }
 
+/**
+ * Optional, local only. When VITE_LOCAL_PORTAL_URL is set (put it in .env.local,
+ * which git ignores), the new Achievements APIs go to a portal running on your
+ * machine, for example http://localhost:3004. Every other /portal-api call still
+ * goes to the dev server below. With the variable unset nothing changes.
+ */
+function localPortalProxy(mode: string): Record<string, ProxyOptions> {
+  const target = loadEnv(mode, process.cwd(), '').VITE_LOCAL_PORTAL_URL;
+  if (!target) return {};
+  const options = {
+    target,
+    changeOrigin: true,
+    secure: false,
+    rewrite: (path: string) => path.replace(/^\/portal-api/, '/api'),
+  };
+  return {
+    '/portal-api/openmrs/achievements': options,
+    '/portal-api/activity': options,
+  };
+}
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   base: mode === 'development' ? '/' : '/hwwebapp/',
@@ -204,6 +224,7 @@ export default defineConfig(({ mode }) => ({
     proxy:
       mode === 'development'
         ? {
+            ...localPortalProxy(mode),
             '/portal-api': {
               target: 'https://dev.intelehealth.org:3004',
               changeOrigin: true,
