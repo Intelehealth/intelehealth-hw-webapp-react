@@ -2408,6 +2408,207 @@ describe('transformFhirPhysExamToAyu', () => {
       expect(codes).toEqual(['no', 'yes']);
     });
 
+  
+    it('keeps inner No/Yes options when follow-ups are gated on Yes', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-abdomen',
+            text: 'Abdomen',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-scars',
+                'Scars',
+                'inner-scars',
+                'Are there visible scars?*',
+                {
+                  item: [
+                    {
+                      linkId: 'q-where',
+                      text: 'Where is it?',
+                      type: 'choice',
+                      enableWhen: [
+                        {
+                          question: 'inner-scars',
+                          operator: '=',
+                          answerCoding: { code: 'yes' },
+                        },
+                      ],
+                      answerOption: [
+                        { valueCoding: { code: 'upper-r', display: 'Upper(R)' } },
+                        { valueCoding: { code: 'lower-l', display: 'Lower(L)' } },
+                      ],
+                    },
+                  ],
+                }
+              ),
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.linkId).toBe('inner-scars');
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'no',
+        'yes',
+      ]);
+      expect(q?.item?.[0]?.linkId).toBe('q-where');
+      expect(q?.item?.[0]?.enableWhen?.[0]).toMatchObject({
+        question: 'inner-scars',
+        answerCoding: { code: 'yes' },
+      });
+    });
+
+    const makeScarsWithWrapperExtras = (
+      innerItems?: FhirItem[]
+    ): FhirItem => {
+      const wrapped = makeWrappedQuestion(
+        'wrap-scars',
+        'Scars',
+        'inner-scars',
+        'Are there visible scars?*',
+        innerItems ? { item: innerItems } : {}
+      );
+      return {
+        ...wrapped,
+        extension: [
+          { url: EXT_URL_JOB_AID_TYPE, valueString: 'image' },
+          { url: EXT_URL_JOB_AID_FILE, valueString: 'scars.png' },
+        ],
+        item: [
+          ...wrapped.item!,
+          {
+            linkId: 'cam-scars',
+            text: 'Take a picture',
+            type: 'attachment',
+            extension: [
+              { url: EXT_URL_IS_EXCLUSIVE_OPTION, valueString: 'true' },
+            ],
+          },
+        ],
+      };
+    };
+
+    const abdomen = (children: FhirItem[]): FhirQuestionnaire => ({
+      resourceType: 'Questionnaire',
+      item: [
+        { linkId: 'sec-abdomen', text: 'Abdomen', type: 'group', item: children },
+      ],
+    });
+
+    it('keeps No/Yes, wrapper camera, wrapper job aid and follow-ups together', () => {
+      const root = transformFhirPhysExamToAyu(
+        abdomen([
+          makeScarsWithWrapperExtras([
+            {
+              linkId: 'q-where',
+              text: 'Where is it?',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'inner-scars',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'upper-r', display: 'Upper(R)' } },
+              ],
+            },
+          ]),
+        ])
+      );
+      const q = root?.item?.[0];
+      expect(q?.linkId).toBe('inner-scars');
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'no',
+        'yes',
+        'cam-scars',
+      ]);
+      expect(q?.answerOption?.[2]?.extension).toContainEqual({
+        url: EXT_URL_PE_OPTION_KIND,
+        valueString: PE_OPTION_KIND_CAMERA,
+      });
+      expect(q?.extension).toContainEqual({
+        url: EXT_URL_JOB_AID_FILE,
+        valueString: 'scars.png',
+      });
+      expect(q?.item?.map(i => i.linkId)).toEqual(['q-where']);
+    });
+
+    it('adds the wrapper camera to a simple unwrapped No/Yes question', () => {
+      const root = transformFhirPhysExamToAyu(
+        abdomen([makeScarsWithWrapperExtras()])
+      );
+      const q = root?.item?.[0];
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'no',
+        'yes',
+        'cam-scars',
+      ]);
+      expect(q?.item).toBeUndefined();
+    });
+
+    it('drops an unwrapped question when the wrapper fails demographics', () => {
+      const wrapped = makeWrappedQuestion(
+        'wrap-breast',
+        'Lumps',
+        'inner-breast',
+        'Any lumps?'
+      );
+      const root = transformFhirPhysExamToAyu(
+        abdomen([
+          { ...wrapped, extension: [{ url: EXT_GENDER, valueString: '1' }] },
+        ]),
+        { gender: 'F' }
+      );
+      expect(root?.item).toEqual([]);
+    });
+
+    it('uses the branching builder when the inner question has no options', () => {
+      const root = transformFhirPhysExamToAyu({
+        resourceType: 'Questionnaire',
+        item: [
+          {
+            linkId: 'sec-abdomen',
+            text: 'Abdomen',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-scars',
+                'Scars',
+                'inner-scars',
+                'Are there visible scars?*',
+                {
+                  answerOption: undefined,
+                  item: [
+                    {
+                      linkId: 'q-details',
+                      text: 'Details',
+                      type: 'string',
+                      enableWhen: [
+                        {
+                          question: 'inner-scars',
+                          operator: 'exists',
+                        },
+                      ],
+                    },
+                  ],
+                }
+              ),
+            ],
+          },
+        ],
+      });
+      const q = root?.item?.[0];
+      expect(q?.linkId).toBe('wrap-scars');
+      expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+        'inner-scars',
+      ]);
+    });
+
     /* Real "Abdomen → Tenderness" shape: the wrapper nests TWO levels deep —
      * "Tenderness" (1 concept-tag option) → "No tenderness" (string) + "Yes"
      * (choice with concept-tag) → "Select the location" (3 location options).
@@ -3324,7 +3525,7 @@ describe('transformFhirPhysExamToAyu', () => {
     it('uses empty string when both answerOption display and q.text are missing in branching question', () => {
       /* Concept-tag wrapper (1 answerOption) whose valueCoding has no display
        * AND no q.text → conceptDisplay ?? q.text ?? '' yields ''.
-       * The wrapper unwraps to an inner choice with sub-question children,
+      
        * triggering buildBranchingPhysExamQuestion. */
       const root = transformFhirPhysExamToAyu({
         resourceType: 'Questionnaire',
@@ -3343,22 +3544,16 @@ describe('transformFhirPhysExamToAyu', () => {
                 ],
                 item: [
                   {
-                    linkId: 'inner-q',
-                    type: 'choice',
-                    text: 'Inner Question',
+                    linkId: 'branch-no',
+                    type: 'string',
+                    text: 'No',
                     enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'tag1' } }],
-                    answerOption: [
-                      { valueCoding: { code: 'opt-no', display: 'No' } },
-                      { valueCoding: { code: 'opt-yes', display: 'Yes' } },
-                    ],
-                    item: [
-                      {
-                        linkId: 'follow-up',
-                        type: 'string',
-                        text: 'Details',
-                        enableWhen: [{ question: 'inner-q', operator: '=', answerCoding: { code: 'opt-yes' } }],
-                      },
-                    ],
+                  },
+                  {
+                    linkId: 'branch-yes',
+                    type: 'string',
+                    text: 'Yes',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'tag1' } }],
                   },
                 ],
               },
@@ -3373,7 +3568,7 @@ describe('transformFhirPhysExamToAyu', () => {
     it('falls back to q.text when answerOption display is missing in branching question', () => {
       /* Concept-tag wrapper (1 answerOption) whose valueCoding has no display
        * but q.text is present → conceptDisplay ?? q.text ?? '' yields q.text.
-       * The wrapper unwraps to an inner choice with sub-question children,
+      
        * triggering buildBranchingPhysExamQuestion. */
       const root = transformFhirPhysExamToAyu({
         resourceType: 'Questionnaire',
@@ -3392,22 +3587,16 @@ describe('transformFhirPhysExamToAyu', () => {
                 ],
                 item: [
                   {
-                    linkId: 'inner-q',
-                    type: 'choice',
-                    text: 'Inner Question',
+                    linkId: 'branch-no',
+                    type: 'string',
+                    text: 'No',
                     enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'tag1' } }],
-                    answerOption: [
-                      { valueCoding: { code: 'opt-no', display: 'No' } },
-                      { valueCoding: { code: 'opt-yes', display: 'Yes' } },
-                    ],
-                    item: [
-                      {
-                        linkId: 'follow-up',
-                        type: 'string',
-                        text: 'Details',
-                        enableWhen: [{ question: 'inner-q', operator: '=', answerCoding: { code: 'opt-yes' } }],
-                      },
-                    ],
+                  },
+                  {
+                    linkId: 'branch-yes',
+                    type: 'string',
+                    text: 'Yes',
+                    enableWhen: [{ question: 'wrap-q', operator: '=', answerCoding: { code: 'tag1' } }],
                   },
                 ],
               },
