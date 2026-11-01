@@ -1294,6 +1294,31 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         return mockShowVitalConfirmationModal.mock.calls[0][0];
       };
 
+      it('keeps the category as the parent when a lone instruction option has the same text as its question', async () => {
+        renderWithItems([
+          { ...lyingBp(), text: "Take the patient's BP lying down" },
+        ]);
+        const modalConfig = await completeWith({
+          'lying-bp': ['take'],
+          systolic: '96',
+        });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({
+            label: 'Lying BP',
+            value: '',
+            isQuestionOnly: true,
+          }),
+          expect.objectContaining({
+            label: "Take the patient's BP lying down",
+            value: '',
+            isChild: true,
+            isQuestionOnly: true,
+          }),
+          expect.objectContaining({ label: 'systolic BP', value: '96', isChild: true }),
+        ]);
+      });
+
       it('shows the lone BP prompt as a sub-question, not as the parent answer', async () => {
         renderWithItems([lyingBp()]);
         const modalConfig = await completeWith({
@@ -1332,6 +1357,205 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         ]);
       });
 
+      describe('real Tenderness protocol shape (double-nested wrapper)', () => {
+        const tendernessItems = async (): Promise<AyuQuestion[]> => {
+          const actual = await vi.importActual<
+            typeof import('../../../../../modules/ayu-library/utils/fhir-to-ayu.util')
+          >('../../../../../modules/ayu-library/utils/fhir-to-ayu.util');
+          const gate = (question: string, code: string) => [
+            { question, operator: '=', answerCoding: { code } },
+          ];
+          const root = actual.transformFhirPhysExamToAyu({
+            resourceType: 'Questionnaire',
+            item: [
+              {
+                linkId: 'sec-abdomen',
+                text: 'Abdomen',
+                type: 'group',
+                item: [
+                  {
+                    linkId: 'wrap-tenderness',
+                    text: 'Tenderness',
+                    type: 'choice',
+                    answerOption: [
+                      {
+                        valueCoding: {
+                          code: 'tenderness-cc',
+                          display: 'Is there abdominal tenderness?*',
+                        },
+                      },
+                    ],
+                    item: [
+                      {
+                        linkId: 'no-tenderness',
+                        text: 'No tenderness',
+                        type: 'string',
+                        enableWhen: gate('wrap-tenderness', 'tenderness-cc'),
+                      },
+                      {
+                        linkId: 'tenderness-yes',
+                        text: 'Yes',
+                        type: 'choice',
+                        enableWhen: gate('wrap-tenderness', 'tenderness-cc'),
+                        answerOption: [
+                          {
+                            valueCoding: {
+                              code: 'location-cc',
+                              display: 'Select the location where there is tenderness',
+                            },
+                          },
+                        ],
+                        item: [
+                          {
+                            linkId: 'tenderness-location',
+                            text: 'Select the location where there is tenderness',
+                            type: 'choice',
+                            enableWhen: gate('tenderness-yes', 'location-cc'),
+                            answerOption: [
+                              { valueCoding: { code: 'upper-c', display: 'Upper(C)' } },
+                              { valueCoding: { code: 'middle-c', display: 'Middle(C)' } },
+                            ],
+                            item: [
+                              {
+                                linkId: 'tenderness-radiates',
+                                text: 'Does it spread?',
+                                type: 'string',
+                                enableWhen: gate('tenderness-location', 'upper-c'),
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          } as never);
+          return root?.item ?? [];
+        };
+
+        it.each([
+          ['array answers', { 'wrap-tenderness': ['tenderness-yes'], 'tenderness-location': ['upper-c'] }],
+          ['string answers', { 'wrap-tenderness': 'tenderness-yes', 'tenderness-location': 'upper-c' }],
+        ])('shows the parent answer with its child question and answer (%s)', async (_name, answers) => {
+          renderWithItems(await tendernessItems());
+          const modalConfig = await completeWith(answers);
+
+          expect(
+            modalConfig.sections[0].items.map(
+              (i: { label: string; value: string; isChild?: boolean }) => [
+                i.label,
+                i.value,
+                Boolean(i.isChild),
+              ]
+            )
+          ).toEqual([
+            ['Is there abdominal tenderness?', 'Yes', false],
+            ['Select the location where there is tenderness', 'Upper(C)', true],
+          ]);
+        });
+
+        it('shows a deeper child under the child that enables it', async () => {
+          renderWithItems(await tendernessItems());
+          const modalConfig = await completeWith({
+            'wrap-tenderness': ['tenderness-yes'],
+            'tenderness-location': 'upper-c',
+            'tenderness-radiates': 'To the back',
+          });
+
+          expect(
+            modalConfig.sections[0].items.map(
+              (i: { label: string; value: string }) => [i.label, i.value]
+            )
+          ).toEqual([
+            ['Is there abdominal tenderness?', 'Yes'],
+            ['Select the location where there is tenderness', 'Upper(C)'],
+            ['Does it spread?', 'To the back'],
+          ]);
+        });
+
+        it('does not show a child that is not applicable to the selected answer', async () => {
+          renderWithItems(await tendernessItems());
+          const modalConfig = await completeWith({
+            'wrap-tenderness': ['no-tenderness'],
+            'tenderness-location': 'upper-c',
+          });
+
+          expect(modalConfig.sections[0].items).toEqual([
+            expect.objectContaining({ label: 'Tenderness', value: 'No tenderness' }),
+          ]);
+        });
+      });
+
+      it('shows a lone option worded as a question as the parent row, with its children below and no answer of its own', async () => {
+        renderWithItems([
+          {
+            linkId: 'tender-prompt',
+            text: 'Tenderness?',
+            type: 'choice',
+            extension: peExt('Tenderness'),
+            answerOption: [
+              {
+                valueCoding: {
+                  code: 'take',
+                  display: 'Is there abdominal tenderness?',
+                },
+              },
+            ],
+            item: [stringChild('where', 'Select the location where there is tenderness')],
+          },
+        ]);
+        const modalConfig = await completeWith({
+          'tender-prompt': ['take'],
+          where: 'Upper(C)',
+        });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({
+            label: 'Is there abdominal tenderness?',
+            value: '',
+            isQuestionOnly: true,
+          }),
+          expect.objectContaining({
+            label: 'Select the location where there is tenderness',
+            value: 'Upper(C)',
+            isChild: true,
+          }),
+        ]);
+      });
+
+      it('keeps the category as the parent row when a question with child rows has no text', async () => {
+        renderWithItems([{ ...scars(), text: undefined }]);
+        const modalConfig = await completeWith({
+          scars: ['yes'],
+          where: 'Middle (L)',
+        });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Scars', value: 'Yes' }),
+          expect.objectContaining({
+            label: 'Where is it?',
+            value: 'Middle (L)',
+            isChild: true,
+          }),
+        ]);
+      });
+
+      it('uses the question text as the parent row only when the question has child rows', async () => {
+        const jaundice: AyuQuestion = {
+          ...scars(false),
+          linkId: 'jaundice',
+          text: 'Is there jaundice?',
+          extension: peExt('Eyes: Jaundice'),
+        };
+        renderWithItems([jaundice]);
+        const modalConfig = await completeWith({ jaundice: ['yes'] });
+
+        expect(modalConfig.sections[0].items).toEqual([
+          expect.objectContaining({ label: 'Eyes: Jaundice', value: 'Yes' }),
+        ]);
+      });
       it('omits a prompt question when no nested value or picture was entered', async () => {
         renderWithItems([lyingBp()]);
         const modalConfig = await completeWith({ 'lying-bp': ['take'] });
@@ -1385,6 +1609,7 @@ describe('PhysicalExamination (AyuStepperContainer rewrite)', () => {
         const noPhoto: AyuQuestion = {
           ...scars(),
           linkId: 'photo-only',
+          text: 'Marks?',
           extension: peExt('Marks'),
           answerOption: [
             { valueCoding: { code: 'yes', display: 'Yes' } },
