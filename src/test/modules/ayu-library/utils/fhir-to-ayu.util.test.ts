@@ -2609,6 +2609,175 @@ describe('transformFhirPhysExamToAyu', () => {
       ]);
     });
 
+    /* Real "Lying BP" shape: the inner choice's options only name the boxes to
+     * fill ("Enter systolic BP" / "Enter diastolic BP"), each gating one input.
+     * The boxes show directly behind the lone prompt, not behind two buttons. */
+    describe('inner options that only open an input box', () => {
+      const sectionWith = (innerOverrides: Partial<FhirItem>) => ({
+        resourceType: 'Questionnaire' as const,
+        item: [
+          {
+            linkId: 'sec-vitals',
+            text: 'Vitals',
+            type: 'group',
+            item: [
+              makeWrappedQuestion(
+                'wrap-bp',
+                'Lying BP',
+                'inner-bp',
+                "Take the patient's BP lying down",
+                {
+                  required: false,
+                  answerOption: [
+                    { valueCoding: { code: 'opt-sys', display: 'Enter systolic BP' } },
+                    { valueCoding: { code: 'opt-dia', display: 'Enter diastolic BP' } },
+                  ],
+                  ...innerOverrides,
+                }
+              ),
+            ],
+          },
+        ],
+      });
+      const gatedOn = (question: string, code: string) => [
+        { question, operator: '=', answerCoding: { code } },
+      ];
+
+      it('shows the input boxes directly behind the lone prompt', () => {
+        const root = transformFhirPhysExamToAyu(
+          sectionWith({
+            item: [
+              {
+                linkId: 'bp-sys',
+                text: 'Enter systolic BP',
+                type: 'string',
+                enableWhen: gatedOn('inner-bp', 'opt-sys'),
+              },
+              {
+                linkId: 'bp-dia',
+                text: 'Enter diastolic BP',
+                type: 'integer',
+                enableWhen: gatedOn('inner-bp', 'opt-dia'),
+              },
+            ],
+          })
+        );
+        const q = root?.item?.[0];
+        expect(q?.linkId).toBe('wrap-bp');
+        expect(q?.text).toBe("Take the patient's BP lying down");
+        expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+          'inner-bp',
+        ]);
+        expect(q?.item?.map(c => c.linkId)).toEqual(['bp-sys', 'bp-dia']);
+        q?.item?.forEach(c =>
+          expect(c.enableWhen).toEqual([
+            {
+              question: 'wrap-bp',
+              operator: '=',
+              answerCoding: { code: 'inner-bp' },
+            },
+          ])
+        );
+      });
+
+      it('keeps the option buttons when one option opens no input', () => {
+        const root = transformFhirPhysExamToAyu(
+          sectionWith({
+            item: [
+              {
+                linkId: 'bp-sys',
+                text: 'Enter systolic BP',
+                type: 'string',
+                enableWhen: gatedOn('inner-bp', 'opt-sys'),
+              },
+            ],
+          })
+        );
+        const q = root?.item?.[0];
+        expect(q?.linkId).toBe('inner-bp');
+        expect(q?.answerOption?.map(o => o.valueCoding?.code)).toEqual([
+          'opt-sys',
+          'opt-dia',
+        ]);
+      });
+
+      it('keeps the option buttons when an option only opens a question', () => {
+        const root = transformFhirPhysExamToAyu(
+          sectionWith({
+            item: [
+              {
+                linkId: 'bp-sys',
+                text: 'Enter systolic BP',
+                type: 'string',
+                enableWhen: gatedOn('inner-bp', 'opt-sys'),
+              },
+              {
+                linkId: 'bp-dia-q',
+                text: 'Which arm?',
+                type: 'choice',
+                enableWhen: gatedOn('inner-bp', 'opt-dia'),
+              },
+            ],
+          })
+        );
+        expect(root?.item?.[0]?.linkId).toBe('inner-bp');
+      });
+
+      it('keeps the option buttons when the options carry no code to match', () => {
+        const root = transformFhirPhysExamToAyu(
+          sectionWith({
+            answerOption: [{ valueString: 'Left arm' }, { valueString: 'Right arm' }],
+            item: [
+              {
+                linkId: 'bp-left',
+                text: 'Left reading',
+                type: 'string',
+                enableWhen: [
+                  { question: 'inner-bp', operator: '=', answerString: 'Left arm' },
+                ],
+              },
+              {
+                linkId: 'bp-right',
+                text: 'Right reading',
+                type: 'string',
+                enableWhen: [
+                  { question: 'inner-bp', operator: '=', answerString: 'Right arm' },
+                ],
+              },
+            ],
+          })
+        );
+        const q = root?.item?.[0];
+        expect(q?.linkId).toBe('inner-bp');
+        expect(q?.answerOption?.map(o => o.valueString)).toEqual([
+          'Left arm',
+          'Right arm',
+        ]);
+      });
+
+      it('keeps the option buttons when the input is gated on another question', () => {
+        const root = transformFhirPhysExamToAyu(
+          sectionWith({
+            item: [
+              {
+                linkId: 'bp-sys',
+                text: 'Enter systolic BP',
+                type: 'string',
+                enableWhen: gatedOn('inner-bp', 'opt-sys'),
+              },
+              {
+                linkId: 'bp-dia',
+                text: 'Enter diastolic BP',
+                type: 'string',
+                enableWhen: gatedOn('some-other-question', 'opt-dia'),
+              },
+            ],
+          })
+        );
+        expect(root?.item?.[0]?.linkId).toBe('inner-bp');
+      });
+    });
+
     /* Real "Abdomen → Tenderness" shape: the wrapper nests TWO levels deep —
      * "Tenderness" (1 concept-tag option) → "No tenderness" (string) + "Yes"
      * (choice with concept-tag) → "Select the location" (3 location options).
