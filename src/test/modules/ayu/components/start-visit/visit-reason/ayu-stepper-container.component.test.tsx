@@ -4338,6 +4338,117 @@ describe('AyuStepperContainer', () => {
       );
     });
 
+    describe('editing a PE question whose Yes reveals a follow-up choice', () => {
+      const makeTenderness = (withGate: boolean): AyuQuestion => ({
+        linkId: 'pe-tender',
+        text: 'Is there abdominal tenderness?',
+        type: 'choice',
+        extension: [
+          {
+            url: 'urn:intelehealth:physical-exam/section-key',
+            valueString: 'Abdomen',
+          },
+        ],
+        answerOption: [
+          { valueCoding: { code: 'no', display: 'No tenderness' } },
+          { valueCoding: { code: 'yes', display: 'Yes' } },
+        ],
+        item: [
+          {
+            linkId: 'pe-tender-loc',
+            text: 'Select the location where there is tenderness',
+            type: 'choice',
+            ...(withGate && {
+              enableWhen: [
+                {
+                  question: 'pe-tender',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+            }),
+            answerOption: [
+              { valueCoding: { code: 'upper-l', display: 'Upper(L)' } },
+              { valueCoding: { code: 'upper-c', display: 'Upper(C)' } },
+            ],
+          },
+        ],
+      });
+
+      const renderEditing = (question: AyuQuestion, answered: string) => {
+        mockResolveAyuComponent.mockReturnValue('physicalExamOptions');
+        mockResolveAyuComponentLogic.mockReturnValue('physicalExamOptions');
+
+        const stepper = (answer: string) => ({
+          currentQuestion: question,
+          currentIndex: 0,
+          total: 1,
+          answers: { 'pe-tender': answer },
+          setAnswer: mockSetAnswer,
+          clearAnswers: mockClearAnswers,
+          goNext: mockGoNext,
+          topLevelItems: [question],
+          isLast: true,
+          showAll: true,
+        });
+        mockUseFHIRStepper.mockReturnValue(stepper(answered));
+        /* The mocked stepper never stores answers, so mirror the real one. */
+        mockSetAnswer.mockImplementationOnce((_q, value) =>
+          mockUseFHIRStepper.mockReturnValue(stepper(value as string))
+        );
+
+        render(
+          <AyuStepperContainer
+            questionnaire={createMockQuestionnaire([question])}
+            initialAnswers={{ 'pe-tender': answered }}
+            onComplete={mockOnComplete}
+            onProgressUpdate={mockOnProgressUpdate}
+          />
+        );
+        fireEvent.click(screen.getByTestId('edit-0'));
+      };
+
+      it('keeps the card open and shows Submit when Yes reveals the location', () => {
+        renderEditing(makeTenderness(true), 'no');
+
+        fireEvent.change(screen.getByTestId('input-pe-tender'), {
+          target: { value: 'yes' },
+        });
+
+        expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+          'data-is-answered',
+          'false'
+        );
+        expect(screen.getByTestId('button-submit')).toBeInTheDocument();
+      });
+
+      it('still collapses when the selection reveals nothing', () => {
+        renderEditing(makeTenderness(true), 'yes');
+
+        fireEvent.change(screen.getByTestId('input-pe-tender'), {
+          target: { value: 'no' },
+        });
+
+        expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+          'data-is-answered',
+          'true'
+        );
+      });
+
+      it('still collapses when the follow-up choice is always visible', () => {
+        renderEditing(makeTenderness(false), 'no');
+
+        fireEvent.change(screen.getByTestId('input-pe-tender'), {
+          target: { value: 'yes' },
+        });
+
+        expect(screen.getByTestId('question-loader-0')).toHaveAttribute(
+          'data-is-answered',
+          'true'
+        );
+      });
+    });
+
     it('should STILL show Submit in review mode for a PE question with a camera option', () => {
       const question: AyuQuestion = {
         linkId: 'pe-jaundice',
