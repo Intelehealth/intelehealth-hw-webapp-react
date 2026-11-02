@@ -13,6 +13,11 @@ vi.mock('../../../components/modal/global-modal-context', () => ({
   }),
 }));
 
+// Mock the sending of the waiting working time
+vi.mock('../../../modules/daily-time-tracking/utils/activity-flush', () => ({
+  flushActivityHeartbeat: vi.fn(),
+}));
+
 // Mock storage
 vi.mock('../../../utils/storage', () => ({
   storage: {
@@ -645,12 +650,69 @@ describe('SideMenu', () => {
 
       // Extract and invoke the onConfirm callback
       const modalConfig = mockShowConfirmModal.mock.calls[0][0];
-      modalConfig.onConfirm();
+      await modalConfig.onConfirm();
 
       expect(storage.clearAuthToken).toHaveBeenCalled();
       expect(storage.clearBasicAuthHeader).toHaveBeenCalled();
     });
 
+    it('sends the waiting working time before the login is cleared', async () => {
+      const { storage } = await import('../../../utils/storage');
+      const { flushActivityHeartbeat } = await import(
+        '../../../modules/daily-time-tracking/utils/activity-flush'
+      );
+      vi.mocked(flushActivityHeartbeat).mockClear();
+      vi.mocked(storage.clearAuthToken).mockClear();
+      renderWithRouter(<SideMenu />);
+
+      fireEvent.click(screen.getByText('Log-out').closest('a')!);
+      await mockShowConfirmModal.mock.calls[0][0].onConfirm();
+
+      expect(flushActivityHeartbeat).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(flushActivityHeartbeat).mock.invocationCallOrder[0]
+      ).toBeLessThan(
+        vi.mocked(storage.clearAuthToken).mock.invocationCallOrder[0]
+      );
+    });
+
+    it('keeps the login until the waiting working time has been sent', async () => {
+      const { storage } = await import('../../../utils/storage');
+      const { flushActivityHeartbeat } = await import(
+        '../../../modules/daily-time-tracking/utils/activity-flush'
+      );
+      vi.mocked(storage.clearAuthToken).mockClear();
+      let sent!: () => void;
+      vi.mocked(flushActivityHeartbeat).mockReturnValueOnce(
+        new Promise<void>(resolve => {
+          sent = resolve;
+        })
+      );
+      renderWithRouter(<SideMenu />);
+
+      fireEvent.click(screen.getByText('Log-out').closest('a')!);
+      const loggingOut = mockShowConfirmModal.mock.calls[0][0].onConfirm();
+      await Promise.resolve();
+
+      expect(storage.clearAuthToken).not.toHaveBeenCalled();
+
+      sent();
+      await loggingOut;
+
+      expect(storage.clearAuthToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not send anything just by asking to log out', async () => {
+      const { flushActivityHeartbeat } = await import(
+        '../../../modules/daily-time-tracking/utils/activity-flush'
+      );
+      vi.mocked(flushActivityHeartbeat).mockClear();
+      renderWithRouter(<SideMenu />);
+
+      fireEvent.click(screen.getByText('Log-out').closest('a')!);
+
+      expect(flushActivityHeartbeat).not.toHaveBeenCalled();
+    });
     it('should close mobile menu on logout click', () => {
       Object.defineProperty(window, 'innerWidth', { value: 500 });
       const { container } = renderWithRouter(<SideMenu />);
