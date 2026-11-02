@@ -617,6 +617,35 @@ function hasSubQuestionChildren(item: FhirItem): boolean {
   );
 }
 
+const NON_INPUT_FHIR_TYPES: ReadonlySet<string> = new Set([
+  FHIR_TYPE_CHOICE,
+  FHIR_TYPE_ATTACHMENT,
+  FHIR_TYPE_DISPLAY,
+]);
+
+/**
+ * True when every option of a choice only opens an input box of its own, e.g.
+ * "Take the patient's BP lying down" → [Enter systolic BP, Enter diastolic BP],
+ * each gating a text box. Such options are labels for the boxes, not answers to
+ * pick between, so the boxes are shown directly instead of behind buttons. A
+ * Yes/No question never matches: "No" opens nothing, and "Yes" opens questions.
+ * Caller guarantees the item has options (it checks for more than one).
+ */
+function optionsOnlyOpenInputs(item: FhirItem): boolean {
+  return item.answerOption!.every(({ valueCoding }) =>
+    (item.item ?? []).some(
+      c =>
+        !NON_INPUT_FHIR_TYPES.has(c.type) &&
+        c.enableWhen?.some(
+          ew =>
+            ew.question === item.linkId &&
+            valueCoding !== undefined &&
+            ew.answerCoding?.code === valueCoding.code
+        )
+    )
+  );
+}
+
 /**
  * Build a branching PE question by preserving its full subtree (reusing the
  * Visit Reason `transformItem` recursion so enableWhen / nested items / mixed
@@ -1030,7 +1059,9 @@ export function transformFhirPhysExamToAyu(
       const isConceptTagWrapper = q.answerOption?.length === 1 || didUnwrap;
 
       const targetHasOwnOptions =
-        didUnwrap && (target.answerOption?.length ?? 0) > 1;
+        didUnwrap &&
+        (target.answerOption?.length ?? 0) > 1 &&
+        !optionsOnlyOpenInputs(target);
 
       if (didUnwrap && !matchesDemographics(q.extension, demographics)) return;
       const effectiveTarget = didUnwrap ? withWrapperExtras(target, q) : target;

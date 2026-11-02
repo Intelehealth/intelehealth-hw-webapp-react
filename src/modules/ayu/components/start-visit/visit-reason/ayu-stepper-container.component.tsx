@@ -182,7 +182,21 @@ const isPlainSingleChoicePE = (
   if (answer && typeof answer === 'object' && 'dropdownValues' in answer)
     return false;
   const nested = checkNestedDeep(question.item, answers);
-  return !nested.hasDuration && !nested.hasRepeats && !nested.hasInput;
+  /* A selection that reveals a follow-up choice (Tenderness → Yes → "Select
+   * the location") is not the end of the question: keep the card open for it.
+   * Always-visible children stay optional, as in isTopLevelComplete. */
+  const revealsChoice = (question.item ?? []).some(
+    child =>
+      !!child.enableWhen?.length &&
+      child.type === FHIR_TYPE_CHOICE &&
+      evaluateEnableWhen(child.enableWhen, answers)
+  );
+  return (
+    !nested.hasDuration &&
+    !nested.hasRepeats &&
+    !nested.hasInput &&
+    !revealsChoice
+  );
 };
 
 const hasCameraOption = (question: AyuQuestion): boolean =>

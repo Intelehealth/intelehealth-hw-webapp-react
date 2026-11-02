@@ -75,6 +75,17 @@ const ayuAnswersToPhysicalExamAnswers = (
 const readExt = (q: AyuQuestion, url: string): string | undefined =>
   q.extension?.find(e => e.url === url)?.valueString;
 
+/* Whether two labels read the same, ignoring case and the trailing "?" / ":" /
+ * "*" that protocols add. */
+const isSameLabel = (a: string, b: string): boolean => {
+  const normalize = (label: string) =>
+    label
+      .trim()
+      .toLowerCase()
+      .replace(/[\s?:*.]+$/, '');
+  return normalize(a) === normalize(b);
+};
+
 /* The job-aid file named in the FHIR data, else the section-scoped fallback
  * for questions whose protocol omits the jobAidFile extension. */
 const jobAidFileFor = (q: AyuQuestion): string | undefined =>
@@ -442,19 +453,36 @@ export const PhysicalExamination = (props: SectionProps) => {
         }
 
         if (nestedValues.length > 0) {
-          /* Parent row (e.g. "Yes"); always present so the child rows below
-           * belong to this question, even when it has no answer of its own. */
+          /* A question with child rows is shown as the question itself (e.g.
+           * "Is there abdominal tenderness?") with its selected answer, and
+           * its children below. A lone option worded as a question stands for
+           * the question; any other lone option ("Take the patient's BP lying
+           * down") is a sub-row and the category stays. The category name also
+           * stays when the question says the same. */
+          const promptText = promptTexts.join(', ');
+          const questionText = q.text?.trim() ?? '';
+          const textLabel =
+            questionText !== '' && !isSameLabel(questionText, categoryLabel)
+              ? questionText
+              : categoryLabel;
+          const parentLabel = isPrompt
+            ? promptText.endsWith('?')
+              ? promptText
+              : categoryLabel
+            : textLabel;
+          /* Parent row; always present so the child rows below belong to this
+           * question, even when it has no answer of its own. */
           sectionMap.get(sectionKey)!.items.push({
             type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
-            label: categoryLabel,
+            label: parentLabel,
             value: summaryTexts.join(', '),
             ...(summaryTexts.length === 0 && { isQuestionOnly: true }),
           });
           /* The prompt is a sub-question of the parent; its fields follow. */
-          if (promptTexts.length > 0) {
+          if (promptTexts.length > 0 && !isSameLabel(promptText, parentLabel)) {
             sectionMap.get(sectionKey)!.items.push({
               type: SUMMARY_ITEM_TYPE_LABEL_VALUE,
-              label: promptTexts.join(', '),
+              label: promptText,
               value: '',
               isChild: true,
               isQuestionOnly: true,
