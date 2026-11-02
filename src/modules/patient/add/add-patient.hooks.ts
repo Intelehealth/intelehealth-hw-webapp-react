@@ -200,7 +200,7 @@ export const useAddPatient = (): UseAddPatientReturn => {
         {
           identifier: '',
           identifierType: patientIdentifierType.default,
-          location: locations.default,
+          location: storage.getLocationUuid() || locations.default,
           preferred: true,
         },
       ],

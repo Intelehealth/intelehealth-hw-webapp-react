@@ -193,7 +193,7 @@ describe('patientService', () => {
 
       expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
       expect(mockOpenMRSGet).toHaveBeenCalledWith(
-        '/module/idgen/generateIdentifier.form?source=1&username=nurse1&password=Nurse@123',
+        '/module/idgen/generateIdentifier.form?source=1',
         {
           baseURL: 'http://localhost:8080',
         }
@@ -217,7 +217,7 @@ describe('patientService', () => {
       await patientService.genratePatientIdentifier();
 
       expect(mockOpenMRSGet).toHaveBeenCalledWith(
-        '/module/idgen/generateIdentifier.form?source=1&username=nurse1&password=Nurse@123',
+        '/module/idgen/generateIdentifier.form?source=1',
         {
           baseURL: 'https://example.com/openmrs',
         }
