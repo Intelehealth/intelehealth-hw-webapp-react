@@ -63,6 +63,7 @@ vi.mock('../../../../assets/data/openmrs_uuids', () => ({
 
 import { useAddPatient } from '../../../../modules/patient/add/add-patient.hooks';
 import type { PatientFormData } from '../../../../types/patient/add/add-patient.types';
+import { storage } from '../../../../utils/storage';
 
 const {
   mockCreatePatient,
@@ -320,6 +321,25 @@ describe('useAddPatient hook', () => {
           preferred: true,
         },
       ]);
+    });
+
+    it("should use the logged-in user's stored location for the identifier", async () => {
+      const spy = vi
+        .spyOn(storage, 'getLocationUuid')
+        .mockReturnValue('stored-location-uuid');
+      mockGenerateIdentifier.mockResolvedValue({ identifiers: ['PAT-1'] });
+      mockCreatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      await waitFor(async () => {
+        await result.current.handleAddPatient(mockPatientFormData);
+      });
+
+      spy.mockRestore();
+      expect(mockCreatePatient.mock.calls[0][0].identifiers[0].location).toBe(
+        'stored-location-uuid'
+      );
     });
 
     it('should handle missing optional fields correctly', async () => {

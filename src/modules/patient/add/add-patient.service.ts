@@ -42,15 +42,9 @@ export const patientService = {
 
   genratePatientIdentifier: () =>
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    OpenMRSApi.get<any>(
-      `/module/idgen/generateIdentifier.form?source=1&username=nurse1&password=Nurse@123`,
-      {
-        baseURL: import.meta.env.VITE_OPENMRS_API_URL.replace(
-          '/ws/rest/v1',
-          ''
-        ),
-      }
-    ),
+    OpenMRSApi.get<any>(`/module/idgen/generateIdentifier.form?source=1`, {
+      baseURL: import.meta.env.VITE_OPENMRS_API_URL.replace('/ws/rest/v1', ''),
+    }),
 };
 
 export default patientService;

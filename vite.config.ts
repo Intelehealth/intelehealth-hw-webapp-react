@@ -95,6 +95,13 @@ function localPortalProxy(mode: string): Record<string, ProxyOptions> {
     '/portal-api/activity': options,
   };
 }
+
+function openmrsDevProxy(mode: string): Record<string, ProxyOptions> {
+  const target = loadEnv(mode, process.cwd(), '').OPENMRS_PROXY_TARGET;
+  if (!target) return {};
+  return { '/openmrs': { target, changeOrigin: true, secure: false } };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   base: mode === 'development' ? '/' : '/hwwebapp/',
@@ -231,6 +238,7 @@ export default defineConfig(({ mode }) => ({
               secure: false,
               rewrite: path => path.replace(/^\/portal-api/, '/api'),
             },
+            ...openmrsDevProxy(mode),
           }
         : undefined,
   },
