@@ -1,13 +1,20 @@
 name: 🚀 Deploy to TTXAI
 
+# Deploys on every push to dev (tests run inside this job), or manually.
+# The workflow_run trigger was removed: combined with `push` it deployed twice,
+# and on workflow_run the checkout used the default branch instead of the tested commit.
 on:
   push:
     branches: [dev]
   workflow_dispatch: {}
-  workflow_run:
-    workflows: ['🔍 Pull Request Checks']
-    types: [completed]
-    branches: [dev]
+
+# Never run two deploys against the same server at once
+concurrency:
+  group: deploy-ttxai
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   NODE_VERSION: '22.18.0'
@@ -18,10 +25,40 @@ jobs:
     name: Deploy to TTXAI Server
     runs-on: ubuntu-latest
     environment: ttxai
-    # Only run if PR checks passed or if triggered manually
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     steps:
+      - name: ✅ Validate required secrets
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          BACKUP_PATH: ${{ secrets.BACKUP_PATH }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PEM_KEY: ${{ secrets.SERVER_PEM_KEY }}
+        run: |
+          missing=0
+          for name in DEPLOY_PATH BACKUP_PATH SERVER_HOST SERVER_USER SERVER_PEM_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "❌ Error: $name secret is not set"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+          # Guard against paths that would make rsync --delete destructive
+          for name in DEPLOY_PATH BACKUP_PATH; do
+            p="${!name%/}"
+            case "$p" in
+              ""|"/"|"/home"|"/var"|"/var/www"|"/usr"|"/etc"|"/root")
+                echo "❌ Error: $name points to an unsafe location"
+                exit 1 ;;
+            esac
+          done
+          if [ "${DEPLOY_PATH%/}" = "${BACKUP_PATH%/}" ]; then
+            echo "❌ Error: DEPLOY_PATH and BACKUP_PATH must be different"
+            exit 1
+          fi
+          echo "✅ All required secrets are set"
+
       - name: 📥 Checkout code
         uses: actions/checkout@v6
 
@@ -35,9 +72,11 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: 🧪 Run tests with conditional coverage
+        env:
+          BYPASS_COVERAGE_CHECK: ${{ secrets.BYPASS_COVERAGE_CHECK }}
         run: |
           echo "🧪 Running tests..."
-          if [ "${{ secrets.BYPASS_COVERAGE_CHECK }}" = "true" ]; then
+          if [ "$BYPASS_COVERAGE_CHECK" = "true" ]; then
             echo "⚠️ Coverage check bypassed - running tests without coverage requirements"
             yarn test:coverage:bypass
           else
@@ -54,212 +93,220 @@ jobs:
       #     yarn audit --audit-level high
 
       - name: 🏗️ Build for development
+        env:
+          VITE_APP_ENV: development
+          VITE_DEBUG_MODE: 'true'
+          VITE_APP_VERSION: ${{ vars.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME }}
+          VITE_AUTH_GATEWAY_API_URL: ${{ vars.VITE_AUTH_GATEWAY_API_URL }}
+          VITE_OPENMRS_API_URL: ${{ vars.VITE_OPENMRS_API_URL }}
+          VITE_PORTAL_API_URL: ${{ vars.VITE_PORTAL_API_URL }}
+          VITE_API_TIMEOUT: ${{ vars.VITE_API_TIMEOUT }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_CONFIG_API_URL: ${{ vars.VITE_CONFIG_API_URL }}
+          VITE_EMR_MIDDLEWARE_API_URL: ${{ vars.VITE_EMR_MIDDLEWARE_API_URL }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          VITE_ENABLE_SITE_CAPTCHA: ${{ vars.VITE_ENABLE_SITE_CAPTCHA }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY }}
+          VITE_PORTAL_SOCKET_URL: ${{ vars.VITE_PORTAL_SOCKET_URL }}
+          VITE_WEBRTC_SDK_SERVER_URL: ${{ vars.VITE_WEBRTC_SDK_SERVER_URL }}
+          VITE_WEBRTC_API_URL: ${{ vars.VITE_WEBRTC_API_URL }}
         run: |
           echo "Building with Vite..."
-          export VITE_APP_ENV=development
-          export VITE_DEBUG_MODE=true
-          export VITE_APP_VERSION="${{ vars.VITE_APP_VERSION }}"
-          export VITE_APP_NAME="${{ vars.VITE_APP_NAME }}"
-          export VITE_AUTH_GATEWAY_API_URL="${{ vars.VITE_AUTH_GATEWAY_API_URL }}"
-          export VITE_OPENMRS_API_URL="${{ vars.VITE_OPENMRS_API_URL }}"
-          export VITE_PORTAL_API_URL="${{ vars.VITE_PORTAL_API_URL }}"
-          export VITE_API_TIMEOUT="${{ vars.VITE_API_TIMEOUT }}"
-          export VITE_SENTRY_DSN="${{ vars.VITE_SENTRY_DSN }}"
-          export VITE_CONFIG_API_URL="${{ vars.VITE_CONFIG_API_URL }}"
-          export VITE_EMR_MIDDLEWARE_API_URL="${{ vars.VITE_EMR_MIDDLEWARE_API_URL }}"
-          export VITE_FIREBASE_API_KEY="${{ vars.VITE_FIREBASE_API_KEY }}"
-          export VITE_FIREBASE_AUTH_DOMAIN="${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}"
-          export VITE_FIREBASE_PROJECT_ID="${{ vars.VITE_FIREBASE_PROJECT_ID }}"
-          export VITE_FIREBASE_STORAGE_BUCKET="${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}"
-          export VITE_FIREBASE_MESSAGING_SENDER_ID="${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}"
-          export VITE_FIREBASE_APP_ID="${{ vars.VITE_FIREBASE_APP_ID }}"
-          export VITE_FIREBASE_VAPID_KEY="${{ vars.VITE_FIREBASE_VAPID_KEY }}"
-          export VITE_ENABLE_SITE_CAPTCHA="${{ vars.VITE_ENABLE_SITE_CAPTCHA }}"
-          export VITE_RECAPTCHA_SITE_KEY="${{ vars.VITE_RECAPTCHA_SITE_KEY }}"
-          export VITE_PORTAL_SOCKET_URL="${{ vars.VITE_PORTAL_SOCKET_URL }}"
-          export VITE_WEBRTC_SDK_SERVER_URL="${{ vars.VITE_WEBRTC_SDK_SERVER_URL }}"
-          export VITE_WEBRTC_API_URL="${{ vars.VITE_WEBRTC_API_URL }}"
           yarn build
+          if [ ! -f dist/index.html ]; then
+            echo "❌ Build output missing dist/index.html"
+            exit 1
+          fi
 
-      - name: 🔐 Setup SSH Key
+      - name: 🔐 Setup SSH
+        env:
+          SERVER_PEM_KEY: ${{ secrets.SERVER_PEM_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          # Optional but recommended: output of `ssh-keyscan -H <host>` run once from a trusted machine
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
         run: |
-          echo "🔐 Setting up SSH key for server access..."
-          # Create .ssh directory
+          echo "🔐 Setting up SSH..."
           mkdir -p ~/.ssh
-          # Set proper permissions
           chmod 700 ~/.ssh
-          # Write the private key to file
-          echo "${{ secrets.SERVER_PEM_KEY }}" > ~/.ssh/dev_server.pem
-          # Set proper permissions for the key file
+          printf '%s\n' "$SERVER_PEM_KEY" > ~/.ssh/dev_server.pem
           chmod 600 ~/.ssh/dev_server.pem
-          # Add server to known hosts to avoid host key verification prompt
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
-          echo "✅ SSH key setup completed!"
+
+          if [ -n "$SERVER_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::SERVER_KNOWN_HOSTS secret not set - trusting the host key returned by ssh-keyscan"
+            ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $SERVER_HOST
+            User $SERVER_USER
+            IdentityFile ~/.ssh/dev_server.pem
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          echo "✅ SSH setup completed!"
 
       - name: 🧪 Test Server Connection
         run: |
           echo "🧪 Testing connection to development server..."
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo 'Connection successful!'"
-          echo "✅ Server connection test passed!"
+          ssh deploy-target "echo 'Connection successful!'"
+
+      - name: 📤 Upload build to staging directory
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          DEPLOY_PATH="${DEPLOY_PATH%/}"
+          # Staging lives NEXT TO the web root, so half-uploaded files are never served
+          STAGING_PATH="${DEPLOY_PATH}.staging"
+
+          ssh deploy-target "bash -s -- $(printf '%q ' "$STAGING_PATH" "$SERVER_USER")" <<'REMOTE'
+          set -euo pipefail
+          STAGING_PATH="$1"; SERVER_USER="$2"
+          sudo mkdir -p "$STAGING_PATH"
+          sudo chown -R "$SERVER_USER:$SERVER_USER" "$STAGING_PATH"
+          sudo chmod 755 "$STAGING_PATH"
+          REMOTE
+
+          echo "📤 Uploading build files..."
+          rsync -az --delete --stats dist/ "deploy-target:${STAGING_PATH}/"
 
       - name: 🚀 Deploy to Development Server
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          BACKUP_PATH: ${{ secrets.BACKUP_PATH }}
         run: |
-          echo "🚀 Deploying to development server..."
+          DEPLOY_PATH="${DEPLOY_PATH%/}"
+          BACKUP_PATH="${BACKUP_PATH%/}"
+          STAGING_PATH="${DEPLOY_PATH}.staging"
+          KEEP_BACKUPS=5
 
-          # Validate required secrets
-          if [ -z "${{ vars.DEPLOY_PATH }}" ]; then
-            echo "❌ Error: DEPLOY_PATH secret is not set"
+          ssh deploy-target "bash -s -- $(printf '%q ' "$DEPLOY_PATH" "$BACKUP_PATH" "$STAGING_PATH" "$KEEP_BACKUPS")" <<'REMOTE'
+          set -euo pipefail
+          DEPLOY_PATH="$1"; BACKUP_PATH="$2"; STAGING_PATH="$3"; KEEP_BACKUPS="$4"
+
+          if [ ! -f "$STAGING_PATH/index.html" ]; then
+            echo "❌ Staging directory has no index.html - aborting"
             exit 1
           fi
 
-          if [ -z "${{ vars.BACKUP_PATH }}" ]; then
-            echo "❌ Error: BACKUP_PATH secret is not set"
+          sudo mkdir -p "$DEPLOY_PATH" "$BACKUP_PATH"
+
+          # 1. Timestamped backup of the live site (including hidden files)
+          SNAPSHOT=""
+          if [ -n "$(sudo ls -A "$DEPLOY_PATH")" ]; then
+            SNAPSHOT="$BACKUP_PATH/$(date +%Y%m%d-%H%M%S)"
+            echo "📦 Backing up current deployment to $SNAPSHOT"
+            sudo rsync -a --exclude='temp/' "$DEPLOY_PATH/" "$SNAPSHOT/"
+            # Keep only the newest backups
+            sudo find "$BACKUP_PATH" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+              | sort -r | tail -n +$((KEEP_BACKUPS + 1)) \
+              | while read -r old; do sudo rm -rf -- "$BACKUP_PATH/$old"; done
+          else
+            echo "ℹ️ No existing deployment to back up"
+          fi
+
+          # 2. Normalise permissions in staging before it goes live
+          find "$STAGING_PATH" -type d -exec chmod 755 {} +
+          find "$STAGING_PATH" -type f -exec chmod 644 {} +
+
+          # 3. Swap in the new build. --delay-updates puts all changed files in place at the
+          #    end, and --delete-after removes stale files only once the new ones are live.
+          echo "🔄 Syncing staging to live directory..."
+          if ! sudo rsync -a --delete-after --delay-updates "$STAGING_PATH/" "$DEPLOY_PATH/"; then
+            echo "❌ Sync failed"
+            if [ -n "$SNAPSHOT" ]; then
+              echo "↩️ Restoring previous deployment from $SNAPSHOT"
+              sudo rsync -a --delete "$SNAPSHOT/" "$DEPLOY_PATH/"
+              sudo chown -R www-data:www-data "$DEPLOY_PATH"
+            fi
             exit 1
           fi
 
-          echo "📁 Deploy path: ${{ vars.DEPLOY_PATH }}"
-          echo "📁 Backup path: ${{ vars.BACKUP_PATH }}"
+          sudo chown -R www-data:www-data "$DEPLOY_PATH"
+          sudo chmod 755 "$DEPLOY_PATH"
 
-          # Create deployment directory on server
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            echo 'Creating directories...'
-            # Create backup directory
-            sudo mkdir -p '${{ vars.BACKUP_PATH }}'
-            sudo chmod 755 '${{ vars.BACKUP_PATH }}'
-            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ vars.BACKUP_PATH }}'
-            
-            # Create main deployment directory
-            sudo mkdir -p '${{ vars.DEPLOY_PATH }}'
-            sudo chmod 755 '${{ vars.DEPLOY_PATH }}'
-            sudo chown ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ vars.DEPLOY_PATH }}'
-            
-            # Create temp directory with full permissions for server user
-            sudo mkdir -p '${{ vars.DEPLOY_PATH }}/temp'
-            sudo chmod -R 777 '${{ vars.DEPLOY_PATH }}/temp'
-            sudo chown -R ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} '${{ vars.DEPLOY_PATH }}/temp'
-            echo 'Directories created successfully!'
-          "
-
-          # Backup current deployment (if exists)
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            if [ -d '${{ vars.DEPLOY_PATH }}' ] && [ \"\$(ls -A ${{ vars.DEPLOY_PATH }})\" ]; then
-              echo '📦 Creating backup of current deployment...'
-              cp -r ${{ vars.DEPLOY_PATH }}/* ${{ vars.BACKUP_PATH }}/ 2>/dev/null || true
-              echo '✅ Backup created successfully!'
-            else
-              echo 'ℹ️ No existing deployment to backup'
-            fi
-          "
-
-          # Upload build files to temp directory first
-          echo "📤 Uploading build files to server..."
-          rsync -avz --delete --progress -e "ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no" \
-            dist/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ vars.DEPLOY_PATH }}/temp/
-
-          # Debug: Check what was uploaded to temp
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            echo '🔍 Debug: Contents uploaded to temp directory:'
-            find '${{ vars.DEPLOY_PATH }}/temp' -type f | head -20
-            echo '📊 Total files in temp:'
-            find '${{ vars.DEPLOY_PATH }}/temp' -type f | wc -l
-          "
-
-          # Move files from temp to final location and set permissions
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            echo '🔄 Moving files to final location...'
-            
-            # Move files from temp to final location (including hidden files and directories)
-            if [ -d '${{ vars.DEPLOY_PATH }}/temp' ] && [ \"\$(ls -A '${{ vars.DEPLOY_PATH }}/temp' 2>/dev/null)\" ]; then
-              echo 'Moving files and directories from temp to final location...'
-              
-              # Clean up existing files and directories (except temp directory) BEFORE copying
-              find '${{ vars.DEPLOY_PATH }}' -maxdepth 1 -type f -delete 2>/dev/null || true
-              find '${{ vars.DEPLOY_PATH }}' -maxdepth 1 -type d ! -name temp ! -path '${{ vars.DEPLOY_PATH }}' -exec rm -rf {} + 2>/dev/null || true
-              
-              # Debug: Show what's in temp before moving
-              echo '🔍 Debug: Contents in temp before moving:'
-              find '${{ vars.DEPLOY_PATH }}/temp' -type f | head -20
-              
-              # Use rsync for better directory handling with sudo for permissions
-              echo '🔄 Running rsync command with sudo...'
-              sudo rsync -av '${{ vars.DEPLOY_PATH }}/temp/' '${{ vars.DEPLOY_PATH }}/' --exclude='temp'
-              
-              # Verify rsync worked immediately
-              echo '🔍 Debug: Immediate verification after rsync:'
-              ls -la '${{ vars.DEPLOY_PATH }}/assets/js/' 2>/dev/null || echo 'assets/js not found after rsync'
-              
-              # Clean up temp directory
-              rm -rf '${{ vars.DEPLOY_PATH }}/temp' 2>/dev/null || true
-              echo 'Files moved successfully!'
-              
-              # Debug: Verify what was moved
-              echo '🔍 Debug: Contents in final location:'
-              find '${{ vars.DEPLOY_PATH }}' -type f | head -20
-              echo '📊 Total files deployed:'
-              find '${{ vars.DEPLOY_PATH }}' -type f | wc -l
-              echo '🔍 Debug: Specific assets/js directory:'
-              ls -la '${{ vars.DEPLOY_PATH }}/assets/js/' 2>/dev/null || echo 'assets/js directory not found'
-              echo '🔍 Debug: All directories in deploy path:'
-              find '${{ vars.DEPLOY_PATH }}' -type d | head -10
-            else
-              echo 'No files to move from temp directory'
-            fi
-            
-            echo '🔧 Setting proper permissions...'
-            # Ensure all files and directories have correct permissions
-            sudo find '${{ vars.DEPLOY_PATH }}' -type d -exec chmod 755 {} \;
-            sudo find '${{ vars.DEPLOY_PATH }}' -type f -exec chmod 644 {} \;
-            sudo chown -R www-data:www-data '${{ vars.DEPLOY_PATH }}'
-            echo '✅ Permissions set successfully!'
-          "
-
-          # Update web server configuration (if needed)
-          ssh -i ~/.ssh/dev_server.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            echo '🌐 Updating web server configuration...'
-            echo '✅ Web server configuration updated!'
-          "
-
+          echo "📊 Files deployed: $(sudo find "$DEPLOY_PATH" -type f | wc -l)"
           echo "✅ Development deployment completed successfully!"
+          REMOTE
 
       - name: 🧹 Cleanup
         if: always()
         run: |
-          echo "🧹 Cleaning up temporary files..."
-          # Remove the private key file for security
-          rm -f ~/.ssh/dev_server.pem
-          echo "✅ Cleanup completed!"
+          echo "🧹 Removing SSH credentials..."
+          rm -f ~/.ssh/dev_server.pem ~/.ssh/config ~/.ssh/known_hosts
 
       - name: 📧 Notify deployment to Slack
-        if: always()
+        if: always() && (vars.SEND_NOTIFICATIONS == 'true' || vars.SEND_NOTIFICATIONS == '1')
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
         run: |
-          # Check if notifications are enabled
-          if [ "${{ vars.SEND_NOTIFICATIONS }}" = "true" ] || [ "${{ vars.SEND_NOTIFICATIONS }}" = "1" ]; then
-            echo "📧 Sending deployment notification to Slack..."
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not set - skipping notification"
+            exit 0
+          fi
 
-            # Determine deployment status
-            if [ "${{ job.status }}" = "success" ]; then
-              STATUS_EMOJI="✅"
-              STATUS_COLOR="good"
-              STATUS_TEXT="SUCCESS"
-            else
-              STATUS_EMOJI="❌"
-              STATUS_COLOR="danger"
-              STATUS_TEXT="FAILED"
-            fi
+          case "$JOB_STATUS" in
+            success)   EMOJI="✅"; COLOR="good";    TEXT="SUCCESS" ;;
+            cancelled) EMOJI="⚪"; COLOR="#999999"; TEXT="CANCELLED" ;;
+            *)         EMOJI="❌"; COLOR="danger";  TEXT="FAILED" ;;
+          esac
 
-            # Prepare Slack message
-            DEPLOYMENT_TIME=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')
-            TIMESTAMP=$(date +%s)
-            
-            SLACK_MESSAGE="{\"channel\":\"${{ secrets.SLACK_CHANNEL }}\",\"username\":\"GitHub Actions\",\"icon_emoji\":\":rocket:\",\"attachments\":[{\"color\":\"$STATUS_COLOR\",\"title\":\"$STATUS_EMOJI Development Deployment $STATUS_TEXT\",\"title_link\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"fields\":[{\"title\":\"Repository\",\"value\":\"${{ github.repository }}\",\"short\":true},{\"title\":\"Branch\",\"value\":\"${{ github.ref_name }}\",\"short\":true},{\"title\":\"Commit\",\"value\":\"<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\",\"short\":true},{\"title\":\"Author\",\"value\":\"${{ github.actor }}\",\"short\":true},{\"title\":\"Environment\",\"value\":\"Development\",\"short\":true},{\"title\":\"Deployment Time\",\"value\":\"$DEPLOYMENT_TIME\",\"short\":true},{\"title\":\"Server\",\"value\":\"${{ secrets.DEV_HOST }}\",\"short\":true}],\"footer\":\"GitHub Actions\",\"footer_icon\":\"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\",\"ts\":$TIMESTAMP}]}"
+          DEPLOYMENT_TIME=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')
 
-            # Send notification to Slack
-            curl -X POST -H 'Content-type: application/json' \
-              --data "$SLACK_MESSAGE" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"
+          # Build JSON with jq so special characters can't break the payload
+          PAYLOAD=$(jq -n \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg color "$COLOR" \
+            --arg title "$EMOJI Development Deployment $TEXT" \
+            --arg run_url "$RUN_URL" \
+            --arg repo "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg commit "<$COMMIT_URL|${SHA:0:7}>" \
+            --arg actor "$ACTOR" \
+            --arg time "$DEPLOYMENT_TIME" \
+            --argjson ts "$(date +%s)" \
+            '{
+              username: "GitHub Actions",
+              icon_emoji: ":rocket:",
+              attachments: [{
+                color: $color, title: $title, title_link: $run_url,
+                fields: [
+                  {title: "Repository",      value: $repo,   short: true},
+                  {title: "Branch",          value: $branch, short: true},
+                  {title: "Commit",          value: $commit, short: true},
+                  {title: "Author",          value: $actor,  short: true},
+                  {title: "Environment",     value: "Development (TTXAI)", short: true},
+                  {title: "Deployment Time", value: $time,   short: true}
+                ],
+                footer: "GitHub Actions",
+                ts: $ts
+              }]
+            } + (if $channel != "" then {channel: $channel} else {} end)')
 
-            echo "✅ Slack notification sent successfully!"
+          if curl -fsS -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"; then
+            echo "✅ Slack notification sent"
           else
-            echo "🔕 Slack notifications are disabled (SEND_NOTIFICATIONS = ${{ vars.SEND_NOTIFICATIONS }})"
+            echo "::warning::Slack notification failed"
           fi
