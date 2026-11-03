@@ -1,0 +1,101 @@
+name: Deploy to TTXAI Server
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-ttxai
+  cancel-in-progress: false
+
+jobs:
+  deploy-ttxai:
+    runs-on: ubuntu-latest
+    environment: ttxai
+    timeout-minutes: 20
+    env:
+      HOST: ${{ secrets.SERVER_HOST }}
+      USER: ${{ secrets.SERVER_USER }}
+      BASE: ${{ secrets.DEPLOY_PATH }}   # e.g. /var/www/ttxai
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.18.0'
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Test
+        run: |
+          if [ "$BYPASS" = "true" ]; then yarn test:coverage:bypass; else yarn test:coverage; fi
+        env:
+          BYPASS: ${{ vars.BYPASS_COVERAGE_CHECK }}
+
+      - name: Audit
+        run: yarn audit --groups dependencies --level high || [ $? -lt 8 ]
+
+      - name: Build
+        run: yarn build
+        env:
+          VITE_APP_ENV: ttxai
+          VITE_DEBUG_MODE: ${{ vars.VITE_DEBUG_MODE || 'false' }}
+          VITE_APP_VERSION: ${{ vars.VITE_APP_VERSION }}
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME }}
+          VITE_AUTH_GATEWAY_API_URL: ${{ vars.VITE_AUTH_GATEWAY_API_URL }}
+          VITE_OPENMRS_API_URL: ${{ vars.VITE_OPENMRS_API_URL }}
+          VITE_PORTAL_API_URL: ${{ vars.VITE_PORTAL_API_URL }}
+          VITE_API_TIMEOUT: ${{ vars.VITE_API_TIMEOUT }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_CONFIG_API_URL: ${{ vars.VITE_CONFIG_API_URL }}
+          VITE_EMR_MIDDLEWARE_API_URL: ${{ vars.VITE_EMR_MIDDLEWARE_API_URL }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          VITE_ENABLE_SITE_CAPTCHA: ${{ vars.VITE_ENABLE_SITE_CAPTCHA }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY }}
+          VITE_PORTAL_SOCKET_URL: ${{ vars.VITE_PORTAL_SOCKET_URL }}
+          VITE_WEBRTC_SDK_SERVER_URL: ${{ vars.VITE_WEBRTC_SDK_SERVER_URL }}
+          VITE_WEBRTC_API_URL: ${{ vars.VITE_WEBRTC_API_URL }}
+
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/key && chmod 600 ~/.ssh/key
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+        env:
+          KEY: ${{ secrets.SERVER_PEM_KEY }}
+          KNOWN: ${{ secrets.SERVER_KNOWN_HOSTS }}
+
+      - name: Deploy (atomic symlink swap)
+        run: |
+          test -n "$BASE" || { echo "DEPLOY_PATH not set"; exit 1; }
+          REL="$BASE/releases/$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          SSH="ssh -i $HOME/.ssh/key $USER@$HOST"
+          $SSH "mkdir -p '$REL'"
+          rsync -az --chmod=D755,F644 -e "ssh -i $HOME/.ssh/key" dist/ "$USER@$HOST:$REL/"
+          $SSH "set -e
+            ln -sfn '$REL' '$BASE/current.tmp' && mv -Tf '$BASE/current.tmp' '$BASE/current'
+            ls -1dt '$BASE'/releases/* | tail -n +6 | xargs -r rm -rf"
+          echo "Deployed $REL"
+
+      - name: Notify Slack
+        if: always() && vars.SEND_NOTIFICATIONS == 'true'
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "${{ job.status == 'success' && '✅' || '❌' }} ttxai deploy ${{ job.status }}: ${{ github.repository }}@${{ github.ref_name }} (${{ github.sha }}) by ${{ github.actor }}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+			
+			
+			
