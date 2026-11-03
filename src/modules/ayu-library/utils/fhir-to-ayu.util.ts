@@ -858,6 +858,17 @@ function withWrapperExtras(target: FhirItem, wrapper: FhirItem): FhirItem {
   return result;
 }
 
+function markFollowUpsRequired(items: AyuQuestion[]): AyuQuestion[] {
+  return items.map(i => ({
+    ...i,
+    required:
+      i.type === FHIR_TYPE_DISPLAY || i.type === FHIR_TYPE_GROUP
+        ? i.required
+        : true,
+    ...(i.item?.length ? { item: markFollowUpsRequired(i.item) } : {}),
+  }));
+}
+
 function buildPhysExamQuestion(
   q: FhirItem,
   sectionKey: string,
@@ -1109,7 +1120,13 @@ export function transformFhirPhysExamToAyu(
           demographics
         );
       }
-      if (transformed) flatQuestions.push(transformed);
+      if (transformed) {
+        flatQuestions.push(
+          transformed.required && transformed.item
+            ? { ...transformed, item: markFollowUpsRequired(transformed.item) }
+            : transformed
+        );
+      }
     });
   }
 

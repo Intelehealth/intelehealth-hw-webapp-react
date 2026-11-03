@@ -12,7 +12,10 @@ import {
   FHIR_TYPE_QUANTITY,
   FHIR_TYPE_STRING,
 } from '../utils/constants';
-import { findMatchingOptionCode } from '../utils/question.utils';
+import {
+  findMatchingOptionCode,
+  findUnansweredRequiredFollowUp,
+} from '../utils/question.utils';
 import {
   isPhysicalExamOptionsQuestion,
   isStrictAssociatedSymptoms,
@@ -171,6 +174,11 @@ export const isTopLevelComplete = (
    * the original optional behaviour so other PE questions aren't affected.
    */
   if (isPhysicalExamOptionsQuestion(question)) {
+    if (
+      question.required &&
+      findUnansweredRequiredFollowUp(question, updatedAnswers)
+    )
+      return false;
     const hasGatedUnansweredChild = question.item?.some(child => {
       if (!child.enableWhen?.length) return false; // always-visible → optional
       if (!evaluateEnableWhen(child.enableWhen, updatedAnswers)) return false;

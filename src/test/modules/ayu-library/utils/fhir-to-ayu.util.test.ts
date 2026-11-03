@@ -2551,6 +2551,102 @@ describe('transformFhirPhysExamToAyu', () => {
       expect(q?.item).toBeUndefined();
     });
 
+    it('marks follow-ups of a required question as required', () => {
+      const root = transformFhirPhysExamToAyu(
+        abdomen([
+          makeScarsWithWrapperExtras([
+            {
+              linkId: 'q-where',
+              text: 'Where is it?',
+              type: 'choice',
+              enableWhen: [
+                {
+                  question: 'inner-scars',
+                  operator: '=',
+                  answerCoding: { code: 'yes' },
+                },
+              ],
+              answerOption: [
+                { valueCoding: { code: 'other', display: 'Other' } },
+              ],
+              item: [
+                {
+                  linkId: 'q-note',
+                  text: 'Note',
+                  type: 'display',
+                  enableWhen: [
+                    {
+                      question: 'q-where',
+                      operator: '=',
+                      answerCoding: { code: 'other' },
+                    },
+                  ],
+                },
+                {
+                  linkId: 'q-group',
+                  text: 'Size',
+                  type: 'group',
+                  enableWhen: [
+                    {
+                      question: 'q-where',
+                      operator: '=',
+                      answerCoding: { code: 'other' },
+                    },
+                  ],
+                  item: [{ linkId: 'q-size', text: 'cm', type: 'integer' }],
+                },
+                {
+                  linkId: 'q-other',
+                  text: 'Describe',
+                  type: 'string',
+                  enableWhen: [
+                    {
+                      question: 'q-where',
+                      operator: '=',
+                      answerCoding: { code: 'other' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ]),
+        ])
+      );
+      const where = root?.item?.[0]?.item?.[0];
+      expect(where?.required).toBe(true);
+      const byId = Object.fromEntries(
+        (where?.item ?? []).map(i => [i.linkId, i.required])
+      );
+      expect(byId['q-other']).toBe(true);
+      expect(byId['q-note']).toBeUndefined();
+      expect(byId['q-group']).toBeUndefined();
+      const group = where?.item?.find(i => i.linkId === 'q-group');
+      expect(group?.item?.[0]?.required).toBe(true);
+    });
+
+    it('leaves follow-ups optional when the question is not required', () => {
+      const scars = makeScarsWithWrapperExtras([
+        {
+          linkId: 'q-where',
+          text: 'Where is it?',
+          type: 'choice',
+          enableWhen: [
+            {
+              question: 'inner-scars',
+              operator: '=',
+              answerCoding: { code: 'yes' },
+            },
+          ],
+          answerOption: [{ valueCoding: { code: 'up', display: 'Up' } }],
+        },
+      ]);
+      const inner = { ...scars.item![0], required: false };
+      const root = transformFhirPhysExamToAyu(
+        abdomen([{ ...scars, item: [inner, scars.item![1]] }])
+      );
+      expect(root?.item?.[0]?.item?.[0]?.required).toBeFalsy();
+    });
+
     it('drops an unwrapped question when the wrapper fails demographics', () => {
       const wrapped = makeWrappedQuestion(
         'wrap-breast',

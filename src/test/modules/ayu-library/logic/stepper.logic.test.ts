@@ -804,6 +804,30 @@ describe('isTopLevelComplete', () => {
       expect(isTopLevelComplete(q, { 'pe-lumps': 'yes' })).toBe(true);
     });
 
+    it('should return false for a required PE question with an unanswered follow-up', () => {
+      const q: AyuQuestion = {
+        ...makePEQuestion([
+          {
+            linkId: 'pe-lumps.where',
+            type: 'choice',
+            required: true,
+            enableWhen: [
+              {
+                question: 'pe-lumps',
+                operator: '=',
+                answerCoding: { code: 'yes' },
+              },
+            ],
+          },
+        ]),
+        required: true,
+      };
+      expect(isTopLevelComplete(q, { 'pe-lumps': 'yes' })).toBe(false);
+      expect(
+        isTopLevelComplete(q, { 'pe-lumps': 'yes', 'pe-lumps.where': 'upper' })
+      ).toBe(true);
+    });
+
     it('should still require the parent PE answer', () => {
       const q = makePEQuestion([
         { linkId: 'pe-lumps.where', type: 'choice' },
