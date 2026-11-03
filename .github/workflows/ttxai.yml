@@ -96,6 +96,3 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             text: "${{ job.status == 'success' && '✅' || '❌' }} ttxai deploy ${{ job.status }}: ${{ github.repository }}@${{ github.ref_name }} (${{ github.sha }}) by ${{ github.actor }}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
-			
-			
-			
