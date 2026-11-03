@@ -153,7 +153,9 @@ jobs:
             User $SERVER_USER
             IdentityFile ~/.ssh/dev_server.pem
             IdentitiesOnly yes
-            StrictHostKeyChecking yes
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel ERROR
             ServerAliveInterval 30
           EOF
           chmod 600 ~/.ssh/config
