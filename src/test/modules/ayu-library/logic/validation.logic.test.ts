@@ -2215,6 +2215,44 @@ describe('validateQuestion', () => {
       expect(validateQuestion(q, { pe1: 'yes' })).toEqual({ valid: true });
     });
 
+    it('should ask to select an option when a required PE question has an unanswered choice follow-up', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        required: true,
+        item: [{ linkId: 'pe1.1', type: 'choice', required: true }],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({
+        valid: false,
+        reason: 'selectOption',
+      });
+    });
+
+    it('should ask to enter a value when a required PE question has an unanswered input follow-up', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        required: true,
+        item: [{ linkId: 'pe1.1', type: 'integer', required: true }],
+      };
+      expect(validateQuestion(q, { pe1: 'yes' })).toEqual({
+        valid: false,
+        reason: 'enterValue',
+      });
+    });
+
+    it('should be valid when a required PE question has all follow-ups answered', () => {
+      const q: AyuQuestion = {
+        linkId: 'pe1',
+        type: 'choice',
+        required: true,
+        item: [{ linkId: 'pe1.1', type: 'choice', required: true }],
+      };
+      expect(validateQuestion(q, { pe1: 'yes', 'pe1.1': 'a' })).toEqual({
+        valid: true,
+      });
+    });
+
     it('should still check quantity validity at top level for PE questions', () => {
       const q: AyuQuestion = { linkId: 'pe1', type: 'quantity' };
       vi.mocked(isPhysicalExamOptionsQuestion).mockReturnValue(true);

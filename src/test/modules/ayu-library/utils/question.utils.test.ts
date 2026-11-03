@@ -7,6 +7,7 @@ import { EXT_URL_DISPLAY_TEXT } from '../../../../modules/ayu-library/utils/cons
 import {
   clearHiddenDescendantAnswers,
   collectDescendantLinkIds,
+  findUnansweredRequiredFollowUp,
   getRowLabel,
   isFieldLabelContainer,
 } from '../../../../modules/ayu-library/utils/question.utils';
@@ -478,5 +479,110 @@ describe('isFieldLabelContainer — multi-select questions', () => {
     };
 
     expect(isFieldLabelContainer(hospitalization)).toBe(false);
+  });
+});
+
+describe('findUnansweredRequiredFollowUp', () => {
+  const where: AyuQuestion = {
+    linkId: 'where',
+    type: 'choice',
+    required: true,
+    enableWhen: [
+      { question: 'scars', operator: '=', answerCoding: { code: 'yes' } },
+    ],
+  };
+  const other: AyuQuestion = {
+    linkId: 'other',
+    type: 'string',
+    required: true,
+    enableWhen: [
+      { question: 'where', operator: '=', answerCoding: { code: 'other' } },
+    ],
+  };
+  const scars: AyuQuestion = {
+    linkId: 'scars',
+    type: 'choice',
+    required: true,
+    item: [{ ...where, item: [other] }],
+  };
+
+  it('returns undefined when the question has no follow-ups', () => {
+    expect(
+      findUnansweredRequiredFollowUp({ linkId: 'q', type: 'choice' }, {})
+    ).toBeUndefined();
+  });
+
+  it('skips follow-ups that are not visible', () => {
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'no' })
+    ).toBeUndefined();
+  });
+
+  it('returns a visible required follow-up with no answer', () => {
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'yes' })?.linkId
+    ).toBe('where');
+  });
+
+  it('treats blank strings and empty arrays as no answer', () => {
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'yes', where: '  ' })
+        ?.linkId
+    ).toBe('where');
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'yes', where: [] })
+        ?.linkId
+    ).toBe('where');
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'yes', where: null })
+        ?.linkId
+    ).toBe('where');
+  });
+
+  it('checks deeper follow-ups once their parent is answered', () => {
+    expect(
+      findUnansweredRequiredFollowUp(scars, { scars: 'yes', where: 'other' })
+        ?.linkId
+    ).toBe('other');
+  });
+
+  it('returns undefined when every visible follow-up is answered', () => {
+    const answers: Record<string, AyuAnswerValue> = {
+      scars: 'yes',
+      where: 'other',
+      other: 'left knee',
+    };
+    expect(findUnansweredRequiredFollowUp(scars, answers)).toBeUndefined();
+  });
+
+  it('accepts one answered follow-up from a "select any one" list', () => {
+    const shape: AyuQuestion = { ...where, linkId: 'shape', item: [] };
+    const list: AyuQuestion = { ...scars, item: [where, shape] };
+    expect(
+      findUnansweredRequiredFollowUp(list, { scars: 'yes', shape: 'round' })
+    ).toBeUndefined();
+  });
+
+  it('counts a follow-up as answered when only its child has a value', () => {
+    const group: AyuQuestion = {
+      linkId: 'size',
+      type: 'group',
+      enableWhen: where.enableWhen,
+      item: [{ linkId: 'size-cm', type: 'integer', required: true }],
+    };
+    const list: AyuQuestion = { ...scars, item: [where, group] };
+    expect(
+      findUnansweredRequiredFollowUp(list, { scars: 'yes', 'size-cm': 3 })
+    ).toBeUndefined();
+  });
+
+  it('ignores follow-ups that are not required', () => {
+    const optional: AyuQuestion = {
+      ...scars,
+      item: [{ ...where, required: false }],
+    };
+    expect(
+      findUnansweredRequiredFollowUp(optional, { scars: 'yes' })
+    ).toBeUndefined();
   });
 });

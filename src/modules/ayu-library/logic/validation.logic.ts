@@ -11,6 +11,7 @@ import {
 } from '../utils/constants';
 import {
   findMatchingOptionCode,
+  findUnansweredRequiredFollowUp,
   isFieldLabelContainer,
 } from '../utils/question.utils';
 import {
@@ -517,11 +518,11 @@ export const validateQuestion = (
     !allOptionsAnswered &&
     !hasExclusiveSelected(question, yesValues);
 
-  /*
-   * PE branching questions: sub-questions are optional selectable concept-tags;
-   * skip nested child validation — the question is valid once Yes/No is answered.
-   */
   const isPE = isPhysicalExamOptionsQuestion(question);
+  const peMissingFollowUp =
+    isPE && question.required === true
+      ? findUnansweredRequiredFollowUp(question, answers)
+      : undefined;
 
   const numericOutOfRange =
     isNumericOutOfRange(question, answers) ||
@@ -549,6 +550,7 @@ export const validateQuestion = (
     (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
     (!isPE && hasUnansweredRequiredNestedChild(question, answers)) ||
     (isPE && hasMissingNestedBPInput(question, answers)) ||
+    peMissingFollowUp !== undefined ||
     isQuantityInvalid(question, answers) ||
     numericOutOfRange ||
     (question.type === FHIR_TYPE_CHOICE &&
@@ -572,6 +574,8 @@ export const validateQuestion = (
               (!isPE && hasVisibleRequiredNestedString(question, answers)) ||
               (!isPE && isNestedInputValueMissing(question, answers)) ||
               (isPE && hasMissingNestedBPInput(question, answers)) ||
+              (peMissingFollowUp !== undefined &&
+                isLeafInput(peMissingFollowUp)) ||
               isQuantityInvalid(question, answers)
             ? 'enterValue'
             : 'selectOption';

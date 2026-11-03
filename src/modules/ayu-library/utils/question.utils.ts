@@ -205,3 +205,27 @@ export const extractGenderLinkIds = (items: AyuQuestion[]): string[] => {
   }
   return result;
 };
+
+const isBlankAnswer = (val: AyuAnswerValue | undefined): boolean =>
+  val === undefined ||
+  val === null ||
+  (typeof val === 'string' && val.trim() === '') ||
+  (Array.isArray(val) && val.length === 0);
+
+export const findUnansweredRequiredFollowUp = (
+  question: AyuQuestion,
+  answers: Record<string, AyuAnswerValue>
+): AyuQuestion | undefined => {
+  const visible = (question.item ?? []).filter(child =>
+    evaluateEnableWhen(child.enableWhen, answers)
+  );
+  const isAnswered = (item: AyuQuestion): boolean =>
+    !isBlankAnswer(answers[item.linkId]) || (item.item ?? []).some(isAnswered);
+  const answered = visible.filter(isAnswered);
+  if (answered.length === 0) return visible.find(child => child.required);
+  for (const child of answered) {
+    const nested = findUnansweredRequiredFollowUp(child, answers);
+    if (nested) return nested;
+  }
+  return undefined;
+};
