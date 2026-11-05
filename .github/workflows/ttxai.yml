@@ -1,12 +1,13 @@
 name: 🚀 Deploy to TTXAI
 
-# Deploys on every push to dev (tests run inside this job), or manually.
-# The workflow_run trigger was removed: combined with `push` it deployed twice,
-# and on workflow_run the checkout used the default branch instead of the tested commit.
+# Manual deploys only (Actions tab → "Run workflow" → pick the branch).
 on:
-  push:
-    branches: [dev]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      analyze:
+        description: 'Also run the bundle analyzer (adds an extra build)'
+        type: boolean
+        default: false
 
 # Never run two deploys against the same server at once
 concurrency:
@@ -25,6 +26,8 @@ jobs:
     name: Deploy to TTXAI Server
     runs-on: ubuntu-latest
     environment: ttxai
+    # Hard cap so a hung test / SSH session can't bill for hours
+    timeout-minutes: 20
 
     steps:
       - name: ✅ Validate required secrets
@@ -44,7 +47,7 @@ jobs:
           done
           [ "$missing" -eq 0 ] || exit 1
 
-          # Guard against paths that would make rsync --delete destructive
+          # Guard against paths that would make the deploy destructive
           for name in DEPLOY_PATH BACKUP_PATH; do
             p="${!name%/}"
             case "$p" in
@@ -53,10 +56,15 @@ jobs:
                 exit 1 ;;
             esac
           done
-          if [ "${DEPLOY_PATH%/}" = "${BACKUP_PATH%/}" ]; then
+          D="${DEPLOY_PATH%/}"; B="${BACKUP_PATH%/}"
+          if [ "$D" = "$B" ]; then
             echo "❌ Error: DEPLOY_PATH and BACKUP_PATH must be different"
             exit 1
           fi
+          case "$B/" in "$D/"*)
+            echo "❌ Error: BACKUP_PATH must not be inside DEPLOY_PATH"
+            exit 1 ;;
+          esac
           echo "✅ All required secrets are set"
 
       - name: 📥 Checkout code
@@ -66,10 +74,18 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
+      # Cache node_modules itself: on a hit, `yarn install` is skipped entirely
+      - name: 💾 Restore node_modules cache
+        id: nm-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: nm-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('yarn.lock') }}
 
       - name: 📦 Install dependencies
-        run: yarn install --frozen-lockfile
+        if: steps.nm-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile --prefer-offline
 
       - name: 🧪 Run tests with conditional coverage
         env:
@@ -84,13 +100,10 @@ jobs:
             yarn test:coverage
           fi
 
+      # Opt-in only: the analyzer does its own full build
       - name: 📊 Analyze bundle
+        if: inputs.analyze
         run: yarn analyze
-
-      # - name: 🔒 Security audit
-      #   run: |
-      #     echo "🔍 Running development security audit..."
-      #     yarn audit --audit-level high
 
       - name: 🏗️ Build for development
         env:
@@ -147,6 +160,7 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
+          # ControlMaster: rsync and the deploy script reuse one SSH connection
           cat > ~/.ssh/config <<EOF
           Host deploy-target
             HostName $SERVER_HOST
@@ -157,99 +171,88 @@ jobs:
             UserKnownHostsFile /dev/null
             LogLevel ERROR
             ServerAliveInterval 30
+            ConnectTimeout 15
+            ControlMaster auto
+            ControlPath ~/.ssh/cm-%r@%h:%p
+            ControlPersist 120
           EOF
           chmod 600 ~/.ssh/config
           echo "✅ SSH setup completed!"
 
-      - name: 🧪 Test Server Connection
-        run: |
-          echo "🧪 Testing connection to development server..."
-          ssh deploy-target "echo 'Connection successful!'"
-
+      # Staging dir persists between runs, so rsync only uploads changed files.
+      # --rsync-path creates it on first run (no separate SSH call needed).
       - name: 📤 Upload build to staging directory
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          DEPLOY_PATH="${DEPLOY_PATH%/}"
-          # Staging lives NEXT TO the web root, so half-uploaded files are never served
-          STAGING_PATH="${DEPLOY_PATH}.staging"
-
-          ssh deploy-target "bash -s -- $(printf '%q ' "$STAGING_PATH" "$SERVER_USER")" <<'REMOTE'
-          set -euo pipefail
-          STAGING_PATH="$1"; SERVER_USER="$2"
-          sudo mkdir -p "$STAGING_PATH"
-          sudo chown -R "$SERVER_USER:$SERVER_USER" "$STAGING_PATH"
-          sudo chmod 755 "$STAGING_PATH"
-          REMOTE
+          STAGING_PATH="${DEPLOY_PATH%/}.staging"
+          Q_STAGING=$(printf '%q' "$STAGING_PATH")
+          Q_USER=$(printf '%q' "$SERVER_USER")
 
           echo "📤 Uploading build files..."
-          rsync -az --delete --stats dist/ "deploy-target:${STAGING_PATH}/"
+          rsync -az --delete --stats \
+            --rsync-path="sudo mkdir -p $Q_STAGING && sudo chown $Q_USER $Q_STAGING && rsync" \
+            dist/ "deploy-target:${STAGING_PATH}/"
 
-      - name: 🚀 Deploy to Development Server
+      # Releases + symlink: each deploy is a new folder under BACKUP_PATH, and
+      # DEPLOY_PATH is a symlink to the current one. The swap is atomic and the
+      # previous releases double as backups (no separate backup copy needed).
+      - name: 🚀 Activate release on Development Server
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           BACKUP_PATH: ${{ secrets.BACKUP_PATH }}
         run: |
           DEPLOY_PATH="${DEPLOY_PATH%/}"
-          BACKUP_PATH="${BACKUP_PATH%/}"
+          RELEASES_PATH="${BACKUP_PATH%/}"
           STAGING_PATH="${DEPLOY_PATH}.staging"
-          KEEP_BACKUPS=5
+          KEEP_RELEASES=5
 
-          ssh deploy-target "bash -s -- $(printf '%q ' "$DEPLOY_PATH" "$BACKUP_PATH" "$STAGING_PATH" "$KEEP_BACKUPS")" <<'REMOTE'
+          ssh deploy-target "bash -s -- $(printf '%q ' "$DEPLOY_PATH" "$RELEASES_PATH" "$STAGING_PATH" "$KEEP_RELEASES")" <<'REMOTE'
           set -euo pipefail
-          DEPLOY_PATH="$1"; BACKUP_PATH="$2"; STAGING_PATH="$3"; KEEP_BACKUPS="$4"
+          DEPLOY_PATH="$1"; RELEASES_PATH="$2"; STAGING_PATH="$3"; KEEP_RELEASES="$4"
 
           if [ ! -f "$STAGING_PATH/index.html" ]; then
             echo "❌ Staging directory has no index.html - aborting"
             exit 1
           fi
 
-          sudo mkdir -p "$DEPLOY_PATH" "$BACKUP_PATH"
+          sudo mkdir -p "$RELEASES_PATH" "$(dirname "$DEPLOY_PATH")"
 
-          # 1. Timestamped backup of the live site (including hidden files)
-          SNAPSHOT=""
-          if [ -n "$(sudo ls -A "$DEPLOY_PATH")" ]; then
-            SNAPSHOT="$BACKUP_PATH/$(date +%Y%m%d-%H%M%S)"
-            echo "📦 Backing up current deployment to $SNAPSHOT"
-            sudo rsync -a --exclude='temp/' "$DEPLOY_PATH/" "$SNAPSHOT/"
-            # Keep only the newest backups
-            sudo find "$BACKUP_PATH" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-              | sort -r | tail -n +$((KEEP_BACKUPS + 1)) \
-              | while read -r old; do sudo rm -rf -- "$BACKUP_PATH/$old"; done
-          else
-            echo "ℹ️ No existing deployment to back up"
+          # One-time migration: if the live site is still a real folder, move it
+          # into the releases folder and replace it with a symlink.
+          if [ -d "$DEPLOY_PATH" ] && [ ! -L "$DEPLOY_PATH" ]; then
+            LEGACY="$RELEASES_PATH/$(date +%Y%m%d-%H%M%S)-legacy"
+            echo "🔁 Migrating existing site to $LEGACY"
+            sudo mv "$DEPLOY_PATH" "$LEGACY"
+            sudo ln -s "$LEGACY" "$DEPLOY_PATH"
           fi
 
-          # 2. Normalise permissions in staging before it goes live
-          find "$STAGING_PATH" -type d -exec chmod 755 {} +
-          find "$STAGING_PATH" -type f -exec chmod 644 {} +
+          # 1. Build the new release from staging (server-side copy, fast)
+          RELEASE="$RELEASES_PATH/$(date +%Y%m%d-%H%M%S)"
+          echo "📦 Creating release $RELEASE"
+          sudo cp -a "$STAGING_PATH" "$RELEASE"
+          sudo find "$RELEASE" -type d -exec chmod 755 {} +
+          sudo find "$RELEASE" -type f -exec chmod 644 {} +
+          sudo chown -R www-data:www-data "$RELEASE"
 
-          # 3. Swap in the new build. --delay-updates puts all changed files in place at the
-          #    end, and --delete-after removes stale files only once the new ones are live.
-          echo "🔄 Syncing staging to live directory..."
-          if ! sudo rsync -a --delete-after --delay-updates "$STAGING_PATH/" "$DEPLOY_PATH/"; then
-            echo "❌ Sync failed"
-            if [ -n "$SNAPSHOT" ]; then
-              echo "↩️ Restoring previous deployment from $SNAPSHOT"
-              sudo rsync -a --delete "$SNAPSHOT/" "$DEPLOY_PATH/"
-              sudo chown -R www-data:www-data "$DEPLOY_PATH"
-            fi
-            exit 1
-          fi
+          # 2. Atomic swap: build the new symlink beside the old one, then rename over it
+          sudo ln -sfn "$RELEASE" "$DEPLOY_PATH.next"
+          sudo mv -Tf "$DEPLOY_PATH.next" "$DEPLOY_PATH"
+          echo "🔄 Live site now points to $(readlink "$DEPLOY_PATH")"
 
-          sudo chown -R www-data:www-data "$DEPLOY_PATH"
-          sudo chmod 755 "$DEPLOY_PATH"
+          # 3. Keep only the newest releases (never the live one)
+          CURRENT="$(readlink -f "$DEPLOY_PATH")"
+          sudo find "$RELEASES_PATH" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+            | sort -r | tail -n +$((KEEP_RELEASES + 1)) \
+            | while read -r old; do
+                [ "$(readlink -f "$RELEASES_PATH/$old")" = "$CURRENT" ] && continue
+                sudo rm -rf -- "${RELEASES_PATH:?}/$old"
+              done
 
-          echo "📊 Files deployed: $(sudo find "$DEPLOY_PATH" -type f | wc -l)"
+          echo "📊 Files deployed: $(sudo find "$CURRENT" -type f | wc -l)"
           echo "✅ Development deployment completed successfully!"
           REMOTE
-
-      - name: 🧹 Cleanup
-        if: always()
-        run: |
-          echo "🧹 Removing SSH credentials..."
-          rm -f ~/.ssh/dev_server.pem ~/.ssh/config ~/.ssh/known_hosts
 
       - name: 📧 Notify deployment to Slack
         if: always() && (vars.SEND_NOTIFICATIONS == 'true' || vars.SEND_NOTIFICATIONS == '1')
