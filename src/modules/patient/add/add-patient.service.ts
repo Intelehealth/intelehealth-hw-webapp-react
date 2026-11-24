@@ -1,3 +1,4 @@
+import { identifierSources } from '../../../assets/data/openmrs_uuids';
 import { CONCEPT_UUIDS } from '../../../assets/data/visit-summary.data';
 import { OpenMRSApi } from '../../../services/openmrs';
 import type { AddPatientData } from '../../../types/patient/add/add-patient.types';
@@ -40,10 +41,18 @@ export const patientService = {
       `/obs?patient=${patientUuid}&concept=${CONCEPT_UUIDS.CHIEF_COMPLAINT}&v=custom:(value,encounter:(visit:(uuid)))`
     ),
 
+  // idgen's REST API takes the same Authorization header as every other
+  // OpenMRS call. The legacy generateIdentifier.form page needs the OpenMRS
+  // session cookie instead, which the browser does not send cross-site.
+  // This is idgen's batch generation on /identifiersource (the
+  // /identifiersource/{uuid}/identifier sub-resource is not routed by older
+  // REST modules). It answers {"identifiers": ["..."]}.
   genratePatientIdentifier: () =>
-    //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    OpenMRSApi.get<any>(`/module/idgen/generateIdentifier.form?source=1`, {
-      baseURL: import.meta.env.VITE_OPENMRS_API_URL.replace('/ws/rest/v1', ''),
+    OpenMRSApi.post<{ identifiers?: unknown[] }>('/idgen/identifiersource', {
+      generateIdentifiers: true,
+      sourceUuid: identifierSources.default,
+      numberToGenerate: 1,
+      comment: 'Patient registration (HW webapp)',
     }),
 };
 

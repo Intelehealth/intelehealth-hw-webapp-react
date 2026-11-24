@@ -455,6 +455,47 @@ describe('useAddPatient hook', () => {
       expect(success).toBe(false);
     });
 
+    it('should put the generated identifier on the new patient', async () => {
+      mockGenerateIdentifier.mockResolvedValue({ identifiers: ['10045K'] });
+      mockCreatePatient.mockResolvedValue({ uuid: 'patient-uuid-123' });
+
+      const { result } = renderHook(() => useAddPatient());
+
+      await result.current.handleAddPatient(mockPatientFormData);
+
+      expect(
+        mockCreatePatient.mock.calls[0][0].identifiers[0].identifier
+      ).toBe('10045K');
+    });
+
+    it.each([
+      ['no identifiers field', {}],
+      ['an empty identifiers list', { identifiers: [] }],
+      ['an empty identifier', { identifiers: [''] }],
+      ['a non-string identifier', { identifiers: [42] }],
+      ['a single identifier field', { identifier: 'PAT-1' }],
+      ['no response body', undefined],
+    ])(
+      'should not create the patient when idgen returns %s',
+      async (_label, response) => {
+        mockGenerateIdentifier.mockResolvedValue(response);
+
+        const { result } = renderHook(() => useAddPatient());
+
+        const success = await result.current.handleAddPatient(
+          mockPatientFormData
+        );
+
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'Add Patient Failed',
+          'Could not generate a patient ID: the server returned no identifier',
+          'error'
+        );
+        expect(mockCreatePatient).not.toHaveBeenCalled();
+        expect(success).toBe(false);
+      }
+    );
+
     it('should not upload image when profilePhoto is a URL (not data:)', async () => {
       const patientDataWithUrl = {
         ...mockPatientFormData,
