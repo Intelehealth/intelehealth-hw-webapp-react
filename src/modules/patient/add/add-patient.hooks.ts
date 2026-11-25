@@ -120,8 +120,6 @@ export const useAddPatient = (): UseAddPatientReturn => {
 
   const generateIdentifier = async (): Promise<string> => {
     const response = await patientService.genratePatientIdentifier();
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    console.log;
     const identifier = response?.identifiers?.[0];
     if (typeof identifier !== 'string' || !identifier) {
       throw new Error(
