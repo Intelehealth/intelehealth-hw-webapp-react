@@ -16,6 +16,12 @@ export const patientIdentifierType = {
   default: '05a29f94-c0ed-11e2-94be-8c13b969e334',
 };
 
+// idgen identifier sources
+export const identifierSources = {
+  // "Generator for OpenMRS ID": makes identifiers of patientIdentifierType.default
+  default: '691eed12-c0f1-11e2-94be-8c13b969e334',
+};
+
 // Location UUIDs
 export const locations = {
   // TODO: Replace with actual location UUID from your OpenMRS instance

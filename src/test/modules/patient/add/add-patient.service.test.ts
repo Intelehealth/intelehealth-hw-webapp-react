@@ -179,56 +179,47 @@ describe('patientService', () => {
   });
 
   describe('genratePatientIdentifier', () => {
-    it('should call the identifier generation endpoint with correct parameters', async () => {
-      const response = {
-        identifiers: ['PAT-12345'],
-      };
-
-      mockOpenMRSGet.mockResolvedValue(response);
-
-      const originalEnv = import.meta.env.VITE_OPENMRS_API_URL;
-      import.meta.env.VITE_OPENMRS_API_URL = 'http://localhost:8080/ws/rest/v1';
+    it('should ask REST idgen for one identifier from the OpenMRS ID source', async () => {
+      const response = { identifiers: ['10045K'] };
+      mockOpenMRSPost.mockResolvedValue(response);
 
       const result = await patientService.genratePatientIdentifier();
 
-      expect(mockOpenMRSGet).toHaveBeenCalledTimes(1);
-      expect(mockOpenMRSGet).toHaveBeenCalledWith(
-        '/module/idgen/generateIdentifier.form?source=1',
-        {
-          baseURL: 'http://localhost:8080',
-        }
-      );
+      expect(mockOpenMRSPost).toHaveBeenCalledTimes(1);
+      expect(mockOpenMRSPost).toHaveBeenCalledWith('/idgen/identifiersource', {
+        generateIdentifiers: true,
+        sourceUuid: '691eed12-c0f1-11e2-94be-8c13b969e334',
+        numberToGenerate: 1,
+        comment: 'Patient registration (HW webapp)',
+      });
+      expect(mockOpenMRSGet).not.toHaveBeenCalled();
       expect(result).toEqual(response);
-
-      import.meta.env.VITE_OPENMRS_API_URL = originalEnv;
     });
 
-    it('should handle different base URLs correctly', async () => {
-      const response = {
-        identifiers: ['PAT-67890'],
-      };
-
-      mockOpenMRSGet.mockResolvedValue(response);
-
-      const originalEnv = import.meta.env.VITE_OPENMRS_API_URL;
-      import.meta.env.VITE_OPENMRS_API_URL =
-        'https://example.com/openmrs/ws/rest/v1';
+    it('should not send fields that would make idgen create a new source', async () => {
+      mockOpenMRSPost.mockResolvedValue({ identifiers: ['10045K'] });
 
       await patientService.genratePatientIdentifier();
 
-      expect(mockOpenMRSGet).toHaveBeenCalledWith(
-        '/module/idgen/generateIdentifier.form?source=1',
-        {
-          baseURL: 'https://example.com/openmrs',
-        }
-      );
+      const body = mockOpenMRSPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(body).not.toHaveProperty('sourceType');
+      expect(body).not.toHaveProperty('name');
+      expect(body).not.toHaveProperty('identifierType');
+    });
 
-      import.meta.env.VITE_OPENMRS_API_URL = originalEnv;
+    it('should not use the legacy generateIdentifier.form page or its own base URL', async () => {
+      mockOpenMRSPost.mockResolvedValue({ identifiers: ['10045K'] });
+
+      await patientService.genratePatientIdentifier();
+
+      const [url, , config] = mockOpenMRSPost.mock.calls[0];
+      expect(url).not.toContain('generateIdentifier.form');
+      expect(config).toBeUndefined();
     });
 
     it('should propagate errors from genratePatientIdentifier', async () => {
       const error = new Error('Identifier generation failed');
-      mockOpenMRSGet.mockRejectedValue(error);
+      mockOpenMRSPost.mockRejectedValue(error);
 
       await expect(patientService.genratePatientIdentifier()).rejects.toThrow(
         'Identifier generation failed'

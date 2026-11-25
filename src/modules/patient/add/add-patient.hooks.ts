@@ -120,7 +120,13 @@ export const useAddPatient = (): UseAddPatientReturn => {
 
   const generateIdentifier = async (): Promise<string> => {
     const response = await patientService.genratePatientIdentifier();
-    return response.identifiers[0];
+    const identifier = response?.identifiers?.[0];
+    if (typeof identifier !== 'string' || !identifier) {
+      throw new Error(
+        'Could not generate a patient ID: the server returned no identifier'
+      );
+    }
+    return identifier;
   };
 
   const mapPatientFormData = (
