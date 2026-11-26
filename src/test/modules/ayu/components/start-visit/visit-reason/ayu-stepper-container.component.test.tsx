@@ -6,8 +6,9 @@ import type { AyuStepperContainerHandle } from '../../../../../../modules/ayu/co
 import { AyuStepperContainer } from '../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-stepper-container.component';
 
 vi.mock('../../../../../../modules/ayu/components/loaders/question-loader.component', () => ({
-  QuestionLoader: vi.fn(({ children, question, questionIndex, totalQuestions, isAnswered, onEdit }) => (
+  QuestionLoader: vi.fn(({ children, question, questionIndex, totalQuestions, protocolName, isAnswered, onEdit }) => (
     <div data-testid={`question-loader-${questionIndex}`} data-is-answered={isAnswered ? 'true' : 'false'}>
+      <div data-testid="protocol-name">{protocolName ?? '<none>'}</div>
       <div data-testid="question-text">{question}</div>
       <div data-testid="question-index">{questionIndex}</div>
       <div data-testid="total-questions">{totalQuestions}</div>
@@ -9602,5 +9603,174 @@ describe('AyuStepperContainer - answered rows across repeating branches', () => 
     const text = container.textContent ?? '';
     expect(text).not.toContain('Right leg - Hip');
     expect(text).toContain('Hip');
+  });
+});
+
+describe('AyuStepperContainer per-protocol counter', () => {
+  const setAnswer = vi.fn();
+  const clearAnswers = vi.fn();
+  const goNext = vi.fn();
+
+  const q = (linkId: string, protocolCode?: string, extra: Partial<AyuQuestion> = {}): AyuQuestion => ({
+    linkId,
+    text: linkId,
+    type: 'string',
+    ...(protocolCode ? { protocolCode } : {}),
+    ...extra,
+  });
+
+  /* Abdominal Pain (3) → Burns (2) → merged Associated symptoms (1). */
+  const merged: AyuQuestion[] = [
+    q('AP:1', 'Abdominal Pain'),
+    q('AP:2', 'Abdominal Pain'),
+    q('AP:3', 'Abdominal Pain'),
+    q('B:1', 'Burns'),
+    q('B:2', 'Burns'),
+    q('__merged_associated_symptoms__'),
+  ];
+
+  const stepperState = (
+    items: AyuQuestion[],
+    currentIndex: number,
+    extra: Record<string, unknown> = {}
+  ) =>
+    mockUseFHIRStepper.mockReturnValue({
+      currentQuestion: items[currentIndex],
+      currentIndex,
+      total: items.length,
+      answers: {},
+      setAnswer,
+      clearAnswers,
+      goNext,
+      topLevelItems: items,
+      isLast: currentIndex === items.length - 1,
+      ...extra,
+    });
+
+  /* "<name> <n>/<total>" for every rendered card, in render order. */
+  const cards = () => {
+    const names = screen.getAllByTestId('protocol-name').map(e => e.textContent);
+    const idx = screen.getAllByTestId('question-index').map(e => Number(e.textContent));
+    const totals = screen.getAllByTestId('total-questions').map(e => e.textContent);
+    return names.map((n, i) => `${n} ${idx[i] + 1}/${totals[i]}`);
+  };
+
+  const ui = (props: Partial<Parameters<typeof AyuStepperContainer>[0]> = {}) => (
+    <AyuStepperContainer questionnaire={{ item: merged } as never} {...props} />
+  );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    peCameraHolder.current = null;
+    mockValidateAllQuestions.mockReturnValue(true);
+    Element.prototype.scrollIntoView = vi.fn();
+    mockResolveAyuComponent.mockReturnValue('selectableOptionGroup');
+    mockIsStrictAssociatedSymptoms.mockReturnValue(false);
+  });
+
+  it('shows protocol A and 1/N on the first question', () => {
+    stepperState(merged, 0);
+    render(ui());
+    expect(cards()).toEqual(['Abdominal Pain 1/3']);
+  });
+
+  it('keeps protocol A while moving forward inside it', () => {
+    stepperState(merged, 1);
+    render(ui());
+    expect(cards()).toEqual(['Abdominal Pain 1/3', 'Abdominal Pain 2/3']);
+  });
+
+  it('switches name and restarts the counter at the A→B boundary, and back on rerender', () => {
+    stepperState(merged, 3);
+    const { rerender } = render(ui());
+    expect(cards()).toEqual([
+      'Abdominal Pain 1/3',
+      'Abdominal Pain 2/3',
+      'Abdominal Pain 3/3',
+      'Burns 1/2',
+    ]);
+
+    stepperState(merged, 2);
+    rerender(ui());
+    expect(cards()).toEqual([
+      'Abdominal Pain 1/3',
+      'Abdominal Pain 2/3',
+      'Abdominal Pain 3/3',
+    ]);
+  });
+
+  it('labels every card in review mode, including merged Associated symptoms', () => {
+    stepperState(merged, 5, { showAll: true });
+    render(ui());
+    expect(cards()).toEqual([
+      'Abdominal Pain 1/3',
+      'Abdominal Pain 2/3',
+      'Abdominal Pain 3/3',
+      'Burns 1/2',
+      'Burns 2/2',
+      'Associated symptoms 1/1',
+    ]);
+  });
+
+  it('keeps 1..N numbering for a single protocol named via the prop', () => {
+    const single = [q('a'), q('b'), q('c')];
+    stepperState(single, 2);
+    render(ui({ questionnaire: { item: single } as never, protocolName: 'Fever' }));
+    expect(cards()).toEqual(['Fever 1/3', 'Fever 2/3', 'Fever 3/3']);
+    expect(_mockUseFHIRStepper).toHaveBeenCalledWith(
+      expect.objectContaining({ protocolName: 'Fever' })
+    );
+  });
+
+  it('keeps global numbering with offset/override when there are no codes or name', () => {
+    const mh = [q('m1'), q('m2')];
+    stepperState(mh, 1);
+    render(ui({ questionnaire: { item: mh } as never, questionIndexOffset: 4, totalQuestionsOverride: 10 }));
+    expect(cards()).toEqual(['<none> 5/10', '<none> 6/10']);
+  });
+
+  it('uses the protocol-local ref in the review-mode Submit toast', () => {
+    const items = [q('AP:1', 'Abdominal Pain'), q('B:1', 'Burns', { type: 'integer', required: true })];
+    stepperState(items, 1, { showAll: true });
+    render(ui({ questionnaire: { item: items } as never }));
+    const submits = screen.getAllByTestId('button-submit');
+    fireEvent.click(submits[submits.length - 1]);
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Please answer Question 1 (Burns) before proceeding',
+      undefined,
+      'warning'
+    );
+  });
+
+  it('uses the protocol-local ref for an answered-but-unsubmitted question', () => {
+    const items = [q('AP:1', 'Abdominal Pain'), q('B:1', 'Burns')];
+    stepperState(items, 1, { answers: { 'B:1': 'x' } });
+    const ref = createRef<AyuStepperContainerHandle>();
+    render(ui({ ref, questionnaire: { item: items } as never }));
+    act(() => ref.current!.confirm());
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Question 1 (Burns): Please submit your changes before proceeding',
+      undefined,
+      'warning'
+    );
+  });
+
+  it('uses the protocol-local ref for a question left in edit mode', () => {
+    const items = [q('AP:1', 'Abdominal Pain'), q('B:1', 'Burns'), q('B:2', 'Burns')];
+    stepperState(items, 2, {
+      answers: { 'AP:1': 'a', 'B:1': 'b', 'B:2': 'c' },
+      showAll: true,
+    });
+    const ref = createRef<AyuStepperContainerHandle>();
+    render(ui({ ref, questionnaire: { item: items } as never, initialAnswers: { 'AP:1': 'a', 'B:1': 'b', 'B:2': 'c' } }));
+    /* All three are submitted from initialAnswers; the mock keys edit buttons
+     * by the protocol-local index, so the only "edit-1" is B:2. */
+    fireEvent.click(screen.getByTestId('edit-1'));
+    act(() => ref.current!.confirm());
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Question 2 (Burns): Please submit your changes before proceeding',
+      undefined,
+      'warning'
+    );
   });
 });

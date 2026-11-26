@@ -11,10 +11,14 @@ import {
   GENDER_CODE_FEMALE,
 } from '../../../../modules/ayu-library/utils/constants';
 import { transformFhirToAyu } from '../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import type { AyuQuestion } from '../../../../modules/ayu-library/types/ayu.types';
 import {
+  deriveProtocolCode,
+  getProtocolQuestionPositions,
   groupAnswersByProtocol,
   MERGED_ASSOCIATED_SYMPTOMS_LINK_ID,
   mergeProtocols,
+  protocolQuestionRef,
 } from '../../../../modules/ayu-library/utils/merge-protocols.util';
 
 const makeComplaint = (
@@ -1145,5 +1149,99 @@ describe('groupAnswersByProtocol', () => {
     expect(result.byProtocol).toEqual({});
     expect(result.unknown).toEqual({});
     expect(result.associatedSymptoms).toBeNull();
+  });
+});
+
+describe('deriveProtocolCode', () => {
+  it('strips a case-insensitive .json extension and surrounding whitespace', () => {
+    expect(
+      deriveProtocolCode({ ...makeComplaint('x', { resourceType: 'Questionnaire', item: [] }), name: ' Burns.JSON' })
+    ).toBe('Burns');
+  });
+});
+
+describe('getProtocolQuestionPositions', () => {
+  const q = (linkId: string, protocolCode?: string): AyuQuestion => ({
+    linkId,
+    type: 'choice',
+    ...(protocolCode ? { protocolCode } : {}),
+  });
+
+  it('returns null when no item has a code and no fallback is given', () => {
+    expect(getProtocolQuestionPositions([q('a'), q('b')])).toBeNull();
+    expect(getProtocolQuestionPositions([])).toBeNull();
+  });
+
+  it('numbers a single protocol 1..N of N under the fallback name', () => {
+    expect(getProtocolQuestionPositions([q('a'), q('b'), q('c')], 'Fever')).toEqual([
+      { protocolName: 'Fever', number: 1, total: 3 },
+      { protocolName: 'Fever', number: 2, total: 3 },
+      { protocolName: 'Fever', number: 3, total: 3 },
+    ]);
+  });
+
+  it('restarts numbering at 1 for each protocol of a different size', () => {
+    const items = [
+      q('A:1', 'Abdominal Pain'),
+      q('A:2', 'Abdominal Pain'),
+      q('A:3', 'Abdominal Pain'),
+      q('B:1', 'Burns'),
+      q('B:2', 'Burns'),
+      q(MERGED_ASSOCIATED_SYMPTOMS_LINK_ID),
+    ];
+    expect(getProtocolQuestionPositions(items)).toEqual([
+      { protocolName: 'Abdominal Pain', number: 1, total: 3 },
+      { protocolName: 'Abdominal Pain', number: 2, total: 3 },
+      { protocolName: 'Abdominal Pain', number: 3, total: 3 },
+      { protocolName: 'Burns', number: 1, total: 2 },
+      { protocolName: 'Burns', number: 2, total: 2 },
+      { protocolName: ASSOCIATED_SYMPTOMS_TEXT, number: 1, total: 1 },
+    ]);
+  });
+
+  it('labels the merged associated-symptoms item of a real merge', () => {
+    const merged = mergeProtocols([
+      makeComplaint('Fever', {
+        resourceType: 'Questionnaire',
+        item: [
+          { linkId: 'f1', text: 'Since when?', type: 'string' },
+          { linkId: 'as', text: ASSOCIATED_SYMPTOMS_TEXT, type: 'choice', answerOption: [{ valueCoding: { code: 'c1', display: 'Cough' } }] },
+        ],
+      }),
+      makeComplaint('Burns', {
+        resourceType: 'Questionnaire',
+        item: [
+          { linkId: 'b1', text: 'Where?', type: 'string' },
+          { linkId: 'b2', text: 'How?', type: 'string' },
+          { linkId: 'as', text: ASSOCIATED_SYMPTOMS_TEXT, type: 'choice', answerOption: [{ valueCoding: { code: 'c2', display: 'Pain' } }] },
+        ],
+      }),
+    ]);
+    const positions = getProtocolQuestionPositions(merged!.item!);
+    expect(positions!.map(p => `${p.protocolName} ${p.number}/${p.total}`)).toEqual([
+      'Fever 1/1',
+      'Burns 1/2',
+      'Burns 2/2',
+      `${ASSOCIATED_SYMPTOMS_TEXT} 1/1`,
+    ]);
+  });
+
+  it('keeps grouping but drops a blank name', () => {
+    expect(getProtocolQuestionPositions([q('a'), q('b')], '   ')).toEqual([
+      { protocolName: undefined, number: 1, total: 2 },
+      { protocolName: undefined, number: 2, total: 2 },
+    ]);
+  });
+
+  it('groups uncoded items without a fallback under an unnamed group', () => {
+    expect(getProtocolQuestionPositions([q('A:1', 'Burns'), q('x')])).toEqual([
+      { protocolName: 'Burns', number: 1, total: 1 },
+      { protocolName: undefined, number: 1, total: 1 },
+    ]);
+  });
+
+  it('formats the toast reference with and without a name', () => {
+    expect(protocolQuestionRef({ protocolName: 'Burns', number: 1, total: 8 })).toBe('1 (Burns)');
+    expect(protocolQuestionRef({ number: 2, total: 8 })).toBe('2');
   });
 });

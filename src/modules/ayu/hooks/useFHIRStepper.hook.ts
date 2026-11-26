@@ -34,6 +34,10 @@ import {
   PE_OPTION_KIND_CAMERA,
 } from '../../ayu-library/utils/constants';
 import {
+  getProtocolQuestionPositions,
+  protocolQuestionRef,
+} from '../../ayu-library/utils/merge-protocols.util';
+import {
   clearHiddenDescendantAnswers,
   isDescendantLinkId,
 } from '../../ayu-library/utils/question.utils';
@@ -54,6 +58,8 @@ interface UseFHIRStepperProps {
   skipSummary?: boolean;
   initialAnswers?: Record<string, AyuAnswerValue>;
   questionIndexOffset?: number;
+  /** Single-protocol Visit Reason name; enables protocol-local toast refs. */
+  protocolName?: string;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onSummaryShown?: () => void;
   resetLinkIds?: string[];
@@ -113,6 +119,7 @@ export const useFHIRStepper = (
     skipSummary,
     initialAnswers,
     questionIndexOffset = 0,
+    protocolName,
     onComplete,
     onSummaryShown,
     resetLinkIds,
@@ -149,6 +156,11 @@ export const useFHIRStepper = (
   }, [questionnaire]);
 
   const structuralTotal = topLevelItems.length;
+
+  const protocolPositions = useMemo(
+    () => getProtocolQuestionPositions(topLevelItems, protocolName),
+    [topLevelItems, protocolName]
+  );
 
   const currentQuestion = topLevelItems[currentIndex];
 
@@ -225,9 +237,11 @@ export const useFHIRStepper = (
     for (let index = 0; index < topLevelItems.length; index++) {
       const question = topLevelItems[index];
       const answer = latestAnswers[question.linkId];
-      const questionNumber = showAll
-        ? index + questionIndexOffset + 1
-        : undefined;
+      const questionNumber = !showAll
+        ? undefined
+        : protocolPositions
+          ? protocolQuestionRef(protocolPositions[index])
+          : index + questionIndexOffset + 1;
 
       const uploadIssue = cameraUploadIssue(question);
       if (uploadIssue) {

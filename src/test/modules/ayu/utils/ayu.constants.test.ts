@@ -10,6 +10,7 @@ import {
   VALIDATION_OUT_OF_RANGE,
   VALIDATION_SELECT_OPTION,
   VALIDATION_UPLOAD_CAPTURED_IMAGE,
+  VALIDATION_UPLOAD_FAILED,
 } from '../../../../modules/ayu/utils/ayu.constants';
 
 describe('ayu.constants', () => {
@@ -142,6 +143,15 @@ describe('ayu.constants', () => {
     it('prepends "Question N:" for uploadImage with questionNumber', () => {
       const result = validationMessageForReason('uploadImage', 3);
       expect(result).toBe(`Question 3: ${VALIDATION_UPLOAD_CAPTURED_IMAGE}`);
+    });
+
+    it('accepts a protocol-local string reference', () => {
+      expect(validationMessageForReason('enterValue', '1 (Burns)')).toBe(
+        'Please answer Question 1 (Burns) before proceeding'
+      );
+      expect(validationMessageForReason('uploadFailed', '2 (Burns)')).toBe(
+        `Question 2 (Burns): ${VALIDATION_UPLOAD_FAILED}`
+      );
     });
 
     it('prepends "Question N:" for uploadCapturedImage with questionNumber', () => {

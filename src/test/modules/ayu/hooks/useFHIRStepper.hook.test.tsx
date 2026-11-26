@@ -4514,6 +4514,55 @@ describe('useFHIRStepper', () => {
       );
     });
 
+    it('should use the protocol-local ref when items carry protocol codes', () => {
+      /* An optional, unanswered Fever item ahead of q1 makes q1 global #2 but
+       * Burns #1, so the toast must follow the card counter, not the index. */
+      const coded = {
+        ...mockQuestionnaire,
+        item: [
+          { linkId: 'f0', text: 'Fever note', type: 'string', protocolCode: 'Fever' },
+          ...mockQuestionnaire.item!.map(i => ({ ...i, protocolCode: 'Burns' })),
+        ],
+      } as typeof mockQuestionnaire;
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: coded,
+          initialAnswers: { q2: 'yes' },
+          questionIndexOffset: 5,
+        })
+      );
+
+      act(() => {
+        result.current.validateAllQuestions();
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 1 (Burns) before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
+    it('should use the single-protocol name passed as protocolName', () => {
+      const { result } = renderHook(() =>
+        useFHIRStepper({
+          questionnaire: mockQuestionnaire,
+          initialAnswers: { q2: 'yes' },
+          protocolName: 'Fever',
+        })
+      );
+
+      act(() => {
+        result.current.validateAllQuestions();
+      });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Please answer Question 1 (Fever) before proceeding',
+        undefined,
+        'warning'
+      );
+    });
+
     // ── Conditional child validation (enableWhen gating) ────────────────────────
     it('should NOT block when parent option has no applicable children (no_change selected)', () => {
       /*

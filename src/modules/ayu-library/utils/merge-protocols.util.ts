@@ -45,9 +45,67 @@ const associatedChildKey = (child: AyuQuestion): string => {
   return `gate:${codes.join(',')}|type:${child.type}`;
 };
 
-function deriveProtocolCode(complaint: AyuJsonItem): string {
+export function deriveProtocolCode(complaint: AyuJsonItem): string {
   return complaint.name.replace(/\.json$/i, '').trim();
 }
+
+export interface ProtocolQuestionPosition {
+  /** Label shown above the counter; undefined when the name is blank. */
+  protocolName?: string;
+  /** 1-based position of the question within its protocol. */
+  number: number;
+  /** Number of top-level questions in that protocol. */
+  total: number;
+}
+
+/**
+ * Per-protocol position of every top-level stepper item, so the Visit Reason
+ * counter can read "Burns / Question 1/8" instead of a global "13/20".
+ *
+ * Each item is grouped by its `protocolCode` (set by `mergeProtocols` for 2+
+ * protocols), the merged Associated symptoms item by its own label, and any
+ * remaining item by `fallbackProtocolName` (the single-protocol case, where
+ * `mergeProtocols` adds no prefix). Returns null when no item has a code and
+ * no fallback is given — Medical History and Physical Exam keep the global
+ * numbering.
+ */
+export function getProtocolQuestionPositions(
+  topLevelItems: AyuQuestion[],
+  fallbackProtocolName?: string
+): ProtocolQuestionPosition[] | null {
+  const hasCode = topLevelItems.some(item => !!item.protocolCode);
+  if (!hasCode && fallbackProtocolName === undefined) return null;
+
+  const keys = topLevelItems.map(item => {
+    if (item.protocolCode) return item.protocolCode;
+    if (item.linkId === MERGED_ASSOCIATED_SYMPTOMS_LINK_ID)
+      return ASSOCIATED_SYMPTOMS_TEXT;
+    return fallbackProtocolName ?? '';
+  });
+
+  const totals = new Map<string, number>();
+  for (const key of keys) totals.set(key, (totals.get(key) ?? 0) + 1);
+
+  const seen = new Map<string, number>();
+  return keys.map(key => {
+    const number = (seen.get(key) ?? 0) + 1;
+    seen.set(key, number);
+    const name = key.trim();
+    return {
+      protocolName: name || undefined,
+      number,
+      total: totals.get(key)!,
+    };
+  });
+}
+
+/** Toast reference matching the card counter, e.g. "1 (Burns)". */
+export const protocolQuestionRef = (
+  position: ProtocolQuestionPosition
+): string =>
+  position.protocolName
+    ? `${position.number} (${position.protocolName})`
+    : String(position.number);
 
 function prefixForest(nodes: AyuQuestion[], prefix: string): AyuQuestion[] {
   const linkIdMap = new Map<string, string>();
