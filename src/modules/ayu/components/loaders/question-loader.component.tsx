@@ -91,7 +91,7 @@ export const QuestionLoader = ({
                   <>
                     {protocolName?.trim() && (
                       <p className="text-sm font-semibold text-[#2e1e91] break-words">
-                        {protocolName.trim()}
+                        {`${protocolName.trim()} questions`}
                       </p>
                     )}
                     <p className="text-sm font-medium text-[#2e1e91] mb-1">
