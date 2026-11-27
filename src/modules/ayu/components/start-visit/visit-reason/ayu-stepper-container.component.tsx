@@ -34,6 +34,10 @@ import {
   getBPRangeFromText,
 } from '../../../../ayu-library/utils/constants';
 import {
+  getProtocolQuestionPositions,
+  protocolQuestionRef,
+} from '../../../../ayu-library/utils/merge-protocols.util';
+import {
   collectDescendantLinkIds,
   getRowLabel,
 } from '../../../../ayu-library/utils/question.utils';
@@ -591,6 +595,9 @@ export interface AyuStepperContainerProps {
   initialAnswers?: Record<string, AyuAnswerValue>;
   questionIndexOffset?: number;
   totalQuestionsOverride?: number;
+  /** Visit Reason protocol name for a single selected protocol, whose items
+   *  carry no protocolCode. Shown above the counter. */
+  protocolName?: string;
   onComplete?: (answers: Record<string, AyuAnswerValue>) => void;
   onProgressUpdate?: (total: number, completed: number) => void;
   onSummaryShown?: () => void;
@@ -613,6 +620,7 @@ export const AyuStepperContainer = forwardRef<
       initialAnswers,
       questionIndexOffset = 0,
       totalQuestionsOverride,
+      protocolName,
       onComplete,
       onProgressUpdate,
       onSummaryShown,
@@ -669,6 +677,7 @@ export const AyuStepperContainer = forwardRef<
       skipSummary,
       initialAnswers,
       questionIndexOffset,
+      protocolName,
       onComplete: handleStepperComplete,
       onSummaryShown,
       resetLinkIds,
@@ -692,6 +701,22 @@ export const AyuStepperContainer = forwardRef<
       [topLevelItems, answers]
     );
 
+    /* Per-protocol counter positions for Visit Reason; null elsewhere
+     * (Medical History, Physical Exam), which keep the global numbering. */
+    const protocolPositions = useMemo(
+      () => getProtocolQuestionPositions(topLevelItems, protocolName),
+      [topLevelItems, protocolName]
+    );
+
+    /* Toast reference that matches the counter on the card. */
+    const questionRef = useCallback(
+      (index: number): number | string =>
+        protocolPositions
+          ? protocolQuestionRef(protocolPositions[index])
+          : index + questionIndexOffset + 1,
+      [protocolPositions, questionIndexOffset]
+    );
+
     const warnOnOpenEdit = useCallback((): boolean => {
       // Case 1: a question is in edit mode (Edit clicked, Submit not yet clicked)
       const pendingEditIndex = topLevelItems.findIndex(q =>
@@ -699,7 +724,7 @@ export const AyuStepperContainer = forwardRef<
       );
       if (pendingEditIndex !== -1) {
         showToast(
-          `Question ${pendingEditIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
+          `Question ${questionRef(pendingEditIndex)}: ${VALIDATION_SUBMIT_EDIT}`,
           undefined,
           'warning'
         );
@@ -718,7 +743,7 @@ export const AyuStepperContainer = forwardRef<
       );
       if (pendingSubmitIndex !== -1) {
         showToast(
-          `Question ${pendingSubmitIndex + questionIndexOffset + 1}: ${VALIDATION_SUBMIT_EDIT}`,
+          `Question ${questionRef(pendingSubmitIndex)}: ${VALIDATION_SUBMIT_EDIT}`,
           undefined,
           'warning'
         );
@@ -726,7 +751,7 @@ export const AyuStepperContainer = forwardRef<
       }
 
       return false;
-    }, [topLevelItems, questionIndexOffset]);
+    }, [topLevelItems, questionRef]);
 
     useImperativeHandle(
       ref,
@@ -1081,8 +1106,17 @@ export const AyuStepperContainer = forwardRef<
                 )}
                 <QuestionLoader
                   question={getRowLabel(question)}
-                  questionIndex={index + questionIndexOffset}
-                  totalQuestions={totalQuestionsOverride ?? total}
+                  questionIndex={
+                    protocolPositions
+                      ? protocolPositions[index].number - 1
+                      : index + questionIndexOffset
+                  }
+                  totalQuestions={
+                    protocolPositions
+                      ? protocolPositions[index].total
+                      : (totalQuestionsOverride ?? total)
+                  }
+                  protocolName={protocolPositions?.[index].protocolName}
                   isShowQuestionNumber={true}
                   isAnswered={showAsAnswered}
                   onEdit={
@@ -1219,9 +1253,7 @@ export const AyuStepperContainer = forwardRef<
                                   showToast(
                                     validationMessageForReason(
                                       result.reason,
-                                      showAll
-                                        ? index + questionIndexOffset + 1
-                                        : undefined,
+                                      showAll ? questionRef(index) : undefined,
                                       result.outOfRangeText
                                     ),
                                     undefined,

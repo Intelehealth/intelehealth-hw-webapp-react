@@ -235,3 +235,47 @@ describe('QuestionLoader', () => {
     });
   });
 });
+
+describe('QuestionLoader protocol name', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  const renderLoaded = async (props: Partial<Parameters<typeof QuestionLoader>[0]> = {}) => {
+    render(<QuestionLoader questionIndex={0} totalQuestions={12} {...props} />);
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+    });
+  };
+
+  it('renders "<protocol> questions" directly above the counter', async () => {
+    await renderLoaded({ protocolName: ' Abdominal Pain ' });
+    const name = screen.getByText('Abdominal Pain questions');
+    const counter = screen.getByText('Question 1/12');
+    expect(name.compareDocumentPosition(counter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(name.nextElementSibling).toBe(counter);
+    expect(name).toHaveClass('font-semibold', 'break-words');
+  });
+
+  it('renders nothing extra when the name is missing or blank', async () => {
+    await renderLoaded({ protocolName: '   ' });
+    const counter = screen.getByText('Question 1/12');
+    expect(counter.previousElementSibling).toBeNull();
+  });
+
+  it('hides the name on answered cards', async () => {
+    await renderLoaded({ protocolName: 'Burns', isAnswered: true });
+    expect(screen.queryByText(/Burns/)).not.toBeInTheDocument();
+  });
+
+  it('hides the name when the question number is hidden', async () => {
+    await renderLoaded({ protocolName: 'Burns', isShowQuestionNumber: false });
+    expect(screen.queryByText(/Burns/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Question 1/12')).not.toBeInTheDocument();
+  });
+});

@@ -98,7 +98,8 @@ export const VALIDATION_OUT_OF_RANGE =
 
 export const validationMessageForReason = (
   reason: QuestionValidationReason | undefined,
-  questionNumber?: number,
+  /** Global number, or a protocol-local ref such as "1 (Burns)". */
+  questionNumber?: number | string,
   outOfRangeText?: string
 ): string => {
   let message: string;

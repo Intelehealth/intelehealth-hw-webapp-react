@@ -7,6 +7,8 @@ interface QuestionLoaderProps {
   question?: string;
   questionIndex: number;
   totalQuestions: number;
+  /** Visit Reason protocol the question belongs to, shown above the counter. */
+  protocolName?: string;
   isShowQuestionNumber?: boolean;
   isAnswered?: boolean;
   onEdit?: () => void;
@@ -16,6 +18,7 @@ interface QuestionLoaderProps {
 export const QuestionLoader = ({
   questionIndex,
   totalQuestions,
+  protocolName,
   children,
   isShowQuestionNumber = true,
   isAnswered = false,
@@ -85,9 +88,16 @@ export const QuestionLoader = ({
                   </button>
                 )}
                 {!isAnswered && isShowQuestionNumber && (
-                  <p className="text-sm font-medium text-[#2e1e91] mb-1">
-                    {`Question ${questionIndex + 1}/${totalQuestions}`}
-                  </p>
+                  <>
+                    {protocolName?.trim() && (
+                      <p className="text-sm font-semibold text-[#2e1e91] break-words">
+                        {`${protocolName.trim()} questions`}
+                      </p>
+                    )}
+                    <p className="text-sm font-medium text-[#2e1e91] mb-1">
+                      {`Question ${questionIndex + 1}/${totalQuestions}`}
+                    </p>
+                  </>
                 )}
                 {/* CHILD UI */}
                 <>{children}</>

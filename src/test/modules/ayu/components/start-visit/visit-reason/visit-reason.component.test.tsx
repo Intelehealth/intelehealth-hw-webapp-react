@@ -83,7 +83,11 @@ vi.mock('../../../../../../modules/ayu/components/start-visit/visit-reason/ayu-s
         getAnswers: mockStepperGetAnswers,
       }));
       return (
-        <div data-testid="ayu-stepper-container" data-is-active={String(!!props.isActive)}>
+        <div
+          data-testid="ayu-stepper-container"
+          data-is-active={String(!!props.isActive)}
+          data-protocol-name={props.protocolName ?? '<none>'}
+        >
           <div>Stepper Container</div>
           {props.initialAnswers && (
             <div data-testid="initial-answers">{JSON.stringify(props.initialAnswers)}</div>
@@ -157,7 +161,10 @@ vi.mock('../../../../../../modules/ayu/utils/visit-summary.util', () => ({
 }));
 
 import { useGlobalModal } from '../../../../../../components/modal/global-modal-context';
-import { transformFhirToAyu } from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
+import {
+  questionnaireMatchesDemographics,
+  transformFhirToAyu,
+} from '../../../../../../modules/ayu-library/utils/fhir-to-ayu.util';
 import { useStartVisitData } from '../../../../../../modules/ayu/context/start-visit.context';
 import { buildVisitSummary } from '../../../../../../modules/ayu/utils/visit-summary.util';
 import { VisitReasonFooter } from '../../../../../../modules/ayu/components/start-visit/visit-reason/footer';
@@ -2508,5 +2515,74 @@ describe('VisitReason', () => {
       expect(mockOnProgressUpdate).toHaveBeenCalledWith(1, 0);
       expect(mockOnProtocolCleared).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('VisitReason protocol name for the stepper', () => {
+  const renderWithComplaints = (complaints: unknown[]) => {
+    vi.mocked(useGlobalModal).mockReturnValue({
+      showConfirmModal: vi.fn(),
+      showVitalConfirmationModal: vi.fn(),
+      closeModal: vi.fn(),
+    });
+    vi.mocked(useStartVisitData).mockReturnValue({
+      data: {
+        vitals: null,
+        visitReason: { answers: { q1: 'a' } },
+        physicalExam: null,
+        medicalHistory: null,
+        medicalHistoryAnswers: null,
+      },
+      setVisitReasonData: vi.fn(),
+      clearVisitReasonData: vi.fn(),
+      saveSectionToTemp: vi.fn(),
+    } as any);
+    vi.mocked(transformFhirToAyu).mockReturnValue({
+      linkId: 'root',
+      type: 'group',
+      item: [{ linkId: 'q1', text: 'Question 1', type: 'string' }],
+    });
+    render(
+      <VisitReason
+        questionIndex={0}
+        onNextQuestion={vi.fn()}
+        onPrevQuestion={vi.fn()}
+        visitReasons={createDefaultVisitReasons({
+          selectedReasons: ['x'],
+          selectedComplaints: complaints,
+        })}
+      />
+    );
+    return screen.getByTestId('ayu-stepper-container');
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(questionnaireMatchesDemographics).mockReturnValue(true);
+  });
+
+  it('passes the file-derived name when exactly one protocol is eligible', () => {
+    const stepper = renderWithComplaints([
+      createMockAyuJsonItem({ name: 'Burns.json' }),
+    ]);
+    expect(stepper).toHaveAttribute('data-protocol-name', 'Burns');
+  });
+
+  it('passes no name when two protocols are eligible (items carry codes)', () => {
+    const stepper = renderWithComplaints([
+      createMockAyuJsonItem({ name: 'Burns.json' }),
+      createMockAyuJsonItem({ id: 2, name: 'Abdominal Pain.json' }),
+    ]);
+    expect(stepper).toHaveAttribute('data-protocol-name', '<none>');
+  });
+
+  it('uses the same demographic eligibility as mergeProtocols', () => {
+    const burns = createMockAyuJsonItem({ name: 'Burns.json' });
+    const pain = createMockAyuJsonItem({ id: 2, name: 'Abdominal Pain.json' });
+    vi.mocked(questionnaireMatchesDemographics).mockImplementation(
+      json => json !== pain.json
+    );
+    const stepper = renderWithComplaints([burns, pain]);
+    expect(stepper).toHaveAttribute('data-protocol-name', 'Burns');
   });
 });

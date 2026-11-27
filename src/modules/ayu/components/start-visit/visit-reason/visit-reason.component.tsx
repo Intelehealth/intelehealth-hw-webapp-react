@@ -6,7 +6,11 @@ import type {
   AyuQuestion,
 } from '../../../../ayu-library/types/ayu.types';
 import type { SectionProps } from '../../../../ayu-library/types/start-visit.types';
-import { mergeProtocols } from '../../../../ayu-library/utils/merge-protocols.util';
+import { questionnaireMatchesDemographics } from '../../../../ayu-library/utils/fhir-to-ayu.util';
+import {
+  deriveProtocolCode,
+  mergeProtocols,
+} from '../../../../ayu-library/utils/merge-protocols.util';
 import { extractGenderLinkIds } from '../../../../ayu-library/utils/question.utils';
 import iconWashHand from '../../../assets/wash-hand.svg';
 import { useStartVisitData } from '../../../context/start-visit.context';
@@ -114,6 +118,18 @@ export const VisitReason = ({
   };
 
   const stableSchema = useMemo(() => ayuSchema, [ayuSchema]);
+
+  /*
+   * mergeProtocols tags items with protocolCode only for 2+ eligible
+   * protocols; with exactly one, its name has to come from here. Same
+   * eligibility rule as mergeProtocols so the label matches what is rendered.
+   */
+  const singleProtocolName = useMemo(() => {
+    const eligible = selectedComplaints.filter(c =>
+      questionnaireMatchesDemographics(c.json, patientDemographics)
+    );
+    return eligible.length === 1 ? deriveProtocolCode(eligible[0]) : undefined;
+  }, [selectedComplaints, patientDemographics]);
 
   const genderLinkIds = useMemo(
     () => extractGenderLinkIds(stableSchema?.item ?? []),
@@ -277,6 +293,7 @@ export const VisitReason = ({
               ref={stepperRef}
               questionnaire={stableSchema}
               summaryTitle={VISIT_REASON_SUMMARY_TITLE}
+              protocolName={singleProtocolName}
               initialAnswers={savedAnswers}
               onComplete={handleStepperComplete}
               onProgressUpdate={handleStepperProgress}
